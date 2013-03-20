@@ -1,0 +1,16 @@
+# Ensure python is 2.5
+PATH=/data/atlpan/bin:$PATH
+
+# for DQ2
+export X509_CERT_DIR=/etc/grid-security/certificates
+export X509_USER_PROXY=/data/atlpan/x509up_u25606
+
+# panda home
+export PANDA_HOME=@@install_dir@@
+
+# timezone
+export TZ=UTC
+
+# import panda modules
+export PYTHONPATH=@@install_purelib@@/pandacommon:@@install_purelib@@/pandaserver:@@install_purelib@@
+
