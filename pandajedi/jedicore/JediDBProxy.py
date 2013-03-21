@@ -1,5 +1,7 @@
 import sys
 
+from pandajedi.jediconfig import jedi_config
+
 from pandaserver import taskbuffer
 import taskbuffer.OraDBProxy
 from WorkQueueMapper import WorkQueueMapper
@@ -20,11 +22,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # connect to DB (just for INTR)
-    def connect(self,dbhost=None,dbpasswd=None,
-                dbuser=None,dbname=None,
+    def connect(self,dbhost=jedi_config.dbhost,dbpasswd=jedi_config.dbpasswd,
+                dbuser=jedi_config.dbuser,dbname=jedi_config.dbname,
                 dbtimeout=None,reconnect=False):
         return taskbuffer.OraDBProxy.DBProxy.connect(self,dbhost=dbhost,dbpasswd=dbpasswd,
-                                                     dbuser='ATLAS_PANDA',dbname=dbname,
+                                                     dbuser=dbuser,dbname=dbname,
                                                      dbtimeout=dbtimeout,reconnect=reconnect)
 
     # refresh work queue map

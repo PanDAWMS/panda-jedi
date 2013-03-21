@@ -6,6 +6,8 @@ import datetime
 import commands
 import threading
 
+from pandajedi.jediconfig import jedi_config
+
 from config import panda_config
 
 # initialize cx_Oracle using dummy connection
@@ -16,7 +18,7 @@ from pandajedi.jedicore import JediTaskBuffer
 from pandalogger.PandaLogger import PandaLogger
 
 taskBuffer= JediTaskBuffer.JediTaskBuffer()
-taskBuffer.init(sys.argv[1],sys.argv[2],nDBConnection=1)
+taskBuffer.init(jedi_config.dbhost,jedi_config.dbpasswd,nDBConnection=1)
 proxy = taskBuffer.proxyPool.getProxy()
 proxy.refreshWrokQueueMap()
 print proxy.workQueueMap.dump()

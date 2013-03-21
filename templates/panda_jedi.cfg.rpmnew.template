@@ -1,0 +1,16 @@
+[jedi]
+
+
+##########################
+#
+# Database parameters
+#
+
+# host
+dbhost = ADCR_PANDA
+
+# user
+dbuser = ATLAS_PANDA_WRITER
+
+# password
+dbpasswd = FIXME

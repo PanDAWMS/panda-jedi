@@ -148,13 +148,14 @@ setup(
     packages=[ 'pandajedi',
                'pandajedi.jedicore',
                'pandajedi.jediexec',
-               'pandajedi.jediddm',                              
+               'pandajedi.jediddm',
+               'pandajedi.jediconfig',
               ],
     data_files=[
                 # config files 
-                #('etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
-                #               ]
-                # ),
+                ('etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
+                               ]
+                 ),
                 # sysconfig
                 ('etc/sysconfig', ['templates/panda_jedi-sysconfig.rpmnew.template',
                                    ]
