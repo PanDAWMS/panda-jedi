@@ -24,7 +24,7 @@ class DDMClientBase(object):
             if not hasattr(self,commandObj.methodName):
                 # method not found
                 retObj.statusCode = self.SC_FATAL
-                retObj.errorValue = '%s instance has no attribute %s' % \
+                retObj.errorValue = 'type=AttributeError : %s instance has no attribute %s' % \
                     (className,commandObj.methodName)
             else:
                 try:
@@ -47,8 +47,9 @@ class DDMClientBase(object):
                     errtype,errvalue = sys.exc_info()[:2]
                     # failed
                     retObj.statusCode = self.SC_FATAL
-                    retObj.errorValue = '%s : %s.%s %s' % \
-                                        (errtype,className,commandObj.methodName,errvalue)
+                    retObj.errorValue = 'type=%s : %s.%s %s' % \
+                                        (errtype.__name__,className,
+                                         commandObj.methodName,errvalue)
             # return
             self.con.send(retObj)
 
