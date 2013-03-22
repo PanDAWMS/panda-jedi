@@ -1,7 +1,7 @@
 import sys
 import types
 
-import DDMReturnObject
+import Interaction
 
 # base class to interact with DDM
 class DDMClientBase(object):
@@ -17,7 +17,7 @@ class DDMClientBase(object):
             # get command
             commandObj = self.con.recv()
             # make return
-            retObj = DDMReturnObject.DDMReturnObject()
+            retObj = Interaction.DDMReturnObject()
             # get class name
             className = self.__class__.__name__
             # check method name
@@ -32,7 +32,7 @@ class DDMClientBase(object):
                     functionObj = getattr(self,commandObj.methodName)
                     # exec
                     tmpRet = apply(functionObj,commandObj.argList,commandObj.argMap)
-                    if isinstance(tmpRet,DDMReturnObject.StatusCode):
+                    if isinstance(tmpRet,Interaction.StatusCode):
                         # only status code was returned
                         retObj.statusCode = tmpRet
                     elif (isinstance(tmpRet,types.TupleType) or isinstance(tmpRet,types.ListType)) \
@@ -55,4 +55,4 @@ class DDMClientBase(object):
 
 
 # install SCs
-DDMReturnObject.installSC(DDMClientBase)
+Interaction.installSC(DDMClientBase)

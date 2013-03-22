@@ -25,7 +25,17 @@ statusCodeMap = {'SC_SUCCEEDED': StatusCode(0),
                  }
 
 
-# object class for return
+# object class for command
+class DDMCommandObject(object):
+    
+    # constructor    
+    def __init__(self,methodName,argList,argMap):
+        self.methodName = methodName
+        self.argList = argList
+        self.argMap = argMap
+
+
+# object class for response
 class DDMReturnObject(object):
 
     # constructor
@@ -33,6 +43,18 @@ class DDMReturnObject(object):
         self.statusCode  = None
         self.errorValue  = None
         self.returnValue = None
+
+
+
+# exception for temporary error
+class DDMTemporaryError(Exception):
+    pass
+
+
+
+# exception for fatal error
+class DDMFatalError(Exception):
+    pass
 
 
 

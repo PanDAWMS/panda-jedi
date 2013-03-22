@@ -3,11 +3,19 @@ import Queue
 import threading
 import multiprocessing
 
-import DDMCommandObject
-import DDMReturnObject
-from DDMExceptionObject import *
+import Interaction
 
 
+# process class
+class _ProcessClass(object):
+    # constructor
+    def __init__(self,process,connection):
+        self.process = process
+        self.connection = connection
+        self.nused = 0
+
+        
+                     
 # method class
 class _MethodClass(object):
     # constructor
@@ -18,38 +26,77 @@ class _MethodClass(object):
 
     # method emulation
     def __call__(self,*args,**kwargs):
-        commandObj = DDMCommandObject.DDMCommandObject(self.methodName,
-                                                 args,
-                                                 kwargs)
+        commandObj = Interaction.DDMCommandObject(self.methodName,
+                                                  args,kwargs)
+        # get child process
+        child_process = self.connectionQueue.get()
         # get pipe
-        pipe = self.connectionQueue.get()
+        pipe = child_process.connection
         # send command
         pipe.send(commandObj)
         # get response
         ret = pipe.recv()
-        # release pipe
-        self.connectionQueue.put(pipe)
+        # release child process
+        self.connectionQueue.put(child_process)
         # return
-        if ret.statusCode == DDMReturnObject.SC_SUCCEEDED:
+        if ret.statusCode == Interaction.SC_SUCCEEDED:
             return ret.returnValue
         else:
-            if ret.statusCode == DDMReturnObject.SC_FAILED:
-                retException = DDMTemporaryError
+            if ret.statusCode == Interaction.SC_FAILED:
+                retException = Interaction.DDMTemporaryError
             else:
-                retException = DDMFatalError
+                retException = Interaction.DDMFatalError
             raise retException,'VO=%s %s' % (self.vo,ret.errorValue)
         
 
 # VO interface
 class _VOInterface(object):
     # constructor
-    def __init__(self,vo,connectionQueue):
+    def __init__(self,vo,maxChild,moduleName,className):
         self.vo = vo
-        self.connectionQueue = connectionQueue
+        self.maxChild = maxChild
+        self.connectionQueue = Queue.Queue(maxChild)
+        self.moduleName = moduleName
+        self.className  = className
+        
 
     # factory method
-    def __getattr__(self,methodName):
-        return _MethodClass(methodName,self.vo,self.connectionQueue)
+    def __getattr__(self,attrName):
+        return _MethodClass(attrName,self.vo,self.connectionQueue)
+
+
+    # launcher for child processe
+    def launcher(self,channel):
+        try:
+            # import module
+            mod = __import__(self.moduleName)
+            # get class
+            cls = getattr(mod,self.className)
+            # start child process
+            cls(channel).start()
+        except:
+            pass
+            
+
+    # launch child processes to interact with DDM
+    def launchChild(self):
+        # make pipe
+        parent_conn, child_conn = multiprocessing.Pipe()
+        # make child process
+        child_process = multiprocessing.Process(target=self.launcher,
+                                                args=(child_conn,))
+        # keep process in queue        
+        processObj = _ProcessClass(child_process,parent_conn)
+        self.connectionQueue.put(processObj)
+        # start child process
+        child_process.start()
+
+
+    # initialize
+    def initialize(self):
+        for i in range(self.maxChild):
+            self.launchChild()
+            
             
     
 
@@ -61,39 +108,16 @@ class DDMInterface:
         self.interfaceMap = {}
 
 
-    # launch child processes to interact with DDM
-    def launchChild(self,channel,moduleName,className):
-        try:
-            # import module
-            mod = __import__(moduleName)
-            # get class
-            cls = getattr(mod,className)
-            # start child process
-            cls(channel).start()
-        except:
-            pass
-
-
     # setup interface
     def setupInterface(self):    
         maxSize = 3
         vo = 'atlas'
         moduleName = 'AtlasDDMClient'
         className  = 'AtlasDDMClient'
-        # make queue to keep pipes
-        connectionQueue = Queue.Queue(maxSize)
-        for i in range(maxSize):
-            # make pipe
-            parent_conn, child_conn = multiprocessing.Pipe()
-            # keep pipe in queue
-            connectionQueue.put(parent_conn)
-            # start child process
-            p = multiprocessing.Process(target=self.launchChild,
-                                        args=(child_conn,moduleName,className))
-            p.start()
-        # add VO interface    
-        self.interfaceMap[vo] = _VOInterface(vo,connectionQueue)
-        print "start"
+        # add VO interface
+        voIF = _VOInterface(vo,maxSize,moduleName,className)
+        voIF.initialize()
+        self.interfaceMap[vo] = voIF
 
 
     # get interface with VO
