@@ -47,7 +47,7 @@ class DDMClientBase(object):
                     errtype,errvalue = sys.exc_info()[:2]
                     # failed
                     retObj.statusCode = self.SC_FATAL
-                    retObj.errorValue = 'type=%s : %s.%s %s' % \
+                    retObj.errorValue = 'type=%s : %s.%s : %s' % \
                                         (errtype.__name__,className,
                                          commandObj.methodName,errvalue)
             # return

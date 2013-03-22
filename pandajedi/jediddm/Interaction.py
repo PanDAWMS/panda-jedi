@@ -57,6 +57,11 @@ class DDMFatalError(Exception):
     pass
 
 
+# exception for timeout error
+class DDMTimeoutError(Exception):
+    pass
+
+
 
 # install the list of status codes to a class
 def installSC(cls):

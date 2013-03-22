@@ -10,5 +10,5 @@ class AtlasDDMClient(DDMClientBase):
 
     # method
     def test(self):
-        print "aaaa"
+        print "aaaa1"
         return self.SC_SUCCEEDED

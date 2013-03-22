@@ -14,3 +14,16 @@ dbuser = ATLAS_PANDA_WRITER
 
 # password
 dbpasswd = FIXME
+
+# database
+dbname = PandaDB
+
+
+
+##########################
+#
+# DDM parameters
+#
+
+# interface config
+ddmifconfig = atlas:3:AtlasDDMClient:AtlasDDMClient
