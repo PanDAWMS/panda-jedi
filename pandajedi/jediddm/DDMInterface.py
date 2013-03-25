@@ -1,7 +1,10 @@
+import os
 import sys
 import Queue
+import signal
 import threading
 import multiprocessing
+import multiprocessing.reduction
 
 from pandajedi.jediconfig import jedi_config
 
@@ -11,10 +14,17 @@ import Interaction
 # process class
 class _ProcessClass(object):
     # constructor
-    def __init__(self,process,connection):
-        self.process = process
-        self.connection = connection
+    def __init__(self,pid,connection):
+        self.pid = pid
         self.nused = 0
+        # reduce connection to make it picklable
+        self.reduced_pipe = multiprocessing.reduction.reduce_connection(connection)
+
+    # get connection
+    def connection(self):
+        # rebuild connection
+        return self.reduced_pipe[0](*self.reduced_pipe[1])
+
 
                      
 # method class
@@ -37,17 +47,14 @@ class _MethodClass(object):
         # get child process
         child_process = self.connectionQueue.get()
         # get pipe
-        pipe = child_process.connection
+        pipe = child_process.connection()
         try:
             # send command
-            print 1
             pipe.send(commandObj)
-            print 2
             # wait response
             timeoutPeriod = 180
             if not pipe.poll(timeoutPeriod):
                 raise Interaction.DDMTimeoutError,"didn't return response for %ssec" % timeoutPeriod
-            print 3
             # get response
             ret = pipe.recv()
         except:
@@ -62,13 +69,14 @@ class _MethodClass(object):
             # close connection
             pipe.close()
             # terminate child process
-            child_process.process.terminate()
-            child_process.process.join()
+            os.kill(child_process.pid,signal.SIGKILL)
+            os.waitpid(child_process.pid)
             # make new child process
             self.voIF.launchChild()
         else:
-            # release child process
-            self.connectionQueue.put(child_process)
+            # remake process object to avoid deadlock due to rebuilding of connection 
+            processObj = _ProcessClass(child_process.pid,pipe)
+            self.connectionQueue.put(processObj)
         # raise exception
         if retException != None:
             raise retException,strException
@@ -89,7 +97,8 @@ class _VOInterface(object):
     def __init__(self,vo,maxChild,moduleName,className):
         self.vo = vo
         self.maxChild = maxChild
-        self.connectionQueue = Queue.Queue(maxChild)
+        #self.connectionQueue = Queue.Queue(maxChild)
+        self.connectionQueue = multiprocessing.Queue(maxChild)
         self.moduleName = moduleName
         self.className  = className
         
@@ -120,7 +129,7 @@ class _VOInterface(object):
         child_process = multiprocessing.Process(target=self.launcher,
                                                 args=(child_conn,))
         # keep process in queue        
-        processObj = _ProcessClass(child_process,parent_conn)
+        processObj = _ProcessClass(child_process.pid,parent_conn)
         self.connectionQueue.put(processObj)
         # start child process
         child_process.start()
@@ -172,8 +181,20 @@ class DDMInterface:
         return None
 
 
+    
 if __name__ == '__main__':
+    def dummyClient(dif):
+        print "client test"
+        dif.getInterface('atlas').test()
+        print 'client done'
+
     dif = DDMInterface()
     dif.setupInterface()
+    print "master test"
     atlasIF = dif.getInterface('atlas')
     atlasIF.test()
+    print "master done"
+    p = multiprocessing.Process(target=dummyClient,
+                                args=(dif,))
+    p.start()
+    p.join()
