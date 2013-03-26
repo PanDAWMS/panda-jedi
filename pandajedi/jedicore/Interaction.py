@@ -1,9 +1,14 @@
 import os
 import sys
+import time
+import signal
 import types
 import multiprocessing
 import multiprocessing.reduction
 
+import multiprocessing, logging
+logger = multiprocessing.log_to_stderr()
+logger.setLevel(multiprocessing.SUBDEBUG)
 
 ###########################################################
 #
@@ -85,6 +90,10 @@ class ProcessClass(object):
         # rebuild connection
         return self.reduced_pipe[0](*self.reduced_pipe[1])
 
+    # reduce connection
+    def reduceConnection(self,connection):
+        self.reduced_pipe = multiprocessing.reduction.reduce_connection(connection)
+
 
                      
 # method class
@@ -96,47 +105,60 @@ class MethodClass(object):
         self.vo = vo
         self.connectionQueue = connectionQueue
         self.voIF = voIF
+        self.pipeList = []
 
     # method emulation
     def __call__(self,*args,**kwargs):
         commandObj = CommandObject(self.methodName,
                                    args,kwargs)
-        # exceptions
-        retException = None
-        strException = None
-        # get child process
-        child_process = self.connectionQueue.get()
-        # get pipe
-        pipe = child_process.connection()
-        try:
-            # send command
-            pipe.send(commandObj)
-            # wait response
-            timeoutPeriod = 180
-            if not pipe.poll(timeoutPeriod):
-                raise JEDITimeoutError,"didn't return response for %ssec" % timeoutPeriod
-            # get response
-            ret = pipe.recv()
-        except:
-            errtype,errvalue = sys.exc_info()[:2]
-            retException = JEDITemporaryError
-            strException = 'VO=%s type=%s : %s.%s %s' % \
-                           (self.vo,errtype.__name__,self.className,self.methodName,errvalue)
-        # increment nused
-        child_process.nused += 1
-        # kill old or problematic process
-        if child_process.nused > 500 or retException != None:
-            # close connection
-            pipe.close()
-            # terminate child process
-            os.kill(child_process.pid,signal.SIGKILL)
-            os.waitpid(child_process.pid)
-            # make new child process
-            self.voIF.launchChild()
-        else:
-            # remake process object to avoid deadlock due to rebuilding of connection 
-            processObj = ProcessClass(child_process.pid,pipe)
-            self.connectionQueue.put(processObj)
+        nTry = 3
+        for iTry in range(nTry):
+            # exceptions
+            retException = None
+            strException = None
+            try:
+                # get child process
+                child_process = self.connectionQueue.get()
+                # get pipe
+                pipe = child_process.connection()
+                # send command
+                pipe.send(commandObj)
+                # wait response
+                timeoutPeriod = 180
+                if not pipe.poll(timeoutPeriod):
+                    raise JEDITimeoutError,"didn't return response for %ssec" % timeoutPeriod
+                # get response
+                ret = pipe.recv()
+            except:
+                errtype,errvalue = sys.exc_info()[:2]
+                retException = JEDITemporaryError
+                strException = 'VO=%s type=%s : %s.%s %s' % \
+                               (self.vo,errtype.__name__,self.className,self.methodName,errvalue)
+            # increment nused
+            child_process.nused += 1
+            # kill old or problematic process
+            if child_process.nused > 500 or retException != None:
+                # close connection
+                try:
+                    pipe.close()
+                except:
+                    pass
+                # terminate child process
+                try:
+                    os.kill(child_process.pid,signal.SIGKILL)
+                    os.waitpid(child_process.pid)
+                except:
+                    pass
+                # make new child process
+                self.voIF.launchChild()
+            # successfully finished    
+            if retException == None:
+                # reduce process object to avoid deadlock due to rebuilding of connection 
+                child_process.reduceConnection(pipe)
+                self.connectionQueue.put(child_process)
+                break
+            # sleep
+            time.sleep(1) 
         # raise exception
         if retException != None:
             raise retException,strException
@@ -170,15 +192,12 @@ class CommandSendInterface(object):
 
     # launcher for child processe
     def launcher(self,channel):
-        try:
-            # import module
-            mod = __import__(self.moduleName)
-            # get class
-            cls = getattr(mod,self.className)
-            # start child process
-            cls(channel).start()
-        except:
-            pass
+        # import module
+        mod = __import__(self.moduleName)
+        # get class
+        cls = getattr(mod,self.className)
+        # start child process
+        cls(channel).start()
             
 
     # launch child processes to interact with DDM

@@ -1,11 +1,3 @@
-import os
-import sys
-import Queue
-import signal
-import threading
-import multiprocessing
-import multiprocessing.reduction
-
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction
     
@@ -61,6 +53,7 @@ if __name__ == '__main__':
     atlasIF = dif.getInterface('atlas')
     atlasIF.test()
     print "master done"
+    import multiprocessing
     p = multiprocessing.Process(target=dummyClient,
                                 args=(dif,))
     p.start()
