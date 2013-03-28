@@ -16,7 +16,6 @@ class DDMInterface:
         for configStr in jedi_config.ddmifconfig.split(','):
             configStr = configStr.strip()
             items = configStr.split(':')
-            print configStr
             # check format
             try:
                 vo = items[0]

@@ -12,7 +12,7 @@ class JediTaskBufferInterface:
     def setupInterface(self):
         vo = 'any'
         maxSize = 1
-        moduleName = 'JediTaskBuffer'
+        moduleName = 'pandajedi.jedicore.JediTaskBuffer'
         className  = 'JediTaskBuffer'
         self.interface = Interaction.CommandSendInterface(vo,maxSize,
                                                           moduleName,
@@ -20,9 +20,9 @@ class JediTaskBufferInterface:
         self.interface.initialize()
         
 
-    # get interface with VO
-    def getInterface(self):
-        return self.interface
+    # method emulation
+    def __getattr__(self,attrName):
+        return getattr(self.interface,attrName)
 
 
 if __name__ == '__main__':
@@ -30,9 +30,9 @@ if __name__ == '__main__':
         print "client test"
         import time
         for i in range(3):
-            time.sleep(i*stime)
+            #time.sleep(i*stime)
             try:
-                dif.getInterface().testIF()
+                print dif.getCloudList()
             except:
                 print "exp"
         print 'client done'
@@ -40,8 +40,7 @@ if __name__ == '__main__':
     dif = JediTaskBufferInterface()
     dif.setupInterface()
     print "master test"
-    atlasIF = dif.getInterface()
-    atlasIF.testIF()
+    print dif.getCloudList()
     print "master done"
     import multiprocessing
     pList = []

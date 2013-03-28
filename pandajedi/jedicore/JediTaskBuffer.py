@@ -19,7 +19,74 @@ class JediTaskBuffer(taskbuffer.TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                               jedi_config.dbpasswd,
                                               nDBConnection=1)
 
-    def testIF(self):
-        print 123
-        return True
-    
+
+    # get the list of datasets to feed contents to DB
+    def getDatasetsToFeedContentsJEDI(self):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # get
+        retVal = proxy.getDatasetsToFeedContentsJEDI()
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+    # feed files to the JEDI contents table
+    def insertFilesForDatasetJEDI(self,taskID,datasetID,fileMap):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.insertFilesForDatasetJEDI(taskID,datasetID,fileMap)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+    # insert dataset to the JEDI datasets table
+    def insertDatasetJEDI(self,datasetSpec):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.insertDatasetJEDI(datasetSpec)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+    # update JEDI dataset
+    def updateDatasetJEDI(self,datasetSpec,criteria):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.updateDatasetJEDI(datasetSpec,criteria)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+    # insert task to the JEDI tasks table
+    def insertTaskJEDI(self,taskSpec):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.insertTaskJEDI(taskSpec)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+    # update JEDI task
+    def updateTaskJEDI(self,taskSpec,criteria):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.updateTaskJEDI(taskSpec,criteria)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

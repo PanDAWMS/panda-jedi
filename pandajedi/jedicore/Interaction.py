@@ -6,9 +6,9 @@ import types
 import multiprocessing
 import multiprocessing.reduction
 
-import multiprocessing, logging
-logger = multiprocessing.log_to_stderr()
-logger.setLevel(multiprocessing.SUBDEBUG)
+#import multiprocessing, logging
+#logger = multiprocessing.log_to_stderr()
+#logger.setLevel(multiprocessing.SUBDEBUG)
 
 ###########################################################
 #
@@ -129,15 +129,20 @@ class MethodClass(object):
                     raise JEDITimeoutError,"didn't return response for %ssec" % timeoutPeriod
                 # get response
                 ret = pipe.recv()
+                # set exception type based on error
+                if ret.statusCode == SC_FAILED:
+                    retException = JEDITemporaryError
+                elif ret.statusCode == SC_FATAL:
+                    retException = JEDIFatalError
             except:
                 errtype,errvalue = sys.exc_info()[:2]
-                retException = JEDITemporaryError
+                retException = errtype
                 strException = 'VO=%s type=%s : %s.%s %s' % \
                                (self.vo,errtype.__name__,self.className,self.methodName,errvalue)
             # increment nused
             child_process.nused += 1
             # kill old or problematic process
-            if child_process.nused > 500 or retException != None:
+            if child_process.nused > 500 or not retException in [None,JEDITemporaryError,JEDIFatalError]:
                 # close connection
                 try:
                     pipe.close()
@@ -151,8 +156,8 @@ class MethodClass(object):
                     pass
                 # make new child process
                 self.voIF.launchChild()
-            # successfully finished    
-            if retException == None:
+            # success, fatal error, or maximally attempted    
+            if retException in [None,JEDIFatalError] or (iTry+1 == nTry):
                 # reduce process object to avoid deadlock due to rebuilding of connection 
                 child_process.reduceConnection(pipe)
                 self.connectionQueue.put(child_process)
@@ -166,10 +171,6 @@ class MethodClass(object):
         if ret.statusCode == SC_SUCCEEDED:
             return ret.returnValue
         else:
-            if ret.statusCode == SC_FAILED:
-                retException = JEDITemporaryError
-            else:
-                retException = JEDIFatalError
             raise retException,'VO=%s %s' % (self.vo,ret.errorValue)
         
 
@@ -194,6 +195,8 @@ class CommandSendInterface(object):
     def launcher(self,channel):
         # import module
         mod = __import__(self.moduleName)
+        for subModuleName in self.moduleName.split('.')[1:]:
+            mod = getattr(mod,subModuleName)
         # get class
         cls = getattr(mod,self.className)
         # start child process
@@ -211,6 +214,7 @@ class CommandSendInterface(object):
         processObj = ProcessClass(child_process.pid,parent_conn)
         self.connectionQueue.put(processObj)
         # start child process
+        child_process.daemon = True
         child_process.start()
 
 
@@ -258,7 +262,16 @@ class CommandReceiveInterface(object):
                             retObj.statusCode = tmpRet[0]
                             # status code + return values
                             if len(tmpRet) > 1:
-                                retObj.returnValue = tmpRet[1:]
+                                if retObj.statusCode == self.SC_SUCCEEDED:
+                                    if len(tmpRet) == 2:
+                                        retObj.returnValue = tmpRet[1]
+                                    else:
+                                        retObj.returnValue = tmpRet[1:]
+                                else:
+                                    if len(tmpRet) == 2:
+                                        retObj.errorValue = tmpRet[1]
+                                    else:
+                                        retObj.errorValue = tmpRet[1:]
                     else:        
                         retObj.statusCode = self.SC_SUCCEEDED
                         retObj.returnValue = tmpRet

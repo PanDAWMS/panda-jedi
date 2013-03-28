@@ -148,7 +148,9 @@ setup(
     packages=[ 'pandajedi',
                'pandajedi.jedicore',
                'pandajedi.jediexec',
+               'pandajedi.jeditest',               
                'pandajedi.jediddm',
+               'pandajedi.jediorder',               
                'pandajedi.jediconfig',
               ],
     data_files=[
