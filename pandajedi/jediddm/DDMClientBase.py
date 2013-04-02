@@ -1,6 +1,3 @@
-import sys
-import types
-
 from pandajedi.jedicore.Interaction import CommandReceiveInterface
 
 # base class to interact with DDM

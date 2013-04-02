@@ -90,8 +90,9 @@ class ContentsFeederThread (WorkerThread):
                     try:
                         tmpRet = self.ddmIF.getInterface(vo).getFilesInDataset(datasetName)
                     except:
-                        self.logger.error('%s failed to get file list for %s due to %s' % \
-                                          (self.__class__.__name__,datasetName,tmpRet))
+                        errtype,errvalue = sys.exc_info()[:2]
+                        self.logger.error('%s failed to get file list for %s due to %s:%s' % \
+                                          (self.__class__.__name__,datasetName,errtype.__name__,errvalue))
                         datasetStatus = 'failedlookup'
                     else:
                         # feed files to the contents table
