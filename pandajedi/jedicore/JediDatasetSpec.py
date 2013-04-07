@@ -30,6 +30,8 @@ class JediDatasetSpec(object):
         # install attributes
         for attr in self._attributes:
             object.__setattr__(self,attr,None)
+        # file list
+        object.__setattr__(self,'Files',[])
         # map of changed attributes
         object.__setattr__(self,'_changedAttrs',{})
 
@@ -44,6 +46,12 @@ class JediDatasetSpec(object):
             self._changedAttrs[name] = value
 
 
+    # add File to files list
+    def addFile(self,fileSpec):
+        # append
+        self.Files.append(fileSpec)
+
+        
     # reset changed attribute list
     def resetChangedList(self):
         object.__setattr__(self,'_changedAttrs',{})
@@ -119,6 +127,13 @@ class JediDatasetSpec(object):
         ret += ' '
         return ret
 
+
+    # get the total size of files
+    def getSize(self):
+        totalSize = 0
+        for tmpFileSpec in self.Files:
+            totalSize += tmpFileSpec.fsize
+        return totalSize    
 
         
 

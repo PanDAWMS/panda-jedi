@@ -50,6 +50,18 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         return retVal
 
 
+    # get files from the JEDI contents table with taskID and/or datasetID
+    def getFilesInDatasetWithID_JEDI(self,taskID=None,datasetID=None,nFiles=None,status=None):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getFilesInDatasetWithID_JEDI(taskID,datasetID,nFiles,status)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
     # insert dataset to the JEDI datasets table
     def insertDataset_JEDI(self,datasetSpec):
         # get DBproxy
@@ -68,6 +80,18 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.updateDataset_JEDI(datasetSpec,criteria)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+    # get JEDI dataset with datasetID
+    def getDatasetWithID_JEDI(self,datasetID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getDatasetWithID_JEDI(datasetID)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -98,7 +122,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         return retVal
 
 
-    # get JEDI task with ID
+    # get JEDI task with taskID
     def getTaskWithID_JEDI(self,taskID):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
@@ -111,11 +135,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get job statistics with work queue
-    def getJobStatisticsWithWorkQueue_JEDI(self,prodSourceLabel,minPriority=None):
+    def getJobStatisticsWithWorkQueue_JEDI(self,vo,prodSourceLabel,minPriority=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getJobStatisticsWithWorkQueue_JEDI(prodSourceLabel,minPriority)
+        retVal = proxy.getJobStatisticsWithWorkQueue_JEDI(vo,prodSourceLabel,minPriority)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

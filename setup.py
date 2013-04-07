@@ -152,6 +152,7 @@ setup(
                'pandajedi.jediddm',
                'pandajedi.jediorder',               
                'pandajedi.jediconfig',
+               'pandajedi.jedibrokerage',               
               ],
     data_files=[
                 # config files 

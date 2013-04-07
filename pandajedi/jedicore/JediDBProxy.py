@@ -182,6 +182,67 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False
 
 
+    # get files from the JEDI contents table with taskID and/or datasetID
+    def getFilesInDatasetWithID_JEDI(self,taskID,datasetID,nFiles,status):
+        comment = ' /* JediDBProxy.getFilesInDataset_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName = '%s taskID=%s datasetID=%s nFiles=%s' % (methodName,taskID,datasetID,nFiles)
+        logger.debug('%s start' % methodName)
+        # return value for failure
+        failedRet = False,0
+        if taskID==None and datasetID==None:
+            logger.error("%s : either taskID or datasetID is not defined" % methodName)
+            return failedRet
+        try:
+            # sql 
+            varMap = {}
+            sql  = "SELECT * FROM (SELECT %s " % JediFileSpec.columnNames()
+            sql += "FROM ATLAS_PANDA.JEDI_Dataset_Contents WHERE "
+            useAND = False
+            if taskID != None:    
+                sql += "taskID=:taskID "
+                varMap[':taskID'] = taskID
+                useAND = True
+            if datasetID != None:
+                if useAND:
+                    sql += "AND "
+                sql += "datasetID=:datasetID "
+                varMap[':datasetID'] = datasetID
+                useAND = True
+            if status != None:
+                if useAND:
+                    sql += "AND "
+                sql += "status=:status "
+                varMap[':status'] = status
+                useAND = True
+            sql += " ORDER BY fileID) "
+            if nFiles != None:
+                sql += "WHERE rownum <= %s" % nFiles
+            # begin transaction
+            self.conn.begin()
+            # get existing file list
+            self.cur.execute(sql+comment,varMap)
+            tmpResList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # make file specs 
+            fileSpecList = []
+            for tmpRes in tmpResList:
+                fileSpec = JediFileSpec()
+                fileSpec.pack(tmpRes)
+                fileSpecList.append(fileSpec)
+            logger.debug('%s got %s files' % (methodName,len(fileSpecList)))
+            return True,fileSpecList
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            return failedRet
+
+
     # insert dataset to the JEDI datasets table
     def insertDataset_JEDI(self,datasetSpec):
         comment = ' /* JediDBProxy.insertDataset_JEDI */'
@@ -263,6 +324,44 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             logger.error("%s : %s %s" % (methodName,errtype,errvalue))
             return failedRet
                 
+        
+    # get JEDI dataset with datasetID
+    def getDatasetWithID_JEDI(self,datasetID):
+        comment = ' /* JediDBProxy.getDatasetWithID_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' datasetID=%s ' % datasetID
+        logger.debug('%s start ' % methodName)
+        # return value for failure
+        failedRet = False,None
+        try:
+            # sql
+            sql  = "SELECT %s " % JediDatasetSpec.columnNames()
+            sql += "FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID "
+            varMap = {}
+            varMap[':datasetID'] = datasetID
+            # begin transaction
+            self.conn.begin()
+            # select
+            self.cur.execute(sql+comment,varMap)
+            res = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            if res != None:
+                datasetSepc = JediDatasetSpec()
+                datasetSepc.pack(res)
+            else:
+                datasetSepc = None
+            logger.debug('%s done' % methodName)
+            return True,datasetSepc
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            return failedRet
+
         
     # insert task to the JEDI task table
     def insertTask_JEDI(self,taskSpec):
@@ -348,7 +447,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getTaskWithID_JEDI(self,taskID):
         comment = ' /* JediDBProxy.getTaskWithID_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += 'taskID=%s ' % taskID
+        methodName += ' taskID=%s ' % taskID
         logger.debug('%s start ' % methodName)
         # return value for failure
         failedRet = False,None
@@ -383,12 +482,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get job statistics with work queue
-    def getJobStatisticsWithWorkQueue_JEDI(self,prodSourceLabel,minPriority):
+    def getJobStatisticsWithWorkQueue_JEDI(self,vo,prodSourceLabel,minPriority):
         comment = ' /* DBProxy.getJobStatisticsWithWorkQueue_JEDI */'
         methodName = self.getMethodName(comment)
-        logger.debug('%s %s start minPriority=%s' % (methodName,prodSourceLabel,minPriority))
+        methodName = '%s vo=%s label=%s' % (methodName,vo,prodSourceLabel)
+        logger.debug('%s start minPriority=%s' % (methodName,minPriority))
         sql0 = "SELECT computingSite,cloud,jobStatus,workQueue_ID,COUNT(*) FROM %s "
-        sql0 += "WHERE prodSourceLabel=:prodSourceLabel "
+        sql0 += "WHERE vo=:vo and prodSourceLabel=:prodSourceLabel "
         tmpPrioMap = {}
         if minPriority != None:
             sql0 += "AND currentPriority>=:minPriority "
@@ -404,6 +504,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tables.append('ATLAS_PANDA.jobsActive4')
             sqlMVforRun = re.sub('currentPriority>=','currentPriority<=',sqlMV)
         varMap = {}
+        varMap[':vo'] = vo
         varMap[':prodSourceLabel'] = prodSourceLabel
         for tmpPrio in tmpPrioMap.keys():
             varMap[tmpPrio] = tmpPrioMap[tmpPrio]
@@ -461,7 +562,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # add    
                     returnMap[computingSite][cloud][workQueue_ID][jobStatus] += nCount
             # return
-            logger.debug('%s %s end' % (methodName,prodSourceLabel))
+            logger.debug('%s end' % methodName)
             return True,returnMap
         except:
             # roll back

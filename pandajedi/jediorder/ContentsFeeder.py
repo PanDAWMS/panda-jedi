@@ -2,7 +2,6 @@ import sys
 import time
 import datetime
 
-from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from JediKnight import JediKnight
 

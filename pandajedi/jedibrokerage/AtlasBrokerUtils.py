@@ -3,6 +3,8 @@ import re
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
 
+
+
 # get hospital queues
 def getHospitalQueues(siteMapper):
     retMap = {}
@@ -102,6 +104,7 @@ def getSitesWithData(siteMapper,ddmIF,datasetName):
     return Interaction.SC_SUCCEEDED,retMap
 
 
+
 # get the number of jobs in a status
 def getNumJobs(jobStatMap,computingSite,jobStatus,cloud=None,workQueue_ID=None):
     if not jobStatMap.has_key(computingSite):
@@ -123,3 +126,36 @@ def getNumJobs(jobStatMap,computingSite,jobStatus,cloud=None,workQueue_ID=None):
                     nJobs += tmpCount
     # return
     return nJobs
+
+
+
+# get mapping between sites and storage endpoints 
+def getSiteStorageEndpointMap(siteList,siteMapper):
+    # get T1s
+    t1Map = {}
+    for tmpCloudName in siteMapper.getCloudList():
+        # get cloud
+        tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
+        # get T1
+        tmpT1Name = tmpCloudSpec['source']
+        # append
+        t1Map[tmpT1Name] = tmpCloudName
+    # loop over all sites
+    retMap = {}
+    for siteName in siteList:
+        tmpSiteSpec = siteMapper.getSite(siteName)
+        # use schedconfig.ddm
+        retMap[siteName] = [tmpSiteSpec.ddm]
+        for tmpEP in tmpSiteSpec.setokens.values():
+            if tmpEP != '' and not tmpEP in retMap[siteName]:
+                retMap[siteName].append(tmpEP)
+        # use cloudconfig.tier1SE for T1       
+        if t1Map.has_key(siteName):
+            tmpCloudName = t1Map[siteName]
+            # get cloud
+            tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
+            for tmpEP in tmpCloudSpec['tier1SE']:
+                if tmpEP != '' and not tmpEP in retMap[siteName]:
+                    retMap[siteName].append(tmpEP)
+    # return
+    return retMap

@@ -1,4 +1,8 @@
+import sys
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.SiteCandidate import SiteCandidate
+from pandajedi.jedicore import Interaction
 from JobBrokerBase import JobBrokerBase
 import AtlasBrokerUtils
 
@@ -18,7 +22,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
 
     # main
-    def doBrokerage(self,taskSpec,cloudName,inFilesMap):
+    def doBrokerage(self,taskSpec,cloudName,inputChunk):
         # make logger
         tmpLog = MsgWrapper(logger,'taskID=%s' % taskSpec.taskID)
         tmpLog.debug('start')
@@ -29,7 +33,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
         tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
         # get job statistics
-        tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.prodSourceLabel)
+        tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,taskSpec.prodSourceLabel)
         if not tmpSt:
             tmpLog.error('failed to get job statistics')
             return retTmpError
@@ -90,7 +94,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for data availability
-        for datasetName in inFilesMap.keys():
+        for datasetSpec in inputChunk.getDatasets():
+            datasetName = datasetSpec.datasetName
             if not self.dataSiteMap.has_key(datasetName):
                 # get the list of sites where data is available
                 tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,
@@ -288,20 +293,69 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpLog.error('no candidates')
             return retTmpError
         ######################################
+        # get available files
+        totalSize = 0
+        normalizeFactors = {}        
+        availableFileMap = {}
+        for datasetSpec in inputChunk.getDatasets():
+            try:
+                # mapping between sites and storage endpoints
+                siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(scanSiteList,self.siteMapper)
+                # get available files per site/endpoint
+                tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
+                                                            siteStorageEP,
+                                                            self.siteMapper,
+                                                            ngGroup=[1])
+                if tmpAvFileMap == None:
+                    raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
+                availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
+            except:
+                errtype,errvalue = sys.exc_info()[:2]
+                tmpLog.error('failed to get available files with %s %s' % (errtype.__name__,errvalue))
+                return retTmpError
+            # get total size
+            totalSize += datasetSpec.getSize()
+            # loop over all sites to get the size of available files
+            for tmpSiteName in scanSiteList:
+                if not normalizeFactors.has_key(tmpSiteName):
+                    normalizeFactors[tmpSiteName] = 0
+                # get the total size of available files
+                if availableFileMap[datasetSpec.datasetName].has_key(tmpSiteName):
+                    availableFiles = availableFileMap[datasetSpec.datasetName][tmpSiteName]
+                    for tmpFileSpec in \
+                            availableFiles['localdisk']+availableFiles['localtape']+availableFiles['cache']:
+                        normalizeFactors[tmpSiteName] += tmpFileSpec.fsize
+        ######################################
         # calculate weight
-        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.prodSourceLabel,
+        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
+                                                                                    taskSpec.prodSourceLabel,
                                                                                     taskSpec.currentPriority)
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             return retTmpError
-        returnMap = {}
+        weightMap = {}
         for tmpSiteName in scanSiteList:
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',cloudName,taskSpec.workQueue_ID)
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',cloudName,taskSpec.workQueue_ID)
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',cloudName,taskSpec.workQueue_ID)
             weight = float(nRunning + 1) / float(nActivated + nAssigned + 1) / float(nAssigned + 1)
-            # append
-            returnMap[tmpSiteName] = weight
+            # noramize weights by taking data availability into account
+            if totalSize != 0:
+                weight = weight * float(normalizeFactors[tmpSiteName]+totalSize) / float(totalSize)
+            # make candidate
+            siteCandidateSpec = SiteCandidate(tmpSiteName)
+            # set weight
+            siteCandidateSpec.weight = weight
+            # set available files
+            for tmpDatasetName,availableFiles in availableFileMap.iteritems():
+                if availableFiles.has_key(tmpSiteName):
+                    siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
+                    siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
+                    siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
+                    siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
+            # append        
+            inputChunk.addSiteCandidate(siteCandidateSpec)
         # return
-        return True,returnMap
+        tmpLog.debug('done')        
+        return True,inputChunk
     
