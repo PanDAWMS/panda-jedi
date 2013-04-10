@@ -1,10 +1,9 @@
-[jedi]
-
-
 ##########################
 #
 # Database parameters
 #
+
+[db]
 
 # host
 dbhost = ADCR_PANDA
@@ -25,5 +24,38 @@ dbname = PandaDB
 # DDM parameters
 #
 
+[ddm]
+
 # interface config
-ddmifconfig = atlas:3:AtlasDDMClient:AtlasDDMClient
+modconfig = atlas:3:pandajedi.jediddm.AtlasDDMClient:AtlasDDMClient
+
+# list of VOs which use scope
+vowithscope = atlas
+
+
+
+
+##########################
+#
+# Job Brokerage parameters
+#
+
+[jobbroker]
+
+# interface config
+modconfig = atlas:managed:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBroker
+
+
+
+##########################
+#
+# Job Generator parameters
+#
+
+[jobgen]
+
+# number of tasks per cycle
+ntasks = 50
+
+# number of files per task
+nfiles = 100

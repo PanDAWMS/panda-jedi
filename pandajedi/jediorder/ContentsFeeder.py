@@ -29,7 +29,7 @@ class ContentsFeeder (JediKnight):
             startTime = datetime.datetime.utcnow()
             try:
                 # get the list of datasets to feed contents to DB
-                tmpList = self.taskBufferIF.getDatasetsToFeedContentsJEDI()
+                tmpList = self.taskBufferIF.getDatasetsToFeedContents_JEDI()
                 if tmpList == None:
                     # failed
                     logger.error('failed to get the list of datasets to feed contents')
@@ -79,7 +79,7 @@ class ContentsFeederThread (WorkerThread):
                 nDataset = 10
                 dsList = self.dsList.get(nDataset)
                 # no more datasets
-                if dsList == []:
+                if len(dsList) == 0:
                     self.logger.debug('%s terminating since no more datasets' % self.__class__.__name__)
                     return
                 # loop over all datasets
@@ -95,13 +95,13 @@ class ContentsFeederThread (WorkerThread):
                         datasetStatus = 'failedlookup'
                     else:
                         # feed files to the contents table
-                        self.taskBufferIF.insertFilesForDatasetJEDI(taskID,datasetID,tmpRet)
+                        self.taskBufferIF.insertFilesForDataset_JEDI(taskID,datasetID,tmpRet)
                         datasetStatus = 'ready'
                     # update dataset status
                     tmpDsSpec = JediDatasetSpec()
                     tmpDsSpec.status = datasetStatus
                     tmpDsSpec.lockedBy = None
-                    self.taskBufferIF.updateDatasetJEDI(tmpDsSpec,{'datasetID':datasetID})
+                    self.taskBufferIF.updateDataset_JEDI(tmpDsSpec,{'datasetID':datasetID})
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('%s failed in runImpl() with %s %s' % (self.__class__.__name__,errtype.__name__,errvalue))

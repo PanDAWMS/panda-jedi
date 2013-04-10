@@ -3,10 +3,10 @@ from pandajedi.jedicore import Interaction
 # base class for job brokerge
 class JobBrokerBase (object):
 
-    def __init__(self,ddmIF,taskBufferIF,siteMapper):
+    def __init__(self,ddmIF,taskBufferIF):
         self.ddmIF = ddmIF
         self.taskBufferIF = taskBufferIF
-        self.siteMapper = siteMapper
+        self.siteMapper = taskBufferIF.getSiteMapper()
 
 
 

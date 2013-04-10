@@ -1,3 +1,5 @@
+import sys
+
 from pandajedi.jediconfig import jedi_config
 
 # logger
@@ -15,10 +17,15 @@ class JobBroker:
         self.impl = None
 
 
+    # main
+    def doBrokerage(self,taskSpec,cloudName,inputChunk):
+        return self.impl.doBrokerage(taskSpec,cloudName,inputChunk)
+
+    
     # initialize
     def initialize(self,ddmIF,taskBufferIF):
         # parse config
-        for configStr in jedi_config.jobbrokerconfig.split(','):
+        for configStr in jedi_config.jobbroker.modconfig.split(','):
             configStr = configStr.strip()
             items = configStr.split(':')
             # check format
@@ -31,14 +38,14 @@ class JobBroker:
                 logger.error('wrong config definition : %s' % configStr)
                 continue
             # import
-            if vo == self.vo and sourceLabel == self.sourceLabel:
+            if vo in [self.vo,'any'] and sourceLabel in [self.sourceLabel,'any']:
                 try:
                     # import module
-                    mod = __import__(self.moduleName)
-                    for subModuleName in self.moduleName.split('.')[1:]:
+                    mod = __import__(moduleName)
+                    for subModuleName in moduleName.split('.')[1:]:
                         mod = getattr(mod,subModuleName)
                     # get class
-                    cls = getattr(mod,self.className)
+                    cls = getattr(mod,className)
                     # start child process
                     self.impl = cls(ddmIF,taskBufferIF)
                 except:

@@ -7,25 +7,44 @@ class InputChunk:
 
     # constructor
     def __init__(self,masterDataset=None,secondaryDatasetList=[]):
-        # the master dataset
-        self.masterDataset = masterDataset
         # the list of secondary datasets
-        self.secondaryDatasetList = secondaryDatasetList
+        if secondaryDatasetList == None:
+            self.secondaryDatasetList = []
+        else:
+            self.secondaryDatasetList = secondaryDatasetList
         # the list of site candidates
         self.siteCandidates = {}
         # the name of master index
         self.masterIndexName = None
         # dataset mapping including indexes of files/events
         self.datasetMap = {}
-        if self.masterDataset != None:
+        # the master dataset
+        self.masterDataset = None
+        self.addMasterDS(masterDataset)
+        # the list of secondary datasets
+        self.secondaryDatasetList = []
+        for secondaryDS in secondaryDatasetList:
+            self.addSecondaryDS(secondaryDS)
+
+
+
+    # add master dataset
+    def addMasterDS(self,masterDataset):
+        if masterDataset != None:
+            self.masterDataset = masterDataset
             self.masterIndexName = self.masterDataset.datasetID
-            self.datasetMap[self.masterDataset.datasetID] = {'used':0,'max':len(self.masterDataset.Files),
-                                                             'datasetSpec':self.masterDataset}
-        for datasetSpec in self.secondaryDatasetList:    
-            self.datasetMap[datasetSpec.datasetID] = {'used':0,'max':len(self.datasetSpec.Files),
-                                                      'datasetSpec':datasetSpec}
+            self.datasetMap[self.masterDataset.datasetID] = {'used':0,'datasetSpec':masterDataset}
 
 
+
+    # add secondary dataset
+    def addSecondaryDS(self,secondaryDataset):
+        if not secondaryDataset in self.secondaryDatasetList:
+            self.secondaryDatasetList.append(secondaryDataset)
+            self.datasetMap[secondaryDataset.datasetID] = {'used':0,'datasetSpec':secondaryDataset}
+        
+                    
+    
     # return list of datasets
     def getDatasets(self):
         dataList = []
@@ -35,6 +54,7 @@ class InputChunk:
         return dataList
 
 
+
     # return dataset with datasetID
     def getDatasetWithID(self,datasetID):
         if self.datasetMap.has_key(datasetID):
@@ -42,10 +62,12 @@ class InputChunk:
         return None
 
 
+
     # add site candidates
     def addSiteCandidate(self,siteCandidateSpec):
         self.siteCandidates[siteCandidateSpec.siteName] = siteCandidateSpec
         return
+
 
 
     # get one site candidate randomly
@@ -66,13 +88,15 @@ class InputChunk:
         return random.choice(siteCandidate)
 
 
+
     # check if unused files/events remain
     def checkUnused(self):
         # master is undefined
         if self.masterIndexName == None:
             return False
         indexVal = self.datasetMap[self.masterIndexName]
-        return indexVal['used'] < indexVal['max']
+        return indexVal['used'] < len(indexVal['datasetSpec'].Files)
+
 
 
     # get subchunk with a selection criteria
@@ -96,12 +120,14 @@ class InputChunk:
         fileSize       = 0
         firstLoop      = True
         firstMaster    = True
-        inputFileList  = []
+        inputFileMap   = {}
         while inputNumFiles < maxNumFiles and fileSize < maxSize:
             # get one file (or one file group for MP) from master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
-                inputFileList.append(tmpFileSpec)
+                if not inputFileMap.has_key(self.masterDataset.datasetID):
+                    inputFileMap[self.masterDataset.datasetID] = []
+                inputFileMap[self.masterDataset.datasetID].append(tmpFileSpec)
                 datasetUsage['used'] += 1
                 # sum
                 inputNumFiles += 1
@@ -116,7 +142,9 @@ class InputChunk:
                     # every job uses dataset without splitting
                     if firstLoop:
                         for tmpFileSpec in datasetSpec.Files:
-                            inputFileList.append(tmpFileSpec)
+                            if not inputFileMap.has_key(datasetSpec.datasetID):
+                                inputFileMap[datasetSpec.datasetID] = []
+                            inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
                             # sum
                             inputNumFiles += 1
                             fileSize += tmpFileSpec.fsize
@@ -144,11 +172,17 @@ class InputChunk:
                     pass
         # make copy to return
         returnList = []
-        for tmpFileSpec in inputFileList:
-            newFileSpec = copy.copy(tmpFileSpec)
-            # set locality
-            newFileSpec.locality = siteCandidate.getFileLocality(tmpFileSpec)
-            # append
-            returnList.append(newFileSpec)
+        for tmpDatasetID,inputFileList in inputFileMap.iteritems():
+            tmpRetList = []
+            for tmpFileSpec in inputFileList:
+                # make copy to individually set locality
+                newFileSpec = copy.copy(tmpFileSpec)
+                # set locality
+                newFileSpec.locality = siteCandidate.getFileLocality(tmpFileSpec)
+                # append
+                tmpRetList.append(newFileSpec)
+            # add to return map    
+            tmpDatasetSpec = self.getDatasetWithID(tmpDatasetID)    
+            returnList.append((tmpDatasetSpec,tmpRetList))
         # return
         return returnList

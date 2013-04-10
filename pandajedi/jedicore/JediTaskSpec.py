@@ -19,6 +19,8 @@ class JediTaskSpec(object):
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
+    # attributes to force update
+    _forceUpdateAttrs = ('lockedBy','lockedTime')
     # mapping between sequence and attr
     _seqAttrMap = {}
 
@@ -30,6 +32,8 @@ class JediTaskSpec(object):
             object.__setattr__(self,attr,None)
         # map of changed attributes
         object.__setattr__(self,'_changedAttrs',{})
+        # template to generate job parameters
+        object.__setattr__(self,'jobParamsTemplate','')
 
 
     # override __setattr__ to collecte the changed attributes
@@ -38,7 +42,7 @@ class JediTaskSpec(object):
         object.__setattr__(self,name,value)
         newVal = getattr(self,name)
         # collect changed attributes
-        if oldVal != newVal:
+        if oldVal != newVal or name in self._forceUpdateAttrs:
             self._changedAttrs[name] = value
 
 

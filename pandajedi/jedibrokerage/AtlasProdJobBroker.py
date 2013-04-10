@@ -15,9 +15,9 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 class AtlasProdJobBroker (JobBrokerBase):
 
     # constructor
-    def __init__(self,ddmIF,taskBufferIF,siteMapper):
-        JobBrokerBase.__init__(self,ddmIF,taskBufferIF,siteMapper)
-        self.hospitalQueueMap = AtlasBrokerUtils.getHospitalQueues(siteMapper)
+    def __init__(self,ddmIF,taskBufferIF):
+        JobBrokerBase.__init__(self,ddmIF,taskBufferIF)
+        self.hospitalQueueMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper)
         self.dataSiteMap = {}
 
 
@@ -285,7 +285,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
             if nPilot == 0:
                 tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
-                continue
+                # FIXME
+                #continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList        
         tmpLog.debug('selected %s candidates due to pilot' % len(scanSiteList))
@@ -357,5 +358,5 @@ class AtlasProdJobBroker (JobBrokerBase):
             inputChunk.addSiteCandidate(siteCandidateSpec)
         # return
         tmpLog.debug('done')        
-        return True,inputChunk
+        return self.SC_SUCCEEDED,inputChunk
     

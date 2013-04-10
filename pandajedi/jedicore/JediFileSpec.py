@@ -3,6 +3,8 @@ file specification for JEDI
 
 """
 
+from pandaserver.taskbuffer.FileSpec import FileSpec as JobFileSpec
+
 
 class JediFileSpec(object):
     # attributes
@@ -105,6 +107,32 @@ class JediFileSpec(object):
         ret += ' '
         return ret
 
+
+    # convert to job's FileSpec
+    def convertToJobFileSpec(self,datasetSpec):
+        jobFileSpec = JobFileSpec()
+        jobFileSpec.fileID = self.fileID
+        jobFileSpec.lfn      = self.lfn
+        jobFileSpec.GUID     = self.guid
+        jobFileSpec.type     = self.type
+        jobFileSpec.scope    = self.scope
+        jobFileSpec.fsize    = self.fsize
+        jobFileSpec.checksum = self.checksum
+        # dataset attribute
+        if datasetSpec != None:
+            # dataset
+            if not datasetSpec.containerName in [None,'']:
+                jobFileSpec.dataset = datasetSpec.containerName
+            else:
+                jobFileSpec.dataset = datasetSpec.datasetName
+            if self.type == 'input':
+                # prodDBlock
+                jobFileSpec.prodDBlock = datasetSpec.datasetName
+            else:
+                # destinationDBlock
+                jobFileSpec.destinationDBlock = datasetSpec.datasetName
+        # return
+        return jobFileSpec
 
         
 

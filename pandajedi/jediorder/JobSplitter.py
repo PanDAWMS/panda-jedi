@@ -39,11 +39,8 @@ class JobSplitter:
                 # new candidate   
                 siteName = inputChunk.getOneSiteCandidate().siteName
                 siteSpec = siteMapper.getSite(siteName)
-                
             # use maxwdir as the default maxSize
-            # FIXME : doesn't work on voatlas294
-            #maxSize = siteSpec.maxwdir
-            maxSize = siteSpec.maxinputsize * 1024 * 1024
+            maxSize = siteSpec.maxwdir * 1024 * 1024
             # set maxNumFiles/maxSize using taskSpec if specified
             # FIXME
             pass

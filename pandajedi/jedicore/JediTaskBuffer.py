@@ -10,13 +10,14 @@ from Interaction import CommandReceiveInterface
 # use customized proxy pool
 TaskBuffer.DBProxyPool = JediDBProxyPool.DBProxyPool
 
+
 class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     # constructor
     def __init__(self,conn):
         CommandReceiveInterface.__init__(self,conn)
         TaskBuffer.TaskBuffer.__init__(self)
-        TaskBuffer.TaskBuffer.init(self,jedi_config.dbhost,
-                                   jedi_config.dbpasswd,
+        TaskBuffer.TaskBuffer.init(self,jedi_config.db.dbhost,
+                                   jedi_config.db.dbpasswd,
                                    nDBConnection=1)
         self.siteMapper = SiteMapper(self)
 
@@ -25,6 +26,18 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     def getSiteMapper(self):
         return self.siteMapper
     
+
+    # get work queue map
+    def getWrokQueueMap(self):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # get
+        retVal = proxy.getWrokQueueMap()
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
 
     # get the list of datasets to feed contents to DB
     def getDatasetsToFeedContents_JEDI(self):
@@ -123,23 +136,63 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get JEDI task with taskID
-    def getTaskWithID_JEDI(self,taskID):
+    def getTaskWithID_JEDI(self,taskID,fullFlag=False):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTaskWithID_JEDI(taskID)
+        retVal = proxy.getTaskWithID_JEDI(taskID,fullFlag)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
 
 
+
+    # get tasks to be processed
+    def getTasksToBeProcessed_JEDI(self,pid,vo,queue_ID,prodSourceLabel,nTasks=50,nFiles=100):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getTasksToBeProcessed_JEDI(pid,vo,queue_ID,prodSourceLabel,nTasks,nFiles)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+        
     # get job statistics with work queue
     def getJobStatisticsWithWorkQueue_JEDI(self,vo,prodSourceLabel,minPriority=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getJobStatisticsWithWorkQueue_JEDI(vo,prodSourceLabel,minPriority)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # generate output files for task
+    def getOutputFiles_JEDI(self,taskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getOutputFiles_JEDI(taskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # insert output file templates
+    def insertOutputTemplate_JEDI(self,templates):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.insertOutputTemplate_JEDI(templates)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

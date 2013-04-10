@@ -1,6 +1,8 @@
 import re
 import sys
 import datetime
+import cx_Oracle
+
 
 from pandajedi.jediconfig import jedi_config
 
@@ -11,12 +13,14 @@ from WorkQueueMapper import WorkQueueMapper
 from JediTaskSpec import JediTaskSpec
 from JediFileSpec import JediFileSpec
 from JediDatasetSpec import JediDatasetSpec
+from InputChunk import InputChunk
+
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
+taskbuffer.OraDBProxy._logger = logger
 
-#from taskbuffer.OraDBProxy import _logger
 
 class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
@@ -31,13 +35,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.updateTimeForWorkQueue = None
 
 
+
     # connect to DB (just for INTR)
-    def connect(self,dbhost=jedi_config.dbhost,dbpasswd=jedi_config.dbpasswd,
-                dbuser=jedi_config.dbuser,dbname=jedi_config.dbname,
+    def connect(self,dbhost=jedi_config.db.dbhost,dbpasswd=jedi_config.db.dbpasswd,
+                dbuser=jedi_config.db.dbuser,dbname=jedi_config.db.dbname,
                 dbtimeout=None,reconnect=False):
         return taskbuffer.OraDBProxy.DBProxy.connect(self,dbhost=dbhost,dbpasswd=dbpasswd,
                                                      dbuser=dbuser,dbname=dbname,
                                                      dbtimeout=dbtimeout,reconnect=reconnect)
+
 
 
     # extract method name from comment
@@ -49,6 +55,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             methodName = comment
         return methodName    
 
+
+
+    # check if exception is from NOWAIT
+    def isNoWaitException(self,errValue):
+        oraErrCode = str(errValue).split()[0]
+        oraErrCode = oraErrCode[:-1]
+        if oraErrCode == 'ORA-00054':
+            return True
+        return False
+
+
+
+    # get work queue map
+    def getWrokQueueMap(self):
+        self.refreshWrokQueueMap()
+        return self.workQueueMap
+
+    
 
     # refresh work queue map
     def refreshWrokQueueMap(self):
@@ -79,6 +103,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             errtype,errvalue = sys.exc_info()[:2]
             logger.error("%s : %s %s" % (methodName,errtype,errvalue))
             return False
+
                                             
 
     # get the list of datasets to feed contents to DB
@@ -110,6 +135,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             errtype,errvalue = sys.exc_info()[:2]
             logger.error("%s : %s %s" % (methodName,errtype,errvalue))
             return None
+
 
                                                 
     # feed files to the JEDI contents table
@@ -182,6 +208,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False
 
 
+
     # get files from the JEDI contents table with taskID and/or datasetID
     def getFilesInDatasetWithID_JEDI(self,taskID,datasetID,nFiles,status):
         comment = ' /* JediDBProxy.getFilesInDataset_JEDI */'
@@ -243,6 +270,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return failedRet
 
 
+
     # insert dataset to the JEDI datasets table
     def insertDataset_JEDI(self,datasetSpec):
         comment = ' /* JediDBProxy.insertDataset_JEDI */'
@@ -275,6 +303,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False
 
 
+
     # update JEDI dataset
     def updateDataset_JEDI(self,datasetSpec,criteria):
         comment = ' /* JediDBProxy.updateDataset_JEDI */'
@@ -298,7 +327,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             timeNow = datetime.datetime.utcnow()
             datasetSpec.modificationTime = timeNow
             # values for UPDATE
-            varMap = datasetSpec.valuesMap(useSeq=True,onlyChanged=True)
+            varMap = datasetSpec.valuesMap(useSeq=False,onlyChanged=True)
             # sql
             sql  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET %s WHERE " % datasetSpec.bindUpdateChangesExpression()
             for tmpKey,tmpVal in criteria.iteritems():
@@ -323,6 +352,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             errtype,errvalue = sys.exc_info()[:2]
             logger.error("%s : %s %s" % (methodName,errtype,errvalue))
             return failedRet
+
                 
         
     # get JEDI dataset with datasetID
@@ -362,6 +392,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             logger.error("%s : %s %s" % (methodName,errtype,errvalue))
             return failedRet
 
+
         
     # insert task to the JEDI task table
     def insertTask_JEDI(self,taskSpec):
@@ -395,6 +426,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False
 
 
+
     # update JEDI task
     def updateTask_JEDI(self,taskSpec,criteria):
         comment = ' /* JediDBProxy.updateTask_JEDI */'
@@ -416,16 +448,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             timeNow = datetime.datetime.utcnow()
             taskSpec.modificationTime = timeNow
             # values for UPDATE
-            varMap = taskSpec.valuesMap(useSeq=True)
+            varMap = taskSpec.valuesMap(useSeq=False,onlyChanged=True)
             # sql
             sql  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET %s WHERE " % taskSpec.bindUpdateChangesExpression()
-            for tmpKey,tmpVal in criteria:
+            for tmpKey,tmpVal in criteria.iteritems():
                 crKey = ':cr_%s' % tmpKey
                 sql += '%s=%s' % (tmpKey,crKey)
                 varMap[crKey] = tmpVal
             # begin transaction
             self.conn.begin()
             # update task
+            logger.debug(sql+comment+str(varMap))
             self.cur.execute(sql+comment,varMap)
             # the number of updated rows
             nRows = self.cur.rowcount
@@ -443,8 +476,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return failedRet
 
 
+
     # get JEDI task with ID
-    def getTaskWithID_JEDI(self,taskID):
+    def getTaskWithID_JEDI(self,taskID,fullFlag):
         comment = ' /* JediDBProxy.getTaskWithID_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' taskID=%s ' % taskID
@@ -462,12 +496,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # select
             self.cur.execute(sql+comment,varMap)
             res = self.cur.fetchone()
+            # template to generate job parameters
+            jobParamsTemplate = None
+            if fullFlag:
+                # sql to read template
+                sqlJobP  = "SELECT jobParamsTemplate FROM ATLAS_PANDA.JEDI_JobParams_Template "
+                sqlJobP += "WHERE taskID=:taskID "
+                
+                self.cur.execute(sqlJobP+comment,varMap)
+                for clobJobP, in self.cur:
+                    if clobJobP != None:
+                        jobParamsTemplate = clobJobP.read()
+                        break
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             if res != None:
                 taskSepc = JediTaskSpec()
                 taskSepc.pack(res)
+                if jobParamsTemplate != None:
+                    taskSepc.jobParamsTemplate = jobParamsTemplate
             else:
                 taskSepc = None
             logger.debug('%s done' % methodName)
@@ -479,6 +527,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             errtype,errvalue = sys.exc_info()[:2]
             logger.error("%s : %s %s" % (methodName,errtype,errvalue))
             return failedRet
+
 
 
     # get job statistics with work queue
@@ -571,3 +620,332 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             errtype,errvalue = sys.exc_info()[:2]
             logger.error("%s : %s %s" % (methodName,errtype,errvalue))
             return False,{}
+
+
+
+    # generate output files for task
+    def getOutputFiles_JEDI(self,taskID):
+        comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName = '%s taskID=%s' % (methodName,taskID)
+        logger.debug('%s start' % methodName)
+        try:
+            outMap = {}
+            # sql to read template
+            sqlR  = "SELECT outTempID,datasetID,fileNameTemplate,serialNr FROM ATLAS_PANDA.JEDI_Output_Template "
+            sqlR += "WHERE taskID=:taskID FOR UPDATE"
+            # sql to get dataset name and vo for scope
+            sqlD  = "SELECT datasetName,vo FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID "
+            # sql to insert files
+            sqlI  = "INSERT INTO ATLAS_PANDA.JEDI_Dataset_Contents (%s) " % JediFileSpec.columnNames()
+            sqlI += JediFileSpec.bindValuesExpression()
+            sqlI += " RETURNING fileID INTO :newFileID"
+            # sql to increment SN
+            sqlU  = "UPDATE ATLAS_PANDA.JEDI_Output_Template SET serialNr=serialNr+1 "
+            sqlU += "WHERE outTempID=:outTempID "
+            # current current date
+            timeNow = datetime.datetime.utcnow()
+            # begin transaction
+            self.conn.begin()
+            # select
+            varMap = {}
+            varMap[':taskID'] = taskID
+            self.cur.execute(sqlR+comment,varMap)
+            resList = self.cur.fetchall()
+            for resR in resList:
+                # make FileSpec
+                outTempID,datasetID,fileNameTemplate,serialNr = resR
+                fileSpec = JediFileSpec()
+                fileSpec.taskID= taskID
+                fileSpec.datasetID = datasetID
+                fileSpec.lfn = fileNameTemplate.replace('${SN}','{SN:06d}').format(SN=serialNr)
+                fileSpec.status = 'defined'
+                fileSpec.creationDate = timeNow
+                # FIXME : to be removed once NOT NULL is removed 
+                fileSpec.lastAttemptTime = timeNow
+                fileSpec.guid = 'dummy'
+                # FIXME
+                # streamName = ???
+                #fileSpec.type = outType
+                if '.log.' in fileSpec.lfn:
+                    fileSpec.type = 'log'
+                    streamName = 'LOG'
+                else:
+                    fileSpec.type = 'output'
+                    streamName = 'OUT'
+                # scope
+                varMap = {}
+                varMap[':datasetID'] = datasetID
+                self.cur.execute(sqlD+comment,varMap)
+                resD = self.cur.fetchone()
+                if resD == None:
+                    raise RuntimeError, 'Failed to get datasetName for outTempID={0}'.format(outTempID)
+                datasetName,vo = resD
+                if vo in jedi_config.ddm.vowithscope.split(','):
+                    fileSpec.scope = datasetName.split('.')[0]
+                # insert
+                varMap = fileSpec.valuesMap(useSeq=True)
+                varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
+                self.cur.execute(sqlI+comment,varMap)
+                fileSpec.fileID = long(varMap[':newFileID'].getvalue())
+                # increment SN
+                varMap = {}
+                varMap[':outTempID'] = outTempID
+                self.cur.execute(sqlU+comment,varMap)
+                nRow = self.cur.rowcount
+                if nRow != 1:
+                    raise RuntimeError, 'Failed to increment SN for outTempID={0}'.format(outTempID)
+                # append
+                outMap[streamName] = fileSpec
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            logger.debug('%s done' % methodName)
+            return outMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            return None
+
+
+    # insert output file templates
+    def insertOutputTemplate_JEDI(self,templates):
+        comment = ' /* JediDBProxy.insertOutputTemplate_JEDI */'
+        methodName = self.getMethodName(comment)
+        logger.debug('%s start' % methodName)
+        try:
+            # begin transaction
+            self.conn.begin()
+            # loop over all templates
+            for template in templates:
+                # make sql
+                varMap = {}
+                sqlH = "INSERT INTO ATLAS_PANDA.JEDI_Output_Template (outTempID,"
+                sqlL = "VALUES(ATLAS_PANDA.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval," 
+                for tmpAttr,tmpVal in template.iteritems():
+                    tmpKey = ':'+tmpAttr
+                    sqlH += '{0},'.format(tmpAttr)
+                    sqlL += '{0},'.format(tmpKey)
+                    varMap[tmpKey] = tmpVal
+                sqlH = sqlH[:-1] + ') '     
+                sqlL = sqlL[:-1] + ') '
+                sql = sqlH + sqlL
+                self.cur.execute(sql+comment,varMap)
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+                logger.debug('%s done' % methodName)
+                return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            return False
+
+
+
+    # get tasks to be processed
+    def getTasksToBeProcessed_JEDI(self,pid,vo,queue_ID,prodSourceLabel,nTasks,nFiles):
+        comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName = '{0} vo={1} queue={2} label={3} nTasks={4}'.format(methodName,vo,queue_ID,prodSourceLabel,nTasks)
+        logger.debug('{0} start'.format(methodName))
+        # return value for failure
+        failedRet = None
+        try:
+            # SQL
+            sql  = "SELECT ATLAS_PANDA.JEDI_Tasks.taskID,datasetID "
+            sql += "FROM ATLAS_PANDA.JEDI_Tasks,ATLAS_PANDA.JEDI_Datasets "
+            sql += "WHERE ATLAS_PANDA.JEDI_Tasks.vo=:vo AND workqueue_ID=:queue_ID AND prodSourceLabel=:prodSourceLabel "
+            sql += "AND ATLAS_PANDA.JEDI_Tasks.status=:taskstatus AND ATLAS_PANDA.JEDI_Tasks.lockedBy IS NULL "
+            sql += "AND ATLAS_PANDA.JEDI_Tasks.taskID=ATLAS_PANDA.JEDI_Datasets.taskID "
+            sql += "AND ATLAS_PANDA.JEDI_Datasets.status=:dsStatus "
+            sql += "AND nFilesToBeUsed > nFilesUsed AND type=:type "
+            sql += "ORDER BY currentPriority DESC"
+            varMap = {}
+            varMap[':vo']             = vo
+            varMap[':type']           = 'input'
+            varMap[':queue_ID']       = queue_ID
+            varMap[':dsStatus']       = 'ready'
+            varMap[':taskstatus']     = 'ready'
+            varMap['prodSourceLabel'] = prodSourceLabel
+            # begin transaction
+            self.conn.begin()
+            # select
+            self.cur.execute(sql+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # make return
+            returnList  = []
+            taskDatasetMap = {}
+            for taskID,datasetID in resList:
+                if not taskDatasetMap.has_key(taskID):
+                    taskDatasetMap[taskID] = []
+                taskDatasetMap[taskID].append(datasetID)
+            # sql to read task
+            sqlRT  = "SELECT %s " % JediTaskSpec.columnNames()
+            sqlRT += "FROM ATLAS_PANDA.JEDI_Tasks WHERE taskID=:taskID FOR UPDATE NOWAIT"
+            # sql to lock task
+            sqlLock  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
+            sqlLock += "WHERE taskID=:taskID AND lockedBy IS NULL "
+            # sql to read template
+            sqlJobP = "SELECT jobParamsTemplate FROM ATLAS_PANDA.JEDI_JobParams_Template WHERE taskID=:taskID "
+            # sql to read datasets
+            sqlRD  = "SELECT %s " % JediDatasetSpec.columnNames()
+            sqlRD += "FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID FOR UPDATE NOWAIT"
+            # sql to read files
+            sqlFR  = "SELECT * FROM (SELECT %s " % JediFileSpec.columnNames()
+            sqlFR += "FROM ATLAS_PANDA.JEDI_Dataset_Contents WHERE "
+            sqlFR += "datasetID=:datasetID and status=:status "
+            sqlFR += "ORDER BY fileID) "
+            sqlFR += "WHERE rownum <= %s" % nFiles 
+            # sql to update file status
+            sqlFU  = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:nStatus "
+            sqlFU += "WHERE fileID=:fileID AND status=:oStatus "
+            # sql to update file usage info in dataset
+            sqlDU  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET nFilesUsed=:nFilesUsed WHERE datasetID=:datasetID "
+            # loop over all tasks
+            iTasks = 0
+            for taskID,datasetIDs in taskDatasetMap.iteritems():
+                inputChunk = InputChunk()
+                cloudName = None
+                # begin transaction
+                self.conn.begin()
+                # read task
+                toSkip = False
+                varMap = {}
+                varMap[':taskID'] = taskID
+                try:
+                    # select
+                    self.cur.execute(sqlRT+comment,varMap)
+                    resRT = self.cur.fetchone()
+                    taskSpec = JediTaskSpec()
+                    taskSpec.pack(resRT)
+                except:
+                    errType,errValue = sys.exc_info()[:2]
+                    if self.isNoWaitException(errValue):
+                        # resource busy and acquire with NOWAIT specified
+                        toSkip = True
+                        logger.debug('{0} skip locked taskID={1}'.format(methodName,taskID))
+                    else:
+                        # failed with something else
+                        raise errType,errValue
+                # read dataset
+                if not toSkip:
+                    for datasetID in datasetIDs:
+                        varMap = {}
+                        varMap[':datasetID'] = datasetID
+                        try:
+                            # select
+                            self.cur.execute(sqlRD+comment,varMap)
+                            resRD = self.cur.fetchone()
+                            datasetSepc = JediDatasetSpec()
+                            datasetSepc.pack(resRD)
+                            # add to InputChunk
+                            # FIXME
+                            #if datasetSepc.masterID == None:                            
+                            if datasetSepc.mastertID == None:
+                                inputChunk.addMasterDS(datasetSepc)
+                                cloudName = datasetSepc.cloud
+                            else:
+                                inputChunk.addSecondaryDS(datasetSepc)                                
+                        except:
+                            errType,errValue = sys.exc_info()[:2]
+                            if self.isNoWaitException(errValue):
+                                # resource busy and acquire with NOWAIT specified
+                                toSkip = True
+                                logger.debug('{0} skip locked taskID={1} datasetID={2}'.format(methodName,taskID,datasetID))
+                            else:
+                                # failed with something else
+                                raise errType,errValue
+                # read job params and files
+                if not toSkip:
+                    # lock task
+                    varMap = {}
+                    varMap[':taskID'] = taskID
+                    varMap[':lockedBy'] = pid
+                    self.cur.execute(sqlLock+comment,varMap)
+                    nRow = self.cur.rowcount
+                    if nRow != 1:
+                        logger.debug('{0} failed to lock taskID={1}'.format(methodName,taskID))
+                    else:
+                        # read template to generate job parameters
+                        varMap = {}
+                        varMap[':taskID'] = taskID
+                        self.cur.execute(sqlJobP+comment,varMap)
+                        for clobJobP, in self.cur:
+                            if clobJobP != None:
+                                taskSpec.jobParamsTemplate = clobJobP.read()
+                            break
+                        # read files
+                        for datasetID in datasetIDs:
+                            # get DatasetSpec
+                            tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
+                            # read files to make FileSpec
+                            varMap = {}
+                            varMap[':status']    = 'ready'
+                            varMap[':datasetID'] = datasetID
+                            self.cur.execute(sqlFR+comment,varMap)
+                            resFileList = self.cur.fetchall()
+                            iFiles = 0
+                            for resFile in resFileList:
+                                # make FileSpec
+                                tmpFileSpec = JediFileSpec()
+                                tmpFileSpec.pack(resFile)
+                                # update file status
+                                varMap = {}
+                                varMap[':fileID'] = tmpFileSpec.fileID
+                                varMap[':nStatus'] = 'picked'
+                                varMap[':oStatus'] = 'ready'                                
+                                self.cur.execute(sqlFU+comment,varMap)
+                                nFileRow = self.cur.rowcount
+                                if nFileRow != 1:
+                                    logger.debug('{0} skip fileID={1} already used by another'.format(methodName,tmpFileSpec.fileID))
+                                    continue
+                                # add to InputChunk
+                                tmpDatasetSpec.addFile(tmpFileSpec)
+                                iFiles += 1
+                            if iFiles == 0:
+                                # no input files
+                                logger.error('{0} datasetID={1} has no files to be processed'.format(methodName,datasetID))
+                                toSkip = True
+                                break
+                            else:
+                                # update nFilesUsed in DatasetSpec
+                                nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles
+                                tmpDatasetSpec.nFilesUsed = nFilesUsed
+                                varMap = {}
+                                varMap[':datasetID']  = datasetID
+                                varMap[':nFilesUsed'] = nFilesUsed
+                                self.cur.execute(sqlDU+comment,varMap)
+                    # add to return
+                    if not toSkip:
+                        returnList.append((taskSpec,cloudName,inputChunk))
+                        iTasks += 1
+                        # enough tasks 
+                        if iTasks >= nTasks:
+                            break
+                if not toSkip:        
+                    # commit
+                    if not self._commit():
+                        raise RuntimeError, 'Commit error'
+                else:
+                    # roll back
+                    self._rollback()
+            logger.debug('{0} done for {1} tasks'.format(methodName,len(returnList)))
+            return returnList
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            return failedRet
+        
