@@ -95,12 +95,15 @@ class ContentsFeederThread (WorkerThread):
                         errtype,errvalue = sys.exc_info()[:2]
                         tmpLog.error('{0} failed due to {1}:{2}'.format(self.__class__.__name__,
                                                                         errtype.__name__,errvalue))
-                        datasetStatus = 'failedlookup'
+                        datasetStatus = 'failed'
                     else:
                         # feed files to the contents table
                         tmpLog.info('update contents')
-                        self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet)
-                        datasetStatus = 'ready'
+                        retDB = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet)
+                        if retDB:
+                            datasetStatus = 'ready'
+                        else:
+                            datasetStatus = 'failed'
                     # update dataset status
                     datasetSpec.status   = datasetStatus
                     datasetSpec.lockedBy = None

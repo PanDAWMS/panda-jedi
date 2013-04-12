@@ -11,8 +11,8 @@ class JediTaskSpec(object):
         'creationDate','modificationTime','startTime','endTime',
         'frozenTime','prodSourceLabel','workingGroup','vo','coreCount',
         'taskType','processingType','taskPriority','currentPriority',
-        'architecture','transHome','transPath','lockedBy','lockedTime',
-        'termCondition','splitRule','walltime','walltimeUnit',
+        'architecture','transUses','transHome','transPath','lockedBy',
+        'lockedTime','termCondition','splitRule','walltime','walltimeUnit',
         'outDiskCount','outDiskUnit','workDiskCount','workDiskUnit',
         'ramCount','ramUnit','ioIntensity','ioIntensityUnit',
         'workQueue_ID','progress','failureRate','errorDialog'

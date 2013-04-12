@@ -192,13 +192,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             lfnList = fileSpecMap.keys()
             lfnList.sort()
             # sql to check dataset status
-            sqlDs  = "SELECT status FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID "
+            sqlDs  = "SELECT status FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID FOR UPDATE "
             # sql to get existing files
-            sqlCh  = "SELECT lfn FROM ATLAS_PANDA.JEDI_Dataset_Contents "
+            sqlCh  = "SELECT fileID,lfn FROM ATLAS_PANDA.JEDI_Dataset_Contents "
             sqlCh += "WHERE datasetID=:datasetID FOR UPDATE"
             # sql for insert
             sqlIn  = "INSERT INTO ATLAS_PANDA.JEDI_Dataset_Contents (%s) " % JediFileSpec.columnNames()
             sqlIn += JediFileSpec.bindValuesExpression()
+            # sql for lost files
+            sqlLost = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:status WHERE fileID=:fileID "
             # begin transaction
             self.conn.begin()
             # check dataset status
@@ -217,18 +219,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':datasetID'] = datasetSpec.datasetID
                 self.cur.execute(sqlCh+comment,varMap)
                 tmpRes = self.cur.fetchall()
-                existingFiles = []
-                for lfn, in tmpRes:
-                    existingFiles.append(lfn)
+                existingFiles = {}
+                for fileID,lfn in tmpRes:
+                    existingFiles[lfn] = fileID
                 # insert files
+                existingFileList = existingFiles.keys()
                 for lfn in lfnList:
                     # avoid duplication
-                    if lfn in existingFiles:
+                    if lfn in existingFileList:
                         continue
                     fileSpec = fileSpecMap[lfn]
                     varMap = fileSpec.valuesMap(useSeq=True)
                     self.cur.execute(sqlIn+comment,varMap)
                     nInsert += 1
+                # lost files
+                for lfn,fileID in existingFiles.iteritems():
+                    if not lfn in lfnList:
+                        varMap = {}
+                        varMap['status'] = 'lost'
+                        varMap['fileID'] = fileID
+                        self.cur.execute(sqlLost+comment,varMap)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

@@ -207,7 +207,8 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.computingSite    = siteName
                     jobSpec.cloud            = cloudName
                     jobSpec.prodSeriesLabel  = 'pandatest'
-                    #jobSpec.AtlasRelease = re.sub('\r','',taskSpec.transuses)
+                    jobSpec.AtlasRelease     = taskSpec.transUses
+                    jobSpec.AtlasRelease     = re.sub('\r','',jobSpec.AtlasRelease)
                     jobSpec.maxCpuCount      = taskSpec.walltime
                     jobSpec.maxCpuUnit       = taskSpec.walltimeUnit
                     jobSpec.maxDiskCount     = taskSpec.workDiskCount

@@ -174,11 +174,12 @@ class AtlasProdJobBroker (JobBrokerBase):
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
                                                                          caches=taskSpec.transHome,
                                                                          cmtConfig=taskSpec.architecture)
-                
             else:
                 # both release and cache are checked for nightlies
-                # FIXME
-                pass
+                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                                                                         releases=taskSpec.transUses,
+                                                                         caches=taskSpec.transHome,
+                                                                         cmtConfig=taskSpec.architecture)
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -248,8 +249,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for transferring
-        # FIXME : doesn't work on voatlas294
-        """
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -273,7 +272,6 @@ class AtlasProdJobBroker (JobBrokerBase):
         if scanSiteList == []:
             tmpLog.error('no candidates')
             return retTmpError
-        """    
         ######################################
         # selection for nPilot
         nWNmap = self.taskBufferIF.getCurrentSiteData()
@@ -285,7 +283,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
             if nPilot == 0:
                 tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
-                # FIXME
+                # FIXME only for INTR where SiteData is not updated correctly 
                 #continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList        
