@@ -25,7 +25,7 @@ class JobBroker:
     # initialize
     def initialize(self,ddmIF,taskBufferIF):
         # parse config
-        for configStr in jedi_config.jobbroker.modconfig.split(','):
+        for configStr in jedi_config.jobbroker.modConfig.split(','):
             configStr = configStr.strip()
             items = configStr.split(':')
             # check format

@@ -3,6 +3,7 @@ import time
 import datetime
 
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from JediKnight import JediKnight
 
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
@@ -83,28 +84,32 @@ class ContentsFeederThread (WorkerThread):
                     self.logger.debug('%s terminating since no more datasets' % self.__class__.__name__)
                     return
                 # loop over all datasets
-                for taskID,datasetName,datasetID,vo in dsList:
+                for datasetSpec in dsList:
+                    # make logger
+                    tmpLog = MsgWrapper(self.logger,'datasetID={0}'.format(datasetSpec.datasetID))
                     # get file list
-                    self.logger.debug('getting files in %s' % datasetName)
+                    tmpLog.info('get files in {0}'.format(datasetSpec.datasetName))
                     try:
-                        tmpRet = self.ddmIF.getInterface(vo).getFilesInDataset(datasetName)
+                        tmpRet = self.ddmIF.getInterface(datasetSpec.vo).getFilesInDataset(datasetSpec.datasetName)
                     except:
                         errtype,errvalue = sys.exc_info()[:2]
-                        self.logger.error('%s failed to get file list for %s due to %s:%s' % \
-                                          (self.__class__.__name__,datasetName,errtype.__name__,errvalue))
+                        tmpLog.error('{0} failed due to {1}:{2}'.format(self.__class__.__name__,
+                                                                        errtype.__name__,errvalue))
                         datasetStatus = 'failedlookup'
                     else:
                         # feed files to the contents table
-                        self.taskBufferIF.insertFilesForDataset_JEDI(taskID,datasetID,tmpRet)
+                        tmpLog.info('update contents')
+                        self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet)
                         datasetStatus = 'ready'
                     # update dataset status
-                    tmpDsSpec = JediDatasetSpec()
-                    tmpDsSpec.status = datasetStatus
-                    tmpDsSpec.lockedBy = None
-                    self.taskBufferIF.updateDataset_JEDI(tmpDsSpec,{'datasetID':datasetID})
+                    datasetSpec.status   = datasetStatus
+                    datasetSpec.lockedBy = None
+                    tmpLog.info('update dataset status with {0}'.format(datasetSpec.status))                    
+                    self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'datasetID':datasetSpec.datasetID})
+                    tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
-                logger.error('%s failed in runImpl() with %s %s' % (self.__class__.__name__,errtype.__name__,errvalue))
+                logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
 
 
 

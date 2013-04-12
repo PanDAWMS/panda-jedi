@@ -8,17 +8,17 @@ class JediDatasetSpec(object):
     # attributes
     _attributes = (
         'taskID','datasetID','datasetName','containerName',
-        # FIXME to be removed
-        'fileID',
         'type','creationTime','modificationTime','vo','cloud',
-        'site','mastertID','provenanceID','status','state',
+        'site','masterID','provenanceID','status','state',
         'statecheckTime','statecheckExpiration','frozenTime',
         'nFiles','nFilesToBeUsed','nFilesUsed',
+        'nFilesFinished','nFilesFailed',
         'nEvents','nEventsToBeUsed','nEventsUsed',
-        'lockedBy','lockedTime'
+        'lockedBy','lockedTime','splitRule','streamName',
+        'storageToken','destination'
         )
     # attributes which have 0 by default
-    _zeroAttrs = ('fileID')
+    _zeroAttrs = ()
     # attributes to force update
     _forceUpdateAttrs = ('lockedBy','lockedTime')
     # mapping between sequence and attr
@@ -135,6 +135,20 @@ class JediDatasetSpec(object):
             totalSize += tmpFileSpec.fsize
         return totalSize    
 
+
+    # return list of status to update contents
+    def statusToUpdateContents(cls):
+        return ['defined','tobeupdated']
+    statusToUpdateContents = classmethod(statusToUpdateContents)
+
+
+    # check if JEDI needs to keep track of file usage
+    def toKeepTrack(self):
+        if self.splitRule != None and 'repeat' in self.splitRule:
+            return False
+        else:
+            return True
+        
         
 
                        

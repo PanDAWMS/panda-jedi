@@ -15,13 +15,17 @@ class SiteCandidate(object):
 
 
     # get locality of a file
-    def getFileLocality(self,tmpFileSpec):
-        if tmpFileSpec in self.localDiskFiles:
-            return 'localdisk'
-        if tmpFileSpec in self.localTapeFiles:
-            return 'localtape'
-        if tmpFileSpec in self.cacheFiles:
-            return 'cache'
-        if tmpFileSpec in self.remoteFiles:
-            return 'remote'
+    def getFileLocality(self,fileSpec):
+        for tmpFileSpec in self.localDiskFiles:
+            if tmpFileSpec.fileID == fileSpec.fileID:
+                return 'localdisk'
+        for tmpFileSpec in self.localTapeFiles:
+            if tmpFileSpec.fileID == fileSpec.fileID:
+                return 'localtape'
+        for tmpFileSpec in self.cacheFiles:
+            if tmpFileSpec.fileID == fileSpec.fileID:
+                return 'cache'
+        for tmpFileSpec in self.remoteFiles:
+            if tmpFileSpec.fileID == fileSpec.fileID:
+                return 'remote'
         return None

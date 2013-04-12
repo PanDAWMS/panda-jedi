@@ -166,6 +166,8 @@ class MethodClass(object):
             time.sleep(1) 
         # raise exception
         if retException != None:
+            if strException == None:
+                strException = 'VO={0} {1}'.format(self.vo,ret.errorValue)
             raise retException,strException
         # return
         if ret.statusCode == SC_SUCCEEDED:

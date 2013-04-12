@@ -10,6 +10,8 @@ from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedibrokerage.JobBroker import JobBroker
 from pandaserver.taskbuffer.JobSpec import JobSpec
+from pandaserver.userinterface import Client as PandaClient
+
 from JobSplitter import JobSplitter
 from JediKnight import JediKnight
 
@@ -51,8 +53,8 @@ class JobGenerator (JediKnight):
                     tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,self.vo,
                                                                            workQueue.queue_id,
                                                                            self.prodSourceLabel,
-                                                                           nTasks=jedi_config.jobgen.ntasks,
-                                                                           nFiles=jedi_config.jobgen.nfiles)
+                                                                           nTasks=jedi_config.jobgen.nTasks,
+                                                                           nFiles=jedi_config.jobgen.nFiles)
                     cycleStr = 'vo={0} queue={1}(id={2}) label={3}'.format(self.vo,workQueue.queue_name,
                                                                            workQueue.queue_id,
                                                                            self.prodSourceLabel)
@@ -156,10 +158,16 @@ class JobGeneratorThread (WorkerThread):
                         # submit
                         tmpLog.info('submit jobs')
                         resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,toPending=True)
-                        if len(resSubmit) == len(pandaJobs):
-                            tmpLog.info('successfully submitted {0}/{1}'.format(len(resSubmit),len(pandaJobs)))
+                        pandaIDs = []
+                        for items in resSubmit:
+                            if items[0] != 'NULL':
+                                pandaIDs.append(items[0])
+                        if len(pandaIDs) == len(pandaJobs):
+                            tmpLog.info('successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs)))
+                            statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True)
+                            tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
                         else:
-                            tmpLog.error('submitted only {0}/{1}'.format(len(resSubmit),len(pandaJobs)))
+                            tmpLog.error('submitted only {0}/{1}'.format(len(pandaIDs),len(pandaJobs)))
                     # update task
                     tmpLog.info('update task.status=%s' % taskSpec.status)
                     taskSpec.lockedBy = None
@@ -216,6 +224,11 @@ class JobGeneratorThread (WorkerThread):
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
                         for tmpFileSpec in tmpFileSpecList:
                             tmpInFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec)
+                            # set status
+                            if tmpFileSpec.locality == 'localdisk':
+                                tmpInFileSpec.status = 'ready'
+                            elif tmpFileSpec.locality == 'cache':
+                                tmpInFileSpec.status = 'cached'
                             jobSpec.addFile(tmpInFileSpec)
                     # outputs
                     outSubChunk = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.taskID)
@@ -255,24 +268,36 @@ class JobGeneratorThread (WorkerThread):
         # input
         for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
             # stream name
-            # FIXME
-            #streamName = tmpDatasetSpec.streamName
-            streamName = '${IN}'
+            streamName = tmpDatasetSpec.streamName
             # LFNs
             tmpLFNs = []
             for tmpFileSpec in tmpFileSpecList:
                 tmpLFNs.append(tmpFileSpec.lfn)
             tmpLFNs.sort()
             # add
-            streamLFNsMap['${'+streamName+'}'] = tmpLFNs
+            streamLFNsMap[streamName] = tmpLFNs
         # output
         for streamName,tmpFileSpec in outSubChunk.iteritems():
             streamLFNsMap[streamName] = [tmpFileSpec.lfn]
+        # extract place holders with range expression, e.g., IN[0:2] 
+        for tmpMatch in re.finditer('\$\{([^\}]+)\}',parTemplate):
+            tmpPatt = tmpMatch.group(1)
+            # split to stream name and range expression
+            tmpStRaMatch = re.search('([^\[]+)(.*)',tmpPatt)
+            if tmpStRaMatch != None:
+                tmpStream = tmpStRaMatch.group(1)
+                tmpRange  = tmpStRaMatch.group(2)
+                if tmpPatt != tmpStream and streamLFNsMap.has_key(tmpStream):
+                    try:
+                        exec "streamLFNsMap['{0}']=streamLFNsMap['{1}']{2}".format(tmpPatt,tmpStream,
+                                                                                   tmpRange)
+                    except:
+                        pass
         # loop over all streams
         for streamName,listLFN in streamLFNsMap.iteritems():
             if len(listLFN) == 1:
                 # just replace with the original file name
-                parTemplate = parTemplate.replace(streamName,listLFN[0])
+                parTemplate = parTemplate.replace('${'+streamName+'}',listLFN[0])
             else:
                 # remove attempt numbers
                 compactLFNs = []
@@ -310,10 +335,10 @@ class JobGeneratorThread (WorkerThread):
                 conMatch = re.search('\[([^\]]+)\]',compactPar)
                 if conMatch != None and re.search('^[\d,]+$',conMatch.group(1)) != None:
                     # replace with compact format
-                    parTemplate = parTemplate.replace(streamName,compactPar)
+                    parTemplate = parTemplate.replace('${'+streamName+'}',compactPar)
                 else:
                     # replace with full format since [] contains non digits
-                    parTemplate = parTemplate.replace(streamName,fullLFNList)
+                    parTemplate = parTemplate.replace('${'+streamName+'}',fullLFNList)
         # return
         return parTemplate
 

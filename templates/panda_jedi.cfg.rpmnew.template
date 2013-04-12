@@ -27,10 +27,10 @@ dbname = PandaDB
 [ddm]
 
 # interface config
-modconfig = atlas:3:pandajedi.jediddm.AtlasDDMClient:AtlasDDMClient
+modConfig = atlas:3:pandajedi.jediddm.AtlasDDMClient:AtlasDDMClient
 
 # list of VOs which use scope
-vowithscope = atlas
+voWithScope = atlas
 
 
 
@@ -43,7 +43,7 @@ vowithscope = atlas
 [jobbroker]
 
 # interface config
-modconfig = atlas:managed:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBroker
+modConfig = atlas:managed:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBroker
 
 
 
@@ -55,7 +55,7 @@ modconfig = atlas:managed:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJo
 [jobgen]
 
 # number of tasks per cycle
-ntasks = 50
+nTasks = 50
 
 # number of files per task
-nfiles = 100
+nFiles = 100

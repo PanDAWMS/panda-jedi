@@ -9,8 +9,8 @@ from pandaserver.taskbuffer.FileSpec import FileSpec as JobFileSpec
 class JediFileSpec(object):
     # attributes
     _attributes = ('taskID','datasetID','fileID','creationDate','lastAttemptTime',
-                   'lfn','guid','type','status','fsize','checksum','scope',
-                   'attemptNr','maxAttempt')
+                   'lfn','GUID','type','status','fsize','checksum','scope',
+                   'attemptNr','maxAttempt','nEvents','keepTrack')
     # attributes which have 0 by default
     _zeroAttrs = ('fsize','attemptNr')
     # mapping between sequence and attr
@@ -21,7 +21,10 @@ class JediFileSpec(object):
     def __init__(self):
         # install attributes
         for attr in self._attributes:
-            object.__setattr__(self,attr,None)
+            if attr in self._zeroAttrs:
+                object.__setattr__(self,attr,0)
+            else:
+                object.__setattr__(self,attr,None)
         # map of changed attributes
         object.__setattr__(self,'_changedAttrs',{})
         # locality
@@ -111,13 +114,14 @@ class JediFileSpec(object):
     # convert to job's FileSpec
     def convertToJobFileSpec(self,datasetSpec):
         jobFileSpec = JobFileSpec()
-        jobFileSpec.fileID = self.fileID
-        jobFileSpec.lfn      = self.lfn
-        jobFileSpec.GUID     = self.guid
-        jobFileSpec.type     = self.type
-        jobFileSpec.scope    = self.scope
-        jobFileSpec.fsize    = self.fsize
-        jobFileSpec.checksum = self.checksum
+        jobFileSpec.fileID    = self.fileID
+        jobFileSpec.lfn       = self.lfn
+        jobFileSpec.GUID      = self.GUID
+        jobFileSpec.type      = self.type
+        jobFileSpec.scope     = self.scope
+        jobFileSpec.fsize     = self.fsize
+        jobFileSpec.checksum  = self.checksum
+        jobFileSpec.attemptNr = self.attemptNr
         # dataset attribute
         if datasetSpec != None:
             # dataset

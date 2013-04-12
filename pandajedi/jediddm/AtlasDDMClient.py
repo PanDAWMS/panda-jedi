@@ -5,6 +5,8 @@ import lfc
 import socket
 import random
 
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+
 from DDMClientBase import DDMClientBase
 
 from dq2.clientapi.DQ2 import DQ2
@@ -84,6 +86,11 @@ class AtlasDDMClient(DDMClientBase):
                         
     # get available files
     def getAvailableFiles(self,datasetSpec,siteEndPointMap,siteMapper,ngGroup=[]):
+        # make logger
+        methodName = 'getAvailableFiles'
+        methodName = '{0} datasetID={1}({2})'.format(methodName,datasetSpec.datasetID,datasetSpec.datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # list of NG endpoints
             ngEndPoints = []
@@ -153,7 +160,7 @@ class AtlasDDMClient(DDMClientBase):
             fileMap = {}
             lfnMap = {}
             for tmpFile in datasetSpec.Files:
-                fileMap[tmpFile.guid] = tmpFile.lfn
+                fileMap[tmpFile.GUID] = tmpFile.lfn
                 lfnMap[tmpFile.lfn] = tmpFile
             # get SURLs
             surlMap = {}
@@ -192,10 +199,11 @@ class AtlasDDMClient(DDMClientBase):
                             logger.error('faild to extract SE+PATH from %s for %s:%s' % \
                                          (seStr,siteName,tmpEndPoint))
                             continue
-                        sePath = tmpMatch.group(1)
+                        fullSePath = tmpMatch.group(1)
+                        compactSePath = re.sub('(:\d+)*/srm/[^\?]+\?SFN=','',fullSePath)
                         # loop over all SURLs
                         for tmpSURL in surlMap[tmpFileSpec.lfn]:
-                            if tmpSURL.startswith(sePath):
+                            if tmpSURL.startswith(fullSePath) or tmpSURL.startswith(compactSePath):
                                 # add to local file list
                                 if TiersOfATLAS.isTapeSite(tmpEndPoint):
                                     # TAPE
@@ -206,11 +214,13 @@ class AtlasDDMClient(DDMClientBase):
                                     if not tmpFileSpec in returnMap[siteName]['localdisk']:
                                         returnMap[siteName]['localdisk'].append(tmpFileSpec)
             # return
+            tmpLog.debug('done')            
             return self.SC_SUCCEEDED,returnMap
         except:
             errtype,errvalue = sys.exc_info()[:2]
-            logger.error('getAvailableFiles failed with %s %s' % (errtype.__name__,errvalue))
-            return errtype,None
+            errMsg = 'failed with {0} {1}'.format(errtype.__name__,errvalue)
+            logger.error(errMsg)
+            return self.SC_FAILED,'{0}.{1} {2}'.format(self.__class__.__name__,methodName,errMsg)
         
 
     # get SURLs from LFC

@@ -14,6 +14,7 @@ from JediTaskSpec import JediTaskSpec
 from JediFileSpec import JediFileSpec
 from JediDatasetSpec import JediDatasetSpec
 from InputChunk import InputChunk
+from MsgWrapper import MsgWrapper
 
 
 # logger
@@ -67,6 +68,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # dump error message
+    def dumpErrorMessage(self,tmpLog):
+        # error
+        errtype,errvalue = sys.exc_info()[:2]
+        tmpLog.error(": %s %s" % (errtype.__name__,errvalue))
+
+
+
     # get work queue map
     def getWrokQueueMap(self):
         self.refreshWrokQueueMap()
@@ -110,14 +119,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getDatasetsToFeedContents_JEDI(self):
         comment = ' /* JediDBProxy.getDatasetsToFeedContents_JEDI */'
         methodName = self.getMethodName(comment)
-        logger.debug('%s start' % methodName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # SQL
-            sql = 'SELECT taskID,datasetName,datasetID,vo FROM ATLAS_PANDA.JEDI_Datasets '
-            sql += 'WHERE status=:status AND type=:type AND lockedBy IS NULL '
             varMap = {}
-            varMap[':status'] = 'defined'
-            varMap[':type']   = 'input'
+            varMap[':type']    = 'input'
+            sql  = "SELECT %s " % JediDatasetSpec.columnNames()
+            sql += 'FROM ATLAS_PANDA.JEDI_Datasets '
+            sql += 'WHERE status IN ('
+            for tmpStat in JediDatasetSpec.statusToUpdateContents():
+                mapKey = ':'+tmpStat
+                sql += '{0},'.format(mapKey)
+                varMap[mapKey] = tmpStat
+            sql  = sql[:-1]    
+            sql += ') AND type=:type AND lockedBy IS NULL '
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
@@ -125,25 +141,31 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            retList = self.cur.fetchall()
-            logger.debug('%s got %s datasets' % (methodName,len(retList)))
-            return retList
+            resList = self.cur.fetchall()
+            returnList = []
+            for res in resList:
+                datasetSepc = JediDatasetSpec()
+                datasetSepc.pack(res)
+                returnList.append(datasetSepc)  
+            tmpLog.debug('got {0} datasets'.format(len(returnList)))
+            return returnList
         except:
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return None
 
 
                                                 
     # feed files to the JEDI contents table
-    def insertFilesForDataset_JEDI(self,taskID,datasetID,fileMap):
+    def insertFilesForDataset_JEDI(self,datasetSpec,fileMap):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '%s taskID=%s datasetID=%s' % (methodName,taskID,datasetID)
-        logger.debug('%s start' % methodName)
+        methodName = '{0} taskID={1} datasetID={2}'.format(methodName,datasetSpec.taskID,
+                                                           datasetSpec.datasetID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # current current date
             timeNow = datetime.datetime.utcnow()
@@ -151,9 +173,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             fileSpecMap = {}
             for guid,fileVal in fileMap.iteritems():
                 fileSpec = JediFileSpec()
-                fileSpec.taskID       = taskID
-                fileSpec.datasetID    = datasetID
-                fileSpec.guid         = guid
+                fileSpec.taskID       = datasetSpec.taskID
+                fileSpec.datasetID    = datasetSpec.datasetID
+                fileSpec.GUID         = guid
                 fileSpec.type         = 'input'
                 fileSpec.status       = 'ready'            
                 fileSpec.lfn          = fileVal['lfn']
@@ -161,14 +183,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.fsize        = fileVal['filesize']
                 fileSpec.checksum     = fileVal['checksum']
                 fileSpec.creationDate = timeNow
-                # FIXME : to be removed
-                fileSpec.lastAttemptTime = timeNow                
+                # keep track
+                if datasetSpec.toKeepTrack():
+                    fileSpec.keepTrack = 1
                 # append
                 fileSpecMap[fileSpec.lfn] = fileSpec
             # sort by LFN
             lfnList = fileSpecMap.keys()
             lfnList.sort()
-            # sql for check
+            # sql to check dataset status
+            sqlDs  = "SELECT status FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID "
+            # sql to get existing files
             sqlCh  = "SELECT lfn FROM ATLAS_PANDA.JEDI_Dataset_Contents "
             sqlCh += "WHERE datasetID=:datasetID FOR UPDATE"
             # sql for insert
@@ -176,35 +201,45 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlIn += JediFileSpec.bindValuesExpression()
             # begin transaction
             self.conn.begin()
-            # get existing file list
-            varMap = {}
-            varMap[':datasetID'] = datasetID
-            self.cur.execute(sqlCh+comment,varMap)
-            tmpRes = self.cur.fetchall()
-            existingFiles = []
-            for lfn, in tmpRes:
-                existingFiles.append(lfn)
-            # insert files
+            # check dataset status
             nInsert = 0
-            for lfn in lfnList:
-                # avoid duplication
-                if lfn in existingFiles:
-                    continue
-                fileSpec = fileSpecMap[lfn]
-                varMap = fileSpec.valuesMap(useSeq=True)
-                self.cur.execute(sqlIn+comment,varMap)
-                nInsert += 1
+            varMap = {}
+            varMap[':datasetID'] = datasetSpec.datasetID
+            self.cur.execute(sqlDs+comment,varMap)
+            resDs = self.cur.fetchone()
+            if resDs == None:
+                tmpLog('dataset not found in Datasets table')
+            elif not resDs[0] in JediDatasetSpec.statusToUpdateContents():
+                tmpLog.debug('ds.status={0} is not for contents update'.format(resDs[0]))
+            else:    
+                # get existing file list
+                varMap = {}
+                varMap[':datasetID'] = datasetSpec.datasetID
+                self.cur.execute(sqlCh+comment,varMap)
+                tmpRes = self.cur.fetchall()
+                existingFiles = []
+                for lfn, in tmpRes:
+                    existingFiles.append(lfn)
+                # insert files
+                for lfn in lfnList:
+                    # avoid duplication
+                    if lfn in existingFiles:
+                        continue
+                    fileSpec = fileSpecMap[lfn]
+                    varMap = fileSpec.valuesMap(useSeq=True)
+                    self.cur.execute(sqlIn+comment,varMap)
+                    nInsert += 1
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            logger.debug('%s inserted %s rows' % (methodName,nInsert))
+            tmpLog.debug('inserted {0} rows'.format(nInsert))
             return True
         except:
             # roll back
             self._rollback()
             # error
             errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            tmpLog.error("{0} {1}".format(errtype,errvalue))
             return False
 
 
@@ -310,17 +345,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName = self.getMethodName(comment)
         for tmpKey,tmpVal in criteria.iteritems():
             methodName += ' %s=%s' % (tmpKey,tmpVal)
-        logger.debug('%s start' % methodName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         # return value for failure
         failedRet = False,0
         # no criteria
         if criteria == {}:
-            logger.error('%s no selection criteria' % methodName)            
+            tmpLog.error('no selection criteria')
             return failedRet
         # check criteria
         for tmpKey in criteria.keys():
             if not hasattr(datasetSpec,tmpKey):
-                logger.error('%s unknown attribute %s is used in criteria' % (methodName,tmpKey))
+                tmpLog.error('unknown attribute {0} is used in criteria'.format(tmpKey))
                 return failedRet
         try:
             # set attributes
@@ -337,20 +373,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             # update dataset
+            tmpLog.debug(sql+comment+str(varMap))            
             self.cur.execute(sql+comment,varMap)
             # the number of updated rows
             nRows = self.cur.rowcount
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            logger.debug('%s updated %s rows' % (methodName,nRows))
+            tmpLog.debug('updated {0} rows'.format(nRows))
             return True,nRows
         except:
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return failedRet
 
                 
@@ -544,9 +580,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpPrioMap[':minPriority'] = minPriority
         sql0 += "GROUP BY computingSite,cloud,prodSourceLabel,jobStatus,workQueue_ID "
         sqlMV = sql0
-        # FIXME
-        #sqlMV = re.sub('COUNT\(\*\)','SUM(num_of_jobs)',sqlMV)
-        #sqlMV = re.sub('SELECT ','SELECT /*+ RESULT_CACHE */ ',sqlMV)        
+        sqlMV = re.sub('COUNT\(\*\)','SUM(num_of_jobs)',sqlMV)
+        sqlMV = re.sub('SELECT ','SELECT /*+ RESULT_CACHE */ ',sqlMV)        
         tables = ['ATLAS_PANDA.jobsActive4','ATLAS_PANDA.jobsDefined4']
         if minPriority != None:
             # read the number of running jobs with prio<=MIN
@@ -567,9 +602,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.arraysize = 10000
                 useRunning = None
                 if table == 'ATLAS_PANDA.jobsActive4':
-                    # FIXME
-                    #mvTableName = 'ATLAS_PANDA.MV_JOBSACTIVE4_STATS'
-                    mvTableName = 'ATLAS_PANDA.jobsActive4'
+                    mvTableName = 'ATLAS_PANDA.MV_JOBSACTIVE4_STATS'
                     # first count non-running and then running if minPriority is specified
                     if minPriority != None:
                         if iActive == 0:
@@ -632,7 +665,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             outMap = {}
             # sql to read template
-            sqlR  = "SELECT outTempID,datasetID,fileNameTemplate,serialNr FROM ATLAS_PANDA.JEDI_Output_Template "
+            sqlR  = "SELECT outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName FROM ATLAS_PANDA.JEDI_Output_Template "
             sqlR += "WHERE taskID=:taskID FOR UPDATE"
             # sql to get dataset name and vo for scope
             sqlD  = "SELECT datasetName,vo FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID "
@@ -654,25 +687,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             for resR in resList:
                 # make FileSpec
-                outTempID,datasetID,fileNameTemplate,serialNr = resR
+                outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName = resR
                 fileSpec = JediFileSpec()
                 fileSpec.taskID= taskID
                 fileSpec.datasetID = datasetID
                 fileSpec.lfn = fileNameTemplate.replace('${SN}','{SN:06d}').format(SN=serialNr)
                 fileSpec.status = 'defined'
                 fileSpec.creationDate = timeNow
-                # FIXME : to be removed once NOT NULL is removed 
-                fileSpec.lastAttemptTime = timeNow
-                fileSpec.guid = 'dummy'
-                # FIXME
-                # streamName = ???
-                #fileSpec.type = outType
-                if '.log.' in fileSpec.lfn:
-                    fileSpec.type = 'log'
-                    streamName = 'LOG'
-                else:
-                    fileSpec.type = 'output'
-                    streamName = 'OUT'
+                fileSpec.type = outType
+                streamName = streamName
                 # scope
                 varMap = {}
                 varMap[':datasetID'] = datasetID
@@ -681,7 +704,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if resD == None:
                     raise RuntimeError, 'Failed to get datasetName for outTempID={0}'.format(outTempID)
                 datasetName,vo = resD
-                if vo in jedi_config.ddm.vowithscope.split(','):
+                if vo in jedi_config.ddm.voWithScope.split(','):
                     fileSpec.scope = datasetName.split('.')[0]
                 # insert
                 varMap = fileSpec.valuesMap(useSeq=True)
@@ -849,9 +872,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             datasetSepc = JediDatasetSpec()
                             datasetSepc.pack(resRD)
                             # add to InputChunk
-                            # FIXME
-                            #if datasetSepc.masterID == None:                            
-                            if datasetSepc.mastertID == None:
+                            if datasetSepc.masterID == None:                            
                                 inputChunk.addMasterDS(datasetSepc)
                                 cloudName = datasetSepc.cloud
                             else:

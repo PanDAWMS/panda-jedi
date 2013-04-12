@@ -15,7 +15,7 @@ class JediTaskSpec(object):
         'termCondition','splitRule','walltime','walltimeUnit',
         'outDiskCount','outDiskUnit','workDiskCount','workDiskUnit',
         'ramCount','ramUnit','ioIntensity','ioIntensityUnit',
-        'workQueue_ID','progress','failureRate'
+        'workQueue_ID','progress','failureRate','errorDialog'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()

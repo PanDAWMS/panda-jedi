@@ -13,7 +13,7 @@ class DDMInterface:
     # setup interface
     def setupInterface(self):
         # parse config
-        for configStr in jedi_config.ddm.modconfig.split(','):
+        for configStr in jedi_config.ddm.modConfig.split(','):
             configStr = configStr.strip()
             items = configStr.split(':')
             # check format
