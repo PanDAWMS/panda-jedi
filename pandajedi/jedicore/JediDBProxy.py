@@ -699,13 +699,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # make FileSpec
                 outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName = resR
                 fileSpec = JediFileSpec()
-                fileSpec.taskID= taskID
-                fileSpec.datasetID = datasetID
-                fileSpec.lfn = fileNameTemplate.replace('${SN}','{SN:06d}').format(SN=serialNr)
-                fileSpec.status = 'defined'
+                fileSpec.taskID       = taskID
+                fileSpec.datasetID    = datasetID
+                fileSpec.lfn          = fileNameTemplate.replace('${SN}','{SN:06d}').format(SN=serialNr)
+                fileSpec.status       = 'defined'
                 fileSpec.creationDate = timeNow
-                fileSpec.type = outType
-                streamName = streamName
+                fileSpec.type         = outType
+                fileSpec.keepTrack    = 1
                 # scope
                 varMap = {}
                 varMap[':datasetID'] = datasetID
