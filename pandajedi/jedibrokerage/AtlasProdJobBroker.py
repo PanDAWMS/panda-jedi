@@ -1,3 +1,4 @@
+import re
 import sys
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -108,6 +109,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     return retFatal
                 # append
                 self.dataSiteMap[datasetName] = tmpRet
+                tmpLog.debug(str(tmpRet))
             # check if T1 has the data
             if self.dataSiteMap[datasetName].has_key(cloudName):
                 cloudHasData = True

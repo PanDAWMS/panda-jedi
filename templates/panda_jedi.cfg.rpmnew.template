@@ -17,6 +17,10 @@ dbpasswd = FIXME
 # database
 dbname = PandaDB
 
+# number of task buffer instances                                               
+nWorkers = 5
+
+
 
 
 ##########################
@@ -31,6 +35,19 @@ modConfig = atlas:3:pandajedi.jediddm.AtlasDDMClient:AtlasDDMClient
 
 # list of VOs which use scope
 voWithScope = atlas
+
+
+
+
+##########################
+#
+# Contents Feeder parameters
+#
+
+[confeeder]
+
+# number of workers                                                             
+nWorkers = 5
 
 
 
@@ -59,3 +76,6 @@ nTasks = 50
 
 # number of files per task
 nFiles = 100
+
+# number of workers                                                             
+nWorkers = 5

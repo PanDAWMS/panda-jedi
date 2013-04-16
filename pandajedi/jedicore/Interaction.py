@@ -142,7 +142,7 @@ class MethodClass(object):
             # increment nused
             child_process.nused += 1
             # kill old or problematic process
-            if child_process.nused > 500 or not retException in [None,JEDITemporaryError,JEDIFatalError]:
+            if child_process.nused > 5000 or not retException in [None,JEDITemporaryError,JEDIFatalError]:
                 # close connection
                 try:
                     pipe.close()
@@ -156,6 +156,7 @@ class MethodClass(object):
                     pass
                 # make new child process
                 self.voIF.launchChild()
+                break
             # success, fatal error, or maximally attempted    
             if retException in [None,JEDIFatalError] or (iTry+1 == nTry):
                 # reduce process object to avoid deadlock due to rebuilding of connection 

@@ -7,6 +7,7 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from JediKnight import JediKnight
 
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
+from pandajedi.jediconfig import jedi_config
 
 
 # logger
@@ -41,7 +42,7 @@ class ContentsFeeder (JediKnight):
                     # make thread pool
                     threadPool = ThreadPool() 
                     # make workers
-                    nWorker = 3
+                    nWorker = jedi_config.confeeder.nWorkers
                     for iWorker in range(nWorker):
                         thr = ContentsFeederThread(dsList,threadPool,
                                                    self.taskBufferIF,self.ddmIF)
@@ -87,26 +88,43 @@ class ContentsFeederThread (WorkerThread):
                 for datasetSpec in dsList:
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'datasetID={0}'.format(datasetSpec.datasetID))
-                    # get file list
-                    tmpLog.info('get files in {0}'.format(datasetSpec.datasetName))
+                    tmpLog.info('start for {0}'.format(datasetSpec.datasetName))                    
+                    # get dataset metadata
+                    tmpLog.info('get metadata')
+                    gotMetadata = False
+                    stateUpdateTime = datetime.datetime.utcnow()                    
                     try:
-                        tmpRet = self.ddmIF.getInterface(datasetSpec.vo).getFilesInDataset(datasetSpec.datasetName)
+                        tmpMetadata = self.ddmIF.getInterface(datasetSpec.vo).getDatasetMetaData(datasetSpec.datasetName)
+                        gotMetadata = True
                     except:
                         errtype,errvalue = sys.exc_info()[:2]
                         tmpLog.error('{0} failed due to {1}:{2}'.format(self.__class__.__name__,
                                                                         errtype.__name__,errvalue))
                         datasetStatus = 'failed'
                     else:
-                        # feed files to the contents table
-                        tmpLog.info('update contents')
-                        retDB = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet)
-                        if retDB:
-                            datasetStatus = 'ready'
-                        else:
+                        # get file list
+                        tmpLog.info('get files')
+                        try:
+                            tmpRet = self.ddmIF.getInterface(datasetSpec.vo).getFilesInDataset(datasetSpec.datasetName)
+                        except:
+                            errtype,errvalue = sys.exc_info()[:2]
+                            tmpLog.error('{0} failed due to {1}:{2}'.format(self.__class__.__name__,
+                                                                            errtype.__name__,errvalue))
                             datasetStatus = 'failed'
+                        else:
+                            # feed files to the contents table
+                            tmpLog.info('update contents')
+                            retDB = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet)
+                            if retDB:
+                                datasetStatus = 'ready'
+                            else:
+                                datasetStatus = 'failed'
                     # update dataset status
                     datasetSpec.status   = datasetStatus
                     datasetSpec.lockedBy = None
+                    if gotMetadata:
+                        datasetSpec.state = tmpMetadata['state']
+                        datasetSpec.stateCheckTime = stateUpdateTime
                     tmpLog.info('update dataset status with {0}'.format(datasetSpec.status))                    
                     self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'datasetID':datasetSpec.datasetID})
                     tmpLog.info('done')

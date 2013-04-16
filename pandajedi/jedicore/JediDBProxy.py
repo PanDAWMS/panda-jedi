@@ -194,17 +194,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to check dataset status
             sqlDs  = "SELECT status FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID FOR UPDATE "
             # sql to get existing files
-            sqlCh  = "SELECT fileID,lfn FROM ATLAS_PANDA.JEDI_Dataset_Contents "
+            sqlCh  = "SELECT fileID,lfn,status FROM ATLAS_PANDA.JEDI_Dataset_Contents "
             sqlCh += "WHERE datasetID=:datasetID FOR UPDATE"
             # sql for insert
             sqlIn  = "INSERT INTO ATLAS_PANDA.JEDI_Dataset_Contents (%s) " % JediFileSpec.columnNames()
             sqlIn += JediFileSpec.bindValuesExpression()
-            # sql for lost files
-            sqlLost = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:status WHERE fileID=:fileID "
+            # sql to update file status
+            sqlFU = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:status WHERE fileID=:fileID "
+            # sql to update nFiles 
+            sqlDU = "UPDATE ATLAS_PANDA.JEDI_Datasets SET nFiles=:nFiles WHERE datasetID=:datasetID "
             # begin transaction
             self.conn.begin()
             # check dataset status
-            nInsert = 0
+            nInsert  = 0
+            nLost    = 0
+            nNewLost = 0
+            nExist   = 0 
             varMap = {}
             varMap[':datasetID'] = datasetSpec.datasetID
             self.cur.execute(sqlDs+comment,varMap)
@@ -220,25 +225,36 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sqlCh+comment,varMap)
                 tmpRes = self.cur.fetchall()
                 existingFiles = {}
-                for fileID,lfn in tmpRes:
-                    existingFiles[lfn] = fileID
+                for fileID,lfn,status in tmpRes:
+                    existingFiles[lfn] = {'fileID':fileID,'status':status}
                 # insert files
                 existingFileList = existingFiles.keys()
                 for lfn in lfnList:
                     # avoid duplication
                     if lfn in existingFileList:
+                        nExist += 1                        
                         continue
                     fileSpec = fileSpecMap[lfn]
                     varMap = fileSpec.valuesMap(useSeq=True)
                     self.cur.execute(sqlIn+comment,varMap)
                     nInsert += 1
-                # lost files
-                for lfn,fileID in existingFiles.iteritems():
+                # lost or recovered files
+                for lfn,fileVarMap in existingFiles.iteritems():
+                    varMap = {}
+                    varMap['fileID'] = fileVarMap['fileID']
                     if not lfn in lfnList:
-                        varMap = {}
                         varMap['status'] = 'lost'
-                        varMap['fileID'] = fileID
-                        self.cur.execute(sqlLost+comment,varMap)
+                    elif fileSpecMap[lfn].status != fileVarMap['status']:
+                        varMap['status'] = fileSpecMap[lfn].status
+                    else:
+                        continue
+                    self.cur.execute(sqlFU+comment,varMap)
+                # updata nFiles
+                if nInsert > 0:
+                    varMap = {}
+                    varMap[':datasetID'] = datasetSpec.datasetID
+                    varMap[':nFiles'] = nInsert + len(existingFiles)
+                    self.cur.execute(sqlDU+comment,varMap)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -329,7 +345,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql
             sql  = "INSERT INTO ATLAS_PANDA.JEDI_Datasets (%s) " % JediDatasetSpec.columnNames()
             sql += JediDatasetSpec.bindValuesExpression()
+            sql += " RETURNING datasetID INTO :newDatasetID"
             varMap = datasetSpec.valuesMap(useSeq=True)
+            varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
             # begin transaction
             self.conn.begin()
             # insert dataset
@@ -338,14 +356,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             logger.debug('%s done' % methodName)
-            return True
+            return True,long(varMap[':newDatasetID'].getvalue())
         except:
             # roll back
             self._rollback()
             # error
             errtype,errvalue = sys.exc_info()[:2]
             logger.error("%s : %s %s" % (methodName,errtype,errvalue))
-            return False
+            return False,None
 
 
 
@@ -792,19 +810,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         failedRet = None
         try:
             # SQL
-            sql  = "SELECT ATLAS_PANDA.JEDI_Tasks.taskID,datasetID "
+            sql  = "SELECT ATLAS_PANDA.JEDI_Tasks.taskID,datasetID,ATLAS_PANDA.JEDI_Datasets.status "
             sql += "FROM ATLAS_PANDA.JEDI_Tasks,ATLAS_PANDA.JEDI_Datasets "
             sql += "WHERE ATLAS_PANDA.JEDI_Tasks.vo=:vo AND workqueue_ID=:queue_ID AND prodSourceLabel=:prodSourceLabel "
             sql += "AND ATLAS_PANDA.JEDI_Tasks.status=:taskstatus AND ATLAS_PANDA.JEDI_Tasks.lockedBy IS NULL "
             sql += "AND ATLAS_PANDA.JEDI_Tasks.taskID=ATLAS_PANDA.JEDI_Datasets.taskID "
-            sql += "AND ATLAS_PANDA.JEDI_Datasets.status=:dsStatus "
             sql += "AND nFilesToBeUsed > nFilesUsed AND type=:type "
             sql += "ORDER BY currentPriority DESC"
             varMap = {}
             varMap[':vo']             = vo
             varMap[':type']           = 'input'
             varMap[':queue_ID']       = queue_ID
-            varMap[':dsStatus']       = 'ready'
             varMap[':taskstatus']     = 'ready'
             varMap['prodSourceLabel'] = prodSourceLabel
             # begin transaction
@@ -818,10 +834,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # make return
             returnList  = []
             taskDatasetMap = {}
-            for taskID,datasetID in resList:
+            tasksNotReady = []
+            for taskID,datasetID,datasetStatus in resList:
+                if datasetStatus != 'ready':
+                    if not taskID in tasksNotReady:
+                        tasksNotReady.append(taskID)
+                    continue    
                 if not taskDatasetMap.has_key(taskID):
                     taskDatasetMap[taskID] = []
                 taskDatasetMap[taskID].append(datasetID)
+            for taskNotReady in tasksNotReady:
+                if taskDatasetMap.has_key(taskNotReady):
+                    del taskDatasetMap[taskNotReady]
             # sql to read task
             sqlRT  = "SELECT %s " % JediTaskSpec.columnNames()
             sqlRT += "FROM ATLAS_PANDA.JEDI_Tasks WHERE taskID=:taskID FOR UPDATE NOWAIT"
@@ -882,7 +906,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             datasetSepc = JediDatasetSpec()
                             datasetSepc.pack(resRD)
                             # add to InputChunk
-                            if datasetSepc.masterID == None:                            
+                            if datasetSepc.isMaster():
                                 inputChunk.addMasterDS(datasetSepc)
                                 cloudName = datasetSepc.cloud
                             else:
@@ -979,4 +1003,81 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             errtype,errvalue = sys.exc_info()[:2]
             logger.error("%s : %s %s" % (methodName,errtype,errvalue))
             return failedRet
+
+
+    # insert JobParamsTemplate
+    def insertJobParamsTemplate_JEDI(self,taskID,templ):
+        comment = ' /* JediDBProxy.JobParamsTemplate_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName = '{0} taskID={1}'.format(methodName,taskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # SQL
+            sql  = "INSERT INTO ATLAS_PANDA.JEDI_JobParams_Template (taskID,jobParamsTemplate) VALUES (:taskID,:templ) "
+            varMap = {}
+            varMap[':taskID'] = taskID
+            varMap[':templ']  = templ
+            # begin transaction
+            self.conn.begin()
+            # insert
+            self.cur.execute(sql+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            return False
+
+
+
+    # rollback files
+    def rollbackFiles_JEDI(self,taskID,inputChunk):
+        comment = ' /* JediDBProxy.rollbackFiles_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName = '{0} taskID={1}'.format(methodName,taskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to rollback files
+            sql  = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:nStatus "
+            sql += "WHERE datasetID=:datasetID AND status=:oStatus "
+            # sql to reset nFilesUsed
+            sqlD  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow "
+            sqlD += "WHERE datasetID=:datasetID " 
+            # begin transaction
+            self.conn.begin()
+            for datasetSpec in inputChunk.getDatasets():
+                varMap = {}
+                varMap[':datasetID']  = datasetSpec.datasetID
+                varMap[':nStatus'] = 'ready'
+                varMap[':oStatus'] = 'picked'
+                # update contents
+                self.cur.execute(sql+comment,varMap)
+                nFileRow = self.cur.rowcount
+                tmpLog.debug('reset {0} rows for datasetID={1}'.format(nFileRow,datasetSpec.datasetID))
+                if nFileRow > 0:
+                    varMap = {}
+                    varMap[':datasetID']  = datasetSpec.datasetID
+                    varMap[':nFileRow'] = nFileRow
+                    # update dataset
+                    self.cur.execute(sqlD+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            return False
         

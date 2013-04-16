@@ -197,3 +197,29 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # insert JobParamsTemplate
+    def insertJobParamsTemplate_JEDI(self,taskID,templ):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.insertJobParamsTemplate_JEDI(taskID,templ)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # rollback files
+    def rollbackFiles_JEDI(self,taskID,inputChunk):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.rollbackFiles_JEDI(taskID,inputChunk)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

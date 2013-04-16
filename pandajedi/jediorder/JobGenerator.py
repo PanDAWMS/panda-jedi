@@ -47,8 +47,6 @@ class JobGenerator (JediKnight):
                 workQueueMapper = self.taskBufferIF.getWrokQueueMap()
                 # loop over all work queues
                 for workQueue in workQueueMapper.getQueueListWithVoType(self.vo,self.prodSourceLabel):
-                    if workQueue.queue_id != 1:
-                        continue
                     # get the list of input 
                     tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,self.vo,
                                                                            workQueue.queue_id,
@@ -70,7 +68,7 @@ class JobGenerator (JediKnight):
                         # make thread pool
                         threadPool = ThreadPool() 
                         # make workers
-                        nWorker = 3
+                        nWorker = jedi_config.jobgen.nWorkers
                         for iWorker in range(nWorker):
                             thr = JobGeneratorThread(inputList,threadPool,
                                                      self.taskBufferIF,self.ddmIF,
@@ -164,10 +162,15 @@ class JobGeneratorThread (WorkerThread):
                                 pandaIDs.append(items[0])
                         if len(pandaIDs) == len(pandaJobs):
                             tmpLog.info('successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs)))
+                            """
                             statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True)
                             tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
+                            """
                         else:
                             tmpLog.error('submitted only {0}/{1}'.format(len(pandaIDs),len(pandaJobs)))
+                    # role back
+                    if taskSpec.status != 'ready':
+                        self.taskBufferIF.rollbackFiles_JEDI(taskSpec.taskID,inputChunk)
                     # update task
                     tmpLog.info('update task.status=%s' % taskSpec.status)
                     taskSpec.lockedBy = None

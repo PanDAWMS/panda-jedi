@@ -138,9 +138,10 @@ class InputChunk:
                 firstMaster = False    
             # get files from secondaries 
             for datasetSpec in self.secondaryDatasetList:
-                if datasetSpec.noSplit():
+                if datasetSpec.isNoSplit():
                     # every job uses dataset without splitting
                     if firstLoop:
+                        datasetUsage = self.datasetMap[datasetSpec.datasetID]
                         for tmpFileSpec in datasetSpec.Files:
                             if not inputFileMap.has_key(datasetSpec.datasetID):
                                 inputFileMap[datasetSpec.datasetID] = []
@@ -148,6 +149,7 @@ class InputChunk:
                             # sum
                             inputNumFiles += 1
                             fileSize += tmpFileSpec.fsize
+                            datasetUsage['used'] += 1
                 else:
                     # FIXME for pileup etc
                     pass
@@ -167,9 +169,14 @@ class InputChunk:
                     break
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
-                if not datasetSpec.noSplit():
+                if not datasetSpec.isNoSplit():
                     # FIXME for pileup etc
                     pass
+        # reset nUsed for repeated datasets
+        for tmpDatasetID,datasetUsage in self.datasetMap.iteritems():
+            tmpDatasetSpec = datasetUsage['datasetSpec']
+            if tmpDatasetSpec.isRepeated():
+                datasetUsage['used'] %= len(tmpDatasetSpec.Files)
         # make copy to return
         returnList = []
         for tmpDatasetID,inputFileList in inputFileMap.iteritems():

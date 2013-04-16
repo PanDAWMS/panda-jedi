@@ -10,7 +10,7 @@ class JediDatasetSpec(object):
         'taskID','datasetID','datasetName','containerName',
         'type','creationTime','modificationTime','vo','cloud',
         'site','masterID','provenanceID','status','state',
-        'statecheckTime','statecheckExpiration','frozenTime',
+        'stateCheckTime','stateCheckExpiration','frozenTime',
         'nFiles','nFilesToBeUsed','nFilesUsed',
         'nFilesFinished','nFilesFailed',
         'nEvents','nEventsToBeUsed','nEventsUsed',
@@ -25,6 +25,7 @@ class JediDatasetSpec(object):
     _seqAttrMap = {'datasetID':'ATLAS_PANDA.JEDI_DATASETS_ID_SEQ.nextval'}
 
 
+
     # constructor
     def __init__(self):
         # install attributes
@@ -34,6 +35,7 @@ class JediDatasetSpec(object):
         object.__setattr__(self,'Files',[])
         # map of changed attributes
         object.__setattr__(self,'_changedAttrs',{})
+
 
 
     # override __setattr__ to collecte the changed attributes
@@ -46,10 +48,12 @@ class JediDatasetSpec(object):
             self._changedAttrs[name] = value
 
 
+
     # add File to files list
     def addFile(self,fileSpec):
         # append
         self.Files.append(fileSpec)
+
 
         
     # reset changed attribute list
@@ -57,11 +61,13 @@ class JediDatasetSpec(object):
         object.__setattr__(self,'_changedAttrs',{})
 
 
+
     # force update
     def forceUpdate(self,name):
         if name in self._attributes:
             self._changedAttrs[name] = getattr(self,name)
         
+
     
     # return map of values
     def valuesMap(self,useSeq=False,onlyChanged=False):
@@ -84,12 +90,14 @@ class JediDatasetSpec(object):
         return ret
 
 
+
     # pack tuple into FileSpec
     def pack(self,values):
         for i in range(len(self._attributes)):
             attr= self._attributes[i]
             val = values[i]
             object.__setattr__(self,attr,val)
+
 
 
     # return column names for INSERT
@@ -101,6 +109,7 @@ class JediDatasetSpec(object):
             ret += attr
         return ret
     columnNames = classmethod(columnNames)
+
 
 
     # return expression of bind variables for INSERT
@@ -116,6 +125,7 @@ class JediDatasetSpec(object):
         return ret
     bindValuesExpression = classmethod(bindValuesExpression)
 
+
     
     # return an expression of bind variables for UPDATE to update only changed attributes
     def bindUpdateChangesExpression(self):
@@ -128,6 +138,7 @@ class JediDatasetSpec(object):
         return ret
 
 
+
     # get the total size of files
     def getSize(self):
         totalSize = 0
@@ -136,18 +147,56 @@ class JediDatasetSpec(object):
         return totalSize    
 
 
+
     # return list of status to update contents
     def statusToUpdateContents(cls):
         return ['defined','tobeupdated']
     statusToUpdateContents = classmethod(statusToUpdateContents)
 
 
+
     # check if JEDI needs to keep track of file usage
     def toKeepTrack(self):
-        if self.splitRule != None and 'repeat' in self.splitRule:
+        if self.isNoSplit() and self.isRepeated():
             return False
         else:
             return True
+
+
+
+    # check if it is not split
+    def isNoSplit(self):
+        if self.splitRule != None and 'nosplit' in self.splitRule:
+            return True
+        else:
+            return False
+
+
+
+    # check if it is repeatedly used
+    def isRepeated(self):
+        if self.splitRule != None and 'repeat' in self.splitRule:
+            return True
+        else:
+            return False
+
+
+
+    # check if it is a many-time dataset which is treated as long-standing at T2s
+    def isManyTime(self):
+        if self.splitRule != None and 'manytime' in self.splitRule:
+            return True
+        else:
+            return False
+
+
+
+    # check if it is a master dataset
+    def isMaster(self):
+        if self.masterID == None:
+            return True
+        else:
+            return False
         
         
 

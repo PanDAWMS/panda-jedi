@@ -1,3 +1,5 @@
+from pandajedi.jediconfig import jedi_config
+
 from pandajedi.jedicore import Interaction
 
 # interface to JediTaskBuffer
@@ -11,7 +13,7 @@ class JediTaskBufferInterface:
     # setup interface
     def setupInterface(self):
         vo = 'any'
-        maxSize = 1
+        maxSize = jedi_config.db.nWorkers
         moduleName = 'pandajedi.jedicore.JediTaskBuffer'
         className  = 'JediTaskBuffer'
         self.interface = Interaction.CommandSendInterface(vo,maxSize,
