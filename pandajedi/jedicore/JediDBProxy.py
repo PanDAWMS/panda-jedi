@@ -801,11 +801,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get tasks to be processed
-    def getTasksToBeProcessed_JEDI(self,pid,vo,queue_ID,prodSourceLabel,nTasks,nFiles):
+    def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,nTasks,nFiles):
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '{0} vo={1} queue={2} label={3} nTasks={4}'.format(methodName,vo,queue_ID,prodSourceLabel,nTasks)
-        logger.debug('{0} start'.format(methodName))
+        methodName = '{0} vo={1} queue={2}'.format(methodName,vo,workQueue.queue_name)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start label={0} nTasks={1} nFiles={2}'.format(prodSourceLabel,nTasks,nFiles))
         # return value for failure
         failedRet = None
         try:
@@ -820,7 +821,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':vo']             = vo
             varMap[':type']           = 'input'
-            varMap[':queue_ID']       = queue_ID
+            varMap[':queue_ID']       = workQueue.queue_id
             varMap[':taskstatus']     = 'ready'
             varMap['prodSourceLabel'] = prodSourceLabel
             # begin transaction
@@ -834,18 +835,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # make return
             returnList  = []
             taskDatasetMap = {}
-            tasksNotReady = []
+            tasksNotReady = {}
             for taskID,datasetID,datasetStatus in resList:
+                # collect tasks with non-ready datasets
                 if datasetStatus != 'ready':
-                    if not taskID in tasksNotReady:
-                        tasksNotReady.append(taskID)
-                    continue    
+                    if not tasksNotReady.has_key(taskID):
+                        tasksNotReady[taskID] = []
+                    tasksNotReady[taskID].append(taskID)
+                    continue
+                # make task-dataset mapping
                 if not taskDatasetMap.has_key(taskID):
                     taskDatasetMap[taskID] = []
                 taskDatasetMap[taskID].append(datasetID)
-            for taskNotReady in tasksNotReady:
+            for taskNotReady,nonReadyDSs in tasksNotReady.iteritems():
                 if taskDatasetMap.has_key(taskNotReady):
                     del taskDatasetMap[taskNotReady]
+                    tmpLog.debug('wait taskID={0} due to non-ready datasetIDs={1}'.format(taskNotReady,str(nonReadyDSs)))
             # sql to read task
             sqlRT  = "SELECT %s " % JediTaskSpec.columnNames()
             sqlRT += "FROM ATLAS_PANDA.JEDI_Tasks WHERE taskID=:taskID FOR UPDATE NOWAIT"
@@ -871,7 +876,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # loop over all tasks
             iTasks = 0
             for taskID,datasetIDs in taskDatasetMap.iteritems():
-                inputChunk = InputChunk()
                 cloudName = None
                 # begin transaction
                 self.conn.begin()
@@ -885,6 +889,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     resRT = self.cur.fetchone()
                     taskSpec = JediTaskSpec()
                     taskSpec.pack(resRT)
+                    # make InputChunk
+                    inputChunk = InputChunk(taskSpec)
                 except:
                     errType,errValue = sys.exc_info()[:2]
                     if self.isNoWaitException(errValue):
@@ -969,7 +975,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 iFiles += 1
                             if iFiles == 0:
                                 # no input files
-                                logger.error('{0} datasetID={1} has no files to be processed'.format(methodName,datasetID))
+                                logger.debug('{0} datasetID={1} has no files to be processed'.format(methodName,datasetID))
                                 toSkip = True
                                 break
                             else:
@@ -1080,4 +1086,42 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error("{0} {1}".format(errtype,errvalue))
             return False
+
+
+
+    # get the size of input files which will be copied to the site
+    def getMovingInputSize_JEDI(self,siteName):
+        comment = ' /* JediDBProxy.getMovingInputSize_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName = '{0} site={1}'.format(methodName,siteName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get size
+            sql  = "SELECT SUM(inputFileBytes)/1024/1024/1024 FROM ATLAS_PANDA.jobsDefined4 "
+            sql += "WHERE computingSite=:computingSite "
+            # begin transaction
+            self.conn.begin()
+            varMap = {}
+            varMap[':computingSite']  = siteName
+            # exec
+            self.cur.execute(sql+comment,varMap)
+            resSum = self.cur.fetchone()
+            retVal = 0
+            if resSum != None:
+                retVal, = resSum
+            if retVal == None:
+                retVal = 0
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            return None
         

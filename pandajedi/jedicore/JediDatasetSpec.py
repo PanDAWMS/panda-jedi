@@ -197,7 +197,3 @@ class JediDatasetSpec(object):
             return True
         else:
             return False
-        
-        
-
-                       

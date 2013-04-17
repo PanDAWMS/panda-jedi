@@ -23,7 +23,7 @@ st,datasetSpec = tbIF.getDatasetWithID_JEDI(datasetID)
 st,fileSpecList = tbIF.getFilesInDatasetWithID_JEDI(taskID,datasetID,2)
 for fileSpec in fileSpecList:
     datasetSpec.addFile(fileSpec)
-inputChunk = InputChunk(datasetSpec)
+inputChunk = InputChunk(taskSpec,datasetSpec)
 
 st,inputChunk = br.doBrokerage(taskSpec,'US',inputChunk)
 

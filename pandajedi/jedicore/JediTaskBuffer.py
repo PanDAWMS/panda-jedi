@@ -149,11 +149,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get tasks to be processed
-    def getTasksToBeProcessed_JEDI(self,pid,vo,queue_ID,prodSourceLabel,nTasks=50,nFiles=100):
+    def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,nTasks=50,nFiles=100):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTasksToBeProcessed_JEDI(pid,vo,queue_ID,prodSourceLabel,nTasks,nFiles)
+        retVal = proxy.getTasksToBeProcessed_JEDI(pid,vo,workQueue,prodSourceLabel,nTasks,nFiles)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -219,6 +219,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.rollbackFiles_JEDI(taskID,inputChunk)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get the size of input files which will be copied to the site
+    def getMovingInputSize_JEDI(self,siteName):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getMovingInputSize_JEDI(siteName)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

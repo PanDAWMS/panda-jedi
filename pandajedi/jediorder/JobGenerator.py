@@ -49,7 +49,7 @@ class JobGenerator (JediKnight):
                 for workQueue in workQueueMapper.getQueueListWithVoType(self.vo,self.prodSourceLabel):
                     # get the list of input 
                     tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,self.vo,
-                                                                           workQueue.queue_id,
+                                                                           workQueue,
                                                                            self.prodSourceLabel,
                                                                            nTasks=jedi_config.jobgen.nTasks,
                                                                            nFiles=jedi_config.jobgen.nFiles)
@@ -108,7 +108,7 @@ class JobGeneratorThread (WorkerThread):
         while True:
             try:
                 # get a part of list
-                nInput = 10
+                nInput = 5
                 inputList = self.inputList.get(nInput)
                 # no more datasets
                 if len(inputList) == 0:
@@ -188,6 +188,7 @@ class JobGeneratorThread (WorkerThread):
         try:
             # loop over all sub chunks
             jobSpecList = []
+            outDsMap = {}
             for tmpInChunk in inSubChunkList:
                 siteName    = tmpInChunk['siteName']
                 inSubChunks = tmpInChunk['subChunks']
@@ -236,7 +237,6 @@ class JobGeneratorThread (WorkerThread):
                             jobSpec.addFile(tmpInFileSpec)
                     # outputs
                     outSubChunk = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.taskID)
-                    outDsMap = {}
                     for tmpFileSpec in outSubChunk.values():
                         # get dataset
                         if not outDsMap.has_key(tmpFileSpec.datasetID):

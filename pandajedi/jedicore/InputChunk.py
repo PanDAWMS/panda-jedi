@@ -6,7 +6,9 @@ import random
 class InputChunk:
 
     # constructor
-    def __init__(self,masterDataset=None,secondaryDatasetList=[]):
+    def __init__(self,taskSpec,masterDataset=None,secondaryDatasetList=[]):
+        # task spec
+        self.taskSpec = taskSpec
         # the list of secondary datasets
         if secondaryDatasetList == None:
             self.secondaryDatasetList = []
@@ -63,6 +65,13 @@ class InputChunk:
 
 
 
+    # reset used counters
+    def resetUsedCounters(self):
+        for tmpKey,tmpVal in self.datasetMap.iteritems():
+            tmpVal['used'] = 0
+            
+        
+
     # add site candidates
     def addSiteCandidate(self,siteCandidateSpec):
         self.siteCandidates[siteCandidateSpec.siteName] = siteCandidateSpec
@@ -99,29 +108,62 @@ class InputChunk:
 
 
 
+    # get maximum size of atomic subchunk
+    def getMaxAtomSize(self):
+        # number of files per job if defined
+        nFilesPerJob = self.taskSpec.getNumFilesPerJob()
+        if nFilesPerJob == None:
+            nFilesPerJob = 1
+        maxAtomSize = 0    
+        while True:
+            # get one subchunk
+            subChunk = self.getSubChunk(None,nFilesPerJob=nFilesPerJob)
+            if subChunk == None:
+                break
+            # get size
+            tmpAtomSize = 0
+            for tmpDatasetSpec,tmpFileSpecList in subChunk:
+                for tmpFileSpec in tmpFileSpecList:
+                    tmpAtomSize += tmpFileSpec.fsize
+            if maxAtomSize < tmpAtomSize:
+                maxAtomSize = tmpAtomSize
+        # reset counters
+        self.resetUsedCounters()
+        # return
+        return maxAtomSize
+    
+        
+
     # get subchunk with a selection criteria
     def getSubChunk(self,siteName,maxNumFiles=None,maxSize=None,
-                    gradients=0,intercepts=0,multiplicand=1):
+                    sizeGradients=0,sizeIntercepts=0,
+                    nFilesPerJob=None,multiplicand=1,
+                    walltimeIntercepts=0,maxWalltime=0):
         # check if there are unused files/events
         if not self.checkUnused():
             return None
         # set default max number of files
         if maxNumFiles == None:
-            # 50 files at most
-            maxNumFiles = 50
+            # 20 files at most by default
+            maxNumFiles = 20
         # set default max size    
         if maxSize == None:     
-            # 50 GB at most
-            maxSize = 50 * 1024 * 1024 * 1024
-        # get site
-        siteCandidate = self.siteCandidates[siteName]
+            # 20 GB at most by default
+            maxSize = 20 * 1024 * 1024 * 1024
+        # overwrite parameters when nFilesPerJob is used
+        if nFilesPerJob != None:
+            multiplicand = nFilesPerJob
+        # get site when splitting per site
+        if siteName != None:
+            siteCandidate = self.siteCandidates[siteName]
         # start splitting
         inputNumFiles  = 0
         fileSize       = 0
         firstLoop      = True
         firstMaster    = True
         inputFileMap   = {}
-        while inputNumFiles < maxNumFiles and fileSize < maxSize:
+        expWalltime    = 0
+        while inputNumFiles < maxNumFiles and fileSize < maxSize and (maxWalltime <= 0 or expWalltime < maxWalltime):
             # get one file (or one file group for MP) from master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
@@ -131,11 +173,13 @@ class InputChunk:
                 datasetUsage['used'] += 1
                 # sum
                 inputNumFiles += 1
-                fileSize += (tmpFileSpec.fsize + gradients)
+                fileSize += (tmpFileSpec.fsize + sizeGradients)
                 # sum offset only for the first master
                 if firstMaster:
-                    fileSize += intercepts
-                firstMaster = False    
+                    fileSize += sizeIntercepts
+                firstMaster = False
+                # walltime
+                expWalltime += walltimeIntercepts
             # get files from secondaries 
             for datasetSpec in self.secondaryDatasetList:
                 if datasetSpec.isNoSplit():
@@ -158,14 +202,20 @@ class InputChunk:
             # check if there are unused files/evets 
             if not self.checkUnused():
                 break
+            # break if nFilesPerJob is used
+            if nFilesPerJob != None:
+                break
             # check master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             newInputNumFiles = inputNumFiles
             newFileSize      = fileSize
+            newExpWalltime   = expWalltime
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 newInputNumFiles += 1
-                newFileSize += (tmpFileSpec.fsize + gradients)
-                if newInputNumFiles >= maxNumFiles or newFileSize >= maxSize:
+                newFileSize += (tmpFileSpec.fsize + sizeGradients)
+                newExpWalltime += walltimeIntercepts
+                if newInputNumFiles >= maxNumFiles or newFileSize >= maxSize \
+                       or (maxWalltime > 0 and newExpWalltime >= maxWalltime) :
                     break
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
@@ -182,12 +232,17 @@ class InputChunk:
         for tmpDatasetID,inputFileList in inputFileMap.iteritems():
             tmpRetList = []
             for tmpFileSpec in inputFileList:
-                # make copy to individually set locality
-                newFileSpec = copy.copy(tmpFileSpec)
-                # set locality
-                newFileSpec.locality = siteCandidate.getFileLocality(tmpFileSpec)
-                # append
-                tmpRetList.append(newFileSpec)
+                # split par site or get atomic subchunk
+                if siteName != None:
+                    # make copy to individually set locality
+                    newFileSpec = copy.copy(tmpFileSpec)
+                    # set locality
+                    newFileSpec.locality = siteCandidate.getFileLocality(tmpFileSpec)
+                    # append
+                    tmpRetList.append(newFileSpec)
+                else:
+                    # getting atomic subchunk
+                    tmpRetList.append(tmpFileSpec)
             # add to return map    
             tmpDatasetSpec = self.getDatasetWithID(tmpDatasetID)    
             returnList.append((tmpDatasetSpec,tmpRetList))

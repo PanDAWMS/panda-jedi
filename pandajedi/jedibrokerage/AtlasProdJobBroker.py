@@ -38,6 +38,11 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not tmpSt:
             tmpLog.error('failed to get job statistics')
             return retTmpError
+        # T1 
+        t1Sites = [self.siteMapper.getCloud(cloudName)['source']]
+        # hospital sites
+        if self.hospitalQueueMap.has_key(cloudName):
+            t1Sites += self.hospitalQueueMap[cloudName]
         ######################################
         # selection for status
         newScanSiteList = []
@@ -54,7 +59,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             else:
                 tmpLog.debug('  skip %s due to status=%s' % (tmpSiteName,tmpSiteSpec.status))
         scanSiteList = newScanSiteList        
-        tmpLog.debug('selected %s candidates due to site status' % len(scanSiteList))
+        tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
             return retTmpError
@@ -70,18 +75,13 @@ class AtlasProdJobBroker (JobBrokerBase):
                 else:
                     tmpLog.debug('  skip %s due to validatedreleases != True' % tmpSiteName)
             scanSiteList = newScanSiteList        
-            tmpLog.debug('selected %s candidates for reprocessing' % len(scanSiteList))
+            tmpLog.debug('{0} candidates passed for reprocessing'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 return retTmpError
         ######################################
         # selection for high priorities
         if taskSpec.currentPriority >= 950:
-            # T1 
-            t1Sites = [self.siteMapper.getCloud(cloudName)['source']]
-            # hospital sites
-            if self.hospitalQueueMap.has_key(cloudName):
-                t1Sites += self.hospitalQueueMap(cloudName)
             newScanSiteList = []
             for tmpSiteName in scanSiteList:            
                 if tmpSiteName in t1Sites:
@@ -89,7 +89,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 else:
                     tmpLog.debug('  skip %s due to high prio which needs to run at T1' % tmpSiteName)
             scanSiteList = newScanSiteList
-            tmpLog.debug('selected %s candidates for high prio' % len(scanSiteList))
+            tmpLog.debug('{0} candidates passed for high prio'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 return retTmpError
@@ -99,6 +99,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             datasetName = datasetSpec.datasetName
             if not self.dataSiteMap.has_key(datasetName):
                 # get the list of sites where data is available
+                tmpLog.debug('getting the list of sites where {0} is avalable'.format(datasetName))
                 tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,
                                                                  self.ddmIF,datasetName)
                 if tmpSt == self.SC_FAILED:
@@ -134,17 +135,27 @@ class AtlasProdJobBroker (JobBrokerBase):
                     else:
                         tmpLog.debug('  skip %s due to T2 data' % tmpSiteName)
                 scanSiteList = newScanSiteList
-                tmpLog.debug('selected %s candidates for %s which is available only at T2' % \
-                             (len(scanSiteList),datasetName))
+                tmpLog.debug('{0} candidates passed for non-T1 input:{1}'.format(len(scanSiteList),datasetName))
                 if scanSiteList == []:
                     tmpLog.error('no candidates')
                     return retTmpError
         ######################################
         # selection for fairshare
-        # FIXME
-        pass
+        newScanSiteList = []
+        for tmpSiteName in scanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            # check at the site
+            if AtlasBrokerUtils.hasZeroShare(tmpSiteSpec,taskSpec.workQueue_ID):
+                tmpLog.debug('  skip {0} due to zero share'.format(tmpSiteName))
+                continue
+            newScanSiteList.append(tmpSiteName)                
+        scanSiteList = newScanSiteList        
+        tmpLog.debug('{0} candidates passed zero share check'.format(len(scanSiteList)))
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            return retTmpError
         ######################################
-        # selection due to I/O intensive tasks
+        # selection for I/O intensive tasks
         # FIXME
         pass
         ######################################
@@ -164,7 +175,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpLog.debug('  skip %s due to core mismatch site:%s != task:%s' % \
                              (tmpSiteName,tmpSiteSpec.coreCount,taskSpec.coreCount))
         scanSiteList = newScanSiteList        
-        tmpLog.debug('selected %s candidates for useMP=%s' % (len(scanSiteList),useMP))
+        tmpLog.debug('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
         if scanSiteList == []:
             tmpLog.error('no candidates')
             return retTmpError
@@ -197,8 +208,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpLog.debug('  skip %s due to missing rel/cache %s:%s' % \
                                  (tmpSiteName,taskSpec.transHome,taskSpec.architecture))
             scanSiteList = newScanSiteList        
-            tmpLog.debug('selected %s candidates for ATLAS release %s:%s' % \
-                         (len(scanSiteList),taskSpec.transHome,taskSpec.architecture))
+            tmpLog.debug('{0} candidates passed for ATLAS release {1}:{2}'.format(len(scanSiteList),
+                                                                                  taskSpec.transHome,
+                                                                                  taskSpec.architecture))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 return retTmpError
@@ -216,20 +228,64 @@ class AtlasProdJobBroker (JobBrokerBase):
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList        
-            tmpLog.debug('selected %s candidates for memory=%s%s' % \
-                         (len(scanSiteList),minRamCount,taskSpec.ramCountUnit))
+            tmpLog.debug('{0} candidates passed memory check ={1}{2}'.format(len(scanSiteList),
+                                                                             minRamCount,taskSpec.ramCountUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 return retTmpError
         ######################################
         # selection for scratch disk
-        #minDiskCount = taskSpec.outDiskCount + taskSpec.workDiskCount + self.getMaxFsize(inFilesMap)
-        # FIXME
-        pass
+        minDiskCount = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
+        minDiskCount = minDiskCount / 1024 / 1024
+        newScanSiteList = []
+        for tmpSiteName in scanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            # check at the site
+            if tmpSiteSpec.maxwdir != 0 and minDiskCount > tmpSiteSpec.maxwdir:
+                tmpLog.debug('  skip {0} due to small scratch disk={1} < {2}'.format(tmpSiteName,
+                                                                                     tmpSiteSpec.maxwdir,
+                                                                                     minDiskCount))
+                continue
+            newScanSiteList.append(tmpSiteName)
+        scanSiteList = newScanSiteList
+        tmpLog.debug('{0} candidates passed scratch disk check'.format(len(scanSiteList)))
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            return retTmpError
         ######################################
         # selection for available space in SE
-        # FIXME
-        pass
+        newScanSiteList = []
+        for tmpSiteName in scanSiteList:
+            # don't check for T1
+            if tmpSiteName in t1Sites:
+                pass
+            else:
+                # check at the site
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # the number of jobs which will produce outputs
+                nRemJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'assigned') + \
+                           AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'activated') + \
+                           AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running')
+                # the size of input files which will be copied to the site
+                movingInputSize = self.taskBufferIF.getMovingInputSize_JEDI(tmpSiteName)
+                if movingInputSize == None:
+                    tmpLog.error('failed to get the size of input file moving to {0}'.format(tmpSiteName))
+                    return retTmpError
+                # free space - inputs - outputs(250MB*nJobs) must be >= 200GB
+                outSizePerJob = 0.250
+                diskThreshold = 200
+                tmpSpaceSize = tmpSiteSpec.space - movingInputSize - nRemJobs * outSizePerJob
+                if tmpSpaceSize < diskThreshold:
+                    tmpLog.debug('  skip {0} due to disk shortage in SE = {1}-{2}-{3}x{4} < {5}'.format(tmpSiteName,tmpSiteSpec.space,
+                                                                                                        movingInputSize,outSizePerJob,
+                                                                                                        nRemJobs,diskThreshold))
+                    continue
+            newScanSiteList.append(tmpSiteName)
+        scanSiteList = newScanSiteList
+        tmpLog.debug('{0} candidates passed SE space check'.format(len(scanSiteList)))
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            return retTmpError
         ######################################
         # selection for walltime
         minWalltime = taskSpec.walltime
@@ -244,8 +300,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList        
-            tmpLog.debug('selected %s candidates for walltime=%s%s' % \
-                         (len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
+            tmpLog.debug('{0} candidates passed walltime check ={1}{2}'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 return retTmpError
@@ -265,12 +320,12 @@ class AtlasProdJobBroker (JobBrokerBase):
             nTraJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'transferring',cloud=cloudName)
             nRunJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running',cloud=cloudName)
             if max(maxTransferring,2*nRunJobs) < nTraJobs and not tmpSiteSpec.cloud in ['ND']:
-                tmpLog.debug('  skip %s due to too many transferring %s > max(%s,2x%s' % \
+                tmpLog.debug('  skip %s due to too many transferring %s > max(%s,2x%s)' % \
                              (tmpSiteName,nTraJobs,def_maxTransferring,nRunJobs))
                 continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList        
-        tmpLog.debug('selected %s candidates due to transferring' % len(scanSiteList))
+        tmpLog.debug('{0} candidates passed transferring check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
             return retTmpError
@@ -289,7 +344,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 #continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList        
-        tmpLog.debug('selected %s candidates due to pilot' % len(scanSiteList))
+        tmpLog.debug('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
             return retTmpError
@@ -334,6 +389,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             return retTmpError
+        tmpLog.debug('final {0} candidates'.format(len(scanSiteList)))
         weightMap = {}
         for tmpSiteName in scanSiteList:
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',cloudName,taskSpec.workQueue_ID)
@@ -356,6 +412,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
             # append        
             inputChunk.addSiteCandidate(siteCandidateSpec)
+            tmpLog.debug('  use {0} with weight={1}'.format(tmpSiteName,weight))
         # return
         tmpLog.debug('done')        
         return self.SC_SUCCEEDED,inputChunk

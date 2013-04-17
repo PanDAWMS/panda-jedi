@@ -39,15 +39,31 @@ class JobSplitter:
                 # new candidate   
                 siteName = inputChunk.getOneSiteCandidate().siteName
                 siteSpec = siteMapper.getSite(siteName)
-            # use maxwdir as the default maxSize
-            maxSize = siteSpec.maxwdir * 1024 * 1024
-            # set maxNumFiles/maxSize using taskSpec if specified
-            # FIXME
-            pass
-            # set gradients and intercepts using taskSpec
-            pass
+                tmpLog.debug('chosen {0}'.format(siteName))                
+            # get maxSize if it is set in taskSpec
+            maxSize = taskSpec.getMaxSizePerJob()
+            if maxSize == None:
+                # use maxwdir as the default maxSize
+                maxSize = siteSpec.maxwdir * 1024 * 1024
+            # set maxNumFiles using taskSpec if specified
+            maxNumFiles = taskSpec.getMaxNumFilesPerJob()
+            # set fsize gradients using taskSpec
+            sizeGradients  = taskSpec.getOutDiskSize()
+            # set fsize intercepts using taskSpec                
+            sizeIntercepts = taskSpec.getWorkDiskSize()
+            # walltime
+            walltimeIntercepts = taskSpec.walltime
+            maxWalltime = siteSpec.maxtime
+            # number of files per job if defined
+            nFilesPerJob = taskSpec.getNumFilesPerJob()
             # get sub chunk    
-            subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize)
+            subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
+                                              maxNumFiles=maxNumFiles,
+                                              sizeGradients=sizeGradients,
+                                              sizeIntercepts=sizeIntercepts,
+                                              nFilesPerJob=nFilesPerJob,
+                                              walltimeIntercepts=walltimeIntercepts,
+                                              maxWalltime=maxWalltime)
             if subChunk == None:
                 break
             # append

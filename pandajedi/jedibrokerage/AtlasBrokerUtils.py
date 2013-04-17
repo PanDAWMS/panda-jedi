@@ -164,3 +164,23 @@ def getSiteStorageEndpointMap(siteList,siteMapper):
                     retMap[siteName].append(tmpEP)
     # return
     return retMap
+
+
+
+# check if the queue is suppressed
+def hasZeroShare(siteSpec,workQueue_ID):
+    # per-site share is undefined
+    if siteSpec.fairsharePolicy in ['',None]:
+        return False
+    # loop over all policies
+    for tmpItem in siteSpec.fairsharePolicy.split(','):
+        tmpMatch = re.search('(^|,|:)id={0}:'.format(workQueue_ID),tmpItem)
+        if tmpMatch != None:
+            tmpShare = tmpItem.split(':')[-1]
+            tmpSahre = tmpShare.replace('%','')
+            if tmpSahre == '0':
+                return True
+            else:
+                return False
+    # return
+    return False

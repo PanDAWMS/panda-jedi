@@ -1,9 +1,10 @@
+import re
+
+
 """
 task specification for JEDI
 
 """
-
-
 class JediTaskSpec(object):
     # attributes
     _attributes = (
@@ -18,7 +19,7 @@ class JediTaskSpec(object):
         'workQueue_ID','progress','failureRate','errorDialog'
         )
     # attributes which have 0 by default
-    _zeroAttrs = ()
+    _zeroAttrs = ('outDiskCount','workDiskCount','walltime')
     # attributes to force update
     _forceUpdateAttrs = ('lockedBy','lockedTime')
     # mapping between sequence and attr
@@ -29,7 +30,10 @@ class JediTaskSpec(object):
     def __init__(self):
         # install attributes
         for attr in self._attributes:
-            object.__setattr__(self,attr,None)
+            if attr in self._zeroAttrs:
+                object.__setattr__(self,attr,0)
+            else:
+                object.__setattr__(self,attr,None)
         # map of changed attributes
         object.__setattr__(self,'_changedAttrs',{})
         # template to generate job parameters
@@ -122,6 +126,63 @@ class JediTaskSpec(object):
         return ret
 
 
+
+    # get the max size per job if defined
+    def getMaxSizePerJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search('nGBPerJob=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                nGBPerJob = int(nGBPerJob) * 1024 * 1024 * 1024
+                return nGBPerJob
+        return None    
+
+
+
+    # get the maxnumber of files per job if defined
+    def getMaxNumFilesPerJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search('nMaxFilesPerJob=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None    
+
+
+
+
+    # get the number of files per job if defined
+    def getNumFilesPerJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search('nFilesPerJob=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None    
         
 
-                       
+
+    # get the size of workDisk in bytes
+    def getWorkDiskSize(self):
+        tmpSize = self.workDiskCount
+        if tmpSize == None:
+            return 0
+        if self.workDiskUnit == 'GB':
+            tmpSize = tmpSize * 1024 * 1024 * 1024
+            return tmpSize
+        if self.workDiskUnit == 'MB':
+            tmpSize = tmpSize * 1024 * 1024
+            return tmpSize
+        return tmpSize
+
+
+
+    # get the size of outDisk in bytes
+    def getOutDiskSize(self):
+        tmpSize = self.outDiskCount
+        if tmpSize == None:
+            return 0
+        if self.outDiskUnit == 'GB':
+            tmpSize = tmpSize * 1024 * 1024 * 1024
+            return tmpSize
+        if self.outDiskUnit == 'MB':
+            tmpSize = tmpSize * 1024 * 1024
+            return tmpSize
+        return tmpSize
