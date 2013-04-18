@@ -120,36 +120,45 @@ class JobGeneratorThread (WorkerThread):
                     tmpLog = MsgWrapper(self.logger,'taskID=%s' % taskSpec.taskID)
                     tmpLog.info('start with VO=%s cloud=%s' % (taskSpec.vo,cloudName))
                     readyToSubmitJob = False
+                    jobsSubmitted = False
                     # initialize brokerage
                     tmpLog.info('run brokerage')
                     jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
                     tmpStat = jobBroker.initialize(self.ddmIF.getInterface(taskSpec.vo),
                                                                            self.taskBufferIF)
                     if not tmpStat:
-                        self.logger.error('failed to initialize JobBroker')
+                        tmpErrStr = 'failed to initialize JobBroker'
+                        tmpLog.error(tmpErrStr)
                         taskSpec.status = 'broken'
+                        taskSpec.setErrDiag(tmpErrStr)                        
                     else:    
                         # run brokerage
                         tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk)
                         if tmpStat != Interaction.SC_SUCCEEDED:
-                            tmpLog.error('brokerage failed')
-                            taskSpec.status= 'pending'
+                            tmpErrStr = 'brokerage failed'
+                            tmpLog.error(tmpErrStr)
+                            taskSpec.setOnHold()
+                            taskSpec.setErrDiag(tmpErrStr)
                         else:
                             # split
                             tmpLog.info('run splitter')
                             splitter = JobSplitter()
                             tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
                             if tmpStat != Interaction.SC_SUCCEEDED:
-                                tmpLog.error('splitting failed')
-                                taskSpec.status= 'pending'
+                                tmpErrStr = 'splitting failed'
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.setOnHold()
+                                taskSpec.setErrDiag(tmpErrStr)                                
                             else:
                                 # generate jobs
                                 tmpLog.info('run job generator')                                
                                 tmpStat,pandaJobs = self.doGenerate(taskSpec,cloudName,subChunks,
                                                                     inputChunk,tmpLog)
                                 if tmpStat != Interaction.SC_SUCCEEDED:
-                                    tmpLog.error('job generation failed')
+                                    tmpErrStr = 'job generation failed'
+                                    tmpLog.error(tmpErrStr)
                                     taskSpec.status = 'broken'
+                                    taskSpec.setErrDiag(tmpErrStr)
                                 else:
                                     readyToSubmitJob = True
                     if readyToSubmitJob:
@@ -166,10 +175,12 @@ class JobGeneratorThread (WorkerThread):
                             statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True)
                             tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
                             """
+                            jobsSubmitted = True
+                            taskSpec.status = 'running'
                         else:
                             tmpLog.error('submitted only {0}/{1}'.format(len(pandaIDs),len(pandaJobs)))
                     # role back
-                    if taskSpec.status != 'ready':
+                    if not jobsSubmitted:
                         self.taskBufferIF.rollbackFiles_JEDI(taskSpec.taskID,inputChunk)
                     # update task
                     tmpLog.info('update task.status=%s' % taskSpec.status)

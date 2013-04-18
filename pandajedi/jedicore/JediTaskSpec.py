@@ -24,6 +24,9 @@ class JediTaskSpec(object):
     _forceUpdateAttrs = ('lockedBy','lockedTime')
     # mapping between sequence and attr
     _seqAttrMap = {}
+    # limit length
+    _limitLength = {'errorDialog' : 255}
+
 
 
     # constructor
@@ -78,6 +81,10 @@ class JediTaskSpec(object):
                     val = 0
                 else:
                     val = None
+            # truncate too long values
+            if self._limitLength.has_key(attr):
+                if val != None:
+                    val = val[:self._limitLength[attr]]
             ret[':%s' % attr] = val
         return ret
 
@@ -193,3 +200,38 @@ class JediTaskSpec(object):
     def statusToUpdateContents(cls):
         return ['defined','pending','holding']
     statusToUpdateContents = classmethod(statusToUpdateContents)
+
+
+    # set task status on hold
+    def setOnHold(self):
+        # change status
+        if self.status == 'ready':
+            self.status = 'pending'
+        elif self.status == 'running':
+            self.status = 'holding'
+        elif self.status == 'merging':
+            self.status = 'suspend'
+        elif self.status == 'injected':
+            self.status = 'waiting'
+
+
+    # set task status to active
+    def setInActive(self):
+        # change status        
+        if self.status == 'pending':
+            self.status = 'ready'
+        elif self.status == 'holding':
+            self.status = 'running'
+        elif self.status == 'suspend':
+            self.status = 'merging'
+        elif self.status == 'waiting':
+            self.status = 'defined'
+        # reset error dialog    
+        self.setErrDiag(None)
+            
+            
+    # set error dialog
+    def setErrDiag(self,diag):
+        # set error dialog    
+        self.errorDialog = diag
+        

@@ -915,23 +915,39 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # return value for failure
         failedRet = None
         try:
-            # SQL
-            sql  = "SELECT ATLAS_PANDA.JEDI_Tasks.taskID,datasetID,ATLAS_PANDA.JEDI_Datasets.status "
-            sql += "FROM ATLAS_PANDA.JEDI_Tasks,ATLAS_PANDA.JEDI_Datasets "
-            sql += "WHERE ATLAS_PANDA.JEDI_Tasks.vo=:vo AND workqueue_ID=:queue_ID AND prodSourceLabel=:prodSourceLabel "
-            sql += "AND ATLAS_PANDA.JEDI_Tasks.status=:taskstatus AND ATLAS_PANDA.JEDI_Tasks.lockedBy IS NULL "
-            sql += "AND ATLAS_PANDA.JEDI_Tasks.taskID=ATLAS_PANDA.JEDI_Datasets.taskID "
-            sql += "AND nFilesToBeUsed > nFilesUsed AND type=:type "
-            sql += "ORDER BY currentPriority DESC"
+            # sql to get tasks/datasets
             varMap = {}
-            varMap[':vo']             = vo
-            varMap[':type']           = 'input'
-            varMap[':queue_ID']       = workQueue.queue_id
-            varMap[':taskstatus']     = 'ready'
-            varMap['prodSourceLabel'] = prodSourceLabel
+            varMap[':vo']              = vo
+            varMap[':type']            = 'input'
+            varMap[':taskstatus1']     = 'ready'
+            varMap[':taskstatus2']     = 'running'
+            varMap[':taskstatus3']     = 'merging'            
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':dsStatus']        = 'ready'            
+            varMap[':dsOKStatus1']     = 'ready'
+            varMap[':dsOKStatus2']     = 'done'
+            sql  = "SELECT tabT.taskID,datasetID "
+            sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD "
+            sql += "WHERE tabT.vo=:vo AND workqueue_ID IN ("
+            for tmpQueue_ID in workQueue.getIDs():
+                tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
+                varMap[tmpKey] = tmpQueue_ID
+                sql += '{0},'.format(tmpKey)
+            sql  = sql[:-1]
+            sql += ') '
+            sql += "AND prodSourceLabel=:prodSourceLabel "
+            sql += "AND tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3) "
+            sql += "AND tabT.lockedBy IS NULL AND tabT.taskID=tabD.taskID "
+            sql += "AND nFilesToBeUsed > nFilesUsed AND type=:type AND tabD.status=:dsStatus "
+            sql += 'AND NOT EXISTS '
+            sql += '(SELECT 1 FROM ATLAS_PANDA.JEDI_Datasets '
+            sql += 'WHERE ATLAS_PANDA.JEDI_Datasets.taskID=tabT.taskID '
+            sql += 'AND type=:type AND NOT status IN (:dsOKStatus1,:dsOKStatus2)) '
+            sql += "ORDER BY currentPriority DESC "
             # begin transaction
             self.conn.begin()
             # select
+            tmpLog.debug(sql+comment+str(varMap))
             self.cur.execute(sql+comment,varMap)
             resList = self.cur.fetchall()
             # commit
@@ -940,25 +956,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # make return
             returnList  = []
             taskDatasetMap = {}
-            tasksNotReady = {}
-            for taskID,datasetID,datasetStatus in resList:
-                # collect tasks with non-ready datasets
-                if datasetStatus != 'ready':
-                    if not tasksNotReady.has_key(taskID):
-                        tasksNotReady[taskID] = []
-                    tasksNotReady[taskID].append(taskID)
-                    continue
+            for taskID,datasetID in resList:
                 # make task-dataset mapping
                 if not taskDatasetMap.has_key(taskID):
                     taskDatasetMap[taskID] = []
                 taskDatasetMap[taskID].append(datasetID)
-            for taskNotReady,nonReadyDSs in tasksNotReady.iteritems():
-                if taskDatasetMap.has_key(taskNotReady):
-                    del taskDatasetMap[taskNotReady]
-                    tmpLog.debug('wait taskID={0} due to non-ready datasetIDs={1}'.format(taskNotReady,str(nonReadyDSs)))
+            tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
             # sql to read task
             sqlRT  = "SELECT %s " % JediTaskSpec.columnNames()
-            sqlRT += "FROM ATLAS_PANDA.JEDI_Tasks WHERE taskID=:taskID FOR UPDATE NOWAIT"
+            sqlRT += "FROM ATLAS_PANDA.JEDI_Tasks WHERE taskID=:taskID AND lockedBy IS NULL FOR UPDATE NOWAIT"
             # sql to lock task
             sqlLock  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
             sqlLock += "WHERE taskID=:taskID AND lockedBy IS NULL "
@@ -992,10 +998,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # select
                     self.cur.execute(sqlRT+comment,varMap)
                     resRT = self.cur.fetchone()
-                    taskSpec = JediTaskSpec()
-                    taskSpec.pack(resRT)
-                    # make InputChunk
-                    inputChunk = InputChunk(taskSpec)
+                    # locked by another
+                    if resRT == None:
+                        toSkip = True
+                    else:
+                        taskSpec = JediTaskSpec()
+                        taskSpec.pack(resRT)
+                        # make InputChunk
+                        inputChunk = InputChunk(taskSpec)
                 except:
                     errType,errValue = sys.exc_info()[:2]
                     if self.isNoWaitException(errValue):
@@ -1091,13 +1101,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':datasetID']  = datasetID
                                 varMap[':nFilesUsed'] = nFilesUsed
                                 self.cur.execute(sqlDU+comment,varMap)
-                    # add to return
-                    if not toSkip:
-                        returnList.append((taskSpec,cloudName,inputChunk))
-                        iTasks += 1
-                        # enough tasks 
-                        if iTasks >= nTasks:
-                            break
+                # add to return
+                if not toSkip:
+                    returnList.append((taskSpec,cloudName,inputChunk))
+                    iTasks += 1
                 if not toSkip:        
                     # commit
                     if not self._commit():
@@ -1105,6 +1112,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 else:
                     # roll back
                     self._rollback()
+                # enough tasks 
+                if iTasks >= nTasks:
+                    break
             logger.debug('{0} done for {1} tasks'.format(methodName,len(returnList)))
             return returnList
         except:

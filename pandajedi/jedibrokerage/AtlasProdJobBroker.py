@@ -28,8 +28,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog = MsgWrapper(logger,'taskID=%s' % taskSpec.taskID)
         tmpLog.debug('start')
         # return for failure
-        retFatal    = self.SC_FATAL,{}
-        retTmpError = self.SC_FAILED,{}
+        retFatal    = self.SC_FATAL,inputChunk
+        retTmpError = self.SC_FAILED,inputChunk
         # get sites in the cloud
         scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
         tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))

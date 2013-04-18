@@ -38,6 +38,17 @@ class WorkQueue(object):
         return dumpStr
 
 
+    # get IDs 
+    def getIDs(self):
+        if self.subQueues == []:
+            return [self.queue_id]
+        else:
+            tmpIDs = []
+            for subQueue in self.subQueues:
+                tmpIDs.append(subQueue.queue_id)
+            return tmpIDs
+        
+            
     # add sub queues
     def addSubQueue(self,subQueue):
         # disallow non-throttle in throttled partition
