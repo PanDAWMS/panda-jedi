@@ -186,3 +186,10 @@ class JediTaskSpec(object):
             tmpSize = tmpSize * 1024 * 1024
             return tmpSize
         return tmpSize
+
+
+
+    # return list of status to update contents
+    def statusToUpdateContents(cls):
+        return ['defined','pending','holding']
+    statusToUpdateContents = classmethod(statusToUpdateContents)

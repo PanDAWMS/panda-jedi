@@ -101,12 +101,13 @@ class JediDatasetSpec(object):
 
 
     # return column names for INSERT
-    def columnNames(cls):
+    def columnNames(cls,prefix=None):
         ret = ""
         for attr in cls._attributes:
-            if ret != "":
-                ret += ','
-            ret += attr
+            if prefix != None:
+                ret += '{0}.'.format(prefix)
+            ret += '{0},'.format(attr)
+        ret = ret[:-1]    
         return ret
     columnNames = classmethod(columnNames)
 
@@ -150,7 +151,7 @@ class JediDatasetSpec(object):
 
     # return list of status to update contents
     def statusToUpdateContents(cls):
-        return ['defined','tobeupdated']
+        return ['defined','toupdate']
     statusToUpdateContents = classmethod(statusToUpdateContents)
 
 
