@@ -373,7 +373,7 @@ class AtlasDDMClient(DDMClientBase):
             dq2=DQ2()
             # check
             tmpRet = dq2.checkDatasetConsistency(location,datasetName)
-            tmpLog.debug(tmpRet)
+            tmpLog.debug(str(tmpRet))
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errMsg = 'failed with {0} {1}'.format(errtype.__name__,errvalue)

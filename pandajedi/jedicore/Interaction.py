@@ -151,17 +151,17 @@ class MethodClass(object):
                 # terminate child process
                 try:
                     os.kill(child_process.pid,signal.SIGKILL)
-                    os.waitpid(child_process.pid)
+                    os.waitpid(child_process.pid,0)
                 except:
                     pass
                 # make new child process
                 self.voIF.launchChild()
-                break
-            # success, fatal error, or maximally attempted    
-            if retException in [None,JEDIFatalError] or (iTry+1 == nTry):
+            else:
                 # reduce process object to avoid deadlock due to rebuilding of connection 
                 child_process.reduceConnection(pipe)
                 self.connectionQueue.put(child_process)
+            # success, fatal error, or maximally attempted    
+            if retException in [None,JEDIFatalError] or (iTry+1 == nTry):
                 break
             # sleep
             time.sleep(1) 
@@ -213,12 +213,12 @@ class CommandSendInterface(object):
         # make child process
         child_process = multiprocessing.Process(target=self.launcher,
                                                 args=(child_conn,))
-        # keep process in queue        
-        processObj = ProcessClass(child_process.pid,parent_conn)
-        self.connectionQueue.put(processObj)
         # start child process
         child_process.daemon = True
         child_process.start()
+        # keep process in queue        
+        processObj = ProcessClass(child_process.pid,parent_conn)
+        self.connectionQueue.put(processObj)
 
 
     # initialize
@@ -287,7 +287,7 @@ class CommandReceiveInterface(object):
                                          commandObj.methodName,errvalue)
             # return
             self.con.send(retObj)
-
+            
 
 # install SCs
 installSC(CommandReceiveInterface)
