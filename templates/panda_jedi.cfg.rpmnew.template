@@ -64,6 +64,20 @@ modConfig = atlas:managed:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJo
 
 
 
+
+##########################
+#
+# Job Throttle parameters
+#
+
+[jobthrottle]
+
+# interface config
+modConfig = atlas:managed:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProdJobThrottler
+
+
+
+
 ##########################
 #
 # Job Generator parameters

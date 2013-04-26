@@ -161,11 +161,25 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get tasks to be processed
-    def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,nTasks=50,nFiles=100):
+    def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,nTasks=50,nFiles=100):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTasksToBeProcessed_JEDI(pid,vo,workQueue,prodSourceLabel,nTasks,nFiles)
+        retVal = proxy.getTasksToBeProcessed_JEDI(pid,vo,workQueue,prodSourceLabel,cloudName,nTasks,nFiles)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get tasks to be processed
+    def checkWaitingTaskPrio_JEDI(self,vo,workQueue,prodSourceLabel,cloudName):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getTasksToBeProcessed_JEDI(None,vo,workQueue,prodSourceLabel,
+                                                  cloudName,isPeeking=True)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -183,6 +197,38 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get job statistics with work queue per cloud
+    def getJobStatWithWorkQueuePerCloud_JEDI(self,vo,prodSourceLabel):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getJobStatisticsWithWorkQueue_JEDI(vo,prodSourceLabel)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        if retVal[0] == False:
+            return retVal
+        # make per-cloud map
+        retMap = {}
+        for computingSite,siteMap in retVal[1].iteritems():
+            for cloud,cloudMap in siteMap.iteritems():
+                # add cloud
+                if not retMap.has_key(cloud):
+                    retMap[cloud] = {}
+                for workQueue_ID,workQueueMap in cloudMap.iteritems():
+                    # add work queue
+                    if not retMap[cloud].has_key(workQueue_ID):
+                        retMap[cloud][workQueue_ID] = {}
+                    for jobStatus,nCount in workQueueMap.iteritems():
+                        # add job status
+                        if not retMap[cloud][workQueue_ID].has_key(jobStatus):
+                            retMap[cloud][workQueue_ID][jobStatus] = 0
+                        # add
+                        retMap[cloud][workQueue_ID][jobStatus] += nCount
+        # return
+        return retVal[0],retMap
 
 
 
@@ -244,6 +290,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getMovingInputSize_JEDI(siteName)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get highest prio jobs with workQueueID
+    def getHighestPrioJobStat_JEDI(self,prodSourceLabel,cloudName,workQueueID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getHighestPrioJobStat_JEDI(prodSourceLabel,cloudName,workQueueID)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

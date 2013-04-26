@@ -143,8 +143,11 @@ class JediDatasetSpec(object):
     # get the total size of files
     def getSize(self):
         totalSize = 0
+        checkedList = []
         for tmpFileSpec in self.Files:
-            totalSize += tmpFileSpec.fsize
+            if not tmpFileSpec.lfn in checkedList:
+                totalSize += tmpFileSpec.fsize
+                checkedList.append(tmpFileSpec.lfn)
         return totalSize    
 
 

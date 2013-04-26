@@ -10,7 +10,8 @@ class JediFileSpec(object):
     # attributes
     _attributes = ('taskID','datasetID','fileID','creationDate','lastAttemptTime',
                    'lfn','GUID','type','status','fsize','checksum','scope',
-                   'attemptNr','maxAttempt','nEvents','keepTrack')
+                   'attemptNr','maxAttempt','nEvents','keepTrack',
+                   'startEvent','endEvent')
     # attributes which have 0 by default
     _zeroAttrs = ('fsize','attemptNr')
     # mapping between sequence and attr
@@ -138,6 +139,12 @@ class JediFileSpec(object):
         # return
         return jobFileSpec
 
+
+    # check if event-level splitting is used
+    def doEventLevelSplit(self):
+        if self.startEvent == None:
+            return False
+        return True
         
 
                        

@@ -152,7 +152,8 @@ setup(
                'pandajedi.jediddm',
                'pandajedi.jediorder',               
                'pandajedi.jediconfig',
-               'pandajedi.jedibrokerage',               
+               'pandajedi.jedibrokerage',
+               'pandajedi.jedithrottle',
               ],
     data_files=[
                 # config files 

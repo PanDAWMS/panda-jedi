@@ -9,6 +9,7 @@ from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedibrokerage.JobBroker import JobBroker
+from pandajedi.jedithrottle.JobThrottler import JobThrottler
 from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.userinterface import Client as PandaClient
 
@@ -27,11 +28,12 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 class JobGenerator (JediKnight):
 
     # constructor
-    def __init__(self,commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel):
+    def __init__(self,commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList):
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
         self.vo = vo
         self.prodSourceLabel = prodSourceLabel
         self.pid = '{0}:{1}:gen'.format(socket.getfqdn(),os.getpid())
+        self.cloudList = cloudList
 
         
 
@@ -43,39 +45,58 @@ class JobGenerator (JediKnight):
         while True:
             startTime = datetime.datetime.utcnow()
             try:
+                # get SiteMapper
+                siteMapper = self.taskBufferIF.getSiteMapper()
                 # get work queue mapper
                 workQueueMapper = self.taskBufferIF.getWrokQueueMap()
-                # loop over all work queues
-                for workQueue in workQueueMapper.getQueueListWithVoType(self.vo,self.prodSourceLabel):
-                    # get the list of input 
-                    tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,self.vo,
-                                                                           workQueue,
-                                                                           self.prodSourceLabel,
-                                                                           nTasks=jedi_config.jobgen.nTasks,
-                                                                           nFiles=jedi_config.jobgen.nFiles)
-                    cycleStr = 'vo={0} queue={1}(id={2}) label={3}'.format(self.vo,workQueue.queue_name,
-                                                                           workQueue.queue_id,
-                                                                           self.prodSourceLabel)
-                    if tmpList == None:
-                        # failed
-                        logger.error('failed to get the list of input chunks to generate jobs for {0}'.format(cycleStr))
-                    else:
-                        logger.debug('got {0} input chunks for {1}'.format(len(tmpList),cycleStr))
-                        # get SiteMapper
-                        siteMapper = self.taskBufferIF.getSiteMapper()
-                        # put to a locked list
-                        inputList = ListWithLock(tmpList)
-                        # make thread pool
-                        threadPool = ThreadPool() 
-                        # make workers
-                        nWorker = jedi_config.jobgen.nWorkers
-                        for iWorker in range(nWorker):
-                            thr = JobGeneratorThread(inputList,threadPool,
-                                                     self.taskBufferIF,self.ddmIF,
-                                                     siteMapper)
-                            thr.start()
-                        # join
-                        threadPool.join()
+                # get Throttle
+                throttle = JobThrottler(self.vo,self.prodSourceLabel)
+                throttle.initialize(self.taskBufferIF)
+                # get
+                tmpSt,jobStat = self.taskBufferIF.getJobStatWithWorkQueuePerCloud_JEDI(self.vo,self.prodSourceLabel)
+                if not tmpSt:
+                    raise RuntimeError,'failed to get job statistics'
+                # loop over all clouds
+                for cloudName in self.cloudList:
+                    # loop over all work queues
+                    for workQueue in workQueueMapper.getQueueListWithVoType(self.vo,self.prodSourceLabel):
+                        cycleStr = 'vo={0} cloud={1} queue={2}(id={3}) label={4}'.format(self.vo,cloudName,
+                                                                                         workQueue.queue_name,
+                                                                                         workQueue.queue_id,
+                                                                                         self.prodSourceLabel)
+                        logger.debug('start {0}'.format(cycleStr))
+                        # throttle
+                        tmpSt,thrFlag = throttle.toBeThrottled(self.vo,cloudName,workQueue,jobStat)
+                        if tmpSt != self.SC_SUCCEEDED:
+                            raise RuntimeError,'failed to check throttle for {0}'.format(cycleStr)                            
+                        if thrFlag:
+                            logger.debug('throttled')
+                            continue
+                        # get the list of input 
+                        tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,self.vo,
+                                                                               workQueue,
+                                                                               self.prodSourceLabel,
+                                                                               cloudName,
+                                                                               nTasks=jedi_config.jobgen.nTasks,
+                                                                               nFiles=jedi_config.jobgen.nFiles)
+                        if tmpList == None:
+                            # failed
+                            logger.error('failed to get the list of input chunks to generate jobs for {0}'.format(cycleStr))
+                        else:
+                            logger.debug('got {0} input chunks for {1}'.format(len(tmpList),cycleStr))
+                            # put to a locked list
+                            inputList = ListWithLock(tmpList)
+                            # make thread pool
+                            threadPool = ThreadPool() 
+                            # make workers
+                            nWorker = jedi_config.jobgen.nWorkers
+                            for iWorker in range(nWorker):
+                                thr = JobGeneratorThread(inputList,threadPool,
+                                                         self.taskBufferIF,self.ddmIF,
+                                                         siteMapper)
+                                thr.start()
+                            # join
+                            threadPool.join()
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
@@ -361,6 +382,6 @@ class JobGeneratorThread (WorkerThread):
         
 ########## launch 
                 
-def launcher(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel):
-    p = JobGenerator(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel)
+def launcher(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList):
+    p = JobGenerator(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList)
     p.start()

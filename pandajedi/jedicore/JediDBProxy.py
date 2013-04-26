@@ -1,5 +1,6 @@
 import re
 import sys
+import copy
 import datetime
 import cx_Oracle
 
@@ -700,7 +701,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get job statistics with work queue
-    def getJobStatisticsWithWorkQueue_JEDI(self,vo,prodSourceLabel,minPriority):
+    def getJobStatisticsWithWorkQueue_JEDI(self,vo,prodSourceLabel,minPriority=None):
         comment = ' /* DBProxy.getJobStatisticsWithWorkQueue_JEDI */'
         methodName = self.getMethodName(comment)
         methodName = '%s vo=%s label=%s' % (methodName,vo,prodSourceLabel)
@@ -906,10 +907,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get tasks to be processed
-    def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,nTasks,nFiles):
+    def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,
+                                   nTasks=50,nFiles=100,isPeeking=False):
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '{0} vo={1} queue={2}'.format(methodName,vo,workQueue.queue_name)
+        methodName = '{0} vo={1} queue={2} cloud={3}'.format(methodName,vo,workQueue.queue_name,cloudName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start label={0} nTasks={1} nFiles={2}'.format(prodSourceLabel,nTasks,nFiles))
         # return value for failure
@@ -919,6 +921,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':vo']              = vo
             varMap[':type']            = 'input'
+            varMap[':cloud']           = cloudName
             varMap[':taskstatus1']     = 'ready'
             varMap[':taskstatus2']     = 'running'
             varMap[':taskstatus3']     = 'merging'            
@@ -926,7 +929,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':dsStatus']        = 'ready'            
             varMap[':dsOKStatus1']     = 'ready'
             varMap[':dsOKStatus2']     = 'done'
-            sql  = "SELECT tabT.taskID,datasetID "
+            sql  = "SELECT tabT.taskID,datasetID,currentPriority "
             sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD "
             sql += "WHERE tabT.vo=:vo AND workqueue_ID IN ("
             for tmpQueue_ID in workQueue.getIDs():
@@ -935,7 +938,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += '{0},'.format(tmpKey)
             sql  = sql[:-1]
             sql += ') '
-            sql += "AND prodSourceLabel=:prodSourceLabel "
+            sql += "AND prodSourceLabel=:prodSourceLabel AND tabD.cloud=:cloud "
             sql += "AND tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3) "
             sql += "AND tabT.lockedBy IS NULL AND tabT.taskID=tabD.taskID "
             sql += "AND nFilesToBeUsed > nFilesUsed AND type=:type AND tabD.status=:dsStatus "
@@ -953,10 +956,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
+            # no tasks
+            if resList == [] and isPeeking:
+                return 0
             # make return
             returnList  = []
             taskDatasetMap = {}
-            for taskID,datasetID in resList:
+            for taskID,datasetID,currentPriority in resList:
+                # just return the max priority
+                if isPeeking:
+                    return currentPriority
                 # make task-dataset mapping
                 if not taskDatasetMap.has_key(taskID):
                     taskDatasetMap[taskID] = []
@@ -978,7 +987,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR += "FROM ATLAS_PANDA.JEDI_Dataset_Contents WHERE "
             sqlFR += "datasetID=:datasetID and status=:status "
             sqlFR += "ORDER BY fileID) "
-            sqlFR += "WHERE rownum <= %s" % nFiles 
+            sqlFR += "WHERE rownum <= %s" % nFiles
             # sql to update file status
             sqlFU  = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:nStatus "
             sqlFU += "WHERE fileID=:fileID AND status=:oStatus "
@@ -987,7 +996,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # loop over all tasks
             iTasks = 0
             for taskID,datasetIDs in taskDatasetMap.iteritems():
-                cloudName = None
                 # begin transaction
                 self.conn.begin()
                 # read task
@@ -1024,14 +1032,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             # select
                             self.cur.execute(sqlRD+comment,varMap)
                             resRD = self.cur.fetchone()
-                            datasetSepc = JediDatasetSpec()
-                            datasetSepc.pack(resRD)
+                            datasetSpec = JediDatasetSpec()
+                            datasetSpec.pack(resRD)
                             # add to InputChunk
-                            if datasetSepc.isMaster():
-                                inputChunk.addMasterDS(datasetSepc)
-                                cloudName = datasetSepc.cloud
+                            if datasetSpec.isMaster():
+                                inputChunk.addMasterDS(datasetSpec)
                             else:
-                                inputChunk.addSecondaryDS(datasetSepc)                                
+                                inputChunk.addSecondaryDS(datasetSpec)                                
                         except:
                             errType,errValue = sys.exc_info()[:2]
                             if self.isNoWaitException(errValue):
@@ -1240,3 +1247,81 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.error("{0} {1}".format(errtype,errvalue))
             return None
         
+
+
+    # get highest prio jobs with workQueueID
+    def getHighestPrioJobStat_JEDI(self,prodSourceLabel,cloudName,workQueue):
+        comment = ' /* JediDBProxy.getHighestPrioJobStat_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName = "{0} cloud={1} workQueue={2}".format(methodName,cloudName,workQueue.queue_name)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        varMapO = {}
+        varMapO[':cloud']           = cloudName
+        varMapO[':prodSourceLabel'] = prodSourceLabel
+        sql0  = "SELECT max(currentPriority) FROM {0} "
+        sqlS  = "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
+        sqlS += "AND cloud=:cloud AND workQueue_ID IN ("
+        for tmpQueue_ID in workQueue.getIDs():
+            tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
+            varMapO[tmpKey] = tmpQueue_ID
+            sqlS += '{0},'.format(tmpKey)
+        sqlS  = sqlS[:-1]
+        sqlS += ") "
+        sql0 += sqlS
+        sqlC  = "SELECT COUNT(*) FROM {0} "
+        sqlC += sqlS
+        sqlC += "AND currentPriority=:currentPriority"
+        tables = ['ATLAS_PANDA.jobsActive4','ATLAS_PANDA.jobsDefined4']
+        # make return map
+        prioKey = 'highestPrio'
+        nNotRunKey = 'nNotRun'
+        retMap = {prioKey:0,nNotRunKey:0}
+        try:
+            for table in tables:
+                # start transaction
+                self.conn.begin()
+                varMap = copy.copy(varMapO) 
+                # select
+                if table == 'ATLAS_PANDA.jobsActive4':
+                    varMap[':jobStatus1'] = 'activated'
+                    varMap[':jobStatus2'] = 'dummy'
+                else:
+                    varMap[':jobStatus1'] = 'defined'
+                    varMap[':jobStatus2'] = 'assigned'
+                self.cur.arraysize = 100
+                tmpLog.debug((sql0+comment).format(table))
+                self.cur.execute((sql0+comment).format(table), varMap)
+                res = self.cur.fetchone()
+                # if there is a job
+                if res != None and res[0] != None:
+                    maxPriority = res[0]
+                    getNumber = False
+                    if retMap[prioKey] < maxPriority:
+                        retMap[prioKey] = maxPriority
+                        # reset
+                        retMap[nNotRunKey] = 0
+                        getNumber = True
+                    elif retMap[prioKey] == maxPriority:
+                        getNumber = True
+                    # get number of jobs with highest prio
+                    if getNumber:
+                        varMap[':currentPriority'] = maxPriority
+                        self.cur.arraysize = 10
+                        tmpLog.debug((sqlC+comment).format(table))
+                        self.cur.execute((sqlC+comment).format(table),varMap)
+                        resC = self.cur.fetchone()
+                        retMap[nNotRunKey] += resC[0]
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug(str(retMap))
+            return True,retMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            return False,None
