@@ -1,5 +1,3 @@
-import sys
-
 from pandajedi.jedicore.FactoryBase import FactoryBase
 from pandajedi.jediconfig import jedi_config
 

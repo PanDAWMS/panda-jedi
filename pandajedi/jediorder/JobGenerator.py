@@ -28,13 +28,14 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 class JobGenerator (JediKnight):
 
     # constructor
-    def __init__(self,commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList):
+    def __init__(self,commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList,
+                 withThrottle=True):
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
         self.vo = vo
         self.prodSourceLabel = prodSourceLabel
         self.pid = '{0}:{1}:gen'.format(socket.getfqdn(),os.getpid())
         self.cloudList = cloudList
-
+        self.withThrottle = withThrottle
         
 
     # main
@@ -45,6 +46,9 @@ class JobGenerator (JediKnight):
         while True:
             startTime = datetime.datetime.utcnow()
             try:
+                # get logger
+                tmpLog = MsgWrapper(logger)
+                tmpLog.debug('start')
                 # get SiteMapper
                 siteMapper = self.taskBufferIF.getSiteMapper()
                 # get work queue mapper
@@ -64,14 +68,15 @@ class JobGenerator (JediKnight):
                                                                                          workQueue.queue_name,
                                                                                          workQueue.queue_id,
                                                                                          self.prodSourceLabel)
-                        logger.debug('start {0}'.format(cycleStr))
+                        tmpLog.debug('start {0}'.format(cycleStr))
                         # throttle
                         tmpSt,thrFlag = throttle.toBeThrottled(self.vo,cloudName,workQueue,jobStat)
                         if tmpSt != self.SC_SUCCEEDED:
                             raise RuntimeError,'failed to check throttle for {0}'.format(cycleStr)                            
                         if thrFlag:
-                            logger.debug('throttled')
-                            continue
+                            tmpLog.debug('throttled')
+                            if self.withThrottle:
+                                continue
                         # get the list of input 
                         tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,self.vo,
                                                                                workQueue,
@@ -81,9 +86,9 @@ class JobGenerator (JediKnight):
                                                                                nFiles=jedi_config.jobgen.nFiles)
                         if tmpList == None:
                             # failed
-                            logger.error('failed to get the list of input chunks to generate jobs for {0}'.format(cycleStr))
+                            tmpLog.error('failed to get the list of input chunks to generate jobs')
                         else:
-                            logger.debug('got {0} input chunks for {1}'.format(len(tmpList),cycleStr))
+                            tmpLog.debug('got {0} input chunks'.format(len(tmpList)))
                             # put to a locked list
                             inputList = ListWithLock(tmpList)
                             # make thread pool
@@ -99,9 +104,10 @@ class JobGenerator (JediKnight):
                             threadPool.join()
             except:
                 errtype,errvalue = sys.exc_info()[:2]
-                logger.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
+                tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
                                                                          errtype.__name__,errvalue))
             # sleep if needed
+            tmpLog.debug('end')            
             loopCycle = 60
             timeDelta = datetime.datetime.utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
@@ -382,6 +388,6 @@ class JobGeneratorThread (WorkerThread):
         
 ########## launch 
                 
-def launcher(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList):
-    p = JobGenerator(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList)
+def launcher(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList,withThrottle=True):
+    p = JobGenerator(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList,withThrottle)
     p.start()
