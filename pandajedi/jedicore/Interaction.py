@@ -1,8 +1,9 @@
 import os
 import sys
 import time
-import signal
 import types
+import signal
+import datetime
 import multiprocessing
 import multiprocessing.reduction
 
@@ -234,8 +235,23 @@ class CommandReceiveInterface(object):
     # constructor
     def __init__(self,con):
         self.con = con
+        self.cacheMap = {}
 
 
+    # make key for cache
+    def makeKey(self,className,methodName,argList,argMap):
+        try:
+            tmpKey = '{0}:{1}:'.format(className,methodName)
+            for argItem in argList:
+                tmpKey += '{0}:'.format(str(argItem))
+            for argKey,argVal in argMap.iteritems():
+                tmpKey += '{0}={1}:'.format(argKey,str(argVal))
+            tmpKey = tmpKey[:-1]   
+            return tmpKey    
+        except:
+            return None
+
+                
     # main loop    
     def start(self):
         while True:
@@ -253,10 +269,29 @@ class CommandReceiveInterface(object):
                     (className,commandObj.methodName)
             else:
                 try:
-                    # get function
-                    functionObj = getattr(self,commandObj.methodName)
+                    # use cache
+                    useCache = False
+                    doExec = True
+                    if commandObj.argMap.has_key('useResultCache'):
+                        # get time range
+                        timeRange = commandObj.argMap['useResultCache']
+                        # delete from args map
+                        del commandObj.argMap['useResultCache']
+                        # make key for cache
+                        tmpCacheKey = self.makeKey(className,commandObj.methodName,commandObj.argList,commandObj.argMap)
+                        if tmpCacheKey != None:
+                            useCache = True
+                            # cache is fresh
+                            if self.cacheMap.has_key(tmpCacheKey) and \
+                               self.cacheMap[tmpCacheKey]['utime']+datetime.timedelta(seconds=timeRange) > datetime.datetime.utcnow():
+                                tmpRet = self.cacheMap[tmpCacheKey]['value']
+                                doExec = False
                     # exec
-                    tmpRet = apply(functionObj,commandObj.argList,commandObj.argMap)
+                    if doExec:
+                        # get function
+                        functionObj = getattr(self,commandObj.methodName)
+                        # exec
+                        tmpRet = apply(functionObj,commandObj.argList,commandObj.argMap)
                     if isinstance(tmpRet,StatusCode):
                         # only status code was returned
                         retObj.statusCode = tmpRet
@@ -285,9 +320,13 @@ class CommandReceiveInterface(object):
                     retObj.errorValue = 'type=%s : %s.%s : %s' % \
                                         (errtype.__name__,className,
                                          commandObj.methodName,errvalue)
+                # cache
+                if useCache and doExec and retObj.statusCode == self.SC_SUCCEEDED:
+                    self.cacheMap[tmpCacheKey] = {'utime':datetime.datetime.utcnow(),
+                                                  'value':tmpRet}
             # return
             self.con.send(retObj)
-            
+
 
 # install SCs
 installSC(CommandReceiveInterface)

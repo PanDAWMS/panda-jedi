@@ -21,6 +21,12 @@ class WorkQueue(object):
         # sub queues    
         self.subQueues = []
 
+
+    # string presentation
+    def __str__(self):
+        return str(self.queue_name)
+
+
     # dump
     def dump(self):
         dumpStr = 'id:%s order:%s name:%s share:%s ' % \
