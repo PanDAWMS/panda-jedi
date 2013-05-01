@@ -16,5 +16,4 @@ parent_conn, child_conn = multiprocessing.Pipe()
 
 contentsFeeder = multiprocessing.Process(target=ContentsFeeder.launcher,
                                                 args=(child_conn,tbIF,ddmIF))
-contentsFeeder.daemon = True
 contentsFeeder.start()

@@ -10,11 +10,10 @@ ddmIF.setupInterface()
 
 import multiprocessing
 
-from pandajedi.jediorder import JobGenerator
+from pandajedi.jediorder import TaskRefiner
 
 parent_conn, child_conn = multiprocessing.Pipe()
 
-gen = multiprocessing.Process(target=JobGenerator.launcher,
-                              args=(child_conn,tbIF,ddmIF,'atlas','managed',['US'],
-                                    False,False))
-gen.start()
+taskRefiner = multiprocessing.Process(target=TaskRefiner.launcher,
+                                      args=(child_conn,tbIF,ddmIF))
+taskRefiner.start()

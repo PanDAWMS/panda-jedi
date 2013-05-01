@@ -130,10 +130,13 @@ class ContentsFeederThread (WorkerThread):
                                 retDB = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
                                                                                      tmpMetadata['state'],
                                                                                      stateUpdateTime)
-                                if not retDB:
+                                if retDB == False:
                                     datasetStatus = 'pending'
                                     # update dataset status    
                                     self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
+                                    allUpdated = False
+                                elif retDB == None:
+                                    # the dataset is locked by another or status is not applicable
                                     allUpdated = False
                     # update task status                
                     if allUpdated:

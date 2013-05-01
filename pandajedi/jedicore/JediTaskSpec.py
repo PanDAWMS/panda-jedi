@@ -58,6 +58,14 @@ class JediTaskSpec(object):
         object.__setattr__(self,'_changedAttrs',{})
 
 
+    # reset changed attribute
+    def resetChangedAttr(self,name):
+        try:
+            del self._changedAttrs[name]
+        except:
+            pass
+
+
     # force update
     def forceUpdate(self,name):
         if name in self._attributes:

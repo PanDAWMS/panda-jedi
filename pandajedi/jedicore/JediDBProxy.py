@@ -224,9 +224,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFU = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:status WHERE fileID=:fileID "
             # sql to update dataset
             sqlDU  = "UPDATE ATLAS_PANDA.JEDI_Datasets "
-            sqlDU += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,nFiles=:nFiles "
+            sqlDU += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,"
+            sqlDU += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed "
             sqlDU += "WHERE datasetID=:datasetID "
             nInsert  = 0
+            retVal = None
             # begin transaction
             self.conn.begin()
             # check task
@@ -238,7 +240,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.debug('task not found in Task table')
             else:
                 taskStatus,taskLockedBy = resTask
-                if taskLockedBy == None:
+                if taskLockedBy != None:
                     # task is locked
                     tmpLog.debug('task is locked by {0}'.format(taskLockedBy))
                 elif not taskStatus in JediTaskSpec.statusToUpdateContents():
@@ -248,7 +250,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # check dataset status
                     nLost    = 0
                     nNewLost = 0
-                    nExist   = 0 
+                    nExist   = 0
+                    nReady   = 0
                     varMap = {}
                     varMap[':datasetID'] = datasetSpec.datasetID
                     self.cur.execute(sqlDs+comment,varMap)
@@ -266,6 +269,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         existingFiles = {}
                         for fileID,lfn,status in tmpRes:
                             existingFiles[lfn] = {'fileID':fileID,'status':status}
+                            if status == 'ready':
+                                nReady += 1
                         # insert files
                         existingFileList = existingFiles.keys()
                         for lfn in lfnList:
@@ -277,30 +282,37 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap = fileSpec.valuesMap(useSeq=True)
                             self.cur.execute(sqlIn+comment,varMap)
                             nInsert += 1
+                        nReady += nInsert    
                         # lost or recovered files
                         for lfn,fileVarMap in existingFiles.iteritems():
                             varMap = {}
                             varMap['fileID'] = fileVarMap['fileID']
                             if not lfn in lfnList:
                                 varMap['status'] = 'lost'
-                            elif fileSpecMap[lfn].status != fileVarMap['status']:
+                            elif fileVarMap['status'] in ['lost','missing'] and \
+                                     fileSpecMap[lfn].status != fileVarMap['status']:
                                 varMap['status'] = fileSpecMap[lfn].status
                             else:
                                 continue
+                            if varMap['status'] == 'ready':
+                                nReady += 1
                             self.cur.execute(sqlFU+comment,varMap)
                         # updata dataset
                         varMap = {}
                         varMap[':datasetID'] = datasetSpec.datasetID
                         varMap[':nFiles'] = nInsert + len(existingFiles)
+                        varMap[':nFilesTobeUsed'] = nReady
                         varMap[':status' ] = 'ready'
                         varMap[':state' ] = datasetState
                         varMap[':stateUpdateTime'] = stateUpdateTime
                         self.cur.execute(sqlDU+comment,varMap)
+                    # set return value
+                    retVal = True
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('inserted {0} rows'.format(nInsert))
-            return True
+            return retVal
         except:
             # roll back
             self._rollback()
@@ -946,7 +958,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql += '(SELECT 1 FROM ATLAS_PANDA.JEDI_Datasets '
             sql += 'WHERE ATLAS_PANDA.JEDI_Datasets.taskID=tabT.taskID '
             sql += 'AND type=:type AND NOT status IN (:dsOKStatus1,:dsOKStatus2)) '
-            sql += "ORDER BY currentPriority DESC "
+            sql += "ORDER BY currentPriority DESC, taskID "
             # begin transaction
             self.conn.begin()
             # select
@@ -962,6 +974,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # make return
             returnList  = []
             taskDatasetMap = {}
+            taskIDList = []
             for taskID,datasetID,currentPriority in resList:
                 # just return the max priority
                 if isPeeking:
@@ -970,6 +983,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not taskDatasetMap.has_key(taskID):
                     taskDatasetMap[taskID] = []
                 taskDatasetMap[taskID].append(datasetID)
+                if not taskID in taskIDList:
+                    taskIDList.append(taskID)
             tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
             # sql to read task
             sqlRT  = "SELECT %s " % JediTaskSpec.columnNames()
@@ -995,7 +1010,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDU  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET nFilesUsed=:nFilesUsed WHERE datasetID=:datasetID "
             # loop over all tasks
             iTasks = 0
-            for taskID,datasetIDs in taskDatasetMap.iteritems():
+            for taskID in taskIDList:
+                datasetIDs = taskDatasetMap[taskID]
                 # begin transaction
                 self.conn.begin()
                 # read task
@@ -1135,7 +1151,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # insert JobParamsTemplate
     def insertJobParamsTemplate_JEDI(self,taskID,templ):
-        comment = ' /* JediDBProxy.JobParamsTemplate_JEDI */'
+        comment = ' /* JediDBProxy.insertJobParamsTemplate_JEDI */'
         methodName = self.getMethodName(comment)
         methodName = '{0} taskID={1}'.format(methodName,taskID)
         tmpLog = MsgWrapper(logger,methodName)
@@ -1146,6 +1162,38 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':taskID'] = taskID
             varMap[':templ']  = templ
+            # begin transaction
+            self.conn.begin()
+            # insert
+            self.cur.execute(sql+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            return False
+
+
+
+    # insert TaskParams
+    def insertTaskParams_JEDI(self,taskID,taskParams):
+        comment = ' /* JediDBProxy.insertTaskParams_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName = '{0} taskID={1}'.format(methodName,taskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # SQL
+            sql  = "INSERT INTO ATLAS_PANDA.DEFT_TASK (TASK_ID,TASK_PARAM) VALUES (:taskID,:param) "
+            varMap = {}
+            varMap[':taskID'] = taskID
+            varMap[':param']  = taskParams
             # begin transaction
             self.conn.begin()
             # insert
@@ -1325,3 +1373,337 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error("{0} {1}".format(errtype,errvalue))
             return False,None
+
+
+
+    # get the list of tasks to refine
+    def getTasksToRefine_JEDI(self,vo=None,prodSourceLabel=None):
+        comment = ' /* JediDBProxy.getTasksToRefine_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName = "{0} vo={1} label={2}: ".format(methodName,vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        retTaskIDs = []
+        try:
+            # sql to get taskIDs to refine from the command table
+            # FIXME ATLAS_PANDA -> ATLAS_DEFT
+            sqlC  = "SELECT comm_task,comm_meta FROM ATLAS_PANDA.PRODSYS_COMM "
+            sqlC += "WHERE comm_owner=:comm_owner AND comm_cmd=:comm_cmd "
+            varMap = {}
+            varMap[':comm_owner']    = 'DEFT'
+            #varMap[':comm_receiver'] = 'JEDI'        
+            varMap[':comm_cmd']      = 'submit'
+            if not vo in [None,'any']:
+                varMap[':comm_vo'] = vo
+                sqlC += "AND comm_vo=:comm_vo "
+            if not prodSourceLabel in [None,'any']:
+                varMap[':comm_prodSourceLabel'] = prodSourceLabel
+                sqlC += "AND comm_prodSourceLabel=:comm_prodSourceLabel "
+            sqlC += "ORDER BY comm_ts "
+            # start transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            tmpLog.debug(sqlC+comment+str(varMap))
+            self.cur.execute(sqlC+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('got {0} tasks'.format(len(resList)))            
+            for taskID,metaTaskID in resList:
+                isOK = True
+                tmpLog.debug('start taskID={0} metaTaskID={1}'.format(taskID,metaTaskID))                
+               # start transaction
+                self.conn.begin()
+                # lock
+                varMap = {}
+                varMap[':comm_task'] = taskID
+                varMap[':comm_meta'] = metaTaskID
+                # FIXME ATLAS_PANDA -> ATLAS_DEFT
+                sqlLock  = "SELECT * FROM ATLAS_PANDA.PRODSYS_COMM WHERE comm_task=:comm_task AND comm_meta=:comm_meta "
+                sqlLock += "FOR UPDATE NOWAIT "
+                toSkip = False                
+                try:
+                    tmpLog.debug(sqlLock+comment+str(varMap))
+                    self.cur.execute(sqlLock+comment,varMap)
+                except:
+                    errType,errValue = sys.exc_info()[:2]
+                    if self.isNoWaitException(errValue):
+                        # resource busy and acquire with NOWAIT specified
+                        toSkip = True
+                        tmpLog.debug('skip locked taskID={0} metaTaskID={1}'.format(taskID,metaTaskID))
+                    else:
+                        # failed with something else
+                        raise errType,errValue
+                if not toSkip:     
+                    # read task owner
+                    varMap = {}
+                    varMap[':meta_id'] = metaTaskID
+                    # FIXME ATLAS_PANDA -> ATLAS_DEFT
+                    sqlMeta = "SELECT meta_manager FROM ATLAS_PANDA.DEFT_META WHERE meta_id=:meta_id"
+                    tmpLog.debug(sqlMeta+comment+str(varMap))
+                    self.cur.execute(sqlMeta+comment,varMap)
+                    resMeta = self.cur.fetchone()
+                    if resMeta == None:
+                        tmpLog.error('metaTask is not found for taskID={0} metaTaskID={1}'.format(taskID,metaTaskID))
+                        isOK = False
+                    if isOK:
+                        # insert task to JEDI
+                        varMap = {}
+                        varMap[':taskID'] = taskID
+                        # FIXME
+                        #varMap[':taskName'] = 'unknown'
+                        import uuid
+                        varMap[':taskName'] = str(uuid.uuid4())
+                        # FIXME
+                        #varMap[':status'] = 'registered'
+                        varMap[':status'] = 'defined'
+                        varMap[':userName'] = resMeta[0]
+                        sqlIT =  "INSERT INTO ATLAS_PANDA.JEDI_Tasks "
+                        sqlIT += "(taskID,taskName,status,userName,creationDate,modificationtime"
+                        if vo != None:
+                            sqlIT += ',vo'
+                        if prodSourceLabel != None:
+                            sqlIT += ',prodSourceLabel'
+                        sqlIT += ") "
+                        sqlIT += "VALUES(:taskID,:taskName,:status,:userName,CURRENT_DATE,CURRENT_DATE"
+                        if vo != None:
+                            sqlIT += ',:vo'
+                            varMap[':vo'] = vo
+                        if prodSourceLabel != None:
+                            sqlIT += ',:prodSourceLabel'
+                            varMap[':prodSourceLabel'] = prodSourceLabel
+                        sqlIT += ") "
+                        try:
+                            tmpLog.debug(sqlIT+comment+str(varMap))
+                            self.cur.execute(sqlIT+comment,varMap)
+                        except:
+                            errtype,errvalue = sys.exc_info()[:2]
+                            tmpLog.error("failed to insert taskID={0} with {1} {2}".format(taskID,errtype,errvalue))
+                            isOK = False
+                    if isOK:
+                        # check task parameters
+                        varMap = {}
+                        varMap[':task_id'] = taskID
+                        sqlTC = "SELECT task_id FROM ATLAS_PANDA.DEFT_TASK WHERE task_id=:task_id "
+                        tmpLog.debug(sqlTC+comment+str(varMap))
+                        self.cur.execute(sqlTC+comment,varMap)
+                        resTC = self.cur.fetchone()
+                        if resTC == None or resTC[0] == None:
+                            tmpLog.error("task parameters not found in DEFT_TASK")
+                            isOK = False
+                    if isOK:        
+                        # copy task parameters
+                        varMap = {}
+                        varMap[':task_id'] = taskID
+                        # FIXME ATLAS_PANDA -> ATLAS_DEFT
+                        sqlCopy  = "INSERT INTO ATLAS_PANDA.JEDI_TaskParams (taskID,taskParams) "
+                        sqlCopy += "SELECT task_id,task_param FROM ATLAS_PANDA.DEFT_TASK "
+                        sqlCopy += "WHERE task_id=:task_id "
+                        try:
+                            tmpLog.debug(sqlCopy+comment+str(varMap))
+                            self.cur.execute(sqlCopy+comment,varMap)
+                        except:
+                            errtype,errvalue = sys.exc_info()[:2]
+                            tmpLog.error("failed to insert param for taskID={0} with {1} {2}".format(taskID,errtype,errvalue))
+                    # update
+                    varMap = {}
+                    varMap[':comm_task'] = taskID
+                    varMap[':comm_meta'] = metaTaskID
+                    varMap[':comm_cmd']  = 'submitted'
+                    # FIXME ATLAS_PANDA -> ATLAS_DEFT
+                    sqlUC = "UPDATE ATLAS_PANDA.PRODSYS_COMM SET comm_cmd=:comm_cmd WHERE comm_task=:comm_task AND comm_meta=:comm_meta "
+                    tmpLog.debug(sqlUC+comment+str(varMap))
+                    self.cur.execute(sqlUC+comment,varMap)
+                    # append
+                    if isOK:
+                        retTaskIDs.append(taskID)
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+            # find orphaned tasks to rescue
+            self.conn.begin()
+            varMap = {}
+            # FIXME
+            #varMap[':status'] = 'registered'
+            #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
+            varMap[':status'] = 'defined'
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(seconds=10)
+            sqlOrpS  = "SELECT taskID FROM ATLAS_PANDA.JEDI_Tasks "
+            sqlOrpS += "WHERE status=:status AND modificationtime<:timeLimit "
+            if vo != None:
+                sqlOrpS += 'AND vo=:vo '
+                varMap[':vo'] = vo
+            if prodSourceLabel != None:
+                sqlOrpS += 'AND prodSourceLabel=:prodSourceLabel '
+                varMap[':prodSourceLabel'] = prodSourceLabel
+            sqlOrpS += "FOR UPDATE "
+            tmpLog.debug(sqlOrpS+comment+str(varMap))
+            self.cur.execute(sqlOrpS+comment,varMap)
+            resList = self.cur.fetchall()
+            # update modtime to avoid immediate reattempts
+            sqlOrpU  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET modificationtime=CURRENT_DATE "
+            sqlOrpU += "WHERE taskID=:taskID "
+            for taskID, in resList:
+                varMap = {}
+                varMap[':taskID'] = taskID
+                tmpLog.debug(sqlOrpU+comment+str(varMap))
+                self.cur.execute(sqlOrpU+comment,varMap)
+                nRow = self.cur.rowcount
+                if nRow == 1 and not taskID in retTaskIDs:
+                    retTaskIDs.append(taskID)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("return {0} tasks".format(len(retTaskIDs)))
+            return retTaskIDs
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            return None
+
+
+
+    # get task parameters with taskID
+    def getTaskParamsWithID_JEDI(self,taskID):
+        comment = ' /* JediDBProxy.getTaskParamsWithID_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' taskID={0}'.format(taskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql
+            sql  = "SELECT taskParams FROM ATLAS_PANDA.JEDI_TASKPARAMS WHERE taskID=:taskID "
+            varMap = {}
+            varMap[':taskID'] = taskID
+            # begin transaction
+            self.conn.begin()
+            self.cur.arraysize = 100
+            self.cur.execute(sql+comment,varMap)
+            retStr = ''
+            for tmpItem, in self.cur:
+                retStr = tmpItem.read()
+                break
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('end')            
+            return retStr
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            return None
+
+
+
+    # register task/dataset/templ/param in a single transaction
+    def registerTaskInOneShot_JEDI(self,taskID,taskSpec,inMasterDatasetSpec,
+                                   inSecDatasetSpecList,outDatasetSpecList,
+                                   outputTemplateMap,jobParamsTemplate):
+        comment = ' /* JediDBProxy.registerTaskInOneShot_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' taskID={0}'.format(taskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            timeNow = datetime.datetime.utcnow()
+            # set attributes
+            taskSpec.modificationTime = timeNow
+            taskSpec.resetChangedAttr('taskID')
+            # update task
+            varMap = taskSpec.valuesMap(useSeq=False,onlyChanged=True)
+            varMap[':taskID'] = taskID
+            sql  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET {0} WHERE ".format(taskSpec.bindUpdateChangesExpression())
+            sql += "taskID=:taskID "
+            self.cur.execute(sql+comment,varMap)
+            nRow = self.cur.rowcount
+            tmpLog.debug('update {0} row in task table'.format(nRow))
+            if nRow != 1:
+                tmpLog.error('the task not found in task table')
+            else:
+                tmpLog.debug('inserting datasets')
+                # sql
+                sql  = "INSERT INTO ATLAS_PANDA.JEDI_Datasets ({0}) ".format(JediDatasetSpec.columnNames())
+                sql += JediDatasetSpec.bindValuesExpression()
+                sql += " RETURNING datasetID INTO :newDatasetID"
+                # insert master dataset
+                masterID = -1
+                datasetIdMap = {}
+                datasetSpec = inMasterDatasetSpec
+                if datasetSpec != None:
+                    datasetSpec.creationTime = timeNow
+                    datasetSpec.modificationTime = timeNow
+                    varMap = datasetSpec.valuesMap(useSeq=True)
+                    varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
+                    # insert dataset
+                    self.cur.execute(sql+comment,varMap)
+                    datasetID = long(varMap[':newDatasetID'].getvalue())
+                    masterID = datasetID
+                    datasetIdMap[datasetSpec.datasetName] = datasetID
+                # insert secondary datasets
+                for datasetSpec in inSecDatasetSpecList:
+                    datasetSpec.creationTime = timeNow
+                    datasetSpec.modificationTime = timeNow
+                    datasetSpec.masterID = masterID
+                    varMap = datasetSpec.valuesMap(useSeq=True)
+                    varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
+                    # insert dataset
+                    self.cur.execute(sql+comment,varMap)
+                    datasetID = long(varMap[':newDatasetID'].getvalue())
+                    datasetIdMap[datasetSpec.datasetName] = datasetID
+                # insert output datasets
+                for datasetSpec in outDatasetSpecList:
+                    datasetSpec.creationTime = timeNow
+                    datasetSpec.modificationTime = timeNow
+                    varMap = datasetSpec.valuesMap(useSeq=True)
+                    varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
+                    # insert dataset
+                    self.cur.execute(sql+comment,varMap)
+                    datasetID = long(varMap[':newDatasetID'].getvalue())
+                    datasetIdMap[datasetSpec.datasetName] = datasetID
+                # insert outputTemplates
+                tmpLog.debug('inserting outTmpl')
+                print outputTemplateMap
+                for datasetName,outputTemplateList in outputTemplateMap.iteritems():
+                    if not datasetIdMap.has_key(datasetName):
+                        raise RuntimeError,'datasetID is not defined for {0}'.format(datasetName)
+                    for outputTemplate in outputTemplateList:
+                        sqlH = "INSERT INTO ATLAS_PANDA.JEDI_Output_Template (outTempID,datasetID,"
+                        sqlL = "VALUES(ATLAS_PANDA.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval,:datasetID," 
+                        varMap = {}
+                        varMap[':datasetID'] = datasetIdMap[datasetName]
+                        for tmpAttr,tmpVal in outputTemplate.iteritems():
+                            tmpKey = ':'+tmpAttr
+                            sqlH += '{0},'.format(tmpAttr)
+                            sqlL += '{0},'.format(tmpKey)
+                            varMap[tmpKey] = tmpVal
+                        sqlH = sqlH[:-1] + ') '
+                        sqlL = sqlL[:-1] + ') '
+                        sql = sqlH + sqlL
+                        self.cur.execute(sql+comment,varMap)
+                # insert job parameters
+                tmpLog.debug('inserting jobParamsTmpl')
+                varMap = {}
+                varMap[':taskID'] = taskID
+                varMap[':templ']  = jobParamsTemplate
+                sql = "INSERT INTO ATLAS_PANDA.JEDI_JobParams_Template (taskID,jobParamsTemplate) VALUES (:taskID,:templ) "
+                self.cur.execute(sql+comment,varMap)                            
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            return False

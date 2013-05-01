@@ -8,11 +8,11 @@ import datetime
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedibrokerage.JobBroker import JobBroker
 from pandajedi.jedithrottle.JobThrottler import JobThrottler
 from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.userinterface import Client as PandaClient
 
+from JobBroker import JobBroker
 from JobSplitter import JobSplitter
 from JediKnight import JediKnight
 
@@ -29,13 +29,14 @@ class JobGenerator (JediKnight):
 
     # constructor
     def __init__(self,commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList,
-                 withThrottle=True):
+                 withThrottle=True,execJobs=True):
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
         self.vo = vo
         self.prodSourceLabel = prodSourceLabel
         self.pid = '{0}:{1}:gen'.format(socket.getfqdn(),os.getpid())
         self.cloudList = cloudList
         self.withThrottle = withThrottle
+        self.execJobs = execJobs
         
 
     # main
@@ -98,7 +99,7 @@ class JobGenerator (JediKnight):
                             for iWorker in range(nWorker):
                                 thr = JobGeneratorThread(inputList,threadPool,
                                                          self.taskBufferIF,self.ddmIF,
-                                                         siteMapper)
+                                                         siteMapper,self.execJobs)
                                 thr.start()
                             # join
                             threadPool.join()
@@ -120,7 +121,7 @@ class JobGenerator (JediKnight):
 class JobGeneratorThread (WorkerThread):
 
     # constructor
-    def __init__(self,inputList,threadPool,taskbufferIF,ddmIF,siteMapper):
+    def __init__(self,inputList,threadPool,taskbufferIF,ddmIF,siteMapper,execJobs):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -128,7 +129,8 @@ class JobGeneratorThread (WorkerThread):
         self.taskBufferIF = taskbufferIF
         self.ddmIF        = ddmIF
         self.siteMapper   = siteMapper
-
+        self.execJobs     = execJobs
+        
 
     # main
     def runImpl(self):
@@ -160,17 +162,27 @@ class JobGeneratorThread (WorkerThread):
                         taskSpec.setErrDiag(tmpErrStr)                        
                     else:    
                         # run brokerage
-                        tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk)
+                        try:
+                            tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk)
+                        except:
+                            errtype,errvalue = sys.exc_info()[:2]
+                            tmpLog.error('brokerage crashed with {0}:{1}'.format(errtype.__name__,errvalue))
+                            tmpStat = Interaction.SC_FAILED
                         if tmpStat != Interaction.SC_SUCCEEDED:
                             tmpErrStr = 'brokerage failed'
                             tmpLog.error(tmpErrStr)
                             taskSpec.setOnHold()
                             taskSpec.setErrDiag(tmpErrStr)
                         else:
-                            # split
+                            # run splitter
                             tmpLog.info('run splitter')
                             splitter = JobSplitter()
-                            tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
+                            try:
+                                tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
+                            except:
+                                errtype,errvalue = sys.exc_info()[:2]
+                                tmpLog.error('splitter crashed with {0}:{1}'.format(errtype.__name__,errvalue))
+                                tmpStat = Interaction.SC_FAILED
                             if tmpStat != Interaction.SC_SUCCEEDED:
                                 tmpErrStr = 'splitting failed'
                                 tmpLog.error(tmpErrStr)
@@ -178,9 +190,14 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.setErrDiag(tmpErrStr)                                
                             else:
                                 # generate jobs
-                                tmpLog.info('run job generator')                                
-                                tmpStat,pandaJobs = self.doGenerate(taskSpec,cloudName,subChunks,
-                                                                    inputChunk,tmpLog)
+                                tmpLog.info('run job generator')
+                                try:
+                                    tmpStat,pandaJobs = self.doGenerate(taskSpec,cloudName,subChunks,
+                                                                        inputChunk,tmpLog)
+                                except:
+                                    errtype,errvalue = sys.exc_info()[:2]
+                                    tmpLog.error('generator crashed with {0}:{1}'.format(errtype.__name__,errvalue))
+                                    tmpStat = Interaction.SC_FAILED
                                 if tmpStat != Interaction.SC_SUCCEEDED:
                                     tmpErrStr = 'job generation failed'
                                     tmpLog.error(tmpErrStr)
@@ -198,10 +215,9 @@ class JobGeneratorThread (WorkerThread):
                                 pandaIDs.append(items[0])
                         if len(pandaIDs) == len(pandaJobs):
                             tmpLog.info('successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs)))
-                            """
-                            statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True)
-                            tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
-                            """
+                            if self.execJobs:
+                                statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True)
+                                tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
                             jobsSubmitted = True
                             taskSpec.status = 'running'
                         else:
@@ -388,6 +404,8 @@ class JobGeneratorThread (WorkerThread):
         
 ########## launch 
                 
-def launcher(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList,withThrottle=True):
-    p = JobGenerator(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList,withThrottle)
+def launcher(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList,
+             withThrottle=True,execJobs=True):
+    p = JobGenerator(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList,
+                     withThrottle,execJobs)
     p.start()

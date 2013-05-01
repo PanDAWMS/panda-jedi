@@ -54,6 +54,22 @@ nWorkers = 5
 
 ##########################
 #
+# Task Refine parameters
+#
+
+[taskrefine]
+
+# interface config
+modConfig = atlas:managed:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner
+
+# number of workers                                                             
+nWorkers = 1
+
+
+
+
+##########################
+#
 # Job Brokerage parameters
 #
 
