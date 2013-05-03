@@ -90,11 +90,16 @@ class TaskRefinerBase (object):
         # cloud
         if taskParamMap.has_key('cloud'):
             self.cloudName = taskParamMap['cloud']
+        # set split rule    
+        self.setSplitRule(taskParamMap,'nFilesPerJob',   'NFPJ')
+        self.setSplitRule(taskParamMap,'nEventsPerJob',  'NEPJ')        
+        self.setSplitRule(taskParamMap,'nGBPerJob',      'NGBPJ')
+        self.setSplitRule(taskParamMap,'nMaxFilesPerJob','NMFPJ')
         # return
         return
     
-        
-            
+
+
     # basic refinement procedure
     def doBasicRefine(self,taskParamMap):
         # get input/output/log dataset specs
@@ -106,7 +111,7 @@ class TaskRefinerBase (object):
             itemList = taskParamMap['jobParameters'] + taskParamMap['log']
         for tmpItem in itemList:
             # look for datasets
-            if tmpItem.has_key('dataset'):
+            if tmpItem['type'] == 'template' and tmpItem.has_key('dataset'):
                 datasetSpec = JediDatasetSpec()
                 datasetSpec.datasetName = tmpItem['dataset']
                 datasetSpec.taskID = self.taskSpec.taskID
@@ -163,14 +168,38 @@ class TaskRefinerBase (object):
                     # append
                     self.outDatasetSpecList.append(datasetSpec)
         # make job parameters
+        rndmSeedOffset = None
         jobParameters = ''
         for tmpItem in taskParamMap['jobParameters']:
             if tmpItem.has_key('value'):
                 jobParameters += '{0} '.format(tmpItem['value'])
+                # get offset for random seed
+                if tmpItem['type'] == 'template' and tmpItem['param_type'] == 'number' \
+                       and tmpItem.has_key('offset') and '${RNDMSEED}' in tmpItem['value']:
+                    rndmSeedOffset = tmpItem['offset']
         jobParameters = jobParameters[:-1]
         self.setJobParamsTemplate(jobParameters)
+        # set random seed offset
+        if rndmSeedOffset != None:
+             self.setSplitRule(None,rndmSeedOffset,'RNDM')
         # return
         return
+
+
+    
+    # set split rule
+    def setSplitRule(self,taskParamMap,keyName,valName):
+        if taskParamMap != None:
+            if not taskParamMap.has_key(keyName):
+                return
+            tmpStr = '{0}={1}'.format(valName,taskParamMap[keyName])
+        else:
+            tmpStr = '{0}={1}'.format(valName,keyName)
+        if self.taskSpec.splitRule in [None,'']:
+            self.taskSpec.splitRule = tmpStr
+        else:
+            self.taskSpec.splitRule += ',{0}'.format(tmpStr)
+        return    
 
 
     

@@ -290,7 +290,11 @@ class JobGeneratorThread (WorkerThread):
                                 tmpInFileSpec.status = 'cached'
                             jobSpec.addFile(tmpInFileSpec)
                     # outputs
-                    outSubChunk = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.taskID)
+                    outSubChunk,serialNr = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.taskID)
+                    if outSubChunk == None:
+                        # failed
+                        tmpLog.error('failed to get OutputFiles')
+                        return failedRet
                     for tmpFileSpec in outSubChunk.values():
                         # get dataset
                         if not outDsMap.has_key(tmpFileSpec.datasetID):
@@ -305,8 +309,7 @@ class JobGeneratorThread (WorkerThread):
                         tmpOutFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec)
                         jobSpec.addFile(tmpOutFileSpec)
                     # job parameter
-                    jobSpec.jobParameters = self.makeJobParameters(taskSpec.jobParamsTemplate,
-                                                                   inSubChunk,outSubChunk)
+                    jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,serialNr)
                     # addd
                     jobSpecList.append(jobSpec)
             # return
@@ -320,9 +323,15 @@ class JobGeneratorThread (WorkerThread):
 
 
     # make job parameters
-    def makeJobParameters(self,parTemplate,inSubChunk,outSubChunk):
+    def makeJobParameters(self,taskSpec,inSubChunk,outSubChunk,serialNr):
+        parTemplate = taskSpec.jobParamsTemplate
         # make the list of stream/LFNs
         streamLFNsMap = {}
+        # parameters for placeholders
+        skipEvents = None
+        maxEvents  = None
+        firstEvent = None
+        rndmSeed   = serialNr + taskSpec.getRndmSeedOffset()
         # input
         for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
             # stream name
@@ -334,6 +343,18 @@ class JobGeneratorThread (WorkerThread):
             tmpLFNs.sort()
             # add
             streamLFNsMap[streamName] = tmpLFNs
+            # collect parameters for event-level split
+            if tmpDatasetSpec.isMaster():
+                # skipEvents and firstEvent
+                if len(tmpFileSpecList) > 0 and tmpFileSpecList[0].startEvent != None:
+                    skipEvents = tmpFileSpecList[0].startEvent
+                    # FIXME
+                    # firstEvent = tmpFileSpecList[0].firstEvent
+                    # maxEvents
+                    maxEvents = 0
+                    for tmpFileSpec in tmpFileSpecList:
+                        if tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
+                            maxEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1) 
         # output
         for streamName,tmpFileSpec in outSubChunk.iteritems():
             streamLFNsMap[streamName] = [tmpFileSpec.lfn]
@@ -397,6 +418,18 @@ class JobGeneratorThread (WorkerThread):
                 else:
                     # replace with full format since [] contains non digits
                     parTemplate = parTemplate.replace('${'+streamName+'}',fullLFNList)
+        # replace placeholders for numbers
+        for streamName,parVal in [('SN',         serialNr),
+                                  ('RNDMSEED',   rndmSeed),
+                                  ('MAXEVENTS',  maxEvents),
+                                  ('SKIPEVENTS', skipEvents),
+                                  ('FIRSTEVENT', firstEvent),
+                                  ]:
+            # ignore undefined
+            if parVal == None:
+                continue
+            # replace
+            parTemplate = parTemplate.replace('${'+streamName+'}',str(parVal))
         # return
         return parTemplate
 

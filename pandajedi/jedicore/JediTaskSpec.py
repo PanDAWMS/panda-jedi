@@ -145,7 +145,7 @@ class JediTaskSpec(object):
     # get the max size per job if defined
     def getMaxSizePerJob(self):
         if self.splitRule != None:
-            tmpMatch = re.search('nGBPerJob=(\d+)',self.splitRule)
+            tmpMatch = re.search('NGBPJ=(\d+)',self.splitRule)
             if tmpMatch != None:
                 nGBPerJob = int(nGBPerJob) * 1024 * 1024 * 1024
                 return nGBPerJob
@@ -156,7 +156,7 @@ class JediTaskSpec(object):
     # get the maxnumber of files per job if defined
     def getMaxNumFilesPerJob(self):
         if self.splitRule != None:
-            tmpMatch = re.search('nMaxFilesPerJob=(\d+)',self.splitRule)
+            tmpMatch = re.search('NMFPJ=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
@@ -167,13 +167,33 @@ class JediTaskSpec(object):
     # get the number of files per job if defined
     def getNumFilesPerJob(self):
         if self.splitRule != None:
-            tmpMatch = re.search('nFilesPerJob=(\d+)',self.splitRule)
+            tmpMatch = re.search('NFPJ=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
         
 
 
+    # get the number of events per job if defined
+    def getNumEventsPerJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search('NEPJ=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None    
+        
+
+
+    # get offset for random seed
+    def getRndmSeedOffset(self):
+        if self.splitRule != None:
+            tmpMatch = re.search('RNDM=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return 0
+
+
+    
     # get the size of workDisk in bytes
     def getWorkDiskSize(self):
         tmpSize = self.workDiskCount
@@ -242,4 +262,6 @@ class JediTaskSpec(object):
     def setErrDiag(self,diag):
         # set error dialog    
         self.errorDialog = diag
+        
+
         

@@ -851,8 +851,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getOutputFiles_JEDI(self,taskID):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '%s taskID=%s' % (methodName,taskID)
-        logger.debug('%s start' % methodName)
+        methodName = '{0} taskID={1}'.format(methodName,taskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             outMap = {}
             # sql to read template
@@ -876,6 +877,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':taskID'] = taskID
             self.cur.execute(sqlR+comment,varMap)
             resList = self.cur.fetchall()
+            maxSerialNr = None
             for resR in resList:
                 # make FileSpec
                 outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName = resR
@@ -887,6 +889,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.creationDate = timeNow
                 fileSpec.type         = outType
                 fileSpec.keepTrack    = 1
+                if maxSerialNr == None or maxSerialNr < serialNr:
+                    maxSerialNr = serialNr
                 # scope
                 varMap = {}
                 varMap[':datasetID'] = datasetID
@@ -914,15 +918,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            logger.debug('%s done' % methodName)
-            return outMap
+            tmpLog.debug('done')
+            return outMap,maxSerialNr
         except:
             # roll back
             self._rollback()
             # error
             errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
-            return None
+            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            return None,None
 
 
     # insert output file templates
