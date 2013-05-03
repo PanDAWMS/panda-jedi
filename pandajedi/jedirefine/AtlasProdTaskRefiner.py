@@ -21,6 +21,10 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
         tmpLog.debug('start taskType={0}'.format(taskType))
         try:
             self.doBasicRefine(taskParamMap)
+            # set nosplit+repeat for DBR
+            for datasetSpec in self.inSecDatasetSpecList:
+                if datasetSpec.datasetName.startswith('ddo.'):
+                    datasetSpec.splitRule = 'repeat,nosplit'
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))

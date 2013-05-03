@@ -52,11 +52,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # feed files to the JEDI contents table
-    def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime):
+    def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
+                                   nEventsPerFile,nEventsPerJob):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.insertFilesForDataset_JEDI(datasetSpec,fileMap,datasetState,stateUpdateTime)
+        retVal = proxy.insertFilesForDataset_JEDI(datasetSpec,fileMap,datasetState,stateUpdateTime,
+                                                  nEventsPerFile,nEventsPerJob)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -136,11 +138,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # update JEDI task status by ContentsFeeder
-    def updateTaskStatusByContFeeder_JEDI(self,taskID):
+    def updateTaskStatusByContFeeder_JEDI(self,taskID,newStatus=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.updateTaskStatusByContFeeder_JEDI(taskID)
+        retVal = proxy.updateTaskStatusByContFeeder_JEDI(taskID,newStatus)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -272,11 +274,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # insert TaskParams
-    def insertTaskParams_JEDI(self,taskID,taskParams):
+    def insertTaskParams_JEDI(self,metaTaskID,taskID,taskParams):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.insertTaskParams_JEDI(taskID,taskParams)
+        retVal = proxy.insertTaskParams_JEDI(metaTaskID,taskID,taskParams)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

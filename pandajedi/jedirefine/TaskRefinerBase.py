@@ -100,7 +100,11 @@ class TaskRefinerBase (object):
         # get input/output/log dataset specs
         nIn  = 0
         nOut = 0
-        for tmpItem in taskParamMap['jobParameters'] + [taskParamMap['log']]:
+        if isinstance(taskParamMap['log'],dict):
+            itemList = taskParamMap['jobParameters'] + [taskParamMap['log']]
+        else:
+            itemList = taskParamMap['jobParameters'] + taskParamMap['log']
+        for tmpItem in itemList:
             # look for datasets
             if tmpItem.has_key('dataset'):
                 datasetSpec = JediDatasetSpec()
@@ -111,6 +115,8 @@ class TaskRefinerBase (object):
                     datasetSpec.storageToken = tmpItem['token']
                 if tmpItem.has_key('destination'):
                     datasetSpec.destination = tmpItem['destination']
+                if tmpItem.has_key('attribute'):
+                    datasetSpec.splitRule = tmpItem['attribute']
                 datasetSpec.vo = self.taskSpec.vo
                 datasetSpec.nFiles = 0
                 datasetSpec.nFilesUsed = 0
@@ -138,8 +144,12 @@ class TaskRefinerBase (object):
                                                                                                   datasetSpec.streamName)
                     # make output template
                     if outFileTemplate != None:
+                        if tmpItem.has_key('offset'):
+                            offsetVal = 1 + tmpItem['offset']
+                        else:
+                            offsetVal = 1
                         outTemplateMap = {'taskID' : self.taskSpec.taskID,
-                                          'serialNr' : 1,
+                                          'serialNr' : offsetVal,
                                           'streamName' : datasetSpec.streamName,
                                           'filenameTemplate' : outFileTemplate,
                                           'outtype' : datasetSpec.type,

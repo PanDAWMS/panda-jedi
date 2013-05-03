@@ -1,5 +1,6 @@
 import sys
-taskID = sys.argv[1]
+metaID = sys.argv[1]
+taskID = sys.argv[2]
 import json
 import uuid
 taskParamMap = {}
@@ -56,5 +57,5 @@ from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()
-tbIF.insertTaskParams_JEDI(taskID,jonStr)
+tbIF.insertTaskParams_JEDI(metaID,taskID,jonStr)
 

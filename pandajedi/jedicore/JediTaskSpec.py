@@ -19,7 +19,7 @@ class JediTaskSpec(object):
         'workQueue_ID','progress','failureRate','errorDialog'
         )
     # attributes which have 0 by default
-    _zeroAttrs = ('outDiskCount','workDiskCount','walltime')
+    _zeroAttrs = ()
     # attributes to force update
     _forceUpdateAttrs = ('lockedBy','lockedTime')
     # mapping between sequence and attr

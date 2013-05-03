@@ -38,6 +38,6 @@ def extractStreamName(valStr):
 # extract output filename template and replace the value field
 def extractReplaceOutFileTemplate(valStr,streamName):
     outFileTempl = valStr.split('=')[-1]
-    valStr = valStr.replace(outFileTempl,'${{0}}'.format(streamName))
+    valStr = valStr.replace(outFileTempl,'${{{0}}}'.format(streamName))
     return outFileTempl,valStr
 

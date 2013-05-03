@@ -178,19 +178,30 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
                                                 
     # feed files to the JEDI contents table
-    def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime):
+    def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
+                                   nEventsPerFile,nEventsPerJob):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName = '{0} taskID={1} datasetID={2}'.format(methodName,datasetSpec.taskID,
                                                            datasetSpec.datasetID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
+        tmpLog.debug('start nEventsPerFile={0} nEventsPerJob={1}'.format(nEventsPerFile,nEventsPerJob))
         try:
             # current current date
             timeNow = datetime.datetime.utcnow()
             # loop over all files
-            fileSpecMap = {}
+            filelValMap = {}
             for guid,fileVal in fileMap.iteritems():
+                filelValMap[fileVal['lfn']] = (guid,fileVal)
+            # sort by LFN
+            lfnList = filelValMap.keys()
+            lfnList.sort()
+            # make file specs
+            fileSpecMap = {}
+            uniqueFileKeyList = []
+            nRemEvents = nEventsPerJob
+            for tmpLFN in lfnList:
+                guid,fileVal = filelValMap[tmpLFN]
                 fileSpec = JediFileSpec()
                 fileSpec.taskID       = datasetSpec.taskID
                 fileSpec.datasetID    = datasetSpec.datasetID
@@ -202,20 +213,51 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.fsize        = fileVal['filesize']
                 fileSpec.checksum     = fileVal['checksum']
                 fileSpec.creationDate = timeNow
+                # this info will come from Rucio in the future
+                fileSpec.nEvents      = nEventsPerFile
                 # keep track
                 if datasetSpec.toKeepTrack():
                     fileSpec.keepTrack = 1
+                tmpFileSpecList = []
+                if nEventsPerJob == None or nEventsPerJob <= 0 or \
+                       fileSpec.nEvents == None or fileSpec.nEvents <= 0 or \
+                       nEventsPerFile == None or nEventsPerFile <= 0: 
+                    # file-level splitting
+                    tmpFileSpecList.append(fileSpec)
+                else:
+                    # event-level splitting
+                    tmpStartEvent = 0
+                    while nRemEvents > 0:
+                        splitFileSpec = copy.copy(fileSpec)
+                        if tmpStartEvent + nRemEvents >= splitFileSpec.nEvents:
+                            splitFileSpec.startEvent = tmpStartEvent
+                            splitFileSpec.endEvent = splitFileSpec.nEvents - 1
+                            nRemEvents -= (splitFileSpec.nEvents - tmpStartEvent)
+                            if nRemEvents == 0:
+                                nRemEvents = nEventsPerJob
+                            tmpFileSpecList.append(splitFileSpec)
+                            break
+                        else:
+                            splitFileSpec.startEvent = tmpStartEvent
+                            splitFileSpec.endEvent   = tmpStartEvent + nRemEvents -1
+                            tmpStartEvent += nRemEvents
+                            nRemEvents = nEventsPerJob
+                            tmpFileSpecList.append(splitFileSpec)
                 # append
-                fileSpecMap[fileSpec.lfn] = fileSpec
-            # sort by LFN
-            lfnList = fileSpecMap.keys()
-            lfnList.sort()
+                for fileSpec in tmpFileSpecList:
+                    uniqueFileKey = '{0}.{1}.{2}'.format(fileSpec.lfn,fileSpec.startEvent,fileSpec.endEvent)
+                    uniqueFileKeyList.append(uniqueFileKey)                
+                    fileSpecMap[uniqueFileKey] = fileSpec
+            # too long list
+            if len(uniqueFileKeyList) > 10000:
+                tmpLog.error("too many file records {0}".format(len(uniqueFileKeyList)))
+                return False
             # sql to check if task is locked
             sqlTL = "SELECT status,lockedBy FROM ATLAS_PANDA.JEDI_Tasks WHERE taskID=:taskID FOR UPDATE "
             # sql to check dataset status
-            sqlDs  = "SELECT status FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID FOR UPDATE "
+            sqlDs = "SELECT status FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID FOR UPDATE "
             # sql to get existing files
-            sqlCh  = "SELECT fileID,lfn,status FROM ATLAS_PANDA.JEDI_Dataset_Contents "
+            sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent FROM ATLAS_PANDA.JEDI_Dataset_Contents "
             sqlCh += "WHERE datasetID=:datasetID FOR UPDATE"
             # sql for insert
             sqlIn  = "INSERT INTO ATLAS_PANDA.JEDI_Dataset_Contents (%s) " % JediFileSpec.columnNames()
@@ -267,31 +309,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlCh+comment,varMap)
                         tmpRes = self.cur.fetchall()
                         existingFiles = {}
-                        for fileID,lfn,status in tmpRes:
-                            existingFiles[lfn] = {'fileID':fileID,'status':status}
+                        for fileID,lfn,status,startEvent,endEvent in tmpRes:
+                            uniqueFileKey = '{0}.{1}.{2}'.format(lfn,startEvent,endEvent)
+                            existingFiles[uniqueFileKey] = {'fileID':fileID,'status':status}
                             if status == 'ready':
                                 nReady += 1
                         # insert files
                         existingFileList = existingFiles.keys()
-                        for lfn in lfnList:
+                        for uniqueFileKey in uniqueFileKeyList:
+                            fileSpec = fileSpecMap[uniqueFileKey]
                             # avoid duplication
-                            if lfn in existingFileList:
+                            if uniqueFileKey in existingFileList:
                                 nExist += 1                        
                                 continue
-                            fileSpec = fileSpecMap[lfn]
                             varMap = fileSpec.valuesMap(useSeq=True)
                             self.cur.execute(sqlIn+comment,varMap)
                             nInsert += 1
                         nReady += nInsert    
                         # lost or recovered files
-                        for lfn,fileVarMap in existingFiles.iteritems():
+                        for uniqueFileKey,fileVarMap in existingFiles.iteritems():
                             varMap = {}
                             varMap['fileID'] = fileVarMap['fileID']
-                            if not lfn in lfnList:
+                            if not uniqueFileKey in uniqueFileKeyList:
                                 varMap['status'] = 'lost'
                             elif fileVarMap['status'] in ['lost','missing'] and \
-                                     fileSpecMap[lfn].status != fileVarMap['status']:
-                                varMap['status'] = fileSpecMap[lfn].status
+                                     fileSpecMap[uniqueFileKey].status != fileVarMap['status']:
+                                varMap['status'] = fileSpecMap[uniqueFileKey].status
                             else:
                                 continue
                             if varMap['status'] == 'ready':
@@ -553,12 +596,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update JEDI task status by ContentsFeeder
-    def updateTaskStatusByContFeeder_JEDI(self,taskID):
+    def updateTaskStatusByContFeeder_JEDI(self,taskID,newStatus=None):
         comment = ' /* JediDBProxy.updateTaskStatusByContFeeder_JEDI */'
         methodName = self.getMethodName(comment)
         methodName ='{0} taskID={1}'.format(methodName,taskID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
+        tmpLog.debug('start newStat={0}'.format(newStatus))
         try:
             # sql to check status
             sqlS = "SELECT status,lockedBy FROM ATLAS_PANDA.JEDI_Tasks WHERE taskID=:taskID "
@@ -588,7 +631,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # update task
                     varMap = {}
                     varMap[':taskID'] = taskID
-                    if taskStatus == 'holding':
+                    if newStatus != None:
+                        varMap['status'] = newStatus
+                    elif taskStatus == 'holding':
                         varMap['status'] = 'running'
                     else:
                         varMap['status'] = 'ready'
@@ -597,7 +642,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            tmpLog.debug('done')
+            tmpLog.debug('set to {0}'.format(varMap['status']))
             return True
         except:
             # roll back
@@ -1182,22 +1227,33 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # insert TaskParams
-    def insertTaskParams_JEDI(self,taskID,taskParams):
+    def insertTaskParams_JEDI(self,metaTaskID,taskID,taskParams):
         comment = ' /* JediDBProxy.insertTaskParams_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '{0} taskID={1}'.format(methodName,taskID)
+        methodName = '{0} taskID={1} metaID={2}'.format(methodName,taskID,metaTaskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # SQL
-            sql  = "INSERT INTO ATLAS_PANDA.DEFT_TASK (TASK_ID,TASK_PARAM) VALUES (:taskID,:param) "
-            varMap = {}
-            varMap[':taskID'] = taskID
-            varMap[':param']  = taskParams
+            # sql to insert task parameters
+            sqlT  = "INSERT INTO ATLAS_PANDA.DEFT_TASK (TASK_ID,TASK_META,TASK_PARAM) VALUES (:taskID,:metaID,:param) "
+            # sql to insert command
+            sqlC  = "INSERT INTO ATLAS_PANDA.PRODSYS_COMM (COMM_TASK,COMM_META,COMM_OWNER,COMM_CMD) "
+            sqlC += "VALUES (:taskID,:metaID,:comm_owner,:comm_cmd) "
             # begin transaction
             self.conn.begin()
-            # insert
-            self.cur.execute(sql+comment,varMap)
+            # insert task parameters
+            varMap = {}
+            varMap[':taskID'] = taskID
+            varMap[':metaID'] = metaTaskID
+            varMap[':param']  = taskParams
+            self.cur.execute(sqlT+comment,varMap)
+            # insert command
+            varMap = {}
+            varMap[':taskID'] = taskID
+            varMap[':metaID'] = metaTaskID
+            varMap[':comm_cmd']  = 'submit'
+            varMap[':comm_owner']  = 'DEFT'
+            self.cur.execute(sqlC+comment,varMap)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -1670,7 +1726,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     datasetIdMap[datasetSpec.datasetName] = datasetID
                 # insert outputTemplates
                 tmpLog.debug('inserting outTmpl')
-                print outputTemplateMap
                 for datasetName,outputTemplateList in outputTemplateMap.iteritems():
                     if not datasetIdMap.has_key(datasetName):
                         raise RuntimeError,'datasetID is not defined for {0}'.format(datasetName)

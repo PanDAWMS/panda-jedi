@@ -4,6 +4,7 @@ import datetime
 
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedirefine import RefinerUtils
 from JediKnight import JediKnight
 
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
@@ -87,33 +88,28 @@ class ContentsFeederThread (WorkerThread):
                 # loop over all tasks
                 for taskID,dsList in taskDsList:
                     allUpdated = True
+                    taskBroken = False
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'taskID={0}'.format(taskID))
+                    try:
+                        # get task parameters
+                        taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskID)
+                        taskParamMap = RefinerUtils.decodeJSON(taskParam)
+                    except:
+                        errtype,errvalue = sys.exc_info()[:2]
+                        tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
+                        taskBroken = True
                     # loop over all datasets
-                    for datasetSpec in dsList:
-                        tmpLog.info('start for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))                    
-                        # get dataset metadata
-                        tmpLog.info('get metadata')
-                        gotMetadata = False
-                        stateUpdateTime = datetime.datetime.utcnow()                    
-                        try:
-                            tmpMetadata = self.ddmIF.getInterface(datasetSpec.vo).getDatasetMetaData(datasetSpec.datasetName)
-                            gotMetadata = True
-                        except:
-                            errtype,errvalue = sys.exc_info()[:2]
-                            tmpLog.error('{0} failed due to {1}:{2}'.format(self.__class__.__name__,
-                                                                            errtype.__name__,errvalue))
-                            if errtype == self.SC_FATAL:
-                                datasetStatus = 'broken'
-                            else:
-                                datasetStatus = 'pending'
-                            # update dataset status    
-                            self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
-                        else:
-                            # get file list
-                            tmpLog.info('get files')
+                    if not taskBroken:
+                        for datasetSpec in dsList:
+                            tmpLog.info('start for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))
+                            # get dataset metadata
+                            tmpLog.info('get metadata')
+                            gotMetadata = False
+                            stateUpdateTime = datetime.datetime.utcnow()                    
                             try:
-                                tmpRet = self.ddmIF.getInterface(datasetSpec.vo).getFilesInDataset(datasetSpec.datasetName)
+                                tmpMetadata = self.ddmIF.getInterface(datasetSpec.vo).getDatasetMetaData(datasetSpec.datasetName)
+                                gotMetadata = True
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
                                 tmpLog.error('{0} failed due to {1}:{2}'.format(self.__class__.__name__,
@@ -125,23 +121,50 @@ class ContentsFeederThread (WorkerThread):
                                 # update dataset status    
                                 self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
                             else:
-                                # feed files to the contents table
-                                tmpLog.info('update contents')
-                                retDB = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
-                                                                                     tmpMetadata['state'],
-                                                                                     stateUpdateTime)
-                                if retDB == False:
-                                    datasetStatus = 'pending'
+                                # get file list
+                                tmpLog.info('get files')
+                                try:
+                                    tmpRet = self.ddmIF.getInterface(datasetSpec.vo).getFilesInDataset(datasetSpec.datasetName)
+                                except:
+                                    errtype,errvalue = sys.exc_info()[:2]
+                                    tmpLog.error('{0} failed due to {1}:{2}'.format(self.__class__.__name__,
+                                                                                    errtype.__name__,errvalue))
+                                    if errtype == self.SC_FATAL:
+                                        datasetStatus = 'broken'
+                                    else:
+                                        datasetStatus = 'pending'
                                     # update dataset status    
                                     self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
-                                    allUpdated = False
-                                elif retDB == None:
-                                    # the dataset is locked by another or status is not applicable
-                                    allUpdated = False
-                    # update task status                
+                                else:
+                                    # the number of events per file
+                                    if datasetSpec.isMaster() and taskParamMap.has_key('nEventsPerFile'):
+                                        nEventsPerFile = taskParamMap['nEventsPerFile']
+                                        if taskParamMap.has_key('nEventsPerJob'):
+                                            nEventsPerJob = taskParamMap['nEventsPerJob']
+                                    else:
+                                        nEventsPerFile = None
+                                        nEventsPerJob  = None
+                                    # feed files to the contents table
+                                    tmpLog.info('update contents')
+                                    retDB = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
+                                                                                         tmpMetadata['state'],
+                                                                                         stateUpdateTime,
+                                                                                         nEventsPerFile,
+                                                                                         nEventsPerJob)
+                                    if retDB == False:
+                                        datasetStatus = 'pending'
+                                        # update dataset status    
+                                        self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
+                                        allUpdated = False
+                                    elif retDB == None:
+                                        # the dataset is locked by another or status is not applicable
+                                        allUpdated = False
+                    # update task status
+                    if taskBroken:
+                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(taskID,'broken')
                     if allUpdated:
                         allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(taskID)
-                    tmpLog.info('done with {0}'.format(allRet))
+                    tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
