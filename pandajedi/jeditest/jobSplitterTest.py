@@ -9,24 +9,35 @@ from pandajedi.jediddm.DDMInterface import DDMInterface
 
 ddmIF = DDMInterface()
 ddmIF.setupInterface()
-atlasIF = ddmIF.getInterface('atlas')
 
-from pandajedi.jedibrokerage.AtlasProdJobBroker import AtlasProdJobBroker
-br = AtlasProdJobBroker(atlasIF,tbIF)
-
-from pandajedi.jedicore.InputChunk import InputChunk
-
-taskID = 1
-datasetID = 2
-st,taskSpec    = tbIF.getTaskWithID_JEDI(taskID)
-st,datasetSpec = tbIF.getDatasetWithID_JEDI(datasetID)
-st,fileSpecList = tbIF.getFilesInDatasetWithID_JEDI(taskID,datasetID,2)
-for fileSpec in fileSpecList:
-    datasetSpec.addFile(fileSpec)
-inputChunk = InputChunk(taskSpec,datasetSpec)
-
-st,inputChunk = br.doBrokerage(taskSpec,'US',inputChunk)
-
+from pandajedi.jediorder.JobBroker import JobBroker
 from pandajedi.jediorder.JobSplitter import JobSplitter
-splitter = JobSplitter()
-st,chunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
+from pandajedi.jediorder.JobGenerator import JobGeneratorThread
+from pandajedi.jedicore.ThreadUtils import ThreadPool
+
+
+import sys
+taskID = int(sys.argv[1])
+cloudName = sys.argv[2]
+vo = sys.argv[3]
+prodSourceLabel = sys.argv[4]
+queueID = int(sys.argv[5])
+
+workQueue = tbIF.getWrokQueueMap().getQueueWithID(queueID)
+
+threadPool = ThreadPool()
+
+tmpList = tbIF.getTasksToBeProcessed_JEDI(None,vo,workQueue,
+                                          prodSourceLabel,
+                                          cloudName,nFiles=10,simTasks=[taskID])
+
+for taskSpec,cloudName,inputChunk in tmpList:
+    jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
+    tmpStat = jobBroker.initialize(ddmIF.getInterface(vo),tbIF)
+    tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk)
+
+    splitter = JobSplitter()
+    tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
+
+    gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False)
+    newJobs = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,None)

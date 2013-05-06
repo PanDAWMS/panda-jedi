@@ -163,11 +163,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get tasks to be processed
-    def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,nTasks=50,nFiles=100):
+    def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,nTasks=50,nFiles=100,simTasks=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTasksToBeProcessed_JEDI(pid,vo,workQueue,prodSourceLabel,cloudName,nTasks,nFiles)
+        retVal = proxy.getTasksToBeProcessed_JEDI(pid,vo,workQueue,prodSourceLabel,cloudName,nTasks,nFiles,
+                                                  simTasks=simTasks)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

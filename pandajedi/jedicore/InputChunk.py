@@ -138,7 +138,8 @@ class InputChunk:
     def getSubChunk(self,siteName,maxNumFiles=None,maxSize=None,
                     sizeGradients=0,sizeIntercepts=0,
                     nFilesPerJob=None,multiplicand=1,
-                    walltimeIntercepts=0,maxWalltime=0):
+                    walltimeIntercepts=0,maxWalltime=0,
+                    nEventsPerJob=None):
         # check if there are unused files/events
         if not self.checkUnused():
             return None
@@ -150,23 +151,36 @@ class InputChunk:
         if maxSize == None:     
             # 20 GB at most by default
             maxSize = 20 * 1024 * 1024 * 1024
-        # overwrite parameters when nFilesPerJob is used
+        # set default max number of events
+        maxNumEvents = None
+        # overwrite parameters when nFiles/EventsPerJob is used
         if nFilesPerJob != None:
-            multiplicand = nFilesPerJob
+            maxNumFiles = nFilesPerJob
+        if nEventsPerJob != None:
+            maxNumEvents = nEventsPerJob
         # get site when splitting per site
         if siteName != None:
             siteCandidate = self.siteCandidates[siteName]
         # start splitting
         inputNumFiles  = 0
+        inputNumEvents = 0 
         fileSize       = 0
         firstLoop      = True
         firstMaster    = True
         inputFileMap   = {}
         expWalltime    = 0
-        while inputNumFiles < maxNumFiles and fileSize < maxSize and (maxWalltime <= 0 or expWalltime < maxWalltime):
+        nextStartEvent = None
+        while inputNumFiles < maxNumFiles \
+                  and (maxSize == None or (maxSize != None and fileSize < maxSize)) \
+                  and (maxWalltime <= 0 or expWalltime < maxWalltime) \
+                  and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents < maxNumEvents)):
             # get one file (or one file group for MP) from master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
+                # check start event to keep continuity
+                if maxNumEvents != None and tmpFileSpec.startEvent != None:
+                    if nextStartEvent != None and nextStartEvent != tmpFileSpec.startEvent:
+                        break
                 if not inputFileMap.has_key(self.masterDataset.datasetID):
                     inputFileMap[self.masterDataset.datasetID] = []
                 inputFileMap[self.masterDataset.datasetID].append(tmpFileSpec)
@@ -180,6 +194,13 @@ class InputChunk:
                 firstMaster = False
                 # walltime
                 expWalltime += walltimeIntercepts
+                # the number of events
+                if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
+                    inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
+                    # set next start event
+                    nextStartEvent = tmpFileSpec.endEvent + 1
+                    if nextStartEvent == tmpFileSpec.nEvents:
+                        nextStartEvent = 0
             # get files from secondaries 
             for datasetSpec in self.secondaryDatasetList:
                 if datasetSpec.isNoSplit():
@@ -207,15 +228,23 @@ class InputChunk:
                 break
             # check master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
-            newInputNumFiles = inputNumFiles
-            newFileSize      = fileSize
-            newExpWalltime   = expWalltime
+            newInputNumFiles  = inputNumFiles
+            newInputNumEvents = inputNumEvents
+            newFileSize       = fileSize
+            newExpWalltime    = expWalltime
+            newNextStartEvent = None
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 newInputNumFiles += 1
                 newFileSize += (tmpFileSpec.fsize + sizeGradients)
                 newExpWalltime += walltimeIntercepts
-                if newInputNumFiles >= maxNumFiles or newFileSize >= maxSize \
-                       or (maxWalltime > 0 and newExpWalltime >= maxWalltime) :
+                if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
+                    newInputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
+                    newNextStartEvent = tmpFileSpec.startEvent
+                if newInputNumFiles >= maxNumFiles \
+                       or (maxSize != None and newFileSize >= maxSize) \
+                       or (maxWalltime > 0 and newExpWalltime >= maxWalltime) \
+                       or (maxNumEvents != None and newInputNumEvents >= maxNumEvents) \
+                       or (nextStartEvent != None and newNextStartEvent != nextStartEvent):
                     break
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:

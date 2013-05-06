@@ -56,6 +56,8 @@ class JobSplitter:
             maxWalltime = siteSpec.maxtime
             # number of files per job if defined
             nFilesPerJob = taskSpec.getNumFilesPerJob()
+            # number of events per job if defined
+            nEventsPerJob = taskSpec.getNumEventsPerJob()
             # get sub chunk    
             subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
                                               maxNumFiles=maxNumFiles,
@@ -63,7 +65,8 @@ class JobSplitter:
                                               sizeIntercepts=sizeIntercepts,
                                               nFilesPerJob=nFilesPerJob,
                                               walltimeIntercepts=walltimeIntercepts,
-                                              maxWalltime=maxWalltime)
+                                              maxWalltime=maxWalltime,
+                                              nEventsPerJob=nEventsPerJob)
             if subChunk == None:
                 break
             # append

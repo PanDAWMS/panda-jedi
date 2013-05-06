@@ -969,7 +969,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # get tasks to be processed
     def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,
-                                   nTasks=50,nFiles=100,isPeeking=False):
+                                   nTasks=50,nFiles=100,isPeeking=False,simTasks=None):
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
         methodName = '{0} vo={1} queue={2} cloud={3}'.format(methodName,vo,workQueue.queue_name,cloudName)
@@ -979,35 +979,49 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         failedRet = None
         try:
             # sql to get tasks/datasets
-            varMap = {}
-            varMap[':vo']              = vo
-            varMap[':type']            = 'input'
-            varMap[':cloud']           = cloudName
-            varMap[':taskstatus1']     = 'ready'
-            varMap[':taskstatus2']     = 'running'
-            varMap[':taskstatus3']     = 'merging'            
-            varMap[':prodSourceLabel'] = prodSourceLabel
-            varMap[':dsStatus']        = 'ready'            
-            varMap[':dsOKStatus1']     = 'ready'
-            varMap[':dsOKStatus2']     = 'done'
-            sql  = "SELECT tabT.taskID,datasetID,currentPriority "
-            sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD "
-            sql += "WHERE tabT.vo=:vo AND workqueue_ID IN ("
-            for tmpQueue_ID in workQueue.getIDs():
-                tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
-                varMap[tmpKey] = tmpQueue_ID
-                sql += '{0},'.format(tmpKey)
-            sql  = sql[:-1]
-            sql += ') '
-            sql += "AND prodSourceLabel=:prodSourceLabel AND tabD.cloud=:cloud "
-            sql += "AND tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3) "
-            sql += "AND tabT.lockedBy IS NULL AND tabT.taskID=tabD.taskID "
-            sql += "AND nFilesToBeUsed > nFilesUsed AND type=:type AND tabD.status=:dsStatus "
-            sql += 'AND NOT EXISTS '
-            sql += '(SELECT 1 FROM ATLAS_PANDA.JEDI_Datasets '
-            sql += 'WHERE ATLAS_PANDA.JEDI_Datasets.taskID=tabT.taskID '
-            sql += 'AND type=:type AND NOT status IN (:dsOKStatus1,:dsOKStatus2)) '
-            sql += "ORDER BY currentPriority DESC, taskID "
+            if simTasks == None:
+                varMap = {}
+                varMap[':vo']              = vo
+                varMap[':type']            = 'input'
+                varMap[':cloud']           = cloudName
+                varMap[':taskstatus1']     = 'ready'
+                varMap[':taskstatus2']     = 'running'
+                varMap[':taskstatus3']     = 'merging'            
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                varMap[':dsStatus']        = 'ready'            
+                varMap[':dsOKStatus1']     = 'ready'
+                varMap[':dsOKStatus2']     = 'done'
+                sql  = "SELECT tabT.taskID,datasetID,currentPriority "
+                sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD "
+                sql += "WHERE tabT.vo=:vo AND workqueue_ID IN ("
+                for tmpQueue_ID in workQueue.getIDs():
+                    tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
+                    varMap[tmpKey] = tmpQueue_ID
+                    sql += '{0},'.format(tmpKey)
+                sql  = sql[:-1]
+                sql += ') '
+                sql += "AND prodSourceLabel=:prodSourceLabel AND tabD.cloud=:cloud "
+                sql += "AND tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3) "
+                sql += "AND tabT.lockedBy IS NULL AND tabT.taskID=tabD.taskID "
+                sql += "AND nFilesToBeUsed > nFilesUsed AND type=:type AND tabD.status=:dsStatus "
+                sql += 'AND NOT EXISTS '
+                sql += '(SELECT 1 FROM ATLAS_PANDA.JEDI_Datasets '
+                sql += 'WHERE ATLAS_PANDA.JEDI_Datasets.taskID=tabT.taskID '
+                sql += 'AND type=:type AND NOT status IN (:dsOKStatus1,:dsOKStatus2)) '
+                sql += "ORDER BY currentPriority DESC, taskID "
+            else:
+                varMap = {}
+                sql  = "SELECT tabT.taskID,datasetID,currentPriority "
+                sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD "
+                sql += "WHERE tabT.taskID=tabD.taskID AND tabT.taskID IN ("
+                for tmpTaskIdx,tmpTaskID in enumerate(simTasks):
+                    tmpKey = ':taskID{0}'.format(tmpTaskIdx)
+                    varMap[tmpKey] = tmpTaskID
+                    sql += '{0},'.format(tmpKey)
+                sql = sql[:-1]
+                sql += ') '
+                sql += 'AND type=:type '
+                varMap[':type'] = 'input'
             # begin transaction
             self.conn.begin()
             # select
@@ -1116,11 +1130,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # read job params and files
                 if not toSkip:
                     # lock task
-                    varMap = {}
-                    varMap[':taskID'] = taskID
-                    varMap[':lockedBy'] = pid
-                    self.cur.execute(sqlLock+comment,varMap)
-                    nRow = self.cur.rowcount
+                    if simTasks == None:
+                        varMap = {}
+                        varMap[':taskID'] = taskID
+                        varMap[':lockedBy'] = pid
+                        self.cur.execute(sqlLock+comment,varMap)
+                        nRow = self.cur.rowcount
+                    else:
+                        # set nRow for simulation
+                        nRow = 1
                     if nRow != 1:
                         logger.debug('{0} failed to lock taskID={1}'.format(methodName,taskID))
                     else:
@@ -1148,15 +1166,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 tmpFileSpec = JediFileSpec()
                                 tmpFileSpec.pack(resFile)
                                 # update file status
-                                varMap = {}
-                                varMap[':fileID'] = tmpFileSpec.fileID
-                                varMap[':nStatus'] = 'picked'
-                                varMap[':oStatus'] = 'ready'                                
-                                self.cur.execute(sqlFU+comment,varMap)
-                                nFileRow = self.cur.rowcount
-                                if nFileRow != 1:
-                                    logger.debug('{0} skip fileID={1} already used by another'.format(methodName,tmpFileSpec.fileID))
-                                    continue
+                                if simTasks == None:
+                                    varMap = {}
+                                    varMap[':fileID'] = tmpFileSpec.fileID
+                                    varMap[':nStatus'] = 'picked'
+                                    varMap[':oStatus'] = 'ready'                                
+                                    self.cur.execute(sqlFU+comment,varMap)
+                                    nFileRow = self.cur.rowcount
+                                    if nFileRow != 1:
+                                        logger.debug('{0} skip fileID={1} already used by another'.format(methodName,tmpFileSpec.fileID))
+                                        continue
                                 # add to InputChunk
                                 tmpDatasetSpec.addFile(tmpFileSpec)
                                 iFiles += 1
@@ -1165,7 +1184,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 logger.debug('{0} datasetID={1} has no files to be processed'.format(methodName,datasetID))
                                 toSkip = True
                                 break
-                            else:
+                            elif simTasks == None:
                                 # update nFilesUsed in DatasetSpec
                                 nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles
                                 tmpDatasetSpec.nFilesUsed = nFilesUsed
