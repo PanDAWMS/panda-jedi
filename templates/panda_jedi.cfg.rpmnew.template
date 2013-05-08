@@ -109,3 +109,19 @@ nFiles = 100
 
 # number of workers                                                             
 nWorkers = 5
+
+
+
+
+##########################
+#
+# PostProcessor parameters
+#
+
+[postprocessor]
+
+# number of workers                                                             
+nWorkers = 5
+
+# number of tasks per cycle
+nTasks = 50

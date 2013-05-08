@@ -197,7 +197,7 @@ class JediDatasetSpec(object):
 
     # check if it is a master dataset
     def isMaster(self):
-        if self.masterID == None:
+        if self.masterID == None and self.type == 'input':
             return True
         else:
             return False

@@ -7,7 +7,7 @@ task specification for JEDI
 """
 class JediTaskSpec(object):
     # attributes
-    _attributes = (
+    attributes = (
         'taskID','taskName','status','userName',
         'creationDate','modificationTime','startTime','endTime',
         'frozenTime','prodSourceLabel','workingGroup','vo','coreCount',
@@ -32,7 +32,7 @@ class JediTaskSpec(object):
     # constructor
     def __init__(self):
         # install attributes
-        for attr in self._attributes:
+        for attr in self.attributes:
             if attr in self._zeroAttrs:
                 object.__setattr__(self,attr,0)
             else:
@@ -41,6 +41,8 @@ class JediTaskSpec(object):
         object.__setattr__(self,'_changedAttrs',{})
         # template to generate job parameters
         object.__setattr__(self,'jobParamsTemplate','')
+        # associated datasets
+        object.__setattr__(self,'datasetSpecList',[])
 
 
     # override __setattr__ to collecte the changed attributes
@@ -68,14 +70,14 @@ class JediTaskSpec(object):
 
     # force update
     def forceUpdate(self,name):
-        if name in self._attributes:
+        if name in self.attributes:
             self._changedAttrs[name] = getattr(self,name)
         
     
     # return map of values
     def valuesMap(self,useSeq=False,onlyChanged=False):
         ret = {}
-        for attr in self._attributes:
+        for attr in self.attributes:
             # use sequence
             if useSeq and self._seqAttrMap.has_key(attr):
                 continue
@@ -99,8 +101,8 @@ class JediTaskSpec(object):
 
     # pack tuple into FileSpec
     def pack(self,values):
-        for i in range(len(self._attributes)):
-            attr= self._attributes[i]
+        for i in range(len(self.attributes)):
+            attr= self.attributes[i]
             val = values[i]
             object.__setattr__(self,attr,val)
 
@@ -108,7 +110,7 @@ class JediTaskSpec(object):
     # return column names for INSERT
     def columnNames(cls):
         ret = ""
-        for attr in cls._attributes:
+        for attr in cls.attributes:
             if ret != "":
                 ret += ','
             ret += attr
@@ -119,7 +121,7 @@ class JediTaskSpec(object):
     # return expression of bind variables for INSERT
     def bindValuesExpression(cls,useSeq=True):
         ret = "VALUES("
-        for attr in cls._attributes:
+        for attr in cls.attributes:
             if useSeq and cls._seqAttrMap.has_key(attr):
                 ret += "%s," % cls._seqAttrMap[attr]
             else:
@@ -133,7 +135,7 @@ class JediTaskSpec(object):
     # return an expression of bind variables for UPDATE to update only changed attributes
     def bindUpdateChangesExpression(self):
         ret = ""
-        for attr in self._attributes:
+        for attr in self.attributes:
             if self._changedAttrs.has_key(attr):
                 ret += '%s=:%s,' % (attr,attr)
         ret  = ret[:-1]

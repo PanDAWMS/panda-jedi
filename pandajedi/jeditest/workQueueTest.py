@@ -17,8 +17,7 @@ initializer.init()
 from pandajedi.jedicore import JediTaskBuffer
 from pandalogger.PandaLogger import PandaLogger
 
-taskBuffer= JediTaskBuffer.JediTaskBuffer()
-taskBuffer.init(jedi_config.dbhost,jedi_config.dbpasswd,nDBConnection=1)
+taskBuffer= JediTaskBuffer.JediTaskBuffer(None)
 proxy = taskBuffer.proxyPool.getProxy()
 proxy.refreshWrokQueueMap()
 print proxy.workQueueMap.dump()

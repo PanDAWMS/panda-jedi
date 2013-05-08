@@ -1,6 +1,7 @@
 import re
 import sys
 import copy
+import numpy
 import datetime
 import cx_Oracle
 
@@ -92,7 +93,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return
         comment = ' /* JediDBProxy.refreshWrokQueueMap */'
         methodName = self.getMethodName(comment)
-        logger.debug('%s start' % methodName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         # SQL
         sql = self.workQueueMap.getSqlQuery()
         try:
@@ -110,8 +112,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return False
 
                                             
@@ -155,11 +156,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap = {}
             nDS = 0
             for res in resList:
-                datasetSepc = JediDatasetSpec()
-                datasetSepc.pack(res)
-                if not returnMap.has_key(datasetSepc.taskID):
-                    returnMap[datasetSepc.taskID] = []
-                returnMap[datasetSepc.taskID].append(datasetSepc)
+                datasetSpec = JediDatasetSpec()
+                datasetSpec.pack(res)
+                if not returnMap.has_key(datasetSpec.taskID):
+                    returnMap[datasetSpec.taskID] = []
+                returnMap[datasetSpec.taskID].append(datasetSpec)
                 nDS += 1
             taskIDs = returnMap.keys()
             taskIDs.sort()
@@ -182,7 +183,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nEventsPerFile,nEventsPerJob):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '{0} taskID={1} datasetID={2}'.format(methodName,datasetSpec.taskID,
+        methodName += ' <taskID={0} datasetID={1}>'.format(datasetSpec.taskID,
                                                            datasetSpec.datasetID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start nEventsPerFile={0} nEventsPerJob={1}'.format(nEventsPerFile,nEventsPerJob))
@@ -360,8 +361,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return False
 
 
@@ -370,12 +370,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getFilesInDatasetWithID_JEDI(self,taskID,datasetID,nFiles,status):
         comment = ' /* JediDBProxy.getFilesInDataset_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '%s taskID=%s datasetID=%s nFiles=%s' % (methodName,taskID,datasetID,nFiles)
-        logger.debug('%s start' % methodName)
+        methodName += ' <taskID={0} datasetID={1}>'.format(taskID,datasetID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start nFiles={0} status={1}'.format(nFiles,status))
         # return value for failure
         failedRet = False,0
         if taskID==None and datasetID==None:
-            logger.error("%s : either taskID or datasetID is not defined" % methodName)
+            tmpLog.error("either taskID or datasetID is not defined")
             return failedRet
         try:
             # sql 
@@ -404,6 +405,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "WHERE rownum <= %s" % nFiles
             # begin transaction
             self.conn.begin()
+            self.cur.arraysize = 10000
             # get existing file list
             self.cur.execute(sql+comment,varMap)
             tmpResList = self.cur.fetchall()
@@ -416,14 +418,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec = JediFileSpec()
                 fileSpec.pack(tmpRes)
                 fileSpecList.append(fileSpec)
-            logger.debug('%s got %s files' % (methodName,len(fileSpecList)))
+            tmpLog.debug('got {0} files'.format(len(fileSpecList)))
             return True,fileSpecList
         except:
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return failedRet
 
 
@@ -432,7 +433,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def insertDataset_JEDI(self,datasetSpec):
         comment = ' /* JediDBProxy.insertDataset_JEDI */'
         methodName = self.getMethodName(comment)
-        logger.debug('%s start' % methodName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # set attributes
             timeNow = datetime.datetime.utcnow()
@@ -451,14 +453,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            logger.debug('%s done' % methodName)
+            tmpLog.debug('done')
             return True,long(varMap[':newDatasetID'].getvalue())
         except:
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return False,None
 
 
@@ -467,8 +468,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def updateDataset_JEDI(self,datasetSpec,criteria,lockTask):
         comment = ' /* JediDBProxy.updateDataset_JEDI */'
         methodName = self.getMethodName(comment)
-        for tmpKey,tmpVal in criteria.iteritems():
-            methodName += ' %s=%s' % (tmpKey,tmpVal)
+        methodName += ' <datasetID={0}>'.format(datasetSpec.datasetID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         # return value for failure
@@ -502,7 +502,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.conn.begin()
             # lock task
             if lockTask:
-                tmpLog.debug(sqlLock+comment+str(varMapLock))
                 self.cur.execute(sqlLock+comment,varMapLock)
             # update dataset
             tmpLog.debug(sql+comment+str(varMap))            
@@ -527,8 +526,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getDatasetWithID_JEDI(self,datasetID):
         comment = ' /* JediDBProxy.getDatasetWithID_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' datasetID=%s ' % datasetID
-        logger.debug('%s start ' % methodName)
+        methodName += ' <datasetID={0}>'.format(datasetID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         # return value for failure
         failedRet = False,None
         try:
@@ -546,18 +546,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             if res != None:
-                datasetSepc = JediDatasetSpec()
-                datasetSepc.pack(res)
+                datasetSpec = JediDatasetSpec()
+                datasetSpec.pack(res)
             else:
-                datasetSepc = None
-            logger.debug('%s done' % methodName)
-            return True,datasetSepc
+                datasetSpec = None
+            tmpLog.debug('done')
+            return True,datasetSpec
         except:
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return failedRet
 
 
@@ -566,7 +565,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def insertTask_JEDI(self,taskSpec):
         comment = ' /* JediDBProxy.insertTask_JEDI */'
         methodName = self.getMethodName(comment)
-        logger.debug('%s start' % methodName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # set attributes
             timeNow = datetime.datetime.utcnow()
@@ -583,14 +583,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            logger.debug('%s done' % methodName)
+            tmpLog.debug('done')
             return True
         except:
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return False
 
 
@@ -599,7 +598,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def updateTaskStatusByContFeeder_JEDI(self,taskID,newStatus=None):
         comment = ' /* JediDBProxy.updateTaskStatusByContFeeder_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName ='{0} taskID={1}'.format(methodName,taskID)
+        methodName += ' <taskID={0}>'.format(taskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start newStat={0}'.format(newStatus))
         try:
@@ -648,8 +647,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return failedRet
 
 
@@ -658,17 +656,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def updateTask_JEDI(self,taskSpec,criteria):
         comment = ' /* JediDBProxy.updateTask_JEDI */'
         methodName = self.getMethodName(comment)
-        logger.debug('%s start' % methodName)
+        methodName += ' <taskID={0}>'.format(taskSpec.taskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         # return value for failure
         failedRet = False,0
         # no criteria
         if criteria == {}:
-            logger.error('%s no selection criteria' % methodName)            
+            tmpLog.error('no selection criteria')
             return failedRet
         # check criteria
         for tmpKey in criteria.keys():
             if not hasattr(taskSpec,tmpKey):
-                logger.error('%s unknown attribute %s is used in criteria' % (methodName,tmpKey))
+                tmpLog.error('unknown attribute {0} is used in criteria'.format(tmpKey))
                 return failedRet
         try:
             # set attributes
@@ -685,74 +685,285 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             # update task
-            logger.debug(sql+comment+str(varMap))
+            tmpLog.debug(sql+comment+str(varMap))
             self.cur.execute(sql+comment,varMap)
             # the number of updated rows
             nRows = self.cur.rowcount
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            logger.debug('%s updated %s rows' % (methodName,nRows))
+            tmpLog.debug('updated {0} rows'.format(nRows))
             return True,nRows
         except:
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return failedRet
 
 
 
     # get JEDI task with ID
-    def getTaskWithID_JEDI(self,taskID,fullFlag):
+    def getTaskWithID_JEDI(self,taskID,fullFlag,lockTask=False,pid=None):
         comment = ' /* JediDBProxy.getTaskWithID_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' taskID=%s ' % taskID
-        logger.debug('%s start ' % methodName)
+        methodName += ' <taskID={0}>'.format(taskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start lockTask={0}'.format(lockTask))
         # return value for failure
         failedRet = False,None
         try:
             # sql
-            sql  = "SELECT %s " % JediTaskSpec.columnNames()
+            sql  = "SELECT {0} ".format(JediTaskSpec.columnNames())
             sql += "FROM ATLAS_PANDA.JEDI_Tasks WHERE taskID=:taskID "
+            if lockTask:
+                sql += "FOR UPDATE NOWAIT"
+            sqlLock  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
+            sqlLock += "WHERE taskID=:taskID "
             varMap = {}
             varMap[':taskID'] = taskID
             # begin transaction
             self.conn.begin()
             # select
-            self.cur.execute(sql+comment,varMap)
-            res = self.cur.fetchone()
-            # template to generate job parameters
-            jobParamsTemplate = None
-            if fullFlag:
-                # sql to read template
-                sqlJobP  = "SELECT jobParamsTemplate FROM ATLAS_PANDA.JEDI_JobParams_Template "
-                sqlJobP += "WHERE taskID=:taskID "
-                
-                self.cur.execute(sqlJobP+comment,varMap)
-                for clobJobP, in self.cur:
-                    if clobJobP != None:
-                        jobParamsTemplate = clobJobP.read()
-                        break
+            res = None
+            try:
+                self.cur.execute(sql+comment,varMap)
+                res = self.cur.fetchone()
+                # template to generate job parameters
+                jobParamsTemplate = None
+                if fullFlag:
+                    # sql to read template
+                    sqlJobP  = "SELECT jobParamsTemplate FROM ATLAS_PANDA.JEDI_JobParams_Template "
+                    sqlJobP += "WHERE taskID=:taskID "
+                    self.cur.execute(sqlJobP+comment,varMap)
+                    for clobJobP, in self.cur:
+                        if clobJobP != None:
+                            jobParamsTemplate = clobJobP.read()
+                            break
+                if lockTask:
+                    varMap = {}
+                    varMap[':taskID'] = taskID
+                    self.cur.execute(sqlLock+comment,varMap)
+            except:
+                errType,errValue = sys.exc_info()[:2]
+                if self.isNoWaitException(errValue):
+                    # resource busy and acquire with NOWAIT specified                                                                                      
+                    tmpLog.debug('skip locked')
+                else:
+                    # failed with something else                                                                                                           
+                    raise errType,errValue
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             if res != None:
-                taskSepc = JediTaskSpec()
-                taskSepc.pack(res)
+                taskSpec = JediTaskSpec()
+                taskSpec.pack(res)
                 if jobParamsTemplate != None:
-                    taskSepc.jobParamsTemplate = jobParamsTemplate
+                    taskSpec.jobParamsTemplate = jobParamsTemplate
             else:
-                taskSepc = None
-            logger.debug('%s done' % methodName)
-            return True,taskSepc
+                taskSpec = None
+            tmpLog.debug('done')
+            return True,taskSpec
         except:
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
+            return failedRet
+
+
+
+    # get JEDI task and tasks with ID and lock it
+    def getTaskDatasetsWithID_JEDI(self,taskID,pid):
+        comment = ' /* JediDBProxy.getTaskDatasetsWithID_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <taskID={0}>'.format(taskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start pid={0}'.format(pid))
+        # return value for failure
+        failedRet = False,None
+        try:
+            # sql
+            sql  = "SELECT {0} ".format(JediTaskSpec.columnNames())
+            sql += "FROM ATLAS_PANDA.JEDI_Tasks WHERE taskID=:taskID AND lockedBy IS NULL "
+            if lockTask:
+                sql += "FOR UPDATE NOWAIT"
+            sqlLK  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
+            sqlLK += "WHERE taskID=:taskID "
+            sqlDS  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
+            sqlDS += "FROM ATLAS_PANDA.JEDI_Datasets WHERE taskID=:taskID "
+            # begin transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            # select
+            res = None
+            try:
+                # read task
+                varMap = {}
+                varMap[':taskID'] = taskID
+                self.cur.execute(sql+comment,varMap)
+                res = self.cur.fetchone()
+                if res == None:
+                    taskSpec = None
+                else:
+                    taskSpec = JediTaskSpec()
+                    taskSpec.pack(res)
+                    # lock task
+                    varMap = {}
+                    varMap[':taskID'] = taskID
+                    self.cur.execute(sqlLK+comment,varMap)
+                    # read datasets
+                    varMap = {}
+                    varMap[':taskID'] = taskID
+                    self.cur.execute(sqlDS+comment,varMap)
+                    resList = self.cur.fetchall()
+                    for res in resList:
+                        datasetSpec = JediDatasetSpec()
+                        datasetSpec.pack(res)
+                        taskSpec.datasetSpecList.append(datasetSpec)
+            except:
+                errType,errValue = sys.exc_info()[:2]
+                if self.isNoWaitException(errValue):
+                    # resource busy and acquire with NOWAIT specified                                                                                      
+                    tmpLog.debug('skip locked')
+                else:
+                    # failed with something else                                                                                                           
+                    raise errType,errValue
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            return True,taskSpec
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return failedRet
+
+
+
+    # get JEDI tasks with selection criteria
+    def getTaskIDsWithCriteria_JEDI(self,criteria,nTasks=50):
+        comment = ' /* JediDBProxy.getTaskIDsWithCriteria_JEDI */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        # return value for failure
+        failedRet = None
+        # no criteria
+        if criteria == {}:
+            tmpLog.error('no selection criteria')
+            return failedRet
+        # check criteria
+        for tmpKey in criteria.keys():
+            if not tmpKey in JediTaskSpec.attributes:
+                tmpLog.error('unknown attribute {0} is used in criteria'.format(tmpKey))
+                return failedRet
+        try:
+            # sql
+            sql  = "SELECT taskID FROM ATLAS_PANDA.JEDI_Tasks WHERE "
+            isFirst = True
+            for tmpKey,tmpVal in criteria.iteritems():
+                if not isFirst:
+                    sql += "AND "
+                else:
+                    isFirst = False
+                if tmpVal in ['NULL','NOT NULL']:
+                    sql += '{0} IS {1} '.format(tmpKey,tmpVal)
+                elif tmpVal == None:
+                    sql += '{0} IS NULL '.format(tmpKey)
+                else:
+                    crKey = ':cr_{0}'.format(tmpKey)
+                    sql += '{0}={1} '.format(tmpKey,crKey)
+                    varMap[crKey] = tmpVal
+            sql += 'AND rownum<={0}'.format(nTasks)
+            # begin transaction
+            self.conn.begin()
+            # select
+            self.cur.arraysize = 10000
+            tmpLog.debug(sql+comment+str(varMap))
+            self.cur.execute(sql+comment,varMap)
+            resList = self.cur.fetchall()
+            # collect taskIDs
+            retTaskIDs = []
+            for taskID, in resList:
+                retTaskIDs.append(taskID)
+            retTaskIDs.sort()    
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('got {0} tasks'.format(len(retTaskIDs)))
+            return retTaskIDs
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return failedRet
+
+
+
+    # get JEDI tasks to be finished
+    def getTasksToBeFinished_JEDI(self,vo,prodSourceLabel,pid,nTasks=50):
+        comment = ' /* JediDBProxy.getTasksToBeFinished_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1} pid={2}>'.format(vo,prodSourceLabel,pid)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        # return value for failure
+        failedRet = None
+        try:
+            # sql
+            sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
+            sqlRT += "FROM ATLAS_PANDA.JEDI_Tasks WHERE status=:status "
+            sqlRT += "AND (lockedBy IS NULL OR lockedTime<:timeLimit) "
+            sqlRT += "AND rownum<{0} FOR UPDATE ".format(nTasks)
+            sqlLK  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
+            sqlLK += "WHERE taskID=:taskID "
+            sqlDS  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
+            sqlDS += "FROM ATLAS_PANDA.JEDI_Datasets WHERE taskID=:taskID "
+            # begin transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            # get tasks
+            varMap = {}
+            varMap[':status'] = 'prepared'
+            #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(seconds=10)
+            self.cur.execute(sqlRT+comment,varMap)
+            resList = self.cur.fetchall()
+            retTasks = []
+            for resRT in resList:
+                taskSpec = JediTaskSpec()
+                taskSpec.pack(resRT)
+                retTasks.append(taskSpec)
+            # get datasets    
+            for taskSpec in retTasks:
+                # lock task
+                varMap = {}
+                varMap[':taskID'] = taskSpec.taskID
+                varMap[':lockedBy'] = pid
+                self.cur.execute(sqlLK+comment,varMap)
+                # read datasets
+                varMap = {}
+                varMap[':taskID'] = taskSpec.taskID
+                self.cur.execute(sqlDS+comment,varMap)
+                resList = self.cur.fetchall()
+                for resDS in resList:
+                    datasetSpec = JediDatasetSpec()
+                    datasetSpec.pack(resDS)
+                    taskSpec.datasetSpecList.append(datasetSpec)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('got {0} tasks'.format(len(retTasks)))
+            return retTasks
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
             return failedRet
 
 
@@ -761,8 +972,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getJobStatisticsWithWorkQueue_JEDI(self,vo,prodSourceLabel,minPriority=None):
         comment = ' /* DBProxy.getJobStatisticsWithWorkQueue_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '%s vo=%s label=%s' % (methodName,vo,prodSourceLabel)
-        logger.debug('%s start minPriority=%s' % (methodName,minPriority))
+        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start minPriority={0}'.format(minPriority))
         sql0 = "SELECT computingSite,cloud,jobStatus,workQueue_ID,COUNT(*) FROM %s "
         sql0 += "WHERE vo=:vo and prodSourceLabel=:prodSourceLabel "
         tmpPrioMap = {}
@@ -835,14 +1047,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # add    
                     returnMap[computingSite][cloud][workQueue_ID][jobStatus] += nCount
             # return
-            logger.debug('%s end' % methodName)
+            tmpLog.debug('done')
             return True,returnMap
         except:
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return False,{}
 
 
@@ -851,7 +1062,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getOutputFiles_JEDI(self,taskID):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '{0} taskID={1}'.format(methodName,taskID)
+        methodName += ' <taskID={0}>'.format(taskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -872,6 +1083,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             timeNow = datetime.datetime.utcnow()
             # begin transaction
             self.conn.begin()
+            self.cur.arraysize = 10000
             # select
             varMap = {}
             varMap[':taskID'] = taskID
@@ -924,8 +1136,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return None,None
 
 
@@ -933,7 +1144,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def insertOutputTemplate_JEDI(self,templates):
         comment = ' /* JediDBProxy.insertOutputTemplate_JEDI */'
         methodName = self.getMethodName(comment)
-        logger.debug('%s start' % methodName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # begin transaction
             self.conn.begin()
@@ -952,17 +1164,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlL = sqlL[:-1] + ') '
                 sql = sqlH + sqlL
                 self.cur.execute(sql+comment,varMap)
-                # commit
-                if not self._commit():
-                    raise RuntimeError, 'Commit error'
-                logger.debug('%s done' % methodName)
-                return True
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            return True
         except:
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return False
 
 
@@ -972,7 +1183,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nTasks=50,nFiles=100,isPeeking=False,simTasks=None):
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '{0} vo={1} queue={2} cloud={3}'.format(methodName,vo,workQueue.queue_name,cloudName)
+        methodName += ' <vo={0} queue={1} cloud={2}>'.format(vo,workQueue.queue_name,cloudName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start label={0} nTasks={1} nFiles={2}'.format(prodSourceLabel,nTasks,nFiles))
         # return value for failure
@@ -1024,6 +1235,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':type'] = 'input'
             # begin transaction
             self.conn.begin()
+            self.cur.arraysize = 10000
             # select
             tmpLog.debug(sql+comment+str(varMap))
             self.cur.execute(sql+comment,varMap)
@@ -1098,7 +1310,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if self.isNoWaitException(errValue):
                         # resource busy and acquire with NOWAIT specified
                         toSkip = True
-                        logger.debug('{0} skip locked taskID={1}'.format(methodName,taskID))
+                        tmpLog.debug('skip locked taskID={0}'.format(taskID))
                     else:
                         # failed with something else
                         raise errType,errValue
@@ -1123,7 +1335,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if self.isNoWaitException(errValue):
                                 # resource busy and acquire with NOWAIT specified
                                 toSkip = True
-                                logger.debug('{0} skip locked taskID={1} datasetID={2}'.format(methodName,taskID,datasetID))
+                                tmpLog.debug('skip locked taskID={0} datasetID={1}'.format(taskID,datasetID))
                             else:
                                 # failed with something else
                                 raise errType,errValue
@@ -1140,7 +1352,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # set nRow for simulation
                         nRow = 1
                     if nRow != 1:
-                        logger.debug('{0} failed to lock taskID={1}'.format(methodName,taskID))
+                        tmpLog.debug('failed to lock taskID={0}'.format(taskID))
                     else:
                         # read template to generate job parameters
                         varMap = {}
@@ -1174,14 +1386,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     self.cur.execute(sqlFU+comment,varMap)
                                     nFileRow = self.cur.rowcount
                                     if nFileRow != 1:
-                                        logger.debug('{0} skip fileID={1} already used by another'.format(methodName,tmpFileSpec.fileID))
+                                        tmpLog.debug('skip fileID={0} already used by another'.format(tmpFileSpec.fileID))
                                         continue
                                 # add to InputChunk
                                 tmpDatasetSpec.addFile(tmpFileSpec)
                                 iFiles += 1
                             if iFiles == 0:
                                 # no input files
-                                logger.debug('{0} datasetID={1} has no files to be processed'.format(methodName,datasetID))
+                                tmpLog.debug('datasetID={0} has no files to be processed'.format(datasetID))
                                 toSkip = True
                                 break
                             elif simTasks == None:
@@ -1206,14 +1418,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # enough tasks 
                 if iTasks >= nTasks:
                     break
-            logger.debug('{0} done for {1} tasks'.format(methodName,len(returnList)))
+            tmpLog.debug('done for {0} tasks'.format(len(returnList)))
             return returnList
         except:
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            logger.error("%s : %s %s" % (methodName,errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return failedRet
 
 
@@ -1221,7 +1432,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def insertJobParamsTemplate_JEDI(self,taskID,templ):
         comment = ' /* JediDBProxy.insertJobParamsTemplate_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '{0} taskID={1}'.format(methodName,taskID)
+        methodName += ' <taskID={0}>'.format(taskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -1243,8 +1454,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return False
 
 
@@ -1253,7 +1463,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def insertTaskParams_JEDI(self,metaTaskID,taskID,taskParams):
         comment = ' /* JediDBProxy.insertTaskParams_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '{0} taskID={1} metaID={2}'.format(methodName,taskID,metaTaskID)
+        methodName += ' <taskID={0} metaID={1}>'.format(taskID,metaTaskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -1286,8 +1496,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return False
 
 
@@ -1296,7 +1505,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def rollbackFiles_JEDI(self,taskID,inputChunk):
         comment = ' /* JediDBProxy.rollbackFiles_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '{0} taskID={1}'.format(methodName,taskID)
+        methodName += ' <taskID={0}>'.format(taskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -1332,8 +1541,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return False
 
 
@@ -1342,7 +1550,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getMovingInputSize_JEDI(self,siteName):
         comment = ' /* JediDBProxy.getMovingInputSize_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = '{0} site={1}'.format(methodName,siteName)
+        methodName += ' site={0}'.format(siteName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -1370,8 +1578,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return None
         
 
@@ -1380,7 +1587,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getHighestPrioJobStat_JEDI(self,prodSourceLabel,cloudName,workQueue):
         comment = ' /* JediDBProxy.getHighestPrioJobStat_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = "{0} cloud={1} workQueue={2}".format(methodName,cloudName,workQueue.queue_name)
+        methodName += " <cloud={0} queue={1}>".format(cloudName,workQueue.queue_name)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         varMapO = {}
@@ -1449,8 +1656,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return False,None
 
 
@@ -1459,7 +1665,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getTasksToRefine_JEDI(self,vo=None,prodSourceLabel=None):
         comment = ' /* JediDBProxy.getTasksToRefine_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName = "{0} vo={1} label={2}: ".format(methodName,vo,prodSourceLabel)
+        methodName += " <vo={0} label={1}>".format(vo,prodSourceLabel)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         retTaskIDs = []
@@ -1641,8 +1847,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return None
 
 
@@ -1651,7 +1856,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getTaskParamsWithID_JEDI(self,taskID):
         comment = ' /* JediDBProxy.getTaskParamsWithID_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' taskID={0}'.format(taskID)
+        methodName += ' <taskID={0}>'.format(taskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -1676,8 +1881,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return None
 
 
@@ -1688,7 +1892,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    outputTemplateMap,jobParamsTemplate):
         comment = ' /* JediDBProxy.registerTaskInOneShot_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' taskID={0}'.format(taskID)
+        methodName += ' <taskID={0}>'.format(taskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -1782,6 +1986,298 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("{0} {1}".format(errtype,errvalue))
+            self.dumpErrorMessage(tmpLog)
             return False
+
+
+
+    # get scout job data
+    def getScoutJobData_JEDI(self,taskID,useTransaction=False):
+        comment = ' /* JediDBProxy.getScoutJobData_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <taskID={0}>'.format(taskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        returnMap = {}
+        # sql to get scout job data
+        sqlSCF  = "SELECT fileID FROM ATLAS_PANDA.JEDI_Dataset_Contents WHERE "
+        sqlSCF += "taskID=:taskID AND status=:status AND datasetID IN "
+        sqlSCF += "(SELECT datasetID FROM ATLAS_PANDA.JEDI_Datasets WHERE taskID=:taskID AND type=:type) "
+        sqlSCP  = "SELECT PandaID FROM ATLAS_PANDA.filesTable4 WHERE fileID=:fileID "
+        sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime FROM ATLAS_PANDA.jobsArchived4 "
+        sqlSCD += "WHERE PandaID=:pandaID "
+        sqlSCD += "UNION "
+        sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime FROM ATLAS_PANDAARCH.jobsArchived "
+        sqlSCD += "WHERE PandaID=:pandaID AND modificationTime>(CURRENT_DATE-14) "
+        if useTransaction:
+            # begin transaction
+            self.conn.begin()
+        # get files    
+        varMap = {}
+        varMap[':taskID'] = taskID
+        varMap[':status'] = 'finished'
+        varMap[':type']   = 'log'
+        self.cur.execute(sqlSCF+comment,varMap)
+        resList = self.cur.fetchall()
+        for fileID, in resList:
+            # get PandaID
+            varMap = {}
+            varMap[':fileID'] = fileID
+            self.cur.execute(sqlSCP+comment,varMap)
+            resPandaIDs = self.cur.fetchall()
+            outSizeList  = []
+            walltimeList = []
+            memSizeList  = []
+            workSizeList = []
+            # loop over all PandaIDs
+            for pandaID, in resPandaIDs:
+                # get job data
+                varMap = {}
+                varMap[':pandaID'] = pandaID
+                self.cur.execute(sqlSCD+comment,varMap)
+                resDataList = self.cur.fetchall()
+                for jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime in resDataList:
+                    if jobStatus != 'finished':
+                        continue
+                    # output size
+                    try:
+                        outSizeList.append(long(outputFileBytes))
+                    except:
+                        pass
+                    # execution time
+                    try:
+                        walltimeList.append(long(cpuConsumptionTime))
+                    except:
+                        pass
+                    # VM size
+                    try:
+                        tmpMatch = re.search('vmPeakMax=(\d+)',jobMetrics)
+                        memSizeList.append(long(tmpMatch.group(1)))
+                    except:
+                        pass
+                    # workdir size
+                    try:
+                        tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
+                        workSizeList.append(long(tmpMatch.group(1)))
+                    except:
+                        pass
+            # calculate median values
+            if outSizeList != []:
+                median = numpy.median(outSizeList) 
+                median /= (1024*1024)
+                returnMap['outDiskCount'] = long(median)
+                returnMap['outDiskUnit']  = 'MB'
+            if walltimeList != []:
+                median = numpy.median(walltimeList)
+                returnMap['walltime']     = long(median)
+                returnMap['walltimeUnit'] = 'kSI2kseconds'
+            if memSizeList != []:
+                median = numpy.median(memSizeList)
+                median /= 1024
+                returnMap['ramCount'] = long(median)
+                returnMap['ramUnit']  = 'MB'
+            if workSizeList != []:   
+                median = numpy.median(workSizeList)
+                returnMap['workDiskCount'] = long(median)
+                returnMap['workDiskUnit']  = 'MB'
+        if useTransaction:    
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+        # return    
+        tmpLog.debug('data->{0}'.format(str(returnMap)))
+        return returnMap
+
+
+
+    # prepare tasks to be finished
+    def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None):
+        comment = ' /* JediDBProxy.prepareTasksToBeFinished_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        # return value for failure
+        failedRet = None
+        try:
+            # sql to get tasks/datasets
+            if simTasks == None:
+                varMap = {}
+                varMap[':type']         = 'input'
+                varMap[':taskstatus1']  = 'running'
+                varMap[':taskstatus2']  = 'scouting'
+                varMap[':taskstatus3']  = 'merging'
+                varMap[':dsEndStatus1'] = 'broken'
+                varMap[':dsEndStatus2'] = 'done'
+                if vo != None:
+                    varMap[':vo'] = vo
+                if prodSourceLabel != None:
+                    varMap[':prodSourceLabel'] = prodSourceLabel
+                sql  = "SELECT tabT.taskID,tabT.status "
+                sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT "
+                sql += "WHERE tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3) "
+                if vo != None:
+                    sql += "AND tabT.vo=:vo "
+                if prodSourceLabel != None:
+                    sql += "AND prodSourceLabel=:prodSourceLabel "
+                sql += "AND tabT.lockedBy IS NULL AND NOT EXISTS "
+                sql += '(SELECT 1 FROM ATLAS_PANDA.JEDI_Datasets tabD '
+                sql += 'WHERE tabD.taskID=tabT.taskID AND masterID IS NULL '
+                sql += 'AND type=:type AND NOT status IN (:dsEndStatus1,:dsEndStatus2) '
+                sql += 'AND (nFilesToBeUsed<>nFilesUsed OR nFilesUsed=0 OR nFilesUsed>nFilesFinished+nFilesFailed)) '
+                sql += 'AND rownum<={0}'.format(nTasks)
+            else:
+                varMap = {}
+                sql  = "SELECT tabT.taskID,tabT.status "
+                sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT "
+                sql += "WHERE "
+                for tmpTaskIdx,tmpTaskID in enumerate(simTasks):
+                    tmpKey = ':taskID{0}'.format(tmpTaskIdx)
+                    varMap[tmpKey] = tmpTaskID
+                    sql += '{0},'.format(tmpKey)
+                sql = sql[:-1]
+                sql += ') '
+            # begin transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            # select
+            tmpLog.debug(sql+comment+str(varMap))
+            self.cur.execute(sql+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # make list
+            taskIDstatusMap = {}
+            taskIDList = []
+            for taskID,taskStatus in resList:
+                taskIDstatusMap[taskID] = taskStatus 
+            taskIDList = taskIDstatusMap.keys()
+            taskIDList.sort()
+            tmpLog.debug('got {0} tasks'.format(len(taskIDList)))
+            # sql to read task
+            sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
+            sqlRT += "FROM ATLAS_PANDA.JEDI_Tasks WHERE taskID=:taskID AND lockedBy IS NULL FOR UPDATE NOWAIT"
+            # sql to read dataset status
+            sqlRD  = "SELECT datasetID,status,nFiles,nFilesFinished,masterID "
+            sqlRD += "FROM ATLAS_PANDA.JEDI_Datasets WHERE taskID=:taskID AND type=:type AND status=:status "
+            # sql to update input dataset status
+            sqlDIU  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE "
+            sqlDIU += "WHERE datasetID=:datasetID "
+            # sql to update output/log dataset status
+            sqlDOU  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE "
+            sqlDOU += "WHERE taskID=:taskID AND type IN (:type1,:type2) "
+            # sql to update nFiles of dataset
+            sqlFU  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET nFilesToBeUsed=nFiles,modificationTime=CURRENT_DATE "
+            sqlFU += "WHERE type=:type AND taskID=:taskID AND masterID IS NULL "
+            # sql to update task status
+            sqlTU  = "UPDATE ATLAS_PANDA.JEDI_Tasks "
+            sqlTU += "SET status=:status,modificationTime=CURRENT_DATE,lockedBy=NULL,lockedTime=CURRENT_DATE "
+            sqlTU += "WHERE taskID=:taskID "
+            # loop over all tasks
+            iTasks = 0
+            for taskID in taskIDList:
+                taskStatus = taskIDstatusMap[taskID]
+                tmpLog.debug('start taskID={0} status={1}'.format(taskID,taskStatus))
+                # begin transaction
+                self.conn.begin()
+                # read task
+                toSkip = False
+                varMap = {}
+                varMap[':taskID'] = taskID
+                try:
+                    # select
+                    self.cur.execute(sqlRT+comment,varMap)
+                    resRT = self.cur.fetchone()
+                    # locked by another
+                    if resRT == None:
+                        toSkip = True
+                    else:
+                        taskSpec = JediTaskSpec()
+                        taskSpec.pack(resRT)
+                except:
+                    errType,errValue = sys.exc_info()[:2]
+                    if self.isNoWaitException(errValue):
+                        # resource busy and acquire with NOWAIT specified
+                        toSkip = True
+                        tmpLog.debug('skip locked taskID={0}'.format(taskID))
+                    else:
+                        # failed with something else
+                        raise errType,errValue
+                # update dataset
+                if not toSkip:
+                    if taskSpec.status == 'scouting':
+                        # set average job data
+                        scoutData = self.getScoutJobData_JEDI(taskID)
+                        # sql to update task data
+                        if scoutData != {}:
+                            varMap = {}
+                            varMap[':taskID'] = taskID
+                            sqlTSD  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET "
+                            for scoutKey,scoutVal in scoutData.iteritems():
+                                tmpScoutKey = ':{0}'.format(scoutKey)
+                                varMap[tmpScoutKey] = scoutVal
+                                sqlTSD += '{0}={1},'.format(scoutKey,tmpScoutKey)
+                            sqlTSD = sqlTSD[:-1] 
+                            sqlTSD += " WHERE taskID=:taskID "
+                            self.cur.execute(sqlTSD+comment,varMap)
+                        # update nFiles to be used
+                        varMap = {}
+                        varMap[':taskID'] = taskID
+                        varMap[':type']   = 'input'
+                        self.cur.execute(sqlFU+comment,varMap)
+                        # new task status
+                        newTaskStatus = 'running'
+                    else:
+                        # update output datasets
+                        varMap = {}
+                        varMap[':taskID'] = taskID
+                        varMap[':type1']  = 'log'
+                        varMap[':type2']  = 'output'
+                        varMap[':status'] = 'prepared'
+                        self.cur.execute(sqlDOU+comment,varMap)
+                        # get input datasets
+                        varMap = {}
+                        varMap[':taskID'] = taskID
+                        varMap[':type']   = 'input'
+                        varMap[':status'] = 'ready'
+                        self.cur.execute(sqlRD+comment,varMap)
+                        resRD = self.cur.fetchall()
+                        for datasetID,dsStatus,nFiles,nFilesFinished,masterID in resRD:
+                            # update input datasets
+                            varMap = {}
+                            varMap[':datasetID'] = datasetID
+                            if masterID != None:
+                                # seconday dataset
+                                varMap[':status'] = 'done'
+                            else:
+                                # master dataset
+                                if nFiles == nFilesFinished:
+                                    # all succeeded
+                                    varMap[':status'] = 'done'
+                                elif nFilesFinished == 0:
+                                    # all failed
+                                    varMap[':status'] = 'failed'
+                                else:
+                                    # partially succeeded
+                                    varMap[':status'] = 'partial'
+                            self.cur.execute(sqlDIU+comment,varMap)
+                        # new task status
+                        newTaskStatus = 'prepared'    
+                    # update tasks
+                    varMap = {}
+                    varMap[':taskID'] = taskID
+                    varMap[':status'] = newTaskStatus
+                    self.cur.execute(sqlTU+comment,varMap)
+                    tmpLog.debug('done new status={0} for taskID={1}'.format(newTaskStatus,taskID))
+                # commit    
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return failedRet
