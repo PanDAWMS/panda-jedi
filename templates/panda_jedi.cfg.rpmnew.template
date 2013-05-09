@@ -46,7 +46,10 @@ voWithScope = atlas
 
 [confeeder]
 
-# number of workers                                                             
+# number of processes
+nProc = 1
+
+# number of workers
 nWorkers = 5
 
 
@@ -62,7 +65,10 @@ nWorkers = 5
 # interface config
 modConfig = atlas:managed:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner
 
-# number of workers                                                             
+# process config
+procConfig = ::1
+
+# number of workers
 nWorkers = 1
 
 
@@ -101,13 +107,16 @@ modConfig = atlas:managed:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProd
 
 [jobgen]
 
+# process config
+procConfig = atlas:managed:1:CA,CERN,DE,ES,FR,IT,ND,NL,RU,TW,UK,US
+
 # number of tasks per cycle
 nTasks = 50
 
 # number of files per task
 nFiles = 100
 
-# number of workers                                                             
+# number of workers
 nWorkers = 5
 
 
@@ -120,7 +129,10 @@ nWorkers = 5
 
 [postprocessor]
 
-# number of workers                                                             
+# process config
+procConfig = ::1
+
+# number of workers
 nWorkers = 5
 
 # number of tasks per cycle

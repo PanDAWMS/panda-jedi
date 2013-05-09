@@ -165,6 +165,10 @@ setup(
                 ('etc/sysconfig', ['templates/panda_jedi-sysconfig.rpmnew.template',
                                    ]
                  ),
+                # init script
+                ('etc/init.d', ['templates/panda_jedi-ctl.exe.template',
+                                   ]
+                 ),
                 ],
     cmdclass={'install': install_panda,
               'install_data': install_data_panda}

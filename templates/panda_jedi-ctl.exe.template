@@ -1,0 +1,68 @@
+#!/bin/sh
+#
+# chkconfig: - 85 15
+#
+# description: Panda JEDI
+# processname: python
+# config: /etc/sysconfig/panda_server-sysconfig
+# config: /etc/sysconfig/panda_jedi-sysconfig
+# pidfile: /var/log/panda/panda_jedi.pid
+
+# When multiple arguments are given, only the error from the _last_
+# one is reported.
+#
+ARGV="$@"
+#
+# |||||||||||||||||||| START CONFIGURATION SECTION  ||||||||||||||||||||
+# --------------------                              --------------------
+# 
+# the path to application
+PROGNAME='python @@install_purelib@@/pandajedi/jediorder/JediMaster.py'
+
+# pid and lock files
+PIDFILE='@@install_dir@@/var/log/panda/panda_jedi.pid'
+LOCKFILE='/var/lock/subsys/panda_jedi'
+
+# log files
+JEDISTDOUT='@@install_dir@@/var/log/panda/panda_jedi_stdout.log'
+JEDISTDERR='@@install_dir@@/var/log/panda/panda_jedi_stderr.log'
+
+# Source panda server env variables
+if [ -r @@install_dir@@/etc/sysconfig/panda_server-sysconfig ]; then
+   . @@install_dir@@/etc/sysconfig/panda_server-sysconfig
+fi
+
+# Source panda JEDI env variables
+if [ -r @@install_dir@@/etc/sysconfig/panda_jedi-sysconfig ]; then
+   . @@install_dir@@/etc/sysconfig/panda_jedi-sysconfig
+fi
+
+ERROR=0
+if [ "x$ARGV" = "x" ] ; then 
+    ARGV="-h"
+fi
+
+
+case $ARGV in
+start)
+    echo start JEDI
+    #$PROGNAME --pid $PIDFILE >> $JEDISTDOUT 2>> $JEDISTDERR
+    $PROGNAME --pid $PIDFILE
+    ERROR=$?
+    [ $ERROR = 0 ] && touch $LOCKFILE
+    echo $ERROR
+    ;;
+stop)
+    echo stop JEDI
+    kill `cat $PIDFILE` 
+    ERROR=$?
+    rm -f $PIDFILE $LOCKFILE
+    echo $ERROR
+    ;;
+*)
+    echo ERROR: unknown command $ARGV 
+    ERROR=1
+esac
+
+exit $ERROR
+

@@ -71,9 +71,15 @@ class JobGenerator (JediKnight):
                                                                                          self.prodSourceLabel)
                         tmpLog.debug('start {0}'.format(cycleStr))
                         # throttle
-                        tmpSt,thrFlag = throttle.toBeThrottled(self.vo,cloudName,workQueue,jobStat)
+                        tmpLog.debug('check throttle with {0}'.format(throttle.getClassName()))
+                        try:
+                            tmpSt,thrFlag = throttle.toBeThrottled(self.vo,cloudName,workQueue,jobStat)
+                        except:
+                            errtype,errvalue = sys.exc_info()[:2]
+                            tmpLog.error('throttler failed with {0} {1}'.format(errtype,errvalue))
+                            raise RuntimeError,'crashed when checking throttle'
                         if tmpSt != self.SC_SUCCEEDED:
-                            raise RuntimeError,'failed to check throttle for {0}'.format(cycleStr)                            
+                            raise RuntimeError,'failed to check throttle'
                         if thrFlag:
                             tmpLog.debug('throttled')
                             if self.withThrottle:
@@ -151,7 +157,6 @@ class JobGeneratorThread (WorkerThread):
                     readyToSubmitJob = False
                     jobsSubmitted = False
                     # initialize brokerage
-                    tmpLog.info('run brokerage')
                     jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
                     tmpStat = jobBroker.initialize(self.ddmIF.getInterface(taskSpec.vo),
                                                                            self.taskBufferIF)
@@ -162,6 +167,7 @@ class JobGeneratorThread (WorkerThread):
                         taskSpec.setErrDiag(tmpErrStr)                        
                     else:    
                         # run brokerage
+                        tmpLog.info('run brokerage with {0}'.format(jobBroker.getClassName()))
                         try:
                             tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk)
                         except:

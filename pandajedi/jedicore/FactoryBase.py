@@ -14,6 +14,7 @@ class FactoryBase:
         self.logger = MsgWrapper(logger,_factoryModuleName)
         self.impl = None
         self.implMap = {}
+        self.className = None
         
 
     # initialize
@@ -42,6 +43,7 @@ class FactoryBase:
                     cls = getattr(mod,className)
                     # start child process
                     self.impl = cls(*args)
+                    self.className = className
                 except:
                     errtype,errvalue = sys.exc_info()[:2]
                     self.logger.error('failed to import impl due to {0} {1}'.format(errtype.__name__,errvalue))
@@ -116,4 +118,11 @@ class FactoryBase:
             
         
                                                             
-            
+    # get class name of imple
+    def getClassName(self,vo=None,sourceLabel=None):
+        if self.className != None:
+            return self.className
+        impl = self.getImpl(vo,sourceLabel)
+        if impl == None:
+            return None
+        return impl.__class__.__name__
