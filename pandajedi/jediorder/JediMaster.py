@@ -1,4 +1,6 @@
 import os
+import pwd
+import grp
 import sys
 import time
 import signal
@@ -112,6 +114,20 @@ class JediMaster:
                                                      vo,plabel))
                 proc.start()
                 knightList.append(proc)
+        # setup WatchDog
+        for itemStr in jedi_config.watchdog.procConfig.split(';'):
+            items = self.convParams(itemStr)
+            vo     = items[0]
+            plabel = items[1]
+            nProc  = items[2]
+            for iproc in range(nProc):
+                parent_conn, child_conn = multiprocessing.Pipe()
+                proc = multiprocessing.Process(target=self.launcher,
+                                               args=('pandajedi.jediorder.WatchDog',
+                                                     child_conn,taskBufferIF,ddmIF,
+                                                     vo,plabel))
+                proc.start()
+                knightList.append(proc)
         # join
         for knight in knightList:    
             knight.join()
@@ -132,9 +148,13 @@ if __name__ == "__main__":
     parser.add_option('--pid',action='store',dest='pid',default=None,
                       help='pid filename')
     options,args = parser.parse_args()
+    uid = pwd.getpwnam(jedi_config.master.uname).pw_uid
+    gid = grp.getgrnam(jedi_config.master.gname).gr_gid
     # make daemon context
     dc = daemon.DaemonContext(stdout=sys.stdout,
-                              stderr=sys.stderr)
+                              stderr=sys.stderr,
+                              uid=uid,
+                              gid=gid)
     with dc:
         # record PID
         pidFile = open(options.pid,'w')

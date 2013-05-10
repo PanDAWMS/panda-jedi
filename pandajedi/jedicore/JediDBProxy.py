@@ -1546,6 +1546,101 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # rescue picked files
+    def rescuePickedFiles_JEDI(self,vo,prodSourceLabel,waitTime):
+        comment = ' /* JediDBProxy.rescuePickedFiles_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get orphaned tasks
+            sqlTR  = "SELECT taskID FROM ATLAS_PANDA.JEDI_Tasks "
+            sqlTR += "WHERE status IN (:status1,:status2,:status3) AND lockedBy IS NOT NULL AND lockedTime<:timeLimit "
+            if vo != None:
+                sqlTR += "AND vo=:vo "
+            if prodSourceLabel != None:
+                sqlTR += "AND prodSourceLabel=:prodSourceLabel " 
+            # sql to get picked datasets
+            sqlDP  = "SELECT datasetID FROM ATLAS_PANDA.JEDI_Datasets "
+            sqlDP += "WHERE taskID=:taskID AND type=:type " 
+            # sql to rollback files
+            sqlF  = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:nStatus "
+            sqlF += "WHERE datasetID=:datasetID AND status=:oStatus "
+            # sql to reset nFilesUsed
+            sqlDU  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow "
+            sqlDU += "WHERE datasetID=:datasetID " 
+            # sql to unlock tasks
+            sqlTU  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET lockedBy=NULL,lockedTime=NULL "
+            sqlTU += "WHERE taskID=:taskID"
+            # begin transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            # get orphaned tasks
+            varMap = {}
+            varMap[':status1'] = 'ready'
+            varMap[':status2'] = 'running'
+            varMap[':status3'] = 'merging'
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=waitTime)
+            if vo != None:
+                varMap[':vo'] = vo
+            if prodSourceLabel != None:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+            self.cur.execute(sqlTR+comment,varMap)
+            resTaskList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # loop over all tasks
+            nTasks = 0
+            for taskID, in resTaskList:
+                tmpLog.debug('[taskID={0}] rescue'.format(taskID))
+                self.conn.begin()
+                # get input datasets
+                varMap = {}
+                varMap[':taskID'] = taskID
+                varMap[':type']   = 'input'
+                self.cur.execute(sqlDP+comment,varMap)
+                resDatasetList = self.cur.fetchall()
+                # loop over all input datasets
+                for datasetID, in resDatasetList:
+                    # update contents
+                    varMap = {}
+                    varMap[':datasetID']  = datasetID
+                    varMap[':nStatus'] = 'ready'
+                    varMap[':oStatus'] = 'picked'
+                    self.cur.execute(sqlF+comment,varMap)
+                    nFileRow = self.cur.rowcount
+                    tmpLog.debug('[takID={0}] reset {1} rows for datasetID={2}'.format(taskID,nFileRow,datasetID))
+                    if nFileRow > 0:
+                        # reset nFilesUsed
+                        varMap = {}
+                        varMap[':datasetID']  = datasetID
+                        varMap[':nFileRow'] = nFileRow
+                        self.cur.execute(sqlDU+comment,varMap)
+                # unlock task
+                tmpLog.debug('[taskID={0}] ulock'.format(taskID))        
+                varMap = {}
+                varMap[':taskID'] = taskID
+                self.cur.execute(sqlTU+comment,varMap)
+                nRows = self.cur.rowcount
+                tmpLog.debug('[taskID={0}] done with nRows={1}'.format(taskID,nRows))
+                if nRows == 1:
+                    nTasks += 1
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            return nTasks
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
     # get the size of input files which will be copied to the site
     def getMovingInputSize_JEDI(self,siteName):
         comment = ' /* JediDBProxy.getMovingInputSize_JEDI */'

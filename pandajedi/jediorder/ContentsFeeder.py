@@ -54,7 +54,7 @@ class ContentsFeeder (JediKnight):
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('failed in %s.start() with %s %s' % (self.__class__.__name__,errtype.__name__,errvalue))
             # sleep if needed
-            loopCycle = 60
+            loopCycle = jedi_config.confeeder.loopCycle
             timeDelta = datetime.datetime.utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:

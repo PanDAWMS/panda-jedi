@@ -45,12 +45,15 @@ fi
 
 case $ARGV in
 start)
-    echo start JEDI
-    #$PROGNAME --pid $PIDFILE >> $JEDISTDOUT 2>> $JEDISTDERR
-    $PROGNAME --pid $PIDFILE
-    ERROR=$?
-    [ $ERROR = 0 ] && touch $LOCKFILE
-    echo $ERROR
+    if [ -f $LOCKFILE ]; then
+	echo ERROR: JEDI is already running with lockfile:$LOCKFILE
+    else
+	echo start JEDI
+	$PROGNAME --pid $PIDFILE >> $JEDISTDOUT 2>> $JEDISTDERR
+	ERROR=$?
+	[ $ERROR = 0 ] && touch $LOCKFILE
+	echo $ERROR
+    fi
     ;;
 stop)
     echo stop JEDI

@@ -115,7 +115,7 @@ class JobGenerator (JediKnight):
                                                                          errtype.__name__,errvalue))
             # sleep if needed
             tmpLog.debug('end')            
-            loopCycle = 60
+            loopCycle = jedi_config.jobgen.loopCycle
             timeDelta = datetime.datetime.utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:

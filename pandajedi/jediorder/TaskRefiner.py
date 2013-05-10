@@ -67,7 +67,7 @@ class TaskRefiner (JediKnight,FactoryBase):
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
             # sleep if needed
-            loopCycle = 60
+            loopCycle = jedi_config.taskrefine.loopCycle
             timeDelta = datetime.datetime.utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:

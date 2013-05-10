@@ -90,7 +90,7 @@ class AtlasDDMClient(DDMClientBase):
     def getAvailableFiles(self,datasetSpec,siteEndPointMap,siteMapper,ngGroup=[]):
         # make logger
         methodName = 'getAvailableFiles'
-        methodName = '{0} datasetID={1}'.format(methodName,datasetSpec.datasetID)
+        methodName += ' <datasetID={0}>'.format(datasetSpec.datasetID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.info('start datasetName={0}'.format(datasetSpec.datasetName))
         try:
@@ -218,7 +218,7 @@ class AtlasDDMClient(DDMClientBase):
                 tmpStat,tmpRetMap = self.getSURLsFromLFC(fileMap,lfcHost,seList)
                 tmpLog.debug(str(tmpStat))
                 if tmpStat != self.SC_SUCCEEDED:
-                    raise tmpStat,tmpRetMap
+                    raise RuntimeError,tmpRetMap
                 for lfn,surls in tmpRetMap.iteritems():
                     if not surlMap.has_key(lfn):
                         surlMap[lfn] = surls

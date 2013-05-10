@@ -241,7 +241,7 @@ class JediTaskSpec(object):
             self.status = 'holding'
         elif self.status == 'merging':
             self.status = 'suspend'
-        elif self.status == 'injected':
+        elif self.status == 'registered':
             self.status = 'waiting'
 
 
