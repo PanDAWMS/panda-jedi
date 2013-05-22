@@ -20,7 +20,7 @@ class JobSplitter:
         retFatal    = self.SC_FATAL,[]
         retTmpError = self.SC_FAILED,[]
         # make logger
-        tmpLog = MsgWrapper(logger,'taskID=%s' % taskSpec.taskID)
+        tmpLog = MsgWrapper(logger,'jediTaskID=%s' % taskSpec.jediTaskID)
         tmpLog.debug('start')
         # split
         returnList = []

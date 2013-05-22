@@ -26,6 +26,17 @@ class JediKnight (Interaction.CommandReceiveInterface):
             errtype,errvalue = sys.exc_info()[:2]
             self.logger.error('crashed in JediKnight.startImpl() with %s %s' % (errtype.__name__,errvalue))
 
+
+    # parse init params
+    def parseInit(self,par):
+        if isinstance(par,list):
+            return par
+        try:
+            return par.split('|')
+        except:
+            return [par]
+
+
             
 # install SCs
 Interaction.installSC(JediKnight)

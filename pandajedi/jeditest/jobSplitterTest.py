@@ -17,7 +17,7 @@ from pandajedi.jedicore.ThreadUtils import ThreadPool
 
 
 import sys
-taskID = int(sys.argv[1])
+jediTaskID = int(sys.argv[1])
 cloudName = sys.argv[2]
 vo = sys.argv[3]
 prodSourceLabel = sys.argv[4]
@@ -29,7 +29,7 @@ threadPool = ThreadPool()
 
 tmpList = tbIF.getTasksToBeProcessed_JEDI(None,vo,workQueue,
                                           prodSourceLabel,
-                                          cloudName,nFiles=10,simTasks=[taskID])
+                                          cloudName,nFiles=10,simTasks=[jediTaskID])
 
 for taskSpec,cloudName,inputChunk in tmpList:
     jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)

@@ -86,14 +86,14 @@ class ContentsFeederThread (WorkerThread):
                     self.logger.debug('%s terminating since no more items' % self.__class__.__name__)
                     return
                 # loop over all tasks
-                for taskID,dsList in taskDsList:
+                for jediTaskID,dsList in taskDsList:
                     allUpdated = True
                     taskBroken = False
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'taskID={0}'.format(taskID))
+                    tmpLog = MsgWrapper(self.logger,'jediTaskID={0}'.format(jediTaskID))
                     try:
                         # get task parameters
-                        taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskID)
+                        taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                         taskParamMap = RefinerUtils.decodeJSON(taskParam)
                     except:
                         errtype,errvalue = sys.exc_info()[:2]
@@ -161,9 +161,9 @@ class ContentsFeederThread (WorkerThread):
                                         allUpdated = False
                     # update task status
                     if taskBroken:
-                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(taskID,'broken')
+                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,'broken')
                     if allUpdated:
-                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(taskID)
+                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID)
                     tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]

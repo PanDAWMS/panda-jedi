@@ -7,54 +7,26 @@ _factoryModuleName = __name__.split('.')[-1]
 class FactoryBase:
 
     # constructor
-    def __init__(self,vo,sourceLabel,logger,modConfig):
-        self.vo = vo
-        self.sourceLabel = sourceLabel
+    def __init__(self,vos,sourceLabels,logger,modConfig):
+        if isinstance(vos,list):
+            self.vos = vos
+        else:
+            try:
+                self.vos = vos.split('|')
+            except:
+                self.vos = [vos]
+        if isinstance(sourceLabels,list):
+            self.sourceLabels = sourceLabels
+        else:
+            try:    
+                self.sourceLabels = sourceLabels.split('|')
+            except:
+                self.sourceLabels = [sourceLabels]
         self.modConfig = modConfig
         self.logger = MsgWrapper(logger,_factoryModuleName)
-        self.impl = None
         self.implMap = {}
         self.className = None
         
-
-    # initialize
-    def initialize(self,*args):
-        # parse config
-        for configStr in self.modConfig.split(','):
-            configStr = configStr.strip()
-            items = configStr.split(':')
-            # check format
-            try:
-                vo          = items[0]
-                sourceLabel = items[1]
-                moduleName  = items[2]
-                className   = items[3]
-            except:
-                self.logger('wrong config definition : {0}'.format(configStr))
-                continue
-            # import
-            if vo in [self.vo,'any'] and sourceLabel in [self.sourceLabel,'any']:
-                try:
-                    # import module
-                    mod = __import__(moduleName)
-                    for subModuleName in moduleName.split('.')[1:]:
-                        mod = getattr(mod,subModuleName)
-                    # get class
-                    cls = getattr(mod,className)
-                    # start child process
-                    self.impl = cls(*args)
-                    self.className = className
-                except:
-                    errtype,errvalue = sys.exc_info()[:2]
-                    self.logger.error('failed to import impl due to {0} {1}'.format(errtype.__name__,errvalue))
-                break
-        # impl is undefined
-        if self.impl == None:
-            self.logger.error('impl is undefined')
-            return False
-        # return
-        return True
-
 
     # initialize all modules
     def initializeMods(self,*args):
@@ -64,35 +36,45 @@ class FactoryBase:
             items = configStr.split(':')
             # check format
             try:
-                vo          = items[0]
-                sourceLabel = items[1]
-                moduleName  = items[2]
-                className   = items[3]
+                vos          = items[0].split('|')
+                sourceLabels = items[1].split('|')
+                moduleName   = items[2]
+                className    = items[3]
             except:
                 self.logger('wrong config definition : {0}'.format(configStr))
                 continue
-            # check vo and sourceLabel if specified
-            if not self.vo in [None,'any'] and self.vo != vo:
-                continue
-            if not self.sourceLabel in [None,'any'] and self.sourceLabel != sourceLabel:
-                continue
-            # import
-            try:
-                # import module
-                mod = __import__(moduleName)
-                for subModuleName in moduleName.split('.')[1:]:
-                    mod = getattr(mod,subModuleName)
-                # get class
-                cls = getattr(mod,className)
-                # instantiate
-                impl = cls(*args)
-                # append
-                if not self.implMap.has_key(vo):
-                    self.implMap[vo] = {}
-                self.implMap[vo][sourceLabel] = impl
-            except:
-                errtype,errvalue = sys.exc_info()[:2]
-                self.logger.error('failed to import impl due to {0} {1}'.format(errtype.__name__,errvalue))
+            # loop over all VOs
+            for vo in vos:
+                # loop over all labels
+                for sourceLabel in sourceLabels: 
+                    # check vo and sourceLabel if specified
+                    if not vo in ['','any'] and \
+                            not vo in self.vos and \
+                            not None in self.vos and \
+                            not 'any' in self.vos:
+                        continue
+                    if not sourceLabel in ['','any'] and \
+                            not sourceLabel in self.sourceLabels and \
+                            not None in self.sourceLabels and \
+                            not 'any' in self.sourceLabels:
+                        continue
+                    # import
+                    try:
+                        # import module
+                        mod = __import__(moduleName)
+                        for subModuleName in moduleName.split('.')[1:]:
+                            mod = getattr(mod,subModuleName)
+                        # get class
+                        cls = getattr(mod,className)
+                        # instantiate
+                        impl = cls(*args)
+                        # append
+                        if not self.implMap.has_key(vo):
+                            self.implMap[vo] = {}
+                        self.implMap[vo][sourceLabel] = impl
+                    except:
+                        errtype,errvalue = sys.exc_info()[:2]
+                        self.logger.error('failed to import impl due to {0} {1}'.format(errtype.__name__,errvalue))
         # return
         return True
 
@@ -118,10 +100,8 @@ class FactoryBase:
             
         
                                                             
-    # get class name of imple
+    # get class name of impl
     def getClassName(self,vo=None,sourceLabel=None):
-        if self.className != None:
-            return self.className
         impl = self.getImpl(vo,sourceLabel)
         if impl == None:
             return None

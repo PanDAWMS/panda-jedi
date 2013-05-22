@@ -25,7 +25,7 @@ class AtlasProdJobBroker (JobBrokerBase):
     # main
     def doBrokerage(self,taskSpec,cloudName,inputChunk):
         # make logger
-        tmpLog = MsgWrapper(logger,'taskID=%s' % taskSpec.taskID)
+        tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID))
         tmpLog.debug('start')
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk

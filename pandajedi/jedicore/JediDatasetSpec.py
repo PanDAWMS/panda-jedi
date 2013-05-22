@@ -7,14 +7,14 @@ dataset specification for JEDI
 class JediDatasetSpec(object):
     # attributes
     _attributes = (
-        'taskID','datasetID','datasetName','containerName',
+        'jediTaskID','datasetID','datasetName','containerName',
         'type','creationTime','modificationTime','vo','cloud',
         'site','masterID','provenanceID','status','state',
         'stateCheckTime','stateCheckExpiration','frozenTime',
         'nFiles','nFilesToBeUsed','nFilesUsed',
         'nFilesFinished','nFilesFailed',
         'nEvents','nEventsToBeUsed','nEventsUsed',
-        'lockedBy','lockedTime','splitRule','streamName',
+        'lockedBy','lockedTime','attributes','streamName',
         'storageToken','destination'
         )
     # attributes which have 0 by default
@@ -170,7 +170,7 @@ class JediDatasetSpec(object):
 
     # check if it is not split
     def isNoSplit(self):
-        if self.splitRule != None and 'nosplit' in self.splitRule:
+        if self.attributes != None and 'nosplit' in self.attributes:
             return True
         else:
             return False
@@ -179,7 +179,7 @@ class JediDatasetSpec(object):
 
     # check if it is repeatedly used
     def isRepeated(self):
-        if self.splitRule != None and 'repeat' in self.splitRule:
+        if self.attributes != None and 'repeat' in self.attributes:
             return True
         else:
             return False
@@ -188,7 +188,7 @@ class JediDatasetSpec(object):
 
     # check if it is a many-time dataset which is treated as long-standing at T2s
     def isManyTime(self):
-        if self.splitRule != None and 'manytime' in self.splitRule:
+        if self.attributes != None and 'manytime' in self.attributes:
             return True
         else:
             return False

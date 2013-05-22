@@ -22,11 +22,12 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 class TaskRefiner (JediKnight,FactoryBase):
 
     # constructor
-    def __init__(self,commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel):
-        self.vo = vo
-        self.prodSourceLabel = prodSourceLabel
+    def __init__(self,commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels):
+        self.vos = self.parseInit(vos)
+        self.prodSourceLabels = self.parseInit(prodSourceLabels)
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
-        FactoryBase.__init__(self,vo,prodSourceLabel,logger,jedi_config.taskrefine.modConfig)
+        FactoryBase.__init__(self,self.vos,self.prodSourceLabels,logger,
+                             jedi_config.taskrefine.modConfig)
 
 
     # main
@@ -41,28 +42,32 @@ class TaskRefiner (JediKnight,FactoryBase):
                 # get logger
                 tmpLog = MsgWrapper(logger)
                 tmpLog.debug('start')
-                # get the list of tasks to refine
-                tmpList = self.taskBufferIF.getTasksToRefine_JEDI(self.vo,self.prodSourceLabel)
-                if tmpList == None:
-                    # failed
-                    tmpLog.error('failed to get the list of tasks to refine')
-                else:
-                    tmpLog.debug('got {0} tasks'.format(len(tmpList)))
-                    # put to a locked list
-                    taskList = ListWithLock(tmpList)
-                    # make thread pool
-                    threadPool = ThreadPool()
-                    # get work queue mapper
-                    workQueueMapper = self.taskBufferIF.getWrokQueueMap()
-                    # make workers
-                    nWorker = jedi_config.taskrefine.nWorkers
-                    for iWorker in range(nWorker):
-                        thr = TaskRefinerThread(taskList,threadPool,
-                                                self.taskBufferIF,
-                                                self,workQueueMapper)
-                        thr.start()
-                    # join
-                    threadPool.join()
+                # loop over all vos
+                for vo in self.vos:
+                    # loop over all sourceLabels
+                    for prodSourceLabel in self.prodSourceLabels:
+                        # get the list of tasks to refine
+                        tmpList = self.taskBufferIF.getTasksToRefine_JEDI(vo,prodSourceLabel)
+                        if tmpList == None:
+                            # failed
+                            tmpLog.error('failed to get the list of tasks to refine')
+                        else:
+                            tmpLog.debug('got {0} tasks'.format(len(tmpList)))
+                            # put to a locked list
+                            taskList = ListWithLock(tmpList)
+                            # make thread pool
+                            threadPool = ThreadPool()
+                            # get work queue mapper
+                            workQueueMapper = self.taskBufferIF.getWrokQueueMap()
+                            # make workers
+                            nWorker = jedi_config.taskrefine.nWorkers
+                            for iWorker in range(nWorker):
+                                thr = TaskRefinerThread(taskList,threadPool,
+                                                        self.taskBufferIF,
+                                                        self,workQueueMapper)
+                                thr.start()
+                            # join
+                            threadPool.join()
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
@@ -101,14 +106,14 @@ class TaskRefinerThread (WorkerThread):
                     self.logger.debug('{0} terminating since no more items'.format(self.__class__.__name__))
                     return
                 # loop over all tasks
-                for taskID in taskList:
+                for jediTaskID in taskList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'taskID={0}'.format(taskID))
+                    tmpLog = MsgWrapper(self.logger,'jediTaskID={0}'.format(jediTaskID))
                     tmpLog.info('start')
                     tmpStat = Interaction.SC_SUCCEEDED
                     # convert to map
                     try:
-                        taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskID)
+                        taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                         taskParamMap = RefinerUtils.decodeJSON(taskParam)
                     except:
                         errtype,errvalue = sys.exc_info()[:2]
@@ -138,7 +143,7 @@ class TaskRefinerThread (WorkerThread):
                             # initalize impl
                             impl.initializeRefiner(tmpLog)
                             # extarct common parameters
-                            impl.extractCommon(taskID,taskParamMap,self.workQueueMapper)
+                            impl.extractCommon(jediTaskID,taskParamMap,self.workQueueMapper)
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('extractCommon failed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -147,7 +152,7 @@ class TaskRefinerThread (WorkerThread):
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         tmpLog.info('refining with {0}'.format(impl.__class__.__name__))
                         try:
-                            tmpStat = impl.doRefine(impl.taskSpec.taskID,impl.taskSpec.taskType,taskParamMap)
+                            tmpStat = impl.doRefine(impl.taskSpec.jediTaskID,impl.taskSpec.taskType,taskParamMap)
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -161,7 +166,7 @@ class TaskRefinerThread (WorkerThread):
                         tmpLog.info('registering')                    
                         # fill JEDI tables
                         try:
-                            tmpStat = self.taskBufferIF.registerTaskInOneShot_JEDI(taskID,impl.taskSpec,
+                            tmpStat = self.taskBufferIF.registerTaskInOneShot_JEDI(jediTaskID,impl.taskSpec,
                                                                                    impl.inMasterDatasetSpec,
                                                                                    impl.inSecDatasetSpecList,
                                                                                    impl.outDatasetSpecList,

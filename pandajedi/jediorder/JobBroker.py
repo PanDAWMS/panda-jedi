@@ -17,4 +17,4 @@ class JobBroker (FactoryBase):
 
     # main
     def doBrokerage(self,taskSpec,cloudName,inputChunk):
-        return self.impl.doBrokerage(taskSpec,cloudName,inputChunk)
+        return self.getImpl(taskSpec.vo,taskSpec.prodSourceLabel).doBrokerage(taskSpec,cloudName,inputChunk)

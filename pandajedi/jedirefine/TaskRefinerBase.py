@@ -39,10 +39,10 @@ class TaskRefinerBase (object):
         
         
     # extract common parameters
-    def extractCommon(self,taskID,taskParamMap,workQueueMapper):
+    def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper):
         # make task spec
         taskSpec = JediTaskSpec()
-        taskSpec.taskID = taskID
+        taskSpec.jediTaskID = jediTaskID
         taskSpec.taskName = taskParamMap['taskName']
         taskSpec.userName = taskParamMap['userName']
         taskSpec.vo = taskParamMap['vo']     
@@ -56,6 +56,8 @@ class TaskRefinerBase (object):
         taskSpec.processingType = taskParamMap['processingType']
         taskSpec.taskType = taskParamMap['taskType']
         taskSpec.workingGroup = taskParamMap['workingGroup']
+        if taskParamMap.has_key('reqID'):
+            taskSpec.reqID = taskParamMap['reqID']
         if taskParamMap.has_key('coreCount'):
             taskSpec.coreCount = taskParamMap['coreCount']
         else:
@@ -82,9 +84,11 @@ class TaskRefinerBase (object):
                                                                  workingGroup=taskSpec.workingGroup,
                                                                  coreCount=taskSpec.coreCount)
         if workQueue == None:
-            raise RuntimeError,'workqueue is undefined for vo={0} labal={1} param={2}'.format(taskSpec.vo,
-                                                                                              taskSpec.prodSourceLabel,
-                                                                                              str(workQueueParam))
+            errStr  = 'workqueue is undefined for vo={0} labal={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
+            errStr += 'processingType={0} workingGroup={1} coreCount={2} '.format(taskSpec.processingType,
+                                                                                  taskSpec.workingGroup,
+                                                                                  taskSpec.coreCount)
+            raise RuntimeError,errStr
         taskSpec.workQueue_ID = workQueue.queue_id
         self.taskSpec = taskSpec
         # cloud
@@ -114,14 +118,14 @@ class TaskRefinerBase (object):
             if tmpItem['type'] == 'template' and tmpItem.has_key('dataset'):
                 datasetSpec = JediDatasetSpec()
                 datasetSpec.datasetName = tmpItem['dataset']
-                datasetSpec.taskID = self.taskSpec.taskID
+                datasetSpec.jediTaskID = self.taskSpec.jediTaskID
                 datasetSpec.type = tmpItem['param_type']
                 if tmpItem.has_key('token'):
                     datasetSpec.storageToken = tmpItem['token']
                 if tmpItem.has_key('destination'):
                     datasetSpec.destination = tmpItem['destination']
-                if tmpItem.has_key('attribute'):
-                    datasetSpec.splitRule = tmpItem['attribute']
+                if tmpItem.has_key('attributes'):
+                    datasetSpec.attributes = tmpItem['attributes']
                 datasetSpec.vo = self.taskSpec.vo
                 datasetSpec.nFiles = 0
                 datasetSpec.nFilesUsed = 0
@@ -153,7 +157,7 @@ class TaskRefinerBase (object):
                             offsetVal = 1 + tmpItem['offset']
                         else:
                             offsetVal = 1
-                        outTemplateMap = {'taskID' : self.taskSpec.taskID,
+                        outTemplateMap = {'jediTaskID' : self.taskSpec.jediTaskID,
                                           'serialNr' : offsetVal,
                                           'streamName' : datasetSpec.streamName,
                                           'filenameTemplate' : outFileTemplate,

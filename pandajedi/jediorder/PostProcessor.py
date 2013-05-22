@@ -20,9 +20,9 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 class PostProcessor (JediKnight):
 
     # constructor
-    def __init__(self,commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel):
-        self.vo = vo
-        self.prodSourceLabel = prodSourceLabel
+    def __init__(self,commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels):
+        self.vos = self.parseInit(vos)
+        self.prodSourceLabels = self.parseInit(prodSourceLabels)
         self.pid = '{0}-{1}-post'.format(socket.getfqdn().split('.')[0],os.getpid())
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
 
@@ -38,41 +38,45 @@ class PostProcessor (JediKnight):
                 # get logger
                 tmpLog = MsgWrapper(logger)
                 tmpLog.info('start')
-                # prepare tasks to be finished
-                tmpLog.info('preparing tasks to be finished') 
-                tmpRet = self.taskBufferIF.prepareTasksToBeFinished_JEDI(self.vo,self.prodSourceLabel,
-                                                                         jedi_config.postprocessor.nTasks)
-                if tmpRet == None:
-                    # failed
-                    tmpLog.error('failed to prepare tasks')
-                # get tasks to be finished
-                tmpLog.info('getting tasks to be finished') 
-                criteria = {}
-                criteria['status'] = 'prepared'
-                if self.vo != None:
-                    criteria['vo'] = self.vo
-                if self.prodSourceLabel != None:
-                    criteria['prodSourceLabel'] = self.prodSourceLabel
-                tmpList = self.taskBufferIF.getTasksToBeFinished_JEDI(self.vo,self.prodSourceLabel,self.pid,
-                                                                      jedi_config.postprocessor.nTasks)
-                if tmpList == None: 
-                    # failed
-                    tmpLog.error('failed to get tasks to be finished')
-                else:
-                    tmpLog.info('got {0} tasks'.format(len(tmpList)))
-                    # put to a locked list
-                    taskList = ListWithLock(tmpList)
-                    # make thread pool
-                    threadPool = ThreadPool()
-                    # make workers
-                    nWorker = jedi_config.postprocessor.nWorkers
-                    for iWorker in range(nWorker):
-                        thr = PostProcessorThread(taskList,threadPool,
-                                                  self.taskBufferIF,
-                                                  self.ddmIF)
-                        thr.start()
-                    # join
-                    threadPool.join()
+                # loop over all vos
+                for vo in self.vos:
+                    # loop over all sourceLabels
+                    for prodSourceLabel in self.prodSourceLabels:
+                        # prepare tasks to be finished
+                        tmpLog.info('preparing tasks to be finished for vo={0} label={1}'.format(vo,prodSourceLabel))
+                        tmpRet = self.taskBufferIF.prepareTasksToBeFinished_JEDI(vo,prodSourceLabel,
+                                                                                 jedi_config.postprocessor.nTasks)
+                        if tmpRet == None:
+                            # failed
+                            tmpLog.error('failed to prepare tasks')
+                        # get tasks to be finished
+                        tmpLog.info('getting tasks to be finished') 
+                        criteria = {}
+                        criteria['status'] = 'prepared'
+                        if self.vo != None:
+                            criteria['vo'] = self.vo
+                        if self.prodSourceLabel != None:
+                            criteria['prodSourceLabel'] = self.prodSourceLabel
+                        tmpList = self.taskBufferIF.getTasksToBeFinished_JEDI(vo,prodSourceLabel,self.pid,
+                                                                              jedi_config.postprocessor.nTasks)
+                        if tmpList == None: 
+                            # failed
+                            tmpLog.error('failed to get tasks to be finished')
+                        else:
+                            tmpLog.info('got {0} tasks'.format(len(tmpList)))
+                            # put to a locked list
+                            taskList = ListWithLock(tmpList)
+                            # make thread pool
+                            threadPool = ThreadPool()
+                            # make workers
+                            nWorker = jedi_config.postprocessor.nWorkers
+                            for iWorker in range(nWorker):
+                                thr = PostProcessorThread(taskList,threadPool,
+                                                          self.taskBufferIF,
+                                                          self.ddmIF)
+                                thr.start()
+                            # join
+                            threadPool.join()
                 tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
@@ -113,7 +117,7 @@ class PostProcessorThread (WorkerThread):
                 # loop over all tasks
                 for taskSpec in taskList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'taskID={0}'.format(taskSpec.taskID))
+                    tmpLog = MsgWrapper(self.logger,'jediTaskID={0}'.format(taskSpec.jediTaskID))
                     tmpLog.info('start')
                     tmpStat = Interaction.SC_SUCCEEDED
                     # loop over all datasets
@@ -139,7 +143,7 @@ class PostProcessorThread (WorkerThread):
                         taskSpec.status = 'failed'
                     else:
                         taskSpec.status = 'partial'
-                    self.taskBufferIF.updateTask_JEDI(taskSpec,{'taskID':taskSpec.taskID})    
+                    self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})    
                     # done
                     tmpLog.info('done')
             except:

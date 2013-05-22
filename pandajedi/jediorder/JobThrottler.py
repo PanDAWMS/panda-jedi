@@ -16,7 +16,7 @@ class JobThrottler (FactoryBase):
 
 
     # main
-    def toBeThrottled(self,vo,cloudName,workQueue,jobStat):
-        return self.impl.toBeThrottled(vo,cloudName,workQueue,jobStat)
+    def toBeThrottled(self,vo,sourceLabel,cloudName,workQueue,jobStat):
+        return self.getImpl(vo,sourceLabel).toBeThrottled(vo,cloudName,workQueue,jobStat)
                                                             
             

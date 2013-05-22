@@ -8,10 +8,10 @@ from pandaserver.taskbuffer.FileSpec import FileSpec as JobFileSpec
 
 class JediFileSpec(object):
     # attributes
-    _attributes = ('taskID','datasetID','fileID','creationDate','lastAttemptTime',
+    _attributes = ('jediTaskID','datasetID','fileID','creationDate','lastAttemptTime',
                    'lfn','GUID','type','status','fsize','checksum','scope',
                    'attemptNr','maxAttempt','nEvents','keepTrack',
-                   'startEvent','endEvent')
+                   'startEvent','endEvent','firstEvent')
     # attributes which have 0 by default
     _zeroAttrs = ('fsize','attemptNr')
     # mapping between sequence and attr

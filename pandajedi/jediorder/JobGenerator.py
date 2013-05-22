@@ -8,10 +8,10 @@ import datetime
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedithrottle.JobThrottler import JobThrottler
 from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.userinterface import Client as PandaClient
 
+from JobThrottler import JobThrottler
 from JobBroker import JobBroker
 from JobSplitter import JobSplitter
 from JediKnight import JediKnight
@@ -28,11 +28,11 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 class JobGenerator (JediKnight):
 
     # constructor
-    def __init__(self,commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList,
+    def __init__(self,commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels,cloudList,
                  withThrottle=True,execJobs=True):
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
-        self.vo = vo
-        self.prodSourceLabel = prodSourceLabel
+        self.vos = self.parseInit(vos)
+        self.prodSourceLabels = self.parseInit(prodSourceLabels)
         self.pid = '{0}-{1}-gen'.format(socket.getfqdn().split('.')[0],os.getpid())
         self.cloudList = cloudList
         self.withThrottle = withThrottle
@@ -55,60 +55,64 @@ class JobGenerator (JediKnight):
                 # get work queue mapper
                 workQueueMapper = self.taskBufferIF.getWrokQueueMap()
                 # get Throttle
-                throttle = JobThrottler(self.vo,self.prodSourceLabel)
-                throttle.initialize(self.taskBufferIF)
-                # get
-                tmpSt,jobStat = self.taskBufferIF.getJobStatWithWorkQueuePerCloud_JEDI(self.vo,self.prodSourceLabel)
-                if not tmpSt:
-                    raise RuntimeError,'failed to get job statistics'
-                # loop over all clouds
-                for cloudName in self.cloudList:
-                    # loop over all work queues
-                    for workQueue in workQueueMapper.getQueueListWithVoType(self.vo,self.prodSourceLabel):
-                        cycleStr = 'vo={0} cloud={1} queue={2}(id={3}) label={4}'.format(self.vo,cloudName,
-                                                                                         workQueue.queue_name,
-                                                                                         workQueue.queue_id,
-                                                                                         self.prodSourceLabel)
-                        tmpLog.debug('start {0}'.format(cycleStr))
-                        # throttle
-                        tmpLog.debug('check throttle with {0}'.format(throttle.getClassName()))
-                        try:
-                            tmpSt,thrFlag = throttle.toBeThrottled(self.vo,cloudName,workQueue,jobStat)
-                        except:
-                            errtype,errvalue = sys.exc_info()[:2]
-                            tmpLog.error('throttler failed with {0} {1}'.format(errtype,errvalue))
-                            raise RuntimeError,'crashed when checking throttle'
-                        if tmpSt != self.SC_SUCCEEDED:
-                            raise RuntimeError,'failed to check throttle'
-                        if thrFlag:
-                            tmpLog.debug('throttled')
-                            if self.withThrottle:
-                                continue
-                        # get the list of input 
-                        tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,self.vo,
-                                                                               workQueue,
-                                                                               self.prodSourceLabel,
-                                                                               cloudName,
-                                                                               nTasks=jedi_config.jobgen.nTasks,
-                                                                               nFiles=jedi_config.jobgen.nFiles)
-                        if tmpList == None:
-                            # failed
-                            tmpLog.error('failed to get the list of input chunks to generate jobs')
-                        else:
-                            tmpLog.debug('got {0} input chunks'.format(len(tmpList)))
-                            # put to a locked list
-                            inputList = ListWithLock(tmpList)
-                            # make thread pool
-                            threadPool = ThreadPool() 
-                            # make workers
-                            nWorker = jedi_config.jobgen.nWorkers
-                            for iWorker in range(nWorker):
-                                thr = JobGeneratorThread(inputList,threadPool,
-                                                         self.taskBufferIF,self.ddmIF,
-                                                         siteMapper,self.execJobs)
-                                thr.start()
-                            # join
-                            threadPool.join()
+                throttle = JobThrottler(self.vos,self.prodSourceLabels)
+                throttle.initializeMods(self.taskBufferIF)
+                # loop over all vos
+                for vo in self.vos:
+                    # loop over all sourceLabels
+                    for prodSourceLabel in self.prodSourceLabels:
+                        # get
+                        tmpSt,jobStat = self.taskBufferIF.getJobStatWithWorkQueuePerCloud_JEDI(vo,prodSourceLabel)
+                        if not tmpSt:
+                            raise RuntimeError,'failed to get job statistics'
+                        # loop over all clouds
+                        for cloudName in self.cloudList:
+                            # loop over all work queues
+                            for workQueue in workQueueMapper.getQueueListWithVoType(vo,prodSourceLabel):
+                                cycleStr = 'vo={0} cloud={1} queue={2}(id={3}) label={4}'.format(vo,cloudName,
+                                                                                                 workQueue.queue_name,
+                                                                                                 workQueue.queue_id,
+                                                                                                 prodSourceLabel)
+                                tmpLog.debug('start {0}'.format(cycleStr))
+                                # throttle
+                                tmpLog.debug('check throttle with {0}'.format(throttle.getClassName(vo,prodSourceLabel)))
+                                try:
+                                    tmpSt,thrFlag = throttle.toBeThrottled(vo,prodSourceLabel,cloudName,workQueue,jobStat)
+                                except:
+                                    errtype,errvalue = sys.exc_info()[:2]
+                                    tmpLog.error('throttler failed with {0} {1}'.format(errtype,errvalue))
+                                    raise RuntimeError,'crashed when checking throttle'
+                                if tmpSt != self.SC_SUCCEEDED:
+                                    raise RuntimeError,'failed to check throttle'
+                                if thrFlag:
+                                    tmpLog.debug('throttled')
+                                    if self.withThrottle:
+                                        continue
+                                # get the list of input 
+                                tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,vo,
+                                                                                       workQueue,
+                                                                                       prodSourceLabel,
+                                                                                       cloudName,
+                                                                                       nTasks=jedi_config.jobgen.nTasks,
+                                                                                       nFiles=jedi_config.jobgen.nFiles)
+                                if tmpList == None:
+                                    # failed
+                                    tmpLog.error('failed to get the list of input chunks to generate jobs')
+                                else:
+                                    tmpLog.debug('got {0} input chunks'.format(len(tmpList)))
+                                    # put to a locked list
+                                    inputList = ListWithLock(tmpList)
+                                    # make thread pool
+                                    threadPool = ThreadPool() 
+                                    # make workers
+                                    nWorker = jedi_config.jobgen.nWorkers
+                                    for iWorker in range(nWorker):
+                                        thr = JobGeneratorThread(inputList,threadPool,
+                                                                 self.taskBufferIF,self.ddmIF,
+                                                                 siteMapper,self.execJobs)
+                                        thr.start()
+                                    # join
+                                    threadPool.join()
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
@@ -152,14 +156,14 @@ class JobGeneratorThread (WorkerThread):
                 # loop over all inputs
                 for taskSpec,cloudName,inputChunk in inputList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'taskID=%s' % taskSpec.taskID)
+                    tmpLog = MsgWrapper(self.logger,'jediTaskID=%s' % taskSpec.jediTaskID)
                     tmpLog.info('start with VO=%s cloud=%s' % (taskSpec.vo,cloudName))
                     readyToSubmitJob = False
                     jobsSubmitted = False
                     # initialize brokerage
                     jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
-                    tmpStat = jobBroker.initialize(self.ddmIF.getInterface(taskSpec.vo),
-                                                                           self.taskBufferIF)
+                    tmpStat = jobBroker.initializeMods(self.ddmIF.getInterface(taskSpec.vo),
+                                                       self.taskBufferIF)
                     if not tmpStat:
                         tmpErrStr = 'failed to initialize JobBroker'
                         tmpLog.error(tmpErrStr)
@@ -167,7 +171,8 @@ class JobGeneratorThread (WorkerThread):
                         taskSpec.setErrDiag(tmpErrStr)                        
                     else:    
                         # run brokerage
-                        tmpLog.info('run brokerage with {0}'.format(jobBroker.getClassName()))
+                        tmpLog.info('run brokerage with {0}'.format(jobBroker.getClassName(taskSpec.vo,
+                                                                                           taskSpec.prodSourceLabel)))
                         try:
                             tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk)
                         except:
@@ -230,11 +235,11 @@ class JobGeneratorThread (WorkerThread):
                             tmpLog.error('submitted only {0}/{1}'.format(len(pandaIDs),len(pandaJobs)))
                     # role back
                     if not jobsSubmitted:
-                        self.taskBufferIF.rollbackFiles_JEDI(taskSpec.taskID,inputChunk)
+                        self.taskBufferIF.rollbackFiles_JEDI(taskSpec.jediTaskID,inputChunk)
                     # update task
                     tmpLog.info('update task.status=%s' % taskSpec.status)
                     taskSpec.lockedBy = None
-                    self.taskBufferIF.updateTask_JEDI(taskSpec,{'taskID':taskSpec.taskID})
+                    self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
                     tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
@@ -266,7 +271,8 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.prodSourceLabel  = taskSpec.prodSourceLabel
                     jobSpec.processingType   = taskSpec.processingType
                     jobSpec.computingSite    = siteName
-                    jobSpec.taskID           = taskSpec.taskID
+                    jobSpec.jediTaskID       = taskSpec.jediTaskID
+                    jobSpec.taskID           = taskSpec.reqID
                     jobSpec.workingGroup     = taskSpec.workingGroup
                     jobSpec.computingSite    = siteName
                     jobSpec.cloud            = cloudName
@@ -296,7 +302,7 @@ class JobGeneratorThread (WorkerThread):
                                 tmpInFileSpec.status = 'cached'
                             jobSpec.addFile(tmpInFileSpec)
                     # outputs
-                    outSubChunk,serialNr = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.taskID)
+                    outSubChunk,serialNr = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
@@ -354,8 +360,7 @@ class JobGeneratorThread (WorkerThread):
                 # skipEvents and firstEvent
                 if len(tmpFileSpecList) > 0 and tmpFileSpecList[0].startEvent != None:
                     skipEvents = tmpFileSpecList[0].startEvent
-                    # FIXME
-                    # firstEvent = tmpFileSpecList[0].firstEvent
+                    firstEvent = tmpFileSpecList[0].firstEvent
                     # maxEvents
                     maxEvents = 0
                     for tmpFileSpec in tmpFileSpecList:

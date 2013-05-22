@@ -19,9 +19,9 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 class WatchDog (JediKnight):
 
     # constructor
-    def __init__(self,commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel):
-        self.vo = vo
-        self.prodSourceLabel = prodSourceLabel
+    def __init__(self,commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels):
+        self.vos = self.parseInit(vos)
+        self.prodSourceLabels = self.parseInit(prodSourceLabels)
         self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0],os.getpid())
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
 
@@ -37,15 +37,19 @@ class WatchDog (JediKnight):
                 # get logger
                 tmpLog = MsgWrapper(logger)
                 tmpLog.info('start')
-                # rescue picked files
-                tmpLog.info('rescue tasks with picked files') 
-                tmpRet = self.taskBufferIF.rescuePickedFiles_JEDI(self.vo,self.prodSourceLabel,
-                                                                  jedi_config.watchdog.waitForPicked)
-                if tmpRet == None:
-                    # failed
-                    tmpLog.error('failed')
-                else:
-                    tmpLog.info('rescued {0} tasks'.format(tmpRet))
+                # loop over all vos
+                for vo in self.vos:
+                    # loop over all sourceLabels
+                    for prodSourceLabel in self.prodSourceLabels:
+                        # rescue picked files
+                        tmpLog.info('rescue tasks with picked files for vo={0} label={1}'.format(vo,prodSourceLabel)) 
+                        tmpRet = self.taskBufferIF.rescuePickedFiles_JEDI(vo,prodSourceLabel,
+                                                                          jedi_config.watchdog.waitForPicked)
+                        if tmpRet == None:
+                            # failed
+                            tmpLog.error('failed')
+                        else:
+                            tmpLog.info('rescued {0} tasks'.format(tmpRet))
                 tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]

@@ -10,7 +10,7 @@ tbIF.setupInterface()
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 
 task = JediTaskSpec()
-task.taskID = sys.argv[1]
+task.jediTaskID = sys.argv[1]
 task.taskName = 'pandatest.{0}'.format(uuid.uuid4())
 task.status = 'defined'
 task.userName = 'pandasrv1'
@@ -28,7 +28,7 @@ tbIF.insertTask_JEDI(task)
 
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 ds = JediDatasetSpec()
-ds.taskID = task.taskID
+ds.jediTaskID = task.jediTaskID
 if len(sys.argv) > 2:
     ds.datasetName = sys.argv[2]
 else:
@@ -46,7 +46,7 @@ ds.nFilesFailed = 0
 st,datasetID = tbIF.insertDataset_JEDI(ds)
 
 ds = JediDatasetSpec()
-ds.taskID = task.taskID
+ds.jediTaskID = task.jediTaskID
 ds.datasetName = 'ddo.000001.Atlas.Ideal.DBRelease.v220701'
 ds.type = 'input'
 ds.vo = task.vo
@@ -58,13 +58,13 @@ ds.nFilesUsed = 0
 ds.nFilesFinished = 0
 ds.nFilesFailed = 0
 ds.masterID = datasetID
-ds.splitRule = 'repeat,nosplit'
+ds.attributes = 'repeat,nosplit'
 
 tbIF.insertDataset_JEDI(ds)
 
 
 ds = JediDatasetSpec()
-ds.taskID = task.taskID
+ds.jediTaskID = task.jediTaskID
 ds.datasetName = 'panda.jeditest.GEN.{0}'.format(uuid.uuid4())
 ds.type = 'output'
 ds.vo = task.vo
@@ -78,7 +78,7 @@ ds.nFilesFailed = 0
 
 st,datasetID = tbIF.insertDataset_JEDI(ds)
 
-tbIF.insertOutputTemplate_JEDI([{'taskID':task.taskID,
+tbIF.insertOutputTemplate_JEDI([{'jediTaskID':task.jediTaskID,
                                  'datasetID':datasetID,
                                  'filenameTemplate':'{0}.${{SN}}.pool.root'.format(ds.datasetName),
                                  'serialNr':1,
@@ -86,7 +86,7 @@ tbIF.insertOutputTemplate_JEDI([{'taskID':task.taskID,
                                  'outtype':ds.type}])
 
 ds = JediDatasetSpec()
-ds.taskID = task.taskID
+ds.jediTaskID = task.jediTaskID
 ds.datasetName = 'panda.jeditest.log.{0}'.format(uuid.uuid4())
 ds.type = 'log'
 ds.vo = task.vo
@@ -100,11 +100,11 @@ ds.nFilesFailed = 0
 
 st,datasetID = tbIF.insertDataset_JEDI(ds)
 
-tbIF.insertOutputTemplate_JEDI([{'taskID':task.taskID,
+tbIF.insertOutputTemplate_JEDI([{'jediTaskID':task.jediTaskID,
                                  'datasetID':datasetID,
                                  'filenameTemplate':'{0}.${{SN}}.log.tgz'.format(ds.datasetName),
                                  'serialNr':1,
                                  'streamName':'LOG',
                                  'outtype':ds.type}])
 
-tbIF.insertJobParamsTemplate_JEDI(task.taskID,'inputAODFile=${IN} maxEvents=1000 RunNumber=213816 autoConfiguration=everything preExec="from BTagging.BTaggingFlags import BTaggingFlags;BTaggingFlags.CalibrationTag=\"BTagCalibALL-07-02\"" DBRelease=${DBR} AMITag=p1462 outputNTUP_EMBLLDNFile=${OUT}')
+tbIF.insertJobParamsTemplate_JEDI(task.jediTaskID,'inputAODFile=${IN} maxEvents=1000 RunNumber=213816 autoConfiguration=everything preExec="from BTagging.BTaggingFlags import BTaggingFlags;BTaggingFlags.CalibrationTag=\"BTagCalibALL-07-02\"" DBRelease=${DBR} AMITag=p1462 outputNTUP_EMBLLDNFile=${OUT}')

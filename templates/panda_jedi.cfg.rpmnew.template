@@ -82,7 +82,7 @@ loopCycle = 60
 [taskrefine]
 
 # interface config
-modConfig = atlas:managed:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner
+modConfig = atlas:managed|test:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner
 
 # process config
 procConfig = ::1
@@ -104,7 +104,7 @@ loopCycle = 60
 [jobbroker]
 
 # interface config
-modConfig = atlas:managed:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBroker
+modConfig = atlas:managed|test:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBroker
 
 
 
@@ -117,7 +117,7 @@ modConfig = atlas:managed:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJo
 [jobthrottle]
 
 # interface config
-modConfig = atlas:managed:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProdJobThrottler
+modConfig = atlas:managed|test:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProdJobThrottler
 
 
 
@@ -130,7 +130,7 @@ modConfig = atlas:managed:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProd
 [jobgen]
 
 # process config
-procConfig = atlas:managed:1:CA,CERN,DE,ES,FR,IT,ND,NL,RU,TW,UK,US
+procConfig = atlas:managed|test:1:CA,CERN,DE,ES,FR,IT,ND,NL,RU,TW,UK,US
 
 # number of tasks per cycle
 nTasks = 50

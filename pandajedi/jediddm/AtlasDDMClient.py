@@ -98,7 +98,7 @@ class AtlasDDMClient(DDMClientBase):
             ngEndPoints = []
             if 1 in ngGroup:
                 ngEndPoints += ['_SCRATCHDISK$','_LOCALGROUPDISK$','_USERDISK$',
-                               '_DAQ$','_TMPDISK$','_TZERO$','_GRIDFTP$']
+                               '_DAQ$','_TMPDISK$','_TZERO$','_GRIDFTP$','MOCKTEST$']
             # get all associated endpoints
             siteAllEndPointsMap = {}
             for siteName,endPointPattList in siteEndPointMap.iteritems():

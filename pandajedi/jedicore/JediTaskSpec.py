@@ -8,7 +8,7 @@ task specification for JEDI
 class JediTaskSpec(object):
     # attributes
     attributes = (
-        'taskID','taskName','status','userName',
+        'jediTaskID','taskName','status','userName',
         'creationDate','modificationTime','startTime','endTime',
         'frozenTime','prodSourceLabel','workingGroup','vo','coreCount',
         'taskType','processingType','taskPriority','currentPriority',
@@ -16,7 +16,8 @@ class JediTaskSpec(object):
         'lockedTime','termCondition','splitRule','walltime','walltimeUnit',
         'outDiskCount','outDiskUnit','workDiskCount','workDiskUnit',
         'ramCount','ramUnit','ioIntensity','ioIntensityUnit',
-        'workQueue_ID','progress','failureRate','errorDialog'
+        'workQueue_ID','progress','failureRate','errorDialog',
+        'reqID','oldStatus','cloud','site'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
@@ -99,7 +100,7 @@ class JediTaskSpec(object):
         return ret
 
 
-    # pack tuple into FileSpec
+    # pack tuple into TaskSpec
     def pack(self,values):
         for i in range(len(self.attributes)):
             attr= self.attributes[i]
@@ -235,27 +236,17 @@ class JediTaskSpec(object):
     # set task status on hold
     def setOnHold(self):
         # change status
-        if self.status == 'ready':
+        if self.status in ['ready','running','merging','registered']:
+            self.oldStatus = self.status
             self.status = 'pending'
-        elif self.status == 'running':
-            self.status = 'holding'
-        elif self.status == 'merging':
-            self.status = 'suspend'
-        elif self.status == 'registered':
-            self.status = 'waiting'
 
 
     # set task status to active
     def setInActive(self):
-        # change status        
+        # change status
         if self.status == 'pending':
-            self.status = 'ready'
-        elif self.status == 'holding':
-            self.status = 'running'
-        elif self.status == 'suspend':
-            self.status = 'merging'
-        elif self.status == 'waiting':
-            self.status = 'defined'
+            self.status = self.oldStatus
+            self.oldStatus = None
         # reset error dialog    
         self.setErrDiag(None)
             

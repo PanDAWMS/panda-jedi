@@ -1,6 +1,8 @@
 import sys
-metaID = sys.argv[1]
-taskID = sys.argv[2]
+try:
+    metaID = sys.argv[1]
+except:
+    metaID = None
 import json
 import uuid
 taskParamMap = {}
@@ -38,7 +40,7 @@ taskParamMap['jobParameters'] = [
      'param_type':'input',
      'value':'DBRelease=${DBR}',
      'dataset':'ddo.000001.Atlas.Ideal.DBRelease.v220701',
-     'attribute':'repeat,nosplit',
+     'attributes':'repeat,nosplit',
      },
     {'type':'constant',    
      'value':'AMITag=p1462'
@@ -57,5 +59,5 @@ from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()
-tbIF.insertTaskParams_JEDI(metaID,taskID,jonStr)
+tbIF.insertTaskParams_JEDI(metaID,jonStr)
 

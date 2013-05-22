@@ -71,12 +71,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
-    # get files from the JEDI contents table with taskID and/or datasetID
-    def getFilesInDatasetWithID_JEDI(self,taskID=None,datasetID=None,nFiles=None,status=None):
+    # get files from the JEDI contents table with jediTaskID and/or datasetID
+    def getFilesInDatasetWithID_JEDI(self,jediTaskID=None,datasetID=None,nFiles=None,status=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getFilesInDatasetWithID_JEDI(taskID,datasetID,nFiles,status)
+        retVal = proxy.getFilesInDatasetWithID_JEDI(jediTaskID,datasetID,nFiles,status)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -150,11 +150,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # update JEDI task status by ContentsFeeder
-    def updateTaskStatusByContFeeder_JEDI(self,taskID,newStatus=None):
+    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,newStatus=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.updateTaskStatusByContFeeder_JEDI(taskID,newStatus)
+        retVal = proxy.updateTaskStatusByContFeeder_JEDI(jediTaskID,newStatus)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -162,12 +162,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
-    # get JEDI task with taskID
-    def getTaskWithID_JEDI(self,taskID,fullFlag=False,lockTask=False,pid=None):
+    # get JEDI task with jediTaskID
+    def getTaskWithID_JEDI(self,jediTaskID,fullFlag=False,lockTask=False,pid=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTaskWithID_JEDI(taskID,fullFlag,lockTask,pid)
+        retVal = proxy.getTaskWithID_JEDI(jediTaskID,fullFlag,lockTask,pid)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -176,11 +176,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get JEDI task and tasks with ID and lock it
-    def getTaskDatasetsWithID_JEDI(self,taskID,pid):
+    def getTaskDatasetsWithID_JEDI(self,jediTaskID,pid):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTaskDatasetsWithID_JEDI(taskID,pid)
+        retVal = proxy.getTaskDatasetsWithID_JEDI(jediTaskID,pid)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -289,11 +289,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # generate output files for task
-    def getOutputFiles_JEDI(self,taskID):
+    def getOutputFiles_JEDI(self,jediTaskID):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getOutputFiles_JEDI(taskID)
+        retVal = proxy.getOutputFiles_JEDI(jediTaskID)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -315,11 +315,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # insert JobParamsTemplate
-    def insertJobParamsTemplate_JEDI(self,taskID,templ):
+    def insertJobParamsTemplate_JEDI(self,jediTaskID,templ):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.insertJobParamsTemplate_JEDI(taskID,templ)
+        retVal = proxy.insertJobParamsTemplate_JEDI(jediTaskID,templ)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -328,11 +328,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # insert TaskParams
-    def insertTaskParams_JEDI(self,metaTaskID,taskID,taskParams):
+    def insertTaskParams_JEDI(self,metaTaskID,taskParams):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.insertTaskParams_JEDI(metaTaskID,taskID,taskParams)
+        retVal = proxy.insertTaskParams_JEDI(metaTaskID,taskParams)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -341,11 +341,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # rollback files
-    def rollbackFiles_JEDI(self,taskID,inputChunk):
+    def rollbackFiles_JEDI(self,jediTaskID,inputChunk):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.rollbackFiles_JEDI(taskID,inputChunk)
+        retVal = proxy.rollbackFiles_JEDI(jediTaskID,inputChunk)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -405,12 +405,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
-    # get task parameters with taskID
-    def getTaskParamsWithID_JEDI(self,taskID):
+    # get task parameters with jediTaskID
+    def getTaskParamsWithID_JEDI(self,jediTaskID):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTaskParamsWithID_JEDI(taskID)
+        retVal = proxy.getTaskParamsWithID_JEDI(jediTaskID)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -419,13 +419,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # register task/dataset/templ/param in a single transaction
-    def registerTaskInOneShot_JEDI(self,taskID,taskSpec,inMasterDatasetSpec,
+    def registerTaskInOneShot_JEDI(self,jediTaskID,taskSpec,inMasterDatasetSpec,
                                    inSecDatasetSpecList,outDatasetSpecList,
                                    outputTemplateMap,jobParamsTemplate):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.registerTaskInOneShot_JEDI(taskID,taskSpec,inMasterDatasetSpec,
+        retVal = proxy.registerTaskInOneShot_JEDI(jediTaskID,taskSpec,inMasterDatasetSpec,
                                                   inSecDatasetSpecList,outDatasetSpecList,
                                                   outputTemplateMap,jobParamsTemplate)
         # release proxy
