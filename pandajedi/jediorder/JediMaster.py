@@ -75,6 +75,20 @@ class JediMaster:
                                                      vo,plabel))
                 proc.start()
                 knightList.append(proc)
+        # setup TaskBrokerage
+        for itemStr in jedi_config.taskbroker.procConfig.split(';'):
+            items = self.convParams(itemStr)
+            vo     = items[0]
+            plabel = items[1]
+            nProc  = items[2]
+            for iproc in range(nProc):
+                parent_conn, child_conn = multiprocessing.Pipe()
+                proc = multiprocessing.Process(target=self.launcher,
+                                               args=('pandajedi.jediorder.TaskBroker',
+                                                     child_conn,taskBufferIF,ddmIF,
+                                                     vo,plabel))
+                proc.start()
+                knightList.append(proc)
         # setup ContentsFeeder
         for iproc in range(jedi_config.confeeder.nProc):
             parent_conn, child_conn = multiprocessing.Pipe()

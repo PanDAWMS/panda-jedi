@@ -187,6 +187,6 @@ class TaskRefinerThread (WorkerThread):
 
 ########## lauch 
                 
-def launcher(commuChannel,taskBufferIF,ddmIF,vo=None,prodSourceLabel=None):
-    p = TaskRefiner(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel)
+def launcher(commuChannel,taskBufferIF,ddmIF,vos=None,prodSourceLabels=None):
+    p = TaskRefiner(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels)
     p.start()

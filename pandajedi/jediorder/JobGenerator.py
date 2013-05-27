@@ -293,6 +293,8 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.workQueue_ID     = taskSpec.workQueue_ID
                     # inputs
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
+                        if tmpDatasetSpec.isMaster():
+                            jobSpec.prodDBlock = tmpDatasetSpec.datasetName
                         for tmpFileSpec in tmpFileSpecList:
                             tmpInFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec)
                             # set status
@@ -448,8 +450,8 @@ class JobGeneratorThread (WorkerThread):
         
 ########## launch 
                 
-def launcher(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList,
+def launcher(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels,cloudList,
              withThrottle=True,execJobs=True):
-    p = JobGenerator(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel,cloudList,
+    p = JobGenerator(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels,cloudList,
                      withThrottle,execJobs)
     p.start()

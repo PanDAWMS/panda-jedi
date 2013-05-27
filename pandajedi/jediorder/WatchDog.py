@@ -65,6 +65,6 @@ class WatchDog (JediKnight):
 
 ########## launch 
                 
-def launcher(commuChannel,taskBufferIF,ddmIF,vo=None,prodSourceLabel=None):
-    p = WatchDog(commuChannel,taskBufferIF,ddmIF,vo,prodSourceLabel)
+def launcher(commuChannel,taskBufferIF,ddmIF,vos=None,prodSourceLabels=None):
+    p = WatchDog(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels)
     p.start()

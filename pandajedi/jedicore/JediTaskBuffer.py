@@ -445,3 +445,68 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get tasks to be assigned
+    def getTasksToAssign_JEDI(self,vo,prodSourceLabel,workQueue):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getTasksToAssign_JEDI(vo,prodSourceLabel,workQueue)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get tasks to check task assignment
+    def getTasksToCheckAssignment_JEDI(self,vo,prodSourceLabel,workQueue):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getTasksToCheckAssignment_JEDI(vo,prodSourceLabel,workQueue)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # calculate RW with a priority
+    def calculateRWwithPrio_JEDI(self,vo,prodSourceLabel,workQueue,priority):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.calculateRWwithPrio_JEDI(vo,prodSourceLabel,workQueue,priority)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # calculate RW for tasks
+    def calculateTaskRW_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.calculateTaskRW_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # set cloud to tasks
+    def setCloudToTasks_JEDI(self,taskCloudMap):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.setCloudToTasks_JEDI(taskCloudMap)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

@@ -184,3 +184,24 @@ loopCycle = 300
 
 # wait period for picked files in minutes
 waitForPicked = 30
+
+
+
+##########################
+#
+# Task Brokerage parameters
+#
+
+[taskbroker]
+
+# interface config
+modConfig = atlas:managed|test:pandajedi.jedibrokerage.AtlasProdTaskBroker:AtlasProdTaskBroker
+
+# process config
+procConfig = atlas:managed:1
+
+# number of workers
+nWorkers = 1
+
+# loop interval in seconds
+loopCycle = 600

@@ -3,7 +3,7 @@ file specification for JEDI
 
 """
 
-from pandaserver.taskbuffer.FileSpec import FileSpec as JobFileSpec
+from taskbuffer.FileSpec import FileSpec as JobFileSpec
 
 
 class JediFileSpec(object):

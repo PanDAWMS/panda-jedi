@@ -603,10 +603,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start newStat={0}'.format(newStatus))
         try:
             # sql to check status
-            sqlS = "SELECT status,lockedBy FROM ATLAS_PANDA.JEDI_Tasks WHERE jediTaskID=:jediTaskID "
+            sqlS = "SELECT status,lockedBy,cloud,prodSourceLabel FROM ATLAS_PANDA.JEDI_Tasks WHERE jediTaskID=:jediTaskID "
             # sql to update task
             sqlU  = "UPDATE ATLAS_PANDA.JEDI_Tasks "
-            sqlU += "SET status=:status,modificationTime=CURRENT_DATE "
+            sqlU += "SET status=:status,oldStatus=:oldStatus,modificationTime=:updateTime "
             sqlU += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
@@ -619,7 +619,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if res == None:
                 tmpLog.debug('task is not found in Tasks table')
             else:
-                taskStatus,lockedBy = res
+                taskStatus,lockedBy,cloudName,prodSourceLabel = res
                 if lockedBy != None:
                     # task is locked
                     tmpLog('task is locked by {0}'.format(lockedBy))
@@ -630,8 +630,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # update task
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
+                    varMap[':oldStatus'] = None
+                    varMap[':updateTime'] = datetime.datetime.utcnow()
                     if newStatus != None:
                         varMap['status'] = newStatus
+                    elif cloudName == None and prodSourceLabel in ['managed','test']:
+                        varMap[':oldStatus'] = taskStatus
+                        varMap['status'] = 'pending'
+                        # set old update time to trigger TaskBrokerage immediately
+                        varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     elif taskStatus == 'holding':
                         varMap['status'] = 'running'
                     else:
@@ -1183,7 +1190,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nTasks=50,nFiles=100,isPeeking=False,simTasks=None):
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' <vo={0} queue={1} cloud={2}>'.format(vo,workQueue.queue_name,cloudName)
+        if workQueue == None:
+            methodName += ' <vo={0} queue={1} cloud={2}>'.format(vo,None,cloudName)
+        else:
+            methodName += ' <vo={0} queue={1} cloud={2}>'.format(vo,workQueue.queue_name,cloudName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start label={0} nTasks={1} nFiles={2}'.format(prodSourceLabel,nTasks,nFiles))
         # return value for failure
@@ -1194,7 +1204,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap = {}
                 varMap[':vo']              = vo
                 varMap[':type']            = 'input'
-                varMap[':cloud']           = cloudName
+                if cloudName != None:
+                    varMap[':cloud']       = cloudName
                 varMap[':taskstatus1']     = 'ready'
                 varMap[':taskstatus2']     = 'running'
                 varMap[':taskstatus3']     = 'merging'            
@@ -1211,7 +1222,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sql += '{0},'.format(tmpKey)
                 sql  = sql[:-1]
                 sql += ') '
-                sql += "AND prodSourceLabel=:prodSourceLabel AND tabD.cloud=:cloud "
+                sql += "AND prodSourceLabel=:prodSourceLabel "
+                if cloudName != None:
+                    sql += "AND tabT.cloud=:cloud "
                 sql += "AND tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3) "
                 sql += "AND tabT.lockedBy IS NULL AND tabT.jediTaskID=tabD.jediTaskID "
                 sql += "AND nFilesToBeUsed > nFilesUsed AND type=:type AND tabD.status=:dsStatus "
@@ -1493,7 +1506,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            tmpLog.debug('done')
+            tmpLog.debug('done new jediTaskID={0}'.format(jediTaskID))
             return True
         except:
             # roll back
@@ -1770,7 +1783,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql to get jediTaskIDs to refine from the command table
             sqlC  = "SELECT comm_task,comm_meta FROM ATLAS_DEFT.PRODSYS_COMM "
-            sqlC += "WHERE comm_owner=:comm_owner AND comm_cmd=:comm_cmd "
+            sqlC += "WHERE comm_owner=:comm_owner AND comm_cmd=:comm_cmd ORDER BY comm_ts"
             varMap = {}
             varMap[':comm_owner']    = 'DEFT'
             #varMap[':comm_receiver'] = 'JEDI'        
@@ -2364,3 +2377,248 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return failedRet
+
+
+
+    # get tasks to be assigned
+    def getTasksToAssign_JEDI(self,vo,prodSourceLabel,workQueue):
+        comment = ' /* JediDBProxy.getTasksToAssign_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1} queue={2}>'.format(vo,prodSourceLabel,workQueue.queue_name)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        retJediTaskIDs = []
+        try:
+            # sql to get tasks to assign
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':status']    = 'pending'
+            varMap[':oldStatus'] = 'defined'        
+            # FIXME
+            #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=3)
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=1)
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            sqlSCF  = "SELECT jediTaskID FROM ATLAS_PANDA.JEDI_Tasks WHERE "
+            sqlSCF += "status=:status AND oldStatus=:oldStatus AND modificationTime<:timeLimit "
+            sqlSCF += "AND vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud IS NULL "
+            sqlSCF += "AND workQueue_ID IN (" 
+            for tmpQueue_ID in workQueue.getIDs():
+                tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
+                varMap[tmpKey] = tmpQueue_ID
+                sqlSCF += '{0},'.format(tmpKey)
+            sqlSCF  = sqlSCF[:-1]    
+            sqlSCF += ") "
+            sqlSCF += "ORDER BY currentPriority DESC FOR UPDATE"
+            sqlSPC  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET modificationTime=CURRENT_DATE "
+            sqlSPC += "WHERE jediTaskID=:jediTaskID "
+            # begin transaction
+            self.conn.begin()
+            # get tasks
+            self.cur.execute(sqlSCF+comment,varMap)
+            resList = self.cur.fetchall()
+            for jediTaskID, in resList:
+                # update modificationTime
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                self.cur.execute(sqlSPC+comment,varMap)
+                nRow = self.cur.rowcount
+                if nRow == 1:
+                    retJediTaskIDs.append(jediTaskID)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return    
+            tmpLog.debug('got {0} tasks'.format(len(retJediTaskIDs)))
+            return retJediTaskIDs
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
+    # get tasks to check task assignment
+    def getTasksToCheckAssignment_JEDI(self,vo,prodSourceLabel,workQueue):
+        comment = ' /* JediDBProxy.getTasksToCheckAssignment_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1} queue={2}>'.format(vo,prodSourceLabel,workQueue.queue_name)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        retJediTaskIDs = []
+        try:
+            # sql to get tasks to assign
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':status']    = 'pending'
+            varMap[':oldStatus'] = 'defined'        
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            sqlSCF  = "SELECT jediTaskID FROM ATLAS_PANDA.JEDI_Tasks WHERE "
+            sqlSCF += "status=:status AND oldStatus=:oldStatus "
+            sqlSCF += "AND vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud IS NULL "
+            sqlSCF += "AND workQueue_ID IN (" 
+            for tmpQueue_ID in workQueue.getIDs():
+                tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
+                varMap[tmpKey] = tmpQueue_ID
+                sqlSCF += '{0},'.format(tmpKey)
+            sqlSCF  = sqlSCF[:-1]    
+            sqlSCF += ") "
+            # begin transaction
+            self.conn.begin()
+            # get tasks
+            self.cur.execute(sqlSCF+comment,varMap)
+            resList = self.cur.fetchall()
+            for jediTaskID, in resList:
+                    retJediTaskIDs.append(jediTaskID)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return    
+            tmpLog.debug('got {0} tasks'.format(len(retJediTaskIDs)))
+            return retJediTaskIDs
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
+    # set cloud to tasks
+    def setCloudToTasks_JEDI(self,taskCloudMap):
+        comment = ' /* JediDBProxy.setCloudToTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            if taskCloudMap != {}:
+                # sql to set cloud
+                sql  = "UPDATE ATLAS_PANDA.JEDI_Tasks "
+                sql += "SET cloud=:cloud,status=:status,oldStatus=NULL "
+                sql += "WHERE jediTaskID=:jediTaskID "
+                for jediTaskID,cloudName in taskCloudMap.iteritems():
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':status']     = 'ready'
+                    varMap[':cloud']      = cloudName
+                    # begin transaction
+                    self.conn.begin()
+                    # set cloud
+                    self.cur.execute(sql+comment,varMap)
+                    nRow = self.cur.rowcount
+                    tmpLog.debug('set cloud={0} for jediTaskID={1} with {2}'.format(cloudName,jediTaskID,nRow))
+                    # commit
+                    if not self._commit():
+                        raise RuntimeError, 'Commit error'
+            # return    
+            tmpLog.debug('done')
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
+
+
+
+    # calculate RW for tasks
+    def calculateTaskRW_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.calculateTaskRW_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get RW
+            sql  = "SELECT ROUND(SUM((nFiles-nFilesFinished-nFilesFailed)*walltime)/24/3600) "
+            sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD "
+            sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND masterID IS NULL "
+            sql += "AND tabT.jediTaskID=:jediTaskID "
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            # begin transaction
+            self.conn.begin()
+            # get
+            self.cur.execute(sql+comment,varMap)
+            resRT = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # locked by another
+            if resRT == None:
+                retVal = None
+            else:
+                retVal = resRT[0]
+            tmpLog.debug('RW={0}'.format(retVal))
+            # return    
+            tmpLog.debug('done')
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
+    # calculate RW with a priority
+    def calculateRWwithPrio_JEDI(self,vo,prodSourceLabel,workQueue,priority):
+        comment = ' /* JediDBProxy.calculateRWwithPrio_JEDI */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        if workQueue == None:
+            methodName += ' <vo={0} label={1} queue={2} prio={3}>'.format(vo,prodSourceLabel,None,priority)
+        else:
+            methodName += ' <vo={0} label={1} queue={2} prio={3}>'.format(vo,prodSourceLabel,workQueue.queue_name,priority)
+        try:
+            # sql to get RW
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':priority'] = priority
+            sql  = "SELECT tabT.cloud,ROUND(SUM((nFiles-nFilesFinished-nFilesFailed)*walltime)/24/3600) "
+            sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD "
+            sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND masterID IS NULL "
+            sql += "AND tabT.vo=:vo AND prodSourceLabel=:prodSourceLabel AND currentPriority>=:priority "
+            if workQueue != None:
+                sql += "AND workQueue_ID IN (" 
+                for tmpQueue_ID in workQueue.getIDs():
+                    tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
+                    varMap[tmpKey] = tmpQueue_ID
+                    sql += '{0},'.format(tmpKey)
+                sql  = sql[:-1]    
+                sql += ") "
+            sql += "AND tabT.status IN (:status1,:status2,:status3,:status4,:status5) "
+            varMap[':status1'] = 'ready'
+            varMap[':status2'] = 'scouting'
+            varMap[':status3'] = 'running'
+            varMap[':status4'] = 'merging'
+            varMap[':status5'] = 'pending'
+            sql += "AND tabT.cloud IS NOT NULL "
+            sql += "GROUP BY tabT.cloud "
+            # begin transaction
+            self.conn.begin()
+            # set cloud
+            self.cur.execute(sql+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            retMap = {}
+            for cloudName,rwValue in resList:
+                retMap[cloudName] = rwValue
+            tmpLog.debug('RW={0}'.format(str(retMap)))
+            # return    
+            tmpLog.debug('done')
+            return retMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None

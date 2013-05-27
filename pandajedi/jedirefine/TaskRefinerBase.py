@@ -27,7 +27,8 @@ class TaskRefinerBase (object):
         self.outDatasetSpecList = []
         self.outputTemplateMap = {}
         self.jobParamsTemplate = None
-        self.cloud = None
+        self.cloudName = None
+        self.siteName = None
         self.tmpLog = tmpLog
 
 
@@ -78,6 +79,14 @@ class TaskRefinerBase (object):
             taskSpec.ramCount = taskParamMap['ramCount']
         else:
             taskSpec.ramCount = 0
+        # cloud
+        if taskParamMap.has_key('cloud'):
+            self.cloudName = taskParamMap['cloud']
+            taskSpec.cloud = self.cloudName
+        # site
+        if taskParamMap.has_key('site'):
+            self.siteName = taskParamMap['site']
+            taskSpec.site = self.siteName
         workQueue,tmpStr = workQueueMapper.getQueueWithSelParams(taskSpec.vo,
                                                                  taskSpec.prodSourceLabel,
                                                                  processingType=taskSpec.processingType,
@@ -91,9 +100,6 @@ class TaskRefinerBase (object):
             raise RuntimeError,errStr
         taskSpec.workQueue_ID = workQueue.queue_id
         self.taskSpec = taskSpec
-        # cloud
-        if taskParamMap.has_key('cloud'):
-            self.cloudName = taskParamMap['cloud']
         # set split rule    
         self.setSplitRule(taskParamMap,'nFilesPerJob',   'NFPJ')
         self.setSplitRule(taskParamMap,'nEventsPerJob',  'NEPJ')        
@@ -132,8 +138,6 @@ class TaskRefinerBase (object):
                 datasetSpec.nFilesFinished = 0
                 datasetSpec.nFilesFailed = 0
                 datasetSpec.status = 'defined'
-                if self.cloudName != None:
-                    datasetSpec.cloud = self.cloudName
                 if datasetSpec.type == 'input':
                     datasetSpec.streamName = RefinerUtils.extractStreamName(tmpItem['value'])
                     if nIn == 0:

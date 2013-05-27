@@ -162,7 +162,7 @@ class ContentsFeederThread (WorkerThread):
                     # update task status
                     if taskBroken:
                         allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,'broken')
-                    if allUpdated:
+                    elif allUpdated:
                         allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID)
                     tmpLog.info('done')
             except:
