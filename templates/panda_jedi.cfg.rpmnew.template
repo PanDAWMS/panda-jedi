@@ -205,3 +205,22 @@ nWorkers = 1
 
 # loop interval in seconds
 loopCycle = 600
+
+
+
+
+##########################
+#
+# TaskCommando parameters
+#
+
+[tcommando]
+
+# process config
+procConfig = ::1
+
+# number of workers
+nWorkers = 5
+
+# loop interval in seconds
+loopCycle = 60

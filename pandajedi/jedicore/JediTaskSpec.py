@@ -229,16 +229,33 @@ class JediTaskSpec(object):
 
     # return list of status to update contents
     def statusToUpdateContents(cls):
-        return ['defined','pending','holding']
+        return ['defined','pending']
     statusToUpdateContents = classmethod(statusToUpdateContents)
 
 
     # set task status on hold
     def setOnHold(self):
         # change status
-        if self.status in ['ready','running','merging','registered']:
+        if self.status in ['ready','running','merging','scouting']:
             self.oldStatus = self.status
             self.status = 'pending'
+
+
+    # return list of status to reject external changes
+    def statusToRejectExtChange(cls):
+        return ['finised','prepared','broken','aborted','aborting','holding']
+    statusToRejectExtChange = classmethod(statusToRejectExtChange)
+
+
+    # return mapping of terminate command and status
+    def terminateCommandStatusMap(cls):
+        return {'kill' : {'doing': 'aborting',
+                          'done' : 'aborted'},
+                'finish' : {'doing': 'holding',
+                            'done' : 'prepared'}
+                }
+    terminateCommandStatusMap = classmethod(terminateCommandStatusMap)
+
 
 
     # set task status to active

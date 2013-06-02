@@ -1,5 +1,8 @@
 Release Note
 
+* 6/1/2013
+  * added TaskCommando
+
 * 5/27/2013
   * added TaskBroker
 

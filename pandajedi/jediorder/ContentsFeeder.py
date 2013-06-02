@@ -144,13 +144,23 @@ class ContentsFeederThread (WorkerThread):
                                     else:
                                         nEventsPerFile = None
                                         nEventsPerJob  = None
+                                    # max attempts
+                                    if datasetSpec.isMaster():
+                                        if taskParamMap.has_key('maxAttempt'):
+                                            maxAttempt = taskParamMap['maxAttempt']
+                                        else:
+                                            # use default value
+                                            maxAttempt = 5
+                                    else:
+                                        maxAttempt = None
                                     # feed files to the contents table
                                     tmpLog.info('update contents')
                                     retDB = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
                                                                                          tmpMetadata['state'],
                                                                                          stateUpdateTime,
                                                                                          nEventsPerFile,
-                                                                                         nEventsPerJob)
+                                                                                         nEventsPerJob,
+                                                                                         maxAttempt)
                                     if retDB == False:
                                         datasetStatus = 'pending'
                                         # update dataset status    

@@ -128,7 +128,7 @@ class TaskCheckerThread (WorkerThread):
         while True:
             try:
                 # get a part of list
-                nTasks = 10
+                nTasks = 100
                 taskList = self.taskList.get(nTasks)
                 # no more datasets
                 if len(taskList) == 0:

@@ -133,9 +133,15 @@ class JediFileSpec(object):
             if self.type == 'input':
                 # prodDBlock
                 jobFileSpec.prodDBlock = datasetSpec.datasetName
+                # storage token    
+                if not datasetSpec.storageToken in ['',None]:
+                    jobFileSpec.dispatchDBlockToken = datasetSpec.storageToken 
             else:
                 # destinationDBlock
                 jobFileSpec.destinationDBlock = datasetSpec.datasetName
+                # storage token    
+                if not datasetSpec.storageToken in ['',None]:
+                    jobFileSpec.destinationDBlockToken = datasetSpec.storageToken 
         # return
         return jobFileSpec
 

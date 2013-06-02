@@ -128,6 +128,20 @@ class JediMaster:
                                                      vo,plabel))
                 proc.start()
                 knightList.append(proc)
+        # setup TaskCommando
+        for itemStr in jedi_config.tcommando.procConfig.split(';'):
+            items = self.convParams(itemStr)
+            vo     = items[0]
+            plabel = items[1]
+            nProc  = items[2]
+            for iproc in range(nProc):
+                parent_conn, child_conn = multiprocessing.Pipe()
+                proc = multiprocessing.Process(target=self.launcher,
+                                               args=('pandajedi.jediorder.TaskCommando',
+                                                     child_conn,taskBufferIF,ddmIF,
+                                                     vo,plabel))
+                proc.start()
+                knightList.append(proc)
         # setup WatchDog
         for itemStr in jedi_config.watchdog.procConfig.split(';'):
             items = self.convParams(itemStr)

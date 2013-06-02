@@ -58,12 +58,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
     # feed files to the JEDI contents table
     def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
-                                   nEventsPerFile,nEventsPerJob):
+                                   nEventsPerFile,nEventsPerJob,maxAttempt):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.insertFilesForDataset_JEDI(datasetSpec,fileMap,datasetState,stateUpdateTime,
-                                                  nEventsPerFile,nEventsPerJob)
+                                                  nEventsPerFile,nEventsPerJob,maxAttempt)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -506,6 +506,32 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.setCloudToTasks_JEDI(taskCloudMap)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get the list of tasks to exec command
+    def getTasksToExecCommand_JEDI(self,vo,prodSourceLabel):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getTasksToExecCommand_JEDI(vo,prodSourceLabel)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get the list of PandaIDs for a task
+    def getPandaIDsWithTask_JEDI(self,jediTaskID,onlyActive):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getPandaIDsWithTask_JEDI(jediTaskID,onlyActive)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
