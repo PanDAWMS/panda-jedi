@@ -3,6 +3,7 @@ import time
 import datetime
 
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
+from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedirefine import RefinerUtils
 from JediKnight import JediKnight
@@ -90,7 +91,7 @@ class ContentsFeederThread (WorkerThread):
                     allUpdated = True
                     taskBroken = False
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'jediTaskID={0}'.format(jediTaskID))
+                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(jediTaskID))
                     try:
                         # get task parameters
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
@@ -114,7 +115,7 @@ class ContentsFeederThread (WorkerThread):
                                 errtype,errvalue = sys.exc_info()[:2]
                                 tmpLog.error('{0} failed due to {1}:{2}'.format(self.__class__.__name__,
                                                                                 errtype.__name__,errvalue))
-                                if errtype == self.SC_FATAL:
+                                if errtype == Interaction.JEDIFatalError:
                                     datasetStatus = 'broken'
                                 else:
                                     datasetStatus = 'pending'
@@ -129,7 +130,7 @@ class ContentsFeederThread (WorkerThread):
                                     errtype,errvalue = sys.exc_info()[:2]
                                     tmpLog.error('{0} failed due to {1}:{2}'.format(self.__class__.__name__,
                                                                                     errtype.__name__,errvalue))
-                                    if errtype == self.SC_FATAL:
+                                    if errtype == Interaction.JEDIFatalError:
                                         datasetStatus = 'broken'
                                     else:
                                         datasetStatus = 'pending'
