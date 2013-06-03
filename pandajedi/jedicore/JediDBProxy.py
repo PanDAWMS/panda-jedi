@@ -130,7 +130,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':taskStatus']       = 'defined'
             varMap[':dsStatus_pending'] = 'pending'
             sql  = "SELECT %s " % JediDatasetSpec.columnNames('tabD')
-            sql += 'FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD '
+            sql += 'FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD '.format(jedi_config.db.schemaJEDI,
+                                                                             jedi_config.db.schemaJEDI)
             sql += 'WHERE tabT.jediTaskID=tabD.jediTaskID '
             sql += 'AND type=:type AND tabT.status=:taskStatus '
             sql += 'AND tabD.status IN ('
@@ -141,8 +142,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql  = sql[:-1]    
             sql += ') AND tabT.lockedBy IS NULL AND tabD.lockedBy IS NULL '
             sql += 'AND NOT EXISTS '
-            sql += '(SELECT 1 FROM ATLAS_PANDA.JEDI_Datasets '
-            sql += 'WHERE ATLAS_PANDA.JEDI_Datasets.jediTaskID=tabT.jediTaskID '
+            sql += '(SELECT 1 FROM {0}.JEDI_Datasets '.format(jedi_config.db.schemaJEDI)
+            sql += 'WHERE {0}.JEDI_Datasets.jediTaskID=tabT.jediTaskID '.format(jedi_config.db.schemaJEDI)
             sql += 'AND type=:type AND status=:dsStatus_pending) '
             # begin transaction
             self.conn.begin()
@@ -256,19 +257,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.error("too many file records {0}".format(len(uniqueFileKeyList)))
                 return False
             # sql to check if task is locked
-            sqlTL = "SELECT status,lockedBy FROM ATLAS_PANDA.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE "
+            sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE ".format(jedi_config.db.schemaJEDI)
             # sql to check dataset status
-            sqlDs = "SELECT status FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID FOR UPDATE "
+            sqlDs = "SELECT status FROM {0}.JEDI_Datasets WHERE datasetID=:datasetID FOR UPDATE ".format(jedi_config.db.schemaJEDI)
             # sql to get existing files
-            sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent FROM ATLAS_PANDA.JEDI_Dataset_Contents "
+            sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlCh += "WHERE datasetID=:datasetID FOR UPDATE"
             # sql for insert
-            sqlIn  = "INSERT INTO ATLAS_PANDA.JEDI_Dataset_Contents (%s) " % JediFileSpec.columnNames()
+            sqlIn  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
             sqlIn += JediFileSpec.bindValuesExpression()
             # sql to update file status
-            sqlFU = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:status WHERE fileID=:fileID "
+            sqlFU = "UPDATE {0}.JEDI_Dataset_Contents SET status=:status WHERE fileID=:fileID ".format(jedi_config.db.schemaJEDI)
             # sql to update dataset
-            sqlDU  = "UPDATE ATLAS_PANDA.JEDI_Datasets "
+            sqlDU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDU += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,"
             sqlDU += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed "
             sqlDU += "WHERE datasetID=:datasetID "
@@ -384,7 +385,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql 
             varMap = {}
             sql  = "SELECT * FROM (SELECT %s " % JediFileSpec.columnNames()
-            sql += "FROM ATLAS_PANDA.JEDI_Dataset_Contents WHERE "
+            sql += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
             useAND = False
             if jediTaskID != None:    
                 sql += "jediTaskID=:jediTaskID "
@@ -443,7 +444,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             datasetSpec.creationTime = timeNow
             datasetSpec.modificationTime = timeNow
             # sql
-            sql  = "INSERT INTO ATLAS_PANDA.JEDI_Datasets (%s) " % JediDatasetSpec.columnNames()
+            sql  = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI,JediDatasetSpec.columnNames())
             sql += JediDatasetSpec.bindValuesExpression()
             sql += " RETURNING datasetID INTO :newDatasetID"
             varMap = datasetSpec.valuesMap(useSeq=True)
@@ -491,7 +492,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # values for UPDATE
             varMap = datasetSpec.valuesMap(useSeq=False,onlyChanged=True)
             # sql for update
-            sql  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET %s WHERE " % datasetSpec.bindUpdateChangesExpression()
+            sql  = "UPDATE {0}.JEDI_Datasets SET {1} WHERE ".format(jedi_config.db.schemaJEDI,
+                                                                    datasetSpec.bindUpdateChangesExpression())
             for tmpKey,tmpVal in criteria.iteritems():
                 crKey = ':cr_%s' % tmpKey
                 sql += '%s=%s' % (tmpKey,crKey)
@@ -499,7 +501,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql for loc
             varMapLock = {}
             varMapLock[':jediTaskID'] = datasetSpec.jediTaskID
-            sqlLock = "SELECT 1 FROM ATLAS_PANDA.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE"
+            sqlLock = "SELECT 1 FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE".format(jedi_config.db.schemaJEDI)
             # begin transaction
             self.conn.begin()
             # lock task
@@ -536,7 +538,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql
             sql  = "SELECT %s " % JediDatasetSpec.columnNames()
-            sql += "FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID "
+            sql += "FROM {0}.JEDI_Datasets WHERE datasetID=:datasetID ".format(jedi_config.db.schemaJEDI)
             varMap = {}
             varMap[':datasetID'] = datasetID
             # begin transaction
@@ -575,7 +577,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             taskSpec.creationDate = timeNow
             taskSpec.modificationTime = timeNow
             # sql
-            sql  = "INSERT INTO ATLAS_PANDA.JEDI_Tasks (%s) " % JediTaskSpec.columnNames()
+            sql  = "INSERT INTO {0}.JEDI_Tasks ({1}) ".format(jedi_config.db.schemaJEDI,JediTaskSpec.columnNames())
             sql += JediTaskSpec.bindValuesExpression()
             varMap = taskSpec.valuesMap()
             # begin transaction
@@ -605,10 +607,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start newStat={0}'.format(newStatus))
         try:
             # sql to check status
-            sqlS  = "SELECT status,oldStatus,lockedBy,cloud,prodSourceLabel FROM ATLAS_PANDA.JEDI_Tasks "
+            sqlS  = "SELECT status,oldStatus,lockedBy,cloud,prodSourceLabel FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlS += "WHERE jediTaskID=:jediTaskID "
             # sql to update task
-            sqlU  = "UPDATE ATLAS_PANDA.JEDI_Tasks "
+            sqlU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlU += "SET status=:status,oldStatus=:oldStatus,modificationTime=:updateTime "
             sqlU += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
@@ -688,7 +690,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # values for UPDATE
             varMap = taskSpec.valuesMap(useSeq=False,onlyChanged=True)
             # sql
-            sql  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET {0} WHERE ".format(taskSpec.bindUpdateChangesExpression())
+            sql  = "UPDATE {0}.JEDI_Tasks SET {1} WHERE ".format(jedi_config.db.schemaJEDI,
+                                                                 taskSpec.bindUpdateChangesExpression())
             for tmpKey,tmpVal in criteria.iteritems():
                 crKey = ':cr_{0}'.format(tmpKey)
                 sql += '{0}={1}'.format(tmpKey,crKey)
@@ -726,10 +729,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql
             sql  = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sql += "FROM ATLAS_PANDA.JEDI_Tasks WHERE jediTaskID=:jediTaskID "
+            sql += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
             if lockTask:
                 sql += "FOR UPDATE NOWAIT"
-            sqlLock  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
+            sqlLock  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlLock += "WHERE jediTaskID=:jediTaskID "
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
@@ -744,7 +747,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 jobParamsTemplate = None
                 if fullFlag:
                     # sql to read template
-                    sqlJobP  = "SELECT jobParamsTemplate FROM ATLAS_PANDA.JEDI_JobParams_Template "
+                    sqlJobP  = "SELECT jobParamsTemplate FROM {0}.JEDI_JobParams_Template ".format(jedi_config.db.schemaJEDI)
                     sqlJobP += "WHERE jediTaskID=:jediTaskID "
                     self.cur.execute(sqlJobP+comment,varMap)
                     for clobJobP, in self.cur:
@@ -796,13 +799,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql
             sql  = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sql += "FROM ATLAS_PANDA.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL "
+            sql += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL ".format(jedi_config.db.schemaJEDI)
             if lockTask:
                 sql += "FOR UPDATE NOWAIT"
-            sqlLK  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
+            sqlLK  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlLK += "WHERE jediTaskID=:jediTaskID "
             sqlDS  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sqlDS += "FROM ATLAS_PANDA.JEDI_Datasets WHERE jediTaskID=:jediTaskID "
+            sqlDS += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
@@ -873,7 +876,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 return failedRet
         try:
             # sql
-            sql  = "SELECT jediTaskID FROM ATLAS_PANDA.JEDI_Tasks WHERE "
+            sql  = "SELECT jediTaskID FROM {0}.JEDI_Tasks WHERE ".format(jedi_config.db.schemaJEDI)
             isFirst = True
             for tmpKey,tmpVal in criteria.iteritems():
                 if not isFirst:
@@ -927,13 +930,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sqlRT += "FROM ATLAS_PANDA.JEDI_Tasks WHERE status=:status "
+            sqlRT += "FROM {0}.JEDI_Tasks WHERE status=:status ".format(jedi_config.db.schemaJEDI)
             sqlRT += "AND (lockedBy IS NULL OR lockedTime<:timeLimit) "
             sqlRT += "AND rownum<{0} FOR UPDATE ".format(nTasks)
-            sqlLK  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
+            sqlLK  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlLK += "WHERE jediTaskID=:jediTaskID "
             sqlDS  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sqlDS += "FROM ATLAS_PANDA.JEDI_Datasets WHERE jediTaskID=:jediTaskID "
+            sqlDS += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
@@ -996,10 +999,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlMV = sql0
         sqlMV = re.sub('COUNT\(\*\)','SUM(num_of_jobs)',sqlMV)
         sqlMV = re.sub('SELECT ','SELECT /*+ RESULT_CACHE */ ',sqlMV)        
-        tables = ['ATLAS_PANDA.jobsActive4','ATLAS_PANDA.jobsDefined4']
+        tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
+                  '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
         if minPriority != None:
             # read the number of running jobs with prio<=MIN
-            tables.append('ATLAS_PANDA.jobsActive4')
+            tables.append('{0}.jobsActive4'.format(jedi_config.db.schemaPANDA))
             sqlMVforRun = re.sub('currentPriority>=','currentPriority<=',sqlMV)
         varMap = {}
         varMap[':vo'] = vo
@@ -1015,8 +1019,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # select
                 self.cur.arraysize = 10000
                 useRunning = None
-                if table == 'ATLAS_PANDA.jobsActive4':
-                    mvTableName = 'ATLAS_PANDA.MV_JOBSACTIVE4_STATS'
+                if table == '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA):
+                    mvTableName = '{0}.MV_JOBSACTIVE4_STATS'.format(jedi_config.db.schemaPANDA)
                     # first count non-running and then running if minPriority is specified
                     if minPriority != None:
                         if iActive == 0:
@@ -1079,16 +1083,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             outMap = {}
             # sql to read template
-            sqlR  = "SELECT outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName FROM ATLAS_PANDA.JEDI_Output_Template "
+            sqlR  = "SELECT outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName "
+            sqlR += "FROM {0}.JEDI_Output_Template ".format(jedi_config.db.schemaJEDI)
             sqlR += "WHERE jediTaskID=:jediTaskID FOR UPDATE"
             # sql to get dataset name and vo for scope
-            sqlD  = "SELECT datasetName,vo FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID "
+            sqlD  = "SELECT datasetName,vo FROM {0}.JEDI_Datasets WHERE datasetID=:datasetID ".format(jedi_config.db.schemaJEDI)
             # sql to insert files
-            sqlI  = "INSERT INTO ATLAS_PANDA.JEDI_Dataset_Contents (%s) " % JediFileSpec.columnNames()
+            sqlI  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
             sqlI += JediFileSpec.bindValuesExpression()
             sqlI += " RETURNING fileID INTO :newFileID"
             # sql to increment SN
-            sqlU  = "UPDATE ATLAS_PANDA.JEDI_Output_Template SET serialNr=serialNr+1 "
+            sqlU  = "UPDATE {0}.JEDI_Output_Template SET serialNr=serialNr+1 ".format(jedi_config.db.schemaJEDI)
             sqlU += "WHERE outTempID=:outTempID "
             # current current date
             timeNow = datetime.datetime.utcnow()
@@ -1164,8 +1169,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for template in templates:
                 # make sql
                 varMap = {}
-                sqlH = "INSERT INTO ATLAS_PANDA.JEDI_Output_Template (outTempID,"
-                sqlL = "VALUES(ATLAS_PANDA.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval," 
+                sqlH = "INSERT INTO {0}.JEDI_Output_Template (outTempID,".format(jedi_config.db.schemaJEDI)
+                sqlL = "VALUES({0}.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval,".format(jedi_config.db.schemaJEDI) 
                 for tmpAttr,tmpVal in template.iteritems():
                     tmpKey = ':'+tmpAttr
                     sqlH += '{0},'.format(tmpAttr)
@@ -1194,7 +1199,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nTasks=50,nFiles=100,isPeeking=False,simTasks=None):
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
-        if workQueue == None:
+        if simTasks != None:
+            methodName += ' <jediTasks={0}>'.format(str(simTasks))
+        elif workQueue == None:
             methodName += ' <vo={0} queue={1} cloud={2}>'.format(vo,None,cloudName)
         else:
             methodName += ' <vo={0} queue={1} cloud={2}>'.format(vo,workQueue.queue_name,cloudName)
@@ -1218,7 +1225,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':dsOKStatus1']     = 'ready'
                 varMap[':dsOKStatus2']     = 'done'
                 sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority "
-                sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD "
+                sql += "FROM {0}.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.vo=:vo AND workqueue_ID IN ("
                 for tmpQueue_ID in workQueue.getIDs():
                     tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
@@ -1233,14 +1240,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "AND tabT.lockedBy IS NULL AND tabT.jediTaskID=tabD.jediTaskID "
                 sql += "AND nFilesToBeUsed > nFilesUsed AND type=:type AND tabD.status=:dsStatus "
                 sql += 'AND NOT EXISTS '
-                sql += '(SELECT 1 FROM ATLAS_PANDA.JEDI_Datasets '
-                sql += 'WHERE ATLAS_PANDA.JEDI_Datasets.jediTaskID=tabT.jediTaskID '
+                sql += '(SELECT 1 FROM {0}.JEDI_Datasets '.format(jedi_config.db.schemaJEDI)
+                sql += 'WHERE {0}.JEDI_Datasets.jediTaskID=tabT.jediTaskID '.format(jedi_config.db.schemaJEDI)
                 sql += 'AND type=:type AND NOT status IN (:dsOKStatus1,:dsOKStatus2)) '
                 sql += "ORDER BY currentPriority DESC, jediTaskID "
             else:
                 varMap = {}
                 sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority "
-                sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD "
+                sql += "FROM {0}.JEDI_Tasks tabT,{1}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI,
+                                                                                 jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ("
                 for tmpTaskIdx,tmpTaskID in enumerate(simTasks):
                     tmpKey = ':jediTaskID{0}'.format(tmpTaskIdx)
@@ -1279,27 +1287,27 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     jediTaskIDList.append(jediTaskID)
             tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
             # sql to read task
-            sqlRT  = "SELECT %s " % JediTaskSpec.columnNames()
-            sqlRT += "FROM ATLAS_PANDA.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL FOR UPDATE NOWAIT"
+            sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
+            sqlRT += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL FOR UPDATE NOWAIT".format(jedi_config.db.schemaJEDI)
             # sql to lock task
-            sqlLock  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE "
+            sqlLock  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlLock += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL "
             # sql to read template
-            sqlJobP = "SELECT jobParamsTemplate FROM ATLAS_PANDA.JEDI_JobParams_Template WHERE jediTaskID=:jediTaskID "
+            sqlJobP = "SELECT jobParamsTemplate FROM {0}.JEDI_JobParams_Template WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
             # sql to read datasets
-            sqlRD  = "SELECT %s " % JediDatasetSpec.columnNames()
-            sqlRD += "FROM ATLAS_PANDA.JEDI_Datasets WHERE datasetID=:datasetID FOR UPDATE NOWAIT"
+            sqlRD  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
+            sqlRD += "FROM {0}.JEDI_Datasets WHERE datasetID=:datasetID FOR UPDATE NOWAIT ".format(jedi_config.db.schemaJEDI)
             # sql to read files
-            sqlFR  = "SELECT * FROM (SELECT %s " % JediFileSpec.columnNames()
-            sqlFR += "FROM ATLAS_PANDA.JEDI_Dataset_Contents WHERE "
-            sqlFR += "datasetID=:datasetID and status=:status AND attemptNr<maxAttempt "
+            sqlFR  = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
+            sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFR += "datasetID=:datasetID and status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
             sqlFR += "ORDER BY fileID) "
             sqlFR += "WHERE rownum <= %s" % nFiles
             # sql to update file status
-            sqlFU  = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:nStatus "
+            sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE fileID=:fileID AND status=:oStatus "
             # sql to update file usage info in dataset
-            sqlDU  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET nFilesUsed=:nFilesUsed WHERE datasetID=:datasetID "
+            sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed WHERE datasetID=:datasetID ".format(jedi_config.db.schemaJEDI)
             # loop over all tasks
             iTasks = 0
             for jediTaskID in jediTaskIDList:
@@ -1454,7 +1462,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # SQL
-            sql  = "INSERT INTO ATLAS_PANDA.JEDI_JobParams_Template (jediTaskID,jobParamsTemplate) VALUES (:jediTaskID,:templ) "
+            sql  = "INSERT INTO {0}.JEDI_JobParams_Template (jediTaskID,jobParamsTemplate) VALUES (:jediTaskID,:templ) ".format(jedi_config.db.schemaJEDI)
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
             varMap[':templ']  = templ
@@ -1485,11 +1493,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to insert task parameters
-            sqlT  = "INSERT INTO ATLAS_DEFT.DEFT_TASK (TASK_ID,TASK_META,TASK_PARAM) VALUES "
-            sqlT += "(ATLAS_DEFT.PRODSYS2_TASK_ID_SEQ.nextval,:metaID,:param) "
+            sqlT  = "INSERT INTO {0}.DEFT_TASK (TASK_ID,TASK_META,TASK_PARAM) VALUES ".format(jedi_config.db.schemaDEFT)
+            sqlT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,:metaID,:param) ".format(jedi_config.db.schemaDEFT)
             sqlT += "RETURNING TASK_ID INTO :jediTaskID"
             # sql to insert command
-            sqlC  = "INSERT INTO ATLAS_DEFT.PRODSYS_COMM (COMM_TASK,COMM_META,COMM_OWNER,COMM_CMD) "
+            sqlC  = "INSERT INTO {0}.PRODSYS_COMM (COMM_TASK,COMM_META,COMM_OWNER,COMM_CMD) ".format(jedi_config.db.schemaDEFT)
             sqlC += "VALUES (:jediTaskID,:metaID,:comm_owner,:comm_cmd) "
             # begin transaction
             self.conn.begin()
@@ -1530,10 +1538,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to rollback files
-            sql  = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:nStatus "
+            sql  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE datasetID=:datasetID AND status=:oStatus "
             # sql to reset nFilesUsed
-            sqlD  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow "
+            sqlD  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow ".format(jedi_config.db.schemaJEDI)
             sqlD += "WHERE datasetID=:datasetID " 
             # begin transaction
             self.conn.begin()
@@ -1575,23 +1583,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get orphaned tasks
-            sqlTR  = "SELECT jediTaskID FROM ATLAS_PANDA.JEDI_Tasks "
+            sqlTR  = "SELECT jediTaskID FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTR += "WHERE status IN (:status1,:status2,:status3) AND lockedBy IS NOT NULL AND lockedTime<:timeLimit "
             if vo != None:
                 sqlTR += "AND vo=:vo "
             if prodSourceLabel != None:
                 sqlTR += "AND prodSourceLabel=:prodSourceLabel " 
             # sql to get picked datasets
-            sqlDP  = "SELECT datasetID FROM ATLAS_PANDA.JEDI_Datasets "
+            sqlDP  = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDP += "WHERE jediTaskID=:jediTaskID AND type=:type " 
             # sql to rollback files
-            sqlF  = "UPDATE ATLAS_PANDA.JEDI_Dataset_Contents SET status=:nStatus "
+            sqlF  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlF += "WHERE datasetID=:datasetID AND status=:oStatus "
             # sql to reset nFilesUsed
-            sqlDU  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow "
+            sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow ".format(jedi_config.db.schemaJEDI)
             sqlDU += "WHERE datasetID=:datasetID " 
             # sql to unlock tasks
-            sqlTU  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET lockedBy=NULL,lockedTime=NULL "
+            sqlTU  = "UPDATE {0}.JEDI_Tasks SET lockedBy=NULL,lockedTime=NULL ".format(jedi_config.db.schemaJEDI)
             sqlTU += "WHERE jediTaskID=:jediTaskID"
             # begin transaction
             self.conn.begin()
@@ -1670,7 +1678,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get size
-            sql  = "SELECT SUM(inputFileBytes)/1024/1024/1024 FROM ATLAS_PANDA.jobsDefined4 "
+            sql  = "SELECT SUM(inputFileBytes)/1024/1024/1024 FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE computingSite=:computingSite "
             # begin transaction
             self.conn.begin()
@@ -1721,7 +1729,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlC  = "SELECT COUNT(*) FROM {0} "
         sqlC += sqlS
         sqlC += "AND currentPriority=:currentPriority"
-        tables = ['ATLAS_PANDA.jobsActive4','ATLAS_PANDA.jobsDefined4']
+        tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
+                  '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
         # make return map
         prioKey = 'highestPrio'
         nNotRunKey = 'nNotRun'
@@ -1732,7 +1741,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.conn.begin()
                 varMap = copy.copy(varMapO) 
                 # select
-                if table == 'ATLAS_PANDA.jobsActive4':
+                if table == '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA):
                     varMap[':jobStatus1'] = 'activated'
                     varMap[':jobStatus2'] = 'dummy'
                 else:
@@ -1786,7 +1795,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         retTaskIDs = []
         try:
             # sql to get jediTaskIDs to refine from the command table
-            sqlC  = "SELECT comm_task,comm_meta FROM ATLAS_DEFT.PRODSYS_COMM "
+            sqlC  = "SELECT comm_task,comm_meta FROM {0}.PRODSYS_COMM ".format(jedi_config.db.schemaDEFT)
             sqlC += "WHERE comm_owner=:comm_owner AND comm_cmd=:comm_cmd "
             varMap = {}
             varMap[':comm_owner']    = 'DEFT'
@@ -1816,7 +1825,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # lock
                 varMap = {}
                 varMap[':comm_task'] = jediTaskID
-                sqlLock  = "SELECT * FROM ATLAS_DEFT.PRODSYS_COMM WHERE comm_task=:comm_task "
+                sqlLock  = "SELECT * FROM {0}.PRODSYS_COMM WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
                 if metaTaskID != None:
                     varMap[':comm_meta'] = metaTaskID
                     sqlLock += "AND comm_meta=:comm_meta "
@@ -1844,7 +1853,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':taskName'] = str(uuid.uuid4())
                         varMap[':status'] = 'registered'
                         varMap[':userName'] = 'tobeset'
-                        sqlIT =  "INSERT INTO ATLAS_PANDA.JEDI_Tasks "
+                        sqlIT =  "INSERT INTO {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
                         sqlIT += "(jediTaskID,taskName,status,userName,creationDate,modificationtime"
                         if vo != None:
                             sqlIT += ',vo'
@@ -1870,7 +1879,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # check task parameters
                         varMap = {}
                         varMap[':task_id'] = jediTaskID
-                        sqlTC = "SELECT task_id FROM ATLAS_DEFT.DEFT_TASK WHERE task_id=:task_id "
+                        sqlTC = "SELECT task_id FROM {0}.DEFT_TASK WHERE task_id=:task_id ".format(jedi_config.db.schemaDEFT)
                         tmpLog.debug(sqlTC+comment+str(varMap))
                         self.cur.execute(sqlTC+comment,varMap)
                         resTC = self.cur.fetchone()
@@ -1881,8 +1890,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # copy task parameters
                         varMap = {}
                         varMap[':task_id'] = jediTaskID
-                        sqlCopy  = "INSERT INTO ATLAS_PANDA.JEDI_TaskParams (jediTaskID,taskParams) "
-                        sqlCopy += "SELECT task_id,task_param FROM ATLAS_DEFT.DEFT_TASK "
+                        sqlCopy  = "INSERT INTO {0}.JEDI_TaskParams (jediTaskID,taskParams) ".format(jedi_config.db.schemaJEDI)
+                        sqlCopy += "SELECT task_id,task_param FROM {0}.DEFT_TASK ".format(jedi_config.db.schemaDEFT)
                         sqlCopy += "WHERE task_id=:task_id "
                         try:
                             tmpLog.debug(sqlCopy+comment+str(varMap))
@@ -1894,7 +1903,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap = {}
                     varMap[':comm_task'] = jediTaskID
                     varMap[':comm_cmd']  = 'submitted'
-                    sqlUC = "UPDATE ATLAS_DEFT.PRODSYS_COMM SET comm_cmd=:comm_cmd WHERE comm_task=:comm_task "
+                    sqlUC = "UPDATE {0}.PRODSYS_COMM SET comm_cmd=:comm_cmd WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
                     if metaTaskID != None:
                         varMap[':comm_meta'] = metaTaskID
                         sqlUC = "AND comm_meta=:comm_meta "
@@ -1913,7 +1922,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # FIXME
             #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(seconds=10)
-            sqlOrpS  = "SELECT jediTaskID FROM ATLAS_PANDA.JEDI_Tasks "
+            sqlOrpS  = "SELECT jediTaskID FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlOrpS += "WHERE status=:status AND modificationtime<:timeLimit "
             if vo != None:
                 sqlOrpS += 'AND vo=:vo '
@@ -1926,7 +1935,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlOrpS+comment,varMap)
             resList = self.cur.fetchall()
             # update modtime to avoid immediate reattempts
-            sqlOrpU  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET modificationtime=CURRENT_DATE "
+            sqlOrpU  = "UPDATE {0}.JEDI_Tasks SET modificationtime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlOrpU += "WHERE jediTaskID=:jediTaskID "
             for jediTaskID, in resList:
                 varMap = {}
@@ -1960,7 +1969,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql
-            sql  = "SELECT taskParams FROM ATLAS_PANDA.JEDI_TASKPARAMS WHERE jediTaskID=:jediTaskID "
+            sql  = "SELECT taskParams FROM {0}.JEDI_TaskParams WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
             # begin transaction
@@ -2003,7 +2012,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # update task
             varMap = taskSpec.valuesMap(useSeq=False,onlyChanged=True)
             varMap[':jediTaskID'] = jediTaskID
-            sql  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET {0} WHERE ".format(taskSpec.bindUpdateChangesExpression())
+            sql  = "UPDATE {0}.JEDI_Tasks SET {1} WHERE ".format(jedi_config.db.schemaJEDI,
+                                                                 taskSpec.bindUpdateChangesExpression())
             sql += "jediTaskID=:jediTaskID "
             self.cur.execute(sql+comment,varMap)
             nRow = self.cur.rowcount
@@ -2013,7 +2023,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 tmpLog.debug('inserting datasets')
                 # sql
-                sql  = "INSERT INTO ATLAS_PANDA.JEDI_Datasets ({0}) ".format(JediDatasetSpec.columnNames())
+                sql  = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI,
+                                                                     JediDatasetSpec.columnNames())
                 sql += JediDatasetSpec.bindValuesExpression()
                 sql += " RETURNING datasetID INTO :newDatasetID"
                 # insert master dataset
@@ -2057,8 +2068,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if not datasetIdMap.has_key(datasetName):
                         raise RuntimeError,'datasetID is not defined for {0}'.format(datasetName)
                     for outputTemplate in outputTemplateList:
-                        sqlH = "INSERT INTO ATLAS_PANDA.JEDI_Output_Template (outTempID,datasetID,"
-                        sqlL = "VALUES(ATLAS_PANDA.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval,:datasetID," 
+                        sqlH = "INSERT INTO {0}.JEDI_Output_Template (outTempID,datasetID,".format(jedi_config.db.schemaJEDI)
+                        sqlL = "VALUES({0}.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval,:datasetID,".format(jedi_config.db.schemaJEDI) 
                         varMap = {}
                         varMap[':datasetID'] = datasetIdMap[datasetName]
                         for tmpAttr,tmpVal in outputTemplate.iteritems():
@@ -2075,7 +2086,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 varMap[':templ']  = jobParamsTemplate
-                sql = "INSERT INTO ATLAS_PANDA.JEDI_JobParams_Template (jediTaskID,jobParamsTemplate) VALUES (:jediTaskID,:templ) "
+                sql = "INSERT INTO {0}.JEDI_JobParams_Template (jediTaskID,jobParamsTemplate) VALUES (:jediTaskID,:templ) ".format(jedi_config.db.schemaJEDI)
                 self.cur.execute(sql+comment,varMap)                            
             # commit
             if not self._commit():
@@ -2100,14 +2111,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         returnMap = {}
         # sql to get scout job data
-        sqlSCF  = "SELECT fileID FROM ATLAS_PANDA.JEDI_Dataset_Contents WHERE "
+        sqlSCF  = "SELECT fileID FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
         sqlSCF += "jediTaskID=:jediTaskID AND status=:status AND datasetID IN "
-        sqlSCF += "(SELECT datasetID FROM ATLAS_PANDA.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND type=:type) "
-        sqlSCP  = "SELECT PandaID FROM ATLAS_PANDA.filesTable4 WHERE fileID=:fileID "
-        sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime FROM ATLAS_PANDA.jobsArchived4 "
+        sqlSCF += "(SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+        sqlSCF += "WHERE jediTaskID=:jediTaskID AND type=:type) " 
+        sqlSCP  = "SELECT PandaID FROM {0}.filesTable4 WHERE fileID=:fileID ".format(jedi_config.db.schemaPANDA)
+        sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime "
+        sqlSCD  = "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCD += "WHERE PandaID=:pandaID "
         sqlSCD += "UNION "
-        sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime FROM ATLAS_PANDAARCH.jobsArchived "
+        sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime "
+        sqlSCD += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCD += "WHERE PandaID=:pandaID AND modificationTime>(CURRENT_DATE-14) "
         if useTransaction:
             # begin transaction
@@ -2214,14 +2228,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if prodSourceLabel != None:
                     varMap[':prodSourceLabel'] = prodSourceLabel
                 sql  = "SELECT tabT.jediTaskID,tabT.status "
-                sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT "
+                sql += "FROM {0}.JEDI_Tasks tabT ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3) "
                 if vo != None:
                     sql += "AND tabT.vo=:vo "
                 if prodSourceLabel != None:
                     sql += "AND prodSourceLabel=:prodSourceLabel "
                 sql += "AND tabT.lockedBy IS NULL AND NOT EXISTS "
-                sql += '(SELECT 1 FROM ATLAS_PANDA.JEDI_Datasets tabD '
+                sql += '(SELECT 1 FROM {0}.JEDI_Datasets tabD '.format(jedi_config.db.schemaJEDI)
                 sql += 'WHERE tabD.jediTaskID=tabT.jediTaskID AND masterID IS NULL '
                 sql += 'AND type=:type AND NOT status IN (:dsEndStatus1,:dsEndStatus2) '
                 sql += 'AND (nFilesToBeUsed<>nFilesUsed OR nFilesUsed=0 OR nFilesUsed>nFilesFinished+nFilesFailed)) '
@@ -2229,7 +2243,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 varMap = {}
                 sql  = "SELECT tabT.jediTaskID,tabT.status "
-                sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT "
+                sql += "FROM {0}.JEDI_Tasks tabT ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE "
                 for tmpTaskIdx,tmpTaskID in enumerate(simTasks):
                     tmpKey = ':jediTaskID{0}'.format(tmpTaskIdx)
@@ -2257,21 +2271,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('got {0} tasks'.format(len(jediTaskIDList)))
             # sql to read task
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sqlRT += "FROM ATLAS_PANDA.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL FOR UPDATE NOWAIT"
+            sqlRT += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL FOR UPDATE NOWAIT ".format(jedi_config.db.schemaJEDI)
             # sql to read dataset status
             sqlRD  = "SELECT datasetID,status,nFiles,nFilesFinished,masterID "
-            sqlRD += "FROM ATLAS_PANDA.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND type=:type AND status=:status "
+            sqlRD += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND type=:type AND status=:status ".format(jedi_config.db.schemaJEDI)
             # sql to update input dataset status
-            sqlDIU  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE "
+            sqlDIU  = "UPDATE {0}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlDIU += "WHERE datasetID=:datasetID "
             # sql to update output/log dataset status
-            sqlDOU  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE "
+            sqlDOU  = "UPDATE {0}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlDOU += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
             # sql to update nFiles of dataset
-            sqlFU  = "UPDATE ATLAS_PANDA.JEDI_Datasets SET nFilesToBeUsed=nFiles,modificationTime=CURRENT_DATE "
+            sqlFU  = "UPDATE {0}.JEDI_Datasets SET nFilesToBeUsed=nFiles,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE type=:type AND jediTaskID=:jediTaskID AND masterID IS NULL "
             # sql to update task status
-            sqlTU  = "UPDATE ATLAS_PANDA.JEDI_Tasks "
+            sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=:status,modificationTime=CURRENT_DATE,lockedBy=NULL,lockedTime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID "
             # loop over all tasks
@@ -2313,7 +2327,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if scoutData != {}:
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
-                            sqlTSD  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET "
+                            sqlTSD  = "UPDATE {0}.JEDI_Tasks SET ".format(jedi_config.db.schemaJEDI)
                             for scoutKey,scoutVal in scoutData.iteritems():
                                 tmpScoutKey = ':{0}'.format(scoutKey)
                                 varMap[tmpScoutKey] = scoutVal
@@ -2402,7 +2416,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=3)
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=1)
             varMap[':prodSourceLabel'] = prodSourceLabel
-            sqlSCF  = "SELECT jediTaskID FROM ATLAS_PANDA.JEDI_Tasks WHERE "
+            sqlSCF  = "SELECT jediTaskID FROM {0}.JEDI_Tasks WHERE ".format(jedi_config.db.schemaJEDI)
             sqlSCF += "status=:status AND oldStatus=:oldStatus AND modificationTime<:timeLimit "
             sqlSCF += "AND vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud IS NULL "
             sqlSCF += "AND workQueue_ID IN (" 
@@ -2413,7 +2427,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlSCF  = sqlSCF[:-1]    
             sqlSCF += ") "
             sqlSCF += "ORDER BY currentPriority DESC FOR UPDATE"
-            sqlSPC  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET modificationTime=CURRENT_DATE "
+            sqlSPC  = "UPDATE {0}.JEDI_Tasks SET modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlSPC += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
@@ -2458,7 +2472,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status']    = 'pending'
             varMap[':oldStatus'] = 'defined'        
             varMap[':prodSourceLabel'] = prodSourceLabel
-            sqlSCF  = "SELECT jediTaskID FROM ATLAS_PANDA.JEDI_Tasks WHERE "
+            sqlSCF  = "SELECT jediTaskID FROM {0}.JEDI_Tasks WHERE ".format(jedi_config.db.schemaJEDI)
             sqlSCF += "status=:status AND oldStatus=:oldStatus "
             sqlSCF += "AND vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud IS NULL "
             sqlSCF += "AND workQueue_ID IN (" 
@@ -2499,7 +2513,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             if taskCloudMap != {}:
                 # sql to set cloud
-                sql  = "UPDATE ATLAS_PANDA.JEDI_Tasks "
+                sql  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
                 sql += "SET cloud=:cloud,status=:status,oldStatus=NULL "
                 sql += "WHERE jediTaskID=:jediTaskID "
                 for jediTaskID,cloudName in taskCloudMap.iteritems():
@@ -2538,7 +2552,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql to get RW
             sql  = "SELECT ROUND(SUM((nFiles-nFilesFinished-nFilesFailed)*walltime)/24/3600) "
-            sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD "
+            sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI,
+                                                                             jedi_config.db.schemaJEDI)
             sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND masterID IS NULL "
             sql += "AND tabT.jediTaskID=:jediTaskID "
             varMap = {}
@@ -2586,7 +2601,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':prodSourceLabel'] = prodSourceLabel
             varMap[':priority'] = priority
             sql  = "SELECT tabT.cloud,ROUND(SUM((nFiles-nFilesFinished-nFilesFailed)*walltime)/24/3600) "
-            sql += "FROM ATLAS_PANDA.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD "
+            sql += "FROM {0}.JEDI_Tasks tabT,{1}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI,
+                                                                             jedi_config.db.schemaJEDI)
             sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND masterID IS NULL "
             sql += "AND tabT.vo=:vo AND prodSourceLabel=:prodSourceLabel AND currentPriority>=:priority "
             if workQueue != None:
@@ -2643,8 +2659,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':comm_owner'] = 'DEFT'
             # FIXME
-            #sqlC  = "SELECT comm_task,comm_meta,comm_cmd,comm_comment FROM ATLAS_DEFT.PRODSYS_COMM "
-            sqlC  = "SELECT comm_task,comm_meta,comm_cmd FROM ATLAS_DEFT.PRODSYS_COMM "
+            #sqlC  = "SELECT comm_task,comm_meta,comm_cmd,comm_comment FROM {0}.PRODSYS_COMM ".format(jedi_config.db.schemaDEFT)
+            sqlC  = "SELECT comm_task,comm_meta,comm_cmd FROM {0}.PRODSYS_COMM ".format(jedi_config.db.schemaDEFT)
             sqlC += "WHERE comm_owner=:comm_owner AND comm_cmd IN ("
             for commandStr,taskStatusMap in commandStatusMap.iteritems():
                 tmpKey = ':comm_cmd_{0}'.format(commandStr)
@@ -2679,7 +2695,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # lock
                 varMap = {}
                 varMap[':comm_task'] = jediTaskID
-                sqlLock  = "SELECT * FROM ATLAS_DEFT.PRODSYS_COMM WHERE comm_task=:comm_task "
+                sqlLock  = "SELECT * FROM {0}.PRODSYS_COMM WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
                 if metaTaskID != None:
                     varMap[':comm_meta'] = metaTaskID
                     sqlLock += "AND comm_meta=:comm_meta "
@@ -2703,7 +2719,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # check task status
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
-                        sqlTC =  "SELECT status FROM ATLAS_PANDA.JEDI_Tasks "
+                        sqlTC =  "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
                         sqlTC += "WHERE jediTaskID=:jediTaskID FOR UPDATE "
                         self.cur.execute(sqlTC+comment,varMap)
                         resTC = self.cur.fetchone()
@@ -2729,7 +2745,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':jediTaskID'] = jediTaskID
                         varMap[':status'] = newTaskStatus
                         varMap[':errDiag'] = comComment
-                        sqlTU  = "UPDATE ATLAS_PANDA.JEDI_Tasks "
+                        sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
                         sqlTU += "SET status=:status,modificationTime=CURRENT_DATE,errorDialog=:errDiag "
                         sqlTU += "WHERE jediTaskID=:jediTaskID "
                         self.cur.execute(sqlTU+comment,varMap)
@@ -2740,7 +2756,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':comm_cmd']  = commandStr+'ing'
                     else:
                         varMap[':comm_cmd']  = commandStr+' failed'
-                    sqlUC = "UPDATE ATLAS_DEFT.PRODSYS_COMM SET comm_cmd=:comm_cmd WHERE comm_task=:comm_task "
+                    sqlUC = "UPDATE {0}.PRODSYS_COMM SET comm_cmd=:comm_cmd WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
                     if metaTaskID != None:
                         varMap[':comm_meta'] = metaTaskID
                         sqlUC = "AND comm_meta=:comm_meta "
@@ -2759,7 +2775,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # FIXME
                 #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
                 varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=1)
-                sqlOrpS  = "SELECT jediTaskID,errorDialog FROM ATLAS_PANDA.JEDI_Tasks "
+                sqlOrpS  = "SELECT jediTaskID,errorDialog FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
                 sqlOrpS += "WHERE status=:status AND modificationtime<:timeLimit "
                 if vo != None:
                     sqlOrpS += 'AND vo=:vo '
@@ -2772,7 +2788,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sqlOrpS+comment,varMap)
                 resList = self.cur.fetchall()
                 # update modtime to avoid immediate reattempts
-                sqlOrpU  = "UPDATE ATLAS_PANDA.JEDI_Tasks SET modificationtime=CURRENT_DATE "
+                sqlOrpU  = "UPDATE {0}.JEDI_Tasks SET modificationtime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
                 sqlOrpU += "WHERE jediTaskID=:jediTaskID "
                 for jediTaskID,comComment in resList:
                     varMap = {}
@@ -2811,15 +2827,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         retPandaIDs = []
         try:
             # sql to get PandaIDs
-            tables = ['ATLAS_PANDA.jobsDefined4','ATLAS_PANDA.jobsWaiting4','ATLAS_PANDA.jobsActive4']
+            tables = ['{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA),
+                      '{0}.jobsWaiting4'.format(jedi_config.db.schemaPANDA),
+                      '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA)]
             if not onlyActive:
-                tables += ['ATLAS_PANDA.jobsArchived4','ATLAS_PANDAARCH.jobsArchived']
+                tables += ['{0}.jobsArchived4'.format(jedi_config.db.schemaPANDA),
+                           '{0}.jobsArchived'.format(jedi_config.db.schemaPANDAARCH)]
             sqlP = ''
             for tableName in tables:
                 if sqlP != "":
                     sqlP += "UNION ALL "
                 sqlP += "SELECT PandaID FROM {0} WHERE jediTaskID=:jediTaskID ".format(tableName)    
-                if tableName.startswith('ATLAS_PANDAARCH'):
+                if tableName.startswith(jedi_config.db.schemaPANDAARCH):
                     sqlP += "AND modificationTime>(CURRENT_DATE-30) "
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID

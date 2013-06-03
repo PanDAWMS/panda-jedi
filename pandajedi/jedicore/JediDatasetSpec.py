@@ -3,6 +3,8 @@ dataset specification for JEDI
 
 """
 
+from pandajedi.jediconfig import jedi_config
+
 
 class JediDatasetSpec(object):
     # attributes
@@ -22,7 +24,7 @@ class JediDatasetSpec(object):
     # attributes to force update
     _forceUpdateAttrs = ('lockedBy','lockedTime')
     # mapping between sequence and attr
-    _seqAttrMap = {'datasetID':'ATLAS_PANDA.JEDI_DATASETS_ID_SEQ.nextval'}
+    _seqAttrMap = {'datasetID':'{0}.JEDI_DATASETS_ID_SEQ.nextval'.format(jedi_config.db.schemaJEDI)}
 
 
 

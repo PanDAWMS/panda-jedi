@@ -33,8 +33,20 @@ dbpasswd = FIXME
 # database
 dbname = PandaDB
 
-# number of task buffer instances                                               
+# number of task buffer instances
 nWorkers = 5
+
+# JEDI schema
+schemaJEDI = ATLAS_PANDA
+
+# DEFT schema
+schemaDEFT = ATLAS_DEFT
+
+# Active Panda schema
+schemaPANDA = ATLAS_PANDA
+
+# Archived Panda schema
+schemaPANDAARCH = ATLAS_PANDAARCH
 
 
 

@@ -215,11 +215,14 @@ class TaskBrokerThread (WorkerThread):
                 tmpLog.info('start')
                 tmpStat = Interaction.SC_SUCCEEDED
                 # get TaskSpecs
-                tmpListToAssign = self.taskBufferIF.getTasksToBeProcessed_JEDI(None,None,None,None,None,simTasks=taskList)
-                if tmpListToAssign == None:
-                    # failed
-                    tmpLog.error('failed to get the input chunks')
-                    tmpStat = Interaction.SC_FAILED
+                tmpListToAssign = []
+                for tmpTaskItem in taskList:
+                    tmpListItem = self.taskBufferIF.getTasksToBeProcessed_JEDI(None,None,None,None,None,simTasks=[tmpTaskItem])
+                    if tmpListItem == None:
+                        # failed
+                        tmpLog.error('failed to get the input chunks for {0}'.format(tmpTaskItem))
+                        tmpStat = Interaction.SC_FAILED
+                        break
                 # get impl                    
                 if tmpStat == Interaction.SC_SUCCEEDED:                    
                     tmpLog.info('getting Impl')

@@ -1,5 +1,9 @@
 Release Note
 
+* 6/3/2013
+  * changed schema names configurable
+  * fixed CF for broken datasets
+
 * 6/1/2013
   * added TaskCommando
 

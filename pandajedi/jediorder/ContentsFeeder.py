@@ -117,10 +117,12 @@ class ContentsFeederThread (WorkerThread):
                                                                                 errtype.__name__,errvalue))
                                 if errtype == Interaction.JEDIFatalError:
                                     datasetStatus = 'broken'
+                                    taskBroken = True
                                 else:
                                     datasetStatus = 'pending'
                                 # update dataset status    
                                 self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
+                                allUpdated = False
                             else:
                                 # get file list
                                 tmpLog.info('get files')
@@ -132,10 +134,12 @@ class ContentsFeederThread (WorkerThread):
                                                                                     errtype.__name__,errvalue))
                                     if errtype == Interaction.JEDIFatalError:
                                         datasetStatus = 'broken'
+                                        taskBroken = True
                                     else:
                                         datasetStatus = 'pending'
                                     # update dataset status    
                                     self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
+                                    allUpdated = False
                                 else:
                                     # the number of events per file
                                     if datasetSpec.isMaster() and taskParamMap.has_key('nEventsPerFile'):
