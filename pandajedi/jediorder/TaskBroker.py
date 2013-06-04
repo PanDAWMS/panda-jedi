@@ -223,6 +223,7 @@ class TaskBrokerThread (WorkerThread):
                         tmpLog.error('failed to get the input chunks for {0}'.format(tmpTaskItem))
                         tmpStat = Interaction.SC_FAILED
                         break
+                    tmpListToAssign += tmpListItem
                 # get impl                    
                 if tmpStat == Interaction.SC_SUCCEEDED:                    
                     tmpLog.info('getting Impl')

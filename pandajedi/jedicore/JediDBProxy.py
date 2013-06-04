@@ -2117,12 +2117,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlSCF += "WHERE jediTaskID=:jediTaskID AND type=:type) " 
         sqlSCP  = "SELECT PandaID FROM {0}.filesTable4 WHERE fileID=:fileID ".format(jedi_config.db.schemaPANDA)
         sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime "
-        sqlSCD  = "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
+        sqlSCD += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCD += "WHERE PandaID=:pandaID "
         sqlSCD += "UNION "
         sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime "
         sqlSCD += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCD += "WHERE PandaID=:pandaID AND modificationTime>(CURRENT_DATE-14) "
+        sqlSCC  = "SELECT count(*) FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+        sqlSCC += "jediTaskID=:jediTaskID AND status=:status AND type=:type "
         if useTransaction:
             # begin transaction
             self.conn.begin()
@@ -2175,15 +2177,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         workSizeList.append(long(tmpMatch.group(1)))
                     except:
                         pass
+            # get the number of file records for normalization
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':status'] = 'finished'
+            varMap[':type']   = 'input'
+            self.cur.execute(sqlSCC+comment,varMap)
+            normFactor, = self.cur.fetchone()
+            normFactor = float(normFactor)
             # calculate median values
             if outSizeList != []:
                 median = numpy.median(outSizeList) 
                 median /= (1024*1024)
-                returnMap['outDiskCount'] = long(median)
+                returnMap['outDiskCount'] = long(median/normFactor)
                 returnMap['outDiskUnit']  = 'MB'
             if walltimeList != []:
                 median = numpy.median(walltimeList)
-                returnMap['walltime']     = long(median)
+                returnMap['walltime']     = long(median/normFactor)
                 returnMap['walltimeUnit'] = 'kSI2kseconds'
             if memSizeList != []:
                 median = numpy.median(memSizeList)
@@ -2440,7 +2450,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':jediTaskID'] = jediTaskID
                 self.cur.execute(sqlSPC+comment,varMap)
                 nRow = self.cur.rowcount
-                if nRow == 1:
+                if nRow > 0:
                     retJediTaskIDs.append(jediTaskID)
             # commit
             if not self._commit():
@@ -2488,7 +2498,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlSCF+comment,varMap)
             resList = self.cur.fetchall()
             for jediTaskID, in resList:
-                    retJediTaskIDs.append(jediTaskID)
+                retJediTaskIDs.append(jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
