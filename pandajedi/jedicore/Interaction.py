@@ -204,6 +204,11 @@ class CommandSendInterface(object):
         # get class
         cls = getattr(mod,self.className)
         # start child process
+        timeNow = datetime.datetime.utcnow()
+        print "{0} {1}: INFO    start {2} with pid={3}".format(str(timeNow),
+                                                               self.moduleName,
+                                                               self.className,
+                                                               os.getpid())
         cls(channel).start()
             
 

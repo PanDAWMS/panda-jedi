@@ -1239,6 +1239,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "AND tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3) "
                 sql += "AND tabT.lockedBy IS NULL AND tabT.jediTaskID=tabD.jediTaskID "
                 sql += "AND nFilesToBeUsed > nFilesUsed AND type=:type AND tabD.status=:dsStatus "
+                sql += 'AND masterID IS NULL '
                 sql += 'AND NOT EXISTS '
                 sql += '(SELECT 1 FROM {0}.JEDI_Datasets '.format(jedi_config.db.schemaJEDI)
                 sql += 'WHERE {0}.JEDI_Datasets.jediTaskID=tabT.jediTaskID '.format(jedi_config.db.schemaJEDI)
@@ -1294,6 +1295,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlLock += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL "
             # sql to read template
             sqlJobP = "SELECT jobParamsTemplate FROM {0}.JEDI_JobParams_Template WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            # sql to get seconday dataset list
+            sqlDS  = "SELECT datasetID FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sqlDS += "AND nFilesToBeUsed > nFilesUsed AND type=:type AND status=:dsStatus AND masterID IS NOT NULL "
             # sql to read datasets
             sqlRD  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
             sqlRD += "FROM {0}.JEDI_Datasets WHERE datasetID=:datasetID FOR UPDATE NOWAIT ".format(jedi_config.db.schemaJEDI)
@@ -1311,135 +1315,150 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # loop over all tasks
             iTasks = 0
             for jediTaskID in jediTaskIDList:
-                datasetIDs = taskDatasetMap[jediTaskID]
-                # begin transaction
-                self.conn.begin()
-                # read task
-                toSkip = False
-                varMap = {}
-                varMap[':jediTaskID'] = jediTaskID
-                try:
-                    # select
-                    self.cur.execute(sqlRT+comment,varMap)
-                    resRT = self.cur.fetchone()
-                    # locked by another
-                    if resRT == None:
-                        toSkip = True
-                    else:
-                        taskSpec = JediTaskSpec()
-                        taskSpec.pack(resRT)
-                        # make InputChunk
-                        inputChunk = InputChunk(taskSpec)
-                except:
-                    errType,errValue = sys.exc_info()[:2]
-                    if self.isNoWaitException(errValue):
-                        # resource busy and acquire with NOWAIT specified
-                        toSkip = True
-                        tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
-                    else:
-                        # failed with something else
-                        raise errType,errValue
-                # read dataset
-                if not toSkip:
-                    for datasetID in datasetIDs:
+                for datasetID in taskDatasetMap[jediTaskID]:
+                    datasetIDs = [datasetID]
+                    # begin transaction
+                    self.conn.begin()
+                    # read task
+                    toSkip = False
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    try:
+                        # select
+                        self.cur.execute(sqlRT+comment,varMap)
+                        resRT = self.cur.fetchone()
+                        # locked by another
+                        if resRT == None:
+                            toSkip = True
+                        else:
+                            taskSpec = JediTaskSpec()
+                            taskSpec.pack(resRT)
+                            # make InputChunk
+                            inputChunk = InputChunk(taskSpec)
+                    except:
+                        errType,errValue = sys.exc_info()[:2]
+                        if self.isNoWaitException(errValue):
+                            # resource busy and acquire with NOWAIT specified
+                            toSkip = True
+                            tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
+                        else:
+                            # failed with something else
+                            raise errType,errValue
+                    # read secondary datasets
+                    if not toSkip:    
                         varMap = {}
-                        varMap[':datasetID'] = datasetID
-                        try:
-                            # select
-                            self.cur.execute(sqlRD+comment,varMap)
-                            resRD = self.cur.fetchone()
-                            datasetSpec = JediDatasetSpec()
-                            datasetSpec.pack(resRD)
-                            # add to InputChunk
-                            if datasetSpec.isMaster():
-                                inputChunk.addMasterDS(datasetSpec)
-                            else:
-                                inputChunk.addSecondaryDS(datasetSpec)                                
-                        except:
-                            errType,errValue = sys.exc_info()[:2]
-                            if self.isNoWaitException(errValue):
-                                # resource busy and acquire with NOWAIT specified
-                                toSkip = True
-                                tmpLog.debug('skip locked jediTaskID={0} datasetID={1}'.format(jediTaskID,datasetID))
-                            else:
-                                # failed with something else
-                                raise errType,errValue
-                # read job params and files
-                if not toSkip:
-                    # lock task
-                    if simTasks == None:
-                        varMap = {}
+                        varMap[':type']       = 'input'
+                        varMap[':dsStatus']   = 'ready'
                         varMap[':jediTaskID'] = jediTaskID
-                        varMap[':lockedBy'] = pid
-                        self.cur.execute(sqlLock+comment,varMap)
-                        nRow = self.cur.rowcount
-                    else:
-                        # set nRow for simulation
-                        nRow = 1
-                    if nRow != 1:
-                        tmpLog.debug('failed to lock jediTaskID={0}'.format(jediTaskID))
-                    else:
-                        # read template to generate job parameters
-                        varMap = {}
-                        varMap[':jediTaskID'] = jediTaskID
-                        self.cur.execute(sqlJobP+comment,varMap)
-                        for clobJobP, in self.cur:
-                            if clobJobP != None:
-                                taskSpec.jobParamsTemplate = clobJobP.read()
-                            break
-                        # read files
+                        # select
+                        self.cur.execute(sqlDS+comment,varMap)
+                        resSecDsList = self.cur.fetchall()
+                        for tmpDatasetID, in resSecDsList:
+                            datasetIDs.append(tmpDatasetID)
+                    # read dataset
+                    if not toSkip:
                         for datasetID in datasetIDs:
-                            # get DatasetSpec
-                            tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
-                            # read files to make FileSpec
                             varMap = {}
-                            varMap[':status']    = 'ready'
                             varMap[':datasetID'] = datasetID
-                            self.cur.execute(sqlFR+comment,varMap)
-                            resFileList = self.cur.fetchall()
-                            iFiles = 0
-                            for resFile in resFileList:
-                                # make FileSpec
-                                tmpFileSpec = JediFileSpec()
-                                tmpFileSpec.pack(resFile)
-                                # update file status
-                                if simTasks == None:
-                                    varMap = {}
-                                    varMap[':fileID'] = tmpFileSpec.fileID
-                                    varMap[':nStatus'] = 'picked'
-                                    varMap[':oStatus'] = 'ready'                                
-                                    self.cur.execute(sqlFU+comment,varMap)
-                                    nFileRow = self.cur.rowcount
-                                    if nFileRow != 1:
-                                        tmpLog.debug('skip fileID={0} already used by another'.format(tmpFileSpec.fileID))
-                                        continue
+                            try:
+                                # select
+                                self.cur.execute(sqlRD+comment,varMap)
+                                resRD = self.cur.fetchone()
+                                datasetSpec = JediDatasetSpec()
+                                datasetSpec.pack(resRD)
                                 # add to InputChunk
-                                tmpDatasetSpec.addFile(tmpFileSpec)
-                                iFiles += 1
-                            if iFiles == 0:
-                                # no input files
-                                tmpLog.debug('datasetID={0} has no files to be processed'.format(datasetID))
-                                toSkip = True
+                                if datasetSpec.isMaster():
+                                    inputChunk.addMasterDS(datasetSpec)
+                                else:
+                                    inputChunk.addSecondaryDS(datasetSpec)                                
+                            except:
+                                errType,errValue = sys.exc_info()[:2]
+                                if self.isNoWaitException(errValue):
+                                    # resource busy and acquire with NOWAIT specified
+                                    toSkip = True
+                                    tmpLog.debug('skip locked jediTaskID={0} datasetID={1}'.format(jediTaskID,datasetID))
+                                else:
+                                    # failed with something else
+                                    raise errType,errValue
+                    # read job params and files
+                    if not toSkip:
+                        # lock task
+                        if simTasks == None:
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':lockedBy'] = pid
+                            self.cur.execute(sqlLock+comment,varMap)
+                            nRow = self.cur.rowcount
+                        else:
+                            # set nRow for simulation
+                            nRow = 1
+                        if nRow != 1:
+                            tmpLog.debug('failed to lock jediTaskID={0}'.format(jediTaskID))
+                        else:
+                            # read template to generate job parameters
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            self.cur.execute(sqlJobP+comment,varMap)
+                            for clobJobP, in self.cur:
+                                if clobJobP != None:
+                                    taskSpec.jobParamsTemplate = clobJobP.read()
                                 break
-                            elif simTasks == None:
-                                # update nFilesUsed in DatasetSpec
-                                nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles
-                                tmpDatasetSpec.nFilesUsed = nFilesUsed
+                            # read files
+                            for datasetID in datasetIDs:
+                                # get DatasetSpec
+                                tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
+                                # read files to make FileSpec
                                 varMap = {}
-                                varMap[':datasetID']  = datasetID
-                                varMap[':nFilesUsed'] = nFilesUsed
-                                self.cur.execute(sqlDU+comment,varMap)
-                # add to return
-                if not toSkip:
-                    returnList.append((taskSpec,cloudName,inputChunk))
-                    iTasks += 1
-                if not toSkip:        
-                    # commit
-                    if not self._commit():
-                        raise RuntimeError, 'Commit error'
-                else:
-                    # roll back
-                    self._rollback()
+                                varMap[':status']    = 'ready'
+                                varMap[':datasetID'] = datasetID
+                                self.cur.execute(sqlFR+comment,varMap)
+                                resFileList = self.cur.fetchall()
+                                iFiles = 0
+                                for resFile in resFileList:
+                                    # make FileSpec
+                                    tmpFileSpec = JediFileSpec()
+                                    tmpFileSpec.pack(resFile)
+                                    # update file status
+                                    if simTasks == None and tmpDatasetSpec.toKeepTrack():
+                                        varMap = {}
+                                        varMap[':fileID'] = tmpFileSpec.fileID
+                                        varMap[':nStatus'] = 'picked'
+                                        varMap[':oStatus'] = 'ready'                                
+                                        self.cur.execute(sqlFU+comment,varMap)
+                                        nFileRow = self.cur.rowcount
+                                        if nFileRow != 1:
+                                            tmpLog.debug('skip fileID={0} already used by another'.format(tmpFileSpec.fileID))
+                                            continue
+                                    # add to InputChunk
+                                    tmpDatasetSpec.addFile(tmpFileSpec)
+                                    iFiles += 1
+                                if iFiles == 0:
+                                    # no input files
+                                    tmpLog.debug('datasetID={0} has no files to be processed'.format(datasetID))
+                                    toSkip = True
+                                    break
+                                elif simTasks == None and tmpDatasetSpec.toKeepTrack():
+                                    # update nFilesUsed in DatasetSpec
+                                    nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles
+                                    tmpDatasetSpec.nFilesUsed = nFilesUsed
+                                    varMap = {}
+                                    varMap[':datasetID']  = datasetID
+                                    varMap[':nFilesUsed'] = nFilesUsed
+                                    self.cur.execute(sqlDU+comment,varMap)
+                    # add to return
+                    if not toSkip:
+                        returnList.append((taskSpec,cloudName,inputChunk))
+                        iTasks += 1
+                    if not toSkip:        
+                        # commit
+                        if not self._commit():
+                            raise RuntimeError, 'Commit error'
+                    else:
+                        # roll back
+                        self._rollback()
+                    # enough tasks 
+                    if iTasks >= nTasks:
+                        break
                 # enough tasks 
                 if iTasks >= nTasks:
                     break
@@ -1594,7 +1613,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDP += "WHERE jediTaskID=:jediTaskID AND type=:type " 
             # sql to rollback files
             sqlF  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
-            sqlF += "WHERE datasetID=:datasetID AND status=:oStatus "
+            sqlF += "WHERE datasetID=:datasetID AND status=:oStatus AND keepTrack=:keepTrack "
             # sql to reset nFilesUsed
             sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow ".format(jedi_config.db.schemaJEDI)
             sqlDU += "WHERE datasetID=:datasetID " 
@@ -1637,6 +1656,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':datasetID']  = datasetID
                     varMap[':nStatus'] = 'ready'
                     varMap[':oStatus'] = 'picked'
+                    varMap[':keepTrack'] = 1
                     self.cur.execute(sqlF+comment,varMap)
                     nFileRow = self.cur.rowcount
                     tmpLog.debug('[takID={0}] reset {1} rows for datasetID={2}'.format(jediTaskID,nFileRow,datasetID))

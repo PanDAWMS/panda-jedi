@@ -6,6 +6,7 @@ import time
 import signal
 import daemon
 import optparse
+import datetime
 import multiprocessing
 
 from pandajedi.jediddm.DDMInterface import DDMInterface
@@ -29,6 +30,11 @@ class JediMaster:
         for subModuleName in moduleName.split('.')[1:]:
             mod = getattr(mod,subModuleName)
         # launch
+        timeNow = datetime.datetime.utcnow()
+        print "{0} {1}: INFO    start {2} with pid={3}".format(str(timeNow),
+                                                               moduleName,
+                                                               'launcher',
+                                                               os.getpid())
         apply(mod.launcher,args,kwargs)    
         
 
