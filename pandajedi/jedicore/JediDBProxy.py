@@ -1306,7 +1306,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
             sqlFR += "datasetID=:datasetID and status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
             sqlFR += "ORDER BY fileID) "
-            sqlFR += "WHERE rownum <= %s" % nFiles
+            sqlFR += "WHERE rownum <= {0}"
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE fileID=:fileID AND status=:oStatus "
@@ -1411,7 +1411,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap = {}
                                 varMap[':status']    = 'ready'
                                 varMap[':datasetID'] = datasetID
-                                self.cur.execute(sqlFR+comment,varMap)
+                                ratioToMaster = nFiles * tmpDatasetSpec.getRatioToMaster()
+                                self.cur.execute(sqlFR.format(ratioToMaster)+comment,varMap)
                                 resFileList = self.cur.fetchall()
                                 iFiles = 0
                                 for resFile in resFileList:

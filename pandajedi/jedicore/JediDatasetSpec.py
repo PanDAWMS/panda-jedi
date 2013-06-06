@@ -3,6 +3,8 @@ dataset specification for JEDI
 
 """
 
+import re
+
 from pandajedi.jediconfig import jedi_config
 
 
@@ -203,3 +205,15 @@ class JediDatasetSpec(object):
             return True
         else:
             return False
+
+
+
+    # get the ratio to master
+    def getRatioToMaster(self):
+        try:
+            tmpMatch = re.search('ratio=(\d+)',self.attributes)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        except:
+            pass
+        return 1

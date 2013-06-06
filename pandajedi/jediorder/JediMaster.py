@@ -11,6 +11,7 @@ import multiprocessing
 
 from pandajedi.jediddm.DDMInterface import DDMInterface
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
+from pandajedi.jedicore.ThreadUtils import ZombiCleaner
 
 from pandajedi.jediconfig import jedi_config
 
@@ -56,9 +57,11 @@ class JediMaster:
         return newItems
 
 
-
+    
     # main loop
     def start(self):
+        # start zombi cleaner
+        ZombiCleaner().start()
         # setup DDM I/F
         ddmIF = DDMInterface()        
         ddmIF.setupInterface()

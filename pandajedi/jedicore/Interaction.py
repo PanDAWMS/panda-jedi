@@ -55,6 +55,13 @@ installSC(sys.modules[ __name__ ])
 # classes for IPC
 #
 
+# log message with timestamp
+def dumpStdOut(sender,message):
+    timeNow = datetime.datetime.utcnow()
+    print "{0} {1}: INFO    {2}".format(str(timeNow),sender,message)
+
+
+
 # object class for command
 class CommandObject(object):
     
@@ -151,10 +158,14 @@ class MethodClass(object):
                     pass
                 # terminate child process
                 try:
+                    dumpStdOut(self.className,'killing pid={0}'.format(child_process.pid))
                     os.kill(child_process.pid,signal.SIGKILL)
+                    dumpStdOut(self.className,'waiting pid={0}'.format(child_process.pid))
                     os.waitpid(child_process.pid,0)
+                    dumpStdOut(self.className,'terminated pid={0}'.format(child_process.pid))
                 except:
-                    pass
+                    errtype,errvalue = sys.exc_info()[:2]
+                    dumpStdOut(self.className,'failed to terminate {0} with {1}:{2}'.format(child_process.pid,errtype,errvalue))
                 # make new child process
                 self.voIF.launchChild()
             else:
@@ -204,12 +215,15 @@ class CommandSendInterface(object):
         # get class
         cls = getattr(mod,self.className)
         # start child process
+        msg = "start {0} with pid={1}".format(self.className,os.getpid())
+        dumpStdOut(self.moduleName,msg)
         timeNow = datetime.datetime.utcnow()
-        print "{0} {1}: INFO    start {2} with pid={3}".format(str(timeNow),
-                                                               self.moduleName,
-                                                               self.className,
-                                                               os.getpid())
-        cls(channel).start()
+        try:
+            cls(channel).start()
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            dumpStdOut(self.className,'launcher crashed with {0}:{1}'.format(errtype,errvalue))
+                     
             
 
     # launch child processes to interact with DDM

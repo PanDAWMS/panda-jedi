@@ -1,5 +1,8 @@
 import sys
+import time
 import threading
+import multiprocessing
+
 
 # list with lock
 class ListWithLock:
@@ -29,7 +32,7 @@ class ListWithLock:
         self.dataIndex += num
         self.lock.release()
         return retList
-                                                                                                                    
+
 
 
 # thread pool
@@ -86,3 +89,19 @@ class WorkerThread (threading.Thread):
         if self.workerSemaphore != None:
             self.workerSemaphore.release()
             
+
+
+# thread class to cleanup zombi processes
+class ZombiCleaner (threading.Thread):
+
+    # constructor
+    def __init__(self,interval=60):
+        threading.Thread.__init__(self)
+        self.interval = interval
+
+
+    # main loop
+    def run(self):
+        while True:
+            x = multiprocessing.active_children()
+            time.sleep(self.interval)

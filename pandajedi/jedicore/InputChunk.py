@@ -175,6 +175,7 @@ class InputChunk:
                   and (maxWalltime <= 0 or expWalltime < maxWalltime) \
                   and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents < maxNumEvents)):
             # get one file (or one file group for MP) from master
+            numMaster = 0
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 # check start event to keep continuity
@@ -185,6 +186,7 @@ class InputChunk:
                     inputFileMap[self.masterDataset.datasetID] = []
                 inputFileMap[self.masterDataset.datasetID].append(tmpFileSpec)
                 datasetUsage['used'] += 1
+                numMaster += 1
                 # sum
                 inputNumFiles += 1
                 fileSize += (tmpFileSpec.fsize + sizeGradients)
@@ -216,8 +218,17 @@ class InputChunk:
                             fileSize += tmpFileSpec.fsize
                             datasetUsage['used'] += 1
                 else:
-                    # FIXME for pileup etc
-                    pass
+                    # get number of files to be used for the secondary
+                    nSecondary = numMaster * datasetSpec.getRatioToMaster()
+                    datasetUsage = self.datasetMap[datasetSpec.datasetID]
+                    for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
+                        if not inputFileMap.has_key(datasetSpec.datasetID):
+                            inputFileMap[datasetSpec.datasetID] = []
+                        inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
+                        # sum
+                        inputNumFiles += 1
+                        fileSize += tmpFileSpec.fsize
+                        datasetUsage['used'] += 1
             # unset first loop flag
             firstLoop = False
             # check if there are unused files/evets 
@@ -233,8 +244,10 @@ class InputChunk:
             newFileSize       = fileSize
             newExpWalltime    = expWalltime
             newNextStartEvent = None
+            newNumMaster      = 0
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 newInputNumFiles += 1
+                newNumMaster += 1
                 newFileSize += (tmpFileSpec.fsize + sizeGradients)
                 newExpWalltime += walltimeIntercepts
                 if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
@@ -249,8 +262,10 @@ class InputChunk:
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.isNoSplit():
-                    # FIXME for pileup etc
-                    pass
+                    newNumSecondary = newNumMaster * datasetSpec.getRatioToMaster()
+                    datasetUsage = self.datasetMap[datasetSpec.datasetID]
+                    for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
+                        newFileSize += tmpFileSpec.fsize
         # reset nUsed for repeated datasets
         for tmpDatasetID,datasetUsage in self.datasetMap.iteritems():
             tmpDatasetSpec = datasetUsage['datasetSpec']

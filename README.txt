@@ -1,5 +1,8 @@
 Release Note
 
+* 6/6/2013
+  * added ZombiCleaner
+
 * 6/3/2013
   * changed schema names configurable
   * fixed CF for broken datasets

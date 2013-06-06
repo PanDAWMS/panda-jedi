@@ -1,6 +1,8 @@
 import sys
 
 from pandajedi.jedicore import Interaction
+from pandajedi.jedicore.ThreadUtils import ZombiCleaner
+
 
 class JediKnight (Interaction.CommandReceiveInterface):
     # constructor
@@ -9,10 +11,13 @@ class JediKnight (Interaction.CommandReceiveInterface):
         self.taskBufferIF = taskBufferIF
         self.ddmIF        = ddmIF
         self.logger       = logger 
+        # start zombi cleaner
+        ZombiCleaner().start()
 
 
     # start communication channel in a thread
     def start(self):
+        # start communication channel
         import threading
         thr = threading.Thread(target=self.startImpl)
         thr.start()
