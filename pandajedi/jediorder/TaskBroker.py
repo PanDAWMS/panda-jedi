@@ -220,7 +220,7 @@ class TaskBrokerThread (WorkerThread):
                     tmpListItem = self.taskBufferIF.getTasksToBeProcessed_JEDI(None,None,None,None,None,simTasks=[tmpTaskItem])
                     if tmpListItem == None:
                         # failed
-                        tmpLog.error('failed to get the input chunks for {0}'.format(tmpTaskItem))
+                        tmpLog.error('failed to get the input chunks for jediTaskID={0}'.format(tmpTaskItem))
                         tmpStat = Interaction.SC_FAILED
                         break
                     tmpListToAssign += tmpListItem

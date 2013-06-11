@@ -190,6 +190,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start nEventsPerFile={0} nEventsPerJob={1} maxAttempt={2}'.format(nEventsPerFile,
                                                                                         nEventsPerJob,
                                                                                         maxAttempt))
+        nFilesForScout = 10
         try:
             # current current date
             timeNow = datetime.datetime.utcnow()
@@ -348,7 +349,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap = {}
                         varMap[':datasetID'] = datasetSpec.datasetID
                         varMap[':nFiles'] = nInsert + len(existingFiles)
-                        varMap[':nFilesTobeUsed'] = nReady
+                        if taskStatus == 'defined' and nReady > nFilesForScout:
+                            # set a fewer number for scout
+                            varMap[':nFilesTobeUsed'] = nFilesForScout
+                        else:
+                            varMap[':nFilesTobeUsed'] = nReady
                         varMap[':status' ] = 'ready'
                         varMap[':state' ] = datasetState
                         varMap[':stateUpdateTime'] = stateUpdateTime
@@ -1224,9 +1229,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':dsStatus']        = 'ready'            
                 varMap[':dsOKStatus1']     = 'ready'
                 varMap[':dsOKStatus2']     = 'done'
-                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority "
+                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed "
                 sql += "FROM {0}.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
-                sql += "WHERE tabT.vo=:vo AND workqueue_ID IN ("
+                sql += "WHERE tabT.vo=:vo AND workQueue_ID IN ("
                 for tmpQueue_ID in workQueue.getIDs():
                     tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
                     varMap[tmpKey] = tmpQueue_ID
@@ -1247,7 +1252,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "ORDER BY currentPriority DESC, jediTaskID "
             else:
                 varMap = {}
-                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority "
+                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed "
                 sql += "FROM {0}.JEDI_Tasks tabT,{1}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI,
                                                                                  jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ("
@@ -1276,14 +1281,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnList  = []
             taskDatasetMap = {}
             jediTaskIDList = []
-            for jediTaskID,datasetID,currentPriority in resList:
+            for jediTaskID,datasetID,currentPriority,tmpNumFiles in resList:
                 # just return the max priority
                 if isPeeking:
                     return currentPriority
                 # make task-dataset mapping
                 if not taskDatasetMap.has_key(jediTaskID):
                     taskDatasetMap[jediTaskID] = []
-                taskDatasetMap[jediTaskID].append(datasetID)
+                taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles))
                 if not jediTaskID in jediTaskIDList:
                     jediTaskIDList.append(jediTaskID)
             tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
@@ -1315,7 +1320,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # loop over all tasks
             iTasks = 0
             for jediTaskID in jediTaskIDList:
-                for datasetID in taskDatasetMap[jediTaskID]:
+                for datasetID,tmpNumFiles in taskDatasetMap[jediTaskID]:
                     datasetIDs = [datasetID]
                     # begin transaction
                     self.conn.begin()
@@ -1411,7 +1416,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap = {}
                                 varMap[':status']    = 'ready'
                                 varMap[':datasetID'] = datasetID
-                                ratioToMaster = nFiles * tmpDatasetSpec.getRatioToMaster()
+                                if nFiles > tmpNumFiles:
+                                    ratioToMaster = tmpNumFiles
+                                else:
+                                    ratioToMaster = nFiles
+                                ratioToMaster *= tmpDatasetSpec.getRatioToMaster()
                                 self.cur.execute(sqlFR.format(ratioToMaster)+comment,varMap)
                                 resFileList = self.cur.fetchall()
                                 iFiles = 0
@@ -2463,6 +2472,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             # get tasks
+            tmpLog.debug(sqlSCF+comment+str(varMap))
             self.cur.execute(sqlSCF+comment,varMap)
             resList = self.cur.fetchall()
             for jediTaskID, in resList:

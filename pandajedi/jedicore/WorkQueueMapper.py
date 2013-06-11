@@ -21,6 +21,8 @@ class WorkQueueMapper:
         
     # make map    
     def makeMap(self,records):
+        self.workQueueMap = {}
+        self.workQueueGlobalMap = {}
         subQueuesMap = {}
         # loop over all records
         for record in records:

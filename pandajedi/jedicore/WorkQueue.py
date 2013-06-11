@@ -30,7 +30,7 @@ class WorkQueue(object):
     # dump
     def dump(self):
         dumpStr = 'id:%s order:%s name:%s share:%s ' % \
-                  (self.queue_id,self.queue_order,self.queue_name,self.queue_share)                  
+                  (self.queue_id,self.queue_order,self.queue_name,self.queue_share)
         if self.subQueues == []:
             # normal queue
             dumpStr += 'criteria:%s var:%s eval:%s' % \
@@ -146,7 +146,7 @@ class WorkQueue(object):
                 for tmpParam in self._paramsForSelection:
                     if not paramMap.has_key(tmpParam):
                         exec '%s=None' % tmpParam
-                # evaluate        
+                # evaluate
                 exec "retVar = " + self.evalString
                 return self,retVar
             else:

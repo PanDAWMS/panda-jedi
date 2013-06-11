@@ -31,8 +31,12 @@ class AtlasProdJobBroker (JobBrokerBase):
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
         # get sites in the cloud
-        scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
-        tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
+        if not taskSpec.site in ['',None]:
+            scanSiteList = [taskSpec.site]
+            tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
+        else:
+            scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
+            tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
         # get job statistics
         tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,taskSpec.prodSourceLabel)
         if not tmpSt:

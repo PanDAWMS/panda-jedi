@@ -1,5 +1,8 @@
 Release Note
 
+* 6/11/2013
+  * fixed WorkQueueMapper
+
 * 6/6/2013
   * added ZombiCleaner
 

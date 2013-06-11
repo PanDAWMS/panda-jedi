@@ -68,11 +68,14 @@ class JobGenerator (JediKnight):
                         # loop over all clouds
                         for cloudName in self.cloudList:
                             # loop over all work queues
-                            for workQueue in workQueueMapper.getQueueListWithVoType(vo,prodSourceLabel):
-                                cycleStr = 'vo={0} cloud={1} queue={2}(id={3}) label={4}'.format(vo,cloudName,
-                                                                                                 workQueue.queue_name,
-                                                                                                 workQueue.queue_id,
-                                                                                                 prodSourceLabel)
+                            workQueueList = workQueueMapper.getQueueListWithVoType(vo,prodSourceLabel)
+                            tmpLog.debug("{0} workqueues for vo:{1} label:{2}".format(len(workQueueList),vo,prodSourceLabel))
+                            for workQueue in workQueueList:
+                                cycleStr = 'pid={5} vo={0} cloud={1} queue={2}(id={3}) label={4}'.format(vo,cloudName,
+                                                                                                         workQueue.queue_name,
+                                                                                                         workQueue.queue_id,
+                                                                                                         prodSourceLabel,
+                                                                                                         self.pid)
                                 tmpLog.debug('start {0}'.format(cycleStr))
                                 # throttle
                                 tmpLog.debug('check throttle with {0}'.format(throttle.getClassName(vo,prodSourceLabel)))
@@ -100,19 +103,20 @@ class JobGenerator (JediKnight):
                                     tmpLog.error('failed to get the list of input chunks to generate jobs')
                                 else:
                                     tmpLog.debug('got {0} input chunks'.format(len(tmpList)))
-                                    # put to a locked list
-                                    inputList = ListWithLock(tmpList)
-                                    # make thread pool
-                                    threadPool = ThreadPool() 
-                                    # make workers
-                                    nWorker = jedi_config.jobgen.nWorkers
-                                    for iWorker in range(nWorker):
-                                        thr = JobGeneratorThread(inputList,threadPool,
-                                                                 self.taskBufferIF,self.ddmIF,
-                                                                 siteMapper,self.execJobs)
-                                        thr.start()
-                                    # join
-                                    threadPool.join()
+                                    if len(tmpList) != 0: 
+                                        # put to a locked list
+                                        inputList = ListWithLock(tmpList)
+                                        # make thread pool
+                                        threadPool = ThreadPool() 
+                                        # make workers
+                                        nWorker = jedi_config.jobgen.nWorkers
+                                        for iWorker in range(nWorker):
+                                            thr = JobGeneratorThread(inputList,threadPool,
+                                                                     self.taskBufferIF,self.ddmIF,
+                                                                     siteMapper,self.execJobs)
+                                            thr.start()
+                                        # join
+                                        threadPool.join()
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
