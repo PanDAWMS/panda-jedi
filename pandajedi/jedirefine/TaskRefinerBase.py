@@ -132,6 +132,12 @@ class TaskRefinerBase (object):
                     datasetSpec.destination = tmpItem['destination']
                 if tmpItem.has_key('attributes'):
                     datasetSpec.attributes = tmpItem['attributes']
+                if tmpItem.has_key('ratio'):
+                    if datasetSpec.attributes == None:
+                        datasetSpec.attributes = ''
+                    else:
+                        datasetSpec.attributes += ','
+                    datasetSpec.attributes += 'ratio={0}'.format(tmpItem['ratio'])
                 datasetSpec.vo = self.taskSpec.vo
                 datasetSpec.nFiles = 0
                 datasetSpec.nFilesUsed = 0

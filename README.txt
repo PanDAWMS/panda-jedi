@@ -1,5 +1,8 @@
 Release Note
 
+* 6/14/2013
+  * fixed to support secondary datasets which has non-integer ratio to master 
+
 * 6/11/2013
   * fixed WorkQueueMapper
 

@@ -55,9 +55,36 @@ class AtlasDDMClient(DDMClientBase):
         try:
             # get DQ2 API            
             dq2=DQ2()
-            # get file list
-            tmpRet = dq2.listDatasetReplicas(datasetName,old=False)
-            return self.SC_SUCCEEDED,tmpRet
+            if not datasetName.endswith('/'):
+                # get file list
+                tmpRet = dq2.listDatasetReplicas(datasetName,old=False)
+                return self.SC_SUCCEEDED,tmpRet
+            else:
+                # list of attributes summed up
+                attrList = ['total','found']
+                retMap = {}
+                # get constituent datasets
+                dsList = dq2.listDatasetsInContainer(datasetName)
+                for tmpName in dsList:
+                    tmpRet = dq2.listDatasetReplicas(tmpName,old=False)
+                    # loop over all sites
+                    for tmpSite,tmpValMap in tmpRet.iteritems():
+                        # add site
+                        if not retMap.has_key(tmpSite):
+                            retMap[tmpSite] = [{}]
+                        # loop over all attributes
+                        for tmpAttr in attrList:
+                            # add default
+                            if not retMap[tmpSite][-1].has_key(tmpAttr):
+                                retMap[tmpSite][-1][tmpAttr] = 0
+                            # sum
+                            try:
+                                retMap[tmpSite][-1][tmpAttr] += int(tmpValMap[-1][tmpAttr])
+                            except:
+                                # unknown
+                                retMap[tmpSite][-1][tmpAttr] = None
+                # return
+                return self.SC_SUCCEEDED,retMap
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)

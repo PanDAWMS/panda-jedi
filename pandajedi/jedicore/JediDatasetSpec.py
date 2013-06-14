@@ -4,6 +4,7 @@ dataset specification for JEDI
 """
 
 import re
+import math
 
 from pandajedi.jediconfig import jedi_config
 
@@ -211,9 +212,33 @@ class JediDatasetSpec(object):
     # get the ratio to master
     def getRatioToMaster(self):
         try:
-            tmpMatch = re.search('ratio=(\d+)',self.attributes)
+            tmpMatch = re.search('ratio=(\d+(\.\d+)*)',self.attributes)
             if tmpMatch != None:
-                return int(tmpMatch.group(1))
+                ratioStr = tmpMatch.group(1)
+                try:
+                    # integer
+                    return int(ratioStr)
+                except:
+                    pass
+                try:
+                    # float
+                    return float(ratioStr)
+                except:
+                    pass
         except:
             pass
         return 1
+
+
+
+    # get N multiplied by ratio
+    def getNumMultByRatio(self,num):
+        # get ratio
+        ratioVal = self.getRatioToMaster()
+        # integer or float
+        if isinstance(ratioVal,int):
+            retVal = num * ratioVal
+        else:
+            retVal = float(num) * ratioVal
+            retVal = int(math.ceil(retVal))
+        return retVal

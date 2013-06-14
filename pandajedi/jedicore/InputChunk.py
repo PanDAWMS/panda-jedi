@@ -219,7 +219,7 @@ class InputChunk:
                             datasetUsage['used'] += 1
                 else:
                     # get number of files to be used for the secondary
-                    nSecondary = numMaster * datasetSpec.getRatioToMaster()
+                    nSecondary = datasetSpec.getNumMultByRatio(numMaster)
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
                     for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
                         if not inputFileMap.has_key(datasetSpec.datasetID):
@@ -262,7 +262,7 @@ class InputChunk:
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.isNoSplit():
-                    newNumSecondary = newNumMaster * datasetSpec.getRatioToMaster()
+                    newNumSecondary = datasetSpec.getNumMultByRatio(newNumMaster)
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
                     for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
                         newFileSize += tmpFileSpec.fsize

@@ -1420,7 +1420,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     ratioToMaster = tmpNumFiles
                                 else:
                                     ratioToMaster = nFiles
-                                ratioToMaster *= tmpDatasetSpec.getRatioToMaster()
+                                ratioToMaster = tmpDatasetSpec.getNumMultByRatio(ratioToMaster)
                                 self.cur.execute(sqlFR.format(ratioToMaster)+comment,varMap)
                                 resFileList = self.cur.fetchall()
                                 iFiles = 0
