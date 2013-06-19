@@ -93,12 +93,19 @@ class AtlasProdTaskBroker (TaskBrokerBase):
             jobSpec.assignedPriority = taskSpec.taskPriority
             jobSpec.currentPriority  = taskSpec.currentPriority
             jobSpec.maxDiskCount     = (taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()) / 1024 / 1024
+            prodDBlock = None
+            setProdDBlock = False
             for datasetSpec in inputChunk.getDatasets():
+                prodDBlock = datasetSpec.datasetName
                 if datasetSpec.isMaster():
                     jobSpec.prodDBlock = datasetSpec.datasetName
+                    setProdDBlock = True
                 for fileSpec in datasetSpec.Files:
                     tmpInFileSpec = fileSpec.convertToJobFileSpec(datasetSpec)
                     jobSpec.addFile(tmpInFileSpec)
+            # use secondary dataset name as prodDBlock
+            if setProdDBlock == False and prodDBlock != None:
+                jobSpec.prodDBlock = prodDBlock
             # append
             jobSpecList.append(jobSpec)
             prioMap[jobSpec.taskID] = jobSpec.currentPriority

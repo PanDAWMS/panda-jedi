@@ -58,7 +58,7 @@ class TaskRefiner (JediKnight,FactoryBase):
                             # make thread pool
                             threadPool = ThreadPool()
                             # get work queue mapper
-                            workQueueMapper = self.taskBufferIF.getWrokQueueMap()
+                            workQueueMapper = self.taskBufferIF.getWorkQueueMap()
                             # make workers
                             nWorker = jedi_config.taskrefine.nWorkers
                             for iWorker in range(nWorker):

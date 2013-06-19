@@ -119,6 +119,14 @@ class TaskRefinerBase (object):
             itemList = taskParamMap['jobParameters'] + [taskParamMap['log']]
         else:
             itemList = taskParamMap['jobParameters'] + taskParamMap['log']
+        # pseudo input
+        if taskParamMap.has_key('noInput') and taskParamMap['noInput'] == True:
+            tmpItem = {}
+            tmpItem['type']       = 'template'
+            tmpItem['value']      = ''
+            tmpItem['dataset']    = 'pseudo_dataset'
+            tmpItem['param_type'] = 'pseudo_input'
+            itemList = [tmpItem] + itemList
         for tmpItem in itemList:
             # look for datasets
             if tmpItem['type'] == 'template' and tmpItem.has_key('dataset'):
@@ -131,20 +139,17 @@ class TaskRefinerBase (object):
                 if tmpItem.has_key('destination'):
                     datasetSpec.destination = tmpItem['destination']
                 if tmpItem.has_key('attributes'):
-                    datasetSpec.attributes = tmpItem['attributes']
+                    datasetSpec.setDatasetAttribute(tmpItem['attributes'])
                 if tmpItem.has_key('ratio'):
-                    if datasetSpec.attributes == None:
-                        datasetSpec.attributes = ''
-                    else:
-                        datasetSpec.attributes += ','
-                    datasetSpec.attributes += 'ratio={0}'.format(tmpItem['ratio'])
+                    datasetSpec.setDatasetAttribute('ratio={0}'.format(tmpItem['ratio']))
                 datasetSpec.vo = self.taskSpec.vo
                 datasetSpec.nFiles = 0
                 datasetSpec.nFilesUsed = 0
                 datasetSpec.nFilesFinished = 0
                 datasetSpec.nFilesFailed = 0
+                datasetSpec.nFilesOnHold = 0
                 datasetSpec.status = 'defined'
-                if datasetSpec.type == 'input':
+                if datasetSpec.type in ['input','pseudo_input']:
                     datasetSpec.streamName = RefinerUtils.extractStreamName(tmpItem['value'])
                     if nIn == 0:
                         # master
@@ -183,19 +188,25 @@ class TaskRefinerBase (object):
                     self.outDatasetSpecList.append(datasetSpec)
         # make job parameters
         rndmSeedOffset = None
+        firstEventOffset = None
         jobParameters = ''
         for tmpItem in taskParamMap['jobParameters']:
             if tmpItem.has_key('value'):
                 jobParameters += '{0} '.format(tmpItem['value'])
-                # get offset for random seed
+                # get offset for random seed and first event
                 if tmpItem['type'] == 'template' and tmpItem['param_type'] == 'number' \
-                       and tmpItem.has_key('offset') and '${RNDMSEED}' in tmpItem['value']:
-                    rndmSeedOffset = tmpItem['offset']
+                       and tmpItem.has_key('offset'):
+                    if '${RNDMSEED}' in tmpItem['value']:
+                        rndmSeedOffset = tmpItem['offset']
+                    elif '${FIRSTEVENT}' in tmpItem['value']:
+                        firstEventOffset = tmpItem['offset']    
         jobParameters = jobParameters[:-1]
         self.setJobParamsTemplate(jobParameters)
         # set random seed offset
         if rndmSeedOffset != None:
-             self.setSplitRule(None,rndmSeedOffset,'RNDM')
+            self.setSplitRule(None,rndmSeedOffset,'RNDM')
+        if firstEventOffset != None:
+            self.setSplitRule(None,firstEventOffset,'FST')
         # return
         return
 

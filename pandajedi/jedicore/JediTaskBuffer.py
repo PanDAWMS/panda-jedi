@@ -31,11 +31,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     
 
     # get work queue map
-    def getWrokQueueMap(self):
+    def getWorkQueueMap(self):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # get
-        retVal = proxy.getWrokQueueMap()
+        retVal = proxy.getWorkQueueMap()
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -58,12 +58,14 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
     # feed files to the JEDI contents table
     def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
-                                   nEventsPerFile,nEventsPerJob,maxAttempt):
+                                   nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
+                                   nMaxFiles,nMaxEvents):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.insertFilesForDataset_JEDI(datasetSpec,fileMap,datasetState,stateUpdateTime,
-                                                  nEventsPerFile,nEventsPerJob,maxAttempt)
+                                                  nEventsPerFile,nEventsPerJob,maxAttempt,
+                                                  firstEventNumber,nMaxFiles,nMaxEvents)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -110,12 +112,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
-    # get JEDI dataset with datasetID
-    def getDatasetWithID_JEDI(self,datasetID):
+    # get JEDI dataset with jediTaskID and datasetID
+    def getDatasetWithID_JEDI(self,jediTaskID,datasetID):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getDatasetWithID_JEDI(datasetID)
+        retVal = proxy.getDatasetWithID_JEDI(jediTaskID,datasetID)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

@@ -17,7 +17,7 @@ class JediDatasetSpec(object):
         'site','masterID','provenanceID','status','state',
         'stateCheckTime','stateCheckExpiration','frozenTime',
         'nFiles','nFilesToBeUsed','nFilesUsed',
-        'nFilesFinished','nFilesFailed',
+        'nFilesFinished','nFilesFailed','nFilesOnHold',
         'nEvents','nEventsToBeUsed','nEventsUsed',
         'lockedBy','lockedTime','attributes','streamName',
         'storageToken','destination'
@@ -145,6 +145,16 @@ class JediDatasetSpec(object):
 
 
 
+    # set dataset attribute
+    def setDatasetAttribute(self,attr):
+        if self.attributes == None:
+            self.attributes = ''
+        else:
+            self.attributes += ','
+        self.attributes += attr
+
+    
+
     # get the total size of files
     def getSize(self):
         totalSize = 0
@@ -161,6 +171,13 @@ class JediDatasetSpec(object):
     def statusToUpdateContents(cls):
         return ['defined','toupdate']
     statusToUpdateContents = classmethod(statusToUpdateContents)
+
+
+
+    # return list of types for input
+    def getInputTypes(cls):
+        return ['input','pseudo_input']
+    getInputTypes = classmethod(getInputTypes)
 
 
 
@@ -191,6 +208,15 @@ class JediDatasetSpec(object):
 
 
 
+    # check if it is pseudo
+    def isPseudo(self):
+        if self.datasetName == 'pseudo_dataset':
+            return True
+        else:
+            return False
+
+
+
     # check if it is a many-time dataset which is treated as long-standing at T2s
     def isManyTime(self):
         if self.attributes != None and 'manytime' in self.attributes:
@@ -202,7 +228,7 @@ class JediDatasetSpec(object):
 
     # check if it is a master dataset
     def isMaster(self):
-        if self.masterID == None and self.type == 'input':
+        if self.masterID == None and self.type in self.getInputTypes():
             return True
         else:
             return False

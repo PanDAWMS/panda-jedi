@@ -1,5 +1,7 @@
 import sys
 import time
+import uuid
+import math
 import datetime
 
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
@@ -92,6 +94,11 @@ class ContentsFeederThread (WorkerThread):
                     taskBroken = False
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(jediTaskID))
+                    # get task
+                    tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID,False)
+                    if not tmpStat or taskSpec == None:
+                        tmpLog.error('failed to get taskSpec for jediTaskID={0}'.format(jediTaskID))
+                        continue
                     try:
                         # get task parameters
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
@@ -109,12 +116,16 @@ class ContentsFeederThread (WorkerThread):
                             gotMetadata = False
                             stateUpdateTime = datetime.datetime.utcnow()                    
                             try:
-                                tmpMetadata = self.ddmIF.getInterface(datasetSpec.vo).getDatasetMetaData(datasetSpec.datasetName)
+                                if not datasetSpec.isPseudo():
+                                    tmpMetadata = self.ddmIF.getInterface(datasetSpec.vo).getDatasetMetaData(datasetSpec.datasetName)
+                                else:
+                                    # dummy metadata for pseudo dataset
+                                    tmpMetadata = {'state':'closed'}
                                 gotMetadata = True
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
-                                tmpLog.error('{0} failed due to {1}:{2}'.format(self.__class__.__name__,
-                                                                                errtype.__name__,errvalue))
+                                tmpLog.error('{0} failed due get metadata to {1}:{2}'.format(self.__class__.__name__,
+                                                                                             errtype.__name__,errvalue))
                                 if errtype == Interaction.JEDIFatalError:
                                     datasetStatus = 'broken'
                                     taskBroken = True
@@ -127,11 +138,20 @@ class ContentsFeederThread (WorkerThread):
                                 # get file list
                                 tmpLog.info('get files')
                                 try:
-                                    tmpRet = self.ddmIF.getInterface(datasetSpec.vo).getFilesInDataset(datasetSpec.datasetName)
+                                    if not datasetSpec.isPseudo():
+                                        tmpRet = self.ddmIF.getInterface(datasetSpec.vo).getFilesInDataset(datasetSpec.datasetName)
+                                    else:
+                                        # dummy file list for pseudo dataset
+                                        tmpRet = {str(uuid.uuid4()):{'lfn':'pseudo_lfn',
+                                                                     'scope':None,
+                                                                     'filesize':0,
+                                                                     'checksum':None,
+                                                                     }
+                                                  }
                                 except:
                                     errtype,errvalue = sys.exc_info()[:2]
-                                    tmpLog.error('{0} failed due to {1}:{2}'.format(self.__class__.__name__,
-                                                                                    errtype.__name__,errvalue))
+                                    tmpLog.error('{0} failed to get files due to {1}:{2}'.format(self.__class__.__name__,
+                                                                                                 errtype.__name__,errvalue))
                                     if errtype == Interaction.JEDIFatalError:
                                         datasetStatus = 'broken'
                                         taskBroken = True
@@ -142,22 +162,49 @@ class ContentsFeederThread (WorkerThread):
                                     allUpdated = False
                                 else:
                                     # the number of events per file
-                                    if datasetSpec.isMaster() and taskParamMap.has_key('nEventsPerFile'):
-                                        nEventsPerFile = taskParamMap['nEventsPerFile']
+                                    if (datasetSpec.isMaster() and taskParamMap.has_key('nEventsPerFile')) or \
+                                            (datasetSpec.isPseudo() and taskParamMap.has_key('nEvents')):
+                                        if taskParamMap.has_key('nEventsPerFile'):
+                                            nEventsPerFile = taskParamMap['nEventsPerFile']
+                                        elif datasetSpec.isPseudo() and taskParamMap.has_key('nEvents'):
+                                            # use nEvents as nEventsPerFile for pseudo input
+                                            nEventsPerFile = taskParamMap['nEvents']
                                         if taskParamMap.has_key('nEventsPerJob'):
                                             nEventsPerJob = taskParamMap['nEventsPerJob']
                                     else:
                                         nEventsPerFile = None
                                         nEventsPerJob  = None
-                                    # max attempts
+                                    # max attempts and first event number
                                     if datasetSpec.isMaster():
+                                        # max attempts 
                                         if taskParamMap.has_key('maxAttempt'):
                                             maxAttempt = taskParamMap['maxAttempt']
                                         else:
                                             # use default value
                                             maxAttempt = 5
+                                        # first event number
+                                        firstEventNumber = taskSpec.getFirstEventOffset()
                                     else:
                                         maxAttempt = None
+                                        firstEventNumber = None
+                                    # nMaxEvents
+                                    if datasetSpec.isMaster() and taskParamMap.has_key('nEvents'):
+                                        nMaxEvents = taskParamMap['nEvents']
+                                    else:
+                                        nMaxEvents = None 
+                                    # nMaxFiles
+                                    if taskParamMap.has_key('nFiles'):
+                                        if datasetSpec.isMaster():
+                                            nMaxFiles = taskParamMap['nFiles']
+                                        else:
+                                            nMaxFiles = datasetSpec.getNumMultByRatio(taskParamMap['nFiles'])
+                                            # multipled by the number of jobs per file for event-level splitting
+                                            if taskParamMap.has_key('nEventsPerFile') and taskParamMap.has_key('nEventsPerJob'):
+                                                if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
+                                                    nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerJob'])
+                                                    nMaxFiles = int(math.ceil(nMaxFiles))
+                                    else:
+                                        nMaxFiles = None
                                     # feed files to the contents table
                                     tmpLog.info('update contents')
                                     retDB = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
@@ -165,7 +212,10 @@ class ContentsFeederThread (WorkerThread):
                                                                                          stateUpdateTime,
                                                                                          nEventsPerFile,
                                                                                          nEventsPerJob,
-                                                                                         maxAttempt)
+                                                                                         maxAttempt,
+                                                                                         firstEventNumber,
+                                                                                         nMaxFiles,
+                                                                                         nMaxEvents)
                                     if retDB == False:
                                         datasetStatus = 'pending'
                                         # update dataset status    
@@ -191,7 +241,9 @@ class ContentsFeederThread (WorkerThread):
         datasetSpec.status   = datasetStatus
         datasetSpec.lockedBy = None
         tmpLog.info('update dataset status with {0}'.format(datasetSpec.status))                    
-        self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'datasetID':datasetSpec.datasetID},
+        self.taskBufferIF.updateDataset_JEDI(datasetSpec,
+                                             {'datasetID':datasetSpec.datasetID,
+                                              'jediTaskID':datasetSpec.jediTaskID},
                                              lockTask=True)
 
         

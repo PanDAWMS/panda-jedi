@@ -161,7 +161,7 @@ class WorkQueue(object):
 
     # check if active
     def isActive(self):
-        if self.status == 'active':
+        if self.status != 'inactive':
             return True
         return False
 

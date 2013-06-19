@@ -53,7 +53,7 @@ class JobGenerator (JediKnight):
                 # get SiteMapper
                 siteMapper = self.taskBufferIF.getSiteMapper()
                 # get work queue mapper
-                workQueueMapper = self.taskBufferIF.getWrokQueueMap()
+                workQueueMapper = self.taskBufferIF.getWorkQueueMap()
                 # get Throttle
                 throttle = JobThrottler(self.vos,self.prodSourceLabels)
                 throttle.initializeMods(self.taskBufferIF)
@@ -296,9 +296,15 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.lockedby         = 'jedi'
                     jobSpec.workQueue_ID     = taskSpec.workQueue_ID
                     # inputs
+                    prodDBlock = None
+                    setProdDBlock = False
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
-                        if tmpDatasetSpec.isMaster():
-                            jobSpec.prodDBlock = tmpDatasetSpec.datasetName
+                        if not tmpDatasetSpec.isPseudo():
+                            if tmpDatasetSpec.isMaster():
+                                jobSpec.prodDBlock = tmpDatasetSpec.datasetName
+                                setProdDBlock = True
+                            else:
+                                prodDBlock = tmpDatasetSpec.datasetName
                         for tmpFileSpec in tmpFileSpecList:
                             tmpInFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec)
                             # set status
@@ -307,6 +313,9 @@ class JobGeneratorThread (WorkerThread):
                             elif tmpFileSpec.locality == 'cache':
                                 tmpInFileSpec.status = 'cached'
                             jobSpec.addFile(tmpInFileSpec)
+                    # use secondary dataset name as prodDBlock
+                    if setProdDBlock == False and prodDBlock != None:
+                        jobSpec.prodDBlock = prodDBlock
                     # outputs
                     outSubChunk,serialNr = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID)
                     if outSubChunk == None:
@@ -316,7 +325,8 @@ class JobGeneratorThread (WorkerThread):
                     for tmpFileSpec in outSubChunk.values():
                         # get dataset
                         if not outDsMap.has_key(tmpFileSpec.datasetID):
-                            tmpStat,tmpDataset = self.taskBufferIF.getDatasetWithID_JEDI(tmpFileSpec.datasetID)
+                            tmpStat,tmpDataset = self.taskBufferIF.getDatasetWithID_JEDI(taskSpec.jediTaskID,
+                                                                                         tmpFileSpec.datasetID)
                             # not found
                             if not tmpStat:
                                 tmpLog.error('failed to get DS with datasetID={0}'.format(tmpFileSpec.datasetID))
@@ -391,6 +401,9 @@ class JobGeneratorThread (WorkerThread):
                         pass
         # loop over all streams
         for streamName,listLFN in streamLFNsMap.iteritems():
+            # ignore pseudo input with streamName=None
+            if streamName == None:
+                continue
             if len(listLFN) == 1:
                 # just replace with the original file name
                 parTemplate = parTemplate.replace('${'+streamName+'}',listLFN[0])

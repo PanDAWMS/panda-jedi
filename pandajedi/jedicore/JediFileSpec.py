@@ -11,7 +11,7 @@ class JediFileSpec(object):
     _attributes = ('jediTaskID','datasetID','fileID','creationDate','lastAttemptTime',
                    'lfn','GUID','type','status','fsize','checksum','scope',
                    'attemptNr','maxAttempt','nEvents','keepTrack',
-                   'startEvent','endEvent','firstEvent')
+                   'startEvent','endEvent','firstEvent','boundaryID')
     # attributes which have 0 by default
     _zeroAttrs = ('fsize','attemptNr')
     # mapping between sequence and attr
@@ -130,7 +130,7 @@ class JediFileSpec(object):
                 jobFileSpec.dataset = datasetSpec.containerName
             else:
                 jobFileSpec.dataset = datasetSpec.datasetName
-            if self.type == 'input':
+            if self.type in datasetSpec.getInputTypes():
                 # prodDBlock
                 jobFileSpec.prodDBlock = datasetSpec.datasetName
                 # storage token    

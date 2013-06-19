@@ -130,7 +130,8 @@ class PostProcessorThread (WorkerThread):
                             # FIXME
                             # update dataset
                             datasetSpec.status = 'done'
-                            self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'datasetID':datasetSpec.datasetID})
+                            self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'datasetID':datasetSpec.datasetID,
+                                                                              'jediTaskID':datasetSpec.jediTaskID})
                         # count nFiles
                         if datasetSpec.isMaster():
                             nFiles += datasetSpec.nFiles

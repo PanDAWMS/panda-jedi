@@ -9,7 +9,7 @@ prodSourceLabel = 'managed'
 # get SiteMapper
 siteMapper = tbIF.getSiteMapper()
 
-wqMap = tbIF.getWrokQueueMap()
+wqMap = tbIF.getWorkQueueMap()
 
 tmpSt,jobStat = tbIF.getJobStatWithWorkQueuePerCloud_JEDI(vo,prodSourceLabel)
 

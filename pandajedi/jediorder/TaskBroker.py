@@ -41,7 +41,7 @@ class TaskBroker (JediKnight,FactoryBase):
                 tmpLog = MsgWrapper(logger)
                 tmpLog.debug('start')
                 # get work queue mapper
-                workQueueMapper = self.taskBufferIF.getWrokQueueMap()
+                workQueueMapper = self.taskBufferIF.getWorkQueueMap()
                 # loop over all vos
                 for vo in self.vos:
                     # loop over all sourceLabels

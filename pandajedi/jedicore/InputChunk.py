@@ -48,11 +48,18 @@ class InputChunk:
                     
     
     # return list of datasets
-    def getDatasets(self):
+    def getDatasets(self,includePseudo=False):
         dataList = []
         if self.masterDataset != None:
             dataList.append(self.masterDataset)
         dataList += self.secondaryDatasetList
+        # ignore pseudo datasets
+        if not includePseudo:
+            newDataList = []
+            for datasetSpec in dataList:
+                if not datasetSpec.isPseudo():
+                    newDataList.append(datasetSpec)
+            dataList = newDataList        
         return dataList
 
 

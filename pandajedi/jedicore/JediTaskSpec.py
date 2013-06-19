@@ -196,6 +196,16 @@ class JediTaskSpec(object):
         return 0
 
 
+
+    # get offset for first event
+    def getFirstEventOffset(self):
+        if self.splitRule != None:
+            tmpMatch = re.search('FST=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return 0
+
+
     
     # get the size of workDisk in bytes
     def getWorkDiskSize(self):
@@ -243,7 +253,7 @@ class JediTaskSpec(object):
 
     # return list of status to reject external changes
     def statusToRejectExtChange(cls):
-        return ['finised','prepared','broken','aborted','aborting','holding']
+        return ['finised','prepared','broken','aborted','aborting','finishing']
     statusToRejectExtChange = classmethod(statusToRejectExtChange)
 
 
@@ -251,7 +261,7 @@ class JediTaskSpec(object):
     def terminateCommandStatusMap(cls):
         return {'kill' : {'doing': 'aborting',
                           'done' : 'aborted'},
-                'finish' : {'doing': 'holding',
+                'finish' : {'doing': 'finishing',
                             'done' : 'prepared'}
                 }
     terminateCommandStatusMap = classmethod(terminateCommandStatusMap)

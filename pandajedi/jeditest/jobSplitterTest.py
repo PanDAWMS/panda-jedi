@@ -1,3 +1,9 @@
+# logger
+from pandacommon.pandalogger.PandaLogger import PandaLogger
+logger = PandaLogger().getLogger('JobGenerator')
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+tmpLog = MsgWrapper(logger)
+
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 
 tbIF = JediTaskBufferInterface()
@@ -23,7 +29,7 @@ vo = sys.argv[3]
 prodSourceLabel = sys.argv[4]
 queueID = int(sys.argv[5])
 
-workQueue = tbIF.getWrokQueueMap().getQueueWithID(queueID)
+workQueue = tbIF.getWorkQueueMap().getQueueWithID(queueID)
 
 threadPool = ThreadPool()
 
@@ -33,11 +39,11 @@ tmpList = tbIF.getTasksToBeProcessed_JEDI(None,vo,workQueue,
 
 for taskSpec,cloudName,inputChunk in tmpList:
     jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
-    tmpStat = jobBroker.initialize(ddmIF.getInterface(vo),tbIF)
+    tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo),tbIF)
     tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk)
 
     splitter = JobSplitter()
     tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
 
     gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False)
-    newJobs = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,None)
+    newJobs = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog)
