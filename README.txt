@@ -1,6 +1,8 @@
 Release Note
 
 * 6/19/2013
+  * improved CF to directly avalanche when skipScout=True
+  * improved JG to reset unused files
   * improved some queries to use AUX table
   * fixed AtlasDDMClient to ignore duplicated files with different attempt number
   * added support for non-input tasks

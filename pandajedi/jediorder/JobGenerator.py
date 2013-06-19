@@ -194,6 +194,13 @@ class JobGeneratorThread (WorkerThread):
                             splitter = JobSplitter()
                             try:
                                 tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
+                                # remove the last sub-chunk since it could not be aligned correctly
+                                # e.g., inputChunk=10 -> subChunks=4,4,2
+                                # don't remove it for the last chunk
+                                # e.g., inputChunks = 10(remove),10(remove),3(not remove)
+                                if len(subChunks[-1]['subChunks']) > 1 and inputChunk.masterDataset != None and \
+                                        len(inputChunk.masterDataset.Files) == jedi_config.jobgen.nFiles:
+                                    subChunks[-1]['subChunks'] = subChunks[-1]['subChunks'][:-1]
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
                                 tmpLog.error('splitter crashed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -234,12 +241,18 @@ class JobGeneratorThread (WorkerThread):
                                 statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True)
                                 tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
                             jobsSubmitted = True
-                            taskSpec.status = 'running'
+                            if inputChunk.masterDataset != None and \
+                                    inputChunk.masterDataset.nFiles > inputChunk.masterDataset.nFilesToBeUsed:
+                                taskSpec.status = 'scouting'
+                            else:
+                                taskSpec.status = 'running'
                         else:
-                            tmpLog.error('submitted only {0}/{1}'.format(len(pandaIDs),len(pandaJobs)))
-                    # role back
-                    if not jobsSubmitted:
-                        self.taskBufferIF.rollbackFiles_JEDI(taskSpec.jediTaskID,inputChunk)
+                            tmpErrStr = 'submitted only {0}/{1}'.format(len(pandaIDs),len(pandaJobs))
+                            tmpLog.error(tmpErrStr)
+                            taskSpec.setOnHold()
+                            taskSpec.setErrDiag(tmpErrStr)
+                    # reset unused files
+                    self.taskBufferIF.resetUnusedFiles_JEDI(taskSpec.jediTaskID,inputChunk)
                     # update task
                     tmpLog.info('update task.status=%s' % taskSpec.status)
                     taskSpec.lockedBy = None

@@ -205,6 +205,10 @@ class ContentsFeederThread (WorkerThread):
                                                     nMaxFiles = int(math.ceil(nMaxFiles))
                                     else:
                                         nMaxFiles = None
+                                    # use scout
+                                    useScout = False    
+                                    if datasetSpec.isMaster() and not taskParamMap.has_key('skipScout'):
+                                        useScout = True
                                     # feed files to the contents table
                                     tmpLog.info('update contents')
                                     retDB = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
@@ -215,7 +219,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                          maxAttempt,
                                                                                          firstEventNumber,
                                                                                          nMaxFiles,
-                                                                                         nMaxEvents)
+                                                                                         nMaxEvents,
+                                                                                         useScout)
                                     if retDB == False:
                                         datasetStatus = 'pending'
                                         # update dataset status    
