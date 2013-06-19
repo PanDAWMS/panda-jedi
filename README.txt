@@ -1,6 +1,6 @@
 Release Note
 
-* current
+* 6/19/2013
   * improved some queries to use AUX table
   * fixed AtlasDDMClient to ignore duplicated files with different attempt number
   * added support for non-input tasks
