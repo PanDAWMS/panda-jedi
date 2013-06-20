@@ -1,5 +1,8 @@
 Release Note
 
+* 6/20/2013
+  * added jediTaskID to the WHERE clause for all UPDATE
+
 * 6/19/2013
   * improved CF to directly avalanche when skipScout=True
   * improved JG to reset unused files

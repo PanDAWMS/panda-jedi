@@ -151,7 +151,7 @@ class JobGeneratorThread (WorkerThread):
         while True:
             try:
                 # get a part of list
-                nInput = 5
+                nInput = 2
                 inputList = self.inputList.get(nInput)
                 # no more datasets
                 if len(inputList) == 0:

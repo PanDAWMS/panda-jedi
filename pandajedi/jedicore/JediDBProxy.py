@@ -107,6 +107,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 raise RuntimeError, 'Commit error'
             # make map
             self.workQueueMap.makeMap(res)
+            tmpLog.debug('done')
             return True
         except:
             # roll back
@@ -555,10 +556,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql for update
             sql  = "UPDATE {0}.JEDI_Datasets SET {1} WHERE ".format(jedi_config.db.schemaJEDI,
                                                                     datasetSpec.bindUpdateChangesExpression())
+            useAND = False
             for tmpKey,tmpVal in criteria.iteritems():
                 crKey = ':cr_%s' % tmpKey
-                sql += '%s=%s' % (tmpKey,crKey)
+                if useAND:
+                    sql += ' AND'
+                else:
+                    useAND = True
+                sql += ' %s=%s' % (tmpKey,crKey)
                 varMap[crKey] = tmpVal
+                
             # sql for loc
             varMapLock = {}
             varMapLock[':jediTaskID'] = datasetSpec.jediTaskID
@@ -1164,7 +1171,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlI += " RETURNING fileID INTO :newFileID"
             # sql to increment SN
             sqlU  = "UPDATE {0}.JEDI_Output_Template SET serialNr=serialNr+1 ".format(jedi_config.db.schemaJEDI)
-            sqlU += "WHERE outTempID=:outTempID "
+            sqlU += "WHERE jediTaskID=:jediTaskID AND outTempID=:outTempID "
             # current current date
             timeNow = datetime.datetime.utcnow()
             # begin transaction
@@ -1207,7 +1214,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.fileID = long(varMap[':newFileID'].getvalue())
                 # increment SN
                 varMap = {}
-                varMap[':outTempID'] = outTempID
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':outTempID']  = outTempID
                 self.cur.execute(sqlU+comment,varMap)
                 nRow = self.cur.rowcount
                 if nRow != 1:
@@ -1404,7 +1412,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
             # sql to update file usage info in dataset
-            sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed WHERE datasetID=:datasetID ".format(jedi_config.db.schemaJEDI)
+            sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
+            sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # loop over all tasks
             iTasks = 0
             for jediTaskID in jediTaskIDList:
@@ -1546,6 +1555,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles
                                     tmpDatasetSpec.nFilesUsed = nFilesUsed
                                     varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
                                     varMap[':datasetID']  = datasetID
                                     varMap[':nFilesUsed'] = nFilesUsed
                                     self.cur.execute(sqlDU+comment,varMap)
@@ -1665,7 +1675,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oStatus "
             # sql to reset nFilesUsed
             sqlD  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow ".format(jedi_config.db.schemaJEDI)
-            sqlD += "WHERE datasetID=:datasetID " 
+            sqlD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID " 
             # begin transaction
             self.conn.begin()
             for datasetSpec in inputChunk.getDatasets(includePseudo=True):
@@ -1680,6 +1690,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.debug('reset {0} rows for datasetID={1}'.format(nFileRow,datasetSpec.datasetID))
                 if nFileRow > 0:
                     varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
                     varMap[':datasetID']  = datasetSpec.datasetID
                     varMap[':nFileRow'] = nFileRow
                     # update dataset
@@ -2421,7 +2432,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRD += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND type=:type AND status=:status ".format(jedi_config.db.schemaJEDI)
             # sql to update input dataset status
             sqlDIU  = "UPDATE {0}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
-            sqlDIU += "WHERE datasetID=:datasetID "
+            sqlDIU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update output/log dataset status
             sqlDOU  = "UPDATE {0}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlDOU += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
@@ -2504,7 +2515,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         for datasetID,dsStatus,nFiles,nFilesFinished,masterID in resRD:
                             # update input datasets
                             varMap = {}
-                            varMap[':datasetID'] = datasetID
+                            varMap[':datasetID']  = datasetID
+                            varMap[':jediTaskID'] = jediTaskID
                             if masterID != None:
                                 # seconday dataset
                                 varMap[':status'] = 'done'
