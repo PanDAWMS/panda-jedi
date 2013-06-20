@@ -39,7 +39,7 @@ class TaskBroker (JediKnight,FactoryBase):
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
-                tmpLog.debug('start')
+                tmpLog.debug('start TaskBroker')
                 # get work queue mapper
                 workQueueMapper = self.taskBufferIF.getWorkQueueMap()
                 # loop over all vos
@@ -130,13 +130,14 @@ class TaskCheckerThread (WorkerThread):
                 # get a part of list
                 nTasks = 100
                 taskList = self.taskList.get(nTasks)
+                totalTasks,idxTasks = self.taskList.stat()
                 # no more datasets
                 if len(taskList) == 0:
                     self.logger.debug('{0} terminating since no more items'.format(self.__class__.__name__))
                     return
                 # make logger
                 tmpLog = MsgWrapper(self.logger)
-                tmpLog.info('start')
+                tmpLog.info('start TaskCheckerThread {0}/{1} for jediTaskID={2}'.format(idxTasks,totalTasks,taskList))
                 tmpStat = Interaction.SC_SUCCEEDED
                 # get TaskSpecs
                 taskSpecList = []
@@ -206,13 +207,14 @@ class TaskBrokerThread (WorkerThread):
                 # get a part of list
                 nTasks = 100
                 taskList = self.taskList.get(nTasks)
+                totalTasks,idxTasks = self.taskList.stat()
                 # no more datasets
                 if len(taskList) == 0:
                     self.logger.debug('{0} terminating since no more items'.format(self.__class__.__name__))
                     return
                 # make logger
                 tmpLog = MsgWrapper(self.logger)
-                tmpLog.info('start')
+                tmpLog.info('start TaskBrokerThread {0}/{1} for jediTaskID={2}'.format(idxTasks,totalTasks,taskList))
                 tmpStat = Interaction.SC_SUCCEEDED
                 # get TaskSpecs
                 tmpListToAssign = []

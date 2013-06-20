@@ -280,8 +280,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     uniqueFileKeyList.append(uniqueFileKey)                
                     fileSpecMap[uniqueFileKey] = fileSpec
             # too long list
-            if len(uniqueFileKeyList) > 10000:
-                tmpLog.error("too many file records {0}".format(len(uniqueFileKeyList)))
+            maxFileRecords = 10000
+            if len(uniqueFileKeyList) > maxFileRecords:
+                tmpLog.error("too many file records {0}>{1}".format(len(uniqueFileKeyList),maxFileRecords))
                 return False
             # sql to check if task is locked
             sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE ".format(jedi_config.db.schemaJEDI)
@@ -1400,7 +1401,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDS += ') AND status=:dsStatus AND masterID IS NOT NULL '
             # sql to read datasets
             sqlRD  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
-            sqlRD += "FROM {0}.JEDI_Datasets WHERE datasetID=:datasetID FOR UPDATE NOWAIT ".format(jedi_config.db.schemaJEDI)
+            sqlRD += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE NOWAIT "
             # sql to read files
             sqlFR  = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
@@ -1463,7 +1465,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if not toSkip:
                         for datasetID in datasetIDs:
                             varMap = {}
-                            varMap[':datasetID'] = datasetID
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
                             try:
                                 # select
                                 self.cur.execute(sqlRD+comment,varMap)

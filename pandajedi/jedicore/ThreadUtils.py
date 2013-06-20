@@ -33,6 +33,13 @@ class ListWithLock:
         self.lock.release()
         return retList
 
+    def stat(self):
+        self.lock.acquire()
+        total = len(self.dataList)
+        nIndx = self.dataIndex
+        self.lock.release()
+        return total,nIndx
+
 
 
 # thread pool

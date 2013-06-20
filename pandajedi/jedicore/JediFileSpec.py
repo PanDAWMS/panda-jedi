@@ -115,14 +115,16 @@ class JediFileSpec(object):
     # convert to job's FileSpec
     def convertToJobFileSpec(self,datasetSpec):
         jobFileSpec = JobFileSpec()
-        jobFileSpec.fileID    = self.fileID
-        jobFileSpec.lfn       = self.lfn
-        jobFileSpec.GUID      = self.GUID
-        jobFileSpec.type      = self.type
-        jobFileSpec.scope     = self.scope
-        jobFileSpec.fsize     = self.fsize
-        jobFileSpec.checksum  = self.checksum
-        jobFileSpec.attemptNr = self.attemptNr
+        jobFileSpec.fileID     = self.fileID
+        jobFileSpec.datasetID  = datasetSpec.datasetID
+        jobFileSpec.jediTaskID = datasetSpec.jediTaskID
+        jobFileSpec.lfn        = self.lfn
+        jobFileSpec.GUID       = self.GUID
+        jobFileSpec.type       = self.type
+        jobFileSpec.scope      = self.scope
+        jobFileSpec.fsize      = self.fsize
+        jobFileSpec.checksum   = self.checksum
+        jobFileSpec.attemptNr  = self.attemptNr
         # dataset attribute
         if datasetSpec != None:
             # dataset
