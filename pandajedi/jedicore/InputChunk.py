@@ -27,7 +27,9 @@ class InputChunk:
         self.secondaryDatasetList = []
         for secondaryDS in secondaryDatasetList:
             self.addSecondaryDS(secondaryDS)
-
+        # read in a block   
+        self.readBlock = None
+   
 
 
     # add master dataset

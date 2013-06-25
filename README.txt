@@ -1,5 +1,12 @@
 Release Note
 
+* 6/25/2013
+  * fixed JG to take maxNumJob into account
+  * added reniceJEDI
+
+* 6/21/2013
+  * fixed JobThrottler for maxNumJob and minPriority
+
 * 6/20/2013
   * added jediTaskID to the WHERE clause for all UPDATE
 

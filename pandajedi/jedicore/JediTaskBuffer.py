@@ -218,12 +218,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
     # get tasks to be processed
     def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,
-                                   nTasks=50,nFiles=100,simTasks=None):
+                                   nTasks=50,nFiles=100,simTasks=None,minPriority=None,
+                                   maxNumJobs=None,typicalNumFilesMap=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getTasksToBeProcessed_JEDI(pid,vo,workQueue,prodSourceLabel,cloudName,nTasks,nFiles,
-                                                  simTasks=simTasks)
+                                                  simTasks=simTasks,
+                                                  minPriority=minPriority,
+                                                  maxNumJobs=maxNumJobs,
+                                                  typicalNumFilesMap=typicalNumFilesMap)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -374,6 +378,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getMovingInputSize_JEDI(siteName)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get typical number of input files for each workQueue+processingType
+    def getTypicalNumInput_JEDI(self,vo,prodSourceLabel,workQueue):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getTypicalNumInput_JEDI(vo,prodSourceLabel,workQueue)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

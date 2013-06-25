@@ -29,7 +29,7 @@ class ListWithLock:
     def get(self,num):
         self.lock.acquire()
         retList = self.dataList[self.dataIndex:self.dataIndex+num]
-        self.dataIndex += num
+        self.dataIndex += len(retList)
         self.lock.release()
         return retList
 

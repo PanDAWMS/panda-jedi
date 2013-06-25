@@ -17,6 +17,11 @@ class JobThrottler (FactoryBase):
 
     # main
     def toBeThrottled(self,vo,sourceLabel,cloudName,workQueue,jobStat):
-        return self.getImpl(vo,sourceLabel).toBeThrottled(vo,cloudName,workQueue,jobStat)
+        impl = self.getImpl(vo,sourceLabel)
+        retVal = impl.toBeThrottled(vo,sourceLabel,cloudName,workQueue,jobStat)
+        # retrieve min priority and max number of jobs from concrete class
+        self.minPriority = impl.minPriority
+        self.maxNumJobs = impl.maxNumJobs
+        return retVal
                                                             
             

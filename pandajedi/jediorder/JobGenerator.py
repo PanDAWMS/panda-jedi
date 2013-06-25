@@ -61,7 +61,7 @@ class JobGenerator (JediKnight):
                 for vo in self.vos:
                     # loop over all sourceLabels
                     for prodSourceLabel in self.prodSourceLabels:
-                        # get
+                        # get job statistics
                         tmpSt,jobStat = self.taskBufferIF.getJobStatWithWorkQueuePerCloud_JEDI(vo,prodSourceLabel)
                         if not tmpSt:
                             raise RuntimeError,'failed to get job statistics'
@@ -91,13 +91,23 @@ class JobGenerator (JediKnight):
                                     tmpLog.debug('throttled')
                                     if self.withThrottle:
                                         continue
+                                tmpLog.debug('minPriority={0} maxNumJobs={1}'.format(throttle.minPriority,throttle.maxNumJobs))
+                                # get typical number of files
+                                typicalNumFilesMap = self.taskBufferIF.getTypicalNumInput_JEDI(vo,prodSourceLabel,workQueue,
+                                                                                               useResultCache=600)
+                                if typicalNumFilesMap == None:
+                                    raise RuntimeError,'failed to get typical number of files'
                                 # get the list of input 
                                 tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,vo,
                                                                                        workQueue,
                                                                                        prodSourceLabel,
                                                                                        cloudName,
                                                                                        nTasks=jedi_config.jobgen.nTasks,
-                                                                                       nFiles=jedi_config.jobgen.nFiles)
+                                                                                       nFiles=jedi_config.jobgen.nFiles,
+                                                                                       minPriority=throttle.minPriority,
+                                                                                       maxNumJobs=throttle.maxNumJobs,
+                                                                                       typicalNumFilesMap=typicalNumFilesMap, 
+                                                                                       )
                                 if tmpList == None:
                                     # failed
                                     tmpLog.error('failed to get the list of input chunks to generate jobs')
@@ -128,7 +138,7 @@ class JobGenerator (JediKnight):
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)
-
+        
 
 
 # thread for real worker
@@ -144,6 +154,7 @@ class JobGeneratorThread (WorkerThread):
         self.ddmIF        = ddmIF
         self.siteMapper   = siteMapper
         self.execJobs     = execJobs
+        self.numGenJobs   = 0
         
 
     # main
@@ -155,13 +166,14 @@ class JobGeneratorThread (WorkerThread):
                 inputList = self.inputList.get(nInput)
                 # no more datasets
                 if len(inputList) == 0:
-                    self.logger.debug('%s terminating since no more inputs' % self.__class__.__name__)
+                    self.logger.debug('{0} terminating after generating {1} jobs since no more inputs '.format(self.__class__.__name__,
+                                                                                                               self.numGenJobs))
                     return
                 # loop over all inputs
                 for taskSpec,cloudName,inputChunk in inputList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'jediTaskID=%s' % taskSpec.jediTaskID)
-                    tmpLog.info('start with VO=%s cloud=%s' % (taskSpec.vo,cloudName))
+                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID))
+                    tmpLog.info('start with VO={0} cloud={1}'.format(taskSpec.vo,cloudName))
                     readyToSubmitJob = False
                     jobsSubmitted = False
                     # initialize brokerage
@@ -194,12 +206,13 @@ class JobGeneratorThread (WorkerThread):
                             splitter = JobSplitter()
                             try:
                                 tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
-                                # remove the last sub-chunk since it could not be aligned correctly
-                                # e.g., inputChunk=10 -> subChunks=4,4,2
-                                # don't remove it for the last chunk
+                                # * remove the last sub-chunk when inputChunk is read in a block 
+                                #   since alignment could be broken in the last sub-chunk 
+                                #    e.g., inputChunk=10 -> subChunks=4,4,2 and remove 2
+                                # * don't remove it for the last inputChunk
                                 # e.g., inputChunks = 10(remove),10(remove),3(not remove)
-                                if len(subChunks[-1]['subChunks']) > 1 and inputChunk.masterDataset != None and \
-                                        len(inputChunk.masterDataset.Files) == jedi_config.jobgen.nFiles:
+                                if len(subChunks[-1]['subChunks']) > 1 and inputChunk.masterDataset != None \
+                                        and inputChunk.readBlock == True:
                                     subChunks[-1]['subChunks'] = subChunks[-1]['subChunks'][:-1]
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
@@ -251,6 +264,8 @@ class JobGeneratorThread (WorkerThread):
                             tmpLog.error(tmpErrStr)
                             taskSpec.setOnHold()
                             taskSpec.setErrDiag(tmpErrStr)
+                        # the number of generated jobs     
+                        self.numGenJobs += len(pandaIDs)    
                     # reset unused files
                     self.taskBufferIF.resetUnusedFiles_JEDI(taskSpec.jediTaskID,inputChunk)
                     # update task

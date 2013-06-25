@@ -126,6 +126,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                     if tmpSeVal['state'] == 'complete':
                         t1hasData = True
                         break
+                # T1 has incomplete data while no data at T2
+                if not t1hasData and self.dataSiteMap[datasetName][cloudName]['t2'] == []:
+                    # use incomplete data at T1 anyway
+                    t1hasData = True
             # data is missing at T1         
             if not t1hasData:
                 # make subscription to T1

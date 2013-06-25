@@ -169,6 +169,10 @@ setup(
                 ('etc/init.d', ['templates/panda_jedi-ctl.exe.template',
                                    ]
                  ),
+                # exec
+                ('usr/bin', ['templates/panda_jedi-reniceJEDI.exe.template',
+                             ]
+                 ),
                 ],
     cmdclass={'install': install_panda,
               'install_data': install_data_panda}
