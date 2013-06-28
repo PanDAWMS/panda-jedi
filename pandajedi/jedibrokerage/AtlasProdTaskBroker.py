@@ -4,6 +4,7 @@ import sys
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
 from TaskBrokerBase import TaskBrokerBase
+import AtlasBrokerUtils
 
 from pandaserver.userinterface import Client as PandaClient
 # cannot use pandaserver.taskbuffer while Client is used
@@ -55,6 +56,11 @@ class AtlasProdTaskBroker (TaskBrokerBase):
         for tmpReqID,tmpCloud in cloudsInPanda.iteritems():
             if not tmpCloud in ['NULL','',None]:
                 tmpLog.debug('reqID={0} jediTaskID={1} -> {2}'.format(tmpReqID,reqIdTaskIdMap[tmpReqID],tmpCloud))
+                # check file availability
+                tmpSt = self.findMisingFiles(reqIdTaskIdMap[tmpReqID],tmpCloud)
+                if tmpSt != self.SC_SUCCEEDED:
+                    tmpLog.error('failed to check file availability for jediTaskID={0}'.format(reqIdTaskIdMap[tmpReqID]))
+                    continue
                 retMap[reqIdTaskIdMap[tmpReqID]] = tmpCloud
         tmpLog.debug('ret {0}'.format(str(retMap)))
         # return
@@ -154,3 +160,79 @@ class AtlasProdTaskBroker (TaskBrokerBase):
         # return
         tmpLog.debug('done')        
         return self.SC_SUCCEEDED
+
+
+
+    # check file availability
+    def findMisingFiles(self,jediTaskID,cloudName):
+        tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(jediTaskID))
+        tmpLog.debug('start findMisingFiles')
+        # return for failure
+        retError = self.SC_FAILED
+        # get datasets
+        tmpSt,datasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(jediTaskID,['input'],True)
+        if not tmpSt:
+            tmpLog.error('failed to get the list of datasets')
+            return retError
+        # loop over all datasets
+        for datasetSpec in datasetSpecList: 
+            # check only master dataset
+            if not datasetSpec.isMaster():
+                continue
+            tmpLog.debug('checking {0}'.format(datasetSpec.datasetName))
+            # get ddmIF
+            ddmIF = self.ddmIF.getInterface(datasetSpec.vo)
+            if ddmIF == None:
+                tmpLog.error('failed to get DDM I/F for vo={0}'.format(datasetSpec.vo))
+                return retError
+            # get the list of sites where data is available
+            tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,ddmIF,
+                                                             datasetSpec.datasetName)
+            if tmpSt != self.SC_SUCCEEDED:
+                tmpLog.error('failed to get the list of sites where {0} is available, since {1}'.format(datasetSpec.datasetName,
+                                                                                                        tmpRet))
+                return retError
+            dataSiteMap = tmpRet
+            # data is unavailable in cloud
+            if not dataSiteMap.has_key(cloudName):
+                tmpLog.error('{0} is unavailable in cloud={1}'.format(datasetSpec.datasetName,cloudName))
+                return retError
+            # mapping between sites and storage endpoints
+            checkedSites = [self.siteMapper.getCloud(cloudName)['source']]+dataSiteMap[cloudName]['t2']
+            siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(checkedSites,self.siteMapper)
+            # get available files per site/endpoint                                                                                     
+            tmpAvFileMap = ddmIF.getAvailableFiles(datasetSpec,
+                                                   siteStorageEP,
+                                                   self.siteMapper,
+                                                   ngGroup=[1],
+                                                   checkLFC=True)
+            if tmpAvFileMap == None:
+                tmpLog.error('failed to get available file list for {0}'.format(datasetSpec.datasetName))
+                return retError
+            # check availability
+            missingFiles = []
+            for fileSpec in datasetSpec.Files:
+                fileFound = False
+                for tmpSiteName,availableFilesMap in tmpAvFileMap.iteritems():
+                    for tmpStorageType,availableFiles in availableFilesMap.iteritems():
+                        for availableFile in availableFiles:
+                            if fileSpec.lfn == availableFile.lfn:
+                                fileFound = True
+                                break
+                        if fileFound:
+                            break
+                    if fileFound:
+                        break
+                # missing
+                if not fileFound:
+                    missingFiles.append(fileSpec.fileID)
+                    tmpLog.debug('{0} missing'.format(fileSpec.lfn))
+            # update contents
+            if missingFiles != []:        
+                tmpSt = self.taskBufferIF.setMissingFiles_JEDI(jediTaskID,datasetSpec.datasetID,missingFiles)
+                if not tmpSt:
+                    tmpLog.error('failed to set missing files in {0}'.format(datasetSpec.datasetName))
+                    return retError
+        tmpLog.debug('done findMisingFiles')
+        return self.SC_SUCCEEDED
+            

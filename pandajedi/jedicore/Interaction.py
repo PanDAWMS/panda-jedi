@@ -26,10 +26,16 @@ class StatusCode(object):
 
     # comparator
     def __eq__(self,other):
-        return self.value == other.value
+        try:
+            return self.value == other.value
+        except:
+            return False
 
     def __ne__(self,other):
-        return self.value != other.value
+        try:
+            return self.value != other.value
+        except:
+            return True
 
 
     

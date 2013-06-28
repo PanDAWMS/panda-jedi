@@ -472,7 +472,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "WHERE rownum <= %s" % nFiles
             # begin transaction
             self.conn.begin()
-            self.cur.arraysize = 10000
+            self.cur.arraysize = 100000
             # get existing file list
             self.cur.execute(sql+comment,varMap)
             tmpResList = self.cur.fetchall()
@@ -627,6 +627,55 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 datasetSpec = None
             tmpLog.debug('done')
             return True,datasetSpec
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return failedRet
+
+
+
+    # get JEDI datasets with jediTaskID
+    def getDatasetsWithJediTaskID_JEDI(self,jediTaskID,datasetTypes=None):
+        comment = ' /* JediDBProxy.getDatasetsWithJediTaskID_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0} datasetTypes={1}>'.format(jediTaskID,datasetTypes)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        # return value for failure
+        failedRet = False,None
+        try:
+            # sql
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            sql  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
+            sql += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            if datasetTypes != None:
+                sql += "AND type IN ("
+                for tmpType in datasetTypes:
+                    mapKey = ':type_'+tmpType
+                    varMap[mapKey] = tmpType
+                    sql += "{0},".format(mapKey)
+                sql = sql[:-1]
+                sql += ") "
+            # begin transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            # select
+            self.cur.execute(sql+comment,varMap)
+            tmpResList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # make file specs
+            datasetSpecList = []
+            for tmpRes in tmpResList:
+                datasetSpec = JediDatasetSpec()
+                datasetSpec.pack(tmpRes)
+                datasetSpecList.append(datasetSpec)
+            tmpLog.debug('done with {0} datasets'.format(len(datasetSpecList)))
+            return True,datasetSpecList
         except:
             # roll back
             self._rollback()
@@ -1745,6 +1794,54 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('done')
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
+
+
+
+    # set missing files
+    def setMissingFiles_JEDI(self,jediTaskID,datasetID,fileIDs):
+        comment = ' /* JediDBProxy.setMissingFiles_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0} datasetID={1}>'.format(jediTaskID,datasetID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to set missing files
+            sqlF  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
+            sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID and status<>:nStatus"
+            # sql to set nFilesFailed
+            sqlD  = "UPDATE {0}.JEDI_Datasets SET nFilesFailed=nFilesFailed+:nFileRow ".format(jedi_config.db.schemaJEDI)
+            sqlD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID " 
+            # begin transaction
+            self.conn.begin()
+            nFileRow = 0
+            # update contents
+            for fileID in fileIDs:
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':datasetID']  = datasetID
+                varMap[':fileID']     = fileID
+                varMap[':nStatus']    = 'missing'
+                self.cur.execute(sqlF+comment,varMap)
+                nRow = self.cur.rowcount
+                nFileRow += nRow
+            # update dataset
+            if nFileRow > 0:
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':datasetID']  = datasetID
+                varMap[':nFileRow']   = nFileRow
+                self.cur.execute(sqlD+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done set {0} missing files'.format(nFileRow))
             return True
         except:
             # roll back

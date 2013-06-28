@@ -146,7 +146,7 @@ class AtlasDDMClient(DDMClientBase):
 
                         
     # get available files
-    def getAvailableFiles(self,datasetSpec,siteEndPointMap,siteMapper,ngGroup=[]):
+    def getAvailableFiles(self,datasetSpec,siteEndPointMap,siteMapper,ngGroup=[],checkLFC=False):
         # make logger
         methodName = 'getAvailableFiles'
         methodName += ' <datasetID={0}>'.format(datasetSpec.datasetID)
@@ -255,7 +255,7 @@ class AtlasDDMClient(DDMClientBase):
                     tmpSePath = re.sub('(:\d+)*/srm/[^\?]+\?SFN=','',tmpSePath)
                     tmpStoragePathMap[tmpSePath] = {'siteName':siteName,'storageType':storageType}
                 # add to map to trigger LFC scan if complete replica is missing at the site
-                if not siteHasCompleteReplica:
+                if not siteHasCompleteReplica or checkLFC:
                     for tmpKey,tmpVal in tmpLfcSeMap.iteritems():
                         if not lfcSeMap.has_key(tmpKey):
                             lfcSeMap[tmpKey] = []
@@ -297,10 +297,11 @@ class AtlasDDMClient(DDMClientBase):
                         # add to cached file list
                         returnMap[siteName]['cache'].append(tmpFileSpec)
                 # complete replicas
-                for tmpEndPoint in allEndPointList:
-                    if completeReplicaMap.has_key(tmpEndPoint):
-                        storageType = completeReplicaMap[tmpEndPoint]
-                        returnMap[siteName][storageType] += datasetSpec.Files
+                if not checkLFC:        
+                    for tmpEndPoint in allEndPointList:
+                        if completeReplicaMap.has_key(tmpEndPoint):
+                            storageType = completeReplicaMap[tmpEndPoint]
+                            returnMap[siteName][storageType] += datasetSpec.Files
             # loop over all available LFNs
             avaLFNs = surlMap.keys()
             avaLFNs.sort()

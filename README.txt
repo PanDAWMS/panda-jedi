@@ -1,5 +1,8 @@
 Release Note
 
+* 6/28/2013
+  * added missing file remover to AtlasProdTaskBroker 
+
 * 6/25/2013
   * fixed JG to take maxNumJob into account
   * added reniceJEDI

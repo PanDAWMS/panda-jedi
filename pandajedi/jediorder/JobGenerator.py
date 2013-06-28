@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import socket
+import random
 import datetime
 
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
@@ -66,6 +67,7 @@ class JobGenerator (JediKnight):
                         if not tmpSt:
                             raise RuntimeError,'failed to get job statistics'
                         # loop over all clouds
+                        random.shuffle(self.cloudList)
                         for cloudName in self.cloudList:
                             # loop over all work queues
                             workQueueList = workQueueMapper.getQueueListWithVoType(vo,prodSourceLabel)

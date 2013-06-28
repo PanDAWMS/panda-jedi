@@ -125,6 +125,27 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # get JEDI datasets with jediTaskID
+    def getDatasetsWithJediTaskID_JEDI(self,jediTaskID,datasetTypes=None,getFiles=False):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retStat,datasetSpecList = proxy.getDatasetsWithJediTaskID_JEDI(jediTaskID,datasetTypes=datasetTypes)
+        if retStat == True and getFiles == True:
+            for datasetSpec in datasetSpecList:
+                # read files
+                retStat,fileSpecList = proxy.getFilesInDatasetWithID_JEDI(jediTaskID,datasetSpec.datasetID,None,None)
+                if retStat == False:
+                    break
+                for fileSpec in fileSpecList:
+                    datasetSpec.addFile(fileSpec)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retStat,datasetSpecList
+
+
+
     # insert task to the JEDI tasks table
     def insertTask_JEDI(self,taskSpec):
         # get DBproxy
@@ -352,6 +373,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.resetUnusedFiles_JEDI(jediTaskID,inputChunk)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # set missing files
+    def setMissingFiles_JEDI(self,jediTaskID,datasetID,fileIDs):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.setMissingFiles_JEDI(jediTaskID,datasetID,fileIDs)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
