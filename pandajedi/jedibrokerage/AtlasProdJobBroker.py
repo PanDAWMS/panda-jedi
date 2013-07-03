@@ -346,10 +346,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             nPilot = 0
             if nWNmap.has_key(tmpSiteName):
                 nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
-            if nPilot == 0:
+            if nPilot == 0 and not taskSpec.prodSourceLabel in ['test']:
                 tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
-                # FIXME only for INTR where SiteData is not updated correctly 
-                #continue
+                continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList        
         tmpLog.debug('{0} candidates passed pilot activity check'.format(len(scanSiteList)))

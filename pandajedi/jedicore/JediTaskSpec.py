@@ -109,12 +109,13 @@ class JediTaskSpec(object):
 
 
     # return column names for INSERT
-    def columnNames(cls):
+    def columnNames(cls,prefix=None):
         ret = ""
         for attr in cls.attributes:
-            if ret != "":
-                ret += ','
-            ret += attr
+            if prefix != None:
+                ret += '{0}.'.format(prefix)
+            ret += '{0},'.format(attr)
+        ret = ret[:-1]
         return ret
     columnNames = classmethod(columnNames)
 

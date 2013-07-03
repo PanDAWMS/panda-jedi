@@ -120,7 +120,7 @@ class JediMaster:
                 proc = multiprocessing.Process(target=self.launcher,
                                                args=('pandajedi.jediorder.JobGenerator',
                                                      child_conn,taskBufferIF,ddmIF,
-                                                     vo,plabel,cloud,False,False))
+                                                     vo,plabel,cloud,True,True))
                 proc.start()
                 knightList.append(proc)
         # setup PostProcessor

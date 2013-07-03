@@ -1,5 +1,8 @@
 Release Note
 
+* 7/3/2013
+  * alpha version 
+
 * 6/28/2013
   * added missing file remover to AtlasProdTaskBroker 
 

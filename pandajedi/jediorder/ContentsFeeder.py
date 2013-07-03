@@ -162,6 +162,8 @@ class ContentsFeederThread (WorkerThread):
                                     allUpdated = False
                                 else:
                                     # the number of events per file
+                                    nEventsPerFile = None
+                                    nEventsPerJob  = None
                                     if (datasetSpec.isMaster() and taskParamMap.has_key('nEventsPerFile')) or \
                                             (datasetSpec.isPseudo() and taskParamMap.has_key('nEvents')):
                                         if taskParamMap.has_key('nEventsPerFile'):
@@ -171,10 +173,9 @@ class ContentsFeederThread (WorkerThread):
                                             nEventsPerFile = taskParamMap['nEvents']
                                         if taskParamMap.has_key('nEventsPerJob'):
                                             nEventsPerJob = taskParamMap['nEventsPerJob']
-                                    else:
-                                        nEventsPerFile = None
-                                        nEventsPerJob  = None
                                     # max attempts and first event number
+                                    maxAttempt = None
+                                    firstEventNumber = None
                                     if datasetSpec.isMaster():
                                         # max attempts 
                                         if taskParamMap.has_key('maxAttempt'):
@@ -184,15 +185,12 @@ class ContentsFeederThread (WorkerThread):
                                             maxAttempt = 5
                                         # first event number
                                         firstEventNumber = taskSpec.getFirstEventOffset()
-                                    else:
-                                        maxAttempt = None
-                                        firstEventNumber = None
                                     # nMaxEvents
+                                    nMaxEvents = None 
                                     if datasetSpec.isMaster() and taskParamMap.has_key('nEvents'):
                                         nMaxEvents = taskParamMap['nEvents']
-                                    else:
-                                        nMaxEvents = None 
                                     # nMaxFiles
+                                    nMaxFiles = None
                                     if taskParamMap.has_key('nFiles'):
                                         if datasetSpec.isMaster():
                                             nMaxFiles = taskParamMap['nFiles']
@@ -203,8 +201,6 @@ class ContentsFeederThread (WorkerThread):
                                                 if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
                                                     nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerJob'])
                                                     nMaxFiles = int(math.ceil(nMaxFiles))
-                                    else:
-                                        nMaxFiles = None
                                     # use scout
                                     useScout = False    
                                     if datasetSpec.isMaster() and not taskParamMap.has_key('skipScout'):

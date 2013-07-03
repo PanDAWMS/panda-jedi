@@ -1054,7 +1054,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         failedRet = None
         try:
             # sql
-            sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames('tabD'))
+            sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames('tabT'))
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlRT += "AND tabT.status=:status "
@@ -2565,7 +2565,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get tasks/datasets
             if simTasks == None:
                 varMap = {}
-                varMap[':type']         = 'input'
+                for tmpType in JediDatasetSpec.getInputTypes():
+                    mapKey = ':type_'+tmpType
+                    varMap[mapKey] = tmpType
                 varMap[':taskstatus1']  = 'running'
                 varMap[':taskstatus2']  = 'scouting'
                 varMap[':taskstatus3']  = 'merging'
@@ -2586,7 +2588,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "AND tabT.lockedBy IS NULL AND NOT EXISTS "
                 sql += '(SELECT 1 FROM {0}.JEDI_Datasets tabD '.format(jedi_config.db.schemaJEDI)
                 sql += 'WHERE tabD.jediTaskID=tabT.jediTaskID AND masterID IS NULL '
-                sql += 'AND type=:type AND NOT status IN (:dsEndStatus1,:dsEndStatus2) '
+                sql += 'AND type IN ('
+                for tmpType in JediDatasetSpec.getInputTypes():
+                    mapKey = ':type_'+tmpType
+                    sql += '{0},'.format(mapKey)
+                sql  = sql[:-1]
+                sql += ') AND NOT status IN (:dsEndStatus1,:dsEndStatus2) '
                 sql += 'AND (nFilesToBeUsed<>nFilesUsed OR nFilesUsed=0 OR nFilesUsed>nFilesFinished+nFilesFailed)) '
                 sql += 'AND rownum<={0}'.format(nTasks)
             else:

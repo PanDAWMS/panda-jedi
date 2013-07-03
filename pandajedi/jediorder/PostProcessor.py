@@ -53,10 +53,10 @@ class PostProcessor (JediKnight):
                         tmpLog.info('getting tasks to be finished') 
                         criteria = {}
                         criteria['status'] = 'prepared'
-                        if self.vo != None:
-                            criteria['vo'] = self.vo
-                        if self.prodSourceLabel != None:
-                            criteria['prodSourceLabel'] = self.prodSourceLabel
+                        if vo != None:
+                            criteria['vo'] = vo
+                        if prodSourceLabel != None:
+                            criteria['prodSourceLabel'] = prodSourceLabel
                         tmpList = self.taskBufferIF.getTasksToBeFinished_JEDI(vo,prodSourceLabel,self.pid,
                                                                               jedi_config.postprocessor.nTasks)
                         if tmpList == None: 
