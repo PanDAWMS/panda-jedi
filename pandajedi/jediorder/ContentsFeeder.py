@@ -22,7 +22,9 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 # worker class to take care of DatasetContents table
 class ContentsFeeder (JediKnight):
     # constructor
-    def __init__(self,commuChannel,taskBufferIF,ddmIF):
+    def __init__(self,commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels):
+        self.vos = self.parseInit(vos)
+        self.prodSourceLabels = self.parseInit(prodSourceLabels)
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
 
 
@@ -34,25 +36,29 @@ class ContentsFeeder (JediKnight):
         while True:
             startTime = datetime.datetime.utcnow()
             try:
-                # get the list of datasets to feed contents to DB
-                tmpList = self.taskBufferIF.getDatasetsToFeedContents_JEDI()
-                if tmpList == None:
-                    # failed
-                    logger.error('failed to get the list of datasets to feed contents')
-                else:
-                    logger.debug('got %s datasets' % len(tmpList))
-                    # put to a locked list
-                    dsList = ListWithLock(tmpList)
-                    # make thread pool
-                    threadPool = ThreadPool() 
-                    # make workers
-                    nWorker = jedi_config.confeeder.nWorkers
-                    for iWorker in range(nWorker):
-                        thr = ContentsFeederThread(dsList,threadPool,
-                                                   self.taskBufferIF,self.ddmIF)
-                        thr.start()
-                    # join
-                    threadPool.join()
+                # loop over all vos
+                for vo in self.vos:
+                    # loop over all sourceLabels
+                    for prodSourceLabel in self.prodSourceLabels:
+                        # get the list of datasets to feed contents to DB
+                        tmpList = self.taskBufferIF.getDatasetsToFeedContents_JEDI(vo,prodSourceLabel)
+                        if tmpList == None:
+                            # failed
+                            logger.error('failed to get the list of datasets to feed contents')
+                        else:
+                            logger.debug('got %s datasets' % len(tmpList))
+                            # put to a locked list
+                            dsList = ListWithLock(tmpList)
+                            # make thread pool
+                            threadPool = ThreadPool() 
+                            # make workers
+                            nWorker = jedi_config.confeeder.nWorkers
+                            for iWorker in range(nWorker):
+                                thr = ContentsFeederThread(dsList,threadPool,
+                                                           self.taskBufferIF,self.ddmIF)
+                                thr.start()
+                            # join
+                            threadPool.join()
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('failed in %s.start() with %s %s' % (self.__class__.__name__,errtype.__name__,errvalue))
@@ -205,6 +211,8 @@ class ContentsFeederThread (WorkerThread):
                                     useScout = False    
                                     if datasetSpec.isMaster() and not taskParamMap.has_key('skipScout'):
                                         useScout = True
+                                    # get file list
+                                    fileList = RefinerUtils.extractFileList(taskParamMap,datasetSpec.datasetName)   
                                     # feed files to the contents table
                                     tmpLog.info('update contents')
                                     retDB = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
@@ -216,7 +224,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                          firstEventNumber,
                                                                                          nMaxFiles,
                                                                                          nMaxEvents,
-                                                                                         useScout)
+                                                                                         useScout,
+                                                                                         fileList)
                                     if retDB == False:
                                         datasetStatus = 'pending'
                                         # update dataset status    
@@ -252,6 +261,6 @@ class ContentsFeederThread (WorkerThread):
 
 ########## lauch 
                 
-def launcher(commuChannel,taskBufferIF,ddmIF):
-    p = ContentsFeeder(commuChannel,taskBufferIF,ddmIF)
+def launcher(commuChannel,taskBufferIF,ddmIF,vos=None,prodSourceLabels=None):
+    p = ContentsFeeder(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels)
     p.start()

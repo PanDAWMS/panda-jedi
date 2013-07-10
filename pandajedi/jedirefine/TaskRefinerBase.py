@@ -30,6 +30,7 @@ class TaskRefinerBase (object):
         self.cloudName = None
         self.siteName = None
         self.tmpLog = tmpLog
+        self.updatedTaskParams = None
 
 
 
@@ -37,8 +38,8 @@ class TaskRefinerBase (object):
     def setJobParamsTemplate(self,jobParamsTemplate):
         self.jobParamsTemplate = jobParamsTemplate
 
-        
-        
+
+    
     # extract common parameters
     def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper):
         # make task spec
@@ -178,12 +179,12 @@ class TaskRefinerBase (object):
                                           'filenameTemplate' : outFileTemplate,
                                           'outtype' : datasetSpec.type,
                                           }
-                        if self.outputTemplateMap.has_key(datasetSpec.datasetName):
+                        if self.outputTemplateMap.has_key(datasetSpec.outputMapKey()):
                             # multiple files are associated to the same output datasets
-                            self.outputTemplateMap[datasetSpec.datasetName].append(outTemplateMap)
+                            self.outputTemplateMap[datasetSpec.outputMapKey()].append(outTemplateMap)
                             # don't insert the same output dataset
                             continue
-                        self.outputTemplateMap[datasetSpec.datasetName] = [outTemplateMap]
+                        self.outputTemplateMap[datasetSpec.outputMapKey()] = [outTemplateMap]
                     # append
                     self.outDatasetSpecList.append(datasetSpec)
         # make job parameters

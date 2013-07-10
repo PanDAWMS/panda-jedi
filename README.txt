@@ -1,5 +1,8 @@
 Release Note
 
+* 7/10/2013
+  * added FileRecovery
+
 * 7/3/2013
   * alpha version 
 

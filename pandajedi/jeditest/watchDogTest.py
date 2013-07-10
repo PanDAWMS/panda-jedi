@@ -15,5 +15,6 @@ from pandajedi.jediorder import WatchDog
 parent_conn, child_conn = multiprocessing.Pipe()
 
 watchDog = multiprocessing.Process(target=WatchDog.launcher,
-                                   args=(child_conn,tbIF,ddmIF))
+                                   args=(child_conn,tbIF,ddmIF,
+                                         'atlas','test'))
 watchDog.start()

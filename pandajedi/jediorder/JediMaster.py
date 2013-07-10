@@ -99,13 +99,19 @@ class JediMaster:
                 proc.start()
                 knightList.append(proc)
         # setup ContentsFeeder
-        for iproc in range(jedi_config.confeeder.nProc):
-            parent_conn, child_conn = multiprocessing.Pipe()
-            proc = multiprocessing.Process(target=self.launcher,
-                                           args=('pandajedi.jediorder.ContentsFeeder',
-                                                 child_conn,taskBufferIF,ddmIF))
-            proc.start()
-            knightList.append(proc)
+        for itemStr in jedi_config.confeeder.procConfig.split(';'):
+            items = self.convParams(itemStr)
+            vo     = items[0]
+            plabel = items[1]
+            nProc  = items[2]
+            for iproc in range(nProc):
+                parent_conn, child_conn = multiprocessing.Pipe()
+                proc = multiprocessing.Process(target=self.launcher,
+                                               args=('pandajedi.jediorder.ContentsFeeder',
+                                                     child_conn,taskBufferIF,ddmIF,
+                                                     vo,plabel))
+                proc.start()
+                knightList.append(proc)
         # setup JobGenerator
         for itemStr in jedi_config.jobgen.procConfig.split(';'):
             items = self.convParams(itemStr)

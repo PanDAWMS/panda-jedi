@@ -74,8 +74,8 @@ voWithScope = atlas
 
 [confeeder]
 
-# number of processes
-nProc = 1
+# process config
+procConfig = atlas:managed:1
 
 # number of workers
 nWorkers = 5

@@ -44,11 +44,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get the list of datasets to feed contents to DB
-    def getDatasetsToFeedContents_JEDI(self):
+    def getDatasetsToFeedContents_JEDI(self,vo=None,prodSourceLabel=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # get
-        retVal = proxy.getDatasetsToFeedContents_JEDI()
+        retVal = proxy.getDatasetsToFeedContents_JEDI(vo,prodSourceLabel)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -59,13 +59,14 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     # feed files to the JEDI contents table
     def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
-                                   nMaxFiles,nMaxEvents,useScout):
+                                   nMaxFiles,nMaxEvents,useScout,fileList):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.insertFilesForDataset_JEDI(datasetSpec,fileMap,datasetState,stateUpdateTime,
                                                   nEventsPerFile,nEventsPerJob,maxAttempt,
-                                                  firstEventNumber,nMaxFiles,nMaxEvents,useScout)
+                                                  firstEventNumber,nMaxFiles,nMaxEvents,
+                                                  useScout,fileList)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -474,13 +475,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     # register task/dataset/templ/param in a single transaction
     def registerTaskInOneShot_JEDI(self,jediTaskID,taskSpec,inMasterDatasetSpec,
                                    inSecDatasetSpecList,outDatasetSpecList,
-                                   outputTemplateMap,jobParamsTemplate):
+                                   outputTemplateMap,jobParamsTemplate,taskParams):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.registerTaskInOneShot_JEDI(jediTaskID,taskSpec,inMasterDatasetSpec,
                                                   inSecDatasetSpecList,outDatasetSpecList,
-                                                  outputTemplateMap,jobParamsTemplate)
+                                                  outputTemplateMap,jobParamsTemplate,taskParams)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -585,6 +586,58 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getPandaIDsWithTask_JEDI(jediTaskID,onlyActive)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get jediTaskID/datasetID/FileID with dataset and file names
+    def getIDsWithFileDataset_JEDI(self,datasetName,fileName,fileType):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getIDsWithFileDataset_JEDI(datasetName,fileName,fileType)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get PandaID for a file
+    def getPandaIDWithFileID_JEDI(self,jediTaskID,datasetID,fileID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getPandaIDWithFileID_JEDI(jediTaskID,datasetID,fileID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get JEDI files for a job
+    def getFilesWithPandaID_JEDI(self,pandaID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getFilesWithPandaID_JEDI(pandaID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # update task parameters
+    def updateTaskParams_JEDI(self,jediTaskID,taskParams):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.updateTaskParams_JEDI(jediTaskID,taskParams)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

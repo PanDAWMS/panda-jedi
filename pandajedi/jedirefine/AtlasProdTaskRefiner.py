@@ -15,10 +15,10 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
 
 
     # main
-    def doRefine(self,jediTaskID,taskType,taskParamMap):
+    def doRefine(self,jediTaskID,taskParamMap):
         # make logger
         tmpLog = self.tmpLog
-        tmpLog.debug('start taskType={0}'.format(taskType))
+        tmpLog.debug('start taskType={0}'.format(self.taskSpec.taskType))
         try:
             self.doBasicRefine(taskParamMap)
             # set nosplit+repeat for DBR

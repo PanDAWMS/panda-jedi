@@ -15,5 +15,6 @@ from pandajedi.jediorder import TaskCommando
 parent_conn, child_conn = multiprocessing.Pipe()
 
 taskCommando = multiprocessing.Process(target=TaskCommando.launcher,
-                                       args=(child_conn,tbIF,ddmIF))
+                                       args=(child_conn,tbIF,ddmIF,
+                                             'atlas','test'))
 taskCommando.start()

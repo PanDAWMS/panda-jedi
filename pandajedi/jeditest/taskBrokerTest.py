@@ -16,5 +16,5 @@ parent_conn, child_conn = multiprocessing.Pipe()
 
 taskBroker = multiprocessing.Process(target=TaskBroker.launcher,
                                      args=(child_conn,tbIF,ddmIF,
-                                           'atlas','managed'))
+                                           'atlas','test'))
 taskBroker.start()

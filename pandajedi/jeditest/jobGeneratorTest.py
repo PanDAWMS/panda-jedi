@@ -15,6 +15,6 @@ from pandajedi.jediorder import JobGenerator
 parent_conn, child_conn = multiprocessing.Pipe()
 
 gen = multiprocessing.Process(target=JobGenerator.launcher,
-                              args=(child_conn,tbIF,ddmIF,'atlas','managed',['US'],
+                              args=(child_conn,tbIF,ddmIF,'atlas','test',['US'],
                                     False,False))
 gen.start()

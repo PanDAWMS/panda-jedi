@@ -15,5 +15,6 @@ from pandajedi.jediorder import ContentsFeeder
 parent_conn, child_conn = multiprocessing.Pipe()
 
 contentsFeeder = multiprocessing.Process(target=ContentsFeeder.launcher,
-                                                args=(child_conn,tbIF,ddmIF))
+                                                args=(child_conn,tbIF,ddmIF,
+                                                      'atlas','test'))
 contentsFeeder.start()

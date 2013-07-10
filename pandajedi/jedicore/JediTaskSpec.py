@@ -56,6 +56,19 @@ class JediTaskSpec(object):
             self._changedAttrs[name] = value
 
 
+    # copy old attributes
+    def copyAttributes(self,oldTaskSpec):
+        for attr in self.attributes + ('jobParamsTemplate',):
+            if 'Time' in attr:
+                continue
+            if 'Date' in attr:
+                continue
+            if attr in ['progress','failureRate','errorDialog',
+                        'status','oldStatus','lockedBy']:
+                continue
+            self.__setattr__(attr,getattr(oldTaskSpec,attr))
+            
+        
     # reset changed attribute list
     def resetChangedList(self):
         object.__setattr__(self,'_changedAttrs',{})

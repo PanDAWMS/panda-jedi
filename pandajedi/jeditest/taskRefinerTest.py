@@ -15,5 +15,6 @@ from pandajedi.jediorder import TaskRefiner
 parent_conn, child_conn = multiprocessing.Pipe()
 
 taskRefiner = multiprocessing.Process(target=TaskRefiner.launcher,
-                                      args=(child_conn,tbIF,ddmIF))
+                                      args=(child_conn,tbIF,ddmIF,
+                                            'atlas','test'))
 taskRefiner.start()

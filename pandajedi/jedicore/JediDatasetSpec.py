@@ -268,3 +268,11 @@ class JediDatasetSpec(object):
             retVal = float(num) * ratioVal
             retVal = int(math.ceil(retVal))
         return retVal
+
+
+
+    # unique map key for output
+    def outputMapKey(self):
+        mapKey = '{0}#{1}'.format(self.datasetName,self.provenanceID)
+        return mapKey
+

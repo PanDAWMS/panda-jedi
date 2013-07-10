@@ -26,6 +26,7 @@ class FactoryBase:
         self.logger = MsgWrapper(logger,_factoryModuleName)
         self.implMap = {}
         self.className = None
+        self.classMap = {}
         
 
     # initialize all modules
@@ -40,6 +41,10 @@ class FactoryBase:
                 sourceLabels = items[1].split('|')
                 moduleName   = items[2]
                 className    = items[3]
+                try:
+                    subTypes = items[4].split('|')
+                except:
+                    subTypes = ['any']
             except:
                 self.logger('wrong config definition : {0}'.format(configStr))
                 continue
@@ -58,29 +63,37 @@ class FactoryBase:
                             not None in self.sourceLabels and \
                             not 'any' in self.sourceLabels:
                         continue
-                    # import
-                    try:
-                        # import module
-                        mod = __import__(moduleName)
-                        for subModuleName in moduleName.split('.')[1:]:
-                            mod = getattr(mod,subModuleName)
-                        # get class
-                        cls = getattr(mod,className)
-                        # instantiate
-                        impl = cls(*args)
-                        # append
-                        if not self.implMap.has_key(vo):
-                            self.implMap[vo] = {}
-                        self.implMap[vo][sourceLabel] = impl
-                    except:
-                        errtype,errvalue = sys.exc_info()[:2]
-                        self.logger.error('failed to import impl due to {0} {1}'.format(errtype.__name__,errvalue))
+                    # loop over all sub types
+                    for subType in subTypes:
+                        # import
+                        try:
+                            # import module
+                            mod = __import__(moduleName)
+                            for subModuleName in moduleName.split('.')[1:]:
+                                mod = getattr(mod,subModuleName)
+                            # get class
+                            cls = getattr(mod,className)
+                            # instantiate
+                            impl = cls(*args)
+                            # append
+                            if not self.implMap.has_key(vo):
+                                self.implMap[vo] = {}
+                                self.classMap[vo] = {}
+                            if not self.implMap[vo].has_key(sourceLabel):
+                                self.implMap[vo][sourceLabel] = {}
+                                self.classMap[vo][sourceLabel] = {}
+                            self.implMap[vo][sourceLabel][subType] = impl
+                            self.classMap[vo][sourceLabel][subType] = cls
+                        except:
+                            errtype,errvalue = sys.exc_info()[:2]
+                            self.logger.error('failed to import impl due to {0} {1}'.format(errtype.__name__,errvalue))
         # return
         return True
 
 
     # get implementation for vo and sourceLabel. Only work with initializeMods()
-    def getImpl(self,vo,sourceLabel):
+    def getImpl(self,vo,sourceLabel,subType='any'):
+        # check VO
         if self.implMap.has_key(vo):
             # match VO
             voImplMap = self.implMap[vo]
@@ -89,12 +102,53 @@ class FactoryBase:
             voImplMap =self.implMap['any']
         else:
             return None
+        # check sourceLabel
         if voImplMap.has_key(sourceLabel):
             # match sourceLabel
-            return voImplMap[sourceLabel]
+            srcImplMap = voImplMap[sourceLabel]
         elif voImplMap.has_key('any'):
             # catch all
-            return voImplMap['any']
+            srcImplMap = voImplMap['any']
+        else:
+            return None
+        # check subType
+        if srcImplMap.has_key(subType):
+            # match subType
+            return srcImplMap[subType]
+        elif srcImplMap.has_key('any'):
+            # catch all
+            return srcImplMap['any']
+        else:
+            return None
+
+
+    # instantiate implementation for vo and sourceLabel. Only work with initializeMods()
+    def instantiateImpl(self,vo,sourceLabel,subType,*args):
+        # check VO
+        if self.classMap.has_key(vo):
+            # match VO
+            voImplMap = self.classMap[vo]
+        elif self.classMap.has_key('any'):
+            # catch all
+            voImplMap =self.classMap['any']
+        else:
+            return None
+        # check sourceLabel
+        if voImplMap.has_key(sourceLabel):
+            # match sourceLabel
+            srcImplMap = voImplMap[sourceLabel]
+        elif voImplMap.has_key('any'):
+            # catch all
+            srcImplMap = voImplMap['any']
+        else:
+            return None
+        # check subType
+        if srcImplMap.has_key(subType):
+            # match subType
+            return srcImplMap[subType](*args)
+        elif srcImplMap.has_key('any'):
+            # catch all
+            return srcImplMap['any'](*args)
         else:
             return None
             

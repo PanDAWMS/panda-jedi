@@ -21,8 +21,14 @@ def unicodeConvert(input):
 
 
 # decode
-def decodeJSON(input):
-    return json.loads(input,object_hook=unicodeConvert)
+def decodeJSON(inputStr):
+    return json.loads(inputStr,object_hook=unicodeConvert)
+
+
+
+# encode
+def encodeJSON(inputMap):
+    return json.dumps(inputMap)
 
 
 
@@ -40,4 +46,35 @@ def extractReplaceOutFileTemplate(valStr,streamName):
     outFileTempl = valStr.split('=')[-1]
     valStr = valStr.replace(outFileTempl,'${{{0}}}'.format(streamName))
     return outFileTempl,valStr
+
+
+
+# extract file list
+def extractFileList(taskParamMap,datasetName):
+    itemList = taskParamMap['jobParameters'] + [taskParamMap['log']]
+    for tmpItem in itemList:
+        if tmpItem['type'] == 'template' and tmpItem.has_key('dataset') and \
+                tmpItem['dataset'] == datasetName:
+            if tmpItem.has_key('files'):
+                return tmpItem['files']
+            else:
+                return []
+
+
+
+# append dataset
+def appendDataset(taskParamMap,datasetSpec,fileList):
+    # make item for dataset
+    tmpItem = {}
+    tmpItem['type']       = 'template'
+    tmpItem['value']      = ''
+    tmpItem['dataset']    = datasetSpec.datasetName
+    tmpItem['param_type'] = datasetSpec.type
+    if fileList != []:
+        tmpItem['files']  = fileList
+    # append    
+    if not taskParamMap.has_key('jobParameters'):
+        taskParamMap['jobParameters'] = []
+    taskParamMap['jobParameters'].append(tmpItem)
+    return taskParamMap
 

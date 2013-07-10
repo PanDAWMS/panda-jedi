@@ -64,6 +64,7 @@ class TaskRefiner (JediKnight,FactoryBase):
                             for iWorker in range(nWorker):
                                 thr = TaskRefinerThread(taskList,threadPool,
                                                         self.taskBufferIF,
+                                                        self.ddmIF,
                                                         self,workQueueMapper)
                                 thr.start()
                             # join
@@ -84,12 +85,13 @@ class TaskRefiner (JediKnight,FactoryBase):
 class TaskRefinerThread (WorkerThread):
 
     # constructor
-    def __init__(self,taskList,threadPool,taskbufferIF,implFactory,workQueueMapper):
+    def __init__(self,taskList,threadPool,taskbufferIF,ddmIF,implFactory,workQueueMapper):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
         self.taskList = taskList
         self.taskBufferIF = taskbufferIF
+        self.ddmIF = ddmIF
         self.implFactory = implFactory
         self.workQueueMapper = workQueueMapper
 
@@ -126,8 +128,10 @@ class TaskRefinerThread (WorkerThread):
                             # get VO and sourceLabel                            
                             vo = taskParamMap['vo']
                             prodSourceLabel = taskParamMap['prodSourceLabel']
+                            taskType = taskParamMap['taskType']
                             # get impl
-                            impl = self.implFactory.getImpl(vo,prodSourceLabel)
+                            impl = self.implFactory.instantiateImpl(vo,prodSourceLabel,taskType,
+                                                                    self.taskBufferIF,self.ddmIF)
                             if impl == None:
                                 # task refiner is undefined
                                 tmpLog.error('task refiner is undefined for vo={0} sourceLabel={1}'.format(vo,prodSourceLabel))
@@ -152,7 +156,7 @@ class TaskRefinerThread (WorkerThread):
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         tmpLog.info('refining with {0}'.format(impl.__class__.__name__))
                         try:
-                            tmpStat = impl.doRefine(impl.taskSpec.jediTaskID,impl.taskSpec.taskType,taskParamMap)
+                            tmpStat = impl.doRefine(jediTaskID,taskParamMap)
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -166,12 +170,16 @@ class TaskRefinerThread (WorkerThread):
                         tmpLog.info('registering')                    
                         # fill JEDI tables
                         try:
+                            strTaskParams = None
+                            if impl.updatedTaskParams != None:
+                                strTaskParams = RefinerUtils.encodeJSON(impl.updatedTaskParams)
                             tmpStat = self.taskBufferIF.registerTaskInOneShot_JEDI(jediTaskID,impl.taskSpec,
                                                                                    impl.inMasterDatasetSpec,
                                                                                    impl.inSecDatasetSpecList,
                                                                                    impl.outDatasetSpecList,
                                                                                    impl.outputTemplateMap,
-                                                                                   impl.jobParamsTemplate)
+                                                                                   impl.jobParamsTemplate,
+                                                                                   strTaskParams) 
                             if not tmpStat:
                                 tmpLog.error('failed to register the task to JEDI')
                         except:
