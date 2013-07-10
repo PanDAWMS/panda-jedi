@@ -143,6 +143,16 @@ class InputChunk:
     
         
 
+    # use scout
+    def useScout(self):
+        if self.masterDataset != None and \
+                self.masterDataset.nFiles > self.masterDataset.nFilesToBeUsed:
+            return True
+        return False
+
+
+
+
     # get subchunk with a selection criteria
     def getSubChunk(self,siteName,maxNumFiles=None,maxSize=None,
                     sizeGradients=0,sizeIntercepts=0,

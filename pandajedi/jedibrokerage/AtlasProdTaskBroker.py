@@ -57,7 +57,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
             if not tmpCloud in ['NULL','',None]:
                 tmpLog.debug('reqID={0} jediTaskID={1} -> {2}'.format(tmpReqID,reqIdTaskIdMap[tmpReqID],tmpCloud))
                 # check file availability
-                tmpSt = self.findMisingFiles(reqIdTaskIdMap[tmpReqID],tmpCloud)
+                tmpSt = self.findMissingFiles(reqIdTaskIdMap[tmpReqID],tmpCloud)
                 if tmpSt != self.SC_SUCCEEDED:
                     tmpLog.error('failed to check file availability for jediTaskID={0}'.format(reqIdTaskIdMap[tmpReqID]))
                     continue
@@ -92,7 +92,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
             jobSpec = JobSpec()
             jobSpec.taskID     = taskSpec.reqID
             jobSpec.jediTaskID = taskSpec.jediTaskID
-            jobSpec.prodSourceLabel  = taskSpec.prodSourceLabel
+            jobSpec.prodSourceLabel  = 'validation'
             jobSpec.processingType   = taskSpec.processingType
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.metadata         = taskSpec.processingType
@@ -164,9 +164,9 @@ class AtlasProdTaskBroker (TaskBrokerBase):
 
 
     # check file availability
-    def findMisingFiles(self,jediTaskID,cloudName):
+    def findMissingFiles(self,jediTaskID,cloudName):
         tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(jediTaskID))
-        tmpLog.debug('start findMisingFiles')
+        tmpLog.debug('start findMissingFiles')
         # return for failure
         retError = self.SC_FAILED
         # get datasets
@@ -195,7 +195,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
             dataSiteMap = tmpRet
             # data is unavailable in cloud
             if not dataSiteMap.has_key(cloudName):
-                tmpLog.error('{0} is unavailable in cloud={1}'.format(datasetSpec.datasetName,cloudName))
+                tmpLog.error('{0} is unavailable in cloud={1} map={2}'.format(datasetSpec.datasetName,cloudName,str(dataSiteMap)))
                 return retError
             # mapping between sites and storage endpoints
             checkedSites = [self.siteMapper.getCloud(cloudName)['source']]+dataSiteMap[cloudName]['t2']
@@ -233,6 +233,6 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                 if not tmpSt:
                     tmpLog.error('failed to set missing files in {0}'.format(datasetSpec.datasetName))
                     return retError
-        tmpLog.debug('done findMisingFiles')
+        tmpLog.debug('done findMissingFiles')
         return self.SC_SUCCEEDED
             

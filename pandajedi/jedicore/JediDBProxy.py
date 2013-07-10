@@ -243,6 +243,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.fsize        = fileVal['filesize']
                 fileSpec.checksum     = fileVal['checksum']
                 fileSpec.creationDate = timeNow
+                fileSpec.attemptNr    = 0
+                # set maxAttempt only for master
+                if datasetSpec.isMaster():
+                    fileSpec.maxAttempt = maxAttempt
                 # this info will come from Rucio in the future
                 fileSpec.nEvents      = nEventsPerFile
                 # keep track
@@ -1467,6 +1471,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             taskDatasetMap = {}
             jediTaskIDList = []
             for jediTaskID,datasetID,currentPriority,tmpNumFiles in resList:
+                tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2}'.format(jediTaskID,datasetID,tmpNumFiles))
                 # just return the max priority
                 if isPeeking:
                     return currentPriority
@@ -1510,6 +1515,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to update file usage info in dataset
             sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            sqlDU += "RETURNING nFilesUsed,nFilesTobeUsed INTO :newnFilesUsed,:newnFilesTobeUsed "
             # loop over all tasks
             iTasks = 0
             for jediTaskID in jediTaskIDList:
@@ -1673,7 +1679,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     varMap[':jediTaskID'] = jediTaskID
                                     varMap[':datasetID']  = datasetID
                                     varMap[':nFilesUsed'] = nFilesUsed
+                                    varMap[':newnFilesUsed'] = self.cur.var(cx_Oracle.NUMBER)
+                                    varMap[':newnFilesTobeUsed'] = self.cur.var(cx_Oracle.NUMBER)
                                     self.cur.execute(sqlDU+comment,varMap)
+                                    newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
+                                    newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
                                 # set flag if it is a block read
                                 if tmpDatasetSpec.isMaster():
                                     if readBlock:

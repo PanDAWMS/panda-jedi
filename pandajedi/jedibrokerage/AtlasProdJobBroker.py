@@ -47,6 +47,11 @@ class AtlasProdJobBroker (JobBrokerBase):
         # hospital sites
         if self.hospitalQueueMap.has_key(cloudName):
             t1Sites += self.hospitalQueueMap[cloudName]
+        # MP    
+        if taskSpec.coreCount != None and taskSpec.coreCount > 1:
+            useMP = True
+        else:
+            useMP = False
         ######################################
         # selection for status
         newScanSiteList = []
@@ -85,7 +90,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for high priorities
-        if taskSpec.currentPriority >= 950:
+        if taskSpec.currentPriority >= 950 and not useMP:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:            
                 if tmpSiteName in t1Sites:
@@ -168,10 +173,6 @@ class AtlasProdJobBroker (JobBrokerBase):
         pass
         ######################################
         # selection for MP
-        if taskSpec.coreCount != None and taskSpec.coreCount > 1:
-            useMP = True
-        else:
-            useMP = False
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)

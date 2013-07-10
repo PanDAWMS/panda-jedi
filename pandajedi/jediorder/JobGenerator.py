@@ -256,8 +256,7 @@ class JobGeneratorThread (WorkerThread):
                                 statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True)
                                 tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
                             jobsSubmitted = True
-                            if inputChunk.masterDataset != None and \
-                                    inputChunk.masterDataset.nFiles > inputChunk.masterDataset.nFilesToBeUsed:
+                            if inputChunk.useScout():
                                 taskSpec.status = 'scouting'
                             else:
                                 taskSpec.status = 'running'
@@ -284,6 +283,8 @@ class JobGeneratorThread (WorkerThread):
     def doGenerate(self,taskSpec,cloudName,inSubChunkList,inputChunk,tmpLog):
         # return for failure
         failedRet = Interaction.SC_FAILED,None
+        # priority for scout
+        scoutPriority = 900
         try:
             # loop over all sub chunks
             jobSpecList = []
@@ -300,7 +301,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.jobName          = taskSpec.taskName
                     jobSpec.transformation   = taskSpec.transPath
                     jobSpec.cmtConfig        = taskSpec.architecture
-                    jobSpec.homepackage      = taskSpec.transHome
+                    jobSpec.homepackage      = taskSpec.transHome.replace('-','/')
                     jobSpec.homepackage      = re.sub('\r','',jobSpec.homepackage)
                     jobSpec.prodSourceLabel  = taskSpec.prodSourceLabel
                     jobSpec.processingType   = taskSpec.processingType
@@ -321,8 +322,12 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.minRamUnit       = taskSpec.ramUnit
                     jobSpec.coreCount        = taskSpec.coreCount
                     jobSpec.ipConnectivity   = 'yes'
-                    jobSpec.assignedPriority = taskSpec.taskPriority
-                    jobSpec.currentPriority  = taskSpec.currentPriority
+                    if inputChunk.useScout() and taskSpec.taskPriority < scoutPriority:
+                        # give higher priority to scouts
+                        jobSpec.assignedPriority = scoutPriority
+                    else:
+                        jobSpec.assignedPriority = taskSpec.taskPriority
+                    jobSpec.currentPriority  = jobSpec.assignedPriority
                     jobSpec.lockedby         = 'jedi'
                     jobSpec.workQueue_ID     = taskSpec.workQueue_ID
                     # inputs
@@ -404,14 +409,15 @@ class JobGeneratorThread (WorkerThread):
             # collect parameters for event-level split
             if tmpDatasetSpec.isMaster():
                 # skipEvents and firstEvent
-                if len(tmpFileSpecList) > 0 and tmpFileSpecList[0].startEvent != None:
-                    skipEvents = tmpFileSpecList[0].startEvent
+                if len(tmpFileSpecList) > 0:
                     firstEvent = tmpFileSpecList[0].firstEvent
-                    # maxEvents
-                    maxEvents = 0
-                    for tmpFileSpec in tmpFileSpecList:
-                        if tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
-                            maxEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1) 
+                    if tmpFileSpecList[0].startEvent != None:
+                        skipEvents = tmpFileSpecList[0].startEvent
+                        # maxEvents
+                        maxEvents = 0
+                        for tmpFileSpec in tmpFileSpecList:
+                            if tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
+                                maxEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1) 
         # output
         for streamName,tmpFileSpec in outSubChunk.iteritems():
             streamLFNsMap[streamName] = [tmpFileSpec.lfn]
