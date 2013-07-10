@@ -92,7 +92,8 @@ class AtlasProdTaskBroker (TaskBrokerBase):
             jobSpec = JobSpec()
             jobSpec.taskID     = taskSpec.reqID
             jobSpec.jediTaskID = taskSpec.jediTaskID
-            jobSpec.prodSourceLabel  = 'validation'
+            # set managed to trigger TA
+            jobSpec.prodSourceLabel  = 'managed'
             jobSpec.processingType   = taskSpec.processingType
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.metadata         = taskSpec.processingType
