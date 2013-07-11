@@ -1,5 +1,8 @@
 Release Note
 
+* 7/11/2013
+  * fixed getScoutJobData
+
 * 7/10/2013
   * added FileRecovery
 

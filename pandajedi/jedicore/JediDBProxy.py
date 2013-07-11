@@ -2504,17 +2504,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         returnMap = {}
         # sql to get scout job data
-        sqlSCF  = "SELECT fileID,datasetID FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
-        sqlSCF += "jediTaskID=:jediTaskID AND status=:status AND datasetID IN "
-        sqlSCF += "(SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-        sqlSCF += "WHERE jediTaskID=:jediTaskID AND type IN ("
+        sqlSCF  = "SELECT tabF.fileID,tabF.datasetID,tabF.attemptNr "
+        sqlSCF += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
+        sqlSCF += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status "
+        sqlSCF += "AND tabD.datasetID=tabF.datasetID "
+        sqlSCF += "AND tabF.type IN ("
         for tmpType in JediDatasetSpec.getInputTypes():
             mapKey = ':type_'+tmpType
             sqlSCF += '{0},'.format(mapKey)
         sqlSCF  = sqlSCF[:-1]
-        sqlSCF += " AND masterID IS NULL) " 
+        sqlSCF += ") AND tabD.masterID IS NULL " 
         sqlSCP  = "SELECT PandaID FROM {0}.filesTable4 ".format(jedi_config.db.schemaPANDA)
-        sqlSCP += "WHERE fileID=:fileID AND jediTaskID=:jediTaskID AND datasetID=:datasetID "
+        sqlSCP += "WHERE fileID=:fileID AND jediTaskID=:jediTaskID AND datasetID=:datasetID AND attemptNr=:attemptNr"
         sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime "
         sqlSCD += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCD += "WHERE PandaID=:pandaID "
@@ -2535,34 +2536,38 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.cur.execute(sqlSCF+comment,varMap)
         resList = self.cur.fetchall()
         # the number of file records for normalization
-        normFactor = len(resList)
-        if normFactor == 0:
-            normFactor = 1.0
+        nFileRecords = len(resList)
+        if nFileRecords == 0:
+            nFileRecords = 1.0
         else:
-            normFactor = float(normFactor)
+            nFileRecords = float(nFileRecords)
         # loop over all files    
-        for fileID,datasetID in resList:
+        outSizeList  = []
+        walltimeList = []
+        memSizeList  = []
+        workSizeList = []
+        finishedJobs = []
+        for fileID,datasetID,attemptNr in resList:
             # get PandaID
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
-            varMap[':datasetID'] = datasetID
-            varMap[':fileID'] = fileID
+            varMap[':datasetID']  = datasetID
+            varMap[':fileID']     = fileID
+            varMap[':attemptNr']  = attemptNr
             self.cur.execute(sqlSCP+comment,varMap)
-            resPandaIDs = self.cur.fetchall()
-            outSizeList  = []
-            walltimeList = []
-            memSizeList  = []
-            workSizeList = []
-            # loop over all PandaIDs
-            for pandaID, in resPandaIDs:
+            resPandaID = self.cur.fetchone()
+            if resPandaID != None:
+                pandaID, = resPandaID
                 # get job data
                 varMap = {}
                 varMap[':pandaID'] = pandaID
                 self.cur.execute(sqlSCD+comment,varMap)
-                resDataList = self.cur.fetchall()
-                for jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime in resDataList:
+                resData = self.cur.fetchone()
+                if resData != None:
+                    jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime = resData
                     if jobStatus != 'finished':
                         continue
+                    finishedJobs.append(pandaID)
                     # output size
                     try:
                         outSizeList.append(long(outputFileBytes))
@@ -2585,6 +2590,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         workSizeList.append(long(tmpMatch.group(1)))
                     except:
                         pass
+            # normalization since job data is calculated per file record
+            nFinisedJobs = len(finishedJobs)
+            if nFinisedJobs == 0:
+                nFinisedJobs = 1.0
+            else:
+                nFinisedJobs = float(nFinisedJobs)
+            normFactor = nFileRecords / nFinisedJobs
             # calculate median values
             if outSizeList != []:
                 median = numpy.median(outSizeList) 
