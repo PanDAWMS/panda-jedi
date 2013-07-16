@@ -86,6 +86,9 @@ class FileRecovery (TaskRefinerBase):
                 datasetSpec.nFilesFinished = 0
                 datasetSpec.nFilesFailed   = 0
                 datasetSpec.nFilesOnHold   = 0
+                # remove nosplit and repeat since even the same file is made for each bounaryID
+                datasetSpec.remNoSplit()
+                datasetSpec.remRepeat()
                 # append to map
                 datasetNameSpecMap[datasetSpec.datasetName] = datasetSpec
                 # set master and secondary for input
@@ -224,7 +227,7 @@ class FileRecovery (TaskRefinerBase):
                 taskParamMap = RefinerUtils.appendDataset(taskParamMap,datasetSpec,fileList)
                 self.updatedTaskParams = taskParamMap
             # grouping with boundaryID
-            self.setSplitRule(None,1,'BG')
+            self.setSplitRule(None,4,'GB')
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))

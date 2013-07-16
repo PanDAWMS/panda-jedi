@@ -1,5 +1,8 @@
 Release Note
 
+* 7/16/2013
+  * fixed JG for FileRecovery
+
 * 7/11/2013
   * fixed getScoutJobData
 

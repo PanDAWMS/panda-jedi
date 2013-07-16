@@ -280,7 +280,7 @@ class JobGeneratorThread (WorkerThread):
 
 
     # generate jobs
-    def doGenerate(self,taskSpec,cloudName,inSubChunkList,inputChunk,tmpLog):
+    def doGenerate(self,taskSpec,cloudName,inSubChunkList,inputChunk,tmpLog,simul=False):
         # return for failure
         failedRet = Interaction.SC_FAILED,None
         # priority for scout
@@ -330,16 +330,25 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.currentPriority  = jobSpec.assignedPriority
                     jobSpec.lockedby         = 'jedi'
                     jobSpec.workQueue_ID     = taskSpec.workQueue_ID
+                    # using grouping with boundaryID
+                    useBoundary = taskSpec.useGroupWithBoundaryID()
+                    boundaryID = None
                     # inputs
                     prodDBlock = None
                     setProdDBlock = False
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
+                        # get boundaryID if grouping is done with boundaryID
+                        if useBoundary != None and boundaryID == None:
+                            if tmpDatasetSpec.isMaster():
+                                boundaryID = tmpFileSpecList[0].boundaryID
+                        # get prodDBlock        
                         if not tmpDatasetSpec.isPseudo():
                             if tmpDatasetSpec.isMaster():
                                 jobSpec.prodDBlock = tmpDatasetSpec.datasetName
                                 setProdDBlock = True
                             else:
                                 prodDBlock = tmpDatasetSpec.datasetName
+                        # making files
                         for tmpFileSpec in tmpFileSpecList:
                             tmpInFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec)
                             # set status
@@ -351,8 +360,13 @@ class JobGeneratorThread (WorkerThread):
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock == False and prodDBlock != None:
                         jobSpec.prodDBlock = prodDBlock
+                    # set provenanceID    
+                    if useBoundary != None and useBoundary['outMap'] == True:
+                        provenanceID = boundaryID
                     # outputs
-                    outSubChunk,serialNr = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID)
+                    outSubChunk,serialNr = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
+                                                                                 provenanceID,
+                                                                                 simul)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')

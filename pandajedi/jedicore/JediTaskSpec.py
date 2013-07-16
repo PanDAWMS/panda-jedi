@@ -220,7 +220,31 @@ class JediTaskSpec(object):
         return 0
 
 
-    
+
+    # grouping with boundaryID
+    def useGroupWithBoundaryID(self):
+        if self.splitRule != None:
+            tmpMatch = re.search('GB=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                gbID = int(tmpMatch.group(1))
+                # 1 : input - split OK, output - free 
+                # 2 : input - split OK, output - mapped with provenanceID
+                # 3 : input - split NG, output - free
+                # 4 : input - split NG, output - mapped with provenanceID
+                retMap = {}
+                if gbID in [1,2]:
+                    retMap['inSplit'] = True
+                else:
+                    retMap['inSplit'] = False
+                if gbID in [1,3]:
+                    retMap['outMap'] = False
+                else:
+                    retMap['outMap'] = True
+                return retMap
+        return None
+
+
+
     # get the size of workDisk in bytes
     def getWorkDiskSize(self):
         tmpSize = self.workDiskCount

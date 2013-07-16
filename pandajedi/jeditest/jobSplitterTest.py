@@ -24,10 +24,13 @@ from pandajedi.jedicore.ThreadUtils import ThreadPool
 
 import sys
 jediTaskID = int(sys.argv[1])
-cloudName = sys.argv[2]
-vo = sys.argv[3]
-prodSourceLabel = sys.argv[4]
-queueID = int(sys.argv[5])
+
+s,taskSpec = tbIF.getTaskWithID_JEDI(jediTaskID)
+
+cloudName = taskSpec.cloud
+vo = taskSpec.vo
+prodSourceLabel = taskSpec.prodSourceLabel 
+queueID = taskSpec.workQueue_ID
 
 workQueue = tbIF.getWorkQueueMap().getQueueWithID(queueID)
 
@@ -46,4 +49,4 @@ for taskSpec,cloudName,inputChunk in tmpList:
     tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
 
     gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False)
-    newJobs = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog)
+    newJobs = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog,True)

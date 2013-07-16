@@ -306,7 +306,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpFileSpecList.append(splitFileSpec)
                 # append
                 for fileSpec in tmpFileSpecList:
-                    uniqueFileKey = '{0}.{1}.{2}'.format(fileSpec.lfn,fileSpec.startEvent,fileSpec.endEvent)
+                    uniqueFileKey = '{0}.{1}.{2}.{3}'.format(fileSpec.lfn,fileSpec.startEvent,
+                                                             fileSpec.endEvent,fileSpec.boundaryID)
                     uniqueFileKeyList.append(uniqueFileKey)                
                     fileSpecMap[uniqueFileKey] = fileSpec
             # too long list
@@ -320,7 +321,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDs  = "SELECT status FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDs += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to get existing files
-            sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent,boundaryID FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlCh += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE"
             # sql for insert
             sqlIn  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
@@ -375,8 +376,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlCh+comment,varMap)
                         tmpRes = self.cur.fetchall()
                         existingFiles = {}
-                        for fileID,lfn,status,startEvent,endEvent in tmpRes:
-                            uniqueFileKey = '{0}.{1}.{2}'.format(lfn,startEvent,endEvent)
+                        for fileID,lfn,status,startEvent,endEvent,boundaryID in tmpRes:
+                            uniqueFileKey = '{0}.{1}.{2}.{3}'.format(lfn,startEvent,endEvent,boundaryID)
                             existingFiles[uniqueFileKey] = {'fileID':fileID,'status':status}
                             if status == 'ready':
                                 nReady += 1
@@ -1237,7 +1238,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # generate output files for task
-    def getOutputFiles_JEDI(self,jediTaskID):
+    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -1245,13 +1246,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             outMap = {}
+            # sql to get dataset
+            sqlD  = "SELECT datasetID,datasetName,vo FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlD += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
+            if provenanceID != None:
+                sqlD += "AND (provenanceID IS NULL OR provenanceID=:provenanceID) "
             # sql to read template
             sqlR  = "SELECT outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName "
             sqlR += "FROM {0}.JEDI_Output_Template ".format(jedi_config.db.schemaJEDI)
-            sqlR += "WHERE jediTaskID=:jediTaskID FOR UPDATE"
-            # sql to get dataset name and vo for scope
-            sqlD  = "SELECT datasetName,vo FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-            sqlD += "WHERE jediTaskID=:jediTaskID ANd datasetID=:datasetID "
+            sqlR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE"
             # sql to insert files
             sqlI  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
             sqlI += JediFileSpec.bindValuesExpression()
@@ -1264,53 +1267,57 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
-            # select
+            # get datasets
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
-            self.cur.execute(sqlR+comment,varMap)
+            varMap[':type1']  = 'output'
+            varMap[':type2']  = 'log'
+            if provenanceID != None:
+                varMap[':provenanceID'] = provenanceID
+            self.cur.execute(sqlD+comment,varMap)
             resList = self.cur.fetchall()
-            maxSerialNr = None
-            for resR in resList:
-                # make FileSpec
-                outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName = resR
-                fileSpec = JediFileSpec()
-                fileSpec.jediTaskID   = jediTaskID
-                fileSpec.datasetID    = datasetID
-                nameTemplate = fileNameTemplate.replace('${SN}','{SN:06d}')
-                nameTemplate = nameTemplate.replace('${SN','{SN')
-                fileSpec.lfn          = nameTemplate.format(SN=serialNr)
-                fileSpec.status       = 'defined'
-                fileSpec.creationDate = timeNow
-                fileSpec.type         = outType
-                fileSpec.keepTrack    = 1
-                if maxSerialNr == None or maxSerialNr < serialNr:
-                    maxSerialNr = serialNr
-                # scope
+            for datasetID,datasetName,vo in resList:
+                # get templates
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 varMap[':datasetID']  = datasetID
-                self.cur.execute(sqlD+comment,varMap)
-                resD = self.cur.fetchone()
-                if resD == None:
-                    raise RuntimeError, 'Failed to get datasetName for outTempID={0}'.format(outTempID)
-                datasetName,vo = resD
-                if vo in jedi_config.ddm.voWithScope.split(','):
-                    fileSpec.scope = datasetName.split('.')[0]
-                # insert
-                varMap = fileSpec.valuesMap(useSeq=True)
-                varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
-                self.cur.execute(sqlI+comment,varMap)
-                fileSpec.fileID = long(varMap[':newFileID'].getvalue())
-                # increment SN
-                varMap = {}
-                varMap[':jediTaskID'] = jediTaskID
-                varMap[':outTempID']  = outTempID
-                self.cur.execute(sqlU+comment,varMap)
-                nRow = self.cur.rowcount
-                if nRow != 1:
-                    raise RuntimeError, 'Failed to increment SN for outTempID={0}'.format(outTempID)
-                # append
-                outMap[streamName] = fileSpec
+                self.cur.execute(sqlR+comment,varMap)
+                resTmpList = self.cur.fetchall()
+                maxSerialNr = None
+                for resR in resTmpList:
+                    # make FileSpec
+                    outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName = resR
+                    fileSpec = JediFileSpec()
+                    fileSpec.jediTaskID   = jediTaskID
+                    fileSpec.datasetID    = datasetID
+                    nameTemplate = fileNameTemplate.replace('${SN}','{SN:06d}')
+                    nameTemplate = nameTemplate.replace('${SN','{SN')
+                    fileSpec.lfn          = nameTemplate.format(SN=serialNr)
+                    fileSpec.status       = 'defined'
+                    fileSpec.creationDate = timeNow
+                    fileSpec.type         = outType
+                    fileSpec.keepTrack    = 1
+                    if maxSerialNr == None or maxSerialNr < serialNr:
+                        maxSerialNr = serialNr
+                    # scope
+                    if vo in jedi_config.ddm.voWithScope.split(','):
+                        fileSpec.scope = datasetName.split('.')[0]
+                    if not simul:    
+                        # insert
+                        varMap = fileSpec.valuesMap(useSeq=True)
+                        varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
+                        self.cur.execute(sqlI+comment,varMap)
+                        fileSpec.fileID = long(varMap[':newFileID'].getvalue())
+                        # increment SN
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':outTempID']  = outTempID
+                        self.cur.execute(sqlU+comment,varMap)
+                        nRow = self.cur.rowcount
+                        if nRow != 1:
+                            raise RuntimeError, 'Failed to increment SN for outTempID={0}'.format(outTempID)
+                    # append
+                    outMap[streamName] = fileSpec
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -1455,7 +1462,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += ') AND masterID IS NULL '
             # begin transaction
             self.conn.begin()
-            self.cur.arraysize = 10000
+            self.cur.arraysize = 1000000
             # select
             tmpLog.debug(sql+comment+str(varMap))
             self.cur.execute(sql+comment,varMap)
@@ -1507,7 +1514,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID and status=:status "
             sqlFR += "AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
-            sqlFR += "ORDER BY fileID) "
+            sqlFR += "ORDER BY lfn) "
             sqlFR += "WHERE rownum <= {0}"
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
@@ -1626,6 +1633,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if maxNumFiles < lowerLimitOnMaxNumFiles:
                                 maxNumFiles = lowerLimitOnMaxNumFiles
                             # read files
+                            readBlock = False
+                            if maxNumFiles > tmpNumFiles:
+                                maxMasterFilesTobeRead = tmpNumFiles
+                            else:
+                                # reading with a fix size of block
+                                readBlock = True
+                                maxMasterFilesTobeRead = maxNumFiles
                             for datasetID in datasetIDs:
                                 # get DatasetSpec
                                 tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
@@ -1634,15 +1648,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':status']     = 'ready'
                                 varMap[':datasetID']  = datasetID
                                 varMap[':jediTaskID'] = jediTaskID
-                                # multiply numFiles by ratio for secondary datasets
-                                readBlock = False
-                                if maxNumFiles > tmpNumFiles:
-                                    maxFilesTobeRead = tmpNumFiles
+                                # the number of files to be read
+                                if not tmpDatasetSpec.isMaster():
+                                    maxFilesTobeRead = maxMasterFilesTobeRead
                                 else:
-                                    # reading with a fix size of block
-                                    readBlock = True
-                                    maxFilesTobeRead = maxNumFiles
-                                maxFilesTobeRead = tmpDatasetSpec.getNumMultByRatio(maxFilesTobeRead)
+                                    # set very large number for secondary to read all files
+                                    maxFilesTobeRead = 1000000
                                 self.cur.execute(sqlFR.format(maxFilesTobeRead)+comment,varMap)
                                 resFileList = self.cur.fetchall()
                                 iFiles = 0
@@ -3363,22 +3374,43 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+
+    # get JOBSARCHVIEW corresponding to a timestamp
+    def getArchView(self,timeStamp):
+        tableList = [
+            (7,  'JOBSARCHVIEW_7DAYS'),
+            (15, 'JOBSARCHVIEW_15DAYS'),
+            (30, 'JOBSARCHVIEW_30DAYS'),
+            (60, 'JOBSARCHVIEW_60DAYS'),
+            (90, 'JOBSARCHVIEW_90DAYS'),
+            (180,'JOBSARCHVIEW_180DAYS'),
+            (365,'JOBSARCHVIEW_365DAYS'),
+            ]
+        timeDelta = datetime.datetime.utcnow() - timeStamp 
+        for timeLimit,archViewName in tableList:
+            # +2 for safety margin
+            if timeDelta < datetime.timedelta(days=timeLimit+2):
+                return archViewName
+        # range over
+        return None
+
+
+    
+
     # get PandaID for a file
     def getPandaIDWithFileID_JEDI(self,jediTaskID,datasetID,fileID):
         comment = ' /* JediDBProxy.getPandaIDWithFileID_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <jeditaskID={0} datasetID={1} fileID={2}>".format(jediTaskID,datasetID,fileID)
+        methodName += " <jediTaskID={0} datasetID={1} fileID={2}>".format(jediTaskID,datasetID,fileID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         retPandaIDs = []
         try:
             # sql to get PandaID
-            sqlT  = "SELECT PandaID FROM {0}.filesTable4 WHERE ".format(jedi_config.db.schemaPANDA)
-            sqlT += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
-            sqlT += "UNION ALL "
-            sqlT += "SELECT PandaID FROM {0}.filesTable_ARCH WHERE ".format(jedi_config.db.schemaPANDAARCH)
-            sqlT += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
-            sqlT += "AND modificationTime>CURRENT_DATE-180"
+            sqlP  = "SELECT PandaID FROM {0}.filesTable4 WHERE ".format(jedi_config.db.schemaPANDA)
+            sqlP += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
+            # get creation time of the task
+            sqlCT = "SELECT creationDate FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
             # start transaction
             self.conn.begin()
             varMap = {}
@@ -3386,11 +3418,40 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':datasetID'] = datasetID
             varMap[':fileID'] = fileID
             self.cur.arraysize = 100
-            self.cur.execute(sqlT+comment,varMap)
-            resTC = self.cur.fetchone()
+            self.cur.execute(sqlP+comment,varMap)
+            resP = self.cur.fetchone()
             pandaID = None
-            if resTC != None:
-                pandaID = resTC[0]
+            if resP != None:
+                # found in live table
+                pandaID = resP[0]
+            else:
+                # get creation time of the task
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                self.cur.execute(sqlCT+comment,varMap)
+                resCT = self.cur.fetchone()
+                if resCT != None:
+                    creationDate, = resCT
+                    archView = self.getArchView(creationDate)
+                    if archView == None:
+                        tmpLog.debug("no JOBSARCHVIEW since creationDate is too old") 
+                    else:
+                        # sql to get PandaID using JOBSARCHVIEW
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':datasetID'] = datasetID
+                        varMap[':fileID'] = fileID
+                        sqlAP  = "SELECT fTab.PandaID "
+                        sqlAP += "FROM {0}.filesTable_ARCH fTab,{0}.{1} aTab WHERE ".format(jedi_config.db.schemaPANDAARCH,
+                                                                                           archView)
+                        sqlAP += "fTab.PandaID=aTab.PandaID AND aTab.jediTaskID=:jediTaskID "
+                        sqlAP += "AND fTab.jediTaskID=:jediTaskID AND fTab.datasetID=:datasetID "
+                        sqlAP += "AND fTab.fileID=:fileID "
+                        tmpLog.debug(sqlAP+comment+str(varMap))
+                        self.cur.execute(sqlAP+comment,varMap)
+                        resAP = self.cur.fetchone()
+                        if resAP != None:
+                            pandaID = resAP[0]
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

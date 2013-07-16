@@ -317,11 +317,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # generate output files for task
-    def getOutputFiles_JEDI(self,jediTaskID):
+    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getOutputFiles_JEDI(jediTaskID)
+        retVal = proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

@@ -235,6 +235,30 @@ class JediDatasetSpec(object):
 
 
 
+    # remove nosplit attribute
+    def remAttribute(self,attrName):
+        if self.attributes != None:
+            self.attributes = re.sub(attrName,'',self.attributes)
+            self.attributes = re.sub(',,',',',self.attributes)
+            self.attributes = re.sub('^,','',self.attributes)
+            self.attributes = re.sub(',$','',self.attributes)
+            if self.attributes == '':
+                self.attributes = None
+        
+
+
+    # remove nosplit attribute
+    def remNoSplit(self):
+        self.remAttribute('nosplit')
+
+
+
+    # remove repeat attribute
+    def remRepeat(self):
+        self.remAttribute('repeat')
+
+
+
     # get the ratio to master
     def getRatioToMaster(self):
         try:

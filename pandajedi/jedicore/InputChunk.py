@@ -123,10 +123,13 @@ class InputChunk:
         nFilesPerJob = self.taskSpec.getNumFilesPerJob()
         if nFilesPerJob == None:
             nFilesPerJob = 1
+        # grouping with boundaryID
+        useBoundary = self.taskSpec.useGroupWithBoundaryID()    
         maxAtomSize = 0    
         while True:
             # get one subchunk
-            subChunk = self.getSubChunk(None,nFilesPerJob=nFilesPerJob)
+            subChunk = self.getSubChunk(None,nFilesPerJob=nFilesPerJob,
+                                        useBoundary=useBoundary)
             if subChunk == None:
                 break
             # get size
@@ -158,7 +161,7 @@ class InputChunk:
                     sizeGradients=0,sizeIntercepts=0,
                     nFilesPerJob=None,multiplicand=1,
                     walltimeIntercepts=0,maxWalltime=0,
-                    nEventsPerJob=None):
+                    nEventsPerJob=None,useBoundary=None):
         # check if there are unused files/events
         if not self.checkUnused():
             return None
@@ -177,6 +180,17 @@ class InputChunk:
             maxNumFiles = nFilesPerJob
         if nEventsPerJob != None:
             maxNumEvents = nEventsPerJob
+        # split with boundayID
+        splitWithBoundaryID = False    
+        if useBoundary != None:
+            splitWithBoundaryID = True
+            if useBoundary['inSplit'] == False:
+                # unset max values to split only with boundaryID 
+                maxNumFiles = None
+                maxSize = None
+                maxWalltime = None
+                maxNumEvents = None
+                multiplicand = 1
         # get site when splitting per site
         if siteName != None:
             siteCandidate = self.siteCandidates[siteName]
@@ -189,18 +203,25 @@ class InputChunk:
         inputFileMap   = {}
         expWalltime    = 0
         nextStartEvent = None
-        while inputNumFiles < maxNumFiles \
-                  and (maxSize == None or (maxSize != None and fileSize < maxSize)) \
-                  and (maxWalltime <= 0 or expWalltime < maxWalltime) \
-                  and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents < maxNumEvents)):
+        boundaryID     = None
+        newBoundaryID  = False
+        nSecFilesMap   = {}
+        numMaster      = 0
+        while (maxNumFiles == None or inputNumFiles < maxNumFiles) \
+                and (maxSize == None or (maxSize != None and fileSize < maxSize)) \
+                and (maxWalltime <= 0 or expWalltime < maxWalltime) \
+                and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents < maxNumEvents)):
             # get one file (or one file group for MP) from master
-            numMaster = 0
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 # check start event to keep continuity
                 if maxNumEvents != None and tmpFileSpec.startEvent != None:
                     if nextStartEvent != None and nextStartEvent != tmpFileSpec.startEvent:
                         break
+                # check boundaryID
+                if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
+                    newBoundaryID = True
+                    break
                 if not inputFileMap.has_key(self.masterDataset.datasetID):
                     inputFileMap[self.masterDataset.datasetID] = []
                 inputFileMap[self.masterDataset.datasetID].append(tmpFileSpec)
@@ -222,6 +243,9 @@ class InputChunk:
                     nextStartEvent = tmpFileSpec.endEvent + 1
                     if nextStartEvent == tmpFileSpec.nEvents:
                         nextStartEvent = 0
+                # boundaryID
+                if splitWithBoundaryID:
+                    boundaryID = tmpFileSpec.boundaryID
             # get files from secondaries 
             for datasetSpec in self.secondaryDatasetList:
                 if datasetSpec.isNoSplit():
@@ -233,21 +257,25 @@ class InputChunk:
                                 inputFileMap[datasetSpec.datasetID] = []
                             inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
                             # sum
-                            inputNumFiles += 1
                             fileSize += tmpFileSpec.fsize
                             datasetUsage['used'] += 1
                 else:
+                    if not nSecFilesMap.has_key(datasetSpec.datasetID):
+                        nSecFilesMap[datasetSpec.datasetID] = 0
                     # get number of files to be used for the secondary
-                    nSecondary = datasetSpec.getNumMultByRatio(numMaster)
+                    nSecondary = datasetSpec.getNumMultByRatio(numMaster) - nSecFilesMap[datasetSpec.datasetID]
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
                     for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
+                        # check boundaryID
+                        if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
+                            break
                         if not inputFileMap.has_key(datasetSpec.datasetID):
                             inputFileMap[datasetSpec.datasetID] = []
                         inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
                         # sum
-                        inputNumFiles += 1
                         fileSize += tmpFileSpec.fsize
                         datasetUsage['used'] += 1
+                        nSecFilesMap[datasetSpec.datasetID] += 1
             # unset first loop flag
             firstLoop = False
             # check if there are unused files/evets 
@@ -256,35 +284,60 @@ class InputChunk:
             # break if nFilesPerJob is used
             if nFilesPerJob != None:
                 break
-            # check master
+            # boundayID is changed
+            if newBoundaryID:
+                break
+            # check master in the next loop
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             newInputNumFiles  = inputNumFiles
             newInputNumEvents = inputNumEvents
             newFileSize       = fileSize
             newExpWalltime    = expWalltime
-            newNextStartEvent = None
-            newNumMaster      = 0
+            newNextStartEvent = nextStartEvent
+            newNumMaster      = numMaster
+            terminateFlag     = False
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
+                # check continuity of event
+                if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
+                    newInputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
+                    # continuity of event is broken
+                    if newNextStartEvent != None and newNextStartEvent != tmpFileSpec.startEvent:
+                        # no files in the next loop
+                        if newInputNumFiles == 0: 
+                            terminateFlag = True
+                        break
+                    newNextStartEvent = tmpFileSpec.endEvent + 1
+                # check boundary
+                if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
+                    # no files in the next loop
+                    if newInputNumFiles == 0:
+                        terminateFlag = True
+                    break
                 newInputNumFiles += 1
                 newNumMaster += 1
                 newFileSize += (tmpFileSpec.fsize + sizeGradients)
                 newExpWalltime += walltimeIntercepts
-                if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
-                    newInputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
-                    newNextStartEvent = tmpFileSpec.startEvent
-                if newInputNumFiles >= maxNumFiles \
-                       or (maxSize != None and newFileSize >= maxSize) \
-                       or (maxWalltime > 0 and newExpWalltime >= maxWalltime) \
-                       or (maxNumEvents != None and newInputNumEvents >= maxNumEvents) \
-                       or (nextStartEvent != None and newNextStartEvent != nextStartEvent):
-                    break
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.isNoSplit():
-                    newNumSecondary = datasetSpec.getNumMultByRatio(newNumMaster)
+                    # check boundaryID
+                    if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
+                        break
+                    newNumSecondary = datasetSpec.getNumMultByRatio(newNumMaster) - nSecFilesMap[datasetSpec.datasetID]
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
                     for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
+                        # check boundaryID
+                        if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
+                            break
                         newFileSize += tmpFileSpec.fsize
+            # termination            
+            if terminateFlag:
+                break
+            if newInputNumFiles >= maxNumFiles \
+                    or (maxSize != None and newFileSize >= maxSize) \
+                    or (maxWalltime > 0 and newExpWalltime >= maxWalltime) \
+                    or (maxNumEvents != None and newInputNumEvents >= maxNumEvents):
+                break
         # reset nUsed for repeated datasets
         for tmpDatasetID,datasetUsage in self.datasetMap.iteritems():
             tmpDatasetSpec = datasetUsage['datasetSpec']
