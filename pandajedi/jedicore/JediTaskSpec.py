@@ -284,7 +284,7 @@ class JediTaskSpec(object):
     # set task status on hold
     def setOnHold(self):
         # change status
-        if self.status in ['ready','running','merging','scouting']:
+        if self.status in ['ready','running','merging','scouting','defined']:
             self.oldStatus = self.status
             self.status = 'pending'
 
@@ -312,6 +312,7 @@ class JediTaskSpec(object):
         if self.status == 'pending':
             self.status = self.oldStatus
             self.oldStatus = None
+            self.errorDialog = None
         # reset error dialog    
         self.setErrDiag(None)
             

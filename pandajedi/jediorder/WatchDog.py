@@ -47,9 +47,19 @@ class WatchDog (JediKnight):
                                                                           jedi_config.watchdog.waitForPicked)
                         if tmpRet == None:
                             # failed
-                            tmpLog.error('failed')
+                            tmpLog.error('failed to rescue')
                         else:
                             tmpLog.info('rescued {0} tasks'.format(tmpRet))
+
+                        # reactivate pending tasks
+                        tmpLog.info('reactivate pending tasks for vo={0} label={1}'.format(vo,prodSourceLabel)) 
+                        tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(vo,prodSourceLabel,
+                                                                               jedi_config.watchdog.waitForPending)
+                        if tmpRet == None:
+                            # failed
+                            tmpLog.error('failed to reactivate')
+                        else:
+                            tmpLog.info('reactivated {0} tasks'.format(tmpRet))
                 tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]

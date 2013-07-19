@@ -197,6 +197,10 @@ loopCycle = 300
 # wait period for picked files in minutes
 waitForPicked = 30
 
+# wait period for pending tasks in minutes
+waitForPending = 60
+
+
 
 
 ##########################
@@ -236,3 +240,16 @@ nWorkers = 5
 
 # loop interval in seconds
 loopCycle = 60
+
+
+
+
+##########################
+#
+# TaskGenerator parameters
+#
+
+[taskgen]
+
+# interface config
+modConfig = atlas:managed|test:pandajedi.jedigen.AtlasTaskGenerator:AtlasTaskGenerator

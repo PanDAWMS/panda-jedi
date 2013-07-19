@@ -36,48 +36,55 @@ class AtlasDDMClient(DDMClientBase):
     # get files in dataset
     def getFilesInDataset(self,datasetName,skipDuplicate=True):
         methodName = 'getFilesInDataset'
+        methodName = '{0} datasetName={1}'.format(methodName,datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
         try:
             # get DQ2 API            
             dq2=DQ2()
             # get file list
             tmpRet = dq2.listFilesInDataset(datasetName)
-            fileMap = tmpRet[0]
-            # skip duplicated files
-            if skipDuplicate:
-                newFileMap = {}
-                baseLFNmap = {}
-                for tmpGUID,valMap in fileMap.iteritems():
-                    # extract base LFN and attempt number
-                    lfn = valMap['lfn']
-                    baseLFN = re.sub('(\.(\d+))$','',lfn)
-                    attNr = re.sub(baseLFN+'\.*','',lfn)
-                    if attNr == '':
-                        # without attempt number
-                        attNr = -1
-                    else:
-                        attNr = int(attNr)
-                    # compare attempt numbers    
-                    addMap = False    
-                    if baseLFNmap.has_key(baseLFN):
-                        # use larger attempt number
-                        oldMap = baseLFNmap[baseLFN]
-                        if oldMap['attNr'] < attNr:
-                            del newFileMap[oldMap['guid']]
+            if tmpRet == ():
+                fileMap = {}
+            else:
+                fileMap = tmpRet[0]
+                # skip duplicated files
+                if skipDuplicate:
+                    newFileMap = {}
+                    baseLFNmap = {}
+                    for tmpGUID,valMap in fileMap.iteritems():
+                        # extract base LFN and attempt number
+                        lfn = valMap['lfn']
+                        baseLFN = re.sub('(\.(\d+))$','',lfn)
+                        attNr = re.sub(baseLFN+'\.*','',lfn)
+                        if attNr == '':
+                            # without attempt number
+                            attNr = -1
+                        else:
+                            attNr = int(attNr)
+                        # compare attempt numbers    
+                        addMap = False    
+                        if baseLFNmap.has_key(baseLFN):
+                            # use larger attempt number
+                            oldMap = baseLFNmap[baseLFN]
+                            if oldMap['attNr'] < attNr:
+                                del newFileMap[oldMap['guid']]
+                                addMap = True
+                        else:
                             addMap = True
-                    else:
-                        addMap = True
-                    # append    
-                    if addMap:    
-                        baseLFNmap[baseLFN] = {'guid':tmpGUID,
-                                               'attNr':attNr}
-                        newFileMap[tmpGUID] = valMap
-                # use new map
-                fileMap = newFileMap        
+                        # append    
+                        if addMap:    
+                            baseLFNmap[baseLFN] = {'guid':tmpGUID,
+                                                   'attNr':attNr}
+                            newFileMap[tmpGUID] = valMap
+                    # use new map
+                    fileMap = newFileMap        
             return self.SC_SUCCEEDED,fileMap
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
-            return errCode,'%s : %s %s' % (methodName,errtype.__name__,errvalue)
+            errStr = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errStr)
+            return errCode,'{0} : {1}'.format(methodName,errStr)
 
 
 

@@ -72,10 +72,10 @@ class FileRecovery (TaskRefinerBase):
                     if provenanceID == None and datasetSpec.provenanceID != None:
                         provenanceID = datasetSpec.provenanceID
                     # collect dummy streams
-                    if not datasetSpec.type != 'log' and datasetSpec.datasetID != oldDatasetID:
+                    if datasetSpec.type != 'log' and datasetSpec.datasetID != oldDatasetID:
                         if not datasetSpec.streamName in dummyStreams:
                             dummyStreams.append(datasetSpec.streamName)
-                        continue    
+                        continue
                 # reset attributes
                 datasetSpec.status = 'defined'
                 datasetSpec.datasetID  = None
@@ -103,6 +103,8 @@ class FileRecovery (TaskRefinerBase):
                     # set new attributes
                     tmpItem = taskParamMap['log']
                     datasetSpec.datasetName = tmpItem['dataset']
+                    if tmpItem.has_key('container'):
+                        datasetSpec.containerName = tmpItem['container']
                     if tmpItem.has_key('token'):
                         datasetSpec.storageToken = tmpItem['token']
                     if tmpItem.has_key('destination'):
@@ -187,6 +189,8 @@ class FileRecovery (TaskRefinerBase):
                 # set new attributes
                 tmpItem = taskParamMap['output']
                 datasetSpec.datasetName = tmpItem['dataset']
+                if tmpItem.has_key('container'):
+                    datasetSpec.containerName = tmpItem['container']
                 if tmpItem.has_key('token'):
                     datasetSpec.storageToken = tmpItem['token']
                 if tmpItem.has_key('destination'):

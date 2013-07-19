@@ -360,7 +360,8 @@ class JobGeneratorThread (WorkerThread):
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock == False and prodDBlock != None:
                         jobSpec.prodDBlock = prodDBlock
-                    # set provenanceID    
+                    # set provenanceID
+                    provenanceID = None    
                     if useBoundary != None and useBoundary['outMap'] == True:
                         provenanceID = boundaryID
                     # outputs

@@ -1,5 +1,8 @@
 Release Note
 
+* 7/19/2013
+  * added TG for FileRecovery
+
 * 7/16/2013
   * fixed JG for FileRecovery
 

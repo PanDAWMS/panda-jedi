@@ -25,7 +25,7 @@ taskParamMap['log'] = {'dataset': logDatasetName,
                        'type':'template',
                        'param_type':'log',
                        'token':'ATLASDATADISK',
-                       'value':'{0}.${{SN}}.pool.root'.format(logDatasetName)}
+                       'value':'{0}.${{SN}}.log.tgz'.format(logDatasetName)}
 outDatasetName = 'panda.jeditest.NTUP_EMBLLDN.{0}'.format(uuid.uuid4())
 taskParamMap['jobParameters'] = [
     {'type':'template',

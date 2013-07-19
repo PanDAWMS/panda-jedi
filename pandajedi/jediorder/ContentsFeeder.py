@@ -9,6 +9,7 @@ from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedirefine import RefinerUtils
 from JediKnight import JediKnight
+from TaskGenerator import TaskGenerator
 
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jediconfig import jedi_config
@@ -98,6 +99,8 @@ class ContentsFeederThread (WorkerThread):
                 for jediTaskID,dsList in taskDsList:
                     allUpdated = True
                     taskBroken = False
+                    taskOnHold = False
+                    missingMap = {}
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(jediTaskID))
                     # get task
@@ -115,6 +118,7 @@ class ContentsFeederThread (WorkerThread):
                         taskBroken = True
                     # loop over all datasets
                     if not taskBroken:
+                        ddmIF = self.ddmIF.getInterface(taskSpec.vo) 
                         for datasetSpec in dsList:
                             tmpLog.info('start for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))
                             # get dataset metadata
@@ -123,7 +127,7 @@ class ContentsFeederThread (WorkerThread):
                             stateUpdateTime = datetime.datetime.utcnow()                    
                             try:
                                 if not datasetSpec.isPseudo():
-                                    tmpMetadata = self.ddmIF.getInterface(datasetSpec.vo).getDatasetMetaData(datasetSpec.datasetName)
+                                    tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
                                 else:
                                     # dummy metadata for pseudo dataset
                                     tmpMetadata = {'state':'closed'}
@@ -133,19 +137,30 @@ class ContentsFeederThread (WorkerThread):
                                 tmpLog.error('{0} failed due get metadata to {1}:{2}'.format(self.__class__.__name__,
                                                                                              errtype.__name__,errvalue))
                                 if errtype == Interaction.JEDIFatalError:
+                                    # fatal error
                                     datasetStatus = 'broken'
                                     taskBroken = True
+                                    # update dataset status    
+                                    self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
                                 else:
-                                    datasetStatus = 'pending'
-                                # update dataset status    
-                                self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
+                                    # temporary error
+                                    taskOnHold = True
+                                taskSpec.setErrDiag('failed to get metadata for {0}'.format(datasetSpec.datasetName))
                                 allUpdated = False
                             else:
-                                # get file list
+                                # get file list specified in task parameters
+                                fileList = RefinerUtils.extractFileList(taskParamMap,datasetSpec.datasetName)   
+                                # get file list from DDM
                                 tmpLog.info('get files')
                                 try:
+                                    useInFilesWithNewAttemptNr = False
                                     if not datasetSpec.isPseudo():
-                                        tmpRet = self.ddmIF.getInterface(datasetSpec.vo).getFilesInDataset(datasetSpec.datasetName)
+                                        if fileList != [] and taskParamMap.has_key('useInFilesInContainer') and \
+                                                not datasetSpec.containerName in ['',None]:
+                                            # read files from container if file list is specified in task parameters
+                                            tmpRet = ddmIF.getFilesInDataset(datasetSpec.containerName)
+                                        else:
+                                            tmpRet = ddmIF.getFilesInDataset(datasetSpec.datasetName)
                                     else:
                                         # dummy file list for pseudo dataset
                                         tmpRet = {str(uuid.uuid4()):{'lfn':'pseudo_lfn',
@@ -156,15 +171,18 @@ class ContentsFeederThread (WorkerThread):
                                                   }
                                 except:
                                     errtype,errvalue = sys.exc_info()[:2]
-                                    tmpLog.error('{0} failed to get files due to {1}:{2}'.format(self.__class__.__name__,
+                                    tmpLog.error('failed to get files due to {0}:{1}'.format(self.__class__.__name__,
                                                                                                  errtype.__name__,errvalue))
                                     if errtype == Interaction.JEDIFatalError:
+                                        # fatal error
                                         datasetStatus = 'broken'
                                         taskBroken = True
+                                        # update dataset status    
+                                        self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
                                     else:
-                                        datasetStatus = 'pending'
-                                    # update dataset status    
-                                    self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
+                                        # temporary error
+                                        taskOnHold = True
+                                    taskSpec.setErrDiag('failed to get files for {0}'.format(datasetSpec.datasetName))
                                     allUpdated = False
                                 else:
                                     # the number of events per file
@@ -211,33 +229,72 @@ class ContentsFeederThread (WorkerThread):
                                     useScout = False    
                                     if datasetSpec.isMaster() and not taskParamMap.has_key('skipScout'):
                                         useScout = True
-                                    # get file list
-                                    fileList = RefinerUtils.extractFileList(taskParamMap,datasetSpec.datasetName)   
+                                    # use files with new attempt numbers    
+                                    useFilesWithNewAttemptNr = False
+                                    if not datasetSpec.isPseudo() and fileList != [] and taskParamMap.has_key('useInFilesWithNewAttemptNr'):
+                                        useFilesWithNewAttemptNr = True
                                     # feed files to the contents table
                                     tmpLog.info('update contents')
-                                    retDB = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
-                                                                                         tmpMetadata['state'],
-                                                                                         stateUpdateTime,
-                                                                                         nEventsPerFile,
-                                                                                         nEventsPerJob,
-                                                                                         maxAttempt,
-                                                                                         firstEventNumber,
-                                                                                         nMaxFiles,
-                                                                                         nMaxEvents,
-                                                                                         useScout,
-                                                                                         fileList)
+                                    retDB,missingFileList = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
+                                                                                                         tmpMetadata['state'],
+                                                                                                         stateUpdateTime,
+                                                                                                         nEventsPerFile,
+                                                                                                         nEventsPerJob,
+                                                                                                         maxAttempt,
+                                                                                                         firstEventNumber,
+                                                                                                         nMaxFiles,
+                                                                                                         nMaxEvents,
+                                                                                                         useScout,
+                                                                                                         fileList,
+                                                                                                         useFilesWithNewAttemptNr)
                                     if retDB == False:
-                                        datasetStatus = 'pending'
-                                        # update dataset status    
-                                        self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
+                                        taskSpec.setErrDiag('failed to insert files for {0}'.format(datasetSpec.datasetName))
                                         allUpdated = False
+                                        taskOnHold = True
                                     elif retDB == None:
                                         # the dataset is locked by another or status is not applicable
                                         allUpdated = False
+                                    elif missingFileList != []:
+                                        tmpLog.info('{0} files missing'.format(len(missingFileList)))
+                                        # files are missing
+                                        allUpdated = False
+                                        taskOnHold = True
+                                        missingMap[datasetSpec.datasetName] = {'datasetSpec':datasetSpec,
+                                                                               'missingFiles':missingFileList} 
                     # update task status
                     if taskBroken:
-                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,'broken')
+                        # task is broken
+                        taskSpec.status = 'broken'
+                        tmpLog.info('set taskStatus={0}'.format(taskSpec.status))
+                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
+                    elif taskOnHold:
+                        # initialize task generator
+                        taskGenerator = TaskGenerator(taskSpec.vo,taskSpec.prodSourceLabel)
+                        tmpStat = taskGenerator.initializeMods(self.taskBufferIF,
+                                                               self.ddmIF.getInterface(taskSpec.vo))
+                        if not tmpStat:
+                            tmpErrStr = 'failed to initialize TaskGenerator'
+                            tmpLog.error(tmpErrStr)
+                            taskSpec.status = 'broken'
+                            taskSpec.setErrDiag(tmpErrStr)
+                        else:
+                            # make parent tasks if necessary
+                            tmpLog.info('make parent tasks with {0} (if necessary)'.format(taskGenerator.getClassName(taskSpec.vo,
+                                                                                                                      taskSpec.prodSourceLabel)))
+                            tmpStat = taskGenerator.doGenerate(taskSpec,taskParamMap,missingFilesMap=missingMap)
+                            if tmpStat == Interaction.SC_FATAL:
+                                # failed to make parent tasks
+                                taskSpec.status = 'broken'
+                                tmpLog.error('failed to make parent tasks')
+                        # go to pending state
+                        if taskSpec.status != 'broken':
+                            #taskSpec.setOnHold()
+                            pass
+                        tmpLog.info('set taskStatus={0}'.format(taskSpec.status))
+                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
                     elif allUpdated:
+                        # all OK
+                        tmpLog.info('set taskStatus=ready or assigning')
                         allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID)
                     tmpLog.info('done')
             except:

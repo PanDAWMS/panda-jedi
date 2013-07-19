@@ -59,6 +59,7 @@ def extractFileList(taskParamMap,datasetName):
                 return tmpItem['files']
             else:
                 return []
+    return []
 
 
 

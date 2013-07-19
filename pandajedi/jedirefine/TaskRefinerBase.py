@@ -135,6 +135,8 @@ class TaskRefinerBase (object):
                 datasetSpec.datasetName = tmpItem['dataset']
                 datasetSpec.jediTaskID = self.taskSpec.jediTaskID
                 datasetSpec.type = tmpItem['param_type']
+                if tmpItem.has_key('container'):
+                    datasetSpec.containerName = tmpItem['container']
                 if tmpItem.has_key('token'):
                     datasetSpec.storageToken = tmpItem['token']
                 if tmpItem.has_key('destination'):
