@@ -253,3 +253,16 @@ loopCycle = 60
 
 # interface config
 modConfig = atlas:managed|test:pandajedi.jedigen.AtlasTaskGenerator:AtlasTaskGenerator
+
+
+
+
+##########################
+#
+# TaskSetupper parameters
+#
+
+[tasksetup]
+
+# interface config
+modConfig = atlas:managed|test:pandajedi.jedisetup.AtlasTaskSetupper:AtlasTaskSetupper

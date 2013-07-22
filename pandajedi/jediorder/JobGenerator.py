@@ -13,9 +13,10 @@ from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.userinterface import Client as PandaClient
 
 from JobThrottler import JobThrottler
-from JobBroker import JobBroker
-from JobSplitter import JobSplitter
-from JediKnight import JediKnight
+from JobBroker    import JobBroker
+from JobSplitter  import JobSplitter
+from TaskSetupper import TaskSetupper
+from JediKnight   import JediKnight
 
 from pandajedi.jediconfig import jedi_config
 
@@ -58,6 +59,9 @@ class JobGenerator (JediKnight):
                 # get Throttle
                 throttle = JobThrottler(self.vos,self.prodSourceLabels)
                 throttle.initializeMods(self.taskBufferIF)
+                # get TaskSetupper
+                taskSetupper = TaskSetupper(self.vos,self.prodSourceLabels)
+                taskSetupper.initializeMods(self.taskBufferIF,self.ddmIF)
                 # loop over all vos
                 for vo in self.vos:
                     # loop over all sourceLabels
@@ -125,7 +129,8 @@ class JobGenerator (JediKnight):
                                         for iWorker in range(nWorker):
                                             thr = JobGeneratorThread(inputList,threadPool,
                                                                      self.taskBufferIF,self.ddmIF,
-                                                                     siteMapper,self.execJobs)
+                                                                     siteMapper,self.execJobs,
+                                                                     taskSetupper)
                                             thr.start()
                                         # join
                                         threadPool.join()
@@ -147,7 +152,8 @@ class JobGenerator (JediKnight):
 class JobGeneratorThread (WorkerThread):
 
     # constructor
-    def __init__(self,inputList,threadPool,taskbufferIF,ddmIF,siteMapper,execJobs):
+    def __init__(self,inputList,threadPool,taskbufferIF,ddmIF,siteMapper,
+                 execJobs,taskSetupper):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -157,6 +163,7 @@ class JobGeneratorThread (WorkerThread):
         self.siteMapper   = siteMapper
         self.execJobs     = execJobs
         self.numGenJobs   = 0
+        self.taskSetupper = taskSetupper
         
 
     # main
@@ -178,16 +185,36 @@ class JobGeneratorThread (WorkerThread):
                     tmpLog.info('start with VO={0} cloud={1}'.format(taskSpec.vo,cloudName))
                     readyToSubmitJob = False
                     jobsSubmitted = False
+                    # setup tasks if the first attempt
+                    goForward = True
+                    if taskSpec.status == 'ready':
+                        tmpLog.info('run setupper with {0}'.format(self.taskSetupper.getClassName(taskSpec.vo,
+                                                                                                  taskSpec.prodSourceLabel)))
+                        tmpStat = self.taskSetupper.doSetup(taskSpec)
+                        if tmpStat == Interaction.SC_FATAL:
+                            tmpErrStr = 'fatal error when setup task'
+                            tmpLog.error(tmpErrStr)
+                            taskSpec.status = 'broken'
+                            taskSpec.setErrDiag(tmpErrStr)
+                            goForward = False
+                        elif tmpStat != Interaction.SC_SUCCEEDED:
+                            tmpErrStr = 'failed to setup task'
+                            tmpLog.error(tmpErrStr)
+                            taskSpec.setOnHold()
+                            taskSpec.setErrDiag(tmpErrStr)
+                            goForward = False
                     # initialize brokerage
-                    jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
-                    tmpStat = jobBroker.initializeMods(self.ddmIF.getInterface(taskSpec.vo),
-                                                       self.taskBufferIF)
-                    if not tmpStat:
-                        tmpErrStr = 'failed to initialize JobBroker'
-                        tmpLog.error(tmpErrStr)
-                        taskSpec.status = 'broken'
-                        taskSpec.setErrDiag(tmpErrStr)                        
-                    else:    
+                    if goForward:        
+                        jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
+                        tmpStat = jobBroker.initializeMods(self.ddmIF.getInterface(taskSpec.vo),
+                                                           self.taskBufferIF)
+                        if not tmpStat:
+                            tmpErrStr = 'failed to initialize JobBroker'
+                            tmpLog.error(tmpErrStr)
+                            taskSpec.status = 'broken'
+                            taskSpec.setErrDiag(tmpErrStr)                        
+                            goForward = False
+                    if goForward:
                         # run brokerage
                         tmpLog.info('run brokerage with {0}'.format(jobBroker.getClassName(taskSpec.vo,
                                                                                            taskSpec.prodSourceLabel)))

@@ -151,6 +151,7 @@ setup(
                'pandajedi.jeditest',               
                'pandajedi.jediddm',
                'pandajedi.jedigen',
+               'pandajedi.jedisetup',
                'pandajedi.jediorder',               
                'pandajedi.jediconfig',
                'pandajedi.jedirefine',               

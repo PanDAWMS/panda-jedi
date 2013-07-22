@@ -1,5 +1,8 @@
 Release Note
 
+* 7/22/2013
+  * added TaskSetupper
+
 * 7/19/2013
   * added TG for FileRecovery
 

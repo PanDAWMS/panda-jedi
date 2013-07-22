@@ -12,6 +12,10 @@ from DDMClientBase import DDMClientBase
 from dq2.clientapi.DQ2 import DQ2
 from dq2.info import TiersOfATLAS
 from dq2.common.DQConstants import DatasetState, Metadata
+from dq2.clientapi.DQ2 import \
+    DQUnknownDatasetException, \
+    DQDatasetExistsException
+from dq2.container.exceptions import DQContainerExistsException
 
 
 from pandaserver.dataservice import DataServiceUtils
@@ -28,7 +32,6 @@ class AtlasDDMClient(DDMClientBase):
         # initialize base class
         DDMClientBase.__init__(self,con)
         # the list of fatal error
-        from dq2.clientapi.DQ2 import DQUnknownDatasetException
         self.fatalErrors = [DQUnknownDatasetException]
 
 
@@ -448,6 +451,7 @@ class AtlasDDMClient(DDMClientBase):
             errCode = self.checkError(errtype)
             return errCode,'{0}.{1} {2}'.format(self.__class__.__name__,methodName,errMsg)
             
+
         
     # check error
     def checkError(self,errType):
@@ -457,5 +461,76 @@ class AtlasDDMClient(DDMClientBase):
         else:
             # temprary error
             return self.SC_FAILED
+
+
+
+    # list dataset/container
+    def listDatasets(self,datasetName):
+        methodName = 'listDatasets'
+        try:
+            # get DQ2 API            
+            dq2=DQ2()
+            # get file list
+            tmpRet = dq2.listDatasets(datasetName,onlyNames=True)
+            return self.SC_SUCCEEDED,tmpRet.keys()
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
+
+
+
+    # register new dataset/container
+    def registerNewDataset(self,datasetName):
+        methodName = 'registerNewDataset'
+        try:
+            # get DQ2 API            
+            dq2=DQ2()
+            if not datasetName.endswith('/'):
+                # register dataset
+                dq2.registerNewDataset(datasetName)
+            else:
+                # register container
+                dq2.registerContainer(datasetName)
+        except DQContainerExistsException,DQDatasetExistsException: 
+            pass
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
+        return self.SC_SUCCEEDED,True
             
-    
+
+
+    # list datasets in container
+    def listDatasetsInContainer(self,containerName):
+        methodName = 'listDatasetsInContainer'
+        try:
+            # get DQ2 API            
+            dq2=DQ2()
+            # get list
+            dsList = dq2.listDatasetsInContainer(containerName)
+            return self.SC_SUCCEEDED,dsList
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
+
+        
+
+    # add dataset to container
+    def addDatasetsToContainer(self,containerName,datasetNames):
+        methodName = 'addDatasetsToContainer'
+        try:
+            # get DQ2 API            
+            dq2=DQ2()
+            # add
+            dq2.registerDatasetsInContainer(containerName,datasetNames)
+            return self.SC_SUCCEEDED,True
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
+
+
+        
