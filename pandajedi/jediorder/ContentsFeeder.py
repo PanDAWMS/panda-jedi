@@ -258,7 +258,7 @@ class ContentsFeederThread (WorkerThread):
                                         # files are missing
                                         tmpErrStr = '{0} files missing in {1}'.format(len(missingFileList),datasetSpec.datasetName)
                                         tmpLog.info(tmpErrStr)
-                                        taskSpec.setErrDiag('failed to insert files for {0}'.format(datasetSpec.datasetName))
+                                        taskSpec.setErrDiag(tmpErrStr)
                                         allUpdated = False
                                         taskOnHold = True
                                         missingMap[datasetSpec.datasetName] = {'datasetSpec':datasetSpec,
