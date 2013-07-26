@@ -255,8 +255,10 @@ class ContentsFeederThread (WorkerThread):
                                         # the dataset is locked by another or status is not applicable
                                         allUpdated = False
                                     elif missingFileList != []:
-                                        tmpLog.info('{0} files missing'.format(len(missingFileList)))
                                         # files are missing
+                                        tmpErrStr = '{0} files missing in {1}'.format(len(missingFileList),datasetSpec.datasetName)
+                                        tmpLog.info(tmpErrStr)
+                                        taskSpec.setErrDiag('failed to insert files for {0}'.format(datasetSpec.datasetName))
                                         allUpdated = False
                                         taskOnHold = True
                                         missingMap[datasetSpec.datasetName] = {'datasetSpec':datasetSpec,

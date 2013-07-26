@@ -21,6 +21,18 @@ class FileRecovery (TaskRefinerBase):
         return self.SC_SUCCEEDED
 
 
+    # check matching of dataset names
+    def checkDatasetNameMatching(self,datasetName,patternList):
+        # name list is not given
+        if patternList == None:
+            return False
+        # loop over all names
+        for namePattern in patternList:
+            if re.search('^'+namePattern+'$',datasetName) != None:
+                return True
+        return False
+
+
     # main
     def doRefine(self,jediTaskID,taskParamMap):
         try:
@@ -29,6 +41,11 @@ class FileRecovery (TaskRefinerBase):
             tmpLog.debug('start jediTaskID={0}'.format(jediTaskID))
             # old dataset name
             oldDatasetName = taskParamMap['oldDatasetName']
+            # accompany datasets
+            if taskParamMap.has_key('oldAccompanyDatasetNames'):
+                oldAccDatasetNames = taskParamMap['oldAccompanyDatasetNames']
+            else:
+                oldAccDatasetNames = None
             # use first file to get task and dataset info
             lostFileName = taskParamMap['lostFiles'][0]
             # get ole jediTaskID and datasetIDs
@@ -72,7 +89,8 @@ class FileRecovery (TaskRefinerBase):
                     if provenanceID == None and datasetSpec.provenanceID != None:
                         provenanceID = datasetSpec.provenanceID
                     # collect dummy streams
-                    if datasetSpec.type != 'log' and datasetSpec.datasetID != oldDatasetID:
+                    if datasetSpec.type != 'log' and (datasetSpec.datasetID != oldDatasetID and \
+                                                          not self.checkDatasetNameMatching(datasetSpec.datasetName,oldAccDatasetNames)):
                         if not datasetSpec.streamName in dummyStreams:
                             dummyStreams.append(datasetSpec.streamName)
                         continue
@@ -173,6 +191,10 @@ class FileRecovery (TaskRefinerBase):
                     if not datasetNameSpecMap.has_key(origDatasetSpec.datasetName):
                         tmpLog.error('datasetName={0} is missing in new datasets'.format(origDatasetSpec.datasetName))
                         return self.SC_FAILED
+                    # not target or accompany datasets
+                    if origDatasetSpec.datasetID != oldDatasetID and \
+                            not self.checkDatasetNameMatching(origDatasetSpec.datasetName,oldAccDatasetNames):
+                        continue
                     newDatasetSpec = datasetNameSpecMap[origDatasetSpec.datasetName]
                     # set new attributes
                     fileSpec.fileID = None

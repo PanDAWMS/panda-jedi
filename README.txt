@@ -1,5 +1,9 @@
 Release Note
 
+* 7/29/2013
+  * added an error message to CF when files are missing
+  * changed FR to take oldAccompanyDatasetNames into account
+
 * 7/22/2013
   * added TaskSetupper
 
