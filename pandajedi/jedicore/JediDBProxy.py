@@ -3190,9 +3190,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get jediTaskIDs to exec a command from the command table
             varMap = {}
             varMap[':comm_owner'] = 'DEFT'
-            # FIXME
-            #sqlC  = "SELECT comm_task,comm_meta,comm_cmd,comm_comment FROM {0}.PRODSYS_COMM ".format(jedi_config.db.schemaDEFT)
-            sqlC  = "SELECT comm_task,comm_meta,comm_cmd FROM {0}.PRODSYS_COMM ".format(jedi_config.db.schemaDEFT)
+            sqlC  = "SELECT comm_task,comm_meta,comm_cmd,comm_comment FROM {0}.PRODSYS_COMM ".format(jedi_config.db.schemaDEFT)
             sqlC += "WHERE comm_owner=:comm_owner AND comm_cmd IN ("
             for commandStr,taskStatusMap in commandStatusMap.iteritems():
                 tmpKey = ':comm_cmd_{0}'.format(commandStr)
@@ -3217,10 +3215,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('got {0} tasks'.format(len(resList)))            
-            # FIXME
-            #for jediTaskID,metaTaskID,commandStr,comComment in resList:
-            for jediTaskID,metaTaskID,commandStr in resList:
-                comComment = '{0}ed by JEDI'.format(commandStr)
+            for jediTaskID,metaTaskID,commandStr,comComment in resList:
                 tmpLog.debug('start jediTaskID={0} metaTaskID={1} command={2}'.format(jediTaskID,metaTaskID,commandStr))                
                # start transaction
                 self.conn.begin()
