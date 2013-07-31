@@ -318,9 +318,12 @@ class JediTaskSpec(object):
             
             
     # set error dialog
-    def setErrDiag(self,diag):
-        # set error dialog    
-        self.errorDialog = diag
+    def setErrDiag(self,diag,append=False):
+        # set error dialog
+        if append and self.errorDialog != None:
+            self.errorDialog = "{0} {1}".format(self.errorDialog,diag)
+        else:
+            self.errorDialog = diag
         
 
         

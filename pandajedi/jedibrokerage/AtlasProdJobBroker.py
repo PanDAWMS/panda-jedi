@@ -41,6 +41,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,taskSpec.prodSourceLabel)
         if not tmpSt:
             tmpLog.error('failed to get job statistics')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         # T1 
         t1Sites = [self.siteMapper.getCloud(cloudName)['source']]
@@ -71,6 +72,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         ######################################
         # selection for reprocessing
@@ -87,6 +89,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpLog.debug('{0} candidates passed for reprocessing'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
         ######################################
         # selection for high priorities
@@ -101,6 +104,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpLog.debug('{0} candidates passed for high prio'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
         ######################################
         # selection for data availability
@@ -113,9 +117,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                  self.ddmIF,datasetName)
                 if tmpSt == self.SC_FAILED:
                     tmpLog.error('failed to get the list of sites where data is available, since %s' % tmpRet)
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     return retTmpError
                 if tmpSt == self.SC_FATAL:
                     tmpLog.error('fatal error when getting the list of sites where data is available, since %s' % tmpRet)
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     return retFatal
                 # append
                 self.dataSiteMap[datasetName] = tmpRet
@@ -151,6 +157,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpLog.debug('{0} candidates passed for non-T1 input:{1}'.format(len(scanSiteList),datasetName))
                 if scanSiteList == []:
                     tmpLog.error('no candidates')
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     return retTmpError
         ######################################
         # selection for fairshare
@@ -166,6 +173,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.debug('{0} candidates passed zero share check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         ######################################
         # selection for I/O intensive tasks
@@ -187,6 +195,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.debug('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
         if scanSiteList == []:
             tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         ######################################
         # selection for release
@@ -222,6 +231,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                   taskSpec.architecture))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
         ######################################
         # selection for memory
@@ -231,9 +241,15 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
-                if tmpSiteSpec.memory != 0 and minRamCount > tmpSiteSpec.memory:
-                    tmpLog.debug('  skip %s due to memory shortage=%s < %s' % \
-                                 (tmpSiteName,tmpSiteSpec.memory,minRamCount))
+                if tmpSiteSpec.maxmemory != 0 and minRamCount > tmpSiteSpec.maxmemory:
+                    tmpLog.debug('  skip {0} due to site RAM shortage={1}(site upper limit) < {2}'.format(tmpSiteName,
+                                                                                                          tmpSiteSpec.maxmemory,
+                                                                                                          minRamCount))
+                    continue
+                if tmpSiteSpec.minmemory != 0 and minRamCount < tmpSiteSpec.minmemory:
+                    tmpLog.debug('  skip {0} due to job RAM shortage={1}(site lower limit) > {2}'.format(tmpSiteName,
+                                                                                                         tmpSiteSpec.minmemory,
+                                                                                                         minRamCount))
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList        
@@ -241,6 +257,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                              minRamCount,taskSpec.ramCountUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
         ######################################
         # selection for scratch disk
@@ -260,6 +277,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.debug('{0} candidates passed scratch disk check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         ######################################
         # selection for available space in SE
@@ -279,6 +297,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 movingInputSize = self.taskBufferIF.getMovingInputSize_JEDI(tmpSiteName)
                 if movingInputSize == None:
                     tmpLog.error('failed to get the size of input file moving to {0}'.format(tmpSiteName))
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     return retTmpError
                 # free space - inputs - outputs(250MB*nJobs) must be >= 200GB
                 outSizePerJob = 0.250
@@ -294,6 +313,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.debug('{0} candidates passed SE space check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         ######################################
         # selection for walltime
@@ -304,14 +324,21 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
                 if tmpSiteSpec.maxtime != 0 and minWalltime > tmpSiteSpec.maxtime:
-                    tmpLog.debug('  skip %s due to short walltime=%s < %s' % \
-                                 (tmpSiteName,tmpSiteSpec.maxtime,minWalltime))
+                    tmpLog.debug('  skip {0} due to short site walltime={1}(site upper limit) < {2}'.format(tmpSiteName,
+                                                                                                            tmpSiteSpec.maxtime,
+                                                                                                            minWalltime))
+                    continue
+                if tmpSiteSpec.mintime != 0 and minWalltime < tmpSiteSpec.mintime:
+                    tmpLog.debug('  skip {0} due to short job walltime={1}(site lower limit) > {2}'.format(tmpSiteName,
+                                                                                                           tmpSiteSpec.mintime,
+                                                                                                           minWalltime))
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed walltime check ={1}{2}'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
         ######################################
         # selection for transferring
@@ -337,6 +364,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.debug('{0} candidates passed transferring check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         ######################################
         # selection for nPilot
@@ -355,6 +383,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.debug('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         ######################################
         # get available files
@@ -376,6 +405,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed to get available files with %s %s' % (errtype.__name__,errvalue))
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
             # get total size
             totalSize += datasetSpec.getSize()
@@ -396,6 +426,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                     taskSpec.currentPriority)
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         tmpLog.debug('final {0} candidates'.format(len(scanSiteList)))
         weightMap = {}

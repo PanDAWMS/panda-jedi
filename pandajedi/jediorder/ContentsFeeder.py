@@ -290,8 +290,7 @@ class ContentsFeederThread (WorkerThread):
                                 tmpLog.error('failed to make parent tasks')
                         # go to pending state
                         if taskSpec.status != 'broken':
-                            #taskSpec.setOnHold()
-                            pass
+                            taskSpec.setOnHold()
                         tmpLog.info('set taskStatus={0}'.format(taskSpec.status))
                         allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
                     elif allUpdated:

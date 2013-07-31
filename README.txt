@@ -1,5 +1,9 @@
 Release Note
 
+* 7/31/2013
+  * improved AtlasJobBroker to upload log snippet
+  * changed AtlasJobBroker to take max/minmemory and mintime into account
+
 * 7/29/2013
   * added an error message to CF when files are missing
   * changed FR to take oldAccompanyDatasetNames into account

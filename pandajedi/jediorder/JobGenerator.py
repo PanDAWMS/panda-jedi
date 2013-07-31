@@ -228,7 +228,7 @@ class JobGeneratorThread (WorkerThread):
                             tmpErrStr = 'brokerage failed'
                             tmpLog.error(tmpErrStr)
                             taskSpec.setOnHold()
-                            taskSpec.setErrDiag(tmpErrStr)
+                            taskSpec.setErrDiag(tmpErrStr,True)
                         else:
                             # run splitter
                             tmpLog.info('run splitter')
