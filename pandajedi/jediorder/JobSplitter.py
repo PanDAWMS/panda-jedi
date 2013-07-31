@@ -22,6 +22,27 @@ class JobSplitter:
         # make logger
         tmpLog = MsgWrapper(logger,'jediTaskID=%s' % taskSpec.jediTaskID)
         tmpLog.debug('start')
+        # set maxNumFiles using taskSpec if specified
+        maxNumFiles = taskSpec.getMaxNumFilesPerJob()
+        # set fsize gradients using taskSpec
+        sizeGradients  = taskSpec.getOutDiskSize()
+        # set fsize intercepts using taskSpec                
+        sizeIntercepts = taskSpec.getWorkDiskSize()
+        # walltime
+        walltimeIntercepts = taskSpec.walltime
+        # number of files per job if defined
+        nFilesPerJob = taskSpec.getNumFilesPerJob()
+        # number of events per job if defined
+        nEventsPerJob = taskSpec.getNumEventsPerJob()
+        # grouping with boundaryID
+        useBoundary = taskSpec.useGroupWithBoundaryID()
+        tmpLog.debug('maxNumFiles={0} sizeGradients={1} sizeIntercepts={2} useBoundary={3}'.format(maxNumFiles,
+                                                                                                   sizeGradients,
+                                                                                                   sizeIntercepts,
+                                                                                                   useBoundary))
+        tmpLog.debug('walltimeIntercepts={0} nFilesPerJob={1} nEventsPerJob={2}'.format(walltimeIntercepts,
+                                                                                        nFilesPerJob,
+                                                                                        nEventsPerJob))
         # split
         returnList = []
         subChunks  = []
@@ -39,27 +60,15 @@ class JobSplitter:
                 # new candidate   
                 siteName = inputChunk.getOneSiteCandidate().siteName
                 siteSpec = siteMapper.getSite(siteName)
-                tmpLog.debug('chosen {0}'.format(siteName))                
-            # get maxSize if it is set in taskSpec
-            maxSize = taskSpec.getMaxSizePerJob()
-            if maxSize == None:
-                # use maxwdir as the default maxSize
-                maxSize = siteSpec.maxwdir * 1024 * 1024
-            # set maxNumFiles using taskSpec if specified
-            maxNumFiles = taskSpec.getMaxNumFilesPerJob()
-            # set fsize gradients using taskSpec
-            sizeGradients  = taskSpec.getOutDiskSize()
-            # set fsize intercepts using taskSpec                
-            sizeIntercepts = taskSpec.getWorkDiskSize()
-            # walltime
-            walltimeIntercepts = taskSpec.walltime
-            maxWalltime = siteSpec.maxtime
-            # number of files per job if defined
-            nFilesPerJob = taskSpec.getNumFilesPerJob()
-            # number of events per job if defined
-            nEventsPerJob = taskSpec.getNumEventsPerJob()
-            # grouping with boundaryID
-            useBoundary = taskSpec.useGroupWithBoundaryID()
+                # get maxSize if it is set in taskSpec
+                maxSize = taskSpec.getMaxSizePerJob()
+                if maxSize == None:
+                    # use maxwdir as the default maxSize
+                    maxSize = siteSpec.maxwdir * 1024 * 1024
+                # max walltime      
+                maxWalltime = siteSpec.maxtime
+                tmpLog.debug('chosen {0}'.format(siteName))
+                tmpLog.debug('maxSize={0} maxWalltime={1}'.format(maxSize,maxWalltime))
             # get sub chunk    
             subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
                                               maxNumFiles=maxNumFiles,

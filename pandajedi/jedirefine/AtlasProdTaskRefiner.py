@@ -25,12 +25,6 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             for datasetSpec in self.inSecDatasetSpecList:
                 if datasetSpec.datasetName.startswith('ddo.'):
                     datasetSpec.attributes = 'repeat,nosplit'
-            # set default walltime
-            if self.taskSpec.walltime == 0:
-                if self.taskSpec.processingType == 'evgen':
-                    self.taskSpec.walltime = 30000
-                else:
-                    self.taskSpec.walltime = 100000
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))

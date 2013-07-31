@@ -1262,7 +1262,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
+        tmpLog.debug('start with simul={0}'.format(simul))
         try:
             outMap = {}
             # sql to get dataset
@@ -1391,7 +1391,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     # get tasks to be processed
     def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,
                                    nTasks=50,nFiles=100,isPeeking=False,simTasks=None,
-                                   minPriority=None,maxNumJobs=None,typicalNumFilesMap=None):
+                                   minPriority=None,maxNumJobs=None,typicalNumFilesMap=None,
+                                   fullSimulation=False):
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
         if simTasks != None:
@@ -1463,7 +1464,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "ORDER BY currentPriority DESC,jediTaskID "
             else:
                 varMap = {}
-                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed "
+                if not fullSimulation:
+                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed "
+                else:
+                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed "
                 sql += "FROM {0}.JEDI_Tasks tabT,{1}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI,
                                                                                  jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ("
@@ -1531,8 +1535,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to read files
             sqlFR  = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
-            sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID and status=:status "
-            sqlFR += "AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
+            sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            if not fullSimulation:
+                sqlFR += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
             sqlFR += "ORDER BY lfn) "
             sqlFR += "WHERE rownum <= {0}"
             # sql to update file status
@@ -1664,9 +1669,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
                                 # read files to make FileSpec
                                 varMap = {}
-                                varMap[':status']     = 'ready'
                                 varMap[':datasetID']  = datasetID
                                 varMap[':jediTaskID'] = jediTaskID
+                                if not fullSimulation:
+                                    varMap[':status'] = 'ready'
                                 # the number of files to be read
                                 if tmpDatasetSpec.isMaster():
                                     maxFilesTobeRead = maxMasterFilesTobeRead

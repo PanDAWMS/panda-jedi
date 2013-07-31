@@ -1,6 +1,8 @@
 Release Note
 
 * 7/31/2013
+  * added fullSimulation for job splitter 
+  * removed defualt walltime in AtlasProdTaskRefiner
   * improved AtlasJobBroker to upload log snippet
   * changed AtlasJobBroker to take max/minmemory and mintime into account
 

@@ -103,7 +103,7 @@ class InputChunk:
             if rNumber <= 0:
                 return siteCandidate
         # return something as a protection against precision of float
-        return random.choice(siteCandidate)
+        return random.choice(siteCandidateList)
 
 
 
