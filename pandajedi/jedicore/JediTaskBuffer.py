@@ -670,3 +670,30 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get file spec of lib.tgz
+    def getBuildFileSpec_JEDI(self,jediTaskID,siteName):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getBuildFileSpec_JEDI(jediTaskID,siteName)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # insert lib dataset and files
+    def insertBuildFileSpec_JEDI(self,jobSpec,simul):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.insertBuildFileSpec_JEDI(jobSpec,simul)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+

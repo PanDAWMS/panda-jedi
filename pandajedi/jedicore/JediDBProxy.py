@@ -3683,4 +3683,154 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+
+    # get file spec of lib.tgz
+    def getBuildFileSpec_JEDI(self,jediTaskID,siteName):
+        comment = ' /* JediDBProxy.getBuildFileSpec_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0} siteName={1}>".format(jediTaskID,siteName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get dataset
+            sqlRD  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
+            sqlRD += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD += "WHERE jediTaskID=:jediTaskID AND type=:type AND site=:site "
+            sqlRD += "ORDER BY creationTime DESC "
+            # sql to read files
+            sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
+            sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND type=:type AND status=:status "
+            sqlFR += "ORDER BY creationDate DESC "
+            # start transaction
+            self.conn.begin()
+            # get dataset
+            varMap = {}
+            varMap[':type'] = 'lib'
+            varMap[':site'] = siteName
+            varMap[':jediTaskID'] = jediTaskID
+            self.cur.execute(sqlRD+comment,varMap)
+            resList = self.cur.fetchall()
+            # loop over all datasets
+            pandaFileSpec = None
+            for resItem in resList:
+                datasetSpec = JediDatasetSpec()
+                datasetSpec.pack(resItem)
+                # get file
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':datasetID']  = datasetSpec.datasetID
+                varMap[':type']       = 'lib'
+                varMap[':status']     = 'finished'
+                self.cur.execute(sqlFR+comment,varMap)
+                resFileList = self.cur.fetchall()
+                for resFile in resFileList:
+                    # make FileSpec
+                    tmpFileSpec = JediFileSpec()
+                    tmpFileSpec.pack(resFile)
+                    pandaFileSpec = tmpFileSpec.convertToJobFileSpec(datasetSpec,setType='input')
+                    pandaFileSpec.status = 'ready'
+                    break
+                # no more dataset lookup
+                if pandaFileSpec != None:
+                    break
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            if pandaFileSpec != None:
+                tmpLog.debug("got lib.tgz={0}".format(pandaFileSpec.lfn))
+            else:
+                tmpLog.debug("no lib.tgz")
+            return True,pandaFileSpec
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False,None 
+
+
+
+    # insert lib dataset and files
+    def insertBuildFileSpec_JEDI(self,jobSpec,simul):
+        comment = ' /* JediDBProxy.insertBuildFileSpec_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0}>".format(jobSpec.jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to insert dataset
+            sqlDS  = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI,JediDatasetSpec.columnNames())
+            sqlDS += JediDatasetSpec.bindValuesExpression()
+            sqlDS += " RETURNING datasetID INTO :newDatasetID"
+            # sql to insert file
+            sqlFI  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
+            sqlFI += JediFileSpec.bindValuesExpression()
+            sqlFI += " RETURNING fileID INTO :newFileID"
+            # make datasetSpec
+            pandaFileSpec = jobSpec.Files[0]
+            timeNow = datetime.datetime.utcnow()
+            datasetSpec = JediDatasetSpec()
+            datasetSpec.jediTaskID = jobSpec.jediTaskID
+            datasetSpec.creationTime = timeNow
+            datasetSpec.modificationTime = timeNow
+            datasetSpec.datasetName = pandaFileSpec.dataset
+            datasetSpec.status = 'defined'
+            datasetSpec.type = 'lib'
+            datasetSpec.vo = jobSpec.VO
+            datasetSpec.cloud = jobSpec.cloud
+            datasetSpec.site  = jobSpec.computingSite
+            # make fileSpec
+            fileSpecList = []
+            for pandaFileSpec in jobSpec.Files:
+                fileSpec = JediFileSpec()
+                fileSpec.convertFromJobFileSpec(pandaFileSpec)
+                fileSpec.status       = 'defined'
+                fileSpec.creationDate = timeNow
+                fileSpec.keepTrack    = 1
+                # change type to lib
+                if fileSpec.type == 'output':
+                    fileSpec.type = 'lib'
+                # append
+                fileSpecList.append((fileSpec,pandaFileSpec))
+            # start transaction
+            self.conn.begin()
+            varMap = datasetSpec.valuesMap(useSeq=True)
+            varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+            # insert dataset
+            if not simul:
+                self.cur.execute(sqlDS+comment,varMap)
+                datasetID = long(varMap[':newDatasetID'].getvalue())
+            else:
+                datasetID = 0
+            # insert files
+            fileIdMap = {}    
+            for fileSpec,pandaFileSpec in fileSpecList:
+                fileSpec.datasetID = datasetID
+                varMap = fileSpec.valuesMap(useSeq=True)
+                varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
+                if not simul:
+                    self.cur.execute(sqlFI+comment,varMap)
+                    fileID = long(varMap[':newFileID'].getvalue())
+                else:
+                    fileID = 0
+                # return IDs in a map since changes to jobSpec are not effective
+                # since invoked in separate processes
+                fileIdMap[fileSpec.lfn] = {'datasetID':datasetID,
+                                           'fileID':fileID}
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done")
+            return True,fileIdMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False,None
         

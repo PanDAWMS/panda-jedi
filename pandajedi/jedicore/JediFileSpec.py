@@ -113,14 +113,17 @@ class JediFileSpec(object):
 
 
     # convert to job's FileSpec
-    def convertToJobFileSpec(self,datasetSpec):
+    def convertToJobFileSpec(self,datasetSpec,setType=None):
         jobFileSpec = JobFileSpec()
         jobFileSpec.fileID     = self.fileID
         jobFileSpec.datasetID  = datasetSpec.datasetID
         jobFileSpec.jediTaskID = datasetSpec.jediTaskID
         jobFileSpec.lfn        = self.lfn
         jobFileSpec.GUID       = self.GUID
-        jobFileSpec.type       = self.type
+        if setType == None:
+            jobFileSpec.type   = self.type
+        else:
+            jobFileSpec.type   = setType
         jobFileSpec.scope      = self.scope
         jobFileSpec.fsize      = self.fsize
         jobFileSpec.checksum   = self.checksum
@@ -132,7 +135,7 @@ class JediFileSpec(object):
                 jobFileSpec.dataset = datasetSpec.containerName
             else:
                 jobFileSpec.dataset = datasetSpec.datasetName
-            if self.type in datasetSpec.getInputTypes():
+            if self.type in datasetSpec.getInputTypes() or setType == 'input':
                 # prodDBlock
                 jobFileSpec.prodDBlock = datasetSpec.datasetName
                 # storage token    
@@ -146,6 +149,27 @@ class JediFileSpec(object):
                     jobFileSpec.destinationDBlockToken = datasetSpec.storageToken 
         # return
         return jobFileSpec
+
+
+    # convert from job's FileSpec
+    def convertFromJobFileSpec(self,jobFileSpec):
+        self.fileID     = jobFileSpec.fileID
+        self.datasetID  = jobFileSpec.datasetID
+        self.jediTaskID = jobFileSpec.jediTaskID
+        self.lfn        = jobFileSpec.lfn
+        self.GUID       = jobFileSpec.GUID
+        self.type       = jobFileSpec.type
+        self.scope      = jobFileSpec.scope
+        self.fsize      = jobFileSpec.fsize
+        self.checksum   = jobFileSpec.checksum
+        self.attemptNr  = jobFileSpec.attemptNr
+        # convert NULL to None
+        for attr in self._attributes:
+            val = getattr(self,attr)
+            if val == 'NULL':
+                object.__setattr__(self,attr,None)
+        # return
+        return
 
 
     # check if event-level splitting is used

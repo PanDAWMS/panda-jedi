@@ -2,6 +2,7 @@ import re
 import os
 import sys
 import time
+import copy
 import socket
 import random
 import datetime
@@ -9,7 +10,9 @@ import datetime
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedirefine import RefinerUtils
 from pandaserver.taskbuffer.JobSpec import JobSpec
+from pandaserver.taskbuffer.FileSpec import FileSpec
 from pandaserver.userinterface import Client as PandaClient
 
 from JobThrottler import JobThrottler
@@ -310,6 +313,16 @@ class JobGeneratorThread (WorkerThread):
     def doGenerate(self,taskSpec,cloudName,inSubChunkList,inputChunk,tmpLog,simul=False):
         # return for failure
         failedRet = Interaction.SC_FAILED,None
+        # read task parameters
+        if taskSpec.useBuild():
+            try:
+                # read task parameters
+                taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
+                taskParamMap = RefinerUtils.decodeJSON(taskParam)
+            except:
+                errtype,errvalue = sys.exc_info()[:2]
+                tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
+                return failedRet
         # priority for scout
         scoutPriority = 900
         try:
@@ -319,6 +332,16 @@ class JobGeneratorThread (WorkerThread):
             for tmpInChunk in inSubChunkList:
                 siteName    = tmpInChunk['siteName']
                 inSubChunks = tmpInChunk['subChunks']
+                # make build job
+                buildFileSpec = None
+                if taskSpec.useBuild():
+                    tmpStat,buildJobSpec,buildFileSpec = self.doGenerateBuild(taskSpec,cloudName,siteName,taskParamMap,tmpLog,simul)
+                    if tmpStat != Interaction.SC_SUCCEEDED:
+                        tmpLog.error('failed to generate build job')
+                        return failedRet
+                    # append
+                    if buildJobSpec != None:
+                        jobSpecList.append(buildJobSpec)
                 for inSubChunk in inSubChunks:
                     jobSpec = JobSpec()
                     jobSpec.jobDefinitionID  = 0
@@ -332,12 +355,12 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.homepackage      = re.sub('\r','',jobSpec.homepackage)
                     jobSpec.prodSourceLabel  = taskSpec.prodSourceLabel
                     jobSpec.processingType   = taskSpec.processingType
-                    jobSpec.computingSite    = siteName
                     jobSpec.jediTaskID       = taskSpec.jediTaskID
                     jobSpec.taskID           = taskSpec.reqID
                     jobSpec.workingGroup     = taskSpec.workingGroup
                     jobSpec.computingSite    = siteName
                     jobSpec.cloud            = cloudName
+                    jobSpec.VO               = taskSpec.vo
                     jobSpec.prodSeriesLabel  = 'pandatest'
                     jobSpec.AtlasRelease     = taskSpec.transUses
                     jobSpec.AtlasRelease     = re.sub('\r','',jobSpec.AtlasRelease)
@@ -413,8 +436,15 @@ class JobGeneratorThread (WorkerThread):
                         tmpDatasetSpec = outDsMap[tmpFileSpec.datasetID]
                         tmpOutFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec)
                         jobSpec.addFile(tmpOutFileSpec)
+                    # lib.tgz
+                    paramList = []    
+                    if buildFileSpec != None:
+                        tmpBuildFileSpec = copy.copy(buildFileSpec)
+                        jobSpec.addFile(tmpBuildFileSpec)
+                        paramList.append(('LIB',buildFileSpec.lfn))
                     # job parameter
-                    jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,serialNr)
+                    jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
+                                                                   serialNr,paramList)
                     # addd
                     jobSpecList.append(jobSpec)
             # return
@@ -427,8 +457,104 @@ class JobGeneratorThread (WorkerThread):
 
 
 
+    # generate build jobs
+    def doGenerateBuild(self,taskSpec,cloudName,siteName,taskParamMap,tmpLog,simul=False):
+        # return for failure
+        failedRet = Interaction.SC_FAILED,None,None
+        try:
+            # get lib.tgz file
+            tmpStat,fileSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID,siteName)
+            # failed
+            if not tmpStat:
+                tmpLog.error('failed to get lib.tgz for jediTaskID={0} siteName={0}'.format(taskSpec.jediTaskID,siteName))
+                return failedRet
+            # lib.tgz is already available
+            if fileSpec != None:
+                return Interaction.SC_SUCCEEDED,None,fileSpec
+            # make job spec for build
+            jobSpec = JobSpec()
+            jobSpec.jobDefinitionID  = 0
+            jobSpec.jobExecutionID   = 0
+            jobSpec.attemptNr        = 0
+            jobSpec.maxAttempt       = 0
+            jobSpec.jobName          = taskSpec.taskName
+            jobSpec.transformation   = taskParamMap['buildSpec']['transPath']
+            jobSpec.cmtConfig        = taskSpec.architecture
+            jobSpec.homepackage      = taskSpec.transHome.replace('-','/')
+            jobSpec.homepackage      = re.sub('\r','',jobSpec.homepackage)
+            jobSpec.prodSourceLabel  = taskParamMap['buildSpec']['prodSourceLabel']
+            jobSpec.processingType   = taskSpec.processingType
+            jobSpec.jediTaskID       = taskSpec.jediTaskID
+            jobSpec.workingGroup     = taskSpec.workingGroup
+            jobSpec.computingSite    = siteName
+            jobSpec.cloud            = cloudName
+            jobSpec.VO               = taskSpec.vo
+            jobSpec.prodSeriesLabel  = 'pandatest'
+            jobSpec.AtlasRelease     = taskSpec.transUses
+            jobSpec.AtlasRelease     = re.sub('\r','',jobSpec.AtlasRelease)
+            jobSpec.lockedby         = 'jedi'
+            jobSpec.workQueue_ID     = taskSpec.workQueue_ID
+            # make libDS name
+            libDsName = 'panda.{0}.{1}.lib._{2:06d}'.format(time.strftime('%m%d%H%M%S',time.gmtime()),
+                                                            datetime.datetime.utcnow().microsecond,
+                                                            jobSpec.jediTaskID)
+            jobSpec.destinationDBlock = libDsName
+            jobSpec.destinationSE = siteName  
+            # make lib.tgz
+            fileSpec = FileSpec()
+            fileSpec.lfn        = libDsName + '.lib.tgz'
+            fileSpec.type       = 'output'
+            fileSpec.attemptNr  = 0
+            fileSpec.jediTaskID = taskSpec.jediTaskID
+            fileSpec.dataset           = jobSpec.destinationDBlock
+            fileSpec.destinationDBlock = jobSpec.destinationDBlock
+            fileSpec.destinationSE     = jobSpec.destinationSE
+            jobSpec.addFile(fileSpec)
+            # make log
+            logFileSpec = FileSpec()
+            logFileSpec.lfn        = libDsName + '.log.tgz'
+            logFileSpec.type       = 'log'
+            logFileSpec.attemptNr  = 0
+            logFileSpec.jediTaskID = taskSpec.jediTaskID
+            logFileSpec.dataset           = jobSpec.destinationDBlock
+            logFileSpec.destinationDBlock = jobSpec.destinationDBlock
+            logFileSpec.destinationSE     = jobSpec.destinationSE
+            jobSpec.addFile(logFileSpec)
+            # parameter map
+            paramMap = {}
+            paramMap['OUT'] = fileSpec.lfn
+            paramMap['IN']  = taskParamMap['buildSpec']['archiveName']
+            paramMap['URL'] = taskParamMap['buildSpec']['sourceURL']
+            # job parameter
+            jobSpec.jobParameters = self.makeBuildJobParameters(taskParamMap['buildSpec']['jobParameters'],
+                                                                paramMap)
+            # insert lib.tgz file
+            tmpStat,fileIdMap = self.taskBufferIF.insertBuildFileSpec_JEDI(jobSpec,simul)
+            # failed
+            if not tmpStat:
+                tmpLog.error('failed to insert libDS for jediTaskID={0} siteName={0}'.format(taskSpec.jediTaskID,siteName))
+                return failedRet
+            # set fileID and datasetID
+            for tmpFile in jobSpec.Files:
+                tmpFile.fileID = fileIdMap[tmpFile.lfn]['fileID']
+                tmpFile.datasetID = fileIdMap[tmpFile.lfn]['datasetID']
+            # make file spec which will be used by runJobs
+            runFileSpec = copy.copy(fileSpec)
+            runFileSpec.dispatchDBlock = fileSpec.destinationDBlock
+            runFileSpec.destinationDBlock = None
+            runFileSpec.type = 'input'
+            # return
+            return Interaction.SC_SUCCEEDED,jobSpec,runFileSpec
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error('{0}.doGenerateBuild() failed with {1}:{2}'.format(self.__class__.__name__,
+                                                                            errtype.__name__,errvalue))
+            return failedRet
+
+
+
     # make job parameters
-    def makeJobParameters(self,taskSpec,inSubChunk,outSubChunk,serialNr):
+    def makeJobParameters(self,taskSpec,inSubChunk,outSubChunk,serialNr,paramList):
         parTemplate = taskSpec.jobParamsTemplate
         # make the list of stream/LFNs
         streamLFNsMap = {}
@@ -532,7 +658,22 @@ class JobGeneratorThread (WorkerThread):
                                   ('MAXEVENTS',  maxEvents),
                                   ('SKIPEVENTS', skipEvents),
                                   ('FIRSTEVENT', firstEvent),
-                                  ]:
+                                  ] + paramList:
+            # ignore undefined
+            if parVal == None:
+                continue
+            # replace
+            parTemplate = parTemplate.replace('${'+streamName+'}',str(parVal))
+        # return
+        return parTemplate
+
+
+
+    # make build job parameters
+    def makeBuildJobParameters(self,jobParameters,paramMap):
+        parTemplate = jobParameters
+        # replace placeholders
+        for streamName,parVal in paramMap.iteritems():
             # ignore undefined
             if parVal == None:
                 continue

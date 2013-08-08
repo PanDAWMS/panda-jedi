@@ -27,6 +27,16 @@ class JediTaskSpec(object):
     _seqAttrMap = {}
     # limit length
     _limitLength = {'errorDialog' : 255}
+    # tokens for split rule
+    splitRuleToken = {'nFilesPerJob'   : 'NFPJ',
+                      'nEventsPerJob'  : 'NEPJ',
+                      'nGBPerJob'      : 'NGBPJ',
+                      'nMaxFilesPerJob': 'NMFPJ',
+                      'randomSeed'     : 'RNDM',
+                      'firstEvent'     : 'FST',
+                      'groupBoundaryID': 'GB',
+                      'useBuild'       : 'UB',
+                      }
 
 
 
@@ -242,6 +252,16 @@ class JediTaskSpec(object):
                     retMap['outMap'] = True
                 return retMap
         return None
+
+
+
+    # use build 
+    def useBuild(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useBuild']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
 
 
 

@@ -1,5 +1,8 @@
 Release Note
 
+* 8/8/2013
+  * added a capability to make build jobs
+
 * 7/31/2013
   * added fullSimulation for job splitter 
   * removed defualt walltime in AtlasProdTaskRefiner
