@@ -32,7 +32,7 @@ class JobSplitter:
         walltimeIntercepts = taskSpec.walltime
         # number of files per job if defined
         nFilesPerJob = taskSpec.getNumFilesPerJob()
-        if inputChunk.useScout():
+        if nFilesPerJob == None and inputChunk.useScout():
             nFilesPerJob = 1
         # number of events per job if defined
         nEventsPerJob = taskSpec.getNumEventsPerJob()

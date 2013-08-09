@@ -1,5 +1,8 @@
 Release Note
 
+* 8/9/2013
+  * fixed splitter to respect nFilesPerJob even in scouting 
+
 * 8/8/2013
   * added a capability to make build jobs
 

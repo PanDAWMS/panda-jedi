@@ -241,12 +241,12 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
-                if tmpSiteSpec.maxmemory != 0 and minRamCount > tmpSiteSpec.maxmemory:
+                if tmpSiteSpec.maxmemory != 0 and minRamCount != 0 and minRamCount > tmpSiteSpec.maxmemory:
                     tmpLog.debug('  skip {0} due to site RAM shortage={1}(site upper limit) < {2}'.format(tmpSiteName,
                                                                                                           tmpSiteSpec.maxmemory,
                                                                                                           minRamCount))
                     continue
-                if tmpSiteSpec.minmemory != 0 and minRamCount < tmpSiteSpec.minmemory:
+                if tmpSiteSpec.minmemory != 0 and minRamCount != 0 and minRamCount < tmpSiteSpec.minmemory:
                     tmpLog.debug('  skip {0} due to job RAM shortage={1}(site lower limit) > {2}'.format(tmpSiteName,
                                                                                                          tmpSiteSpec.minmemory,
                                                                                                          minRamCount))
