@@ -1,5 +1,8 @@
 Release Note
 
+* 8/12/2013
+  * fixed CF for nFilesPerJob + scouting 
+
 * 8/9/2013
   * fixed splitter to respect nFilesPerJob even in scouting 
 

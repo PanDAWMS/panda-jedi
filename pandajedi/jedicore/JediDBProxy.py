@@ -202,7 +202,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     # feed files to the JEDI contents table
     def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
-                                   nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr):
+                                   nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
+                                   nFilesPerJob):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -214,8 +215,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('firstEventNumber={0} nMaxFiles={1} nMaxEvents={2} useScout={3}'.format(firstEventNumber,
                                                                                              nMaxFiles,nMaxEvents,
                                                                                              useScout))
-        tmpLog.debug('useFilesWithNewAttemptNr={0}'.format(useFilesWithNewAttemptNr))
-        nFilesForScout = 10
+        tmpLog.debug('useFilesWithNewAttemptNr={0} nFilesPerJob={1}'.format(useFilesWithNewAttemptNr,
+                                                                            nFilesPerJob))
+        if nFilesPerJob != None:
+            nFilesForScout = 10 * nFilesPerJob 
+        else:
+            nFilesForScout = 10
         # return value for failure
         failedRet = False,0
         try:

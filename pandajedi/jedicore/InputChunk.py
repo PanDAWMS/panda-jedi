@@ -177,7 +177,8 @@ class InputChunk:
         maxNumEvents = None
         # overwrite parameters when nFiles/EventsPerJob is used
         if nFilesPerJob != None:
-            maxNumFiles = nFilesPerJob
+            maxNumFiles  = nFilesPerJob
+            multiplicand = nFilesPerJob
         if nEventsPerJob != None:
             maxNumEvents = nEventsPerJob
         # split with boundayID

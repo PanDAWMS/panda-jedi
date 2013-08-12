@@ -233,6 +233,10 @@ class ContentsFeederThread (WorkerThread):
                                     useFilesWithNewAttemptNr = False
                                     if not datasetSpec.isPseudo() and fileList != [] and taskParamMap.has_key('useInFilesWithNewAttemptNr'):
                                         useFilesWithNewAttemptNr = True
+                                    # the
+                                    nFilesPerJob = None
+                                    if taskParamMap.has_key('nFilesPerJob'):
+                                        nFilesPerJob = taskParamMap['nFilesPerJob']
                                     # feed files to the contents table
                                     tmpLog.info('update contents')
                                     retDB,missingFileList = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
@@ -246,7 +250,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                          nMaxEvents,
                                                                                                          useScout,
                                                                                                          fileList,
-                                                                                                         useFilesWithNewAttemptNr)
+                                                                                                         useFilesWithNewAttemptNr,
+                                                                                                         nFilesPerJob)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}'.format(datasetSpec.datasetName))
                                         allUpdated = False
