@@ -54,7 +54,8 @@ class WatchDog (JediKnight):
                         # reactivate pending tasks
                         tmpLog.info('reactivate pending tasks for vo={0} label={1}'.format(vo,prodSourceLabel)) 
                         tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(vo,prodSourceLabel,
-                                                                               jedi_config.watchdog.waitForPending)
+                                                                               jedi_config.watchdog.waitForPending,
+                                                                               jedi_config.watchdog.timeoutForPending)
                         if tmpRet == None:
                             # failed
                             tmpLog.error('failed to reactivate')

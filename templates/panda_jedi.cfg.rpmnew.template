@@ -200,6 +200,9 @@ waitForPicked = 30
 # wait period for pending tasks in minutes
 waitForPending = 60
 
+# timeout for pending tasks in days
+timeoutForPending = 7
+
 
 
 

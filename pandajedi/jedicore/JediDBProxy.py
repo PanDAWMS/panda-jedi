@@ -3641,18 +3641,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # reactivate pending tasks
-    def reactivatePendingTasks_JEDI(self,vo,prodSourceLabel,timeLimit):
+    def reactivatePendingTasks_JEDI(self,vo,prodSourceLabel,timeLimit,timeoutLimit=None):
         comment = ' /* JediDBProxy.reactivatePendingTasks_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} limit={2}min>".format(vo,prodSourceLabel,timeLimit)
+        methodName += " <vo={0} label={1} limit={2}min timeout={3}days>".format(vo,prodSourceLabel,timeLimit,timeoutLimit)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
+            timeoutDate = None
+            if timeoutLimit != None:
+                timeoutDate = datetime.datetime.utcnow() - datetime.timedelta(days=timeoutLimit)
             # sql to get pending tasks
             varMap = {}
             varMap[':status'] = 'pending'
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=timeLimit)
-            sqlTL  = "SELECT jediTaskID FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlTL  = "SELECT jediTaskID,creationDate,errorDialog "
+            sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlTL += "AND tabT.status=:status AND tabT.modificationTime<:timeLimit AND tabT.oldStatus IS NOT NULL "
             if not vo in [None,'any']:
@@ -3665,15 +3669,27 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=oldStatus,oldStatus=NULL,errorDialog=NULL,modificationtime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID "
+            # sql to timeout tasks    
+            sqlTO  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTO += "SET status=:newStatus,errorDialog=:errorDialog,modificationtime=CURRENT_DATE "
+            sqlTO += "WHERE jediTaskID=:jediTaskID "
             # start transaction
             self.conn.begin()
             self.cur.execute(sqlTL+comment,varMap)
             resTL = self.cur.fetchall()
             # loop over all tasks
             nRow = 0
-            for jediTaskID, in resTL:
+            for jediTaskID,creationDate,errorDialog in resTL:
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
+                if timeoutDate != None and creationDate < timeoutDate:
+                    varMap[':newStatus'] = 'timeout'
+                    if errorDialog == None:
+                        errorDialog = ''
+                    else:
+                        errorDialog += '.'
+                    errorDialog += 'timeout in pending'
+                    varMap[':errorDialog'] = errorDialog
                 self.cur.execute(sqlTU+comment,varMap)
                 nRow += self.cur.rowcount
             # commit
@@ -3838,4 +3854,3 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False,None
-        

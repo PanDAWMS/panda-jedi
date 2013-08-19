@@ -1,5 +1,8 @@
 Release Note
 
+* 8/19/2013
+  * added timeout for pending
+
 * 8/12/2013
   * fixed CF for nFilesPerJob + scouting 
 
