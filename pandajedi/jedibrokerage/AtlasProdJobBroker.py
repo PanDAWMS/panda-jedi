@@ -81,7 +81,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check schedconfig.validatedreleases
-                if tmpSiteSpec.validatedreleases == 'True':
+                if tmpSiteSpec.validatedreleases == ['True']:
                     newScanSiteList.append(tmpSiteName)
                 else:
                     tmpLog.debug('  skip %s due to validatedreleases != True' % tmpSiteName)

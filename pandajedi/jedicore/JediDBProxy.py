@@ -1648,15 +1648,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 break
                             # typical number of files
                             typicalNumFilesPerJob = 5
-                            if typicalNumFilesMap != None and typicalNumFilesMap.has_key(taskSpec.processingType) \
+                            if taskSpec.getNumFilesPerJob() != None:
+                                # the number of files is specified
+                                typicalNumFilesPerJob = taskSpec.getNumFilesPerJob()
+                            elif typicalNumFilesMap != None and typicalNumFilesMap.has_key(taskSpec.processingType) \
                                     and typicalNumFilesMap[taskSpec.processingType] > 0:
+                                # typical usage
                                 typicalNumFilesPerJob = typicalNumFilesMap[taskSpec.processingType]
                             # max number of files based on typical usage
                             typicalMaxNumFiles = typicalNumFilesPerJob * maxNumJobs
                             if typicalMaxNumFiles > nFiles:
-                                maxNumFiles = nFiles
-                            else:
                                 maxNumFiles = typicalMaxNumFiles
+                            else:
+                                maxNumFiles = nFiles
                             # set lower limit to avoid too fine slashing
                             lowerLimitOnMaxNumFiles = 100    
                             if maxNumFiles < lowerLimitOnMaxNumFiles:
@@ -1684,6 +1688,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 else:
                                     # set very large number for secondary to read all files
                                     maxFilesTobeRead = 1000000
+                                tmpLog.debug('trying to read {0} files from datasetID={1}'.format(maxFilesTobeRead,datasetID))
                                 self.cur.execute(sqlFR.format(maxFilesTobeRead)+comment,varMap)
                                 resFileList = self.cur.fetchall()
                                 iFiles = 0
@@ -1725,6 +1730,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     self.cur.execute(sqlDU+comment,varMap)
                                     newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
                                     newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
+                                tmpLog.debug('datasetID={0} has {1} files to be processed'.format(datasetID,iFiles))
                                 # set flag if it is a block read
                                 if tmpDatasetSpec.isMaster():
                                     if readBlock:
@@ -2162,6 +2168,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
+            # use predefined values
+            tmpLog.debug(hasattr(jedi_config.jobgen,'typicalNumFile'))
+            try:
+                if hasattr(jedi_config.jobgen,'typicalNumFile'):
+                    for tmpItem in jedi_config.jobgen.typicalNumFile.split(','):
+                        confVo,confProdSourceLabel,confWorkQueue,confProcessingType,confNumFiles = tmpItem.split(':')
+                        if vo != confVo and not confVo in [None,'','any']:
+                            continue
+                        if prodSourceLabel != confProdSourceLabel and not confProdSourceLabel in [None,'','any']:
+                            continue
+                        if workQueue != confWorkQueue and not confWorkQueue in [None,'','any']:
+                            continue
+                        retMap[confProcessingType] = int(confNumFiles)
+            except:
+                pass
             tmpLog.debug('done -> {0}'.format(retMap))
             return retMap
         except:
@@ -2467,7 +2488,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # register task/dataset/templ/param in a single transaction
-    def registerTaskInOneShot_JEDI(self,jediTaskID,taskSpec,inMasterDatasetSpec,
+    def registerTaskInOneShot_JEDI(self,jediTaskID,taskSpec,inMasterDatasetSpecList,
                                    inSecDatasetSpecList,outDatasetSpecList,
                                    outputTemplateMap,jobParamsTemplate,taskParams):
         comment = ' /* JediDBProxy.registerTaskInOneShot_JEDI */'
@@ -2499,36 +2520,33 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                      JediDatasetSpec.columnNames())
                 sql += JediDatasetSpec.bindValuesExpression()
                 sql += " RETURNING datasetID INTO :newDatasetID"
-                inDatasetSpecList = []
                 # insert master dataset
                 masterID = -1
                 datasetIdMap = {}
-                datasetSpec = inMasterDatasetSpec
-                if datasetSpec != None:
-                    datasetSpec.creationTime = timeNow
-                    datasetSpec.modificationTime = timeNow
-                    varMap = datasetSpec.valuesMap(useSeq=True)
-                    varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
-                    # insert dataset
-                    self.cur.execute(sql+comment,varMap)
-                    datasetID = long(varMap[':newDatasetID'].getvalue())
-                    masterID = datasetID
-                    datasetIdMap[datasetSpec.datasetName] = datasetID
-                    datasetSpec.datasetID = datasetID
-                    inDatasetSpecList.append(datasetSpec)
-                # insert secondary datasets
-                for datasetSpec in inSecDatasetSpecList:
-                    datasetSpec.creationTime = timeNow
-                    datasetSpec.modificationTime = timeNow
-                    datasetSpec.masterID = masterID
-                    varMap = datasetSpec.valuesMap(useSeq=True)
-                    varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
-                    # insert dataset
-                    self.cur.execute(sql+comment,varMap)
-                    datasetID = long(varMap[':newDatasetID'].getvalue())
-                    datasetIdMap[datasetSpec.datasetName] = datasetID
-                    datasetSpec.datasetID = datasetID
-                    inDatasetSpecList.append(datasetSpec)
+                for datasetSpec in inMasterDatasetSpecList:
+                    if datasetSpec != None:
+                        datasetSpec.creationTime = timeNow
+                        datasetSpec.modificationTime = timeNow
+                        varMap = datasetSpec.valuesMap(useSeq=True)
+                        varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
+                        # insert dataset
+                        self.cur.execute(sql+comment,varMap)
+                        datasetID = long(varMap[':newDatasetID'].getvalue())
+                        masterID = datasetID
+                        datasetIdMap[datasetSpec.uniqueMapKey()] = datasetID
+                        datasetSpec.datasetID = datasetID
+                    # insert secondary datasets
+                    for datasetSpec in inSecDatasetSpecList:
+                        datasetSpec.creationTime = timeNow
+                        datasetSpec.modificationTime = timeNow
+                        datasetSpec.masterID = masterID
+                        varMap = datasetSpec.valuesMap(useSeq=True)
+                        varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
+                        # insert dataset
+                        self.cur.execute(sql+comment,varMap)
+                        datasetID = long(varMap[':newDatasetID'].getvalue())
+                        datasetIdMap[datasetSpec.uniqueMapKey()] = datasetID
+                        datasetSpec.datasetID = datasetID
                 # insert output datasets
                 for datasetSpec in outDatasetSpecList:
                     datasetSpec.creationTime = timeNow

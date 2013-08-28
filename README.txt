@@ -1,5 +1,8 @@
 Release Note
 
+* 8/28/2013
+  * added support for log merge
+
 * 8/19/2013
   * added timeout for pending
 

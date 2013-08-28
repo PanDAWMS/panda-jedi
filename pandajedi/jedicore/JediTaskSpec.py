@@ -174,7 +174,7 @@ class JediTaskSpec(object):
         if self.splitRule != None:
             tmpMatch = re.search('NGBPJ=(\d+)',self.splitRule)
             if tmpMatch != None:
-                nGBPerJob = int(nGBPerJob) * 1024 * 1024 * 1024
+                nGBPerJob = int(tmpMatch.group(1)) * 1024 * 1024 * 1024
                 return nGBPerJob
         return None    
 

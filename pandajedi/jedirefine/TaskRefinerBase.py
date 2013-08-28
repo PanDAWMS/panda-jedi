@@ -1,4 +1,5 @@
 import re
+import copy
 
 import RefinerUtils
 from pandajedi.jedicore import Interaction
@@ -22,7 +23,7 @@ class TaskRefinerBase (object):
     # initialize
     def initializeRefiner(self,tmpLog):
         self.taskSpec = None
-        self.inMasterDatasetSpec = None
+        self.inMasterDatasetSpec = []
         self.inSecDatasetSpecList = []        
         self.outDatasetSpecList = []
         self.outputTemplateMap = {}
@@ -154,12 +155,22 @@ class TaskRefinerBase (object):
                 datasetSpec.status = 'defined'
                 if datasetSpec.type in ['input','pseudo_input']:
                     datasetSpec.streamName = RefinerUtils.extractStreamName(tmpItem['value'])
-                    if nIn == 0:
-                        # master
-                        self.inMasterDatasetSpec = datasetSpec
+                    inDatasetSpecList = []
+                    # comma-separated dataset names
+                    if ',' in datasetSpec.datasetName:
+                        for datasetName in datasetSpec.datasetName.split(','):
+                            inDatasetSpec = copy.copy(datasetSpec)
+                            inDatasetSpec.datasetName = datasetName
+                            inDatasetSpecList.append(inDatasetSpec)
                     else:
-                        # secondary
-                        self.inSecDatasetSpecList.append(datasetSpec)
+                        inDatasetSpecList = [datasetSpec]
+                    for inDatasetSpec in inDatasetSpecList:    
+                        if nIn == 0:
+                            # master
+                            self.inMasterDatasetSpec.append(inDatasetSpec)
+                        else:
+                            # secondary
+                            self.inSecDatasetSpecList.append(inDatasetSpec)
                     nIn += 1    
                     continue
                 if datasetSpec.type in ['output','log']:

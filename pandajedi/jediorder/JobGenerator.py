@@ -611,6 +611,18 @@ class JobGeneratorThread (WorkerThread):
             if len(listLFN) == 1:
                 # just replace with the original file name
                 parTemplate = parTemplate.replace('${'+streamName+'}',listLFN[0])
+            elif '/L' in streamName:
+                # long format
+                longLFNs = ''
+                for tmpLFN in listLFN:
+                    longLFNs += tmpLFN
+                    if '/S' in streamName:
+                        # use white-space as separator
+                        longLFNs += ' '
+                    else:
+                        longLFNs += ','
+                longLFNs = longLFNs[:-1]
+                parTemplate = parTemplate.replace('${'+streamName+'}',longLFNs)
             else:
                 # remove attempt numbers
                 compactLFNs = []

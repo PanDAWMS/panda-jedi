@@ -300,3 +300,10 @@ class JediDatasetSpec(object):
         mapKey = '{0}#{1}'.format(self.datasetName,self.provenanceID)
         return mapKey
 
+
+
+    # unique map key
+    def uniqueMapKey(self):
+        mapKey = '{0}#{1}'.format(self.datasetName,self.datasetID)
+        return mapKey
+

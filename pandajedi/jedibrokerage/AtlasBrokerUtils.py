@@ -65,6 +65,10 @@ def getSitesWithData(siteMapper,ddmIF,datasetName):
         retMap[tmpCloudName] = {'t1':{},'t2':[]}
         # get T1 DDM endpoints
         tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
+        # FIXME until CERN-PROD_TZERO is added to cloudconfig.tier1SE
+        if tmpCloudName == 'CERN':
+            if not 'CERN-PROD_TZERO' in tmpCloudSpec['tier1SE']:
+                tmpCloudSpec['tier1SE'].append('CERN-PROD_TZERO')
         for tmpSePat in tmpCloudSpec['tier1SE']:
             if '*' in tmpSePat:
                 tmpSePat = tmpSePat.replace('*','.*')

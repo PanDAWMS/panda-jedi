@@ -208,10 +208,10 @@ class InputChunk:
         newBoundaryID  = False
         nSecFilesMap   = {}
         numMaster      = 0
-        while (maxNumFiles == None or inputNumFiles < maxNumFiles) \
-                and (maxSize == None or (maxSize != None and fileSize < maxSize)) \
-                and (maxWalltime <= 0 or expWalltime < maxWalltime) \
-                and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents < maxNumEvents)):
+        while (maxNumFiles == None or inputNumFiles <= maxNumFiles) \
+                and (maxSize == None or (maxSize != None and fileSize <= maxSize)) \
+                and (maxWalltime <= 0 or expWalltime <= maxWalltime) \
+                and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents <= maxNumEvents)):
             # get one file (or one file group for MP) from master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
@@ -334,10 +334,10 @@ class InputChunk:
             # termination            
             if terminateFlag:
                 break
-            if newInputNumFiles >= maxNumFiles \
-                    or (maxSize != None and newFileSize >= maxSize) \
-                    or (maxWalltime > 0 and newExpWalltime >= maxWalltime) \
-                    or (maxNumEvents != None and newInputNumEvents >= maxNumEvents):
+            if newInputNumFiles > maxNumFiles \
+                    or (maxSize != None and newFileSize > maxSize) \
+                    or (maxWalltime > 0 and newExpWalltime > maxWalltime) \
+                    or (maxNumEvents != None and newInputNumEvents > maxNumEvents):
                 break
         # reset nUsed for repeated datasets
         for tmpDatasetID,datasetUsage in self.datasetMap.iteritems():
