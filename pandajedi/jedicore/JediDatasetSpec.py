@@ -226,6 +226,15 @@ class JediDatasetSpec(object):
 
 
 
+    # check if duplicated files are used
+    def useDuplicatedFiles(self):
+        if self.attributes != None and 'usedup' in self.attributes:
+            return True
+        else:
+            return False
+
+
+
     # check if it is a master dataset
     def isMaster(self):
         if self.masterID == None and self.type in self.getInputTypes():

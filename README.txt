@@ -1,5 +1,8 @@
 Release Note
 
+* 8/29/2013
+  * fixed Watchdoc
+
 * 8/28/2013
   * added support for log merge
 

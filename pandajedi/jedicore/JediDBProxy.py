@@ -3708,7 +3708,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         errorDialog += '.'
                     errorDialog += 'timeout in pending'
                     varMap[':errorDialog'] = errorDialog
-                self.cur.execute(sqlTU+comment,varMap)
+                    sql = sqlTO
+                else:
+                    sql = sqlTU
+                self.cur.execute(sql+comment,varMap)
                 nRow += self.cur.rowcount
             # commit
             if not self._commit():

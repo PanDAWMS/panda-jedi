@@ -154,13 +154,16 @@ class ContentsFeederThread (WorkerThread):
                                 tmpLog.info('get files')
                                 try:
                                     useInFilesWithNewAttemptNr = False
+                                    skipDuplicate = not datasetSpec.useDuplicatedFiles()
                                     if not datasetSpec.isPseudo():
                                         if fileList != [] and taskParamMap.has_key('useInFilesInContainer') and \
                                                 not datasetSpec.containerName in ['',None]:
                                             # read files from container if file list is specified in task parameters
-                                            tmpRet = ddmIF.getFilesInDataset(datasetSpec.containerName)
+                                            tmpRet = ddmIF.getFilesInDataset(datasetSpec.containerName,
+                                                                             skipDuplicate)
                                         else:
-                                            tmpRet = ddmIF.getFilesInDataset(datasetSpec.datasetName)
+                                            tmpRet = ddmIF.getFilesInDataset(datasetSpec.datasetName,
+                                                                             skipDuplicate)
                                     else:
                                         # dummy file list for pseudo dataset
                                         tmpRet = {str(uuid.uuid4()):{'lfn':'pseudo_lfn',
