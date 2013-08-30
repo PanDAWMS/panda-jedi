@@ -198,13 +198,13 @@ class JobGeneratorThread (WorkerThread):
                             tmpErrStr = 'fatal error when setup task'
                             tmpLog.error(tmpErrStr)
                             taskSpec.status = 'broken'
-                            taskSpec.setErrDiag(tmpErrStr)
+                            taskSpec.setErrDiag(tmpErrStr,True)
                             goForward = False
                         elif tmpStat != Interaction.SC_SUCCEEDED:
                             tmpErrStr = 'failed to setup task'
                             tmpLog.error(tmpErrStr)
                             taskSpec.setOnHold()
-                            taskSpec.setErrDiag(tmpErrStr)
+                            taskSpec.setErrDiag(tmpErrStr,True)
                             goForward = False
                     # initialize brokerage
                     if goForward:        

@@ -85,5 +85,6 @@ class AtlasTaskSetupper (TaskSetupperBase):
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doSetup failed with {0}:{1}'.format(errtype.__name__,errvalue))
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retFatal
             
