@@ -444,7 +444,7 @@ class JobGeneratorThread (WorkerThread):
                         paramList.append(('LIB',buildFileSpec.lfn))
                     # job parameter
                     jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
-                                                                   serialNr,paramList)
+                                                                   serialNr,paramList,jobSpec,simul)
                     # addd
                     jobSpecList.append(jobSpec)
             # return
@@ -554,7 +554,7 @@ class JobGeneratorThread (WorkerThread):
 
 
     # make job parameters
-    def makeJobParameters(self,taskSpec,inSubChunk,outSubChunk,serialNr,paramList):
+    def makeJobParameters(self,taskSpec,inSubChunk,outSubChunk,serialNr,paramList,jobSpec,simul):
         parTemplate = taskSpec.jobParamsTemplate
         # make the list of stream/LFNs
         streamLFNsMap = {}
@@ -562,7 +562,17 @@ class JobGeneratorThread (WorkerThread):
         skipEvents = None
         maxEvents  = None
         firstEvent = None
-        rndmSeed   = serialNr + taskSpec.getRndmSeedOffset()
+        rndmSeed   = None
+        # get random seed
+        if taskSpec.useRandomSeed():
+            tmpStat,randomSpecList = self.taskBufferIF.getRandomSeed_JEDI(taskSpec.jediTaskID,simul)
+            if tmpStat == True:
+                tmpRandomFileSpec,tmpRandomDatasetSpec = randomSpecList 
+                if tmpRandomFileSpec!= None:
+                    tmpJobFileSpec = tmpRandomFileSpec.convertToJobFileSpec(tmpRandomDatasetSpec,
+                                                                            setType='pseudo_input')
+                    rndmSeed = tmpRandomFileSpec.firstEvent + taskSpec.getRndmSeedOffset()
+                    jobSpec.addFile(tmpJobFileSpec)
         # input
         for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
             # stream name

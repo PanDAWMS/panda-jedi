@@ -699,3 +699,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         # return
         return retVal
 
+
+
+    # get random seed
+    def getRandomSeed_JEDI(self,jediTaskID,simul):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getRandomSeed_JEDI(jediTaskID,simul)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+

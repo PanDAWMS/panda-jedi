@@ -211,7 +211,7 @@ class ContentsFeederThread (WorkerThread):
                                             # use default value
                                             maxAttempt = 5
                                         # first event number
-                                        firstEventNumber = taskSpec.getFirstEventOffset()
+                                        firstEventNumber = 1 + taskSpec.getFirstEventOffset()
                                     # nMaxEvents
                                     nMaxEvents = None 
                                     if datasetSpec.isMaster() and taskParamMap.has_key('nEvents'):

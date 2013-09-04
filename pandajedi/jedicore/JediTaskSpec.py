@@ -265,6 +265,16 @@ class JediTaskSpec(object):
 
 
 
+    # use random seed
+    def useRandomSeed(self):
+        if self.splitRule != None:
+            tmpMatch = re.search('RNDM=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
     # get the size of workDisk in bytes
     def getWorkDiskSize(self):
         tmpSize = self.workDiskCount

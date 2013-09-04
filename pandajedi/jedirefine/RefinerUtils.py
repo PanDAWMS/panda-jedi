@@ -79,3 +79,15 @@ def appendDataset(taskParamMap,datasetSpec,fileList):
     taskParamMap['jobParameters'].append(tmpItem)
     return taskParamMap
 
+
+
+# check if use random seed
+def useRandomSeed(taskParamMap):
+    for tmpItem in taskParamMap['jobParameters']:
+        if tmpItem.has_key('value'):
+            # get offset for random seed
+            if tmpItem['type'] == 'template' and tmpItem['param_type'] == 'number':
+                if '${RNDMSEED}' in tmpItem['value']:
+                    return True
+    return False
+

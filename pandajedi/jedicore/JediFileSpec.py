@@ -135,7 +135,7 @@ class JediFileSpec(object):
                 jobFileSpec.dataset = datasetSpec.containerName
             else:
                 jobFileSpec.dataset = datasetSpec.datasetName
-            if self.type in datasetSpec.getInputTypes() or setType == 'input':
+            if self.type in datasetSpec.getInputTypes() or setType in datasetSpec.getInputTypes():
                 # prodDBlock
                 jobFileSpec.prodDBlock = datasetSpec.datasetName
                 # storage token    

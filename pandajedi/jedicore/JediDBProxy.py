@@ -1109,11 +1109,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql
             varMap = {}
-            varMap[':status'] = 'prepared'
+            varMap[':status1'] = 'prepared'
+            varMap[':status2'] = 'scouted'
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames('tabT'))
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
-            sqlRT += "AND tabT.status=:status "
+            sqlRT += "AND tabT.status IN (:status1,:status2) "
             if not vo in [None,'any']:
                 varMap[':vo'] = vo
                 sqlRT += "AND tabT.vo=:vo "
@@ -1126,6 +1127,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlLK += "WHERE jediTaskID=:jediTaskID "
             sqlDS  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
             sqlDS += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sqlSC  = "UPDATE {0}.JEDI_Tasks SET status=:status,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlSC += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
@@ -1136,26 +1139,36 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlRT+comment,varMap)
             resList = self.cur.fetchall()
             retTasks = []
+            allTasks = []
             for resRT in resList:
                 taskSpec = JediTaskSpec()
                 taskSpec.pack(resRT)
-                retTasks.append(taskSpec)
+                allTasks.append(taskSpec)
             # get datasets    
-            for taskSpec in retTasks:
-                # lock task
-                varMap = {}
-                varMap[':jediTaskID'] = taskSpec.jediTaskID
-                varMap[':lockedBy'] = pid
-                self.cur.execute(sqlLK+comment,varMap)
-                # read datasets
-                varMap = {}
-                varMap[':jediTaskID'] = taskSpec.jediTaskID
-                self.cur.execute(sqlDS+comment,varMap)
-                resList = self.cur.fetchall()
-                for resDS in resList:
-                    datasetSpec = JediDatasetSpec()
-                    datasetSpec.pack(resDS)
-                    taskSpec.datasetSpecList.append(datasetSpec)
+            for taskSpec in allTasks:
+                if taskSpec.status == 'prepared':
+                    retTasks.append(taskSpec)
+                    # lock task
+                    varMap = {}
+                    varMap[':jediTaskID'] = taskSpec.jediTaskID
+                    varMap[':lockedBy'] = pid
+                    self.cur.execute(sqlLK+comment,varMap)
+                    # read datasets
+                    varMap = {}
+                    varMap[':jediTaskID'] = taskSpec.jediTaskID
+                    self.cur.execute(sqlDS+comment,varMap)
+                    resList = self.cur.fetchall()
+                    for resDS in resList:
+                        datasetSpec = JediDatasetSpec()
+                        datasetSpec.pack(resDS)
+                        taskSpec.datasetSpecList.append(datasetSpec)
+                else:
+                    # make avalanche
+                    varMap = {}
+                    varMap[':jediTaskID'] = taskSpec.jediTaskID
+                    varMap[':status'] = 'running'
+                    self.cur.execute(sqlSC+comment,varMap)
+                    tmpLog.debug("changed status to {0} for jediTaskID={1}".format(varMap[':status'],taskSpec.jediTaskID))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -2826,7 +2839,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDOU += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
             # sql to update nFiles of dataset
             sqlFU  = "UPDATE {0}.JEDI_Datasets SET nFilesToBeUsed=nFiles,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
-            sqlFU += "WHERE type=:type AND jediTaskID=:jediTaskID AND masterID IS NULL "
+            sqlFU += "WHERE type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sqlFU += '{0},'.format(mapKey)
+            sqlFU  = sqlFU[:-1]
+            sqlFU += ") AND jediTaskID=:jediTaskID AND masterID IS NULL "
             # sql to update task status
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=:status,modificationTime=CURRENT_DATE,lockedBy=NULL,lockedTime=CURRENT_DATE "
@@ -2881,11 +2899,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # update nFiles to be used
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
-                        varMap[':type']   = 'input'
+                        for tmpType in JediDatasetSpec.getInputTypes():
+                            mapKey = ':type_'+tmpType
+                            varMap[mapKey] = tmpType
                         self.cur.execute(sqlFU+comment,varMap)
                         # new task status
-                        newTaskStatus = 'running'
-                    else:
+                        newTaskStatus = 'scouted'
+                    elif taskSpec.status in ['running','merging']:
                         # update output datasets
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
@@ -2922,12 +2942,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.cur.execute(sqlDIU+comment,varMap)
                         # new task status
                         newTaskStatus = 'prepared'    
+                    else:
+                        toSkip = True
+                        tmpLog.debug('skip jediTaskID={0} due to status={1}'.format(jediTaskID,taskSpec.status))
                     # update tasks
-                    varMap = {}
-                    varMap[':jediTaskID'] = jediTaskID
-                    varMap[':status'] = newTaskStatus
-                    self.cur.execute(sqlTU+comment,varMap)
-                    tmpLog.debug('done new status={0} for jediTaskID={1}'.format(newTaskStatus,jediTaskID))
+                    if not toSkip:    
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':status'] = newTaskStatus
+                        self.cur.execute(sqlTU+comment,varMap)
+                        tmpLog.debug('done new status={0} for jediTaskID={1}'.format(newTaskStatus,jediTaskID))
                 # commit    
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
@@ -3875,3 +3899,108 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False,None
+
+
+
+    # get random seed
+    def getRandomSeed_JEDI(self,jediTaskID,simul):
+        comment = ' /* JediDBProxy.getRandomSeed_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get pseudo dataset for random seed
+            sqlDS  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
+            sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDS += "WHERE jediTaskID=:jediTaskID AND type=:type "
+            # sql to get min random seed
+            sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
+            sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
+            sqlFR += "ORDER BY firstEvent "
+            # sql to get max random seed
+            sqlLR  = "SELECT MAX(firstEvent) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlLR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # sql to insert file
+            sqlFI  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
+            sqlFI += JediFileSpec.bindValuesExpression()
+            sqlFI += " RETURNING fileID INTO :newFileID"
+            # start transaction
+            self.conn.begin()
+            # get pseudo dataset for random seed
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':type'] = 'random_seed'
+            self.cur.execute(sqlDS+comment,varMap)
+            resDS = self.cur.fetchone()
+            if resDS == None:
+                # no random seed
+                retVal = (None,None)
+                tmpLog.debug('no random seed')
+            else:
+                datasetSpec = JediDatasetSpec()
+                datasetSpec.pack(resDS)
+                # get min random seed
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':datasetID']  = datasetSpec.datasetID
+                varMap[':status']     = 'ready'
+                self.cur.execute(sqlFR+comment,varMap)
+                resFR = self.cur.fetchone()
+                if resFR != None:
+                    # make FileSpec to reuse the row
+                    tmpFileSpec = JediFileSpec()
+                    tmpFileSpec.pack(resFR)
+                    tmpLog.debug('reuse fileID={0} datasetID={1} rndmSeed={2}'.format(tmpFileSpec.fileID,
+                                                                                      tmpFileSpec.datasetID,
+                                                                                      tmpFileSpec.firstEvent))
+                else:
+                    # get max random seed
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':datasetID']  = datasetSpec.datasetID
+                    self.cur.execute(sqlLR+comment,varMap)
+                    resLR = self.cur.fetchone()
+                    maxRndSeed = None
+                    if resLR != None:
+                        maxRndSeed, = resLR
+                    if maxRndSeed == None:    
+                        # first row
+                        maxRndSeed = 1
+                    else:
+                        # increment
+                        maxRndSeed += 1
+                    # insert file
+                    tmpFileSpec = JediFileSpec()
+                    tmpFileSpec.jediTaskID   = jediTaskID
+                    tmpFileSpec.datasetID    = datasetSpec.datasetID
+                    tmpFileSpec.status       = 'picked'
+                    tmpFileSpec.creationDate = datetime.datetime.utcnow()
+                    tmpFileSpec.keepTrack    = 1
+                    tmpFileSpec.type         = 'random_seed' 
+                    tmpFileSpec.lfn          = "{0}".format(maxRndSeed)
+                    tmpFileSpec.firstEvent   = maxRndSeed
+                    if not simul:
+                        varMap = tmpFileSpec.valuesMap(useSeq=True)
+                        varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
+                        self.cur.execute(sqlFI+comment,varMap)
+                        tmpFileSpec.fileID = long(varMap[':newFileID'].getvalue())
+                        tmpLog.debug('insert fileID={0} datasetID={1} rndmSeed={2}'.format(tmpFileSpec.fileID,
+                                                                                           tmpFileSpec.datasetID,
+                                                                                           tmpFileSpec.firstEvent))
+                    tmpFileSpec.status       = 'ready'
+                # cannot return JobFileSpec due to owner.PandaID
+                retVal = (tmpFileSpec,datasetSpec)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done")
+            return True,retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False,(None,None)

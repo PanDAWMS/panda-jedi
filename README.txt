@@ -1,5 +1,12 @@
 Release Note
 
+* 9/4/2013
+  * fixed first event to start from 1
+  * fixed random seed
+
+* 8/31/2013
+  * fixed prepareTask
+
 * 8/29/2013
   * fixed Watchdoc
   * uploading logs when setupper is failed

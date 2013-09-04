@@ -129,6 +129,15 @@ class TaskRefinerBase (object):
             tmpItem['dataset']    = 'pseudo_dataset'
             tmpItem['param_type'] = 'pseudo_input'
             itemList = [tmpItem] + itemList
+        # random seed
+        if RefinerUtils.useRandomSeed(taskParamMap):
+            tmpItem = {}
+            tmpItem['type']       = 'template'
+            tmpItem['value']      = ''
+            tmpItem['dataset']    = 'RNDMSEED'
+            tmpItem['param_type'] = 'random_seed'
+            itemList.append(tmpItem)
+        # loop over all items
         for tmpItem in itemList:
             # look for datasets
             if tmpItem['type'] == 'template' and tmpItem.has_key('dataset'):
@@ -153,7 +162,7 @@ class TaskRefinerBase (object):
                 datasetSpec.nFilesFailed = 0
                 datasetSpec.nFilesOnHold = 0
                 datasetSpec.status = 'defined'
-                if datasetSpec.type in ['input','pseudo_input']:
+                if datasetSpec.type in JediDatasetSpec.getInputTypes() + ['random_seed']:
                     datasetSpec.streamName = RefinerUtils.extractStreamName(tmpItem['value'])
                     inDatasetSpecList = []
                     # comma-separated dataset names
@@ -208,12 +217,15 @@ class TaskRefinerBase (object):
             if tmpItem.has_key('value'):
                 jobParameters += '{0} '.format(tmpItem['value'])
                 # get offset for random seed and first event
-                if tmpItem['type'] == 'template' and tmpItem['param_type'] == 'number' \
-                       and tmpItem.has_key('offset'):
+                if tmpItem['type'] == 'template' and tmpItem['param_type'] == 'number':
                     if '${RNDMSEED}' in tmpItem['value']:
-                        rndmSeedOffset = tmpItem['offset']
+                        if tmpItem.has_key('offset'):
+                            rndmSeedOffset = tmpItem['offset']
+                        else:
+                            rndmSeedOffset = 0
                     elif '${FIRSTEVENT}' in tmpItem['value']:
-                        firstEventOffset = tmpItem['offset']    
+                        if tmpItem.has_key('offset'):
+                            firstEventOffset = tmpItem['offset']    
         jobParameters = jobParameters[:-1]
         self.setJobParamsTemplate(jobParameters)
         # set random seed offset
