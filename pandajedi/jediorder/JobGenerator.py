@@ -540,7 +540,7 @@ class JobGeneratorThread (WorkerThread):
                 tmpFile.datasetID = fileIdMap[tmpFile.lfn]['datasetID']
             # make file spec which will be used by runJobs
             runFileSpec = copy.copy(fileSpec)
-            runFileSpec.dispatchDBlock = fileSpec.destinationDBlock
+            runFileSpec.dispatchDBlock = fileSpec.dataset
             runFileSpec.destinationDBlock = None
             runFileSpec.type = 'input'
             # return
