@@ -1,0 +1,393 @@
+import re
+import sys
+import random
+
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.SiteCandidate import SiteCandidate
+from pandajedi.jedicore import Interaction
+from JobBrokerBase import JobBrokerBase
+import AtlasBrokerUtils
+
+# logger
+from pandacommon.pandalogger.PandaLogger import PandaLogger
+logger = PandaLogger().getLogger(__name__.split('.')[-1])
+
+
+# brokerage for ATLAS analysis
+class AtlasAnalJobBroker (JobBrokerBase):
+
+    # constructor
+    def __init__(self,ddmIF,taskBufferIF):
+        JobBrokerBase.__init__(self,ddmIF,taskBufferIF)
+        self.dataSiteMap = {}
+
+
+    # main
+    def doBrokerage(self,taskSpec,cloudName,inputChunk):
+        # make logger
+        tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID))
+        tmpLog.debug('start')
+        # return for failure
+        retFatal    = self.SC_FATAL,inputChunk
+        retTmpError = self.SC_FAILED,inputChunk
+        # get sites in the cloud
+        if not taskSpec.site in ['',None]:
+            scanSiteList = [taskSpec.site]
+            tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
+        else:
+            scanSiteList = []
+            for siteName,tmpSiteSpec in self.siteMapper.siteSpecList.iteritems():
+                if tmpSiteSpec.type == 'analysis' and taskSpec.cloud in [None,'','any',tmpSiteSpec.cloud]:
+                    scanSiteList.append(siteName)
+            tmpLog.debug('cloud=%s has %s candidates' % (taskSpec.cloud,len(scanSiteList)))
+        # get job statistics
+        tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,taskSpec.prodSourceLabel)
+        if not tmpSt:
+            tmpLog.error('failed to get job statistics')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+        ######################################
+        # selection for data availability
+        dataWeight = {}
+        if inputChunk.getDatasets() != []:    
+            for datasetSpec in inputChunk.getDatasets():
+                datasetName = datasetSpec.datasetName
+                if not self.dataSiteMap.has_key(datasetName):
+                    # get the list of sites where data is available
+                    tmpLog.debug('getting the list of sites where {0} is avalable'.format(datasetName))
+                    tmpSt,tmpRet = AtlasBrokerUtils.getAnalSitesWithData(scanSiteList,
+                                                                         self.siteMapper,
+                                                                         self.ddmIF,datasetName)
+                    if tmpSt == self.SC_FAILED:
+                        tmpLog.error('failed to get the list of sites where data is available, since %s' % tmpRet)
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        return retTmpError
+                    if tmpSt == self.SC_FATAL:
+                        tmpLog.error('fatal error when getting the list of sites where data is available, since %s' % tmpRet)
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        return retFatal
+                    # append
+                    self.dataSiteMap[datasetName] = tmpRet
+                    tmpLog.debug(str(tmpRet))
+                # check if the data is available at somewhere
+                if self.dataSiteMap[datasetName] == {}:
+                    tmpLog.error('{0} is unavaiable at any site'.format(datasetName))
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    return retFatal
+                # check if the data is available on disk
+                if AtlasBrokerUtils.getAnalSitesWithDataDisk(self.dataSiteMap[datasetName]) == []:
+                    tmpLog.error('{0} is avaiable only on tape'.format(datasetName))
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    return retFatal
+            # get the list of sites where data is available    
+            scanSiteList = None     
+            normFactor = 0
+            for datasetName,tmpDataSite in self.dataSiteMap.iteritems():
+                normFactor += 1
+                # get sites where disk replica is available
+                tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite)
+                # get sites which can remotely access source sites
+                tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpSiteList,self.siteMapper)
+                for tmpSiteName in tmpSiteList:
+                    if not dataWeight.has_key(tmpSiteName):
+                        dataWeight[tmpSiteName] = 1
+                    else:
+                        dataWeight[tmpSiteName] += 1
+                for tmpSiteName,tmpWeight in tmpSatelliteSites.iteritems():
+                    if not dataWeight.has_key(tmpSiteName):
+                        dataWeight[tmpSiteName] = tmpWeight
+                    else:
+                        dataWeight[tmpSiteName] += tmpWeight
+                # first list
+                if scanSiteList == None:
+                    scanSiteList = tmpSiteList + tmpSatelliteSites.keys()
+                    continue
+                # pickup sites which have all data
+                newScanList = []
+                for tmpSiteName in scanSiteList + tmpSatelliteSites.keys():
+                    if tmpSiteName in tmpSiteList:
+                        newScanList.append(tmpSiteName)
+                scanSiteList = newScanList
+                tmpLog.debug('{0} is available at {1} sites'.format(datasetName,len(scanSiteList)))
+            tmpLog.debug('{0} candidates have input data'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retFatal
+        ######################################
+        # selection for status
+        newScanSiteList = []
+        for tmpSiteName in scanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            # check site status
+            skipFlag = False
+            if tmpSiteSpec.status in ['offline','brokeroff','test']:
+                skipFlag = True
+            if not skipFlag:    
+                newScanSiteList.append(tmpSiteName)
+            else:
+                tmpLog.debug('  skip %s due to status=%s' % (tmpSiteName,tmpSiteSpec.status))
+        scanSiteList = newScanSiteList        
+        tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+        ######################################
+        # selection for release
+        if not taskSpec.transHome in [None,'AnalysisTransforms']:
+            if taskSpec.transHome.startswith('ROOT'):
+                # hack until x86_64-slc6-gcc47-opt is published in installedsw
+                if taskSpec.architecture == 'x86_64-slc6-gcc47-opt':
+                    tmpCmtConfig = 'x86_64-slc6-gcc46-opt'
+                else:
+                    tmpCmtConfig = taskSpec.architecture
+                siteListWithSW = taskBuffer.checkSitesWithRelease(scanSiteList,
+                                                                  cmtConfig=tmpCmtConfig,
+                                                                  onlyCmtConfig=True)
+            else:    
+                # remove AnalysisTransforms-
+                transHome = re.sub('^[^-]+-*','',taskSpec.transHome)
+                transHome = re.sub('_','-',transHome)
+                if re.search('rel_\d+(\n|$)',taskSpec.transHome) == None:
+                    # cache is checked 
+                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                                                                             caches=transHome,
+                                                                             cmtConfig=taskSpec.architecture)
+                elif transHome == '':
+                    # release is checked 
+                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                                                                             releases=taskSpec.transUses,
+                                                                             cmtConfig=taskSpec.architecture)
+                else:
+                    # both release and cache are checked for nightlies
+                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                                                                             releases=taskSpec.transUses,
+                                                                             caches=transHome,
+                                                                             cmtConfig=taskSpec.architecture)
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # release check is disabled or release is available
+                if tmpSiteSpec.releases == ['ANY'] or \
+                   tmpSiteSpec.cloud in ['ND']:
+                    newScanSiteList.append(tmpSiteName)
+                elif tmpSiteName in siteListWithSW:
+                    newScanSiteList.append(tmpSiteName)
+                else:
+                    # release is unavailable
+                    tmpLog.debug('  skip %s due to missing rel/cache %s:%s' % \
+                                 (tmpSiteName,taskSpec.transHome,taskSpec.architecture))
+            scanSiteList = newScanSiteList        
+            tmpLog.debug('{0} candidates passed for SW {1}:{2}'.format(len(scanSiteList),
+                                                                       taskSpec.transHome,
+                                                                       taskSpec.architecture))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
+        ######################################
+        # selection for memory
+        minRamCount  = taskSpec.ramCount
+        if not minRamCount in [0,None]:
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # check at the site
+                if tmpSiteSpec.maxmemory != 0 and minRamCount != 0 and minRamCount > tmpSiteSpec.maxmemory:
+                    tmpLog.debug('  skip {0} due to site RAM shortage={1}(site upper limit) < {2}'.format(tmpSiteName,
+                                                                                                          tmpSiteSpec.maxmemory,
+                                                                                                          minRamCount))
+                    continue
+                if tmpSiteSpec.minmemory != 0 and minRamCount != 0 and minRamCount < tmpSiteSpec.minmemory:
+                    tmpLog.debug('  skip {0} due to job RAM shortage={1}(site lower limit) > {2}'.format(tmpSiteName,
+                                                                                                         tmpSiteSpec.minmemory,
+                                                                                                         minRamCount))
+                    continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList        
+            tmpLog.debug('{0} candidates passed memory check ={1}{2}'.format(len(scanSiteList),
+                                                                             minRamCount,taskSpec.ramCountUnit))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
+        ######################################
+        # selection for scratch disk
+        minDiskCount = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
+        minDiskCount = minDiskCount / 1024 / 1024
+        newScanSiteList = []
+        for tmpSiteName in scanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            # check at the site
+            if tmpSiteSpec.maxwdir != 0 and minDiskCount > tmpSiteSpec.maxwdir:
+                tmpLog.debug('  skip {0} due to small scratch disk={1} < {2}'.format(tmpSiteName,
+                                                                                     tmpSiteSpec.maxwdir,
+                                                                                     minDiskCount))
+                continue
+            newScanSiteList.append(tmpSiteName)
+        scanSiteList = newScanSiteList
+        tmpLog.debug('{0} candidates passed scratch disk check'.format(len(scanSiteList)))
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+        ######################################
+        # selection for available space in SE
+        newScanSiteList = []
+        for tmpSiteName in scanSiteList:
+            # check at the site
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            # the number of jobs which will produce outputs
+            nRemJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'defined') + \
+                AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'activated') + \
+                AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running')
+            # free space - inputs - outputs(250MB*nJobs) must be >= 200GB
+            outSizePerJob = 0.250
+            diskThreshold = 200
+            tmpSpaceSize = tmpSiteSpec.space - nRemJobs * outSizePerJob
+            if tmpSpaceSize < diskThreshold:
+                tmpLog.debug('  skip {0} due to disk shortage in SE = {1}-{2}x{3} < {4}'.format(tmpSiteName,tmpSiteSpec.space,
+                                                                                                    outSizePerJob,nRemJobs,
+                                                                                                    diskThreshold))
+                continue
+            newScanSiteList.append(tmpSiteName)
+        scanSiteList = newScanSiteList
+        tmpLog.debug('{0} candidates passed SE space check'.format(len(scanSiteList)))
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+        ######################################
+        # selection for walltime
+        minWalltime = taskSpec.walltime
+        if not minWalltime in [0,None]:
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # check at the site
+                if tmpSiteSpec.maxtime != 0 and minWalltime > tmpSiteSpec.maxtime:
+                    tmpLog.debug('  skip {0} due to short site walltime={1}(site upper limit) < {2}'.format(tmpSiteName,
+                                                                                                            tmpSiteSpec.maxtime,
+                                                                                                            minWalltime))
+                    continue
+                if tmpSiteSpec.mintime != 0 and minWalltime < tmpSiteSpec.mintime:
+                    tmpLog.debug('  skip {0} due to short job walltime={1}(site lower limit) > {2}'.format(tmpSiteName,
+                                                                                                           tmpSiteSpec.mintime,
+                                                                                                           minWalltime))
+                    continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList        
+            tmpLog.debug('{0} candidates passed walltime check ={1}{2}'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
+        ######################################
+        # selection for nPilot
+        nWNmap = self.taskBufferIF.getCurrentSiteData()
+        newScanSiteList = []
+        for tmpSiteName in scanSiteList:
+            # check at the site
+            nPilot = 0
+            if nWNmap.has_key(tmpSiteName):
+                nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
+            if nPilot == 0 and not taskSpec.prodSourceLabel in ['test']:
+                tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
+                #continue
+            newScanSiteList.append(tmpSiteName)
+        scanSiteList = newScanSiteList        
+        tmpLog.debug('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+        ######################################
+        # sites already used by task
+        tmpSt,sitesUsedByTask = self.taskBufferIF.getSitesUsedByTask_JEDI(taskSpec.jediTaskID)
+        if not tmpSt:
+            tmpLog.error('failed to get sites which already used by task')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+        ######################################
+        # calculate weight
+        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
+                                                                                    taskSpec.prodSourceLabel,
+                                                                                    taskSpec.currentPriority)
+        if not tmpSt:
+            tmpLog.error('failed to get job statistics with priority')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+        tmpLog.debug('final {0} candidates'.format(len(scanSiteList)))
+        weightMap = {}
+        candidateSpecList = []
+        for tmpSiteName in scanSiteList:
+            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',  None,taskSpec.workQueue_ID)
+            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',  None,taskSpec.workQueue_ID)
+            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,taskSpec.workQueue_ID)
+            weight = float(nRunning + 1) / float(nActivated + nAssigned + 1) / float(nAssigned + 1)
+            # noramize weights by taking data availability into account
+            if dataWeight.has_key(tmpSiteName):
+                weight = weight * dataWeight[tmpSiteName]
+            # make candidate
+            siteCandidateSpec = SiteCandidate(tmpSiteName)
+            # set weight
+            siteCandidateSpec.weight = weight
+            # append
+            if tmpSiteName in sitesUsedByTask:
+                candidateSpecList.append(siteCandidateSpec)
+            else:
+                if not weightMap.has_key(weight):
+                    weightMap[weight] = []
+                weightMap[weight].append(siteCandidateSpec)    
+        # limit the number of sites
+        maxNumSites = 5
+        weightList = weightMap.keys()
+        weightList.sort()
+        weightList.reverse()
+        for weightVal in weightList:
+            if len(candidateSpecList) >= maxNumSites:
+                break
+            sitesWithWeight = weightMap[weightVal]
+            random.shuffle(sitesWithWeight)
+            candidateSpecList += sitesWithWeight[:(maxNumSites-len(candidateSpecList))]
+        # collect site names
+        scanSiteList = []    
+        for siteCandidateSpec in candidateSpecList:
+            scanSiteList.append(siteCandidateSpec.siteName)
+        # get list of available files
+        availableFileMap = {}     
+        for datasetSpec in inputChunk.getDatasets():
+            try:
+                # mapping between sites and storage endpoints
+                siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(scanSiteList,self.siteMapper)
+                # get available files per site/endpoint
+                tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
+                                                            siteStorageEP,
+                                                            self.siteMapper,
+                                                            ngGroup=[2])
+                if tmpAvFileMap == None:
+                    raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
+                availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
+            except:
+                errtype,errvalue = sys.exc_info()[:2]
+                tmpLog.error('failed to get available files with %s %s' % (errtype.__name__,errvalue))
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
+        # append candidates
+        for siteCandidateSpec in candidateSpecList:
+            # set available files
+            for tmpDatasetName,availableFiles in availableFileMap.iteritems():
+                if availableFiles.has_key(tmpSiteName):
+                    siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
+                    siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
+                    siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
+                    siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
+            # append
+            inputChunk.addSiteCandidate(siteCandidateSpec)
+            tmpLog.debug('  use {0} with weight={1}'.format(siteCandidateSpec.siteName,
+                                                            siteCandidateSpec.weight))
+        # return
+        tmpLog.debug('done')        
+        return self.SC_SUCCEEDED,inputChunk
+    

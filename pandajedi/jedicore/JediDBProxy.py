@@ -242,7 +242,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for tmpLFN in lfnList:
                 guid,fileVal = filelValMap[tmpLFN]
                 fileSpec = JediFileSpec()
-                fileSpec.jediTaskID       = datasetSpec.jediTaskID
+                fileSpec.jediTaskID   = datasetSpec.jediTaskID
                 fileSpec.datasetID    = datasetSpec.datasetID
                 fileSpec.GUID         = guid
                 fileSpec.type         = datasetSpec.type
@@ -257,7 +257,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if datasetSpec.isMaster():
                     fileSpec.maxAttempt = maxAttempt
                 # this info will come from Rucio in the future
-                fileSpec.nEvents      = nEventsPerFile
+                if fileVal.has_key('nevents'):
+                    fileSpec.nEvents = fileVal['nevents']
+                else:
+                    fileSpec.nEvents = nEventsPerFile
                 # keep track
                 if datasetSpec.toKeepTrack():
                     fileSpec.keepTrack = 1
@@ -1274,13 +1277,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
-    # generate output files for task
-    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul):
+    # generate output files for task, and instantiate template datasets if necessary
+    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start with simul={0}'.format(simul))
+        tmpLog.debug('start with simul={0} instantiateTmpl={1} instantiatedSite={2}'.format(simul,
+                                                                                            instantiateTmpl,
+                                                                                            instantiatedSite))
         try:
             outMap = {}
             # sql to get dataset
@@ -1299,6 +1304,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to increment SN
             sqlU  = "UPDATE {0}.JEDI_Output_Template SET serialNr=serialNr+1 ".format(jedi_config.db.schemaJEDI)
             sqlU += "WHERE jediTaskID=:jediTaskID AND outTempID=:outTempID "
+            # sql to instantiate template dataset
+            sqlT1  = "SELECT {0} FROM {1}.JEDI_Datasets ".format(JediDatasetSpec.columnNames(),
+                                                                 jedi_config.db.schemaJEDI)
+            sqlT1 += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            sqlT2  = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI,
+                                                                   JediDatasetSpec.columnNames())
+            sqlT2 += JediDatasetSpec.bindValuesExpression()
+            sqlT2 += "RETURNING datasetID INTO :newDatasetID "
+            # sql to change concrete dataset name
+            sqlCN  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlCN += "SET masterID=:masterID"
+            if instantiatedSite != None:
+                sqlCN += ",datasetName=:datasetName "
+            sqlCN += " WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # current current date
             timeNow = datetime.datetime.utcnow()
             # begin transaction
@@ -1307,13 +1326,63 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # get datasets
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
-            varMap[':type1']  = 'output'
-            varMap[':type2']  = 'log'
+            if not instantiateTmpl:
+                # normal datasets
+                varMap[':type1']  = 'output'
+                varMap[':type2']  = 'log'
+            else:
+                # template datasets
+                varMap[':type1']  = 'tmpl_output'
+                varMap[':type2']  = 'tmpl_log'
             if provenanceID != None:
                 varMap[':provenanceID'] = provenanceID
             self.cur.execute(sqlD+comment,varMap)
             resList = self.cur.fetchall()
             for datasetID,datasetName,vo in resList:
+                fileDatasetID = datasetID
+                # instantiate template datasets
+                if instantiateTmpl:
+                    # check if concrete dataset is already there
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':type1']    = 'output'
+                    varMap[':type2']    = 'log'
+                    varMap[':masterID'] = datasetID
+                    if provenanceID != None:
+                        varMap[':provenanceID'] = provenanceID
+                    if instantiatedSite != None:
+                        sqlDT = sqlD + "AND site=:site "
+                        varMap[':site'] = instantiatedSite
+                    else:
+                        sqlDT =sqlD
+                    sqlDT += "AND masterID=:masterID "    
+                    self.cur.execute(sqlDT+comment,varMap)
+                    resDT = self.cur.fetchone()
+                    if resDT != None:
+                        fileDatasetID = resDT[0]
+                        tmpLog.debug('found concrete datasetID={0}'.format(fileDatasetID))
+                    else:
+                        # read template
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':datasetID']  = datasetID
+                        self.cur.execute(sqlT1+comment,varMap)
+                        resT1 = self.cur.fetchone()
+                        cDatasetSpec = JediDatasetSpec()
+                        cDatasetSpec.pack(resT1)
+                        # instantiate template dataset
+                        cDatasetSpec.type             = re.sub('^tmpl_','',cDatasetSpec.type)
+                        cDatasetSpec.masterID         = datasetID
+                        cDatasetSpec.creationTime     = timeNow
+                        cDatasetSpec.modificationTime = timeNow
+                        if instantiatedSite != None:
+                            cDatasetSpec.site = instantiatedSite
+                            cDatasetSpec.datasetName = re.sub('/$','.{0}'.format(fileDatasetID),datasetName)
+                        varMap = cDatasetSpec.valuesMap(useSeq=True)
+                        varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+                        self.cur.execute(sqlT2+comment,varMap)
+                        fileDatasetID = long(varMap[':newDatasetID'].getvalue())
+                        tmpLog.debug('instantiated {0} datasetID={1}'.format(cDatasetSpec.datasetName,fileDatasetID))
                 # get templates
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
@@ -1326,7 +1395,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName = resR
                     fileSpec = JediFileSpec()
                     fileSpec.jediTaskID   = jediTaskID
-                    fileSpec.datasetID    = datasetID
+                    fileSpec.datasetID    = fileDatasetID
                     nameTemplate = fileNameTemplate.replace('${SN}','{SN:06d}')
                     nameTemplate = nameTemplate.replace('${SN','{SN')
                     fileSpec.lfn          = nameTemplate.format(SN=serialNr)
@@ -1434,7 +1503,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if simTasks == None:
                 varMap = {}
                 varMap[':vo']              = vo
-                if cloudName != None:
+                if not cloudName in [None,'','any']:
                     varMap[':cloud']       = cloudName
                 varMap[':taskstatus1']     = 'ready'
                 varMap[':taskstatus2']     = 'running'
@@ -1456,7 +1525,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql  = sql[:-1]
                 sql += ') '
                 sql += "AND prodSourceLabel=:prodSourceLabel "
-                if cloudName != None:
+                if not cloudName in [None,'','any']:
                     sql += "AND tabT.cloud=:cloud "
                 sql += "AND tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3) "
                 sql += "AND tabT.lockedBy IS NULL AND tabT.jediTaskID=tabD.jediTaskID "
@@ -3902,6 +3971,44 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # get sites used by a task
+    def getSitesUsedByTask_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.getSitesUsedByTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to insert dataset
+            sqlDS  = "SELECT distinct site FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
+            # start transaction
+            self.conn.begin()
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':type1'] = 'output'
+            varMap[':type2'] = 'log'
+            # execute
+            self.cur.execute(sqlDS+comment,varMap)
+            resList = self.cur.fetchall()
+            siteList = []
+            for siteName in resList:
+                siteList.append(siteName)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done -> {0}".format(str(siteList)))
+            return True,siteList
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False,None
+
+
+
     # get random seed
     def getRandomSeed_JEDI(self,jediTaskID,simul):
         comment = ' /* JediDBProxy.getRandomSeed_JEDI */'
@@ -4004,3 +4111,4 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False,(None,None)
+

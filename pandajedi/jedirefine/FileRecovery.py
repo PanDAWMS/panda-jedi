@@ -253,7 +253,7 @@ class FileRecovery (TaskRefinerBase):
                 taskParamMap = RefinerUtils.appendDataset(taskParamMap,datasetSpec,fileList)
                 self.updatedTaskParams = taskParamMap
             # grouping with boundaryID
-            self.setSplitRule(None,4,'GB')
+            self.setSplitRule(None,4,JediTaskSpec.splitRuleToken['groupBoundaryID'])
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))

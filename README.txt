@@ -1,7 +1,8 @@
 Release Note
 
 * 9/9/2013
-  * tagged 00-00-01
+  * added analysis functions
+  * tagged 0.0.1
 
 * 9/4/2013
   * fixed first event to start from 1

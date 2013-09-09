@@ -28,14 +28,16 @@ class JediTaskSpec(object):
     # limit length
     _limitLength = {'errorDialog' : 255}
     # tokens for split rule
-    splitRuleToken = {'nFilesPerJob'   : 'NFPJ',
-                      'nEventsPerJob'  : 'NEPJ',
-                      'nGBPerJob'      : 'NGBPJ',
-                      'nMaxFilesPerJob': 'NMFPJ',
-                      'randomSeed'     : 'RNDM',
-                      'firstEvent'     : 'FST',
-                      'groupBoundaryID': 'GB',
-                      'useBuild'       : 'UB',
+    splitRuleToken = {'nFilesPerJob'       : 'NFPJ',
+                      'nEventsPerJob'      : 'NEPJ',
+                      'nGBPerJob'          : 'NGBPJ',
+                      'nMaxFilesPerJob'    : 'NMFPJ',
+                      'randomSeed'         : 'RNDM',
+                      'firstEvent'         : 'FST',
+                      'groupBoundaryID'    : 'GB',
+                      'useBuild'           : 'UB',
+                      'instantiateTmpl'    : 'IT',
+                      'instantiateTmplSite': 'IA', 
                       }
 
 
@@ -172,7 +174,7 @@ class JediTaskSpec(object):
     # get the max size per job if defined
     def getMaxSizePerJob(self):
         if self.splitRule != None:
-            tmpMatch = re.search('NGBPJ=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken['nGBPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 nGBPerJob = int(tmpMatch.group(1)) * 1024 * 1024 * 1024
                 return nGBPerJob
@@ -183,7 +185,7 @@ class JediTaskSpec(object):
     # get the maxnumber of files per job if defined
     def getMaxNumFilesPerJob(self):
         if self.splitRule != None:
-            tmpMatch = re.search('NMFPJ=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken['nMaxFilesPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
@@ -194,7 +196,7 @@ class JediTaskSpec(object):
     # get the number of files per job if defined
     def getNumFilesPerJob(self):
         if self.splitRule != None:
-            tmpMatch = re.search('NFPJ=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken['nFilesPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
@@ -204,7 +206,7 @@ class JediTaskSpec(object):
     # get the number of events per job if defined
     def getNumEventsPerJob(self):
         if self.splitRule != None:
-            tmpMatch = re.search('NEPJ=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken['nEventsPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
@@ -214,7 +216,7 @@ class JediTaskSpec(object):
     # get offset for random seed
     def getRndmSeedOffset(self):
         if self.splitRule != None:
-            tmpMatch = re.search('RNDM=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken['randomSeed']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return 0
@@ -224,7 +226,7 @@ class JediTaskSpec(object):
     # get offset for first event
     def getFirstEventOffset(self):
         if self.splitRule != None:
-            tmpMatch = re.search('FST=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken['firstEvent']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return 0
@@ -234,13 +236,13 @@ class JediTaskSpec(object):
     # grouping with boundaryID
     def useGroupWithBoundaryID(self):
         if self.splitRule != None:
-            tmpMatch = re.search('GB=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken['groupBoundaryID']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 gbID = int(tmpMatch.group(1))
-                # 1 : input - split OK, output - free 
-                # 2 : input - split OK, output - mapped with provenanceID
-                # 3 : input - split NG, output - free
-                # 4 : input - split NG, output - mapped with provenanceID
+                # 1 : input - can split,    output - free
+                # 2 : input - can split,    output - mapped with provenanceID
+                # 3 : input - cannot split, output - free
+                # 4 : input - cannot split, output - mapped with provenanceID
                 retMap = {}
                 if gbID in [1,2]:
                     retMap['inSplit'] = True
@@ -259,6 +261,26 @@ class JediTaskSpec(object):
     def useBuild(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['useBuild']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # instantiate template datasets
+    def instantiateTmpl(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['instantiateTmpl']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # instantiate template datasets at site
+    def instantiateTmplSite(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['instantiateTmplSite']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False
@@ -309,6 +331,7 @@ class JediTaskSpec(object):
     def statusToUpdateContents(cls):
         return ['defined','pending']
     statusToUpdateContents = classmethod(statusToUpdateContents)
+
 
 
     # set task status on hold

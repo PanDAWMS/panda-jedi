@@ -58,7 +58,8 @@ class TaskRefinerBase (object):
         taskSpec.transPath = taskParamMap['transPath']
         taskSpec.processingType = taskParamMap['processingType']
         taskSpec.taskType = taskParamMap['taskType']
-        taskSpec.workingGroup = taskParamMap['workingGroup']
+        if taskParamMap.has_key('workingGroup'):
+            taskSpec.workingGroup = taskParamMap['workingGroup']
         if taskParamMap.has_key('reqID'):
             taskSpec.reqID = taskParamMap['reqID']
         if taskParamMap.has_key('coreCount'):
@@ -103,10 +104,10 @@ class TaskRefinerBase (object):
         taskSpec.workQueue_ID = workQueue.queue_id
         self.taskSpec = taskSpec
         # set split rule    
-        self.setSplitRule(taskParamMap,'nFilesPerJob',   'NFPJ')
-        self.setSplitRule(taskParamMap,'nEventsPerJob',  'NEPJ')        
-        self.setSplitRule(taskParamMap,'nGBPerJob',      'NGBPJ')
-        self.setSplitRule(taskParamMap,'nMaxFilesPerJob','NMFPJ')
+        self.setSplitRule(taskParamMap,'nFilesPerJob',   JediTaskSpec.splitRuleToken['nFilesPerJob'])
+        self.setSplitRule(taskParamMap,'nEventsPerJob',  JediTaskSpec.splitRuleToken['nEventsPerJob'])
+        self.setSplitRule(taskParamMap,'nGBPerJob',      JediTaskSpec.splitRuleToken['nGBPerJob'])
+        self.setSplitRule(taskParamMap,'nMaxFilesPerJob',JediTaskSpec.splitRuleToken['nMaxFilesPerJob'])
         # return
         return
     
@@ -230,9 +231,9 @@ class TaskRefinerBase (object):
         self.setJobParamsTemplate(jobParameters)
         # set random seed offset
         if rndmSeedOffset != None:
-            self.setSplitRule(None,rndmSeedOffset,'RNDM')
+            self.setSplitRule(None,rndmSeedOffset,JediTaskSpec.splitRuleToken['randomSeed'])
         if firstEventOffset != None:
-            self.setSplitRule(None,firstEventOffset,'FST')
+            self.setSplitRule(None,firstEventOffset,JediTaskSpec.splitRuleToken['firstEvent'])
         # return
         return
 

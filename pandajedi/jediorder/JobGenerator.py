@@ -314,6 +314,7 @@ class JobGeneratorThread (WorkerThread):
         # return for failure
         failedRet = Interaction.SC_FAILED,None
         # read task parameters
+        taskParamMap = None
         if taskSpec.useBuild():
             try:
                 # read task parameters
@@ -414,10 +415,21 @@ class JobGeneratorThread (WorkerThread):
                     provenanceID = None    
                     if useBoundary != None and useBoundary['outMap'] == True:
                         provenanceID = boundaryID
+                    # instantiate template datasets
+                    instantiateTmpl  = False
+                    instantiatedSite = None
+                    if taskSpec.instantiateTmpl():
+                        instantiateTmpl = True
+                        if taskSpec.instantiateTmplSite():
+                            instantiatedSite = siteName
+                    else:
+                        instantiateTmpl = False
                     # outputs
                     outSubChunk,serialNr = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
                                                                                  provenanceID,
-                                                                                 simul)
+                                                                                 simul,
+                                                                                 instantiateTmpl,
+                                                                                 instantiatedSite)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
@@ -444,7 +456,8 @@ class JobGeneratorThread (WorkerThread):
                         paramList.append(('LIB',buildFileSpec.lfn))
                     # job parameter
                     jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
-                                                                   serialNr,paramList,jobSpec,simul)
+                                                                   serialNr,paramList,jobSpec,simul,
+                                                                   taskParamMap)
                     # addd
                     jobSpecList.append(jobSpec)
             # return
@@ -522,9 +535,9 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.addFile(logFileSpec)
             # parameter map
             paramMap = {}
-            paramMap['OUT'] = fileSpec.lfn
-            paramMap['IN']  = taskParamMap['buildSpec']['archiveName']
-            paramMap['URL'] = taskParamMap['buildSpec']['sourceURL']
+            paramMap['OUT']  = fileSpec.lfn
+            paramMap['IN']   = taskParamMap['buildSpec']['archiveName']
+            paramMap['SURL'] = taskParamMap['sourceURL']
             # job parameter
             jobSpec.jobParameters = self.makeBuildJobParameters(taskParamMap['buildSpec']['jobParameters'],
                                                                 paramMap)
@@ -554,7 +567,7 @@ class JobGeneratorThread (WorkerThread):
 
 
     # make job parameters
-    def makeJobParameters(self,taskSpec,inSubChunk,outSubChunk,serialNr,paramList,jobSpec,simul):
+    def makeJobParameters(self,taskSpec,inSubChunk,outSubChunk,serialNr,paramList,jobSpec,simul,taskParamMap):
         parTemplate = taskSpec.jobParamsTemplate
         # make the list of stream/LFNs
         streamLFNsMap = {}
@@ -563,6 +576,10 @@ class JobGeneratorThread (WorkerThread):
         maxEvents  = None
         firstEvent = None
         rndmSeed   = None
+        sourceURL  = None
+        # source URL
+        if taskParamMap != None and taskParamMap.has_key('sourceURL'):
+            sourceURL = taskParamMap['sourceURL']
         # get random seed
         if taskSpec.useRandomSeed():
             tmpStat,randomSpecList = self.taskBufferIF.getRandomSeed_JEDI(taskSpec.jediTaskID,simul)
@@ -618,14 +635,15 @@ class JobGeneratorThread (WorkerThread):
             # ignore pseudo input with streamName=None
             if streamName == None:
                 continue
-            if len(listLFN) == 1:
-                # just replace with the original file name
-                parTemplate = parTemplate.replace('${'+streamName+'}',listLFN[0])
-            elif '/L' in streamName:
+            if '/L' in streamName:
                 # long format
                 longLFNs = ''
                 for tmpLFN in listLFN:
+                    if '/A' in streamName:
+                        longLFNs += "'"
                     longLFNs += tmpLFN
+                    if '/A' in streamName:
+                        longLFNs += "'"
                     if '/S' in streamName:
                         # use white-space as separator
                         longLFNs += ' '
@@ -633,6 +651,9 @@ class JobGeneratorThread (WorkerThread):
                         longLFNs += ','
                 longLFNs = longLFNs[:-1]
                 parTemplate = parTemplate.replace('${'+streamName+'}',longLFNs)
+            elif len(listLFN) == 1:
+                # just replace with the original file name
+                parTemplate = parTemplate.replace('${'+streamName+'}',listLFN[0])
             else:
                 # remove attempt numbers
                 compactLFNs = []

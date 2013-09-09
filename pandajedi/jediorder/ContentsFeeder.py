@@ -150,6 +150,11 @@ class ContentsFeederThread (WorkerThread):
                             else:
                                 # get file list specified in task parameters
                                 fileList = RefinerUtils.extractFileList(taskParamMap,datasetSpec.datasetName)   
+                                # get the number of events in metadata
+                                if taskParamMap.has_key('getNumEventsInMetadata'):
+                                    getNumEvents = True
+                                else:
+                                    getNumEvents = False
                                 # get file list from DDM
                                 tmpLog.info('get files')
                                 try:
@@ -160,10 +165,13 @@ class ContentsFeederThread (WorkerThread):
                                                 not datasetSpec.containerName in ['',None]:
                                             # read files from container if file list is specified in task parameters
                                             tmpRet = ddmIF.getFilesInDataset(datasetSpec.containerName,
-                                                                             skipDuplicate)
+                                                                             getNumEvents=getNumEvents,
+                                                                             skipDuplicate=skipDuplicate
+                                                                             )
                                         else:
                                             tmpRet = ddmIF.getFilesInDataset(datasetSpec.datasetName,
-                                                                             skipDuplicate)
+                                                                             getNumEvents=getNumEvents,
+                                                                             skipDuplicate=skipDuplicate)
                                     else:
                                         # dummy file list for pseudo dataset
                                         tmpRet = {str(uuid.uuid4()):{'lfn':'pseudo_lfn',

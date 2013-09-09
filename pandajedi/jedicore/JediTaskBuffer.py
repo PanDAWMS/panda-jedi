@@ -321,11 +321,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # generate output files for task
-    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul):
+    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul)
+        retVal = proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -701,6 +701,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # get sites used by a task
+    def getSitesUsedByTask_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getSitesUsedByTask_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # get random seed
     def getRandomSeed_JEDI(self,jediTaskID,simul):
         # get DBproxy
@@ -711,4 +724,3 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
-

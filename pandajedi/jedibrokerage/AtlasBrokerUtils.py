@@ -115,6 +115,99 @@ def getSitesWithData(siteMapper,ddmIF,datasetName):
 
 
 
+# get analysis sites where data is available
+def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
+    # get replicas
+    try:
+        replicaMap= {}
+        replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName)
+    except:
+        errtype,errvalue = sys.exc_info()[:2]
+        return errtype,'ddmIF.listDatasetReplicas failed with %s' % errvalue
+    # loop over all clouds
+    retMap = {}
+    for tmpSiteName in siteList:
+        tmpSiteSpec = siteMapper.getSite(tmpSiteName)
+        # loop over all DDM endpoints
+        checkedEndPoints = []
+        for tmpDDM in [tmpSiteSpec.ddm] + tmpSiteSpec.setokens.values():
+            # skip empty
+            if tmpDDM == '':
+                continue
+            # get prefix
+            tmpPrefix = re.sub('_[^_]+$','',tmpDDM) 
+            # already checked 
+            if tmpPrefix in checkedEndPoints:
+                continue
+            checkedEndPoints.append(tmpPrefix)
+            tmpSePat = '^' + tmpPrefix
+            for tmpSE in replicaMap[datasetName].keys():
+                # check name with regexp pattern
+                if re.search(tmpSePat,tmpSE) == None:
+                    continue
+                # check archived metadata
+                # FIXME 
+                pass
+                # check tape attribute
+                try:
+                    tmpOnTape = ddmIF.getSiteProperty(tmpSE,'tape')
+                except:
+                    errtype,errvalue = sys.exc_info()[:2]
+                    return errtype,'ddmIF.getSiteProperty for %s:tape failed with %s' % (tmpSE,errvalue)
+                # check completeness
+                tmpStatistics = replicaMap[datasetName][tmpSE][-1] 
+                if tmpStatistics['found'] == None:
+                    tmpDatasetStatus = 'unknown'
+                    # refresh request
+                    try:
+                        ddmIF.checkDatasetConsistency(tmpSE,datasetName)
+                    except:
+                        pass
+                elif tmpStatistics['total'] == tmpStatistics['found']:
+                    tmpDatasetStatus = 'complete'
+                else:
+                    tmpDatasetStatus = 'incomplete'
+                # append
+                if not retMap.has_key(tmpSiteName):
+                    retMap[tmpSiteName] = {}
+                retMap[tmpSiteName][tmpSE] = {'tape':tmpOnTape,'state':tmpDatasetStatus}
+    # return
+    return Interaction.SC_SUCCEEDED,retMap
+
+
+
+# get analysis sites where data is available at disk
+def getAnalSitesWithDataDisk(dataSiteMap):
+    siteList = []
+    siteWithIncomp = []
+    for tmpSiteName,tmpSeValMap in dataSiteMap.iteritems():
+        for tmpSE,tmpValMap in tmpSeValMap.iteritems():
+            # on disk 
+            if not tmpValMap['tape']:
+                if tmpValMap['state'] == 'complete':
+                    # complete replica at disk
+                    if not tmpSiteName in siteList:
+                        siteList.append(tmpSiteName)
+                    break
+                else:
+                    # incomplete replica at disk
+                    if not tmpSiteName in siteWithIncomp:
+                        siteWithIncomp.append(tmpSiteName)
+    # return sites with complete
+    if siteList != []:
+        return siteList
+    # return sites with incomplete if complete is unavailable
+    return siteWithIncomp
+
+
+
+# get sites which can remotely access source sites
+def getSatelliteSites(siteList,siteMapper):
+    # FIXME
+    return {}
+                        
+
+
 # get the number of jobs in a status
 def getNumJobs(jobStatMap,computingSite,jobStatus,cloud=None,workQueue_ID=None):
     if not jobStatMap.has_key(computingSite):

@@ -17,6 +17,11 @@ from dq2.clientapi.DQ2 import \
     DQDatasetExistsException
 from dq2.container.exceptions import DQContainerExistsException
 
+try:
+    from pyAMI.client import AMIClient
+    from pyAMI import query as amiquery
+except:
+    pass
 
 from pandaserver.dataservice import DataServiceUtils
 
@@ -37,7 +42,7 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # get files in dataset
-    def getFilesInDataset(self,datasetName,skipDuplicate=True):
+    def getFilesInDataset(self,datasetName,getNumEvents=False,skipDuplicate=True):
         methodName = 'getFilesInDataset'
         methodName = '{0} datasetName={1}'.format(methodName,datasetName)
         tmpLog = MsgWrapper(logger,methodName)
@@ -80,7 +85,15 @@ class AtlasDDMClient(DDMClientBase):
                                                    'attNr':attNr}
                             newFileMap[tmpGUID] = valMap
                     # use new map
-                    fileMap = newFileMap        
+                    fileMap = newFileMap
+                # get number of events in each file
+                if getNumEvents:
+                    amiDatasetName = re.sub('(_tid\d+)*(_\d+)*/$','',datasetName)
+                    amiclient = AMIClient()
+                    for amiItem in amiquery.get_files(amiclient,amiDatasetName):
+                        amiGUID = amiItem['fileGUID']
+                        if fileMap.has_key(amiGUID):
+                            fileMap[amiGUID]['nevents'] = long(amiItem['events'])
             return self.SC_SUCCEEDED,fileMap
         except:
             errtype,errvalue = sys.exc_info()[:2]
@@ -166,7 +179,10 @@ class AtlasDDMClient(DDMClientBase):
             # list of NG endpoints
             ngEndPoints = []
             if 1 in ngGroup:
-                ngEndPoints += ['_SCRATCHDISK$','_LOCALGROUPDISK$','_USERDISK$',
+                ngEndPoints += ['_SCRATCHDISK$','_LOCALGROUPDISK$','_LOCALGROUPTAPE$','_USERDISK$',
+                               '_DAQ$','_TMPDISK$','_TZERO$','_GRIDFTP$','MOCKTEST$']
+            if 2 in ngGroup:
+                ngEndPoints += ['_LOCALGROUPDISK$','_LOCALGROUPTAPE$',
                                '_DAQ$','_TMPDISK$','_TZERO$','_GRIDFTP$','MOCKTEST$']
             # get all associated endpoints
             siteAllEndPointsMap = {}

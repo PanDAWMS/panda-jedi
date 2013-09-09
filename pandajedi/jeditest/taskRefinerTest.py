@@ -1,3 +1,9 @@
+import sys
+try:
+    testTaskType = sys.argv[1]
+except:
+    testTaskType = 'test'
+
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 
 tbIF = JediTaskBufferInterface()
@@ -16,5 +22,5 @@ parent_conn, child_conn = multiprocessing.Pipe()
 
 taskRefiner = multiprocessing.Process(target=TaskRefiner.launcher,
                                       args=(child_conn,tbIF,ddmIF,
-                                            'atlas','test'))
+                                            'atlas',testTaskType))
 taskRefiner.start()
