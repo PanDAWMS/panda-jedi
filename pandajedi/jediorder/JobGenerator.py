@@ -336,10 +336,12 @@ class JobGeneratorThread (WorkerThread):
                 # make build job
                 buildFileSpec = None
                 if taskSpec.useBuild():
+                    tmpLog.debug('into doGenerateBuild')
                     tmpStat,buildJobSpec,buildFileSpec = self.doGenerateBuild(taskSpec,cloudName,siteName,taskParamMap,tmpLog,simul)
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to generate build job')
                         return failedRet
+                    tmpLog.debug('out from doGenerateBuild')
                     # append
                     if buildJobSpec != None:
                         jobSpecList.append(buildJobSpec)
@@ -485,6 +487,9 @@ class JobGeneratorThread (WorkerThread):
             if fileSpec != None:
                 pandaFileSpec = fileSpec.convertToJobFileSpec(datasetSpec,setType='input')
                 pandaFileSpec.status = 'ready'
+                # make dummy jobSpec
+                jobSpec = JobSpec()
+                jobSpec.addFile(pandaFileSpec)
                 return Interaction.SC_SUCCEEDED,None,pandaFileSpec
             # make job spec for build
             jobSpec = JobSpec()
@@ -703,6 +708,7 @@ class JobGeneratorThread (WorkerThread):
                                   ('MAXEVENTS',  maxEvents),
                                   ('SKIPEVENTS', skipEvents),
                                   ('FIRSTEVENT', firstEvent),
+                                  ('SURL',       sourceURL),
                                   ] + paramList:
             # ignore undefined
             if parVal == None:
