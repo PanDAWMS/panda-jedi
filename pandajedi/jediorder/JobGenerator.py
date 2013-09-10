@@ -476,14 +476,16 @@ class JobGeneratorThread (WorkerThread):
         failedRet = Interaction.SC_FAILED,None,None
         try:
             # get lib.tgz file
-            tmpStat,fileSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID,siteName)
+            tmpStat,fileSpec,datasetSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID,siteName)
             # failed
             if not tmpStat:
                 tmpLog.error('failed to get lib.tgz for jediTaskID={0} siteName={0}'.format(taskSpec.jediTaskID,siteName))
                 return failedRet
             # lib.tgz is already available
             if fileSpec != None:
-                return Interaction.SC_SUCCEEDED,None,fileSpec
+                pandaFileSpec = fileSpec.convertToJobFileSpec(datasetSpec,setType='input')
+                pandaFileSpec.status = 'ready'
+                return Interaction.SC_SUCCEEDED,None,pandaFileSpec
             # make job spec for build
             jobSpec = JobSpec()
             jobSpec.jobDefinitionID  = 0

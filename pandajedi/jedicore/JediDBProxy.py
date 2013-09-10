@@ -3849,7 +3849,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlRD+comment,varMap)
             resList = self.cur.fetchall()
             # loop over all datasets
-            pandaFileSpec = None
+            fileSpec = None
+            datasetSpec = None
             for resItem in resList:
                 datasetSpec = JediDatasetSpec()
                 datasetSpec.pack(resItem)
@@ -3863,23 +3864,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 resFileList = self.cur.fetchall()
                 for resFile in resFileList:
                     # make FileSpec
-                    tmpFileSpec = JediFileSpec()
-                    tmpFileSpec.pack(resFile)
-                    pandaFileSpec = tmpFileSpec.convertToJobFileSpec(datasetSpec,setType='input')
-                    pandaFileSpec.status = 'ready'
+                    fileSpec = JediFileSpec()
+                    fileSpec.pack(resFile)
                     break
                 # no more dataset lookup
-                if pandaFileSpec != None:
+                if fileSpec != None:
                     break
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             # return
-            if pandaFileSpec != None:
-                tmpLog.debug("got lib.tgz={0}".format(pandaFileSpec.lfn))
+            if fileSpec != None:
+                tmpLog.debug("got lib.tgz={0}".format(fileSpec.lfn))
             else:
                 tmpLog.debug("no lib.tgz")
-            return True,pandaFileSpec
+            return True,fileSpec,datasetSpec
         except:
             # roll back
             self._rollback()
