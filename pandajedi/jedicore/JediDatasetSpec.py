@@ -181,6 +181,13 @@ class JediDatasetSpec(object):
 
 
 
+    # return list of types to generate jobs
+    def getProcessTypes(cls):
+        return cls.getInputTypes() + ['pp_input']
+    getProcessTypes = classmethod(getProcessTypes)
+
+
+
     # check if JEDI needs to keep track of file usage
     def toKeepTrack(self):
         if self.isNoSplit() and self.isRepeated():
@@ -210,7 +217,8 @@ class JediDatasetSpec(object):
 
     # check if it is pseudo
     def isPseudo(self):
-        if self.datasetName == 'pseudo_dataset':
+        if self.datasetName == 'pseudo_dataset' \
+                or self.type in ['pp_input']:
             return True
         else:
             return False
@@ -237,7 +245,7 @@ class JediDatasetSpec(object):
 
     # check if it is a master dataset
     def isMaster(self):
-        if self.masterID == None and self.type in self.getInputTypes():
+        if self.masterID == None and self.type in self.getProcessTypes():
             return True
         else:
             return False

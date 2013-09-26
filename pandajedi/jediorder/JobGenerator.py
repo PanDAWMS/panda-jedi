@@ -288,6 +288,8 @@ class JobGeneratorThread (WorkerThread):
                             jobsSubmitted = True
                             if inputChunk.useScout():
                                 taskSpec.status = 'scouting'
+                            elif taskSpec.usePrePro():
+                                taskSpec.status = 'preprocessing'
                             else:
                                 taskSpec.status = 'running'
                         else:
@@ -315,7 +317,7 @@ class JobGeneratorThread (WorkerThread):
         failedRet = Interaction.SC_FAILED,None
         # read task parameters
         taskParamMap = None
-        if taskSpec.useBuild():
+        if taskSpec.useBuild() or taskSpec.usePrePro():
             try:
                 # read task parameters
                 taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
@@ -333,15 +335,23 @@ class JobGeneratorThread (WorkerThread):
             for tmpInChunk in inSubChunkList:
                 siteName    = tmpInChunk['siteName']
                 inSubChunks = tmpInChunk['subChunks']
-                # make build job
                 buildFileSpec = None
-                if taskSpec.useBuild():
-                    tmpLog.debug('into doGenerateBuild')
+                # make preprocessing job
+                if taskSpec.usePrePro():
+                    tmpStat,preproJobSpec = self.doGeneratePrePro(taskSpec,cloudName,siteName,taskParamMap,
+                                                                  inSubChunks,tmpLog,simul)
+                    if tmpStat != Interaction.SC_SUCCEEDED:
+                        tmpLog.error('failed to generate prepro job')
+                        return failedRet
+                    # append
+                    jobSpecList.append(preproJobSpec)
+                    break
+                # make build job
+                elif taskSpec.useBuild():
                     tmpStat,buildJobSpec,buildFileSpec = self.doGenerateBuild(taskSpec,cloudName,siteName,taskParamMap,tmpLog,simul)
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to generate build job')
                         return failedRet
-                    tmpLog.debug('out from doGenerateBuild')
                     # append
                     if buildJobSpec != None:
                         jobSpecList.append(buildJobSpec)
@@ -569,6 +579,63 @@ class JobGeneratorThread (WorkerThread):
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('{0}.doGenerateBuild() failed with {1}:{2}'.format(self.__class__.__name__,
                                                                             errtype.__name__,errvalue))
+            return failedRet
+
+
+
+    # generate preprocessing jobs
+    def doGeneratePrePro(self,taskSpec,cloudName,siteName,taskParamMap,inSubChunks,tmpLog,simul=False):
+        # return for failure
+        failedRet = Interaction.SC_FAILED,None
+        try:
+            # make job spec for preprocessing
+            jobSpec = JobSpec()
+            jobSpec.jobDefinitionID  = 0
+            jobSpec.jobExecutionID   = 0
+            jobSpec.attemptNr        = 0
+            jobSpec.maxAttempt       = 0
+            jobSpec.jobName          = taskSpec.taskName
+            jobSpec.transformation   = taskParamMap['preproSpec']['transPath']
+            jobSpec.cmtConfig        = taskSpec.architecture
+            jobSpec.homepackage      = taskSpec.transHome.replace('-','/')
+            jobSpec.homepackage      = re.sub('\r','',jobSpec.homepackage)
+            jobSpec.prodSourceLabel  = taskParamMap['preproSpec']['prodSourceLabel']
+            jobSpec.processingType   = taskSpec.processingType
+            jobSpec.jediTaskID       = taskSpec.jediTaskID
+            jobSpec.workingGroup     = taskSpec.workingGroup
+            jobSpec.computingSite    = siteName
+            jobSpec.cloud            = cloudName
+            jobSpec.VO               = taskSpec.vo
+            jobSpec.prodSeriesLabel  = 'pandatest'
+            jobSpec.AtlasRelease     = taskSpec.transUses
+            jobSpec.AtlasRelease     = re.sub('\r','',jobSpec.AtlasRelease)
+            jobSpec.lockedby         = 'jedi'
+            jobSpec.workQueue_ID     = taskSpec.workQueue_ID
+            jobSpec.destinationSE    = siteName
+            jobSpec.metaData         = ''
+            # get log dataset and log file
+            tmpStat,tmpLogDatasetSpec,tmpLogFileSpec = self.taskBufferIF.getPreproLog_JEDI(jobSpec.jediTaskID,simul)
+            if tmpStat == False:
+                tmpLog.error('{0}.doGeneratePrePro() failed to get log for preprocessing'.format(self.__class__.__name__))
+                return failedRet
+            jobSpec.destinationDBlock = tmpLogDatasetSpec.datasetName
+            # make log
+            logFileSpec = tmpLogFileSpec.convertToJobFileSpec(tmpLogDatasetSpec,setType='log')
+            jobSpec.addFile(logFileSpec)
+            # make pseudo input
+            tmpDatasetSpec,tmpFileSpecList = inSubChunks[0][0]
+            tmpFileSpec = tmpFileSpecList[0]
+            tmpInFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec,
+                                                             setType='pseudo_input')
+            jobSpec.addFile(tmpInFileSpec)
+            # job parameter
+            jobSpec.jobParameters = taskParamMap['preproSpec']['jobParameters']
+            # return
+            return Interaction.SC_SUCCEEDED,jobSpec
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error('{0}.doGeneratePrePro() failed with {1}:{2}'.format(self.__class__.__name__,
+                                                                             errtype.__name__,errvalue))
             return failedRet
 
 

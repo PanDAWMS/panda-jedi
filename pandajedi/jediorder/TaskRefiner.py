@@ -108,7 +108,7 @@ class TaskRefinerThread (WorkerThread):
                     self.logger.debug('{0} terminating since no more items'.format(self.__class__.__name__))
                     return
                 # loop over all tasks
-                for jediTaskID in taskList:
+                for jediTaskID,splitRule in taskList:
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'jediTaskID={0}'.format(jediTaskID))
                     tmpLog.info('start')
@@ -125,10 +125,11 @@ class TaskRefinerThread (WorkerThread):
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         tmpLog.info('getting Impl')
                         try:
-                            # get VO and sourceLabel                            
+                            # get VO and sourceLabel
                             vo = taskParamMap['vo']
                             prodSourceLabel = taskParamMap['prodSourceLabel']
                             taskType = taskParamMap['taskType']
+                            tmpLog.info('vo={0} sourceLabel={1} taskType={2}'.format(vo,prodSourceLabel,taskType))
                             # get impl
                             impl = self.implFactory.instantiateImpl(vo,prodSourceLabel,taskType,
                                                                     self.taskBufferIF,self.ddmIF)
@@ -147,7 +148,7 @@ class TaskRefinerThread (WorkerThread):
                             # initalize impl
                             impl.initializeRefiner(tmpLog)
                             # extarct common parameters
-                            impl.extractCommon(jediTaskID,taskParamMap,self.workQueueMapper)
+                            impl.extractCommon(jediTaskID,taskParamMap,self.workQueueMapper,splitRule)
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('extractCommon failed with {0}:{1}'.format(errtype.__name__,errvalue))

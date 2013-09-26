@@ -724,3 +724,29 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get preprocess metadata
+    def getPreprocessMetadata_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getPreprocessMetadata_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get log dataset for preprocessing
+    def getPreproLog_JEDI(self,jediTaskID,simul):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getPreproLog_JEDI(jediTaskID,simul)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

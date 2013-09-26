@@ -1,10 +1,13 @@
 import re
+import sys
+import uuid
 import copy
 
 import RefinerUtils
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
+from pandajedi.jedicore.JediFileSpec import JediFileSpec
 
 
 
@@ -42,7 +45,7 @@ class TaskRefinerBase (object):
 
     
     # extract common parameters
-    def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper):
+    def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule):
         # make task spec
         taskSpec = JediTaskSpec()
         taskSpec.jediTaskID = jediTaskID
@@ -58,6 +61,7 @@ class TaskRefinerBase (object):
         taskSpec.transPath = taskParamMap['transPath']
         taskSpec.processingType = taskParamMap['processingType']
         taskSpec.taskType = taskParamMap['taskType']
+        taskSpec.splitRule = splitRule
         if taskParamMap.has_key('workingGroup'):
             taskSpec.workingGroup = taskParamMap['workingGroup']
         if taskParamMap.has_key('reqID'):
@@ -239,6 +243,74 @@ class TaskRefinerBase (object):
 
 
     
+    # refinement procedure for preprocessing
+    def doPreProRefine(self,taskParamMap):
+        # no preprocessing
+        if not taskParamMap.has_key('preproSpec'):
+            return None,taskParamMap
+        # already preprocessed
+        if self.taskSpec.checkPreProcessed():
+            # get additional task params
+            tmpStat,tmpJsonStr = self.taskBufferIF.getPreprocessMetadata_JEDI(self.taskSpec.jediTaskID)
+            try:
+                addTaskParams = RefinerUtils.decodeJSON(tmpJsonStr)
+                for tmpKey,tmpVal in addTaskParams.iteritems():
+                    taskParamMap[tmpKey] = tmpVal
+            except:
+                errtype,errvalue = sys.exc_info()[:2]
+                self.tmpLog.error('{0} failed to get additional task params with {1}:{2}'.format(self.__class__.__name__,
+                                                                                                 errtype.__name__,errvalue))
+                return False,taskParamMap
+            # succeeded
+            self.updatedTaskParams = taskParamMap
+            return None,taskParamMap
+        # make dummy dataset to keep track of preprocessing
+        datasetSpec = JediDatasetSpec()
+        datasetSpec.datasetName = 'panda.pp.in.{0}.{1}'.format(uuid.uuid4(),self.taskSpec.jediTaskID)
+        datasetSpec.jediTaskID = self.taskSpec.jediTaskID
+        datasetSpec.type = 'pp_input'
+        datasetSpec.vo = self.taskSpec.vo
+        datasetSpec.nFiles = 1
+        datasetSpec.nFilesUsed = 0
+        datasetSpec.nFilesToBeUsed = 1
+        datasetSpec.nFilesFinished = 0
+        datasetSpec.nFilesFailed = 0
+        datasetSpec.nFilesOnHold = 0
+        datasetSpec.status = 'ready'
+        self.inMasterDatasetSpec.append(datasetSpec)
+        # make file 
+        fileSpec = JediFileSpec()
+        fileSpec.jediTaskID   = datasetSpec.jediTaskID
+        fileSpec.type         = datasetSpec.type
+        fileSpec.status       = 'ready'            
+        fileSpec.lfn          = 'pseudo_lfn'
+        fileSpec.attemptNr    = 0
+        fileSpec.maxAttempt   = 5
+        fileSpec.keepTrack    = 1
+        datasetSpec.addFile(fileSpec)
+        # make log dataset
+        logDatasetSpec = JediDatasetSpec()
+        logDatasetSpec.datasetName = 'panda.pp.log.{0}.{1}'.format(uuid.uuid4(),self.taskSpec.jediTaskID)
+        logDatasetSpec.jediTaskID = self.taskSpec.jediTaskID
+        logDatasetSpec.type = 'pp_log'
+        logDatasetSpec.vo = self.taskSpec.vo
+        logDatasetSpec.nFiles = 0
+        logDatasetSpec.nFilesUsed = 0
+        logDatasetSpec.nFilesToBeUsed = 0
+        logDatasetSpec.nFilesFinished = 0
+        logDatasetSpec.nFilesFailed = 0
+        logDatasetSpec.nFilesOnHold = 0
+        logDatasetSpec.status = 'ready'
+        self.outDatasetSpecList.append(logDatasetSpec)
+        # set split rule to use preprocessing
+        self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['usePrePro'])
+        # set task status
+        self.taskSpec.status = 'topreprocess'
+        # return
+        return True,taskParamMap
+
+
+
     # set split rule
     def setSplitRule(self,taskParamMap,keyName,valName):
         if taskParamMap != None:

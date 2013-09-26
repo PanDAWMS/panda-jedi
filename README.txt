@@ -1,5 +1,8 @@
 Release Note
 
+* 9/26/2013
+  * added preprocessing function
+
 * 9/9/2013
   * added analysis functions
   * tagged 0.0.1

@@ -20,6 +20,16 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         tmpLog = self.tmpLog
         tmpLog.debug('start taskType={0}'.format(self.taskSpec.taskType))
         try:
+            # preprocessing
+            tmpStat,taskParamMap = self.doPreProRefine(taskParamMap)
+            if tmpStat == True:
+                tmpLog.debug('done for preprocessing')
+                return self.SC_SUCCEEDED
+            if tmpStat == False:
+                # failed
+                tmpLog.error('doPreProRefine failed')
+                return self.SC_FAILED
+            # normal refine
             self.doBasicRefine(taskParamMap)
             # set nosplit+repeat for DBR
             for datasetSpec in self.inSecDatasetSpecList:
@@ -35,7 +45,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 datasetSpec.type = "tmpl_{0}".format(datasetSpec.type) 
         except:
             errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('doBasicRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))
+            tmpLog.error('doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))
             return self.SC_FAILED
         tmpLog.debug('done')
         return self.SC_SUCCEEDED

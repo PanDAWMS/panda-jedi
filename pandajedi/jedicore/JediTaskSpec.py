@@ -36,9 +36,13 @@ class JediTaskSpec(object):
                       'firstEvent'         : 'FST',
                       'groupBoundaryID'    : 'GB',
                       'useBuild'           : 'UB',
+                      'usePrePro'          : 'UP',
                       'instantiateTmpl'    : 'IT',
                       'instantiateTmplSite': 'IA', 
                       }
+    # enum for preprocessing
+    enum_toPreProcess = '1'
+    enum_preProcessed = '2'
 
 
 
@@ -267,6 +271,45 @@ class JediTaskSpec(object):
 
 
 
+    # use preprocessing
+    def usePrePro(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['usePrePro']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # set preprocessed
+    def setPreProcessed(self):
+        if self.splitRule == None:
+            # new
+            self.splitRule = self.splitRuleToken['usePrePro']+'='+self.enum_preProcessed
+        else:
+            tmpMatch = re.search(self.splitRuleToken['usePrePro']+'=(\d+)',self.splitRule)
+            if tmpMatch == None:
+                # append
+                self.splitRule += ','+self.splitRuleToken['usePrePro']+'='+self.enum_preProcessed
+            else:
+                # replace
+                self.splitRule = re.sub(self.splitRuleToken['usePrePro']+'=(\d+)',
+                                        self.splitRuleToken['usePrePro']+'='+self.enum_preProcessed,
+                                        self.splitRule)
+        return
+
+
+
+    # check preprocessed
+    def checkPreProcessed(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['usePrePro']+'=(\d+)',self.splitRule)
+            if tmpMatch != None and tmpMatch.group(1) == self.enum_preProcessed:
+                return True
+        return False
+
+
+
     # instantiate template datasets
     def instantiateTmpl(self):
         if self.splitRule != None:
@@ -337,7 +380,8 @@ class JediTaskSpec(object):
     # set task status on hold
     def setOnHold(self):
         # change status
-        if self.status in ['ready','running','merging','scouting','defined']:
+        if self.status in ['ready','running','merging','scouting','defined',
+                           'topreprocess','preprocessing']:
             self.oldStatus = self.status
             self.status = 'pending'
 
