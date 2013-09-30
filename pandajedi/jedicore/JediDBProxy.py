@@ -4313,3 +4313,42 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return failedRet
 
+    
+    def getBestNNetworkSites(self, src, protocol, n):
+        comment = ' /* JediDBProxy.getBestNNetworkSites */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        
+        field = ''
+        if protocol == 'xrd':
+            field = 'xrdcpval'
+            
+        try:
+            # sql
+            sqlDS = "SELECT s.destination, s.{0} FROM (SELECT rownum, destination, {1} " . format(field, field)
+            sqlDS += "FROM {0}.sites_matrix sm LEFT JOIN {1}.sites_metrics_data smd ON meas_matrix_id=matrix_id WHERE source=:source AND {2} IS NOT NULL ORDER BY {3} DESC) s WHERE rownum <= :n" . format(jedi_config.db.schemaMETA, jedi_config.db.schemaMETA, field)
+            # start transaction
+            self.conn.begin()
+            varMap = {}
+            varMap[':source'] = src
+            varMap[':n'] = n
+            # execute
+            self.cur.execute(sqlDS+comment,varMap)
+            resList = self.cur.fetchall()
+            siteList = []
+            for siteName in resList:
+                siteList.append(siteName)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done -> {0}".format(str(siteList)))
+            return True,siteList
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False,None
+        
