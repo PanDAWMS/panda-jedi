@@ -750,3 +750,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get sites with best connections to source
+    def getBestNNetworkSites(self,source,protocol,nSites,threshold):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getBestNNetworkSites(source,protocol,nSites,threshold)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

@@ -87,7 +87,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # get sites where disk replica is available
                 tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite)
                 # get sites which can remotely access source sites
-                tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpSiteList,self.siteMapper)
+                tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpSiteList,self.taskBufferIF)
                 for tmpSiteName in tmpSiteList:
                     if not dataWeight.has_key(tmpSiteName):
                         dataWeight[tmpSiteName] = 1

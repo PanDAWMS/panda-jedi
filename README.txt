@@ -1,5 +1,8 @@
 Release Note
 
+* 10/4/2013
+  * implemented getSatelliteSites
+ 
 * 9/26/2013
   * added preprocessing function
 

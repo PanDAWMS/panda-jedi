@@ -3,7 +3,7 @@ import sys
 
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
-from pandajedi.jedicore import JediDBProxy
+
 
 
 # get hospital queues
@@ -201,22 +201,24 @@ def getAnalSitesWithDataDisk(dataSiteMap):
 
 
 
-# get best n sites based on network measurements data
-def getBestNNetworkSites(src, protocol='xrd', n=5):
-    # get DBproxy
-    proxy = self.proxyPool.getProxy()
-    retVal = proxy.getBestNNetworkSites(src, protocol, n)
-    # release proxy
-    self.proxyPool.putProxy(proxy)
-    # return
-    return retVal
-
-
-
 # get sites which can remotely access source sites
-def getSatelliteSites(siteList,siteMapper):
-    # FIXME
-    return {}
+def getSatelliteSites(siteList,taskBufferIF,protocol='xrd',nSites=5,threshold=0):
+    # loop over all sites
+    retVal = {}
+    for siteName in siteList:
+        # get sites with better network connections to sources
+        tmpStat,tmpVal = taskBufferIF.getBestNNetworkSites(siteName,protocol,nSites,
+                                                           threshold,useResultCache=3600)
+        if tmpStat == False:
+            return {}
+        # loop over all destinations 
+        for tmpD,tmpW in tmpVal.iteritems():
+            if not retVal.has_key(tmpD):
+                retVal[tmpD] = tmpW
+            elif retVal[tmpD] < tmpW:
+                # use larger value
+                retVal[tmpD] = tmpW    
+    return retVal
                         
 
 

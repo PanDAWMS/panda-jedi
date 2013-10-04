@@ -48,6 +48,9 @@ schemaPANDA = ATLAS_PANDA
 # Archived Panda schema
 schemaPANDAARCH = ATLAS_PANDAARCH
 
+# META schema
+schemaMETA = ATLAS_PANDAMETA
+
 
 
 

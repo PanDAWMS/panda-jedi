@@ -4313,32 +4313,41 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return failedRet
 
-    
-    def getBestNNetworkSites(self, src, protocol, n):
+
+    # get sites with best connections to source
+    def getBestNNetworkSites(self,source,protocol,nSites,threshold):
         comment = ' /* JediDBProxy.getBestNNetworkSites */'
         methodName = self.getMethodName(comment)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
-        
-        field = ''
+        tmpLog.debug('start for src={0} protocol={1} nSites={2} thr={3}'.format(source,protocol,
+                                                                                nSites,threshold))
+        # return for failure
+        failedRet = False,None
+        # check protocol
         if protocol == 'xrd':
             field = 'xrdcpval'
-            
+        else:
+            tmpLog.error('unsupported protocol={0}'.format(protocol))
+            return failedRet
         try:
             # sql
-            sqlDS = "SELECT s.destination, s.{0} FROM (SELECT rownum, destination, {1} " . format(field, field)
-            sqlDS += "FROM {0}.sites_matrix sm LEFT JOIN {1}.sites_metrics_data smd ON meas_matrix_id=matrix_id WHERE source=:source AND {2} IS NOT NULL ORDER BY {3} DESC) s WHERE rownum <= :n" . format(jedi_config.db.schemaMETA, jedi_config.db.schemaMETA, field)
+            sqlDS =  "SELECT * FROM "
+            sqlDS += "(SELECT destination,{0} FROM {1}.sites_matrix,{1}.sites_metrics_data ".format(field,jedi_config.db.schemaMETA)
+            sqlDS += "WHERE meas_matrix_id=matrix_id AND source=:source AND {0} IS NOT NULL AND {0}>:threshold ORDER BY {0} DESC) ".format(field)
+            sqlDS += "WHERE rownum<=:nSites"
             # start transaction
             self.conn.begin()
             varMap = {}
-            varMap[':source'] = src
-            varMap[':n'] = n
+            varMap[':source']    = source
+            varMap[':nSites']    = nSites
+            varMap[':threshold'] = threshold
             # execute
+            tmpLog.debug(sqlDS+comment+str(varMap))
             self.cur.execute(sqlDS+comment,varMap)
             resList = self.cur.fetchall()
-            siteList = []
-            for siteName in resList:
-                siteList.append(siteName)
+            siteList = {}
+            for siteName,costVal in resList:
+                siteList[siteName] = costVal
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
