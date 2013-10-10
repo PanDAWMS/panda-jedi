@@ -1397,6 +1397,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     fileSpec.jediTaskID   = jediTaskID
                     fileSpec.datasetID    = fileDatasetID
                     nameTemplate = fileNameTemplate.replace('${SN}','{SN:06d}')
+                    nameTemplate = nameTemplate.replace('${SN/P}','{SN:06d}')
                     nameTemplate = nameTemplate.replace('${SN','{SN')
                     fileSpec.lfn          = nameTemplate.format(SN=serialNr)
                     fileSpec.status       = 'defined'

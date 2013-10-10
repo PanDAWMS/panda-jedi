@@ -220,7 +220,15 @@ class TaskRefinerBase (object):
         jobParameters = ''
         for tmpItem in taskParamMap['jobParameters']:
             if tmpItem.has_key('value'):
-                jobParameters += '{0} '.format(tmpItem['value'])
+                # hidden parameter
+                if tmpItem.has_key('hidden') and tmpItem['hidden'] == True:
+                    continue
+                jobParameters += '{0}'.format(tmpItem['value'])
+                # padding
+                if tmpItem.has_key('padding') and tmpItem['padding'] == False:
+                    pass
+                else:
+                    jobParameters += ' '
                 # get offset for random seed and first event
                 if tmpItem['type'] == 'template' and tmpItem['param_type'] == 'number':
                     if '${RNDMSEED}' in tmpItem['value']:

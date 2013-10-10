@@ -26,7 +26,14 @@ except:
     testTaskType = 'test'
 
 try:
-    testClouds = sys.argv[3].split(',')
+    execJob = False
+    if sys.argv[3] == 'y':
+        execJob = True
+except:
+    pass
+
+try:
+    testClouds = sys.argv[4].split(',')
 except:
     testClouds = [None]
 
@@ -34,5 +41,5 @@ print testVO,testTaskType,testClouds
 
 gen = multiprocessing.Process(target=JobGenerator.launcher,
                               args=(child_conn,tbIF,ddmIF,testVO,testTaskType,testClouds,
-                                    False,False))
+                                    False,execJob))
 gen.start()

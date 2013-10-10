@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import copy
+import urllib
 import socket
 import random
 import datetime
@@ -765,12 +766,17 @@ class JobGeneratorThread (WorkerThread):
                 conMatch = re.search('\[([^\]]+)\]',compactPar)
                 if conMatch != None and re.search('^[\d,]+$',conMatch.group(1)) != None:
                     # replace with compact format
-                    parTemplate = parTemplate.replace('${'+streamName+'}',compactPar)
+                    replaceStr = compactPar
                 else:
                     # replace with full format since [] contains non digits
-                    parTemplate = parTemplate.replace('${'+streamName+'}',fullLFNList)
+                    replaceStr = fullLFNList
+                # encode    
+                if '/E' in streamName:
+                    replaceStr = urllib.unquote(replaceStr)
+                parTemplate = parTemplate.replace('${'+streamName+'}',replaceStr)
         # replace placeholders for numbers
         for streamName,parVal in [('SN',         serialNr),
+                                  ('SN/P',       '{0:06d}'.format(serialNr)),
                                   ('RNDMSEED',   rndmSeed),
                                   ('MAXEVENTS',  maxEvents),
                                   ('SKIPEVENTS', skipEvents),

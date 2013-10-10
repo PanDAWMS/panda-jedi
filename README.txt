@@ -1,5 +1,8 @@
 Release Note
 
+* 10/10/2013
+  * improved JG for pathena
+
 * 10/4/2013
   * implemented getSatelliteSites
  
