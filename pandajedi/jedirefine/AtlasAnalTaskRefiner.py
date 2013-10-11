@@ -33,6 +33,11 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
             self.doBasicRefine(taskParamMap)
             # set nosplit+repeat for DBR
             for datasetSpec in self.inSecDatasetSpecList:
+                # get the latest version of DBR
+                if datasetSpec.datasetName == 'DBR_LATEST':
+                    tmpLog.debug('resolving real name for {0}'.format(datasetSpec.datasetName))
+                    datasetSpec.datasetName = self.ddmIF.getInterface(self.taskSpec.vo).getLatestDBRelease(useResultCache=3600)
+                # set attributes to DBR
                 if datasetSpec.datasetName.startswith('ddo.'):
                     datasetSpec.attributes = 'repeat,nosplit'
             # use build

@@ -143,9 +143,15 @@ class TaskRefinerBase (object):
             tmpItem['param_type'] = 'random_seed'
             itemList.append(tmpItem)
         # loop over all items
+        allDsList = []   
         for tmpItem in itemList:
             # look for datasets
             if tmpItem['type'] == 'template' and tmpItem.has_key('dataset'):
+                # avoid duplication
+                if not tmpItem['dataset'] in allDsList:
+                    allDsList.append(tmpItem['dataset'])
+                else:
+                    continue
                 datasetSpec = JediDatasetSpec()
                 datasetSpec.datasetName = tmpItem['dataset']
                 datasetSpec.jediTaskID = self.taskSpec.jediTaskID

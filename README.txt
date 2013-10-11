@@ -1,5 +1,8 @@
 Release Note
 
+* 10/11/2013
+  * added LATEST DBR lookup
+
 * 10/10/2013
   * improved JG for pathena
 

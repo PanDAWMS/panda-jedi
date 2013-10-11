@@ -549,4 +549,91 @@ class AtlasDDMClient(DDMClientBase):
             return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
 
 
+
+    # get latest DBRelease
+    def getLatestDBRelease(self):
+        methodName = 'getLatestDBRelease'
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.info('trying to get the latest version number of DBR')
+        # get ddo datasets
+        tmpStat,ddoDatasets = self.listDatasets('ddo.*')
+        if tmpStat != self.SC_SUCCEEDED or ddoDatasets == {}:
+            tmpLog.error('failed to get a list of DBRelease datasets from DQ2')
+            return self.SC_FAILED,None
+        # reverse sort to avoid redundant lookup   
+        ddoDatasets.sort()
+        ddoDatasets.reverse()
+        # extract version number
+        latestVerMajor = 0
+        latestVerMinor = 0
+        latestVerBuild = 0
+        latestVerRev   = 0
+        latestDBR = ''
+        for tmpName in ddoDatasets:
+            # ignore CDRelease
+            if ".CDRelease." in tmpName:
+                continue
+            # ignore user
+            if tmpName.startswith('ddo.user'):
+                continue
+            # use Atlas.Ideal
+            if not ".Atlas.Ideal." in tmpName:
+                continue
+            match = re.search('\.v(\d+)(_*[^\.]*)$',tmpName)
+            if match == None:
+                tmpLog.warning('cannot extract version number from %s' % tmpName)
+                continue
+            # ignore special DBRs
+            if match.group(2) != '':
+                continue
+            # get major,minor,build,revision numbers
+            tmpVerStr = match.group(1)
+            tmpVerMajor = 0
+            tmpVerMinor = 0
+            tmpVerBuild = 0
+            tmpVerRev   = 0
+            try:
+                tmpVerMajor = int(tmpVerStr[0:2])
+            except:
+                pass
+            try:
+                tmpVerMinor = int(tmpVerStr[2:4])
+            except:
+                pass
+            try:
+                tmpVerBuild = int(tmpVerStr[4:6])
+            except:
+                pass
+            try:
+                tmpVerRev = int(tmpVerStr[6:])
+                # use only three digit DBR
+                continue
+            except:
+                pass
+            # compare
+            if latestVerMajor > tmpVerMajor:
+                continue
+            elif latestVerMajor == tmpVerMajor:
+                if latestVerMinor > tmpVerMinor:
+                    continue
+                elif latestVerMinor == tmpVerMinor:
+                    if latestVerBuild > tmpVerBuild:
+                        continue
+                    elif latestVerBuild == tmpVerBuild:
+                        if latestVerRev > tmpVerRev:
+                            continue
+            # higher or equal version
+            latestVerMajor = tmpVerMajor
+            latestVerMinor = tmpVerMinor
+            latestVerBuild = tmpVerBuild
+            latestVerRev   = tmpVerRev
+            latestDBR = tmpName
+        # failed
+        if latestDBR == '':
+            tmpLog.error('failed to get the latest version of DBRelease dataset from DQ2')
+            return self.SC_FAILED,None
+        tmpLog.info('use {0}'.format(latestDBR))
+        return self.SC_SUCCEEDED,latestDBR
+
+
         
