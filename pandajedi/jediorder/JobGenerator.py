@@ -520,6 +520,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.prodSourceLabel  = taskParamMap['buildSpec']['prodSourceLabel']
             jobSpec.processingType   = taskSpec.processingType
             jobSpec.jediTaskID       = taskSpec.jediTaskID
+            jobSpec.jobsetID         = taskSpec.reqID
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.computingSite    = siteName
             jobSpec.cloud            = cloudName
