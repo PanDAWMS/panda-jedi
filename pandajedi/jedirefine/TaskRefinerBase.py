@@ -112,6 +112,7 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'nEventsPerJob',  JediTaskSpec.splitRuleToken['nEventsPerJob'])
         self.setSplitRule(taskParamMap,'nGBPerJob',      JediTaskSpec.splitRuleToken['nGBPerJob'])
         self.setSplitRule(taskParamMap,'nMaxFilesPerJob',JediTaskSpec.splitRuleToken['nMaxFilesPerJob'])
+        self.setSplitRule(taskParamMap,'useLocalIO',     JediTaskSpec.splitRuleToken['useLocalIO'])
         # return
         return
     

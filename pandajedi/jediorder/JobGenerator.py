@@ -371,6 +371,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.processingType   = taskSpec.processingType
                     jobSpec.jediTaskID       = taskSpec.jediTaskID
                     jobSpec.taskID           = taskSpec.reqID
+                    jobSpec.jobsetID         = taskSpec.reqID
                     jobSpec.workingGroup     = taskSpec.workingGroup
                     jobSpec.computingSite    = siteName
                     jobSpec.cloud            = cloudName
@@ -420,6 +421,9 @@ class JobGeneratorThread (WorkerThread):
                                 tmpInFileSpec.status = 'ready'
                             elif tmpFileSpec.locality == 'cache':
                                 tmpInFileSpec.status = 'cached'
+                            # local IO
+                            if taskSpec.useLocalIO():
+                                tmpInFileSpec.prodDBlockToken = 'local'
                             jobSpec.addFile(tmpInFileSpec)
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock == False and prodDBlock != None:

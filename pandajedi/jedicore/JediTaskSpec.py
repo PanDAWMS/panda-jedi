@@ -28,18 +28,20 @@ class JediTaskSpec(object):
     # limit length
     _limitLength = {'errorDialog' : 255}
     # tokens for split rule
-    splitRuleToken = {'nFilesPerJob'       : 'NFPJ',
-                      'nEventsPerJob'      : 'NEPJ',
-                      'nGBPerJob'          : 'NGBPJ',
-                      'nMaxFilesPerJob'    : 'NMFPJ',
-                      'randomSeed'         : 'RNDM',
-                      'firstEvent'         : 'FST',
-                      'groupBoundaryID'    : 'GB',
-                      'useBuild'           : 'UB',
-                      'usePrePro'          : 'UP',
-                      'instantiateTmpl'    : 'IT',
-                      'instantiateTmplSite': 'IA', 
-                      }
+    splitRuleToken = {
+        'firstEvent'         : 'FT',
+        'groupBoundaryID'    : 'GB',
+        'instantiateTmplSite': 'IA',
+        'instantiateTmpl'    : 'IT',
+        'useLocalIO'         : 'LI',
+        'nMaxFilesPerJob'    : 'MF',
+        'nEventsPerJob'      : 'NE',
+        'nFilesPerJob'       : 'NF',
+        'nGBPerJob'          : 'NG',
+        'randomSeed'         : 'RS',
+        'useBuild'           : 'UB',
+        'usePrePro'          : 'UP',
+        }
     # enum for preprocessing
     enum_toPreProcess = '1'
     enum_preProcessed = '2'
@@ -271,6 +273,16 @@ class JediTaskSpec(object):
 
 
 
+    # use local IO
+    def useLocalIO(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useLocalIO']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
     # use preprocessing
     def usePrePro(self):
         if self.splitRule != None:
@@ -333,7 +345,7 @@ class JediTaskSpec(object):
     # use random seed
     def useRandomSeed(self):
         if self.splitRule != None:
-            tmpMatch = re.search('RNDM=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken['randomSeed']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

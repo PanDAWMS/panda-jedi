@@ -754,12 +754,26 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get sites with best connections to source
-    def getBestNNetworkSites(self,source,protocol,nSites,threshold):
+    def getBestNNetworkSites_JEDI(self,source,protocol,nSites,threshold):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getBestNNetworkSites(source,protocol,nSites,threshold)
+        retVal = proxy.getBestNNetworkSites_JEDI(source,protocol,nSites,threshold)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+
+    # get jobsetID
+    def getUserJobsetID_JEDI(self,userName):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        tmpJobID,tmpDummy,tmpStat = proxy.getUserParameter(userName,1,None)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return tmpStat,tmpJobID

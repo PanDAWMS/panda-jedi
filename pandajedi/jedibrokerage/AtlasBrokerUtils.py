@@ -207,8 +207,8 @@ def getSatelliteSites(siteList,taskBufferIF,protocol='xrd',nSites=5,threshold=0)
     retVal = {}
     for siteName in siteList:
         # get sites with better network connections to sources
-        tmpStat,tmpVal = taskBufferIF.getBestNNetworkSites(siteName,protocol,nSites,
-                                                           threshold,useResultCache=3600)
+        tmpStat,tmpVal = taskBufferIF.getBestNNetworkSites_JEDI(siteName,protocol,nSites,
+                                                                threshold,useResultCache=3600)
         if tmpStat == False:
             return {}
         # loop over all destinations 

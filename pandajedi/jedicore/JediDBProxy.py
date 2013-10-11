@@ -4316,8 +4316,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get sites with best connections to source
-    def getBestNNetworkSites(self,source,protocol,nSites,threshold):
-        comment = ' /* JediDBProxy.getBestNNetworkSites */'
+    def getBestNNetworkSites_JEDI(self,source,protocol,nSites,threshold):
+        comment = ' /* JediDBProxy.getBestNNetworkSites_JEDI */'
         methodName = self.getMethodName(comment)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start for src={0} protocol={1} nSites={2} thr={3}'.format(source,protocol,

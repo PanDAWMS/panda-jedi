@@ -1,6 +1,7 @@
 Release Note
 
 * 10/11/2013
+  * set jobsetID
   * added LATEST DBR lookup
 
 * 10/10/2013
