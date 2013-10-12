@@ -1,6 +1,7 @@
 Release Note
 
 * 10/11/2013
+  * fixed for /E
   * set jobsetID
   * added LATEST DBR lookup
 

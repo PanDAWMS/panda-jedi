@@ -715,8 +715,8 @@ class JobGeneratorThread (WorkerThread):
             # ignore pseudo input with streamName=None
             if streamName == None:
                 continue
+            # long format
             if '/L' in streamName:
-                # long format
                 longLFNs = ''
                 for tmpLFN in listLFN:
                     if '/A' in streamName:
@@ -731,12 +731,19 @@ class JobGeneratorThread (WorkerThread):
                         longLFNs += ','
                 longLFNs = longLFNs[:-1]
                 parTemplate = parTemplate.replace('${'+streamName+'}',longLFNs)
-            elif len(listLFN) == 1:
+            # single file
+            if len(listLFN) == 1:
                 # just replace with the original file name
-                parTemplate = parTemplate.replace('${'+streamName+'}',listLFN[0])
+                replaceStr = listLFN[0]
+                parTemplate = parTemplate.replace('${'+streamName+'}',replaceStr)
+                # encoded    
+                encStreamName = streamName.split('/')[0]+'/E'
+                replaceStr = urllib.unquote(replaceStr)
+                parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
             else:
-                # remove attempt numbers
+                # compact format
                 compactLFNs = []
+                # remove attempt numbers
                 for tmpLFN in listLFN:
                     compactLFNs.append(re.sub('\.\d+$','',tmpLFN))
                 # find head and tail to convert file.1.pool,file.2.pool,file.4.pool to file.[1,2,4].pool
@@ -775,10 +782,11 @@ class JobGeneratorThread (WorkerThread):
                 else:
                     # replace with full format since [] contains non digits
                     replaceStr = fullLFNList
-                # encode    
-                if '/E' in streamName:
-                    replaceStr = urllib.unquote(replaceStr)
                 parTemplate = parTemplate.replace('${'+streamName+'}',replaceStr)
+                # encoded    
+                encStreamName = streamName.split('/')[0]+'/E'
+                replaceStr = urllib.unquote(replaceStr)
+                parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
         # replace placeholders for numbers
         for streamName,parVal in [('SN',         serialNr),
                                   ('SN/P',       '{0:06d}'.format(serialNr)),
