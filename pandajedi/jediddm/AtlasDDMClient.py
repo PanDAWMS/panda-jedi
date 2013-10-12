@@ -622,6 +622,10 @@ class AtlasDDMClient(DDMClientBase):
                     elif latestVerBuild == tmpVerBuild:
                         if latestVerRev > tmpVerRev:
                             continue
+            # check if well replicated
+            tmpStat,ddoReplicas = self.listDatasetReplicas(tmpName)
+            if len(ddoReplicas) < 10:
+                continue
             # higher or equal version
             latestVerMajor = tmpVerMajor
             latestVerMinor = tmpVerMinor
