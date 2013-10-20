@@ -1,5 +1,9 @@
 Release Note
 
+* 10/20/2013
+  * added nEventsPerRange
+  * fixed CF to take offset for input into account
+
 * 10/11/2013
   * added check if DBR is well replicated
   * fixed for /E

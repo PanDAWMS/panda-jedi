@@ -167,6 +167,8 @@ class TaskRefinerBase (object):
                     datasetSpec.setDatasetAttribute(tmpItem['attributes'])
                 if tmpItem.has_key('ratio'):
                     datasetSpec.setDatasetAttribute('ratio={0}'.format(tmpItem['ratio']))
+                if tmpItem.has_key('offset'):
+                    datasetSpec.setOffset(tmpItem['offset'])
                 datasetSpec.vo = self.taskSpec.vo
                 datasetSpec.nFiles = 0
                 datasetSpec.nFilesUsed = 0

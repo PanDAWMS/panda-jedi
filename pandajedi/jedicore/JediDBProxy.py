@@ -203,7 +203,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
-                                   nFilesPerJob):
+                                   nFilesPerJob,nEventsPerRange):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -215,8 +215,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('firstEventNumber={0} nMaxFiles={1} nMaxEvents={2} useScout={3}'.format(firstEventNumber,
                                                                                              nMaxFiles,nMaxEvents,
                                                                                              useScout))
-        tmpLog.debug('useFilesWithNewAttemptNr={0} nFilesPerJob={1}'.format(useFilesWithNewAttemptNr,
-                                                                            nFilesPerJob))
+        tmpLog.debug('useFilesWithNewAttemptNr={0} nFilesPerJob={1} nEventsPerRange={2}'.format(useFilesWithNewAttemptNr,
+                                                                                                nFilesPerJob,
+                                                                                                nEventsPerRange))
         if nFilesPerJob != None:
             nFilesForScout = 10 * nFilesPerJob 
         else:
@@ -233,12 +234,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sort by LFN
             lfnList = filelValMap.keys()
             lfnList.sort()
+            # truncate if nessesary
+            offsetVal = datasetSpec.getOffset()
+            if offsetVal > 0:
+                lfnList = lfnList[offsetVal:]
+            # use perRange as perJob
+            if nEventsPerJob == None and nEventsPerRange != None:
+                nEventsPerJob = nEventsPerRange
             # make file specs
             fileSpecMap = {}
             uniqueFileKeyList = []
             nRemEvents = nEventsPerJob
             totalEventNumber = firstEventNumber
             foundFileList = []
+            uniqueLfnList = []
             for tmpLFN in lfnList:
                 guid,fileVal = filelValMap[tmpLFN]
                 fileSpec = JediFileSpec()
@@ -329,6 +338,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                              fileSpec.endEvent,fileSpec.boundaryID)
                     uniqueFileKeyList.append(uniqueFileKey)                
                     fileSpecMap[uniqueFileKey] = fileSpec
+                # collect unique LFN list    
+                if len(tmpFileSpecList) > 0:
+                    if not tmpFileSpecList[0].lfn in uniqueLfnList:
+                        uniqueLfnList.append(tmpFileSpecList[0].lfn)
+                # check if enough files
+                if nMaxFiles != None and len(uniqueLfnList) > nMaxFiles:
+                    break
             # too long list
             maxFileRecords = 10000
             if len(uniqueFileKeyList) > maxFileRecords:

@@ -197,8 +197,9 @@ class ContentsFeederThread (WorkerThread):
                                     allUpdated = False
                                 else:
                                     # the number of events per file
-                                    nEventsPerFile = None
-                                    nEventsPerJob  = None
+                                    nEventsPerFile  = None
+                                    nEventsPerJob   = None
+                                    nEventsPerRange = None
                                     if (datasetSpec.isMaster() and taskParamMap.has_key('nEventsPerFile')) or \
                                             (datasetSpec.isPseudo() and taskParamMap.has_key('nEvents')):
                                         if taskParamMap.has_key('nEventsPerFile'):
@@ -208,6 +209,8 @@ class ContentsFeederThread (WorkerThread):
                                             nEventsPerFile = taskParamMap['nEvents']
                                         if taskParamMap.has_key('nEventsPerJob'):
                                             nEventsPerJob = taskParamMap['nEventsPerJob']
+                                        elif taskParamMap.has_key('nEventsPerRange'):
+                                            nEventsPerRange = taskParamMap['nEventsPerRange']
                                     # max attempts and first event number
                                     maxAttempt = None
                                     firstEventNumber = None
@@ -230,12 +233,18 @@ class ContentsFeederThread (WorkerThread):
                                         if datasetSpec.isMaster():
                                             nMaxFiles = taskParamMap['nFiles']
                                         else:
+                                            # calculate for secondary
                                             nMaxFiles = datasetSpec.getNumMultByRatio(taskParamMap['nFiles'])
                                             # multipled by the number of jobs per file for event-level splitting
-                                            if taskParamMap.has_key('nEventsPerFile') and taskParamMap.has_key('nEventsPerJob'):
-                                                if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
-                                                    nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerJob'])
-                                                    nMaxFiles = int(math.ceil(nMaxFiles))
+                                            if taskParamMap.has_key('nEventsPerFile'):
+                                                if taskParamMap.has_key('nEventsPerJob'):
+                                                    if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
+                                                        nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerJob'])
+                                                        nMaxFiles = int(math.ceil(nMaxFiles))
+                                                elif taskParamMap.has_key('nEventsPerRange'):
+                                                    if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerRange']:
+                                                        nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerRange'])
+                                                        nMaxFiles = int(math.ceil(nMaxFiles))
                                     # use scout
                                     useScout = False    
                                     if datasetSpec.isMaster() and not taskParamMap.has_key('skipScout'):
@@ -244,7 +253,7 @@ class ContentsFeederThread (WorkerThread):
                                     useFilesWithNewAttemptNr = False
                                     if not datasetSpec.isPseudo() and fileList != [] and taskParamMap.has_key('useInFilesWithNewAttemptNr'):
                                         useFilesWithNewAttemptNr = True
-                                    # the
+                                    # the number of files per job
                                     nFilesPerJob = None
                                     if taskParamMap.has_key('nFilesPerJob'):
                                         nFilesPerJob = taskParamMap['nFilesPerJob']
@@ -262,7 +271,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                          useScout,
                                                                                                          fileList,
                                                                                                          useFilesWithNewAttemptNr,
-                                                                                                         nFilesPerJob)
+                                                                                                         nFilesPerJob,
+                                                                                                         nEventsPerRange)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}'.format(datasetSpec.datasetName))
                                         allUpdated = False

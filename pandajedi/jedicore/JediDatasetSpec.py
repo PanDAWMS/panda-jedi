@@ -28,7 +28,10 @@ class JediDatasetSpec(object):
     _forceUpdateAttrs = ('lockedBy','lockedTime')
     # mapping between sequence and attr
     _seqAttrMap = {'datasetID':'{0}.JEDI_DATASETS_ID_SEQ.nextval'.format(jedi_config.db.schemaJEDI)}
-
+    # token for attributes
+    attrToken = {
+        'offset': 'of'
+        }
 
 
     # constructor
@@ -324,3 +327,19 @@ class JediDatasetSpec(object):
         mapKey = '{0}#{1}'.format(self.datasetName,self.datasetID)
         return mapKey
 
+
+
+    # set offset
+    def setOffset(self,offset):
+        self.setDatasetAttribute('{0}={1}'.format(self.attrToken['offset'],offset))
+
+
+
+    # get offset
+    def getOffset(self):
+        if self.attributes != None:
+            tmpMatch = re.search(self.attrToken['offset']+'=(\d+)',self.attributes)
+            if tmpMatch != None:
+                offset = int(tmpMatch.group(1))
+                return offset
+        return 0
