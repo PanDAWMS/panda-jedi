@@ -1,5 +1,8 @@
 Release Note
 
+* 10/29/2013
+  * added containerExpansion
+
 * 10/20/2013
   * added nEventsPerRange
   * fixed CF to take offset for input into account

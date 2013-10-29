@@ -223,7 +223,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         else:
             nFilesForScout = 10
         # return value for failure
-        failedRet = False,0
+        failedRet = False,0,None
         try:
             # current current date
             timeNow = datetime.datetime.utcnow()
@@ -249,6 +249,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             foundFileList = []
             uniqueLfnList = []
             for tmpLFN in lfnList:
+                # collect unique LFN list    
+                if not tmpLFN in uniqueLfnList:
+                    uniqueLfnList.append(tmpLFN)
+                # check if enough files
+                if nMaxFiles != None and len(uniqueLfnList) > nMaxFiles:
+                    break
                 guid,fileVal = filelValMap[tmpLFN]
                 fileSpec = JediFileSpec()
                 fileSpec.jediTaskID   = datasetSpec.jediTaskID
@@ -338,13 +344,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                              fileSpec.endEvent,fileSpec.boundaryID)
                     uniqueFileKeyList.append(uniqueFileKey)                
                     fileSpecMap[uniqueFileKey] = fileSpec
-                # collect unique LFN list    
-                if len(tmpFileSpecList) > 0:
-                    if not tmpFileSpecList[0].lfn in uniqueLfnList:
-                        uniqueLfnList.append(tmpFileSpecList[0].lfn)
-                # check if enough files
-                if nMaxFiles != None and len(uniqueLfnList) > nMaxFiles:
-                    break
             # too long list
             maxFileRecords = 10000
             if len(uniqueFileKeyList) > maxFileRecords:
@@ -427,6 +426,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         totalNumEventsF = 0
                         totalNumEventsE = 0
                         escapeNextFile = False 
+                        numUniqueLfn = 0
                         for uniqueFileKey in uniqueFileKeyList:
                             fileSpec = fileSpecMap[uniqueFileKey]
                             # count number of files 
@@ -444,6 +444,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     # maximum number of events to be processed
                                     if nMaxEvents != None and totalNumEventsF >= nMaxEvents:
                                         escapeNextFile = True
+                                # count number of unique LFNs
+                                numUniqueLfn += 1
                             # count number of events for event-level splitting
                             if fileSpec.startEvent != None and fileSpec.endEvent != None:
                                 totalNumEventsE += (fileSpec.endEvent-fileSpec.startEvent+1)
@@ -492,7 +494,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':stateUpdateTime'] = stateUpdateTime
                         self.cur.execute(sqlDU+comment,varMap)
                     # set return value
-                    retVal = True,missingFileList
+                    retVal = True,missingFileList,numUniqueLfn
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

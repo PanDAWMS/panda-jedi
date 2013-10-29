@@ -534,6 +534,35 @@ class AtlasDDMClient(DDMClientBase):
 
         
 
+    # expand Container
+    def expandContainer(self,containerName):
+        methodName = 'expandContainer'
+        try:
+            dsList = []
+            # comma-concatenate
+            for tmpStr in containerName.split(','): 
+                # container
+                if tmpStr.endswith('/'):
+                    # get contents
+                    tmpS,tmpO = self.listDatasetsInContainer(tmpStr)
+                    if tmpS != self.SC_SUCCEEDED:
+                        return tmpS,tmpO
+                else:
+                    tmpO = [tmpStr]
+            # collect dataset names
+            for tmpStr in tmpO:
+                if not tmpStr in dsList:
+                    dsList.append(tmpStr)
+            dsList.sort()        
+            # return
+            return self.SC_SUCCEEDED,dsList
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
+
+        
+
     # add dataset to container
     def addDatasetsToContainer(self,containerName,datasetNames):
         methodName = 'addDatasetsToContainer'

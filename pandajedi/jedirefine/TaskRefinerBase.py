@@ -179,13 +179,21 @@ class TaskRefinerBase (object):
                 if datasetSpec.type in JediDatasetSpec.getInputTypes() + ['random_seed']:
                     datasetSpec.streamName = RefinerUtils.extractStreamName(tmpItem['value'])
                     inDatasetSpecList = []
-                    # comma-separated dataset names
-                    if ',' in datasetSpec.datasetName:
+                    # exapand dataset container
+                    if tmpItem.has_key('expand') and tmpItem['expand'] == True:
+                        tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).expandContainer(datasetSpec.datasetName)
+                        for datasetName in tmpDatasetNameList:
+                            inDatasetSpec = copy.copy(datasetSpec)
+                            inDatasetSpec.datasetName = datasetName
+                            inDatasetSpecList.append(inDatasetSpec)
+                    elif ',' in datasetSpec.datasetName:
+                        # comma-separated dataset names
                         for datasetName in datasetSpec.datasetName.split(','):
                             inDatasetSpec = copy.copy(datasetSpec)
                             inDatasetSpec.datasetName = datasetName
                             inDatasetSpecList.append(inDatasetSpec)
                     else:
+                        # normal dataset name
                         inDatasetSpecList = [datasetSpec]
                     for inDatasetSpec in inDatasetSpecList:    
                         if nIn == 0:
