@@ -34,6 +34,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not taskSpec.site in ['',None]:
             scanSiteList = [taskSpec.site]
             tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
+        elif inputChunk.getPreassignedSite() != None:
+            scanSiteList = [inputChunk.getPreassignedSite()]
+            tmpLog.debug('site={0} is pre-assigned in masterDS'.format(inputChunk.getPreassignedSite()))
         else:
             scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
             tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
@@ -435,7 +438,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',cloudName,taskSpec.workQueue_ID)
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',cloudName,taskSpec.workQueue_ID)
             weight = float(nRunning + 1) / float(nActivated + nAssigned + 1) / float(nAssigned + 1)
-            # noramize weights by taking data availability into account
+            # normalize weights by taking data availability into account
             if totalSize != 0:
                 weight = weight * float(normalizeFactors[tmpSiteName]+totalSize) / float(totalSize)
             # make candidate

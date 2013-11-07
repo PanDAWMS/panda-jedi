@@ -29,7 +29,9 @@ class InputChunk:
             self.addSecondaryDS(secondaryDS)
         # read in a block   
         self.readBlock = None
-   
+        # merging
+        self.isMerging = False
+
 
 
     # add master dataset
@@ -155,13 +157,21 @@ class InputChunk:
 
 
 
+    # get preassigned site
+    def getPreassignedSite(self):
+        if self.masterDataset != None:
+            return self.masterDataset.site
+        return None
+
+
 
     # get subchunk with a selection criteria
     def getSubChunk(self,siteName,maxNumFiles=None,maxSize=None,
                     sizeGradients=0,sizeIntercepts=0,
                     nFilesPerJob=None,multiplicand=1,
                     walltimeIntercepts=0,maxWalltime=0,
-                    nEventsPerJob=None,useBoundary=None):
+                    nEventsPerJob=None,useBoundary=None,
+                    sizeGradientsPerInSize=None):
         # check if there are unused files/events
         if not self.checkUnused():
             return None
@@ -185,7 +195,7 @@ class InputChunk:
         splitWithBoundaryID = False    
         if useBoundary != None:
             splitWithBoundaryID = True
-            if useBoundary['inSplit'] == False:
+            if useBoundary['inSplit'] == 2:
                 # unset max values to split only with boundaryID 
                 maxNumFiles = None
                 maxSize = None
@@ -220,7 +230,8 @@ class InputChunk:
                     if nextStartEvent != None and nextStartEvent != tmpFileSpec.startEvent:
                         break
                 # check boundaryID
-                if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
+                if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID \
+                        and useBoundary['inSplit'] != 3:
                     newBoundaryID = True
                     break
                 if not inputFileMap.has_key(self.masterDataset.datasetID):
@@ -231,6 +242,8 @@ class InputChunk:
                 # sum
                 inputNumFiles += 1
                 fileSize += (tmpFileSpec.fsize + sizeGradients)
+                if sizeGradientsPerInSize != None:
+                    fileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                 # sum offset only for the first master
                 if firstMaster:
                     fileSize += sizeIntercepts
@@ -247,7 +260,7 @@ class InputChunk:
                 # boundaryID
                 if splitWithBoundaryID:
                     boundaryID = tmpFileSpec.boundaryID
-            # get files from secondaries 
+            # get files from secondaries
             for datasetSpec in self.secondaryDatasetList:
                 if datasetSpec.isNoSplit():
                     # every job uses dataset without splitting
@@ -259,12 +272,17 @@ class InputChunk:
                             inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
                             # sum
                             fileSize += tmpFileSpec.fsize
+                            if sizeGradientsPerInSize != None:
+                                fileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                             datasetUsage['used'] += 1
                 else:
                     if not nSecFilesMap.has_key(datasetSpec.datasetID):
                         nSecFilesMap[datasetSpec.datasetID] = 0
                     # get number of files to be used for the secondary
                     nSecondary = datasetSpec.getNumMultByRatio(numMaster) - nSecFilesMap[datasetSpec.datasetID]
+                    if splitWithBoundaryID and useBoundary['inSplit'] != 3:
+                        # set large number to get all associated secondary files
+                        nSecondary = 10000
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
                     for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
                         # check boundaryID
@@ -275,6 +293,8 @@ class InputChunk:
                         inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
                         # sum
                         fileSize += tmpFileSpec.fsize
+                        if sizeGradientsPerInSize != None:
+                            fileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                         datasetUsage['used'] += 1
                         nSecFilesMap[datasetSpec.datasetID] += 1
             # unset first loop flag

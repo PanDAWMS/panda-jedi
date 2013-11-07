@@ -186,8 +186,15 @@ class JediDatasetSpec(object):
 
     # return list of types to generate jobs
     def getProcessTypes(cls):
-        return cls.getInputTypes() + ['pp_input']
+        return cls.getInputTypes() + ['pp_input'] + cls.getMergeProcessTypes()
     getProcessTypes = classmethod(getProcessTypes)
+
+
+
+    # return list of types for merging
+    def getMergeProcessTypes(cls):
+        return ['trn_log','trn_output']
+    getMergeProcessTypes = classmethod(getMergeProcessTypes)
 
 
 
@@ -343,3 +350,11 @@ class JediDatasetSpec(object):
                 offset = int(tmpMatch.group(1))
                 return offset
         return 0
+
+
+
+    # check if unmerged dataset
+    def toMerge(self):
+        if self.type.startswith('trn_'):
+            return True
+        return False

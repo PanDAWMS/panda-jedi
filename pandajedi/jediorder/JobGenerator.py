@@ -318,7 +318,7 @@ class JobGeneratorThread (WorkerThread):
         failedRet = Interaction.SC_FAILED,None
         # read task parameters
         taskParamMap = None
-        if taskSpec.useBuild() or taskSpec.usePrePro():
+        if taskSpec.useBuild() or taskSpec.usePrePro() or inputChunk.isMerging:
             try:
                 # read task parameters
                 taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
@@ -363,12 +363,20 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.attemptNr        = 0
                     jobSpec.maxAttempt       = 0
                     jobSpec.jobName          = taskSpec.taskName
-                    jobSpec.transformation   = taskSpec.transPath
+                    if inputChunk.isMerging:
+                        # use merge trf
+                        jobSpec.transformation = taskParamMap['mergeSpec']['transPath']
+                    else:
+                        jobSpec.transformation = taskSpec.transPath
                     jobSpec.cmtConfig        = taskSpec.architecture
                     jobSpec.homepackage      = taskSpec.transHome.replace('-','/')
                     jobSpec.homepackage      = re.sub('\r','',jobSpec.homepackage)
                     jobSpec.prodSourceLabel  = taskSpec.prodSourceLabel
-                    jobSpec.processingType   = taskSpec.processingType
+                    if inputChunk.isMerging:
+                        # set merging type
+                        jobSpec.processingType = 'pmerge'
+                    else:
+                        jobSpec.processingType = taskSpec.processingType
                     jobSpec.jediTaskID       = taskSpec.jediTaskID
                     jobSpec.taskID           = taskSpec.reqID
                     jobSpec.jobsetID         = taskSpec.reqID
@@ -398,6 +406,9 @@ class JobGeneratorThread (WorkerThread):
                     # using grouping with boundaryID
                     useBoundary = taskSpec.useGroupWithBoundaryID()
                     boundaryID = None
+                    # flag for merging
+                    isUnMerging = False
+                    isMerging = False
                     # inputs
                     prodDBlock = None
                     setProdDBlock = False
@@ -415,7 +426,10 @@ class JobGeneratorThread (WorkerThread):
                                 prodDBlock = tmpDatasetSpec.datasetName
                         # making files
                         for tmpFileSpec in tmpFileSpecList:
-                            tmpInFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec)
+                            if inputChunk.isMerging:
+                                tmpInFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec,setType='input')
+                            else:
+                                tmpInFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec)
                             # set status
                             if tmpFileSpec.locality == 'localdisk':
                                 tmpInFileSpec.status = 'ready'
@@ -425,6 +439,9 @@ class JobGeneratorThread (WorkerThread):
                             if taskSpec.useLocalIO():
                                 tmpInFileSpec.prodDBlockToken = 'local'
                             jobSpec.addFile(tmpInFileSpec)
+                        # check if merging 
+                        if taskSpec.mergeOutput() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.toMerge():
+                            isUnMerging = True
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock == False and prodDBlock != None:
                         jobSpec.prodDBlock = prodDBlock
@@ -435,7 +452,10 @@ class JobGeneratorThread (WorkerThread):
                     # instantiate template datasets
                     instantiateTmpl  = False
                     instantiatedSite = None
-                    if taskSpec.instantiateTmpl():
+                    if isUnMerging:
+                        instantiateTmpl = True
+                        instantiatedSite = siteName
+                    elif taskSpec.instantiateTmpl():
                         instantiateTmpl = True
                         if taskSpec.instantiateTmplSite():
                             instantiatedSite = siteName
@@ -446,7 +466,8 @@ class JobGeneratorThread (WorkerThread):
                                                                                  provenanceID,
                                                                                  simul,
                                                                                  instantiateTmpl,
-                                                                                 instantiatedSite)
+                                                                                 instantiatedSite,
+                                                                                 isUnMerging)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
@@ -474,7 +495,7 @@ class JobGeneratorThread (WorkerThread):
                     # job parameter
                     jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
                                                                    serialNr,paramList,jobSpec,simul,
-                                                                   taskParamMap)
+                                                                   taskParamMap,inputChunk.isMerging)
                     # addd
                     jobSpecList.append(jobSpec)
             # return
@@ -647,8 +668,13 @@ class JobGeneratorThread (WorkerThread):
 
 
     # make job parameters
-    def makeJobParameters(self,taskSpec,inSubChunk,outSubChunk,serialNr,paramList,jobSpec,simul,taskParamMap):
-        parTemplate = taskSpec.jobParamsTemplate
+    def makeJobParameters(self,taskSpec,inSubChunk,outSubChunk,serialNr,paramList,jobSpec,simul,
+                          taskParamMap,isMerging):
+        if not isMerging:
+            parTemplate = taskSpec.jobParamsTemplate
+        else:
+            # use params template for merging
+            parTemplate = taskParamMap['mergeSpec']['jobParameters']
         # make the list of stream/LFNs
         streamLFNsMap = {}
         # parameters for placeholders
@@ -661,7 +687,7 @@ class JobGeneratorThread (WorkerThread):
         if taskParamMap != None and taskParamMap.has_key('sourceURL'):
             sourceURL = taskParamMap['sourceURL']
         # get random seed
-        if taskSpec.useRandomSeed():
+        if taskSpec.useRandomSeed() and not isMerging:
             tmpStat,randomSpecList = self.taskBufferIF.getRandomSeed_JEDI(taskSpec.jediTaskID,simul)
             if tmpStat == True:
                 tmpRandomFileSpec,tmpRandomDatasetSpec = randomSpecList 

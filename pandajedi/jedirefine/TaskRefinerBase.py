@@ -35,6 +35,8 @@ class TaskRefinerBase (object):
         self.siteName = None
         self.tmpLog = tmpLog
         self.updatedTaskParams = None
+        self.unmergeMasterDatasetSpec = {}
+        self.unmergeDatasetSpecMap = {}
 
 
 
@@ -122,7 +124,7 @@ class TaskRefinerBase (object):
     def doBasicRefine(self,taskParamMap):
         # get input/output/log dataset specs
         nIn  = 0
-        nOut = 0
+        nOutMap = {}
         if isinstance(taskParamMap['log'],dict):
             itemList = taskParamMap['jobParameters'] + [taskParamMap['log']]
         else:
@@ -205,9 +207,11 @@ class TaskRefinerBase (object):
                     nIn += 1    
                     continue
                 if datasetSpec.type in ['output','log']:
+                    if not nOutMap.has_key(datasetSpec.type):
+                        nOutMap[datasetSpec.type] = 0
                     # make stream name
-                    datasetSpec.streamName = "{0}{1}".format(datasetSpec.type.upper(),nOut)
-                    nOut += 1
+                    datasetSpec.streamName = "{0}{1}".format(datasetSpec.type.upper(),nOutMap[datasetSpec.type])
+                    nOutMap[datasetSpec.type] += 1
                     # extract output filename template and change the value field
                     outFileTemplate,tmpItem['value'] = RefinerUtils.extractReplaceOutFileTemplate(tmpItem['value'],
                                                                                                   datasetSpec.streamName)
@@ -231,6 +235,45 @@ class TaskRefinerBase (object):
                         self.outputTemplateMap[datasetSpec.outputMapKey()] = [outTemplateMap]
                     # append
                     self.outDatasetSpecList.append(datasetSpec)
+                    # make unmerged dataset
+                    if taskParamMap.has_key('mergeOutput') and taskParamMap['mergeOutput'] == True:
+                        umDatasetSpec = JediDatasetSpec()
+                        umDatasetSpec.datasetName = 'panda.um.' + datasetSpec.datasetName
+                        umDatasetSpec.jediTaskID = self.taskSpec.jediTaskID
+                        umDatasetSpec.storageToken = 'TOMERGE'
+                        umDatasetSpec.vo = datasetSpec.vo
+                        umDatasetSpec.type = "tmpl_trn_" + datasetSpec.type
+                        umDatasetSpec.nFiles = 0
+                        umDatasetSpec.nFilesUsed = 0
+                        umDatasetSpec.nFilesToBeUsed = 0
+                        umDatasetSpec.nFilesFinished = 0
+                        umDatasetSpec.nFilesFailed = 0
+                        umDatasetSpec.nFilesOnHold = 0
+                        umDatasetSpec.status = 'defined'
+                        umDatasetSpec.streamName = datasetSpec.streamName
+                        # make unmerged output template 
+                        if outFileTemplate != None:
+                            umOutTemplateMap = {'jediTaskID' : self.taskSpec.jediTaskID,
+                                                'serialNr' : 1,
+                                                'streamName' : umDatasetSpec.streamName,
+                                                'filenameTemplate' : 'panda.um.' + outFileTemplate,
+                                                'outtype' : datasetSpec.type,
+                                                }
+                            if self.outputTemplateMap.has_key(umDatasetSpec.outputMapKey()):
+                                # multiple files are associated to the same output datasets
+                                self.outputTemplateMap[umDatasetSpec.outputMapKey()].append(umOutTemplateMap)
+                                # don't insert the same output dataset
+                                continue
+                            self.outputTemplateMap[umDatasetSpec.outputMapKey()] = [umOutTemplateMap]
+                        # use log as master for merging
+                        if datasetSpec.type == 'log':
+                            self.unmergeMasterDatasetSpec[datasetSpec.outputMapKey()] = umDatasetSpec
+                        else:
+                            # append
+                            self.unmergeDatasetSpecMap[datasetSpec.outputMapKey()] = umDatasetSpec
+        # set attributes for merging
+        if taskParamMap.has_key('mergeOutput') and taskParamMap['mergeOutput'] == True:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['mergeOutput'])
         # make job parameters
         rndmSeedOffset = None
         firstEventOffset = None

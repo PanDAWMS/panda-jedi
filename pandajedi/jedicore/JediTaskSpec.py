@@ -41,6 +41,7 @@ class JediTaskSpec(object):
         'randomSeed'         : 'RS',
         'useBuild'           : 'UB',
         'usePrePro'          : 'UP',
+        'mergeOutput'        : 'MO',
         }
     # enum for preprocessing
     enum_toPreProcess = '1'
@@ -249,15 +250,25 @@ class JediTaskSpec(object):
                 # 2 : input - can split,    output - mapped with provenanceID
                 # 3 : input - cannot split, output - free
                 # 4 : input - cannot split, output - mapped with provenanceID
+                #
+                # * rule for master
+                # 1 : can split. one boundayID per sub chunk
+                # 2 : cannot split. one boundayID per sub chunk
+                # 3 : cannot split. multiple boundayIDs per sub chunk
+                #
+                # * rule for secodary
+                # 1 : must have same boundayID. cannot split 
+                #
                 retMap = {}
                 if gbID in [1,2]:
-                    retMap['inSplit'] = True
+                    retMap['inSplit'] = 1
                 else:
-                    retMap['inSplit'] = False
+                    retMap['inSplit'] = 2
                 if gbID in [1,3]:
                     retMap['outMap'] = False
                 else:
                     retMap['outMap'] = True
+                retMap['secSplit'] = None
                 return retMap
         return None
 
@@ -336,6 +347,16 @@ class JediTaskSpec(object):
     def instantiateTmplSite(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['instantiateTmplSite']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # merge output
+    def mergeOutput(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['mergeOutput']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

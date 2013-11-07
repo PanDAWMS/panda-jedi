@@ -321,11 +321,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # generate output files for task
-    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None):
+    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None,
+                            isUnMerging=False):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite)
+        retVal = proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,
+                                           isUnMerging)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -492,13 +494,15 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     # register task/dataset/templ/param in a single transaction
     def registerTaskInOneShot_JEDI(self,jediTaskID,taskSpec,inMasterDatasetSpec,
                                    inSecDatasetSpecList,outDatasetSpecList,
-                                   outputTemplateMap,jobParamsTemplate,taskParams):
+                                   outputTemplateMap,jobParamsTemplate,taskParams,
+                                   unmergeMasterDatasetSpec,unmergeDatasetSpecMap):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.registerTaskInOneShot_JEDI(jediTaskID,taskSpec,inMasterDatasetSpec,
                                                   inSecDatasetSpecList,outDatasetSpecList,
-                                                  outputTemplateMap,jobParamsTemplate,taskParams)
+                                                  outputTemplateMap,jobParamsTemplate,taskParams,
+                                                  unmergeMasterDatasetSpec,unmergeDatasetSpecMap)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

@@ -180,7 +180,9 @@ class TaskRefinerThread (WorkerThread):
                                                                                    impl.outDatasetSpecList,
                                                                                    impl.outputTemplateMap,
                                                                                    impl.jobParamsTemplate,
-                                                                                   strTaskParams) 
+                                                                                   strTaskParams,
+                                                                                   impl.unmergeMasterDatasetSpec,
+                                                                                   impl.unmergeDatasetSpecMap) 
                             if not tmpStat:
                                 tmpLog.error('failed to register the task to JEDI')
                         except:

@@ -22,22 +22,36 @@ class JobSplitter:
         # make logger
         tmpLog = MsgWrapper(logger,'jediTaskID=%s' % taskSpec.jediTaskID)
         tmpLog.debug('start')
-        # set maxNumFiles using taskSpec if specified
-        maxNumFiles = taskSpec.getMaxNumFilesPerJob()
-        # set fsize gradients using taskSpec
-        sizeGradients  = taskSpec.getOutDiskSize()
-        # set fsize intercepts using taskSpec                
-        sizeIntercepts = taskSpec.getWorkDiskSize()
-        # walltime
-        walltimeIntercepts = taskSpec.walltime
-        # number of files per job if defined
-        nFilesPerJob = taskSpec.getNumFilesPerJob()
-        if nFilesPerJob == None and inputChunk.useScout():
-            nFilesPerJob = 1
-        # number of events per job if defined
-        nEventsPerJob = taskSpec.getNumEventsPerJob()
-        # grouping with boundaryID
-        useBoundary = taskSpec.useGroupWithBoundaryID()
+        if not inputChunk.isMerging:
+            # set maxNumFiles using taskSpec if specified
+            maxNumFiles = taskSpec.getMaxNumFilesPerJob()
+            # set fsize gradients using taskSpec
+            sizeGradients  = taskSpec.getOutDiskSize()
+            # set fsize intercepts using taskSpec                
+            sizeIntercepts = taskSpec.getWorkDiskSize()
+            # walltime
+            walltimeIntercepts = taskSpec.walltime
+            # number of files per job if defined
+            nFilesPerJob = taskSpec.getNumFilesPerJob()
+            if nFilesPerJob == None and inputChunk.useScout():
+                nFilesPerJob = 1
+            # number of events per job if defined
+            nEventsPerJob = taskSpec.getNumEventsPerJob()
+            # grouping with boundaryID
+            useBoundary = taskSpec.useGroupWithBoundaryID()
+            # fsize intercepts per input size
+            sizeGradientsPerInSize = None
+        else:
+            # set parameters for merging
+            maxNumFiles = 50
+            sizeGradients = 0
+            sizeIntercepts = 0
+            walltimeIntercepts = 0
+            nFilesPerJob = None
+            nEventsPerJob = None
+            useBoundary = {'inSplit':3}
+            # intercepts per input size is 1
+            sizeGradientsPerInSize = 1
         tmpLog.debug('maxNumFiles={0} sizeGradients={1} sizeIntercepts={2} useBoundary={3}'.format(maxNumFiles,
                                                                                                    sizeGradients,
                                                                                                    sizeIntercepts,

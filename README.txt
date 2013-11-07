@@ -1,5 +1,8 @@
 Release Note
 
+* 11/7/2013
+  * implemented merging
+
 * 10/29/2013
   * added containerExpansion
 
