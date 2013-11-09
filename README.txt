@@ -1,5 +1,8 @@
 Release Note
 
+* 11/9/2013
+  * fixed getBestNNetworkSites_JEDI for table merging
+
 * 11/7/2013
   * implemented merging
 
