@@ -781,3 +781,30 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return tmpStat,tmpJobID
+
+
+
+    # retry or incrementally execute a task
+    def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.retryTask_JEDI(jediTaskID,commStr,maxAttempt)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # append input datasets for incremental execution
+    def appendDatasets_JEDI(self,jediTaskID,inMasterDatasetSpecList,inSecDatasetSpecList):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.appendDatasets_JEDI(jediTaskID,inMasterDatasetSpecList,inSecDatasetSpecList)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+

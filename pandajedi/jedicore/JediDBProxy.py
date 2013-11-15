@@ -2564,14 +2564,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # find orphaned tasks to rescue
             self.conn.begin()
             varMap = {}
-            varMap[':status'] = 'registered'
+            varMap[':status1'] = 'registered'
+            varMap[':status2'] = JediTaskSpec.commandStatusMap()['incexec']['done']
             # FIXME
             #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(seconds=10)
-            sqlOrpS  = "SELECT tabT.jediTaskID,tabT.splitRule "
+            sqlOrpS  = "SELECT tabT.jediTaskID,tabT.splitRule,tabT.status "
             sqlOrpS += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlOrpS += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
-            sqlOrpS += "AND tabT.status=:status AND tabT.modificationtime<:timeLimit "
+            sqlOrpS += "AND tabT.status IN (:status1,:status2) AND tabT.modificationtime<:timeLimit "
             if vo != None:
                 sqlOrpS += 'AND vo=:vo '
                 varMap[':vo'] = vo
@@ -2585,14 +2586,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # update modtime to avoid immediate reattempts
             sqlOrpU  = "UPDATE {0}.JEDI_Tasks SET modificationtime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlOrpU += "WHERE jediTaskID=:jediTaskID "
-            for jediTaskID,splitRule in resList:
+            for jediTaskID,splitRule,taskStatus in resList:
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 tmpLog.debug(sqlOrpU+comment+str(varMap))
                 self.cur.execute(sqlOrpU+comment,varMap)
                 nRow = self.cur.rowcount
                 if nRow == 1 and not jediTaskID in retTaskIDs:
-                    retTaskIDs.append((jediTaskID,splitRule))
+                    retTaskIDs.append((jediTaskID,splitRule,taskStatus))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -3462,7 +3463,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         retTaskIDs = {}
-        commandStatusMap = JediTaskSpec.terminateCommandStatusMap()
+        commandStatusMap = JediTaskSpec.commandStatusMap()
         try:
             # sql to get jediTaskIDs to exec a command from the command table
             varMap = {}
@@ -3493,7 +3494,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('got {0} tasks'.format(len(resList)))            
             for jediTaskID,commandStr,comComment in resList:
-                tmpLog.debug('start jediTaskID={0} command={2}'.format(jediTaskID,commandStr))                
+                tmpLog.debug('start jediTaskID={0} command={1}'.format(jediTaskID,commandStr))
                # start transaction
                 self.conn.begin()
                 # lock
@@ -3547,7 +3548,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':status'] = newTaskStatus
                         varMap[':errDiag'] = comComment
                         sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                        sqlTU += "SET status=:status,modificationTime=CURRENT_DATE,errorDialog=:errDiag "
+                        sqlTU += "SET status=:status,oldStatus=status,modificationTime=CURRENT_DATE,errorDialog=:errDiag "
                         sqlTU += "WHERE jediTaskID=:jediTaskID "
                         self.cur.execute(sqlTU+comment,varMap)
                     # update command table
@@ -3577,10 +3578,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlOrpS += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sqlOrpS += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
                 sqlOrpS += "AND tabT.status=:status AND tabT.modificationtime<:timeLimit "
-                if vo != None:
+                if not vo in [None,'any']:
                     sqlOrpS += 'AND vo=:vo '
                     varMap[':vo'] = vo
-                if prodSourceLabel != None:
+                if not prodSourceLabel in [None,'any']:
                     sqlOrpS += 'AND prodSourceLabel=:prodSourceLabel '
                     varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlOrpS += "FOR UPDATE "
@@ -4435,6 +4436,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDS += "WHERE rownum<=:nSites"
             # start transaction
             self.conn.begin()
+            self.cur.arraysize = 100
             varMap = {}
             varMap[':source']    = source
             varMap[':nSites']    = nSites
@@ -4458,4 +4460,284 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False,None
+
+
+
+    # retry or incrementally execute a task
+    def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5):
+        comment = ' /* JediDBProxy.retryTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start command={0}'.format(commStr))
+        updateTask = False
+        # check command
+        if not commStr in ['retry','incexec']:
+            tmpLog.debug('unknown command={0}'.format(commStr))
+            return updateTask
+        try:
+            # sql to retry files
+            sqlRF  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlRF += "SET maxAttempt=maxAttempt+:maxAttempt "
+            sqlRF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
+            sqlRF += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt=attemptNr "
+            # sql to retry/incexecute datasets
+            sqlRD  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD += "SET status=:status,nFilesFailed=nFilesFailed-:nDiff "
+            sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # sql to update task status
+            sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlUT += " SET status=:status,oldStatus=NULL,modificationtime=CURRENT_DATE WHERE jediTaskID=:jediTaskID "
+            # start transaction
+            self.conn.begin()
+            self.cur.arraysize = 100000
+            # check task status
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            sqlTK  = "SELECT status,oldStatus FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE ".format(jedi_config.db.schemaJEDI)
+            self.cur.execute(sqlTK+comment,varMap)
+            resTK = self.cur.fetchone()
+            if resTK == None:
+                # task not found
+                msgStr = 'task not found'
+                tmpLog.debug(msgStr)
+            else:
+                # check task status
+                taskStatus,taskOldStatus = resTK
+                newTaskStatus = None
+                if taskOldStatus == 'finished' and commStr == 'retry':
+                    # no retry for finished task
+                    msgStr = 'no {0} for task in {1} status'.format(commStr,taskOldStatus)
+                    tmpLog.debug(msgStr)
+                    newTaskStatus = taskOldStatus
+                elif not taskOldStatus in ['finished','failed','partial']:
+                    # only tasks in a relevant final status 
+                    msgStr = 'no {0} since not in relevant final status ({1})'.format(commStr,taskOldStatus)
+                    tmpLog.debug(msgStr)
+                    newTaskStatus = taskOldStatus
+                else:
+                    # get input datasets
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    sqlDS  = "SELECT datasetID,masterID,nFiles,nFilesFinished,status,state "
+                    sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI) 
+                    sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
+                    for tmpType in JediDatasetSpec.getInputTypes():
+                        mapKey = ':type_'+tmpType
+                        sqlDS += '{0},'.format(mapKey)
+                        varMap[mapKey] = tmpType
+                    sqlDS  = sqlDS[:-1]
+                    sqlDS += ") "
+                    self.cur.execute(sqlDS+comment,varMap)
+                    resDS = self.cur.fetchall()
+                    changedMasterList = []
+                    secMap  = {}
+                    for datasetID,masterID,nFiles,nFilesFinished,status,state in resDS:
+                        if masterID != None:
+                            # keep secondary dataset info
+                            if not secMap.has_key(masterID):
+                                secMap[masterID] = []
+                            secMap[masterID].append((datasetID,nFilesFinished,status,state))
+                        else:
+                            # no retry if master dataset successfully finished
+                            if commStr == 'retry' and nFiles == nFilesFinished:
+                                tmpLog.debug('no {0} for datasetID={1} : nFiles==nFilesFinished'.format(commStr,datasetID))
+                                continue
+                            # no refresh of dataset contents if dataset is closed
+                            if state == 'closed' and nFiles == nFilesFinished:
+                                tmpLog.debug('no refresh for datasetID={0} : state={1}'.format(datasetID,state))
+                                continue
+                            # update files
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
+                            varMap[':status']     = 'ready'
+                            varMap[':maxAttempt'] = maxAttempt
+                            varMap[':keepTrack']  = 1
+                            self.cur.execute(sqlRF+comment,varMap)
+                            nDiff = self.cur.rowcount
+                            # no retry if no failed files
+                            if commStr == 'retry' and nDiff == 0:
+                                tmpLog.debug('no {0} for datasetID={1} : nDiff=0'.format(commStr,datasetID))
+                                continue
+                            # update dataset
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
+                            varMap[':nDiff'] = nDiff
+                            if commStr == 'retry' or state == 'closed':
+                                varMap[':status'] = 'ready'
+                            elif commStr == 'incexec':
+                                varMap[':status'] = 'toupdate'
+                            tmpLog.debug('set status={0} for datasetID={1} diff={2}'.format(varMap[':status'],datasetID,nDiff))
+                            self.cur.execute(sqlRD+comment,varMap)
+                            # collect masterIDs
+                            changedMasterList.append(datasetID)
+                    # update secondary
+                    for masterID in changedMasterList:
+                        # no seconday
+                        if not secMap.has_key(masterID):
+                            continue
+                        # loop over all datasets
+                        for datasetID,nFilesFinished,status,state in secMap[masterID]:
+                            # update files
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
+                            varMap[':status']     = 'ready'
+                            varMap[':maxAttempt'] = maxAttempt
+                            varMap[':keepTrack']  = 1
+                            self.cur.execute(sqlRF+comment,varMap)
+                            nDiff = self.cur.rowcount
+                            # update dataset
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
+                            varMap[':nDiff'] = nDiff
+                            if commStr == 'retry' or state == 'closed':
+                                varMap[':status'] = 'ready'
+                            elif commStr == 'incexec':
+                                varMap[':status'] = 'refresh'
+                            self.cur.execute(sqlRD+comment,varMap)
+                    # update task
+                    if commStr == 'retry':
+                        if changedMasterList != []:
+                            newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
+                        else:
+                            # to to finalization since no files left in ready status
+                            tmpLog.debug('no {0} since no files left'.format(commStr))
+                            newTaskStatus = taskOldStatus
+                    else:
+                        # for incremental execution
+                        newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
+                # update task
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':status'] = newTaskStatus
+                if newTaskStatus != taskOldStatus:
+                    tmpLog.debug('set taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
+                else:
+                    tmpLog.debug('back to taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
+                self.cur.execute(sqlUT+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done")
+            return updateTask
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
+    # append input datasets for incremental execution
+    def appendDatasets_JEDI(self,jediTaskID,inMasterDatasetSpecList,inSecDatasetSpecList):
+        comment = ' /* JediDBProxy.appendDatasets_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        goDefined = False
+        commandStr = 'incexec'
+        try:
+            # start transaction
+            self.conn.begin()
+            self.cur.arraysize = 100000
+            # check task status
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            sqlTK  = "SELECT status FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE ".format(jedi_config.db.schemaJEDI)
+            self.cur.execute(sqlTK+comment,varMap)
+            resTK = self.cur.fetchone()
+            if resTK == None:
+                # task not found
+                msgStr = 'task not found'
+                tmpLog.debug(msgStr)
+            else:
+                taskStatus, = resTK
+                # invalid status
+                if taskStatus != JediTaskSpec.commandStatusMap()[commandStr]['done']:
+                    msgStr = 'invalid status={0} for dataset appending'.format(taskStatus)
+                    tmpLog.debug(msgStr)
+                else:
+                    timeNow = datetime.datetime.utcnow()
+                    # get existing input datasets
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    sqlDS  = "SELECT datasetName,status "
+                    sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI) 
+                    sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
+                    for tmpType in JediDatasetSpec.getInputTypes():
+                        mapKey = ':type_'+tmpType
+                        sqlDS += '{0},'.format(mapKey)
+                        varMap[mapKey] = tmpType
+                    sqlDS  = sqlDS[:-1]
+                    sqlDS += ") "
+                    self.cur.execute(sqlDS+comment,varMap)
+                    resDS = self.cur.fetchall()
+                    existingDatasets = {}
+                    for datasetName,datasetStatus in resDS:
+                        existingDatasets[datasetName] = datasetStatus
+                    # insert datasets
+                    sqlID  = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI,
+                                                                           JediDatasetSpec.columnNames())
+                    sqlID += JediDatasetSpec.bindValuesExpression()
+                    sqlID += " RETURNING datasetID INTO :newDatasetID"
+                    for datasetSpec in inMasterDatasetSpecList:
+                        # skip existing datasets
+                        if datasetSpec.datasetName in existingDatasets:
+                            # check dataset status
+                            if existingDatasets[datasetSpec.datasetName] in JediDatasetSpec.statusToUpdateContents():
+                                goDefined = True
+                            continue
+                        datasetSpec.creationTime = timeNow
+                        datasetSpec.modificationTime = timeNow
+                        varMap = datasetSpec.valuesMap(useSeq=True)
+                        varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
+                        # insert dataset
+                        self.cur.execute(sqlID+comment,varMap)
+                        datasetID = long(varMap[':newDatasetID'].getvalue())
+                        masterID = datasetID
+                        datasetSpec.datasetID = datasetID
+                        # insert secondary datasets
+                        for datasetSpec in inSecDatasetSpecList:
+                            datasetSpec.creationTime = timeNow
+                            datasetSpec.modificationTime = timeNow
+                            datasetSpec.masterID = masterID
+                            varMap = datasetSpec.valuesMap(useSeq=True)
+                            varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
+                            # insert dataset
+                            self.cur.execute(sqlID+comment,varMap)
+                            datasetID = long(varMap[':newDatasetID'].getvalue())
+                            datasetSpec.datasetID = datasetID
+                        goDefined = True
+                    # update task
+                    sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                    sqlUT += " SET status=:status,modificationtime=CURRENT_DATE WHERE jediTaskID=:jediTaskID "
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    if goDefined:
+                        # pass to ContentsFeeder
+                        varMap[':status'] = 'defined'
+                    else:
+                        # go to finalization since no datasets are appended
+                        varMap[':status'] = 'prepared'
+                    tmpLog.debug('set taskStatus={0}'.format(varMap[':status']))
+                    self.cur.execute(sqlUT+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done")
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
         

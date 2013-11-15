@@ -1,6 +1,7 @@
 Release Note
 
-* 11/11/2013
+* 11/15/2013
+  * implemented task retry and incexec
   * added a protection to CF for too many input
 
 * 11/9/2013

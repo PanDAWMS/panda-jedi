@@ -425,14 +425,19 @@ class JediTaskSpec(object):
     statusToRejectExtChange = classmethod(statusToRejectExtChange)
 
 
-    # return mapping of terminate command and status
-    def terminateCommandStatusMap(cls):
+
+    # return mapping of command and status
+    def commandStatusMap(cls):
         return {'kill' : {'doing': 'aborting',
                           'done' : 'aborted'},
                 'finish' : {'doing': 'finishing',
-                            'done' : 'prepared'}
+                            'done' : 'prepared'},
+                'retry' : {'doing': 'toretry',
+                           'done' : 'ready'},
+                'incexec' : {'doing': 'toincexec',
+                           'done' : 'rerefine'},
                 }
-    terminateCommandStatusMap = classmethod(terminateCommandStatusMap)
+    commandStatusMap = classmethod(commandStatusMap)
 
 
 

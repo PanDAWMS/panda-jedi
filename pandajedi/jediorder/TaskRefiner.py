@@ -108,7 +108,7 @@ class TaskRefinerThread (WorkerThread):
                     self.logger.debug('{0} terminating since no more items'.format(self.__class__.__name__))
                     return
                 # loop over all tasks
-                for jediTaskID,splitRule in taskList:
+                for jediTaskID,splitRule,taskStatus in taskList:
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'jediTaskID={0}'.format(jediTaskID))
                     tmpLog.info('start')
@@ -174,17 +174,25 @@ class TaskRefinerThread (WorkerThread):
                             strTaskParams = None
                             if impl.updatedTaskParams != None:
                                 strTaskParams = RefinerUtils.encodeJSON(impl.updatedTaskParams)
-                            tmpStat = self.taskBufferIF.registerTaskInOneShot_JEDI(jediTaskID,impl.taskSpec,
-                                                                                   impl.inMasterDatasetSpec,
-                                                                                   impl.inSecDatasetSpecList,
-                                                                                   impl.outDatasetSpecList,
-                                                                                   impl.outputTemplateMap,
-                                                                                   impl.jobParamsTemplate,
-                                                                                   strTaskParams,
-                                                                                   impl.unmergeMasterDatasetSpec,
-                                                                                   impl.unmergeDatasetSpecMap) 
-                            if not tmpStat:
-                                tmpLog.error('failed to register the task to JEDI')
+                            if taskStatus == 'registered':
+                                # full registration
+                                tmpStat = self.taskBufferIF.registerTaskInOneShot_JEDI(jediTaskID,impl.taskSpec,
+                                                                                       impl.inMasterDatasetSpec,
+                                                                                       impl.inSecDatasetSpecList,
+                                                                                       impl.outDatasetSpecList,
+                                                                                       impl.outputTemplateMap,
+                                                                                       impl.jobParamsTemplate,
+                                                                                       strTaskParams,
+                                                                                       impl.unmergeMasterDatasetSpec,
+                                                                                       impl.unmergeDatasetSpecMap) 
+                                if not tmpStat:
+                                    tmpLog.error('failed to register the task to JEDI')
+                            else:        
+                                # appending for incremetnal execution
+                                tmpStat = self.taskBufferIF.appendDatasets_JEDI(jediTaskID,impl.inMasterDatasetSpec,
+                                                                                impl.inSecDatasetSpecList)
+                                if not tmpStat:
+                                    tmpLog.error('failed to append datasets for incexec')
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('failed to register the task to JEDI with {0}:{1}'.format(errtype.__name__,errvalue))
