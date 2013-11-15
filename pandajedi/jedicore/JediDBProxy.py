@@ -218,12 +218,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('useFilesWithNewAttemptNr={0} nFilesPerJob={1} nEventsPerRange={2}'.format(useFilesWithNewAttemptNr,
                                                                                                 nFilesPerJob,
                                                                                                 nEventsPerRange))
+        tmpLog.debug('len(fileMap)={0}'.format(len(fileMap)))
         if nFilesPerJob != None:
             nFilesForScout = 10 * nFilesPerJob 
         else:
             nFilesForScout = 10
         # return value for failure
-        failedRet = False,0,None
+        diagMap = {'errMsg':''}
+        failedRet = False,0,None,diagMap
+        # max number of file records per dataset
+        maxFileRecords = 10000
         try:
             # current current date
             timeNow = datetime.datetime.utcnow()
@@ -248,6 +252,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             totalEventNumber = firstEventNumber
             foundFileList = []
             uniqueLfnList = []
+            totalNumEventsF = 0
             for tmpLFN in lfnList:
                 # collect unique LFN list    
                 if not tmpLFN in uniqueLfnList:
@@ -344,11 +349,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                              fileSpec.endEvent,fileSpec.boundaryID)
                     uniqueFileKeyList.append(uniqueFileKey)                
                     fileSpecMap[uniqueFileKey] = fileSpec
-            # too long list
-            maxFileRecords = 10000
-            if len(uniqueFileKeyList) > maxFileRecords:
-                tmpLog.error("too many file records {0}>{1}".format(len(uniqueFileKeyList),maxFileRecords))
-                return failedRet
+                # check if number of events is enough
+                if fileSpec.nEvents != None:
+                    totalNumEventsF += fileSpec.nEvents
+                if nMaxEvents != None and totalNumEventsF >= nMaxEvents:
+                    break
+                # too long list
+                if len(uniqueFileKeyList) > maxFileRecords:
+                    diagMap['errMsg'] = "too many file records >{0}".format(maxFileRecords)
+                    tmpLog.error(diagMap['errMsg'])
+                    return failedRet
             # look for missing files if file list is specified
             missingFileList = []    
             for fileItem in givenFileList:
@@ -494,7 +504,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':stateUpdateTime'] = stateUpdateTime
                         self.cur.execute(sqlDU+comment,varMap)
                     # set return value
-                    retVal = True,missingFileList,numUniqueLfn
+                    retVal = True,missingFileList,numUniqueLfn,diagMap
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

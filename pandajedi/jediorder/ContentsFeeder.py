@@ -259,24 +259,26 @@ class ContentsFeederThread (WorkerThread):
                                         nFilesPerJob = taskParamMap['nFilesPerJob']
                                     # feed files to the contents table
                                     tmpLog.info('update contents')
-                                    retDB,missingFileList,nFilesUnique = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
-                                                                                                                      tmpMetadata['state'],
-                                                                                                                      stateUpdateTime,
-                                                                                                                      nEventsPerFile,
-                                                                                                                      nEventsPerJob,
-                                                                                                                      maxAttempt,
-                                                                                                                      firstEventNumber,
-                                                                                                                      nMaxFiles,
-                                                                                                                      nMaxEvents,
-                                                                                                                      useScout,
-                                                                                                                      fileList,
-                                                                                                                      useFilesWithNewAttemptNr,
-                                                                                                                      nFilesPerJob,
-                                                                                                                      nEventsPerRange)
+                                    retDB,missingFileList,nFilesUnique,diagMap = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
+                                                                                                                              tmpMetadata['state'],
+                                                                                                                              stateUpdateTime,
+                                                                                                                              nEventsPerFile,
+                                                                                                                              nEventsPerJob,
+                                                                                                                              maxAttempt,
+                                                                                                                              firstEventNumber,
+                                                                                                                              nMaxFiles,
+                                                                                                                              nMaxEvents,
+                                                                                                                              useScout,
+                                                                                                                              fileList,
+                                                                                                                              useFilesWithNewAttemptNr,
+                                                                                                                              nFilesPerJob,
+                                                                                                                              nEventsPerRange)
                                     if retDB == False:
-                                        taskSpec.setErrDiag('failed to insert files for {0}'.format(datasetSpec.datasetName))
+                                        taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
+                                                                                                         diagMap['errMsg']))
                                         allUpdated = False
-                                        taskOnHold = True
+                                        taskBroken = True
+                                        break
                                     elif retDB == None:
                                         # the dataset is locked by another or status is not applicable
                                         allUpdated = False

@@ -1,5 +1,8 @@
 Release Note
 
+* 11/11/2013
+  * added a protection to CF for too many input
+
 * 11/9/2013
   * fixed getBestNNetworkSites_JEDI for table merging
 
