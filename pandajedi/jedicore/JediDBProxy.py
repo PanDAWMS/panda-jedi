@@ -4431,7 +4431,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql
             sqlDS =  "SELECT * FROM "
-            sqlDS += "(SELECT destination,{0} FROM {1}.sites_metrics_data ".format(field,jedi_config.db.schemaMETA)
+            sqlDS += "(SELECT destination,CASE WHEN {0}>=50 THEN 0.5 ELSE ROUND({0}*0.5,2) END AS {0} ".format(field)
+            sqlDS += "FROM {0}.sites_matrix_data ".format(jedi_config.db.schemaMETA)
             sqlDS += "WHERE source=:source AND {0} IS NOT NULL AND {0}>:threshold ORDER BY {0} DESC) ".format(field)
             sqlDS += "WHERE rownum<=:nSites"
             # start transaction

@@ -1,5 +1,8 @@
 Release Note
 
+* 11/18/2013
+  * changed getBestNNetworkSites_JEDI
+
 * 11/15/2013
   * implemented task retry and incexec
   * added a protection to CF for too many input
