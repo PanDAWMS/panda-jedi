@@ -46,9 +46,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpLog.error('failed to get job statistics')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
+        # allowed remote access protocol
+        allowedRemoteProtocol = 'xrd'
         ######################################
         # selection for data availability
         dataWeight = {}
+        remoteSourceList = {}
         if inputChunk.getDatasets() != []:    
             for datasetSpec in inputChunk.getDatasets():
                 datasetName = datasetSpec.datasetName
@@ -87,17 +90,22 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # get sites where disk replica is available
                 tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite)
                 # get sites which can remotely access source sites
-                tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpSiteList,self.taskBufferIF)
+                tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpSiteList,self.taskBufferIF,
+                                                                       protocol=allowedRemoteProtocol)
                 for tmpSiteName in tmpSiteList:
                     if not dataWeight.has_key(tmpSiteName):
                         dataWeight[tmpSiteName] = 1
                     else:
                         dataWeight[tmpSiteName] += 1
-                for tmpSiteName,tmpWeight in tmpSatelliteSites.iteritems():
+                for tmpSiteName,tmpWeightSrcMap in tmpSatelliteSites.iteritems():
                     if not dataWeight.has_key(tmpSiteName):
-                        dataWeight[tmpSiteName] = tmpWeight
+                        dataWeight[tmpSiteName] = tmpWeightSrcMap['weight']
                     else:
-                        dataWeight[tmpSiteName] += tmpWeight
+                        dataWeight[tmpSiteName] += tmpWeightSrcMap['weight']
+                    # make remote source list
+                    if not remoteSourceList.has_key(tmpSiteName):
+                        remoteSourceList[tmpSiteName] = {}
+                    remoteSourceList[tmpSiteName][datasetName] = tmpWeightSrcMap['source']
                 # first list
                 if scanSiteList == None:
                     scanSiteList = tmpSiteList + tmpSatelliteSites.keys()
@@ -376,6 +384,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 return retTmpError
         # append candidates
         for siteCandidateSpec in candidateSpecList:
+            tmpSiteName = siteCandidateSpec.siteName
             # set available files
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():
                 if availableFiles.has_key(tmpSiteName):
@@ -383,6 +392,16 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
                     siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
                     siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
+                else:
+                    # check remote files
+                    if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(tmpDatasetName):
+                        tmpRemoteSite = remoteSourceList[tmpSiteName][tmpDatasetName]
+                        if availableFiles.has_key(tmpRemoteSite):
+                            # use only remote disk files
+                            siteCandidateSpec.remoteFiles += availableFiles[tmpRemoteSite]['localdisk']
+                            # set remote site and access protocol
+                            siteCandidateSpec.remoteProtocol = allowedRemoteProtocol
+                            siteCandidateSpec.remoteSource   = tmpSiteName
             # append
             inputChunk.addSiteCandidate(siteCandidateSpec)
             tmpLog.debug('  use {0} with weight={1}'.format(siteCandidateSpec.siteName,

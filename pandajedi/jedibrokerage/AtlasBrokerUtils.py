@@ -202,22 +202,23 @@ def getAnalSitesWithDataDisk(dataSiteMap):
 
 
 # get sites which can remotely access source sites
-def getSatelliteSites(siteList,taskBufferIF,protocol='xrd',nSites=5,threshold=0):
+def getSatelliteSites(siteList,taskBufferIF,protocol='xrd',nSites=5,threshold=0,
+                      cutoff=50,maxWeight=0.5):
     # loop over all sites
     retVal = {}
     for siteName in siteList:
         # get sites with better network connections to sources
         tmpStat,tmpVal = taskBufferIF.getBestNNetworkSites_JEDI(siteName,protocol,nSites,
-                                                                threshold,useResultCache=3600)
+                                                                threshold,cutoff,maxWeight,
+                                                                useResultCache=3600)
+        # DB failure
         if tmpStat == False:
             return {}
         # loop over all destinations 
         for tmpD,tmpW in tmpVal.iteritems():
-            if not retVal.has_key(tmpD):
-                retVal[tmpD] = tmpW
-            elif retVal[tmpD] < tmpW:
-                # use larger value
-                retVal[tmpD] = tmpW    
+            # use first or larger value
+            if not retVal.has_key(tmpD) or retVal[tmpD]['weight'] < tmpW:
+                retVal[tmpD] = {'weight':tmpW,'source':siteName}
     return retVal
                         
 

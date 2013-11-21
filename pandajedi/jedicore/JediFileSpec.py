@@ -30,6 +30,8 @@ class JediFileSpec(object):
         object.__setattr__(self,'_changedAttrs',{})
         # locality
         object.__setattr__(self,'locality',{})
+        # source name
+        object.__setattr__(self,'sourceName',None)
 
 
     # override __setattr__ to collecte the changed attributes

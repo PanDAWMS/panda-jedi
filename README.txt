@@ -1,5 +1,9 @@
 Release Note
 
+* 11/21/2013 
+  * setting transferType and sourceSite when remote access is used
+  * implemented eventPicking and GRL
+
 * 11/18/2013
   * changed getBestNNetworkSites_JEDI
 

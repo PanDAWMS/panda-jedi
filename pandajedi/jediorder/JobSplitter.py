@@ -70,11 +70,14 @@ class JobSplitter:
                 # append to return map
                 if subChunks != []:
                     returnList.append({'siteName':siteName,
-                                       'subChunks':subChunks})
+                                       'subChunks':subChunks,
+                                       'siteCandidate':siteCandidate,
+                                       })
                     # reset
                     subChunks = []
-                # new candidate   
-                siteName = inputChunk.getOneSiteCandidate().siteName
+                # new candidate
+                siteCandidate = inputChunk.getOneSiteCandidate()
+                siteName = siteCandidate.siteName
                 siteSpec = siteMapper.getSite(siteName)
                 # get maxSize if it is set in taskSpec
                 maxSize = taskSpec.getMaxSizePerJob()
@@ -103,7 +106,9 @@ class JobSplitter:
         # append to return map if remain
         if subChunks != []:
             returnList.append({'siteName':siteName,
-                               'subChunks':subChunks})
+                               'subChunks':subChunks,
+                               'siteCandidate':siteCandidate,
+                               })
         tmpLog.debug('split to %s subchunks' % iSubChunks)            
         # return
         return self.SC_SUCCEEDED,returnList

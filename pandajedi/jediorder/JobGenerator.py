@@ -334,8 +334,9 @@ class JobGeneratorThread (WorkerThread):
             jobSpecList = []
             outDsMap = {}
             for tmpInChunk in inSubChunkList:
-                siteName    = tmpInChunk['siteName']
-                inSubChunks = tmpInChunk['subChunks']
+                siteName      = tmpInChunk['siteName']
+                inSubChunks   = tmpInChunk['subChunks']
+                siteCandidate = tmpInChunk['siteCandidate']
                 buildFileSpec = None
                 # make preprocessing job
                 if taskSpec.usePrePro():
@@ -431,7 +432,7 @@ class JobGeneratorThread (WorkerThread):
                             else:
                                 tmpInFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec)
                             # set status
-                            if tmpFileSpec.locality == 'localdisk':
+                            if tmpFileSpec.locality in ['localdisk','remote']:
                                 tmpInFileSpec.status = 'ready'
                             elif tmpFileSpec.locality == 'cache':
                                 tmpInFileSpec.status = 'cached'
@@ -439,6 +440,10 @@ class JobGeneratorThread (WorkerThread):
                             if taskSpec.useLocalIO():
                                 tmpInFileSpec.prodDBlockToken = 'local'
                             jobSpec.addFile(tmpInFileSpec)
+                            # use remote access
+                            if tmpFileSpec.locality == 'remote':
+                                jobSpec.transferType = siteCandidate.remoteProtocol
+                                jobSpec.sourceSite = siteCandidate.remoteSource
                         # check if merging 
                         if taskSpec.mergeOutput() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.toMerge():
                             isUnMerging = True
@@ -639,7 +644,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.lockedby         = 'jedi'
             jobSpec.workQueue_ID     = taskSpec.workQueue_ID
             jobSpec.destinationSE    = siteName
-            jobSpec.metaData         = ''
+            jobSpec.metadata         = ''
             # get log dataset and log file
             tmpStat,tmpLogDatasetSpec,tmpLogFileSpec = self.taskBufferIF.getPreproLog_JEDI(jobSpec.jediTaskID,simul)
             if tmpStat == False:

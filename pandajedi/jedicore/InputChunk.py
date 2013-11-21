@@ -375,6 +375,8 @@ class InputChunk:
                     newFileSpec = copy.copy(tmpFileSpec)
                     # set locality
                     newFileSpec.locality = siteCandidate.getFileLocality(tmpFileSpec)
+                    if newFileSpec.locality == 'remote':
+                        newFileSpec.sourceName = siteCandidate.remoteSource
                     # append
                     tmpRetList.append(newFileSpec)
                 else:

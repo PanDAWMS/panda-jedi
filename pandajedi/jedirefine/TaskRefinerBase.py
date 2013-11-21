@@ -2,6 +2,7 @@ import re
 import sys
 import uuid
 import copy
+import types
 
 import RefinerUtils
 from pandajedi.jedicore import Interaction
@@ -311,6 +312,25 @@ class TaskRefinerBase (object):
 
 
     
+    # replace placeholder with dict provided by prepro job
+    def replacePlaceHolders(self,paramItem,placeHolderName,newValue):
+        if isinstance(paramItem,types.DictType):
+            # loop over all dict params
+            for tmpParName,tmpParVal in paramItem.iteritems():
+                if tmpParVal == placeHolderName:
+                    # replace placeholder
+                    paramItem[tmpParName] = newValue
+                elif isinstance(tmpParVal,types.DictType) or \
+                        isinstance(tmpParVal,types.ListType):
+                    # recursive execution
+                    self.replacePlaceHolders(tmpParVal,placeHolderName,newValue)
+        elif isinstance(paramItem,types.ListType):
+            # loop over all list items
+            for tmpItem in paramItem:
+                self.replacePlaceHolders(tmpItem,placeHolderName,newValue)
+
+    
+
     # refinement procedure for preprocessing
     def doPreProRefine(self,taskParamMap):
         # no preprocessing
@@ -318,12 +338,13 @@ class TaskRefinerBase (object):
             return None,taskParamMap
         # already preprocessed
         if self.taskSpec.checkPreProcessed():
-            # get additional task params
+            # get replaced task params
             tmpStat,tmpJsonStr = self.taskBufferIF.getPreprocessMetadata_JEDI(self.taskSpec.jediTaskID)
             try:
-                addTaskParams = RefinerUtils.decodeJSON(tmpJsonStr)
-                for tmpKey,tmpVal in addTaskParams.iteritems():
-                    taskParamMap[tmpKey] = tmpVal
+                # replace placeholders 
+                replaceParams = RefinerUtils.decodeJSON(tmpJsonStr)
+                for tmpKey,tmpVal in replaceParams.iteritems():
+                    self.replacePlaceHolders(taskParamMap,tmpKey,tmpVal)
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 self.tmpLog.error('{0} failed to get additional task params with {1}:{2}'.format(self.__class__.__name__,
@@ -371,7 +392,7 @@ class TaskRefinerBase (object):
         logDatasetSpec.status = 'ready'
         self.outDatasetSpecList.append(logDatasetSpec)
         # set split rule to use preprocessing
-        self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['usePrePro'])
+        self.taskSpec.setPrePro()
         # set task status
         self.taskSpec.status = 'topreprocess'
         # return

@@ -294,11 +294,22 @@ class JediTaskSpec(object):
 
 
 
+    # set preprocessing
+    def setPrePro(self):
+        if self.splitRule == None:
+            # new
+            self.splitRule = self.splitRuleToken['usePrePro']+'='+self.enum_toPreProcess
+        else:
+            # append
+            self.splitRule += ','+self.splitRuleToken['usePrePro']+'='+self.enum_toPreProcess
+
+
+
     # use preprocessing
     def usePrePro(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['usePrePro']+'=(\d+)',self.splitRule)
-            if tmpMatch != None:
+            if tmpMatch != None and tmpMatch.group(1) == self.enum_toPreProcess:
                 return True
         return False
 

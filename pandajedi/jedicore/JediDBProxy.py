@@ -1688,6 +1688,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             sqlDU += "RETURNING nFilesUsed,nFilesTobeUsed INTO :newnFilesUsed,:newnFilesTobeUsed "
+            # sql to read DN
+            sqlDN  = "SELECT dn FROM {0}.users WHERE name=:name ".format(jedi_config.db.schemaMETA)
             # loop over all tasks
             iTasks = 0
             for jediTaskID in jediTaskIDList:
@@ -1714,6 +1716,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             # merging
                             if datasetType in JediDatasetSpec.getMergeProcessTypes():
                                 inputChunk.isMerging = True
+                            # for analysis use DN as userName
+                            if taskSpec.prodSourceLabel in ['user']:
+                                varMap = {}
+                                varMap[':name'] = taskSpec.userName
+                                tmpLog.debug(sqlDN+comment+str(varMap))
+                                self.cur.execute(sqlDN+comment,varMap)
+                                resDN = self.cur.fetchone()
+                                tmpLog.debug(resDN)
+                                if resDN == None:
+                                    # no user info
+                                    raise RuntimeError, 'Failed to get DN for {0}'.format(taskSpec.userName)
+                                taskSpec.userName, = resDN
+                                if taskSpec.userName in ['',None]:
+                                    # DN is empty
+                                    raise RuntimeError, 'DN is empty for {0}'.format(taskSpec.userName)
+                                # reset change to not update userName
+                                taskSpec.resetChangedAttr('userName')
                     except:
                         errType,errValue = sys.exc_info()[:2]
                         if self.isNoWaitException(errValue):
@@ -2557,7 +2576,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlUC+comment,varMap)
                     # append
                     if isOK:
-                        retTaskIDs.append((jediTaskID,None))
+                        retTaskIDs.append((jediTaskID,None,'registered'))
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
@@ -2658,6 +2677,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # set attributes
             if not taskSpec.status in ['topreprocess']:
                 taskSpec.status = 'defined'
+            tmpLog.debug('taskStatus={0}'.format(taskSpec.status))
             taskSpec.modificationTime = timeNow
             taskSpec.resetChangedAttr('jediTaskID')
             # update task
@@ -4414,7 +4434,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get sites with best connections to source
-    def getBestNNetworkSites_JEDI(self,source,protocol,nSites,threshold):
+    def getBestNNetworkSites_JEDI(self,source,protocol,nSites,threshold,cutoff,maxWeight):
         comment = ' /* JediDBProxy.getBestNNetworkSites_JEDI */'
         methodName = self.getMethodName(comment)
         tmpLog = MsgWrapper(logger,methodName)
@@ -4431,7 +4451,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql
             sqlDS =  "SELECT * FROM "
-            sqlDS += "(SELECT destination,CASE WHEN {0}>=50 THEN 0.5 ELSE ROUND({0}*0.5,2) END AS {0} ".format(field)
+            sqlDS += "(SELECT destination,CASE WHEN {0}>={1} THEN {2} ".format(field,cutoff,maxWeight)
+            sqlDS += "ELSE ROUND({0}/{1}*{2},2) END AS {0} ".format(field,cutoff,maxWeight)
             sqlDS += "FROM {0}.sites_matrix_data ".format(jedi_config.db.schemaMETA)
             sqlDS += "WHERE source=:source AND {0} IS NOT NULL AND {0}>:threshold ORDER BY {0} DESC) ".format(field)
             sqlDS += "WHERE rownum<=:nSites"

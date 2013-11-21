@@ -12,6 +12,11 @@ class SiteCandidate(object):
         self.cacheFiles = []
         # the list of files read from SE using remote I/O
         self.remoteFiles = []
+        # acess
+        self.remoteProtocol = None
+        # remote source if any
+        self.remoteSource = None
+
 
 
     # get locality of a file
