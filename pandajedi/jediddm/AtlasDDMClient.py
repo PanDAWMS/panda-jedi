@@ -16,6 +16,7 @@ from dq2.clientapi.DQ2 import \
     DQUnknownDatasetException, \
     DQDatasetExistsException
 from dq2.container.exceptions import DQContainerExistsException
+import dq2.filecatalog
 
 try:
     from pyAMI.client import AMIClient
@@ -247,13 +248,7 @@ class AtlasDDMClient(DDMClientBase):
                     if datasetSpec.isManyTime():
                         continue
                     # get LFC
-                    lfcStr = TiersOfATLAS.getLocalCatalog(tmpEndPoint)
-                    try:
-                        lfc = lfcStr.split('/')[2].split(':')[0]
-                    except:
-                        tmpLog.error('faild to extract LFC from %s for %s:%s' % \
-                                     (lfcStr,siteName,tmpEndPoint))
-                        continue
+                    lfc = TiersOfATLAS.getLocalCatalog(tmpEndPoint)
                     # add map
                     if not tmpLfcSeMap.has_key(lfc):
                         tmpLfcSeMap[lfc] = []
@@ -366,35 +361,28 @@ class AtlasDDMClient(DDMClientBase):
 
     # get SURLs from LFC
     def getSURLsFromLFC(self,files,lfcHost,storages,verbose=False):
-        # randomly resolve DNS alias
-        if lfcHost in ['prod-lfc-atlas.cern.ch']:
-            lfcHost = random.choice(socket.gethostbyname_ex(lfcHost)[2])
-        # set LFC HOST
-        os.environ['LFC_HOST'] = lfcHost
-        # timeout
-        os.environ['LFC_CONNTIMEOUT'] = '60'
-        os.environ['LFC_CONRETRY']    = '2'
-        os.environ['LFC_CONRETRYINT'] = '6'
-        # get PFN
-        iGUID = 0
-        nGUID = 5000
-        pfnMap   = {}
-        listGUID = []
-        for guid in files.keys():
-            if verbose:
-                sys.stdout.write('.')
-                sys.stdout.flush()
-            iGUID += 1
-            listGUID.append(guid)
-            if iGUID % nGUID == 0 or iGUID == len(files):
-                # get replica
-                ret,resList = lfc.lfc_getreplicas(listGUID,'')
-                if ret == 0:
-                    for fr in resList:
-                        if fr != None and ((not hasattr(fr,'errcode')) or \
-                                           (hasattr(fr,'errcode') and fr.errcode == 0)):
+        try:
+            # connect
+            apiLFC = dq2.filecatalog.create_file_catalog(lfcHost)
+            apiLFC.connect()
+            # get PFN
+            iGUID = 0
+            nGUID = 5000
+            pfnMap   = {}
+            listGUID = {}
+            for guid,tmpLFN in files.iteritems():
+                if verbose:
+                    sys.stdout.write('.')
+                    sys.stdout.flush()
+                iGUID += 1
+                listGUID[guid] = tmpLFN
+                if iGUID % nGUID == 0 or iGUID == len(files):
+                    # get replica
+                    resReplicas = apiLFC.bulkFindReplicas(listGUID)
+                    for retGUID,resValMap in resReplicas.iteritems():
+                        for retSURL in resValMap['surls']:
                             # get host
-                            match = re.search('^[^:]+://([^:/]+):*\d*/',fr.sfn)
+                            match = re.search('^[^:]+://([^:/]+):*\d*/',retSURL)
                             if match==None:
                                 continue
                             # check host
@@ -402,13 +390,16 @@ class AtlasDDMClient(DDMClientBase):
                             if storages != [] and (not host in storages):
                                 continue
                             # append
-                            if not pfnMap.has_key(fr.guid):
-                                pfnMap[fr.guid] = []
-                            pfnMap[fr.guid].append(fr.sfn)
-                else:
-                    return self.SC_FAILED,"LFC lookup failed with %s" % lfc.sstrerror(lfc.cvar.serrno)
-                # reset                        
-                listGUID = []
+                            if not pfnMap.has_key(retGUID):
+                                pfnMap[retGUID] = []
+                            pfnMap[retGUID].append(retSURL)
+                    # reset
+                    listGUID = {}
+            # disconnect
+            apiLFC.disconnect()
+        except:
+            errType,errValue = sys.exc_info()[:2]
+            return self.SC_FAILED,"LFC lookup failed with {0}:{1}".format(errType,errValue)
         # collect LFNs
         retLFNs = {}
         for guid,lfn in files.iteritems():

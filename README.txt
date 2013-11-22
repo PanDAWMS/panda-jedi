@@ -1,5 +1,8 @@
 Release Note
 
+* 11/22/2013 
+  * removed direct LFC dependence from AtlasDDMClient
+
 * 11/21/2013 
   * setting transferType and sourceSite when remote access is used
   * implemented eventPicking and GRL

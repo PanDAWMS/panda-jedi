@@ -374,7 +374,7 @@ class TaskRefinerBase (object):
         fileSpec.status       = 'ready'            
         fileSpec.lfn          = 'pseudo_lfn'
         fileSpec.attemptNr    = 0
-        fileSpec.maxAttempt   = 5
+        fileSpec.maxAttempt   = 3
         fileSpec.keepTrack    = 1
         datasetSpec.addFile(fileSpec)
         # make log dataset

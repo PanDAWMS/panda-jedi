@@ -220,7 +220,7 @@ class ContentsFeederThread (WorkerThread):
                                             maxAttempt = taskParamMap['maxAttempt']
                                         else:
                                             # use default value
-                                            maxAttempt = 5
+                                            maxAttempt = 3
                                         # first event number
                                         firstEventNumber = 1 + taskSpec.getFirstEventOffset()
                                     # nMaxEvents
