@@ -1726,13 +1726,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 tmpLog.debug(resDN)
                                 if resDN == None:
                                     # no user info
-                                    raise RuntimeError, 'Failed to get DN for {0}'.format(taskSpec.userName)
-                                taskSpec.userName, = resDN
-                                if taskSpec.userName in ['',None]:
-                                    # DN is empty
-                                    raise RuntimeError, 'DN is empty for {0}'.format(taskSpec.userName)
-                                # reset change to not update userName
-                                taskSpec.resetChangedAttr('userName')
+                                    toSkip = True
+                                    tmpLog.error('skipped since failed to get DN for {0}'.format(taskSpec.userName))
+                                else:
+                                    taskSpec.userName, = resDN
+                                    if taskSpec.userName in ['',None]:
+                                        # DN is empty
+                                        toSkip = True
+                                        tmpLog.error('skipped since DN is empty for {0}'.format(taskSpec.userName))
+                                    else:
+                                        # reset change to not update userName
+                                        taskSpec.resetChangedAttr('userName')
                     except:
                         errType,errValue = sys.exc_info()[:2]
                         if self.isNoWaitException(errValue):
@@ -2993,9 +2997,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get tasks/datasets
             if simTasks == None:
                 varMap = {}
-                for tmpType in JediDatasetSpec.getInputTypes():
-                    mapKey = ':type_'+tmpType
-                    varMap[mapKey] = tmpType
                 varMap[':taskstatus1']  = 'running'
                 varMap[':taskstatus2']  = 'scouting'
                 varMap[':taskstatus3']  = 'merging'
@@ -3018,9 +3019,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += '(SELECT 1 FROM {0}.JEDI_Datasets tabD '.format(jedi_config.db.schemaJEDI)
                 sql += 'WHERE tabD.jediTaskID=tabT.jediTaskID AND masterID IS NULL '
                 sql += 'AND type IN ('
-                for tmpType in JediDatasetSpec.getInputTypes():
+                for tmpType in JediDatasetSpec.getProcessTypes():
                     mapKey = ':type_'+tmpType
                     sql += '{0},'.format(mapKey)
+                    varMap[mapKey] = tmpType
                 sql  = sql[:-1]
                 sql += ') AND NOT status IN (:dsEndStatus1,:dsEndStatus2) '
                 sql += 'AND (nFilesToBeUsed<>nFilesUsed OR nFilesUsed=0 OR nFilesUsed>nFilesFinished+nFilesFailed)) '
