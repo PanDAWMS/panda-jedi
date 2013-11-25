@@ -7,6 +7,7 @@ import datetime
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.FactoryBase import FactoryBase
 from JediKnight import JediKnight
 from pandajedi.jediconfig import jedi_config
 
@@ -17,7 +18,7 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 
 # worker class to do post-processing
-class PostProcessor (JediKnight):
+class PostProcessor (JediKnight,FactoryBase):
 
     # constructor
     def __init__(self,commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels):
@@ -25,12 +26,16 @@ class PostProcessor (JediKnight):
         self.prodSourceLabels = self.parseInit(prodSourceLabels)
         self.pid = '{0}-{1}-post'.format(socket.getfqdn().split('.')[0],os.getpid())
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
+        FactoryBase.__init__(self,self.vos,self.prodSourceLabels,logger,
+                             jedi_config.postprocessor.modConfig)
+
 
 
     # main
     def start(self):
         # start base classes
         JediKnight.start(self)
+        FactoryBase.initializeMods(self,self.taskBufferIF,self.ddmIF)
         # go into main loop
         while True:
             startTime = datetime.datetime.utcnow()
@@ -73,7 +78,8 @@ class PostProcessor (JediKnight):
                             for iWorker in range(nWorker):
                                 thr = PostProcessorThread(taskList,threadPool,
                                                           self.taskBufferIF,
-                                                          self.ddmIF)
+                                                          self.ddmIF,
+                                                          self)
                                 thr.start()
                             # join
                             threadPool.join()
@@ -94,13 +100,14 @@ class PostProcessor (JediKnight):
 class PostProcessorThread (WorkerThread):
 
     # constructor
-    def __init__(self,taskList,threadPool,taskbufferIF,ddmIF):
+    def __init__(self,taskList,threadPool,taskbufferIF,ddmIF,implFactory):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
         self.taskList = taskList
         self.taskBufferIF = taskbufferIF
         self.ddmIF = ddmIF
+        self.implFactory = implFactory
 
 
     # main
@@ -117,34 +124,39 @@ class PostProcessorThread (WorkerThread):
                 # loop over all tasks
                 for taskSpec in taskList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'jediTaskID={0}'.format(taskSpec.jediTaskID))
+                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID))
                     tmpLog.info('start')
                     tmpStat = Interaction.SC_SUCCEEDED
-                    # loop over all datasets
-                    nFiles = 0
-                    nFilesFinished = 0
-                    for datasetSpec in taskSpec.datasetSpecList:
-                        # validation and correction for output/log datasets
-                        if datasetSpec.type in ['output','log']:
-                            # do something
-                            # FIXME
-                            # update dataset
-                            datasetSpec.status = 'done'
-                            self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'datasetID':datasetSpec.datasetID,
-                                                                              'jediTaskID':datasetSpec.jediTaskID})
-                        # count nFiles
-                        if datasetSpec.isMaster():
-                            nFiles += datasetSpec.nFiles
-                            nFilesFinished += datasetSpec.nFilesFinished
-                    # update task status
-                    taskSpec.lockedBy = None        
-                    if nFiles == nFilesFinished:
-                        taskSpec.status = 'finished'
-                    elif nFilesFinished == 0:
-                        taskSpec.status = 'failed'
-                    else:
-                        taskSpec.status = 'partial'
-                    self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})    
+                    # get impl
+                    impl = self.implFactory.getImpl(taskSpec.vo,taskSpec.prodSourceLabel)
+                    if impl == None:
+                        # post processor is undefined
+                        tmpLog.error('post-processor is undefined for vo={0} sourceLabel={1}'.format(taskSpec.vo,taskSpec.prodSourceLabel))
+                        tmpStat = Interaction.SC_FAILED
+                    # execute    
+                    if tmpStat == Interaction.SC_SUCCEEDED:
+                        tmpLog.info('post-process with {0}'.format(impl.__class__.__name__))
+                        try:
+                            impl.doPostProcess(taskSpec,tmpLog)
+                        except:
+                            errtype,errvalue = sys.exc_info()[:2]
+                            tmpLog.error('doPostProcess failed with {0}:{1}'.format(errtype.__name__,errvalue))
+                            tmpStat = Interaction.SC_FAILED
+                    # done
+                    if tmpStat != Interaction.SC_SUCCEEDED:
+                        # task is broken
+                        tmpErrStr = 'post-process failed'
+                        tmpLog.error(tmpErrStr)
+                        taskSpec.status = 'broken'
+                        taskSpec.setErrDiag(tmpErrStr)
+                        taskSpec.lockedBy = None
+                        self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})    
+                    # final procedure
+                    try:
+                        impl.doFinalProcedre(taskSpec,tmpLog)
+                    except:
+                        errtype,errvalue = sys.exc_info()[:2]
+                        tmpLog.error('doFinalProcedre failed with {0}:{1}'.format(errtype.__name__,errvalue))
                     # done
                     tmpLog.info('done')
             except:

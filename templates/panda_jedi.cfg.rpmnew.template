@@ -97,7 +97,7 @@ loopCycle = 60
 [taskrefine]
 
 # interface config
-modConfig = atlas:managed|test:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner
+modConfig = atlas:any:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner:any,atlas:any:pandajedi.jedirefine.FileRecovery:FileRecovery:recov,atlas:user:pandajedi.jedirefine.AtlasAnalTaskRefiner:AtlasAnalTaskRefiner:any
 
 # process config
 procConfig = ::1
@@ -171,6 +171,9 @@ typicalNumFile = :::logmerge:1000000
 #
 
 [postprocessor]
+
+# interface config
+modConfig = atlas:any:pandajedi.jedipprocess.AtlasProdPostProcessor:AtlasProdPostProcessor,atlas:user:pandajedi.jedipprocess.AtlasAnalPostProcessor:AtlasAnalPostProcessor
 
 # process config
 procConfig = ::1

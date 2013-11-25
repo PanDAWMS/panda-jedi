@@ -14,9 +14,11 @@ from dq2.info import TiersOfATLAS
 from dq2.common.DQConstants import DatasetState, Metadata
 from dq2.clientapi.DQ2 import \
     DQUnknownDatasetException, \
-    DQDatasetExistsException
+    DQDatasetExistsException, \
+    DQFrozenDatasetException
 from dq2.container.exceptions import DQContainerExistsException
 import dq2.filecatalog
+from dq2.info.client.infoClient import infoClient
 
 try:
     from pyAMI.client import AMIClient
@@ -660,4 +662,46 @@ class AtlasDDMClient(DDMClientBase):
         return self.SC_SUCCEEDED,latestDBR
 
 
+
+    # freeze dataset
+    def freezeDataset(self,datasetName):
+        methodName = 'freezeDataset'
+        methodName = '{0} datasetName={1}'.format(methodName,datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.info('start')
+        try:
+            # get DQ2 API            
+            dq2=DQ2()
+            # freeze
+            dq2.freezeDataset(datasetName)
+        except DQFrozenDatasetException:
+            pass
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
+        tmpLog.info('done')
+        return self.SC_SUCCEEDED,True
+
+
+
+    # finger
+    def finger(self,userName):
+        methodName = 'finger'
+        methodName = '{0} userName={1}'.format(methodName,userName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.info('start')
+        try:
+            # exec
+            tmpRet = infoClient().finger(userName)
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
+        tmpLog.info('done')
+        return self.SC_SUCCEEDED,tmpRet
         

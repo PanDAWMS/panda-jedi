@@ -472,7 +472,8 @@ class JobGeneratorThread (WorkerThread):
                                                                                  simul,
                                                                                  instantiateTmpl,
                                                                                  instantiatedSite,
-                                                                                 isUnMerging)
+                                                                                 isUnMerging,
+                                                                                 False)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
@@ -628,32 +629,56 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.maxAttempt       = 0
             jobSpec.jobName          = taskSpec.taskName
             jobSpec.transformation   = taskParamMap['preproSpec']['transPath']
+            """
             jobSpec.cmtConfig        = taskSpec.architecture
             jobSpec.homepackage      = taskSpec.transHome.replace('-','/')
             jobSpec.homepackage      = re.sub('\r','',jobSpec.homepackage)
+            """
             jobSpec.prodSourceLabel  = taskParamMap['preproSpec']['prodSourceLabel']
             jobSpec.processingType   = taskSpec.processingType
             jobSpec.jediTaskID       = taskSpec.jediTaskID
+            jobSpec.jobsetID         = taskSpec.reqID
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.computingSite    = siteName
             jobSpec.cloud            = cloudName
             jobSpec.VO               = taskSpec.vo
             jobSpec.prodSeriesLabel  = 'pandatest'
+            """
             jobSpec.AtlasRelease     = taskSpec.transUses
             jobSpec.AtlasRelease     = re.sub('\r','',jobSpec.AtlasRelease)
+            """
             jobSpec.lockedby         = 'jedi'
             jobSpec.workQueue_ID     = taskSpec.workQueue_ID
             jobSpec.destinationSE    = siteName
             jobSpec.metadata         = ''
-            # get log dataset and log file
-            tmpStat,tmpLogDatasetSpec,tmpLogFileSpec = self.taskBufferIF.getPreproLog_JEDI(jobSpec.jediTaskID,simul)
-            if tmpStat == False:
-                tmpLog.error('{0}.doGeneratePrePro() failed to get log for preprocessing'.format(self.__class__.__name__))
+            # get log file
+            outSubChunk,serialNr = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
+                                                                         None,
+                                                                         simul,
+                                                                         True,
+                                                                         siteName,
+                                                                         False,
+                                                                         True)
+            if outSubChunk == None:
+                # failed
+                tmpLog.error('doGeneratePrePro failed to get OutputFiles')
                 return failedRet
-            jobSpec.destinationDBlock = tmpLogDatasetSpec.datasetName
-            # make log
-            logFileSpec = tmpLogFileSpec.convertToJobFileSpec(tmpLogDatasetSpec,setType='log')
-            jobSpec.addFile(logFileSpec)
+            outDsMap = {}
+            for tmpFileSpec in outSubChunk.values():
+                # get dataset
+                if not outDsMap.has_key(tmpFileSpec.datasetID):
+                    tmpStat,tmpDataset = self.taskBufferIF.getDatasetWithID_JEDI(taskSpec.jediTaskID,
+                                                                                 tmpFileSpec.datasetID)
+                    # not found
+                    if not tmpStat:
+                        tmpLog.error('doGeneratePrePro failed to get logDS with datasetID={0}'.format(tmpFileSpec.datasetID))
+                        return failedRet
+                    outDsMap[tmpFileSpec.datasetID] = tmpDataset 
+                # convert to job's FileSpec     
+                tmpDatasetSpec = outDsMap[tmpFileSpec.datasetID]
+                tmpOutFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec,setType='log')
+                jobSpec.addFile(tmpOutFileSpec)
+                jobSpec.destinationDBlock = tmpDatasetSpec.datasetName
             # make pseudo input
             tmpDatasetSpec,tmpFileSpecList = inSubChunks[0][0]
             tmpFileSpec = tmpFileSpecList[0]

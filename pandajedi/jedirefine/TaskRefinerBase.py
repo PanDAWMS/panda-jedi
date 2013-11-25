@@ -381,7 +381,8 @@ class TaskRefinerBase (object):
         logDatasetSpec = JediDatasetSpec()
         logDatasetSpec.datasetName = 'panda.pp.log.{0}.{1}'.format(uuid.uuid4(),self.taskSpec.jediTaskID)
         logDatasetSpec.jediTaskID = self.taskSpec.jediTaskID
-        logDatasetSpec.type = 'pp_log'
+        logDatasetSpec.type = 'tmpl_pp_log'
+        logDatasetSpec.streamName = 'PP_LOG'
         logDatasetSpec.vo = self.taskSpec.vo
         logDatasetSpec.nFiles = 0
         logDatasetSpec.nFilesUsed = 0
@@ -391,6 +392,14 @@ class TaskRefinerBase (object):
         logDatasetSpec.nFilesOnHold = 0
         logDatasetSpec.status = 'ready'
         self.outDatasetSpecList.append(logDatasetSpec)
+        # make output template for log
+        outTemplateMap = {'jediTaskID' : self.taskSpec.jediTaskID,
+                          'serialNr' : 1,
+                          'streamName' : logDatasetSpec.streamName,
+                          'filenameTemplate' : "{0}._${{SN}}.log.tgz".format(logDatasetSpec.datasetName),
+                          'outtype' : re.sub('^tmpl_','',logDatasetSpec.type),
+                          }
+        self.outputTemplateMap[logDatasetSpec.outputMapKey()] = [outTemplateMap]
         # set split rule to use preprocessing
         self.taskSpec.setPrePro()
         # set task status

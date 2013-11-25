@@ -1306,15 +1306,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # generate output files for task, and instantiate template datasets if necessary
-    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,isUnMerging):
+    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,isUnMerging,
+                            isPrePro):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start with simul={0} instantiateTmpl={1} instantiatedSite={2} isUnMerging={3}'.format(simul,
-                                                                                                            instantiateTmpl,
-                                                                                                            instantiatedSite,
-                                                                                                            isUnMerging))
+        tmpLog.debug('start with simul={0} instantiateTmpl={1} instantiatedSite={2}'.format(simul,
+                                                                                            instantiateTmpl,
+                                                                                            instantiatedSite))
+        tmpLog.debug('isUnMerging={0} isPrePro={1}'.format(isUnMerging,isPrePro))
         try:
             outMap = {}
             # sql to get dataset
@@ -1366,6 +1367,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if isUnMerging:
                 varMap[':type1'] = 'trn_' + varMap[':type1']
                 varMap[':type2'] = 'trn_' + varMap[':type2']
+            elif isPrePro:
+                varMap[':type1'] = 'pp_' + varMap[':type1']
+                varMap[':type2'] = 'pp_' + varMap[':type2']
             # template datasets
             if instantiateTmpl:
                 varMap[':type1'] = 'tmpl_' + varMap[':type1']
@@ -1390,13 +1394,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':type1']    = re.sub('^tmpl_','',tmpl_VarMap[':type1'])
                     varMap[':type2']    = re.sub('^tmpl_','',tmpl_VarMap[':type2'])
                     varMap[':templateID'] = datasetID
+                    varMap[':closedState'] = 'closed'
                     if provenanceID != None:
                         varMap[':provenanceID'] = provenanceID
                     if instantiatedSite != None:
                         sqlDT = sqlD + "AND site=:site "
                         varMap[':site'] = instantiatedSite
                     else:
-                        sqlDT =sqlD
+                        sqlDT = sqlD
+                    sqlDT += "AND (state IS NULL OR state<>:closedState) "
                     # FIXME : use NEVENTS as templateID
                     sqlDT += "AND nEvents=:templateID "    
                     self.cur.execute(sqlDT+comment,varMap)

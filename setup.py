@@ -157,6 +157,7 @@ setup(
                'pandajedi.jedirefine',               
                'pandajedi.jedithrottle',
                'pandajedi.jedibrokerage',
+               'pandajedi.jedipprocess',
               ],
     data_files=[
                 # config files 

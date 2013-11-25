@@ -84,6 +84,7 @@ class FactoryBase:
                                 self.classMap[vo][sourceLabel] = {}
                             self.implMap[vo][sourceLabel][subType] = impl
                             self.classMap[vo][sourceLabel][subType] = cls
+                            self.logger.info("{0} for {1}:{2}:{3}".format(cls,vo,sourceLabel,subType))
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             self.logger.error('failed to import impl due to {0} {1}'.format(errtype.__name__,errvalue))

@@ -1,5 +1,9 @@
 Release Note
 
+* 11/25/2013 
+  * refactored PostProcessor
+  * added email notification
+
 * 11/22/2013 
   * removed direct LFC dependence from AtlasDDMClient
 
