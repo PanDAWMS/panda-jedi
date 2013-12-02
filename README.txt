@@ -1,5 +1,8 @@
 Release Note
 
+* 12/1/2013 
+  * increased the limit on the number of files 
+
 * 11/25/2013 
   * refactored PostProcessor
   * added email notification

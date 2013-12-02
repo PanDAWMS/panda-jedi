@@ -227,7 +227,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         diagMap = {'errMsg':''}
         failedRet = False,0,None,diagMap
         # max number of file records per dataset
-        maxFileRecords = 10000
+        maxFileRecords = 100000
         try:
             # current current date
             timeNow = datetime.datetime.utcnow()
