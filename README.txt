@@ -1,5 +1,8 @@
 Release Note
 
+* 12/2/2013 
+  * fixed retry for scouting
+
 * 12/1/2013 
   * increased the limit on the number of files 
 

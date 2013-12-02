@@ -1572,13 +1572,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':cloud']       = cloudName
                 varMap[':tstatus1']     = 'ready'
                 varMap[':tstatus2']     = 'running'
-                varMap[':tstatus3']     = 'merging'
+                varMap[':tstatus3']     = 'scouting'
                 varMap[':tstatus4']     = 'topreprocess'
                 varMap[':tstatus5']     = 'preprocessing'
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 varMap[':dsStatus']        = 'ready'            
                 varMap[':dsOKStatus1']     = 'ready'
                 varMap[':dsOKStatus2']     = 'done'
+                varMap[':dsOKStatus3']     = 'defined'
                 sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type "
                 sql += "FROM {0}.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.vo=:vo AND workQueue_ID IN ("
@@ -1612,7 +1613,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     mapKey = ':type_'+tmpType
                     sql += '{0},'.format(mapKey)
                 sql  = sql[:-1]
-                sql += ') AND NOT status IN (:dsOKStatus1,:dsOKStatus2)) '
+                sql += ') AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3)) '
                 sql += "ORDER BY currentPriority DESC,jediTaskID "
             else:
                 varMap = {}
