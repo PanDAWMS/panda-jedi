@@ -189,11 +189,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get JEDI task with jediTaskID
-    def getTaskWithID_JEDI(self,jediTaskID,fullFlag=False,lockTask=False,pid=None):
+    def getTaskWithID_JEDI(self,jediTaskID,fullFlag=False,lockTask=False,pid=None,lockInterval=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTaskWithID_JEDI(jediTaskID,fullFlag,lockTask,pid)
+        retVal = proxy.getTaskWithID_JEDI(jediTaskID,fullFlag,lockTask,pid,lockInterval)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

@@ -1,6 +1,7 @@
 Release Note
 
 * 12/2/2013 
+  * set task status to broken when no scout jobs succeeded
   * fixed retry for scouting
 
 * 12/1/2013 

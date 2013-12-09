@@ -104,7 +104,7 @@ class ContentsFeederThread (WorkerThread):
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(jediTaskID))
                     # get task
-                    tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID,False)
+                    tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID,False,True,None,10)
                     if not tmpStat or taskSpec == None:
                         tmpLog.error('failed to get taskSpec for jediTaskID={0}'.format(jediTaskID))
                         continue
