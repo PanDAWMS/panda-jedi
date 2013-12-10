@@ -18,6 +18,14 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
     # extract common parameters
     def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule):
         processingTypes = taskParamMap['processingType'].split('-')
+        # set sourceURL
+        try:
+            if taskParamMap.has_key('sourceURL'):
+                for tmpItem in taskParamMap['jobParameters']:
+                    if tmpItem.has_key('value'):
+                        tmpItem['value'] = re.sub('\$\{SURL\}',taskParamMap['sourceURL'],tmpItem['value'])
+        except:
+            pass
         # set transPath
         if not taskParamMap.has_key('transPath'):
             if 'athena' in processingTypes:
