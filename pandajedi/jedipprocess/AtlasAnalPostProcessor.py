@@ -45,7 +45,8 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 # check prepro and 
                 if datasetSpec.type == 'lib':
                     useLib = True
-                    nOkLib += datasetSpec.nFilesFinished
+                else:
+                    nOkLib += 1
             # dialog
             if useLib and nOkLib == 0:
                 taskSpec.setErrDiag('No build jobs succeeded',True)
@@ -103,6 +104,7 @@ Parameters : {params}
 
 PandaMonURL : http://pandamon.cern.ch/jedi/taskinfo?task={jediTaskID}""".format(\
             jediTaskID=taskSpec.jediTaskID,
+            JobsetID=taskSpec.reqID,
             fromAdd=fromAdd,
             toAdd=toAdd,
             creationDate=taskSpec.creationDate,
