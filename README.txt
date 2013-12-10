@@ -1,6 +1,7 @@
 Release Note
 
 * 12/10/2013
+  * fixed AtlasAnalJobBrokerage for remote access
   * implemented TaskSetupper for ATLAS analysis
 
 * 12/2/2013 

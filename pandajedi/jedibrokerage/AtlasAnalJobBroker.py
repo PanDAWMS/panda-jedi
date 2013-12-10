@@ -270,7 +270,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             outSizePerJob = 0.250
             diskThreshold = 200
             tmpSpaceSize = tmpSiteSpec.space - nRemJobs * outSizePerJob
-            if tmpSpaceSize < diskThreshold:
+            if tmpSiteSpec.space != 0 and tmpSpaceSize < diskThreshold:
                 tmpLog.debug('  skip {0} due to disk shortage in SE = {1}-{2}x{3} < {4}'.format(tmpSiteName,tmpSiteSpec.space,
                                                                                                     outSizePerJob,nRemJobs,
                                                                                                     diskThreshold))
@@ -402,22 +402,31 @@ class AtlasAnalJobBroker (JobBrokerBase):
         for siteCandidateSpec in candidateSpecList:
             tmpSiteName = siteCandidateSpec.siteName
             # set available files
+            isAvailable = False
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():
                 # check remote files
                 if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(tmpDatasetName):
-                    tmpRemoteSite = remoteSourceList[tmpSiteName][tmpDatasetName]
-                    if availableFiles.has_key(tmpRemoteSite):
-                        # use only remote disk files
-                        siteCandidateSpec.remoteFiles += availableFiles[tmpRemoteSite]['localdisk']
-                        # set remote site and access protocol
-                        siteCandidateSpec.remoteProtocol = allowedRemoteProtocol
-                        siteCandidateSpec.remoteSource   = tmpSiteName
+                    for tmpRemoteSite in remoteSourceList[tmpSiteName][tmpDatasetName]:
+                        if availableFiles.has_key(tmpRemoteSite) and availableFiles[tmpRemoteSite]['localdisk'] != []:
+                            # use only remote disk files
+                            siteCandidateSpec.remoteFiles += availableFiles[tmpRemoteSite]['localdisk']
+                            # set remote site and access protocol
+                            siteCandidateSpec.remoteProtocol = allowedRemoteProtocol
+                            siteCandidateSpec.remoteSource   = tmpSiteName
+                            isAvailable = True
+                            break
                 elif availableFiles.has_key(tmpSiteName):
                     siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
                     siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
                     siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
                     siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
+                    isAvailable = True
+                if not isAvailable:
+                    break
             # append
+            if not isAvailable:
+                tmpLog.debug('  skip {0} file unavailable'.format(siteCandidateSpec.siteName))
+                continue
             inputChunk.addSiteCandidate(siteCandidateSpec)
             tmpLog.debug('  use {0} with weight={1} nLocalDisk={2} nLocalTaps={3} nCache={4} nRemote={5}'.format(siteCandidateSpec.siteName,
                                                                                                                  siteCandidateSpec.weight,

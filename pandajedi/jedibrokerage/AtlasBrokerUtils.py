@@ -218,7 +218,9 @@ def getSatelliteSites(siteList,taskBufferIF,protocol='xrd',nSites=5,threshold=0,
         for tmpD,tmpW in tmpVal.iteritems():
             # use first or larger value
             if not retVal.has_key(tmpD) or retVal[tmpD]['weight'] < tmpW:
-                retVal[tmpD] = {'weight':tmpW,'source':siteName}
+                retVal[tmpD] = {'weight':tmpW,'source':[siteName]}
+            elif retVal.has_key(tmpD) and retVal[tmpD]['weight'] == tmpW:
+                retVal[tmpD]['source'].append(siteName)
     return retVal
                         
 
