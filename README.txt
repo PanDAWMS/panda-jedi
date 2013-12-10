@@ -1,5 +1,8 @@
 Release Note
 
+* 12/10/2013
+  * implemented TaskSetupper for ATLAS analysis
+
 * 12/2/2013 
   * set task status to broken when no scout jobs succeeded
   * fixed retry for scouting

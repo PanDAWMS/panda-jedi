@@ -4,6 +4,7 @@ import sys
 from pandajedi.jedicore import Interaction
 from TaskRefinerBase import TaskRefinerBase
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+from pandaserver.config import panda_config
 
 
 # brokerage for ATLAS analysis
@@ -12,6 +13,46 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
     # constructor
     def __init__(self,taskBufferIF,ddmIF):
         TaskRefinerBase.__init__(self,taskBufferIF,ddmIF)
+
+
+    # extract common parameters
+    def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule):
+        processingTypes = taskParamMap['processingType'].split('-')
+        # set transPath
+        if not taskParamMap.has_key('transPath'):
+            if 'athena' in processingTypes:
+                # athena
+                taskParamMap['transPath'] = 'http://{0}:{1}/trf/user/runAthena-00-00-11'.format(panda_config.pserveralias,
+                                                                                                panda_config.pserverportcache)
+                if taskParamMap.has_key('buildSpec') and not taskParamMap['buildSpec'].has_key('transPath'):
+                    taskParamMap['buildSpec']['transPath'] = 'http://{0}:{1}/trf/user/buildJob-00-00-03'.format(panda_config.pserveralias,
+                                                                                                                panda_config.pserverportcache)
+            else:
+                # general executable
+                taskParamMap['transPath'] = 'http://{0}:{1}/trf/user/runGen-00-00-02'.format(panda_config.pserveralias,
+                                                                                             panda_config.pserverportcache)
+                if taskParamMap.has_key('buildSpec') and not taskParamMap['buildSpec'].has_key('transPath'):
+                    taskParamMap['buildSpec']['transPath'] = 'http://{0}:{1}/trf/user/buildGen-00-00-01'.format(panda_config.pserveralias,
+                                                                                                                panda_config.pserverportcache)
+        # set transPath for preprocessing
+        if taskParamMap.has_key('preproSpec') and not taskParamMap['preproSpec'].has_key('transPath'):
+            if 'evp' in processingTypes:
+                # event picking
+                taskParamMap['preproSpec']['transPath'] = 'http://{0}:{1}/trf/user/preEvtPick-00-00-01'.format(panda_config.pserveralias,
+                                                                                                               panda_config.pserverportcache)
+            elif 'grl' in processingTypes:
+                # good run list
+                taskParamMap['preproSpec']['transPath'] = 'http://{0}:{1}/trf/user/preGoodRunList-00-00-01'.format(panda_config.pserveralias,
+                                                                                                                   panda_config.pserverportcache)
+        # set transPath for merge
+        if taskParamMap.has_key('mergeSpec') and not taskParamMap['mergeSpec'].has_key('transPath'):
+            taskParamMap['mergeSpec']['transPath'] = 'http://{0}:{1}/trf/user/runMerge-00-00-02'.format(panda_config.pserveralias,
+                                                                                                        panda_config.pserverportcache)
+        # update task parameters
+        self.updatedTaskParams = taskParamMap
+        # call base method
+        TaskRefinerBase.extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule)
+
 
 
     # main
@@ -40,6 +81,10 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 # set attributes to DBR
                 if datasetSpec.datasetName.startswith('ddo.'):
                     datasetSpec.attributes = 'repeat,nosplit'
+            # destination
+            if taskParamMap.has_key('destination'):
+                for datasetSpec in self.outDatasetSpecList:
+                    datasetSpec.destination = taskParamMap['destination']
             # use build
             if taskParamMap.has_key('buildSpec'):
                 self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['useBuild'])
@@ -54,6 +99,13 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 tmpLog.error('failed to get jobsetID failed')
                 return self.SC_FAILED
             self.taskSpec.reqID = tmpJobID
+            # site limitation
+            if 'excludedSite' in taskParamMap and 'includedSite' in taskParamMap:
+                self.taskSpec.setLimitedSites('incexc')
+            elif 'excludedSite' in taskParamMap:
+                self.taskSpec.setLimitedSites('exc')
+            elif 'includedSite' in taskParamMap:
+                self.taskSpec.setLimitedSites('inc')
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))

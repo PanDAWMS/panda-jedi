@@ -22,30 +22,37 @@ class AtlasTaskSetupper (TaskSetupperBase):
 
 
     # main to setup task
-    def doSetup(self,taskSpec):
+    def doSetup(self,taskSpec,datasetToRegister):
         # make logger
         tmpLog = MsgWrapper(logger,"<jediTaskID={0}>".format(taskSpec.jediTaskID))
         tmpLog.info('start label={0} taskType={1}'.format(taskSpec.prodSourceLabel,taskSpec.taskType))
+        tmpLog.info('datasetToRegister={0}'.format(str(datasetToRegister)))
         # returns
         retFatal    = self.SC_FATAL
         retTmpError = self.SC_FAILED
         retOK       = self.SC_SUCCEEDED
         try:
-            # check prodSourceLabel
-            if taskSpec.prodSourceLabel in ['managed','test']:
-                # get output and log datasets
-                tmpStat,datasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,
-                                                                                           ['output','log'])
-                if not tmpStat:
-                    tmpLog.error('failed to get output and log datasets')
-                    return retFatal
+            if datasetToRegister != []:
+                # prod vs anal
+                userSetup = False
+                if taskSpec.prodSourceLabel in ['user']:
+                    userSetup = True
                 # get DDM I/F
                 ddmIF = self.ddmIF.getInterface(taskSpec.vo)
-                # loop over datasets
+                # get site mapper
+                siteMapper = self.taskBufferIF.getSiteMapper()
+                # loop over all datasets
                 avDatasetList = []
-                cnDatasetMap  = []
-                for datasetSpec in datasetSpecList:
-                    tmpLog.info('checking datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName)) 
+                cnDatasetMap  = {}
+                for datasetID in datasetToRegister:
+                    # get output and log datasets
+                    tmpLog.info('getting datasetSpec with datasetID={0}'.format(datasetID))
+                    tmpStat,datasetSpec = self.taskBufferIF.getDatasetWithID_JEDI(taskSpec.jediTaskID,
+                                                                                  datasetID)
+                    if not tmpStat:
+                        tmpLog.error('failed to get output and log datasets')
+                        return retFatal
+                    tmpLog.info('checking {0}'.format(datasetSpec.datasetName)) 
                     # check if dataset and container are available in DDM
                     for targetName in [datasetSpec.datasetName,datasetSpec.containerName]:
                         if targetName == None:
@@ -60,6 +67,24 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                 if not tmpStat:
                                     tmpLog.error('failed to register {0}'.format(targetName))
                                     return retFatal
+                                # procedures for user 
+                                if userSetup:
+                                    # set owner
+                                    tmpLog.info('setting owner={0}'.format(taskSpec.userName))
+                                    tmpStat = ddmIF.setDatasetOwner(targetName,taskSpec.userName)
+                                    if not tmpStat:
+                                        tmpLog.error('failed to set ownership {0} with {1}'.format(targetName,
+                                                                                                   taskSpec.userName))
+                                        return retFatal
+                                    # register location
+                                    if targetName == datasetSpec.datasetName and not datasetSpec.site in ['',None]: 
+                                        location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
+                                        tmpLog.info('registring location={0}'.format(location))
+                                        tmpStat = ddmIF.registerDatasetLocation(targetName,location,owner=taskSpec.userName)
+                                        if not tmpStat:
+                                            tmpLog.error('failed to register location {0} for {1}'.format(location,
+                                                                                                          targetName))
+                                            return retFatal
                                 avDatasetList.append(targetName)
                             else:
                                 tmpLog.info('{0} already registered'.format(targetName))
@@ -69,9 +94,9 @@ class AtlasTaskSetupper (TaskSetupperBase):
                         if not cnDatasetMap.has_key(datasetSpec.containerName):
                             cnDatasetMap[datasetSpec.containerName] = ddmIF.listDatasetsInContainer(datasetSpec.containerName)
                         # add dataset
-                        if not cnDatasetMap[datasetSpec.containerName].has_key(datasetSpec.datasetName):
+                        if not datasetSpec.datasetName in cnDatasetMap[datasetSpec.containerName]:
                             tmpLog.info('adding {0} to {1}'.format(datasetSpec.datasetName,datasetSpec.containerName)) 
-                            tmpStat = ddmIF.addDatasetsToContainer(datasetSpec.containerName,datasetSpec.datasetName)
+                            tmpStat = ddmIF.addDatasetsToContainer(datasetSpec.containerName,[datasetSpec.datasetName])
                             if not tmpStat:
                                 tmpLog.error('failed to add {0} to {1}'.format(datasetSpec.datasetName,
                                                                                datasetSpec.containerName))
@@ -79,6 +104,10 @@ class AtlasTaskSetupper (TaskSetupperBase):
                             cnDatasetMap[datasetSpec.containerName].append(datasetSpec.datasetName)
                         else:
                             tmpLog.info('{0} already in {1}'.format(datasetSpec.datasetName,datasetSpec.containerName)) 
+                    # update dataset
+                    datasetSpec.status = 'registered'
+                    self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'jediTaskID':taskSpec.jediTaskID,
+                                                                      'datasetID':datasetID})
             # return
             tmpLog.info('done')        
             return retOK

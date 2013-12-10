@@ -18,6 +18,7 @@ from dq2.clientapi.DQ2 import \
     DQFrozenDatasetException
 from dq2.container.exceptions import DQContainerExistsException
 import dq2.filecatalog
+from dq2.common import parse_dn
 from dq2.info.client.infoClient import infoClient
 
 try:
@@ -694,6 +695,8 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.info('start')
         try:
+            # cleanup DN
+            userName = parse_dn(userName)
             # exec
             tmpRet = infoClient().finger(userName)
         except:
@@ -701,7 +704,56 @@ class AtlasDDMClient(DDMClientBase):
             errCode = self.checkError(errtype)
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
+            return errCode,'{0}:{1}'.format(methodName,errMsg)
         tmpLog.info('done')
         return self.SC_SUCCEEDED,tmpRet
+
+
+
+    # set dataset ownership
+    def setDatasetOwner(self,datasetName,userName):
+        methodName = 'setDatasetOwner'
+        methodName = '{0} datasetName={1} userName={2}'.format(methodName,datasetName,userName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.info('start')
+        try:
+            # cleanup DN
+            userName = parse_dn(userName)
+            # get DQ2 API            
+            dq2=DQ2()
+            # set
+            dq2.setMetaDataAttribute(datasetName,'owner',userName)
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
+        tmpLog.info('done')
+        return self.SC_SUCCEEDED,True
+
+
+
+    # register location
+    def registerDatasetLocation(self,datasetName,location,lifetime=None,owner=None):
+        methodName = 'registerDatasetLocation'
+        methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.info('start')
+        try:
+            # cleanup DN
+            owner = parse_dn(owner)
+            # get DQ2 API            
+            dq2=DQ2()
+            # set
+            dq2.registerDatasetLocation(datasetName,location,lifetime=lifetime)
+            dq2.setReplicaMetaDataAttribute(datasetName,location,'owner',owner)
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
+        tmpLog.info('done')
+        return self.SC_SUCCEEDED,True
         

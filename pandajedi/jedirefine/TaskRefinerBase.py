@@ -390,7 +390,7 @@ class TaskRefinerBase (object):
         logDatasetSpec.nFilesFinished = 0
         logDatasetSpec.nFilesFailed = 0
         logDatasetSpec.nFilesOnHold = 0
-        logDatasetSpec.status = 'ready'
+        logDatasetSpec.status = 'defined'
         self.outDatasetSpecList.append(logDatasetSpec)
         # make output template for log
         outTemplateMap = {'jediTaskID' : self.taskSpec.jediTaskID,

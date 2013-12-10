@@ -23,7 +23,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
 
     # main
-    def doBrokerage(self,taskSpec,cloudName,inputChunk):
+    def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap):
         # make logger
         tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID))
         tmpLog.debug('start')

@@ -5,7 +5,7 @@ import datetime
 
 from pandajedi.jedicore import Interaction
 from PostProcessorBase import PostProcessorBase
-
+from pandajedi.jedirefine import RefinerUtils
 
 
 # post processor for ATLAS production
@@ -23,12 +23,15 @@ class AtlasAnalPostProcessor (PostProcessorBase):
             # get DDM I/F
             ddmIF = self.ddmIF.getInterface(taskSpec.vo)
             # loop over all datasets
+            useLib = False
+            nOkLib = 0
             for datasetSpec in taskSpec.datasetSpecList:
                 # ignore template
                 if datasetSpec.type.startswith('tmpl_'):
                     continue
-                # only output or log datasets
-                if not datasetSpec.type.endswith('log') and not datasetSpec.type.endswith('output'):
+                # only output, log or lib datasets
+                if not datasetSpec.type.endswith('log') and not datasetSpec.type.endswith('output') \
+                        and not datasetSpec.type == 'lib':
                     continue
                 # only user or panda dataset
                 if not datasetSpec.datasetName.startswith('user') and not datasetSpec.datasetName.startswith('panda'):
@@ -39,9 +42,16 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 # update dataset
                 datasetSpec.state = 'closed'
                 datasetSpec.stateCheckTime = datetime.datetime.utcnow()
+                # check prepro and 
+                if datasetSpec.type == 'lib':
+                    useLib = True
+                    nOkLib += datasetSpec.nFilesFinished
+            # dialog
+            if useLib and nOkLib == 0:
+                taskSpec.setErrDiag('No build jobs succeeded',True)
         except:
             errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('failed to freeze datasets with {0}:{1}'.format(errtype.__name__,errvalue))
+            tmpLog.warning('failed to freeze datasets with {0}:{1}'.format(errtype.__name__,errvalue))
         retVal = self.SC_SUCCEEDED
         try:
             self.doBasicPostProcess(taskSpec,tmpLog)
@@ -54,7 +64,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
 
 
     # final procedure
-    def doFinalProcedre(self,taskSpec,tmpLog):
+    def doFinalProcedure(self,taskSpec,tmpLog):
         # check email address
         toAdd = self.getEmail(taskSpec.userName,taskSpec.vo,tmpLog)
         if toAdd == None:
@@ -70,18 +80,23 @@ class AtlasAnalPostProcessor (PostProcessorBase):
 
     # compose mail message
     def composeMessage(self,taskSpec,fromAdd,toAdd):
+        # get full task parameters
+        taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
+        taskParamMap = RefinerUtils.decodeJSON(taskParam)
+        # make message
         message = \
-            """Subject: JEDI notification for jediTaskID : {jediTaskID}
+            """Subject: JEDI notification for JobsetID:{JobsetID} (jediTaskID:{jediTaskID})
 From: {fromAdd}
 To: {toAdd}
 
-Summary of jediTaskID : {jediTaskID}
+Summary of JobsetID:{JobsetID} (jediTaskID:{jediTaskID})
 
 Created : {creationDate} (UTC)
 Ended   : {endTime} (UTC)
 
 Final Status : {status}
 
+Error Dialog : {errorDialog}
 
 Parameters : {params}
 
@@ -93,7 +108,8 @@ PandaMonURL : http://pandamon.cern.ch/jedi/taskinfo?task={jediTaskID}""".format(
             creationDate=taskSpec.creationDate,
             endTime=taskSpec.endTime,
             status=taskSpec.status,
-            params=None,
+            errorDialog=taskSpec.errorDialog,
+            params=taskParamMap['cliParams'],
             )
                     
         # tailer            
@@ -129,13 +145,11 @@ Report Panda problems of any sort to
             tmpLog.debug("DN is empty")
             return retSupp
         # get email from DQ2
-        realDN = re.sub('/CN=limited proxy','',dn)
-        realDN = re.sub('(/CN=proxy)+','',realDN)
-        tmpLog.debug("getting email using dq2Info.finger({0})".format(realDN))
+        tmpLog.debug("getting email using dq2Info.finger({0})".format(dn))
         nTry = 3
         for iDDMTry in range(nTry):
             try:
-                userInfo = self.ddmIF.getInterface(vo).finger(realDN)
+                userInfo = self.ddmIF.getInterface(vo).finger(dn)
                 mailAddr = userInfo['email']
                 tmpLog.debug("email from DQ2 : {0}".format(mailAddr))
                 return mailAddr

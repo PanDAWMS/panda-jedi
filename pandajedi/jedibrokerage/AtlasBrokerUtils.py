@@ -297,3 +297,20 @@ def hasZeroShare(siteSpec,workQueue_ID):
                 return False
     # return
     return False
+
+
+
+# check if site name is matched with one of list items
+def isMatched(siteName,nameList):
+    for tmpName in nameList:
+        # wild card
+        if '*' in tmpName:
+            tmpName = tmpName.replace('*','.*')
+            if re.search(tmpName,siteName) != None:
+                return True
+        else:
+            # normal pattern
+            if tmpName == siteName:
+                return True
+    # return
+    return False

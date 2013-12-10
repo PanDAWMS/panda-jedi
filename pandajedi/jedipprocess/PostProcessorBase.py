@@ -5,6 +5,7 @@ import copy
 import time
 import types
 import smtplib
+import datetime
 
 from pandajedi.jedicore import Interaction
 from pandaserver.config import panda_config
@@ -56,8 +57,14 @@ class PostProcessorBase (object):
             taskSpec.status = 'finished'
         elif nFilesFinished == 0:
             taskSpec.status = 'failed'
+            # set dialog for preprocess
+            if taskSpec.usePrePro() and not taskSpec.checkPreProcessed():
+                taskSpec.setErrDiag('Preprocessing step failed',True)
         else:
             taskSpec.status = 'partial'
+        # end time
+        taskSpec.endTime = datetime.datetime.utcnow()
+        # update task
         self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})    
         tmpLog.info('doBasicPostProcess set taskStatus={0}'.format(taskSpec.status))
         return
@@ -65,7 +72,7 @@ class PostProcessorBase (object):
 
 
     # final procedure
-    def doFinalProcedre(self,taskSpec,tmpLog):
+    def doFinalProcedure(self,taskSpec,tmpLog):
         return self.SC_SUCCEEDED
 
     

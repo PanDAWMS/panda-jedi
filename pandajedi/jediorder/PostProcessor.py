@@ -153,10 +153,10 @@ class PostProcessorThread (WorkerThread):
                         self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})    
                     # final procedure
                     try:
-                        impl.doFinalProcedre(taskSpec,tmpLog)
+                        impl.doFinalProcedure(taskSpec,tmpLog)
                     except:
                         errtype,errvalue = sys.exc_info()[:2]
-                        tmpLog.error('doFinalProcedre failed with {0}:{1}'.format(errtype.__name__,errvalue))
+                        tmpLog.error('doFinalProcedure failed with {0}:{1}'.format(errtype.__name__,errvalue))
                     # done
                     tmpLog.info('done')
             except:

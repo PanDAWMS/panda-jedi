@@ -34,6 +34,7 @@ class JediTaskSpec(object):
         'instantiateTmplSite': 'IA',
         'instantiateTmpl'    : 'IT',
         'useLocalIO'         : 'LI',
+        'limitedSites'       : 'LS',
         'nMaxFilesPerJob'    : 'MF',
         'nEventsPerJob'      : 'NE',
         'nFilesPerJob'       : 'NF',
@@ -46,6 +47,10 @@ class JediTaskSpec(object):
     # enum for preprocessing
     enum_toPreProcess = '1'
     enum_preProcessed = '2'
+    # enum for limited sites
+    enum_limitedSites = {'1' : 'inc',
+                         '2' : 'exc',
+                         '3' : 'incexc'}
 
 
 
@@ -284,6 +289,36 @@ class JediTaskSpec(object):
 
 
 
+    # use only limited sites
+    def useLimitedSites(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['limitedSites']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # set limited sites
+    def setLimitedSites(self,policy):
+        tag = None
+        for tmpIdx,tmpPolicy in self.enum_limitedSites.iteritems():
+            if policy == tmpPolicy:
+                tag = tmpIdx
+                break
+        # not found
+        if tag == None:
+            return
+        # set
+        if self.splitRule == None:
+            # new
+            self.splitRule = self.splitRuleToken['limitedSites']+'='+tag
+        else:
+            # append
+            self.splitRule += ','+self.splitRuleToken['limitedSites']+'='+tag
+
+
+
     # use local IO
     def useLocalIO(self):
         if self.splitRule != None:
@@ -432,8 +467,15 @@ class JediTaskSpec(object):
 
     # return list of status to reject external changes
     def statusToRejectExtChange(cls):
-        return ['finised','prepared','broken','aborted','aborting','finishing']
+        return ['finished','prepared','broken','aborted','failed','aborting','finishing']
     statusToRejectExtChange = classmethod(statusToRejectExtChange)
+
+
+
+    # return list of status for Job Generator
+    def statusForJobGenerator(cls):
+        return ['ready','running','scouting','topreprocess','preprocessing']
+    statusForJobGenerator = classmethod(statusForJobGenerator)
 
 
 

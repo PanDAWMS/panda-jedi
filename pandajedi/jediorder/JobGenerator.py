@@ -11,6 +11,7 @@ import datetime
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedirefine import RefinerUtils
 from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.taskbuffer.FileSpec import FileSpec
@@ -189,24 +190,8 @@ class JobGeneratorThread (WorkerThread):
                     tmpLog.info('start with VO={0} cloud={1}'.format(taskSpec.vo,cloudName))
                     readyToSubmitJob = False
                     jobsSubmitted = False
-                    # setup tasks if the first attempt
                     goForward = True
-                    if taskSpec.status == 'ready':
-                        tmpLog.info('run setupper with {0}'.format(self.taskSetupper.getClassName(taskSpec.vo,
-                                                                                                  taskSpec.prodSourceLabel)))
-                        tmpStat = self.taskSetupper.doSetup(taskSpec)
-                        if tmpStat == Interaction.SC_FATAL:
-                            tmpErrStr = 'fatal error when setup task'
-                            tmpLog.error(tmpErrStr)
-                            taskSpec.status = 'broken'
-                            taskSpec.setErrDiag(tmpErrStr,True)
-                            goForward = False
-                        elif tmpStat != Interaction.SC_SUCCEEDED:
-                            tmpErrStr = 'failed to setup task'
-                            tmpLog.error(tmpErrStr)
-                            taskSpec.setOnHold()
-                            taskSpec.setErrDiag(tmpErrStr,True)
-                            goForward = False
+                    taskParamMap = None
                     # initialize brokerage
                     if goForward:        
                         jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
@@ -218,12 +203,21 @@ class JobGeneratorThread (WorkerThread):
                             taskSpec.status = 'broken'
                             taskSpec.setErrDiag(tmpErrStr)                        
                             goForward = False
+                    # read task params if nessesary
+                    if taskSpec.useLimitedSites():
+                        tmpStat,taskParamMap = self.readTaskParams(taskSpec,taskParamMap,tmpLog)
+                        if not tmpStat:
+                            tmpErrStr = 'failed to read task params'
+                            tmpLog.error(tmpErrStr)
+                            taskSpec.status = 'broken'
+                            taskSpec.setErrDiag(tmpErrStr)                        
+                            goForward = False
+                    # run brokerage
                     if goForward:
-                        # run brokerage
                         tmpLog.info('run brokerage with {0}'.format(jobBroker.getClassName(taskSpec.vo,
                                                                                            taskSpec.prodSourceLabel)))
                         try:
-                            tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk)
+                            tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,taskParamMap)
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('brokerage crashed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -233,50 +227,72 @@ class JobGeneratorThread (WorkerThread):
                             tmpLog.error(tmpErrStr)
                             taskSpec.setOnHold()
                             taskSpec.setErrDiag(tmpErrStr,True)
+                            goForward = False
+                    # run splitter
+                    if goForward:
+                        tmpLog.info('run splitter')
+                        splitter = JobSplitter()
+                        try:
+                            tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
+                            # * remove the last sub-chunk when inputChunk is read in a block 
+                            #   since alignment could be broken in the last sub-chunk 
+                            #    e.g., inputChunk=10 -> subChunks=4,4,2 and remove 2
+                            # * don't remove it for the last inputChunk
+                            # e.g., inputChunks = 10(remove),10(remove),3(not remove)
+                            if len(subChunks[-1]['subChunks']) > 1 and inputChunk.masterDataset != None \
+                                    and inputChunk.readBlock == True:
+                                subChunks[-1]['subChunks'] = subChunks[-1]['subChunks'][:-1]
+                        except:
+                            errtype,errvalue = sys.exc_info()[:2]
+                            tmpLog.error('splitter crashed with {0}:{1}'.format(errtype.__name__,errvalue))
+                            tmpStat = Interaction.SC_FAILED
+                        if tmpStat != Interaction.SC_SUCCEEDED:
+                            tmpErrStr = 'splitting failed'
+                            tmpLog.error(tmpErrStr)
+                            taskSpec.setOnHold()
+                            taskSpec.setErrDiag(tmpErrStr)                                
+                            goForward = False
+                    # generate jobs
+                    if goForward:
+                        tmpLog.info('run job generator')
+                        try:
+                            tmpStat,pandaJobs,datasetToRegister = self.doGenerate(taskSpec,cloudName,subChunks,
+                                                                                  inputChunk,tmpLog,
+                                                                                  taskParamMap=taskParamMap)
+                        except:
+                            errtype,errvalue = sys.exc_info()[:2]
+                            tmpLog.error('generator crashed with {0}:{1}'.format(errtype.__name__,errvalue))
+                            tmpStat = Interaction.SC_FAILED
+                        if tmpStat != Interaction.SC_SUCCEEDED:
+                            tmpErrStr = 'job generation failed'
+                            tmpLog.error(tmpErrStr)
+                            taskSpec.status = 'broken'
+                            taskSpec.setErrDiag(tmpErrStr)
+                            goForward = False
+                    # setup task
+                    if goForward:
+                        tmpLog.info('run setupper with {0}'.format(self.taskSetupper.getClassName(taskSpec.vo,
+                                                                                                  taskSpec.prodSourceLabel)))
+                        tmpStat = self.taskSetupper.doSetup(taskSpec,datasetToRegister)
+                        if tmpStat == Interaction.SC_FATAL:
+                            tmpErrStr = 'fatal error when setup task'
+                            tmpLog.error(tmpErrStr)
+                            taskSpec.status = 'broken'
+                            taskSpec.setErrDiag(tmpErrStr,True)
+                        elif tmpStat != Interaction.SC_SUCCEEDED:
+                            tmpErrStr = 'failed to setup task'
+                            tmpLog.error(tmpErrStr)
+                            taskSpec.setOnHold()
+                            taskSpec.setErrDiag(tmpErrStr,True)
                         else:
-                            # run splitter
-                            tmpLog.info('run splitter')
-                            splitter = JobSplitter()
-                            try:
-                                tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
-                                # * remove the last sub-chunk when inputChunk is read in a block 
-                                #   since alignment could be broken in the last sub-chunk 
-                                #    e.g., inputChunk=10 -> subChunks=4,4,2 and remove 2
-                                # * don't remove it for the last inputChunk
-                                # e.g., inputChunks = 10(remove),10(remove),3(not remove)
-                                if len(subChunks[-1]['subChunks']) > 1 and inputChunk.masterDataset != None \
-                                        and inputChunk.readBlock == True:
-                                    subChunks[-1]['subChunks'] = subChunks[-1]['subChunks'][:-1]
-                            except:
-                                errtype,errvalue = sys.exc_info()[:2]
-                                tmpLog.error('splitter crashed with {0}:{1}'.format(errtype.__name__,errvalue))
-                                tmpStat = Interaction.SC_FAILED
-                            if tmpStat != Interaction.SC_SUCCEEDED:
-                                tmpErrStr = 'splitting failed'
-                                tmpLog.error(tmpErrStr)
-                                taskSpec.setOnHold()
-                                taskSpec.setErrDiag(tmpErrStr)                                
-                            else:
-                                # generate jobs
-                                tmpLog.info('run job generator')
-                                try:
-                                    tmpStat,pandaJobs = self.doGenerate(taskSpec,cloudName,subChunks,
-                                                                        inputChunk,tmpLog)
-                                except:
-                                    errtype,errvalue = sys.exc_info()[:2]
-                                    tmpLog.error('generator crashed with {0}:{1}'.format(errtype.__name__,errvalue))
-                                    tmpStat = Interaction.SC_FAILED
-                                if tmpStat != Interaction.SC_SUCCEEDED:
-                                    tmpErrStr = 'job generation failed'
-                                    tmpLog.error(tmpErrStr)
-                                    taskSpec.status = 'broken'
-                                    taskSpec.setErrDiag(tmpErrStr)
-                                else:
-                                    readyToSubmitJob = True
+                            readyToSubmitJob = True
+                    # submit
                     if readyToSubmitJob:
                         # submit
                         tmpLog.info('submit jobs')
-                        resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,toPending=True)
+                        fqans = self.makeFQANs(taskSpec)
+                        resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,
+                                                                fqans=fqans,toPending=True)
                         pandaIDs = []
                         for items in resSubmit:
                             if items[0] != 'NULL':
@@ -303,29 +319,42 @@ class JobGeneratorThread (WorkerThread):
                     # reset unused files
                     self.taskBufferIF.resetUnusedFiles_JEDI(taskSpec.jediTaskID,inputChunk)
                     # update task
-                    tmpLog.info('update task.status=%s' % taskSpec.status)
                     taskSpec.lockedBy = None
-                    self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
+                    retDB = self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
+                                                              oldStatus=JediTaskSpec.statusForJobGenerator())
+                    tmpLog.info('update task.status={0} with {1}'.format(taskSpec.status,str(retDB)))
                     tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('%s.runImpl() failed with %s %s' % (self.__class__.__name__,errtype.__name__,errvalue))
 
 
+
+    # read task parameters
+    def readTaskParams(self,taskSpec,taskParamMap,tmpLog):
+        # already read
+        if taskParamMap != None:
+            return True,taskParamMap
+        try:
+            # read task parameters
+            taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
+            taskParamMap = RefinerUtils.decodeJSON(taskParam)
+            return True,taskParamMap
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
+            return False,None
+
+
+
     # generate jobs
-    def doGenerate(self,taskSpec,cloudName,inSubChunkList,inputChunk,tmpLog,simul=False):
+    def doGenerate(self,taskSpec,cloudName,inSubChunkList,inputChunk,tmpLog,simul=False,taskParamMap=None):
         # return for failure
-        failedRet = Interaction.SC_FAILED,None
+        failedRet = Interaction.SC_FAILED,None,None
         # read task parameters
-        taskParamMap = None
         if taskSpec.useBuild() or taskSpec.usePrePro() or inputChunk.isMerging:
-            try:
-                # read task parameters
-                taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
-                taskParamMap = RefinerUtils.decodeJSON(taskParam)
-            except:
-                errtype,errvalue = sys.exc_info()[:2]
-                tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
+            tmpStat,taskParamMap = self.readTaskParams(taskSpec,taskParamMap,tmpLog)
+            if not tmpStat:
                 return failedRet
         # priority for scout
         scoutPriority = 900
@@ -333,6 +362,7 @@ class JobGeneratorThread (WorkerThread):
             # loop over all sub chunks
             jobSpecList = []
             outDsMap = {}
+            datasetToRegister = []
             for tmpInChunk in inSubChunkList:
                 siteName      = tmpInChunk['siteName']
                 inSubChunks   = tmpInChunk['subChunks']
@@ -340,8 +370,8 @@ class JobGeneratorThread (WorkerThread):
                 buildFileSpec = None
                 # make preprocessing job
                 if taskSpec.usePrePro():
-                    tmpStat,preproJobSpec = self.doGeneratePrePro(taskSpec,cloudName,siteName,taskParamMap,
-                                                                  inSubChunks,tmpLog,simul)
+                    tmpStat,preproJobSpec,datasetToRegister = self.doGeneratePrePro(taskSpec,cloudName,siteName,taskParamMap,
+                                                                                    inSubChunks,tmpLog,simul)
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to generate prepro job')
                         return failedRet
@@ -350,7 +380,8 @@ class JobGeneratorThread (WorkerThread):
                     break
                 # make build job
                 elif taskSpec.useBuild():
-                    tmpStat,buildJobSpec,buildFileSpec = self.doGenerateBuild(taskSpec,cloudName,siteName,taskParamMap,tmpLog,simul)
+                    tmpStat,buildJobSpec,buildFileSpec,datasetToRegister = self.doGenerateBuild(taskSpec,cloudName,siteName,
+                                                                                                taskParamMap,tmpLog,simul)
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to generate build job')
                         return failedRet
@@ -467,17 +498,20 @@ class JobGeneratorThread (WorkerThread):
                     else:
                         instantiateTmpl = False
                     # outputs
-                    outSubChunk,serialNr = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
-                                                                                 provenanceID,
-                                                                                 simul,
-                                                                                 instantiateTmpl,
-                                                                                 instantiatedSite,
-                                                                                 isUnMerging,
-                                                                                 False)
+                    outSubChunk,serialNr,tmpToRegister = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
+                                                                                               provenanceID,
+                                                                                               simul,
+                                                                                               instantiateTmpl,
+                                                                                               instantiatedSite,
+                                                                                               isUnMerging,
+                                                                                               False)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
                         return failedRet
+                    for tmpToRegisterItem in tmpToRegister:
+                        if not tmpToRegisterItem in datasetToRegister:
+                            datasetToRegister.append(tmpToRegisterItem)
                     for tmpFileSpec in outSubChunk.values():
                         # get dataset
                         if not outDsMap.has_key(tmpFileSpec.datasetID):
@@ -505,7 +539,7 @@ class JobGeneratorThread (WorkerThread):
                     # addd
                     jobSpecList.append(jobSpec)
             # return
-            return Interaction.SC_SUCCEEDED,jobSpecList
+            return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('{0}.doGenerate() failed with {1}:{2}'.format(self.__class__.__name__,
@@ -517,8 +551,9 @@ class JobGeneratorThread (WorkerThread):
     # generate build jobs
     def doGenerateBuild(self,taskSpec,cloudName,siteName,taskParamMap,tmpLog,simul=False):
         # return for failure
-        failedRet = Interaction.SC_FAILED,None,None
+        failedRet = Interaction.SC_FAILED,None,None,None
         try:
+            datasetToRegister = []
             # get lib.tgz file
             tmpStat,fileSpec,datasetSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID,siteName)
             # failed
@@ -532,7 +567,7 @@ class JobGeneratorThread (WorkerThread):
                 # make dummy jobSpec
                 jobSpec = JobSpec()
                 jobSpec.addFile(pandaFileSpec)
-                return Interaction.SC_SUCCEEDED,None,pandaFileSpec
+                return Interaction.SC_SUCCEEDED,None,pandaFileSpec,datasetToRegister
             # make job spec for build
             jobSpec = JobSpec()
             jobSpec.jobDefinitionID  = 0
@@ -558,9 +593,16 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.lockedby         = 'jedi'
             jobSpec.workQueue_ID     = taskSpec.workQueue_ID
             # make libDS name
-            libDsName = 'panda.{0}.{1}.lib._{2:06d}'.format(time.strftime('%m%d%H%M%S',time.gmtime()),
-                                                            datetime.datetime.utcnow().microsecond,
-                                                            jobSpec.jediTaskID)
+            if datasetSpec == None or datasetSpec.state == 'closed':
+                # make new libDS
+                reusedDatasetID = None
+                libDsName = 'panda.{0}.{1}.lib._{2:06d}'.format(time.strftime('%m%d%H%M%S',time.gmtime()),
+                                                                datetime.datetime.utcnow().microsecond,
+                                                                jobSpec.jediTaskID)
+            else:
+                # reuse existing DS
+                reusedDatasetID = datasetSpec.datasetID
+                libDsName = datasetSpec.datasetName
             jobSpec.destinationDBlock = libDsName
             jobSpec.destinationSE = siteName  
             # make lib.tgz
@@ -592,7 +634,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.jobParameters = self.makeBuildJobParameters(taskParamMap['buildSpec']['jobParameters'],
                                                                 paramMap)
             # insert lib.tgz file
-            tmpStat,fileIdMap = self.taskBufferIF.insertBuildFileSpec_JEDI(jobSpec,simul)
+            tmpStat,fileIdMap = self.taskBufferIF.insertBuildFileSpec_JEDI(jobSpec,reusedDatasetID,simul)
             # failed
             if not tmpStat:
                 tmpLog.error('failed to insert libDS for jediTaskID={0} siteName={0}'.format(taskSpec.jediTaskID,siteName))
@@ -601,13 +643,15 @@ class JobGeneratorThread (WorkerThread):
             for tmpFile in jobSpec.Files:
                 tmpFile.fileID = fileIdMap[tmpFile.lfn]['fileID']
                 tmpFile.datasetID = fileIdMap[tmpFile.lfn]['datasetID']
+                if not tmpFile.datasetID in datasetToRegister:
+                    datasetToRegister.append(tmpFile.datasetID)
             # make file spec which will be used by runJobs
             runFileSpec = copy.copy(fileSpec)
             runFileSpec.dispatchDBlock = fileSpec.dataset
             runFileSpec.destinationDBlock = None
             runFileSpec.type = 'input'
             # return
-            return Interaction.SC_SUCCEEDED,jobSpec,runFileSpec
+            return Interaction.SC_SUCCEEDED,jobSpec,runFileSpec,datasetToRegister
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('{0}.doGenerateBuild() failed with {1}:{2}'.format(self.__class__.__name__,
@@ -619,7 +663,7 @@ class JobGeneratorThread (WorkerThread):
     # generate preprocessing jobs
     def doGeneratePrePro(self,taskSpec,cloudName,siteName,taskParamMap,inSubChunks,tmpLog,simul=False):
         # return for failure
-        failedRet = Interaction.SC_FAILED,None
+        failedRet = Interaction.SC_FAILED,None,None
         try:
             # make job spec for preprocessing
             jobSpec = JobSpec()
@@ -652,13 +696,13 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.destinationSE    = siteName
             jobSpec.metadata         = ''
             # get log file
-            outSubChunk,serialNr = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
-                                                                         None,
-                                                                         simul,
-                                                                         True,
-                                                                         siteName,
-                                                                         False,
-                                                                         True)
+            outSubChunk,serialNr,datasetToRegister = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
+                                                                                           None,
+                                                                                           simul,
+                                                                                           True,
+                                                                                           siteName,
+                                                                                           False,
+                                                                                           True)
             if outSubChunk == None:
                 # failed
                 tmpLog.error('doGeneratePrePro failed to get OutputFiles')
@@ -685,10 +729,14 @@ class JobGeneratorThread (WorkerThread):
             tmpInFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec,
                                                              setType='pseudo_input')
             jobSpec.addFile(tmpInFileSpec)
+            # parameter map
+            paramMap = {}
+            paramMap['SURL'] = taskParamMap['sourceURL']
             # job parameter
-            jobSpec.jobParameters = taskParamMap['preproSpec']['jobParameters']
+            jobSpec.jobParameters = self.makeBuildJobParameters(taskParamMap['preproSpec']['jobParameters'],
+                                                                paramMap)
             # return
-            return Interaction.SC_SUCCEEDED,jobSpec
+            return Interaction.SC_SUCCEEDED,jobSpec,datasetToRegister
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('{0}.doGeneratePrePro() failed with {1}:{2}'.format(self.__class__.__name__,
@@ -767,7 +815,16 @@ class JobGeneratorThread (WorkerThread):
                     except:
                         pass
         # loop over all streams
+        transientStreamCombo = {}
         for streamName,listLFN in streamLFNsMap.iteritems():
+            # collect transient and final steams
+            if streamName.startswith('TRN_'):
+                counterStreamName = re.sub('^TRN_','',streamName)
+                if counterStreamName in streamLFNsMap:
+                    transientStreamCombo[counterStreamName] = {
+                        'out': counterStreamName,
+                        'in':  streamName
+                        }
             # ignore pseudo input with streamName=None
             if streamName == None:
                 continue
@@ -843,6 +900,27 @@ class JobGeneratorThread (WorkerThread):
                 encStreamName = streamName.split('/')[0]+'/E'
                 replaceStr = urllib.unquote(replaceStr)
                 parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
+        # replace params related to transient files
+        replaceStrMap = {}
+        for streamName,transientStreamMap in transientStreamCombo.iteritems():
+            # remove serial number
+            streamNameBase = re.sub('\d+$','',streamName)
+            # make param
+            replaceStr = ''
+            for tmpLFN in streamLFNsMap[transientStreamMap['in']]:
+                replaceStr += '{0},'.format(tmpLFN)
+            replaceStr = replaceStr[:-1]
+            replaceStr += ':'
+            for tmpLFN in streamLFNsMap[transientStreamMap['out']]:
+                replaceStr += '{0},'.format(tmpLFN)
+            replaceStr = replaceStr[:-1]
+            # concatenate per base stream name
+            if not replaceStrMap.has_key(streamNameBase):
+                replaceStrMap[streamNameBase] = ''
+            replaceStrMap[streamNameBase] += '{0} '.format(replaceStr)
+        for streamNameBase,replaceStr in replaceStrMap.iteritems():
+            targetName = '${TRN_'+streamNameBase+':'+streamNameBase+'}'
+            parTemplate = parTemplate.replace(targetName,replaceStr)
         # replace placeholders for numbers
         for streamName,parVal in [('SN',         serialNr),
                                   ('SN/P',       '{0:06d}'.format(serialNr)),
@@ -862,7 +940,7 @@ class JobGeneratorThread (WorkerThread):
 
 
 
-    # make build job parameters
+    # make build/prepro job parameters
     def makeBuildJobParameters(self,jobParameters,paramMap):
         parTemplate = jobParameters
         # replace placeholders
@@ -874,6 +952,17 @@ class JobGeneratorThread (WorkerThread):
             parTemplate = parTemplate.replace('${'+streamName+'}',str(parVal))
         # return
         return parTemplate
+
+
+
+    # make VOMS FQANs
+    def makeFQANs(self,taskSpec):
+        # no working group
+        if taskSpec.workingGroup == None:
+            return []
+        fqan = '/{0}/{1}/Role=production'.format(taskSpec.vo,taskSpec.workingGroup)
+        # return
+        return [fqan]
 
 
         

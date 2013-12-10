@@ -11,7 +11,7 @@ class JediFileSpec(object):
     _attributes = ('jediTaskID','datasetID','fileID','creationDate','lastAttemptTime',
                    'lfn','GUID','type','status','fsize','checksum','scope',
                    'attemptNr','maxAttempt','nEvents','keepTrack',
-                   'startEvent','endEvent','firstEvent','boundaryID')
+                   'startEvent','endEvent','firstEvent','boundaryID','PandaID')
     # attributes which have 0 by default
     _zeroAttrs = ('fsize','attemptNr')
     # mapping between sequence and attr
@@ -149,6 +149,9 @@ class JediFileSpec(object):
                 # storage token    
                 if not datasetSpec.storageToken in ['',None]:
                     jobFileSpec.destinationDBlockToken = datasetSpec.storageToken 
+                # destination
+                if not datasetSpec.destination in ['',None]:
+                    jobFileSpec.destinationSE = datasetSpec.destination
         # return
         return jobFileSpec
 

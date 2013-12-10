@@ -52,7 +52,7 @@ taskSetupper.initializeMods(tbIF,ddmIF)
 for taskSpec,cloudName,inputChunk in tmpList:
     jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
     tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo),tbIF)
-    tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk)
+    tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,None)
 
     splitter = JobSplitter()
     tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)

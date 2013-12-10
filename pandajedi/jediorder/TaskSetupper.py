@@ -16,5 +16,5 @@ class TaskSetupper (FactoryBase):
 
 
     # main
-    def doSetup(self,taskSpec):
-        return self.getImpl(taskSpec.vo,taskSpec.prodSourceLabel).doSetup(taskSpec)
+    def doSetup(self,taskSpec,datasetToRegister):
+        return self.getImpl(taskSpec.vo,taskSpec.prodSourceLabel).doSetup(taskSpec,datasetToRegister)

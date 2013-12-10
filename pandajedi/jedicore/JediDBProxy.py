@@ -826,7 +826,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql to check status
             sqlS  = "SELECT status,lockedBy,cloud,prodSourceLabel FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlS += "WHERE jediTaskID=:jediTaskID "
+            sqlS += "WHERE jediTaskID=:jediTaskID FOR UPDATE "
             # sql to update task
             sqlU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlU += "SET status=:status,modificationTime=:updateTime,lockedBy=NULL,lockedTime=NULL"
@@ -886,7 +886,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update JEDI task
-    def updateTask_JEDI(self,taskSpec,criteria):
+    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None):
         comment = ' /* JediDBProxy.updateTask_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(taskSpec.jediTaskID)
@@ -914,8 +914,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                  taskSpec.bindUpdateChangesExpression())
             for tmpKey,tmpVal in criteria.iteritems():
                 crKey = ':cr_{0}'.format(tmpKey)
-                sql += '{0}={1}'.format(tmpKey,crKey)
+                sql += '{0}={1} AND '.format(tmpKey,crKey)
                 varMap[crKey] = tmpVal
+            if oldStatus != None:
+                sql += 'status IN ('
+                for tmpStat in oldStatus:
+                    crKey = ':old_{0}'.format(tmpStat)
+                    sql += '{0},'.format(crKey)
+                    varMap[crKey] = tmpStat
+                sql = sql[:-1]
+                sql += ') AND '
+            sql = sql[:-4]
             # begin transaction
             self.conn.begin()
             # update task
@@ -1336,8 +1345,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('isUnMerging={0} isPrePro={1}'.format(isUnMerging,isPrePro))
         try:
             outMap = {}
+            datasetToRegister = []
             # sql to get dataset
-            sqlD  = "SELECT datasetID,datasetName,vo,masterID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlD  = "SELECT datasetID,datasetName,vo,masterID,status FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlD += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
             if provenanceID != None:
                 sqlD += "AND (provenanceID IS NULL OR provenanceID=:provenanceID) "
@@ -1362,10 +1372,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlT2 += "RETURNING datasetID INTO :newDatasetID "
             # sql to change concrete dataset name
             sqlCN  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-            # FIXME : use NEVENTS as templateID
-            sqlCN += "SET nEvents=:templateID"
-            if instantiatedSite != None:
-                sqlCN += ",datasetName=:datasetName "
+            sqlCN += "SET site=:site,datasetName=:datasetName,destination=:destination "
             sqlCN += " WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to set masterID to concrete datasets
             sqlMC  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
@@ -1402,7 +1409,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             tmpl_RelationMap = {}
             mstr_RelationMap = {}
-            for datasetID,datasetName,vo,masterID in resList:
+            for datasetID,datasetName,vo,masterID,datsetStatus in resList:
                 fileDatasetID = datasetID
                 # instantiate template datasets
                 if instantiateTmpl:
@@ -1421,12 +1428,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         sqlDT = sqlD
                     sqlDT += "AND (state IS NULL OR state<>:closedState) "
-                    # FIXME : use NEVENTS as templateID
-                    sqlDT += "AND nEvents=:templateID "    
+                    sqlDT += "AND templateID=:templateID "    
                     self.cur.execute(sqlDT+comment,varMap)
                     resDT = self.cur.fetchone()
                     if resDT != None:
                         fileDatasetID = resDT[0]
+                        # collect ID of dataset to be registered 
+                        if resDT[-1] == 'defined':
+                            datasetToRegister.append(fileDatasetID)
                         tmpLog.debug('found concrete datasetID={0}'.format(fileDatasetID))
                     else:
                         # read dataset template
@@ -1439,20 +1448,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         cDatasetSpec.pack(resT1)
                         # instantiate template dataset
                         cDatasetSpec.type             = re.sub('^tmpl_','',cDatasetSpec.type)
-                        # FIXME : use NEVENTS as templateID
-                        cDatasetSpec.nEvents          = datasetID
+                        cDatasetSpec.templateID       = datasetID
                         cDatasetSpec.creationTime     = timeNow
                         cDatasetSpec.modificationTime = timeNow
-                        if instantiatedSite != None:
-                            cDatasetSpec.site = instantiatedSite
-                            cDatasetSpec.datasetName = re.sub('/$','.{0}'.format(fileDatasetID),datasetName)
                         varMap = cDatasetSpec.valuesMap(useSeq=True)
                         varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
                         self.cur.execute(sqlT2+comment,varMap)
                         fileDatasetID = long(varMap[':newDatasetID'].getvalue())
+                        if instantiatedSite != None:
+                            # set concreate name
+                            cDatasetSpec.site = instantiatedSite
+                            cDatasetSpec.datasetName = re.sub('/*$','.{0}'.format(fileDatasetID),datasetName)
+                            # set destination
+                            if cDatasetSpec.destination in [None,'']:
+                                cDatasetSpec.destination = cDatasetSpec.site
+                            varMap = {}
+                            varMap[':datasetName'] = cDatasetSpec.datasetName
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID'] = fileDatasetID
+                            varMap[':site'] = cDatasetSpec.site
+                            varMap[':destination'] = cDatasetSpec.destination
+                            self.cur.execute(sqlCN+comment,varMap)
                         tmpLog.debug('instantiated {0} datasetID={1}'.format(cDatasetSpec.datasetName,fileDatasetID))
                         if masterID != None:
                             mstr_RelationMap[fileDatasetID] = masterID
+                        # collect ID of dataset to be registered 
+                        datasetToRegister.append(fileDatasetID)
                     # keep relation between template and concrete    
                     tmpl_RelationMap[datasetID] = fileDatasetID
                 # get output templates
@@ -1511,13 +1532,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('done')
-            return outMap,maxSerialNr
+            return outMap,maxSerialNr,datasetToRegister
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return None,None
+            return None,None,None
 
 
     # insert output file templates
@@ -1588,16 +1609,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':vo']              = vo
                 if not cloudName in [None,'','any']:
                     varMap[':cloud']       = cloudName
-                varMap[':tstatus1']     = 'ready'
-                varMap[':tstatus2']     = 'running'
-                varMap[':tstatus3']     = 'scouting'
-                varMap[':tstatus4']     = 'topreprocess'
-                varMap[':tstatus5']     = 'preprocessing'
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 varMap[':dsStatus']        = 'ready'            
                 varMap[':dsOKStatus1']     = 'ready'
                 varMap[':dsOKStatus2']     = 'done'
                 varMap[':dsOKStatus3']     = 'defined'
+                varMap[':dsOKStatus4']     = 'registered'
                 sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type "
                 sql += "FROM {0}.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.vo=:vo AND workQueue_ID IN ("
@@ -1610,7 +1627,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "AND prodSourceLabel=:prodSourceLabel "
                 if not cloudName in [None,'','any']:
                     sql += "AND tabT.cloud=:cloud "
-                sql += "AND tabT.status IN (:tstatus1,:tstatus2,:tstatus3,:tstatus4,:tstatus5) "
+                sql += "AND tabT.status IN ("
+                for tmpStat in JediTaskSpec.statusForJobGenerator():
+                    tmpKey = ':tstat_{0}'.format(tmpStat)
+                    varMap[tmpKey] = tmpStat
+                    sql += '{0},'.format(tmpKey)
+                sql  = sql[:-1]
+                sql += ') '
                 sql += "AND tabT.lockedBy IS NULL AND tabT.jediTaskID=tabD.jediTaskID "
                 sql += "AND nFilesToBeUsed > nFilesUsed AND type IN ("
                 for tmpType in JediDatasetSpec.getProcessTypes(): 
@@ -1631,7 +1654,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     mapKey = ':type_'+tmpType
                     sql += '{0},'.format(mapKey)
                 sql  = sql[:-1]
-                sql += ') AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3)) '
+                sql += ') AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3,:dsOKStatus4)) '
                 sql += "ORDER BY currentPriority DESC,jediTaskID "
             else:
                 varMap = {}
@@ -1814,12 +1837,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 resRD = self.cur.fetchone()
                                 datasetSpec = JediDatasetSpec()
                                 datasetSpec.pack(resRD)
-                                # change stream name
+                                # change stream name for merging
                                 if datasetSpec.type in JediDatasetSpec.getMergeProcessTypes():
                                     # change OUTPUT to IN
-                                    datasetSpec.streamName = re.sub('OUTPUT','INPUT',datasetSpec.streamName)
+                                    datasetSpec.streamName = re.sub('^OUTPUT','TRN_OUTPUT',datasetSpec.streamName)
                                     # change LOG to INLOG
-                                    datasetSpec.streamName = re.sub('LOG','INLOG',datasetSpec.streamName)
+                                    datasetSpec.streamName = re.sub('^LOG','TRN_LOG',datasetSpec.streamName)
                                 # add to InputChunk
                                 if datasetSpec.isMaster():
                                     inputChunk.addMasterDS(datasetSpec)
@@ -4100,7 +4123,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # insert lib dataset and files
-    def insertBuildFileSpec_JEDI(self,jobSpec,simul):
+    def insertBuildFileSpec_JEDI(self,jobSpec,reusedDatasetID,simul):
         comment = ' /* JediDBProxy.insertBuildFileSpec_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += " <jediTaskID={0}>".format(jobSpec.jediTaskID)
@@ -4146,7 +4169,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = datasetSpec.valuesMap(useSeq=True)
             varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
             # insert dataset
-            if not simul:
+            if reusedDatasetID != None:
+                datasetID = reusedDatasetID
+            elif not simul:
                 self.cur.execute(sqlDS+comment,varMap)
                 datasetID = long(varMap[':newDatasetID'].getvalue())
             else:

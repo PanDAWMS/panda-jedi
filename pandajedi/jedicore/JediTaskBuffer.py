@@ -163,11 +163,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # update JEDI task
-    def updateTask_JEDI(self,taskSpec,criteria):
+    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.updateTask_JEDI(taskSpec,criteria)
+        retVal = proxy.updateTask_JEDI(taskSpec,criteria,oldStatus)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -693,11 +693,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # insert lib dataset and files
-    def insertBuildFileSpec_JEDI(self,jobSpec,simul):
+    def insertBuildFileSpec_JEDI(self,jobSpec,reusedDatasetID,simul):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.insertBuildFileSpec_JEDI(jobSpec,simul)
+        retVal = proxy.insertBuildFileSpec_JEDI(jobSpec,reusedDatasetID,simul)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

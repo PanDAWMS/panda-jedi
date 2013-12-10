@@ -23,21 +23,37 @@ class AtlasAnalJobBroker (JobBrokerBase):
 
 
     # main
-    def doBrokerage(self,taskSpec,cloudName,inputChunk):
+    def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap):
         # make logger
         tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID))
         tmpLog.debug('start')
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
-        # get sites in the cloud
+        # get primary site candidates 
         if not taskSpec.site in ['',None]:
+            # site is pre-assigned
             scanSiteList = [taskSpec.site]
             tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
         else:
             scanSiteList = []
+            excludeList = []
+            includeList = None
+            # site limitation
+            if taskSpec.useLimitedSites():
+                if 'excludedSite' in taskParamMap:
+                    excludeList = taskParamMap['excludedSite']
+                if 'includedSite' in taskParamMap:
+                    includeList = taskParamMap['includedSite']
+            # loop over all sites        
             for siteName,tmpSiteSpec in self.siteMapper.siteSpecList.iteritems():
                 if tmpSiteSpec.type == 'analysis' and taskSpec.cloud in [None,'','any',tmpSiteSpec.cloud]:
+                    # check if excluded
+                    if AtlasBrokerUtils.isMatched(siteName,excludeList):
+                        continue
+                    # check if included
+                    if includeList != None and not AtlasBrokerUtils.isMatched(siteName,includeList):
+                        continue
                     scanSiteList.append(siteName)
             tmpLog.debug('cloud=%s has %s candidates' % (taskSpec.cloud,len(scanSiteList)))
         # get job statistics
@@ -387,25 +403,29 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpSiteName = siteCandidateSpec.siteName
             # set available files
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():
-                if availableFiles.has_key(tmpSiteName):
+                # check remote files
+                if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(tmpDatasetName):
+                    tmpRemoteSite = remoteSourceList[tmpSiteName][tmpDatasetName]
+                    if availableFiles.has_key(tmpRemoteSite):
+                        # use only remote disk files
+                        siteCandidateSpec.remoteFiles += availableFiles[tmpRemoteSite]['localdisk']
+                        # set remote site and access protocol
+                        siteCandidateSpec.remoteProtocol = allowedRemoteProtocol
+                        siteCandidateSpec.remoteSource   = tmpSiteName
+                elif availableFiles.has_key(tmpSiteName):
                     siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
                     siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
                     siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
                     siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
-                else:
-                    # check remote files
-                    if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(tmpDatasetName):
-                        tmpRemoteSite = remoteSourceList[tmpSiteName][tmpDatasetName]
-                        if availableFiles.has_key(tmpRemoteSite):
-                            # use only remote disk files
-                            siteCandidateSpec.remoteFiles += availableFiles[tmpRemoteSite]['localdisk']
-                            # set remote site and access protocol
-                            siteCandidateSpec.remoteProtocol = allowedRemoteProtocol
-                            siteCandidateSpec.remoteSource   = tmpSiteName
             # append
             inputChunk.addSiteCandidate(siteCandidateSpec)
-            tmpLog.debug('  use {0} with weight={1}'.format(siteCandidateSpec.siteName,
-                                                            siteCandidateSpec.weight))
+            tmpLog.debug('  use {0} with weight={1} nLocalDisk={2} nLocalTaps={3} nCache={4} nRemote={5}'.format(siteCandidateSpec.siteName,
+                                                                                                                 siteCandidateSpec.weight,
+                                                                                                                 len(siteCandidateSpec.localDiskFiles),
+                                                                                                                 len(siteCandidateSpec.localTapeFiles),
+                                                                                                                 len(siteCandidateSpec.cacheFiles),
+                                                                                                                 len(siteCandidateSpec.remoteFiles),
+                                                                                                                 ))
         # return
         tmpLog.debug('done')        
         return self.SC_SUCCEEDED,inputChunk
