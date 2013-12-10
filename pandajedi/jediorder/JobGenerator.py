@@ -798,8 +798,11 @@ class JobGeneratorThread (WorkerThread):
                             if tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
                                 maxEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1) 
         # output
+        outputList = []
         for streamName,tmpFileSpec in outSubChunk.iteritems():
             streamLFNsMap[streamName] = [tmpFileSpec.lfn]
+            if streamName.startswith('OUTPUT'):
+                outputList.append(tmpFileSpec.lfn)
         # extract place holders with range expression, e.g., IN[0:2] 
         for tmpMatch in re.finditer('\$\{([^\}]+)\}',parTemplate):
             tmpPatt = tmpMatch.group(1)
@@ -929,6 +932,7 @@ class JobGeneratorThread (WorkerThread):
                                   ('SKIPEVENTS', skipEvents),
                                   ('FIRSTEVENT', firstEvent),
                                   ('SURL',       sourceURL),
+                                  ('OUTPUTLIST', str(outputList)),
                                   ] + paramList:
             # ignore undefined
             if parVal == None:
