@@ -407,6 +407,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             else:
                 isAvailable = False
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():
+                tmpDatasetSpec = inputChunk.getDatasetWithName(tmpDatasetName)
                 # check remote files
                 if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(tmpDatasetName):
                     for tmpRemoteSite in remoteSourceList[tmpSiteName][tmpDatasetName]:
@@ -419,11 +420,13 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             isAvailable = True
                             break
                 elif availableFiles.has_key(tmpSiteName):
-                    siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
-                    siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
-                    siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
-                    siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
-                    isAvailable = True
+                    if len(tmpDatasetSpec.Files) == len(availableFiles[tmpSiteName]['localdisk']) or \
+                            len(tmpDatasetSpec.Files) == len(availableFiles[tmpSiteName]['cache']):
+                        siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
+                        siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
+                        siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
+                        siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
+                        isAvailable = True
                 if not isAvailable:
                     break
             # append

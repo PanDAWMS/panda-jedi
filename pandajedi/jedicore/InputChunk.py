@@ -76,6 +76,15 @@ class InputChunk:
 
 
 
+    # return dataset with datasetName
+    def getDatasetWithName(self,datasetName):
+        for tmpDatasetID,tmpDatasetVal in self.datasetMap.iteritems():
+            if tmpDatasetVal['datasetSpec'].datasetName == datasetName:
+                return tmpDatasetVal['datasetSpec']
+        return None
+
+
+
     # reset used counters
     def resetUsedCounters(self):
         for tmpKey,tmpVal in self.datasetMap.iteritems():

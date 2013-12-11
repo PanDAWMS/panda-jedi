@@ -1,6 +1,7 @@
 Release Note
 
 * 12/11/2013
+  * fixed AtlasAnalJobBroker for data locality
   * fixed makeJobParameters for merging
 
 * 12/10/2013
