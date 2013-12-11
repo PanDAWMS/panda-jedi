@@ -1,6 +1,7 @@
 import re
 import sys
 import time
+import urllib
 import datetime
 
 from pandajedi.jedicore import Interaction
@@ -84,6 +85,15 @@ class AtlasAnalPostProcessor (PostProcessorBase):
         # get full task parameters
         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
         taskParamMap = RefinerUtils.decodeJSON(taskParam)
+        urlData = {}
+        urlData['job'] = '*'
+        urlData['jobsetID'] = taskSpec.reqID
+        urlData['user'] = taskSpec.UserName
+        newUrlData = {}
+        newUrlData['jobtype'] = 'analysis'
+        newUrlData['jobsetID'] = taskSpec.reqID
+        newUrlData['prodUserName'] = taskSpec.UserName
+        newUrlData['hours'] = 71
         # make message
         message = \
             """Subject: JEDI notification for JobsetID:{JobsetID} (jediTaskID:{jediTaskID})
@@ -102,7 +112,13 @@ Error Dialog : {errorDialog}
 Parameters : {params}
 
 
-PandaMonURL : http://pandamon.cern.ch/jedi/taskinfo?task={jediTaskID}""".format(\
+PandaMonURL : http://panda.cern.ch/server/pandamon/query?{oldPandaMon}
+
+TaskMonitorURL : https://dashb-atlas-task.cern.ch/templates/task-analysis/#task={taskName}
+
+NewPandaMonURL : https://pandamon.cern.ch/jobinfo?{newPandaMon}
+
+JediMonURL : http://pandamon.cern.ch/jedi/taskinfo?task={jediTaskID}""".format(\
             jediTaskID=taskSpec.jediTaskID,
             JobsetID=taskSpec.reqID,
             fromAdd=fromAdd,
@@ -112,6 +128,9 @@ PandaMonURL : http://pandamon.cern.ch/jedi/taskinfo?task={jediTaskID}""".format(
             status=taskSpec.status,
             errorDialog=taskSpec.errorDialog,
             params=taskParamMap['cliParams'],
+            taskName=taskSpec.taskName,
+            oldPandaMon=urllib.urlencode(urlData),
+            newPandaMon=urllib.urlencode(newUrlData),
             )
                     
         # tailer            

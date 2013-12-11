@@ -1,6 +1,7 @@
 Release Note
 
 * 12/10/2013
+  * added pandamon URLs to AtlasAnalPostProcessor
   * fixed AtlasAnalJobBrokerage for remote access
   * implemented TaskSetupper for ATLAS analysis
 
