@@ -1,5 +1,8 @@
 Release Note
 
+* 12/11/2013
+  * fixed makeJobParameters for merging
+
 * 12/10/2013
   * added pandamon URLs to AtlasAnalPostProcessor
   * fixed AtlasAnalJobBrokerage for remote access

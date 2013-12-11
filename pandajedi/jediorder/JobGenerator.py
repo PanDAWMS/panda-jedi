@@ -535,7 +535,8 @@ class JobGeneratorThread (WorkerThread):
                     # job parameter
                     jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
                                                                    serialNr,paramList,jobSpec,simul,
-                                                                   taskParamMap,inputChunk.isMerging)
+                                                                   taskParamMap,inputChunk.isMerging,
+                                                                   jobSpec.Files)
                     # addd
                     jobSpecList.append(jobSpec)
             # return
@@ -747,7 +748,7 @@ class JobGeneratorThread (WorkerThread):
 
     # make job parameters
     def makeJobParameters(self,taskSpec,inSubChunk,outSubChunk,serialNr,paramList,jobSpec,simul,
-                          taskParamMap,isMerging):
+                          taskParamMap,isMerging,jobFileList):
         if not isMerging:
             parTemplate = taskSpec.jobParamsTemplate
         else:
@@ -935,6 +936,11 @@ class JobGeneratorThread (WorkerThread):
                 continue
             # replace
             parTemplate = parTemplate.replace('${'+streamName+'}',str(parVal))
+        # replace unmerge files
+        for jobFileSpec in jobFileList:
+            if jobFileSpec.isUnMergedOutput():
+                mergedFileName = re.sub('^panda\.um\.','',jobFileSpec.lfn)
+                parTemplate = parTemplate.replace(mergedFileName ,jobFileSpec.lfn)
         # return
         return parTemplate
 

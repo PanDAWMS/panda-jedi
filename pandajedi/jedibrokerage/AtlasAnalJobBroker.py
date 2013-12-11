@@ -402,7 +402,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
         for siteCandidateSpec in candidateSpecList:
             tmpSiteName = siteCandidateSpec.siteName
             # set available files
-            isAvailable = False
+            if inputChunk.getDatasets() == []: 
+                isAvailable = True
+            else:
+                isAvailable = False
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():
                 # check remote files
                 if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(tmpDatasetName):
