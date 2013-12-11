@@ -88,11 +88,11 @@ class AtlasAnalPostProcessor (PostProcessorBase):
         urlData = {}
         urlData['job'] = '*'
         urlData['jobsetID'] = taskSpec.reqID
-        urlData['user'] = taskSpec.UserName
+        urlData['user'] = taskSpec.userName
         newUrlData = {}
         newUrlData['jobtype'] = 'analysis'
         newUrlData['jobsetID'] = taskSpec.reqID
-        newUrlData['prodUserName'] = taskSpec.UserName
+        newUrlData['prodUserName'] = taskSpec.userName
         newUrlData['hours'] = 71
         # make message
         message = \
