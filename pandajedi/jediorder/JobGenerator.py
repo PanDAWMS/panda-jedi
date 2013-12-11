@@ -818,7 +818,7 @@ class JobGeneratorThread (WorkerThread):
         transientStreamCombo = {}
         for streamName,listLFN in streamLFNsMap.iteritems():
             # collect transient and final steams
-            if streamName.startswith('TRN_'):
+            if streamName != None and streamName.startswith('TRN_'):
                 counterStreamName = re.sub('^TRN_','',streamName)
                 if counterStreamName in streamLFNsMap:
                     transientStreamCombo[counterStreamName] = {
