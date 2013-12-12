@@ -1,5 +1,8 @@
 Release Note
 
+* 12/12/2013
+  * fixed for retry
+
 * 12/11/2013
   * fixed AnalRefiner for DBR
   * fixed AtlasAnalJobBroker for data locality

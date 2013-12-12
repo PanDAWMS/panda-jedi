@@ -139,6 +139,14 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
             # already checked 
             if tmpPrefix in checkedEndPoints:
                 continue
+            # DBR
+            if DataServiceUtils.isCachedFile(datasetName,tmpSiteSpec):
+                # no replica check since it is cached 
+                if not retMap.has_key(tmpSiteName):
+                    retMap[tmpSiteName] = {}
+                retMap[tmpSiteName][tmpDDM] = {'tape':False,'state':'complete'}
+                checkedEndPoints.append(tmpPrefix)
+                continue
             checkedEndPoints.append(tmpPrefix)
             tmpSePat = '^' + tmpPrefix
             for tmpSE in replicaMap[datasetName].keys():

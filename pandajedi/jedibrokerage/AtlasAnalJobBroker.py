@@ -87,7 +87,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         return retFatal
                     # append
                     self.dataSiteMap[datasetName] = tmpRet
-                    tmpLog.debug(str(tmpRet))
+                    if datasetName.startswith('ddo'):
+                        tmpLog.debug(' {0} sites'.format(len(tmpRet)))
+                    else:
+                        tmpLog.debug(' {0} sites : {1}'.format(len(tmpRet),str(tmpRet)))
                 # check if the data is available at somewhere
                 if self.dataSiteMap[datasetName] == {}:
                     tmpLog.error('{0} is unavaiable at any site'.format(datasetName))
@@ -411,7 +414,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # check remote files
                 if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(tmpDatasetName):
                     for tmpRemoteSite in remoteSourceList[tmpSiteName][tmpDatasetName]:
-                        if availableFiles.has_key(tmpRemoteSite) and availableFiles[tmpRemoteSite]['localdisk'] != []:
+                        if availableFiles.has_key(tmpRemoteSite) and \
+                                len(tmpDatasetSpec.Files) <= availableFiles[tmpRemoteSite]['localdisk']:
                             # use only remote disk files
                             siteCandidateSpec.remoteFiles += availableFiles[tmpRemoteSite]['localdisk']
                             # set remote site and access protocol
@@ -419,9 +423,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             siteCandidateSpec.remoteSource   = tmpSiteName
                             isAvailable = True
                             break
-                elif availableFiles.has_key(tmpSiteName):
-                    if len(tmpDatasetSpec.Files) == len(availableFiles[tmpSiteName]['localdisk']) or \
-                            len(tmpDatasetSpec.Files) == len(availableFiles[tmpSiteName]['cache']):
+                # local files
+                if availableFiles.has_key(tmpSiteName):
+                    if len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localdisk']) or \
+                            len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['cache']):
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
                         siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
                         siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']

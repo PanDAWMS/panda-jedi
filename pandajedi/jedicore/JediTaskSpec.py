@@ -472,6 +472,13 @@ class JediTaskSpec(object):
 
 
 
+    # return list of status for retry
+    def statusToRetry(cls):
+        return ['partial','failed']
+    statusToRetry = classmethod(statusToRetry)
+
+
+
     # return list of status for Job Generator
     def statusForJobGenerator(cls):
         return ['ready','running','scouting','topreprocess','preprocessing']
