@@ -3613,7 +3613,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # task is in a status which rejects retry
                                 tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for retry".format(jediTaskID,commandStr,taskStatus))
                                 isOK = False
-                            if taskStatus in JediTaskSpec.statusToRejectExtChange():
+                            elif taskStatus in JediTaskSpec.statusToRejectExtChange():
                                 # task is in a status which rejects external changes
                                 tmpLog.error("jediTaskID={0} rejected command={1} (due to status={2})".format(jediTaskID,commandStr,taskStatus))
                                 isOK = False
