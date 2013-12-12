@@ -2719,7 +2719,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def registerTaskInOneShot_JEDI(self,jediTaskID,taskSpec,inMasterDatasetSpecList,
                                    inSecDatasetSpecList,outDatasetSpecList,
                                    outputTemplateMap,jobParamsTemplate,taskParams,
-                                   unmergeMasterDatasetSpec,unmergeDatasetSpecMap):
+                                   unmergeMasterDatasetSpec,unmergeDatasetSpecMap,
+                                   uniqueTaskName):
         comment = ' /* JediDBProxy.registerTaskInOneShot_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -2733,6 +2734,30 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('taskStatus={0}'.format(taskSpec.status))
             taskSpec.modificationTime = timeNow
             taskSpec.resetChangedAttr('jediTaskID')
+            # begin transaction
+            self.conn.begin()
+            # check duplication
+            duplicatedFlag = False
+            if uniqueTaskName == True:
+                sqlDup  = "SELECT jediTaskID FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                sqlDup += "WHERE userName=:userName AND taskName=:taskName FOR UPDATE "
+                varMap = {}
+                varMap[':userName'] = taskSpec.userName
+                varMap[':taskName'] = taskSpec.taskName
+                self.cur.execute(sqlDup+comment,varMap)
+                resDupList = self.cur.fetchall()
+                tmpErrStr = ''
+                for tmpJediTaskID, in resDupList:
+                    duplicatedFlag = True
+                    tmpErrStr += '{0},'.format(tmpJediTaskID)
+                if duplicatedFlag:
+                    taskSpec.status = 'aborted'
+                    tmpErrStr = tmpErrStr[:-1]
+                    tmpErrStr = '{0} since there is duplicated task -> jediTaskID={1}'.format(taskSpec.status,tmpErrStr)
+                    taskSpec.setErrDiag(tmpErrStr)
+                    # reset task name
+                    taskSpec.taskName = None
+                    tmpLog.debug(tmpErrStr)
             # update task
             varMap = taskSpec.valuesMap(useSeq=False,onlyChanged=True)
             varMap[':jediTaskID'] = jediTaskID
@@ -2744,6 +2769,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('update {0} row in task table'.format(nRow))
             if nRow != 1:
                 tmpLog.error('the task not found in task table')
+            elif duplicatedFlag:
+                pass
             else:
                 tmpLog.debug('inserting datasets')
                 # sql to insert datasets
@@ -3076,7 +3103,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[mapKey] = tmpType
                 sql  = sql[:-1]
                 sql += ') AND NOT status IN (:dsEndStatus1,:dsEndStatus2) '
-                sql += 'AND (nFilesToBeUsed<>nFilesUsed OR nFilesUsed=0 OR nFilesUsed>nFilesFinished+nFilesFailed)) '
+                sql += 'AND (nFilesToBeUsed<>nFilesUsed OR (nFilesUsed=0 AND nFilesToBeUsed>0) OR nFilesUsed>nFilesFinished+nFilesFailed)) '
                 sql += 'AND rownum<={0}'.format(nTasks)
             else:
                 varMap = {}
@@ -4572,7 +4599,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRF += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt=attemptNr "
             # sql to retry/incexecute datasets
             sqlRD  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-            sqlRD += "SET status=:status,nFilesFailed=nFilesFailed-:nDiff "
+            sqlRD += "SET status=:status,nFilesUsed=nFilesUsed-:nDiff,nFilesFailed=nFilesFailed-:nDiff "
             sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update task status
             sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)

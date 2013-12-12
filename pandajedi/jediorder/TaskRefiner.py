@@ -171,6 +171,11 @@ class TaskRefinerThread (WorkerThread):
                         tmpLog.info('registering')                    
                         # fill JEDI tables
                         try:
+                            # enable protection against task duplication
+                            if taskParamMap.has_key('uniqueTaskName') and taskParamMap['uniqueTaskName']:
+                                uniqueTaskName = True
+                            else:
+                                uniqueTaskName = False
                             strTaskParams = None
                             if impl.updatedTaskParams != None:
                                 strTaskParams = RefinerUtils.encodeJSON(impl.updatedTaskParams)
@@ -184,7 +189,8 @@ class TaskRefinerThread (WorkerThread):
                                                                                        impl.jobParamsTemplate,
                                                                                        strTaskParams,
                                                                                        impl.unmergeMasterDatasetSpec,
-                                                                                       impl.unmergeDatasetSpecMap) 
+                                                                                       impl.unmergeDatasetSpecMap,
+                                                                                       uniqueTaskName) 
                                 if not tmpStat:
                                     tmpLog.error('failed to register the task to JEDI')
                             else:        

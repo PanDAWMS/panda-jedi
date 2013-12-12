@@ -495,14 +495,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     def registerTaskInOneShot_JEDI(self,jediTaskID,taskSpec,inMasterDatasetSpec,
                                    inSecDatasetSpecList,outDatasetSpecList,
                                    outputTemplateMap,jobParamsTemplate,taskParams,
-                                   unmergeMasterDatasetSpec,unmergeDatasetSpecMap):
+                                   unmergeMasterDatasetSpec,unmergeDatasetSpecMap,
+                                   uniqueTaskName):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.registerTaskInOneShot_JEDI(jediTaskID,taskSpec,inMasterDatasetSpec,
                                                   inSecDatasetSpecList,outDatasetSpecList,
                                                   outputTemplateMap,jobParamsTemplate,taskParams,
-                                                  unmergeMasterDatasetSpec,unmergeDatasetSpecMap)
+                                                  unmergeMasterDatasetSpec,unmergeDatasetSpecMap,
+                                                  uniqueTaskName)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

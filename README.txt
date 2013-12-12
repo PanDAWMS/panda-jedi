@@ -1,6 +1,7 @@
 Release Note
 
 * 12/12/2013
+  * added protection against task duplication
   * fixed for retry
 
 * 12/11/2013
