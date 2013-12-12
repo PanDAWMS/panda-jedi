@@ -119,6 +119,9 @@ class ContentsFeederThread (WorkerThread):
                     # loop over all datasets
                     if not taskBroken:
                         ddmIF = self.ddmIF.getInterface(taskSpec.vo) 
+                        origNumFiles = None
+                        if taskParamMap.has_key('nFiles'):
+                            origNumFiles = taskParamMap['nFiles']
                         for datasetSpec in dsList:
                             tmpLog.info('start for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))
                             # get dataset metadata
@@ -234,9 +237,9 @@ class ContentsFeederThread (WorkerThread):
                                             nMaxFiles = taskParamMap['nFiles']
                                         else:
                                             # calculate for secondary
-                                            nMaxFiles = datasetSpec.getNumMultByRatio(taskParamMap['nFiles'])
+                                            nMaxFiles = datasetSpec.getNumMultByRatio(origNumFiles)
                                             # multipled by the number of jobs per file for event-level splitting
-                                            if taskParamMap.has_key('nEventsPerFile'):
+                                            if nMaxFiles != None and taskParamMap.has_key('nEventsPerFile'):
                                                 if taskParamMap.has_key('nEventsPerJob'):
                                                     if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
                                                         nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerJob'])

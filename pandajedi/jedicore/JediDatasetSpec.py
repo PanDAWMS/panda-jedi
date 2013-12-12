@@ -310,6 +310,9 @@ class JediDatasetSpec(object):
 
     # get N multiplied by ratio
     def getNumMultByRatio(self,num):
+        # no split
+        if self.isNoSplit():
+            return None
         # get ratio
         ratioVal = self.getRatioToMaster()
         # integer or float

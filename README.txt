@@ -1,6 +1,7 @@
 Release Note
 
 * 12/11/2013
+  * fixed AnalRefiner for DBR
   * fixed AtlasAnalJobBroker for data locality
   * fixed makeJobParameters for merging
 

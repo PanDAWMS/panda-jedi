@@ -242,6 +242,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             offsetVal = datasetSpec.getOffset()
             if offsetVal > 0:
                 lfnList = lfnList[offsetVal:]
+            tmpLog.debug('offset={0}'.format(offsetVal))
             # use perRange as perJob
             if nEventsPerJob == None and nEventsPerRange != None:
                 nEventsPerJob = nEventsPerRange
