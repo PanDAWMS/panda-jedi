@@ -188,6 +188,8 @@ class TaskRefinerBase (object):
                         for datasetName in tmpDatasetNameList:
                             inDatasetSpec = copy.copy(datasetSpec)
                             inDatasetSpec.datasetName = datasetName
+                            if datasetName != datasetSpec.datasetName:
+                                inDatasetSpec.containerName = datasetSpec.datasetName
                             inDatasetSpecList.append(inDatasetSpec)
                     elif ',' in datasetSpec.datasetName:
                         # comma-separated dataset names

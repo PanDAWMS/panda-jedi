@@ -159,7 +159,7 @@ Report Panda problems of any sort to
         tmpLog.debug("getting email for {0}".format(userName))
         # get email from MetaDB
         mailAddr,dn = self.taskBufferIF.getEmailAddr(userName,withDN=True)
-        if mailAddr == 'notsend':
+        if mailAddr != None and mailAddr.startswith('notsend'):
             tmpLog.debug("email from MetaDB : {0}".format(mailAddr))
             return retSupp
         if dn in ['',None]:

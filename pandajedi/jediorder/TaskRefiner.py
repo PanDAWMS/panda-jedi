@@ -192,7 +192,11 @@ class TaskRefinerThread (WorkerThread):
                                                                                        impl.unmergeDatasetSpecMap,
                                                                                        uniqueTaskName) 
                                 if not tmpStat:
-                                    tmpLog.error('failed to register the task to JEDI')
+                                    tmpErrStr = 'failed to register the task to JEDI in one shot'
+                                    tmpLog.error(tmpErrStr)
+                                    impl.taskSpec.status = 'broken'
+                                    impl.taskSpec.setErrDiag(tmpErrStr,True)
+                                    self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
                             else:        
                                 # appending for incremetnal execution
                                 tmpStat = self.taskBufferIF.appendDatasets_JEDI(jediTaskID,impl.inMasterDatasetSpec,
@@ -201,7 +205,8 @@ class TaskRefinerThread (WorkerThread):
                                     tmpLog.error('failed to append datasets for incexec')
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
-                            tmpLog.error('failed to register the task to JEDI with {0}:{1}'.format(errtype.__name__,errvalue))
+                            tmpErrStr = 'failed to register the task to JEDI with {0}:{1}'.format(errtype.__name__,errvalue)
+                            tmpLog.error(tmpErrStr)
                         else:
                             tmpLog.info('done')
             except:

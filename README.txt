@@ -1,5 +1,8 @@
 Release Note
 
+* 12/13/2013
+  * set containerName when expand
+
 * 12/12/2013
   * fixed for input container
   * fixed for DBR caching
