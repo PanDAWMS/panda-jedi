@@ -116,6 +116,16 @@ class ContentsFeederThread (WorkerThread):
                         errtype,errvalue = sys.exc_info()[:2]
                         tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
                         taskBroken = True
+                    # the number of files per job
+                    nFilesPerJob = None
+                    if taskParamMap.has_key('nFilesPerJob'):
+                        nFilesPerJob = taskParamMap['nFilesPerJob']
+                    # the number of files used by scout 
+                    nFilesForScout = 0
+                    if nFilesPerJob != None:
+                        nFilesForScout = 10 * nFilesPerJob
+                    else:
+                        nFilesForScout = 10
                     # loop over all datasets
                     if not taskBroken:
                         ddmIF = self.ddmIF.getInterface(taskSpec.vo) 
@@ -256,10 +266,6 @@ class ContentsFeederThread (WorkerThread):
                                     useFilesWithNewAttemptNr = False
                                     if not datasetSpec.isPseudo() and fileList != [] and taskParamMap.has_key('useInFilesWithNewAttemptNr'):
                                         useFilesWithNewAttemptNr = True
-                                    # the number of files per job
-                                    nFilesPerJob = None
-                                    if taskParamMap.has_key('nFilesPerJob'):
-                                        nFilesPerJob = taskParamMap['nFilesPerJob']
                                     # feed files to the contents table
                                     tmpLog.info('update contents')
                                     retDB,missingFileList,nFilesUnique,diagMap = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
@@ -275,7 +281,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               fileList,
                                                                                                                               useFilesWithNewAttemptNr,
                                                                                                                               nFilesPerJob,
-                                                                                                                              nEventsPerRange)
+                                                                                                                              nEventsPerRange,
+                                                                                                                              nFilesForScout)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))
@@ -299,6 +306,9 @@ class ContentsFeederThread (WorkerThread):
                                         if taskParamMap.has_key('nFiles'):
                                             if datasetSpec.isMaster():
                                                 taskParamMap['nFiles'] -= nFilesUnique
+                                        # reduce the number of files for scout
+                                        if useScout:
+                                            nFilesForScout = diagMap['nFilesForScout']
                     # update task status
                     if taskBroken:
                         # task is broken

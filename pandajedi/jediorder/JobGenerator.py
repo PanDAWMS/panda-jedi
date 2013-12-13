@@ -186,7 +186,8 @@ class JobGeneratorThread (WorkerThread):
                 # loop over all inputs
                 for taskSpec,cloudName,inputChunk in inputList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID))
+                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,
+                                                                                            inputChunk.masterIndexName))
                     tmpLog.info('start with VO={0} cloud={1}'.format(taskSpec.vo,cloudName))
                     readyToSubmitJob = False
                     jobsSubmitted = False

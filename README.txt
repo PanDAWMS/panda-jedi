@@ -1,6 +1,8 @@
 Release Note
 
 * 12/12/2013
+  * fixed for input container
+  * fixed for DBR caching
   * added protection against task duplication
   * fixed for retry
 

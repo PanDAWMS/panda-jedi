@@ -203,7 +203,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
-                                   nFilesPerJob,nEventsPerRange):
+                                   nFilesPerJob,nEventsPerRange,nFilesForScout):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -212,19 +212,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start nEventsPerFile={0} nEventsPerJob={1} maxAttempt={2} '.format(nEventsPerFile,
                                                                                          nEventsPerJob,
                                                                                          maxAttempt))
-        tmpLog.debug('firstEventNumber={0} nMaxFiles={1} nMaxEvents={2} useScout={3}'.format(firstEventNumber,
-                                                                                             nMaxFiles,nMaxEvents,
-                                                                                             useScout))
+        tmpLog.debug('firstEventNumber={0} nMaxFiles={1} nMaxEvents={2}'.format(firstEventNumber,
+                                                                                nMaxFiles,nMaxEvents))
         tmpLog.debug('useFilesWithNewAttemptNr={0} nFilesPerJob={1} nEventsPerRange={2}'.format(useFilesWithNewAttemptNr,
                                                                                                 nFilesPerJob,
-                                                                                                nEventsPerRange))
+                                                                                                nEventsPerRange,
+                                                                                                nFilesForScout))
+        tmpLog.debug('useScout={0} nFilesForScout={1}'.format(useScout,nFilesForScout))
+
         tmpLog.debug('len(fileMap)={0}'.format(len(fileMap)))
-        if nFilesPerJob != None:
-            nFilesForScout = 10 * nFilesPerJob 
-        else:
-            nFilesForScout = 10
         # return value for failure
-        diagMap = {'errMsg':''}
+        diagMap = {'errMsg':'','nFilesForScout':nFilesForScout}
         failedRet = False,0,None,diagMap
         # max number of file records per dataset
         maxFileRecords = 100000
@@ -508,6 +506,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':nFilesTobeUsed'] = nFilesForScout
                         else:
                             varMap[':nFilesTobeUsed'] = nReady
+                        if useScout:
+                            diagMap['nFilesForScout'] = nFilesForScout-varMap[':nFilesTobeUsed']
                         if missingFileList == []:    
                             varMap[':status' ] = 'ready'
                         else:
@@ -1742,124 +1742,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # loop over all tasks
             iTasks = 0
             for jediTaskID in jediTaskIDList:
-                for datasetID,tmpNumFiles,datasetType in taskDatasetMap[jediTaskID]:
-                    datasetIDs = [datasetID]
-                    # begin transaction
-                    self.conn.begin()
-                    # read task
-                    toSkip = False
-                    varMap = {}
-                    varMap[':jediTaskID'] = jediTaskID
-                    try:
-                        # select
-                        self.cur.execute(sqlRT+comment,varMap)
-                        resRT = self.cur.fetchone()
-                        # locked by another
-                        if resRT == None:
-                            toSkip = True
-                        else:
-                            taskSpec = JediTaskSpec()
-                            taskSpec.pack(resRT)
-                            # make InputChunk
-                            inputChunk = InputChunk(taskSpec)
-                            # merging
-                            if datasetType in JediDatasetSpec.getMergeProcessTypes():
-                                inputChunk.isMerging = True
-                            # for analysis use DN as userName
-                            if taskSpec.prodSourceLabel in ['user']:
-                                varMap = {}
-                                varMap[':name'] = taskSpec.userName
-                                tmpLog.debug(sqlDN+comment+str(varMap))
-                                self.cur.execute(sqlDN+comment,varMap)
-                                resDN = self.cur.fetchone()
-                                tmpLog.debug(resDN)
-                                if resDN == None:
-                                    # no user info
-                                    toSkip = True
-                                    tmpLog.error('skipped since failed to get DN for {0}'.format(taskSpec.userName))
-                                else:
-                                    taskSpec.userName, = resDN
-                                    if taskSpec.userName in ['',None]:
-                                        # DN is empty
-                                        toSkip = True
-                                        tmpLog.error('skipped since DN is empty for {0}'.format(taskSpec.userName))
-                                    else:
-                                        # reset change to not update userName
-                                        taskSpec.resetChangedAttr('userName')
-                    except:
-                        errType,errValue = sys.exc_info()[:2]
-                        if self.isNoWaitException(errValue):
-                            # resource busy and acquire with NOWAIT specified
-                            toSkip = True
-                            tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
-                        else:
-                            # failed with something else
-                            raise errType,errValue
-                    # read secondary datasets
-                    if not toSkip:
-                        # sql to get seconday dataset list
-                        sqlDS  = "SELECT datasetID FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
-                        if not fullSimulation:
-                            sqlDS += "AND nFilesToBeUsed > nFilesUsed AND type IN ("
-                        else:
-                            sqlDS += "AND type IN ("
-                        varMap = {}
-                        if not datasetType in JediDatasetSpec.getMergeProcessTypes():
-                            # for normal process
-                            for tmpType in JediDatasetSpec.getInputTypes():
-                                mapKey = ':type_'+tmpType
-                                varMap[mapKey] = tmpType
-                                sqlDS += '{0},'.format(mapKey)
-                        else:
-                            # for merge process
-                            for tmpType in JediDatasetSpec.getMergeProcessTypes():
-                                mapKey = ':type_'+tmpType
-                                varMap[mapKey] = tmpType
-                                sqlDS += '{0},'.format(mapKey)
-                        sqlDS  = sqlDS[:-1]
-                        sqlDS += ') AND status=:dsStatus AND masterID=:masterID '
-                        varMap[':dsStatus']   = 'ready'
-                        varMap[':jediTaskID'] = jediTaskID
-                        varMap[':masterID']   = datasetID 
-                        # select
-                        self.cur.execute(sqlDS+comment,varMap)
-                        resSecDsList = self.cur.fetchall()
-                        for tmpDatasetID, in resSecDsList:
-                            datasetIDs.append(tmpDatasetID)
-                    # read dataset
-                    if not toSkip:
-                        for datasetID in datasetIDs:
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID']  = datasetID
-                            try:
-                                # select
-                                self.cur.execute(sqlRD+comment,varMap)
-                                resRD = self.cur.fetchone()
-                                datasetSpec = JediDatasetSpec()
-                                datasetSpec.pack(resRD)
-                                # change stream name for merging
-                                if datasetSpec.type in JediDatasetSpec.getMergeProcessTypes():
-                                    # change OUTPUT to IN
-                                    datasetSpec.streamName = re.sub('^OUTPUT','TRN_OUTPUT',datasetSpec.streamName)
-                                    # change LOG to INLOG
-                                    datasetSpec.streamName = re.sub('^LOG','TRN_LOG',datasetSpec.streamName)
-                                # add to InputChunk
-                                if datasetSpec.isMaster():
-                                    inputChunk.addMasterDS(datasetSpec)
-                                else:
-                                    inputChunk.addSecondaryDS(datasetSpec)
-                            except:
-                                errType,errValue = sys.exc_info()[:2]
-                                if self.isNoWaitException(errValue):
-                                    # resource busy and acquire with NOWAIT specified
-                                    toSkip = True
-                                    tmpLog.debug('skip locked jediTaskID={0} datasetID={1}'.format(jediTaskID,datasetID))
-                                else:
-                                    # failed with something else
-                                    raise errType,errValue
-                    # read job params and files
-                    if not toSkip:
+                # begin transaction
+                self.conn.begin()
+                # read task
+                toSkip = False
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                try:
+                    # select
+                    self.cur.execute(sqlRT+comment,varMap)
+                    resRT = self.cur.fetchone()
+                    # locked by another
+                    if resRT == None:
+                        toSkip = True
+                        tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
+                    else:
+                        origTaskSpec = JediTaskSpec()
+                        origTaskSpec.pack(resRT)
                         # lock task
                         if simTasks == None:
                             varMap = {}
@@ -1867,13 +1766,119 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':jediTaskID'] = jediTaskID
                             self.cur.execute(sqlLock+comment,varMap)
                             nRow = self.cur.rowcount
+                            if nRow != 1:
+                                tmpLog.debug('failed to lock jediTaskID={0}'.format(jediTaskID))
+                                toSkip = True
+                except:
+                    errType,errValue = sys.exc_info()[:2]
+                    if self.isNoWaitException(errValue):
+                        # resource busy and acquire with NOWAIT specified
+                        toSkip = True
+                        tmpLog.debug('skip locked with NOWAIT jediTaskID={0}'.format(jediTaskID))
+                    else:
+                        # failed with something else
+                        raise errType,errValue
+                # change userName for analysis
+                if not toSkip:
+                    # for analysis use DN as userName
+                    if origTaskSpec.prodSourceLabel in ['user']:
+                        varMap = {}
+                        varMap[':name'] = origTaskSpec.userName
+                        tmpLog.debug(sqlDN+comment+str(varMap))
+                        self.cur.execute(sqlDN+comment,varMap)
+                        resDN = self.cur.fetchone()
+                        tmpLog.debug(resDN)
+                        if resDN == None:
+                            # no user info
+                            toSkip = True
+                            tmpLog.error('skipped since failed to get DN for {0}'.format(origTaskSpec.userName))
                         else:
-                            # set nRow for simulation
-                            nRow = 1
-                        if nRow != 1:
-                            tmpLog.debug('failed to lock jediTaskID={0}'.format(jediTaskID))
-                        else:
+                            origTaskSpec.userName, = resDN
+                            if origTaskSpec.userName in ['',None]:
+                                # DN is empty
+                                toSkip = True
+                                tmpLog.error('skipped since DN is empty for {0}'.format(origTaskSpec.userName))
+                            else:
+                                # reset change to not update userName
+                                origTaskSpec.resetChangedAttr('userName')
+                # read datasets
+                if not toSkip:
+                    for datasetID,tmpNumFiles,datasetType in taskDatasetMap[jediTaskID]:
+                        primaryDatasetID = datasetID
+                        datasetIDs = [datasetID]
+                        taskSpec = copy.copy(origTaskSpec)
+                        # make InputChunk
+                        inputChunk = InputChunk(taskSpec)
+                        # merging
+                        if datasetType in JediDatasetSpec.getMergeProcessTypes():
+                            inputChunk.isMerging = True
+                        # read secondary datasets
+                        if not toSkip:
+                            # sql to get seconday dataset list
+                            sqlDS  = "SELECT datasetID FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+                            if not fullSimulation:
+                                sqlDS += "AND nFilesToBeUsed > nFilesUsed AND type IN ("
+                            else:
+                                sqlDS += "AND type IN ("
+                            varMap = {}
+                            if not datasetType in JediDatasetSpec.getMergeProcessTypes():
+                                # for normal process
+                                for tmpType in JediDatasetSpec.getInputTypes():
+                                    mapKey = ':type_'+tmpType
+                                    varMap[mapKey] = tmpType
+                                    sqlDS += '{0},'.format(mapKey)
+                            else:
+                                # for merge process
+                                for tmpType in JediDatasetSpec.getMergeProcessTypes():
+                                    mapKey = ':type_'+tmpType
+                                    varMap[mapKey] = tmpType
+                                    sqlDS += '{0},'.format(mapKey)
+                            sqlDS  = sqlDS[:-1]
+                            sqlDS += ') AND status=:dsStatus AND masterID=:masterID '
+                            varMap[':dsStatus']   = 'ready'
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':masterID']   = datasetID 
+                            # select
+                            self.cur.execute(sqlDS+comment,varMap)
+                            resSecDsList = self.cur.fetchall()
+                            for tmpDatasetID, in resSecDsList:
+                                datasetIDs.append(tmpDatasetID)
+                        # read dataset
+                        if not toSkip:
+                            for datasetID in datasetIDs:
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                try:
+                                    # select
+                                    self.cur.execute(sqlRD+comment,varMap)
+                                    resRD = self.cur.fetchone()
+                                    datasetSpec = JediDatasetSpec()
+                                    datasetSpec.pack(resRD)
+                                    # change stream name for merging
+                                    if datasetSpec.type in JediDatasetSpec.getMergeProcessTypes():
+                                        # change OUTPUT to IN
+                                        datasetSpec.streamName = re.sub('^OUTPUT','TRN_OUTPUT',datasetSpec.streamName)
+                                        # change LOG to INLOG
+                                        datasetSpec.streamName = re.sub('^LOG','TRN_LOG',datasetSpec.streamName)
+                                    # add to InputChunk
+                                    if datasetSpec.isMaster():
+                                        inputChunk.addMasterDS(datasetSpec)
+                                    else:
+                                        inputChunk.addSecondaryDS(datasetSpec)
+                                except:
+                                    errType,errValue = sys.exc_info()[:2]
+                                    if self.isNoWaitException(errValue):
+                                        # resource busy and acquire with NOWAIT specified
+                                        toSkip = True
+                                        tmpLog.debug('skip locked jediTaskID={0} datasetID={1}'.format(jediTaskID,datasetID))
+                                    else:
+                                        # failed with something else
+                                        raise errType,errValue
+                        # read job params and files
+                        if not toSkip:
                             # read template to generate job parameters
+
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
                             self.cur.execute(sqlJobP+comment,varMap)
@@ -1972,32 +1977,36 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         inputChunk.readBlock = True
                                     else:
                                         inputChunk.readBlock = False
-                    # add to return
-                    if not toSkip:
-                        returnList.append((taskSpec,cloudName,inputChunk))
-                        iTasks += 1
-                        # reduce the number of jobs
-                        maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
-                    if not toSkip:        
-                        # commit
-                        if not self._commit():
-                            raise RuntimeError, 'Commit error'
-                    else:
-                        # roll back
-                        self._rollback()
-                    # enough tasks 
-                    if iTasks >= nTasks:
-                        break
-                    # already read enough files to generate jobs 
-                    if maxNumJobs <= 0:
-                        break
+                        # add to return
+                        if not toSkip:
+                            returnList.append((taskSpec,cloudName,inputChunk))
+                            iTasks += 1
+                            # reduce the number of jobs
+                            maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
+                        else:
+                            tmpLog.debug('escape due to toSkip for jediTaskID={0} datasetID={1}'.format(jediTaskID,primaryDatasetID)) 
+                            break
+                        # enough tasks 
+                        if iTasks >= nTasks:
+                            break
+                        # already read enough files to generate jobs 
+                        if maxNumJobs <= 0:
+                            break
+                if not toSkip:        
+                    # commit
+                    if not self._commit():
+                        raise RuntimeError, 'Commit error'
+                else:
+                    tmpLog.debug('rollback for jediTaskID={0}'.format(jediTaskID)) 
+                    # roll back
+                    self._rollback()
                 # enough tasks 
                 if iTasks >= nTasks:
                     break
                 # already read enough files to generate jobs 
                 if maxNumJobs <= 0:
                     break
-            tmpLog.debug('done for {0} tasks'.format(len(returnList)))
+            tmpLog.debug('done for {0} combo of task-dataset'.format(len(returnList)))
             return returnList
         except:
             # roll back
@@ -3102,9 +3111,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sql += '{0},'.format(mapKey)
                     varMap[mapKey] = tmpType
                 sql  = sql[:-1]
-                sql += ') AND NOT status IN (:dsEndStatus1,:dsEndStatus2) '
-                sql += 'AND (nFilesToBeUsed<>nFilesUsed OR (nFilesUsed=0 AND nFilesToBeUsed>0) OR nFilesUsed>nFilesFinished+nFilesFailed)) '
-                sql += 'AND rownum<={0}'.format(nTasks)
+                sql += ') AND NOT status IN (:dsEndStatus1,:dsEndStatus2) AND ('
+                sql += 'nFilesToBeUsed<>nFilesUsed '
+                sql += 'OR (nFilesUsed=0 AND nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>0) '
+                sql += 'OR nFilesUsed>nFilesFinished+nFilesFailed) '
+                sql += ') AND rownum<={0}'.format(nTasks)
             else:
                 varMap = {}
                 sql  = "SELECT tabT.jediTaskID,tabT.status "

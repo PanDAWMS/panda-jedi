@@ -39,6 +39,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
             scanSiteList = []
             excludeList = []
             includeList = None
+            # get list of site access
+            siteAccessList = self.taskBufferIF.listSiteAccess(None,taskSpec.userName)
+            siteAccessMap = {}
+            for tmpSiteName,tmpAccess in siteAccessList:
+                siteAccessMap[tmpSiteName] = tmpAccess
             # site limitation
             if taskSpec.useLimitedSites():
                 if 'excludedSite' in taskParamMap:
@@ -50,10 +55,18 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if tmpSiteSpec.type == 'analysis' and taskSpec.cloud in [None,'','any',tmpSiteSpec.cloud]:
                     # check if excluded
                     if AtlasBrokerUtils.isMatched(siteName,excludeList):
+                        tmpLog.debug('  skip {0} excluded'.format(siteName))
                         continue
                     # check if included
                     if includeList != None and not AtlasBrokerUtils.isMatched(siteName,includeList):
+                        tmpLog.debug('  skip {0} not included'.format(siteName))
                         continue
+                    # limited access
+                    if tmpSiteSpec.accesscontrol == 'grouplist':
+                        if not siteAccessMap.has_key(tmpSiteSpec.sitename) or \
+                                siteAccessMap[tmpSiteSpec.sitename] != 'approved':
+                            tmpLog.debug('  skip {0} limited access'.format(siteName))
+                            continue
                     scanSiteList.append(siteName)
             tmpLog.debug('cloud=%s has %s candidates' % (taskSpec.cloud,len(scanSiteList)))
         # get job statistics
@@ -428,6 +441,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     if len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localdisk']) or \
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['cache']):
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
+                        # add cached files to local list since cached files go to pending when reassigned
+                        siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['cache']
                         siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
                         siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
                         siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']

@@ -30,18 +30,22 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         if not taskParamMap.has_key('transPath'):
             if 'athena' in processingTypes:
                 # athena
-                taskParamMap['transPath'] = 'http://{0}:{1}/trf/user/runAthena-00-00-11'.format(panda_config.pserveralias,
+                taskParamMap['transPath'] = 'http://{0}:{1}/trf/user/runAthena-00-00-12'.format(panda_config.pserveralias,
                                                                                                 panda_config.pserverportcache)
-                if taskParamMap.has_key('buildSpec') and not taskParamMap['buildSpec'].has_key('transPath'):
-                    taskParamMap['buildSpec']['transPath'] = 'http://{0}:{1}/trf/user/buildJob-00-00-03'.format(panda_config.pserveralias,
-                                                                                                                panda_config.pserverportcache)
             else:
                 # general executable
                 taskParamMap['transPath'] = 'http://{0}:{1}/trf/user/runGen-00-00-02'.format(panda_config.pserveralias,
                                                                                              panda_config.pserverportcache)
-                if taskParamMap.has_key('buildSpec') and not taskParamMap['buildSpec'].has_key('transPath'):
-                    taskParamMap['buildSpec']['transPath'] = 'http://{0}:{1}/trf/user/buildGen-00-00-01'.format(panda_config.pserveralias,
-                                                                                                                panda_config.pserverportcache)
+        # set transPath for build
+        if taskParamMap.has_key('buildSpec') and not taskParamMap['buildSpec'].has_key('transPath'):
+            if 'athena' in processingTypes:
+                # athena
+                taskParamMap['buildSpec']['transPath'] = 'http://{0}:{1}/trf/user/buildJob-00-00-03'.format(panda_config.pserveralias,
+                                                                                                            panda_config.pserverportcache)
+            else:
+                # general executable
+                taskParamMap['buildSpec']['transPath'] = 'http://{0}:{1}/trf/user/buildGen-00-00-01'.format(panda_config.pserveralias,
+                                                                                                            panda_config.pserverportcache)
         # set transPath for preprocessing
         if taskParamMap.has_key('preproSpec') and not taskParamMap['preproSpec'].has_key('transPath'):
             if 'evp' in processingTypes:

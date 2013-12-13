@@ -20,7 +20,7 @@ class JobSplitter:
         retFatal    = self.SC_FATAL,[]
         retTmpError = self.SC_FAILED,[]
         # make logger
-        tmpLog = MsgWrapper(logger,'jediTaskID=%s' % taskSpec.jediTaskID)
+        tmpLog = MsgWrapper(logger,'<jediTaskID={0} datasetID={1}'.format(taskSpec.jediTaskID,inputChunk.masterIndexName))
         tmpLog.debug('start')
         if not inputChunk.isMerging:
             # set maxNumFiles using taskSpec if specified
@@ -63,7 +63,7 @@ class JobSplitter:
         returnList = []
         subChunks  = []
         iSubChunks = 0
-        nSubChunks = 20
+        nSubChunks = 50
         while True:
             # change site
             if iSubChunks % nSubChunks == 0:
@@ -88,7 +88,7 @@ class JobSplitter:
                 maxWalltime = siteSpec.maxtime
                 tmpLog.debug('chosen {0}'.format(siteName))
                 tmpLog.debug('maxSize={0} maxWalltime={1}'.format(maxSize,maxWalltime))
-            # get sub chunk    
+            # get sub chunk
             subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
                                               maxNumFiles=maxNumFiles,
                                               sizeGradients=sizeGradients,
@@ -97,7 +97,8 @@ class JobSplitter:
                                               walltimeIntercepts=walltimeIntercepts,
                                               maxWalltime=maxWalltime,
                                               nEventsPerJob=nEventsPerJob,
-                                              useBoundary=useBoundary)
+                                              useBoundary=useBoundary,
+                                              tmpLog=tmpLog)
             if subChunk == None:
                 break
             # append

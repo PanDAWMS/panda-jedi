@@ -180,7 +180,8 @@ class InputChunk:
                     nFilesPerJob=None,multiplicand=1,
                     walltimeIntercepts=0,maxWalltime=0,
                     nEventsPerJob=None,useBoundary=None,
-                    sizeGradientsPerInSize=None):
+                    sizeGradientsPerInSize=None,
+                    tmpLog=None):
         # check if there are unused files/events
         if not self.checkUnused():
             return None
