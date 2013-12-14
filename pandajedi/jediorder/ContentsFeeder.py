@@ -162,7 +162,7 @@ class ContentsFeederThread (WorkerThread):
                                 allUpdated = False
                             else:
                                 # get file list specified in task parameters
-                                fileList = RefinerUtils.extractFileList(taskParamMap,datasetSpec.datasetName)   
+                                fileList,includePatt,excludePatt = RefinerUtils.extractFileList(taskParamMap,datasetSpec.datasetName)   
                                 # get the number of events in metadata
                                 if taskParamMap.has_key('getNumEventsInMetadata'):
                                     getNumEvents = True
@@ -282,7 +282,9 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               useFilesWithNewAttemptNr,
                                                                                                                               nFilesPerJob,
                                                                                                                               nEventsPerRange,
-                                                                                                                              nFilesForScout)
+                                                                                                                              nFilesForScout,
+                                                                                                                              includePatt,
+                                                                                                                              excludePatt)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))

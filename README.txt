@@ -1,6 +1,7 @@
 Release Note
 
 * 12/13/2013
+  * added include/exclude in CF
   * set containerName when expand
 
 * 12/12/2013

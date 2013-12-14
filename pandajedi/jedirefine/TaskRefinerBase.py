@@ -185,18 +185,26 @@ class TaskRefinerBase (object):
                     # exapand dataset container
                     if tmpItem.has_key('expand') and tmpItem['expand'] == True:
                         tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).expandContainer(datasetSpec.datasetName)
+                        if not tmpItem.has_key('expandedList'):
+                            tmpItem['expandedList'] = []
                         for datasetName in tmpDatasetNameList:
                             inDatasetSpec = copy.copy(datasetSpec)
                             inDatasetSpec.datasetName = datasetName
                             if datasetName != datasetSpec.datasetName:
                                 inDatasetSpec.containerName = datasetSpec.datasetName
                             inDatasetSpecList.append(inDatasetSpec)
+                            if not datasetName in tmpItem['expandedList']:
+                                tmpItem['expandedList'].append(datasetName)
                     elif ',' in datasetSpec.datasetName:
+                        if not tmpItem.has_key('expandedList'):
+                            tmpItem['expandedList'] = []
                         # comma-separated dataset names
                         for datasetName in datasetSpec.datasetName.split(','):
                             inDatasetSpec = copy.copy(datasetSpec)
                             inDatasetSpec.datasetName = datasetName
                             inDatasetSpecList.append(inDatasetSpec)
+                            if not datasetName in tmpItem['expandedList']:
+                                tmpItem['expandedList'].append(datasetName)
                     else:
                         # normal dataset name
                         inDatasetSpecList = [datasetSpec]

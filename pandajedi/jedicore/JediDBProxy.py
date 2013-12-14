@@ -199,11 +199,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
                                                 
+    # check if item is matched with one of list items
+    def isMatched(self,itemName,pattList):
+        for tmpName in pattList:
+            # normal pattern
+            if re.search(tmpName,itemName) != None or tmpName == itemName:
+                return True
+        # return
+        return False
+
+
+
     # feed files to the JEDI contents table
     def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
-                                   nFilesPerJob,nEventsPerRange,nFilesForScout):
+                                   nFilesPerJob,nEventsPerRange,nFilesForScout,includePatt,excludePatt):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -219,7 +230,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                 nEventsPerRange,
                                                                                                 nFilesForScout))
         tmpLog.debug('useScout={0} nFilesForScout={1}'.format(useScout,nFilesForScout))
-
+        tmpLog.debug('includePatt={0} excludePatt={1}'.format(str(includePatt),str(excludePatt)))
         tmpLog.debug('len(fileMap)={0}'.format(len(fileMap)))
         # return value for failure
         diagMap = {'errMsg':'','nFilesForScout':nFilesForScout}
@@ -229,6 +240,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # current current date
             timeNow = datetime.datetime.utcnow()
+            # include files
+            if includePatt != []:
+                newFileMap = {}
+                for guid,fileVal in fileMap.iteritems():
+                    if self.isMatched(fileVal['lfn'],includePatt):
+                        newFileMap[guid] = fileVal
+                fileMap = newFileMap
+            # exclude files
+            if excludePatt != []:
+                newFileMap = {}
+                for guid,fileVal in fileMap.iteritems():
+                    if not self.isMatched(fileVal['lfn'],excludePatt):
+                        newFileMap[guid] = fileVal
+                fileMap = newFileMap
             # loop over all files
             filelValMap = {}
             for guid,fileVal in fileMap.iteritems():
