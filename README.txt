@@ -1,5 +1,8 @@
 Release Note
 
+* 12/17/2013
+  * changed to work with T_TASK
+  
 * 12/13/2013
   * added include/exclude in CF
   * set containerName when expand

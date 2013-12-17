@@ -158,27 +158,53 @@ Report Panda problems of any sort to
         # get DN
         tmpLog.debug("getting email for {0}".format(userName))
         # get email from MetaDB
-        mailAddr,dn = self.taskBufferIF.getEmailAddr(userName,withDN=True)
-        if mailAddr != None and mailAddr.startswith('notsend'):
-            tmpLog.debug("email from MetaDB : {0}".format(mailAddr))
-            return retSupp
+        mailAddrInDB,dn,dbUptime = self.taskBufferIF.getEmailAddr(userName,withDN=True)
+        tmpLog.debug("email from MetaDB : {0}".format(mailAddrInDB))
+        # email mortification is suppressed
+        notSendMail = False
+        if mailAddrInDB != None and mailAddrInDB.startswith('notsend'):
+            notSendMail = True
+        # DN is unavilable
         if dn in ['',None]:
             tmpLog.debug("DN is empty")
-            return retSupp
-        # get email from DQ2
-        tmpLog.debug("getting email using dq2Info.finger({0})".format(dn))
-        nTry = 3
-        for iDDMTry in range(nTry):
-            try:
-                userInfo = self.ddmIF.getInterface(vo).finger(dn)
-                mailAddr = userInfo['email']
-                tmpLog.debug("email from DQ2 : {0}".format(mailAddr))
-                return mailAddr
-            except:
-                if iDDMTry+1 < nTry:
-                    tmpLog.debug("sleep for retry {0}/{1}".format(iDDMTry,nTry))
-                    time.sleep(10)
+            notSendMail = True
+        else:
+            # avoid too frequently lookup
+            if dbUptime != None and datetime.datetime.utcnow()-dbUptime < datetime.timedelta(hours=1):
+                tmpLog.debug("no lookup")
+                if notSendMail or mailAddrInDB in [None,'']:
+                    return retSupp
                 else:
-                    errType,errValue = sys.exc_info()[:2]
-                    tmpLog.error("{0}:{1}".format(errType,errValue))
+                    return mailAddrInDB.split(':')[-1]
+            else:
+                # get email from DQ2
+                tmpLog.debug("getting email using dq2Info.finger({0})".format(dn))
+                nTry = 3
+                for iDDMTry in range(nTry):
+                    try:
+                        userInfo = self.ddmIF.getInterface(vo).finger(dn)
+                        mailAddr = userInfo['email']
+                        tmpLog.debug("email from DQ2 : {0}".format(mailAddr))
+                        if mailAddr == None:
+                            mailAddr = ''
+                        # make email field to update DB
+                        mailAddrToDB = ''
+                        if notSendMail:
+                            mailAddrToDB += 'notsend:'
+                        mailAddrToDB += mailAddr
+                        # update database
+                        tmpLog.debug("update email to {0}".format(mailAddrToDB))
+                        self.taskBufferIF.setEmailAddr(userName,mailAddrToDB)
+                        # return
+                        if notSendMail or mailAddr == '':
+                            return retSupp
+                        return mailAddr
+                    except:
+                        if iDDMTry+1 < nTry:
+                            tmpLog.debug("sleep for retry {0}/{1}".format(iDDMTry,nTry))
+                            time.sleep(10)
+                        else:
+                            errType,errValue = sys.exc_info()[:2]
+                            tmpLog.error("{0}:{1}".format(errType,errValue))
+        # not send email
         return retSupp

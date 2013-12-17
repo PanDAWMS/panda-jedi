@@ -306,7 +306,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 outSizePerJob = 0.250
                 diskThreshold = 200
                 tmpSpaceSize = tmpSiteSpec.space - movingInputSize - nRemJobs * outSizePerJob
-                if tmpSpaceSize < diskThreshold:
+                if tmpSiteSpec.space != 0 and tmpSpaceSize < diskThreshold:
                     tmpLog.debug('  skip {0} due to disk shortage in SE = {1}-{2}-{3}x{4} < {5}'.format(tmpSiteName,tmpSiteSpec.space,
                                                                                                         movingInputSize,outSizePerJob,
                                                                                                         nRemJobs,diskThreshold))
