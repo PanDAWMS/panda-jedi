@@ -15,6 +15,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
     # constructor
     def __init__(self,taskBufferIF,ddmIF):
         PostProcessorBase.__init__(self,taskBufferIF,ddmIF)
+        self.taskParamMap = None
 
 
     # main
@@ -69,7 +70,15 @@ class AtlasAnalPostProcessor (PostProcessorBase):
     def doFinalProcedure(self,taskSpec,tmpLog):
         # check email address
         toAdd = self.getEmail(taskSpec.userName,taskSpec.vo,tmpLog)
-        if toAdd == None:
+        # read task parameters
+        try:
+            taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
+            self.taskParamMap = RefinerUtils.decodeJSON(taskParam)
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
+        if toAdd == None or \
+                (self.taskParamMap != None and self.taskParamMap.has_key('noEmail') and self.taskParamMap['noEmail'] == True):
             tmpLog.info('email notification is suppressed')
         else:
             # send email notification
@@ -83,8 +92,6 @@ class AtlasAnalPostProcessor (PostProcessorBase):
     # compose mail message
     def composeMessage(self,taskSpec,fromAdd,toAdd):
         # get full task parameters
-        taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
-        taskParamMap = RefinerUtils.decodeJSON(taskParam)
         urlData = {}
         urlData['job'] = '*'
         urlData['jobsetID'] = taskSpec.reqID
@@ -127,7 +134,7 @@ JediMonURL : http://pandamon.cern.ch/jedi/taskinfo?task={jediTaskID}""".format(\
             endTime=taskSpec.endTime,
             status=taskSpec.status,
             errorDialog=taskSpec.errorDialog,
-            params=taskParamMap['cliParams'],
+            params=self.taskParamMap['cliParams'],
             taskName=taskSpec.taskName,
             oldPandaMon=urllib.urlencode(urlData),
             newPandaMon=urllib.urlencode(newUrlData),

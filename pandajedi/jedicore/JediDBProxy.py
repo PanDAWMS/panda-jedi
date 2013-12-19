@@ -3672,6 +3672,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for retry".format(jediTaskID,
                                                                                                                            commandStr,taskStatus))
                                     isOK = False
+                            elif commandStr == 'incexec':
+                                if not taskStatus in JediTaskSpec.statusToIncexec():
+                                    # task is in a status which rejects retry
+                                    tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for incexec".format(jediTaskID,
+                                                                                                                             commandStr,taskStatus))
+                                    isOK = False
                             elif taskStatus in JediTaskSpec.statusToRejectExtChange():
                                 # task is in a status which rejects external changes
                                 tmpLog.error("jediTaskID={0} rejected command={1} (due to status={2})".format(jediTaskID,commandStr,taskStatus))

@@ -479,6 +479,13 @@ class JediTaskSpec(object):
 
 
 
+    # return list of status for incexec
+    def statusToIncexec(cls):
+        return ['finished'] + cls.statusToRetry()
+    statusToIncexec = classmethod(statusToIncexec)
+
+
+
     # return list of status for Job Generator
     def statusForJobGenerator(cls):
         return ['ready','running','scouting','topreprocess','preprocessing']

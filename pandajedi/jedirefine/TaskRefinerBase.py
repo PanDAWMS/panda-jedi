@@ -181,33 +181,41 @@ class TaskRefinerBase (object):
                 datasetSpec.status = 'defined'
                 if datasetSpec.type in JediDatasetSpec.getInputTypes() + ['random_seed']:
                     datasetSpec.streamName = RefinerUtils.extractStreamName(tmpItem['value'])
+                    if not tmpItem.has_key('expandedList'):
+                        tmpItem['expandedList'] = []
+                    # dataset names could be comma-concatenated
+                    datasetNameList = datasetSpec.datasetName.split(',')
+                    # datasets could be added by incexec
+                    incexecDS = 'dsFor{0}'.format(datasetSpec.streamName)
+                    # remove /XYZ
+                    incexecDS = incexecDS.split('/')[0]
+                    if taskParamMap.has_key(incexecDS):
+                        datasetNameList += taskParamMap[incexecDS].split(',')
+                    # loop over all dataset names
                     inDatasetSpecList = []
-                    # exapand dataset container
-                    if tmpItem.has_key('expand') and tmpItem['expand'] == True:
-                        tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).expandContainer(datasetSpec.datasetName)
-                        if not tmpItem.has_key('expandedList'):
-                            tmpItem['expandedList'] = []
-                        for datasetName in tmpDatasetNameList:
-                            inDatasetSpec = copy.copy(datasetSpec)
-                            inDatasetSpec.datasetName = datasetName
-                            if datasetName != datasetSpec.datasetName:
-                                inDatasetSpec.containerName = datasetSpec.datasetName
-                            inDatasetSpecList.append(inDatasetSpec)
+                    for datasetName in datasetNameList:
+                        # skip empty
+                        if datasetName == '':
+                            continue
+                        # exapand dataset container
+                        if tmpItem.has_key('expand') and tmpItem['expand'] == True:
+                            tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).expandContainer(datasetName)
+                            for elementDatasetName in tmpDatasetNameList:
+                                if not elementDatasetName in tmpItem['expandedList']:
+                                    tmpItem['expandedList'].append(elementDatasetName)
+                                    inDatasetSpec = copy.copy(datasetSpec)
+                                    inDatasetSpec.datasetName = elementDatasetName
+                                    inDatasetSpec.containerName = datasetName
+                                    inDatasetSpecList.append(inDatasetSpec)
+                        else:
+                            # normal dataset name
                             if not datasetName in tmpItem['expandedList']:
                                 tmpItem['expandedList'].append(datasetName)
-                    elif ',' in datasetSpec.datasetName:
-                        if not tmpItem.has_key('expandedList'):
-                            tmpItem['expandedList'] = []
-                        # comma-separated dataset names
-                        for datasetName in datasetSpec.datasetName.split(','):
-                            inDatasetSpec = copy.copy(datasetSpec)
-                            inDatasetSpec.datasetName = datasetName
-                            inDatasetSpecList.append(inDatasetSpec)
-                            if not datasetName in tmpItem['expandedList']:
-                                tmpItem['expandedList'].append(datasetName)
-                    else:
-                        # normal dataset name
-                        inDatasetSpecList = [datasetSpec]
+                                inDatasetSpec = copy.copy(datasetSpec)
+                                inDatasetSpec.datasetName = datasetName
+                                inDatasetSpec.containerName = datasetName
+                                inDatasetSpecList.append(inDatasetSpec)
+                    # set master flag
                     for inDatasetSpec in inDatasetSpecList:    
                         if nIn == 0:
                             # master

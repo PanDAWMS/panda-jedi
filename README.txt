@@ -1,5 +1,9 @@
 Release Note
 
+* 12/19/2013
+  * added --noEmail
+  * incexec with dsForXYZ
+
 * 12/17/2013
   * changed to work with T_TASK
   
