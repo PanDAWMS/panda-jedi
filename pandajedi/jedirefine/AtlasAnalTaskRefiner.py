@@ -120,7 +120,9 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 self.taskSpec.setLimitedSites('inc')
         except:
             errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))
+            errStr = 'doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errStr)
+            self.taskSpec.setErrDiag(errStr,True)
             return self.SC_FAILED
         tmpLog.debug('done')
         return self.SC_SUCCEEDED

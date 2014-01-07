@@ -37,7 +37,10 @@ def extractStreamName(valStr):
     tmpMatch = re.search('\$\{([^\}]+)\}',valStr)
     if tmpMatch == None:
         return None
-    return tmpMatch.group(1)
+    # remove decorators
+    streamName = tmpMatch.group(1)
+    streamName = streamName.split('/')[0]
+    return streamName
 
 
 

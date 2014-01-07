@@ -1,5 +1,8 @@
 Release Note
 
+* 12/20/2013
+  * fixed for multiple input streams
+
 * 12/19/2013
   * added --noEmail
   * incexec with dsForXYZ

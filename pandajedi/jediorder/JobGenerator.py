@@ -816,7 +816,96 @@ class JobGeneratorThread (WorkerThread):
                                                                                    tmpRange)
                     except:
                         pass
-        # loop over all streams
+        # loop over all place holders
+        for tmpMatch in re.finditer('\$\{([^\}]+)\}',parTemplate):
+            placeHolder = tmpMatch.group(1)
+            # remove decorators
+            streamNames = placeHolder.split('/')[0]
+            streamNameList = streamNames.split(',')
+            listLFN = []
+            for streamName in streamNameList:
+                if streamName in streamLFNsMap:
+                    listLFN += streamLFNsMap[streamName] 
+            if listLFN != []:
+                decorators = re.sub('^'+streamNames,'',placeHolder)
+                # long format
+                if '/L' in decorators:
+                    longLFNs = ''
+                    for tmpLFN in listLFN:
+                        if '/A' in decorators:
+                            longLFNs += "'"
+                        longLFNs += tmpLFN
+                        if '/A' in decorators:
+                            longLFNs += "'"
+                        if '/S' in decorators:
+                            # use white-space as separator
+                            longLFNs += ' '
+                        else:
+                            longLFNs += ','
+                    longLFNs = longLFNs[:-1]
+                    parTemplate = parTemplate.replace('${'+placeHolder+'}',longLFNs)
+                    continue
+                # list to string
+                if '/T' in decorators:
+                    parTemplate = parTemplate.replace('${'+placeHolder+'}',str(listLFN))
+                    continue
+                # single file
+                if len(listLFN) == 1:
+                    # just replace with the original file name
+                    replaceStr = listLFN[0]
+                    parTemplate = parTemplate.replace('${'+streamNames+'}',replaceStr)
+                    # encoded    
+                    encStreamName = streamNames+'/E'
+                    replaceStr = urllib.unquote(replaceStr)
+                    parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
+                else:
+                    # compact format
+                    compactLFNs = []
+                    # remove attempt numbers
+                    for tmpLFN in listLFN:
+                        compactLFNs.append(re.sub('\.\d+$','',tmpLFN))
+                    # find head and tail to convert file.1.pool,file.2.pool,file.4.pool to file.[1,2,4].pool
+                    tmpHead = ''
+                    tmpTail = ''
+                    tmpLFN0 = compactLFNs[0]
+                    tmpLFN1 = compactLFNs[1]
+                    fullLFNList = ''
+                    for i in range(len(tmpLFN0)):
+                        match = re.search('^(%s)' % tmpLFN0[:i],tmpLFN1)
+                        if match:
+                            tmpHead = match.group(1)
+                        match = re.search('(%s)$' % tmpLFN0[-i:],tmpLFN1)
+                        if match:
+                            tmpTail = match.group(1)
+                    # remove numbers : ABC_00,00_XYZ -> ABC_,_XYZ
+                    tmpHead = re.sub('\d*$','',tmpHead)
+                    tmpTail = re.sub('^\d*','',tmpTail)
+                    # create compact paramter
+                    compactPar = '%s[' % tmpHead
+                    for tmpLFN in compactLFNs:
+                        # keep full LFNs
+                        fullLFNList += '%s,' % tmpLFN
+                        # extract number
+                        tmpLFN = re.sub('^%s' % tmpHead,'',tmpLFN)
+                        tmpLFN = re.sub('%s$' % tmpTail,'',tmpLFN)
+                        compactPar += '%s,' % tmpLFN
+                    compactPar = compactPar[:-1]
+                    compactPar += ']%s' % tmpTail
+                    fullLFNList = fullLFNList[:-1]
+                    # check contents in []
+                    conMatch = re.search('\[([^\]]+)\]',compactPar)
+                    if conMatch != None and re.search('^[\d,]+$',conMatch.group(1)) != None:
+                        # replace with compact format
+                        replaceStr = compactPar
+                    else:
+                        # replace with full format since [] contains non digits
+                        replaceStr = fullLFNList
+                    parTemplate = parTemplate.replace('${'+streamNames+'}',replaceStr)
+                    # encoded    
+                    encStreamName = streamNames+'/E'
+                    replaceStr = urllib.unquote(replaceStr)
+                    parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
+        # loop over all streams to collect transient and final steams
         transientStreamCombo = {}
         for streamName,listLFN in streamLFNsMap.iteritems():
             # collect transient and final steams
@@ -827,81 +916,6 @@ class JobGeneratorThread (WorkerThread):
                         'out': counterStreamName,
                         'in':  streamName
                         }
-            # ignore pseudo input with streamName=None
-            if streamName == None:
-                continue
-            # long format
-            if '/L' in streamName:
-                longLFNs = ''
-                for tmpLFN in listLFN:
-                    if '/A' in streamName:
-                        longLFNs += "'"
-                    longLFNs += tmpLFN
-                    if '/A' in streamName:
-                        longLFNs += "'"
-                    if '/S' in streamName:
-                        # use white-space as separator
-                        longLFNs += ' '
-                    else:
-                        longLFNs += ','
-                longLFNs = longLFNs[:-1]
-                parTemplate = parTemplate.replace('${'+streamName+'}',longLFNs)
-            # single file
-            if len(listLFN) == 1:
-                # just replace with the original file name
-                replaceStr = listLFN[0]
-                parTemplate = parTemplate.replace('${'+streamName+'}',replaceStr)
-                # encoded    
-                encStreamName = streamName.split('/')[0]+'/E'
-                replaceStr = urllib.unquote(replaceStr)
-                parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
-            else:
-                # compact format
-                compactLFNs = []
-                # remove attempt numbers
-                for tmpLFN in listLFN:
-                    compactLFNs.append(re.sub('\.\d+$','',tmpLFN))
-                # find head and tail to convert file.1.pool,file.2.pool,file.4.pool to file.[1,2,4].pool
-                tmpHead = ''
-                tmpTail = ''
-                tmpLFN0 = compactLFNs[0]
-                tmpLFN1 = compactLFNs[1]
-                fullLFNList = ''
-                for i in range(len(tmpLFN0)):
-                    match = re.search('^(%s)' % tmpLFN0[:i],tmpLFN1)
-                    if match:
-                        tmpHead = match.group(1)
-                    match = re.search('(%s)$' % tmpLFN0[-i:],tmpLFN1)
-                    if match:
-                        tmpTail = match.group(1)
-                # remove numbers : ABC_00,00_XYZ -> ABC_,_XYZ
-                tmpHead = re.sub('\d*$','',tmpHead)
-                tmpTail = re.sub('^\d*','',tmpTail)
-                # create compact paramter
-                compactPar = '%s[' % tmpHead
-                for tmpLFN in compactLFNs:
-                    # keep full LFNs
-                    fullLFNList += '%s,' % tmpLFN
-                    # extract number
-                    tmpLFN = re.sub('^%s' % tmpHead,'',tmpLFN)
-                    tmpLFN = re.sub('%s$' % tmpTail,'',tmpLFN)
-                    compactPar += '%s,' % tmpLFN
-                compactPar = compactPar[:-1]
-                compactPar += ']%s' % tmpTail
-                fullLFNList = fullLFNList[:-1]
-                # check contents in []
-                conMatch = re.search('\[([^\]]+)\]',compactPar)
-                if conMatch != None and re.search('^[\d,]+$',conMatch.group(1)) != None:
-                    # replace with compact format
-                    replaceStr = compactPar
-                else:
-                    # replace with full format since [] contains non digits
-                    replaceStr = fullLFNList
-                parTemplate = parTemplate.replace('${'+streamName+'}',replaceStr)
-                # encoded    
-                encStreamName = streamName.split('/')[0]+'/E'
-                replaceStr = urllib.unquote(replaceStr)
-                parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
         # replace params related to transient files
         replaceStrMap = {}
         for streamName,transientStreamMap in transientStreamCombo.iteritems():

@@ -289,10 +289,15 @@ class InputChunk:
                     if not nSecFilesMap.has_key(datasetSpec.datasetID):
                         nSecFilesMap[datasetSpec.datasetID] = 0
                     # get number of files to be used for the secondary
-                    nSecondary = datasetSpec.getNumMultByRatio(numMaster) - nSecFilesMap[datasetSpec.datasetID]
-                    if splitWithBoundaryID and useBoundary['inSplit'] != 3:
-                        # set large number to get all associated secondary files
-                        nSecondary = 10000
+                    nSecondary = datasetSpec.getNumFilesPerJob()
+                    if nSecondary != None and firstLoop == False:
+                        # read files only in the first bunch when number of files per job is specified
+                        continue
+                    if nSecondary == None:
+                        nSecondary = datasetSpec.getNumMultByRatio(numMaster) - nSecFilesMap[datasetSpec.datasetID]
+                        if splitWithBoundaryID and useBoundary['inSplit'] != 3:
+                            # set large number to get all associated secondary files
+                            nSecondary = 10000
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
                     for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
                         # check boundaryID
@@ -350,7 +355,7 @@ class InputChunk:
                 newExpWalltime += walltimeIntercepts
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
-                if not datasetSpec.isNoSplit():
+                if not datasetSpec.isNoSplit() and datasetSpec.getNumFilesPerJob() == None:
                     # check boundaryID
                     if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
                         break

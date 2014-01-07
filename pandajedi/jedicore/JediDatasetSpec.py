@@ -30,7 +30,8 @@ class JediDatasetSpec(object):
     _seqAttrMap = {'datasetID':'{0}.JEDI_DATASETS_ID_SEQ.nextval'.format(jedi_config.db.schemaJEDI)}
     # token for attributes
     attrToken = {
-        'offset': 'of'
+        'offset':       'of',
+        'nFilesPerJob': 'np',
         }
 
 
@@ -353,6 +354,23 @@ class JediDatasetSpec(object):
                 offset = int(tmpMatch.group(1))
                 return offset
         return 0
+
+
+
+    # set the number of files per job
+    def setNumFilesPerJob(self,num):
+        self.setDatasetAttribute('{0}={1}'.format(self.attrToken['nFilesPerJob'],num))
+
+
+
+    # get the number of files per job
+    def getNumFilesPerJob(self):
+        if self.attributes != None:
+            tmpMatch = re.search(self.attrToken['nFilesPerJob']+'=(\d+)',self.attributes)
+            if tmpMatch != None:
+                num = int(tmpMatch.group(1))
+                return num
+        return None
 
 
 

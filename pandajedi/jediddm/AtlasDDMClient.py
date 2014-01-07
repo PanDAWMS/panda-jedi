@@ -48,7 +48,7 @@ class AtlasDDMClient(DDMClientBase):
     # get files in dataset
     def getFilesInDataset(self,datasetName,getNumEvents=False,skipDuplicate=True):
         methodName = 'getFilesInDataset'
-        methodName = '{0} datasetName={1}'.format(methodName,datasetName)
+        methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         try:
             # get DQ2 API            
@@ -92,12 +92,17 @@ class AtlasDDMClient(DDMClientBase):
                     fileMap = newFileMap
                 # get number of events in each file
                 if getNumEvents:
-                    amiDatasetName = re.sub('(_tid\d+)*(_\d+)*/$','',datasetName)
-                    amiclient = AMIClient()
-                    for amiItem in amiquery.get_files(amiclient,amiDatasetName):
-                        amiGUID = amiItem['fileGUID']
-                        if fileMap.has_key(amiGUID):
-                            fileMap[amiGUID]['nevents'] = long(amiItem['events'])
+                    try:
+                        amiDatasetName = re.sub('(_tid\d+)*(_\d+)*/$','',datasetName)
+                        amiclient = AMIClient()
+                        for amiItem in amiquery.get_files(amiclient,amiDatasetName):
+                            amiGUID = amiItem['fileGUID']
+                            if fileMap.has_key(amiGUID):
+                                fileMap[amiGUID]['nevents'] = long(amiItem['events'])
+                    except:
+                        errtype,errvalue = sys.exc_info()[:2]
+                        errStr = '{0} AMI failed with {1} {2}'.format(methodName,errtype.__name__,errvalue)
+                        tmpLog.warning(errStr)
             return self.SC_SUCCEEDED,fileMap
         except:
             errtype,errvalue = sys.exc_info()[:2]

@@ -113,13 +113,15 @@ class TaskRefinerThread (WorkerThread):
                     tmpLog = MsgWrapper(self.logger,'jediTaskID={0}'.format(jediTaskID))
                     tmpLog.info('start')
                     tmpStat = Interaction.SC_SUCCEEDED
+                    errStr = ''
                     # convert to map
                     try:
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                         taskParamMap = RefinerUtils.decodeJSON(taskParam)
                     except:
                         errtype,errvalue = sys.exc_info()[:2]
-                        tmpLog.error('conversion to map from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
+                        errStr = 'conversion to map from json failed with {0}:{1}'.format(errtype.__name__,errvalue)
+                        tmpLog.error(errStr)
                         tmpStat = Interaction.SC_FAILED
                     # get impl
                     if tmpStat == Interaction.SC_SUCCEEDED:
@@ -135,11 +137,13 @@ class TaskRefinerThread (WorkerThread):
                                                                     self.taskBufferIF,self.ddmIF)
                             if impl == None:
                                 # task refiner is undefined
-                                tmpLog.error('task refiner is undefined for vo={0} sourceLabel={1}'.format(vo,prodSourceLabel))
+                                errStr = 'task refiner is undefined for vo={0} sourceLabel={1}'.format(vo,prodSourceLabel)
+                                tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
-                            tmpLog.error('getImpl failed with {0}:{1}'.format(errtype.__name__,errvalue))
+                            errStr = 'failed to get task refiner with {0}:{1}'.format(errtype.__name__,errvalue)
+                            tmpLog.error(errStr)
                             tmpStat = Interaction.SC_FAILED
                     # extract common parameters
                     if tmpStat == Interaction.SC_SUCCEEDED:
@@ -151,7 +155,8 @@ class TaskRefinerThread (WorkerThread):
                             impl.extractCommon(jediTaskID,taskParamMap,self.workQueueMapper,splitRule)
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
-                            tmpLog.error('extractCommon failed with {0}:{1}'.format(errtype.__name__,errvalue))
+                            errStr = 'failed to extract common parameters with {0}:{1}'.format(errtype.__name__,errvalue)
+                            tmpLog.error(errStr)
                             tmpStat = Interaction.SC_FAILED
                     # refine
                     if tmpStat == Interaction.SC_SUCCEEDED:
@@ -160,13 +165,16 @@ class TaskRefinerThread (WorkerThread):
                             tmpStat = impl.doRefine(jediTaskID,taskParamMap)
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
-                            tmpLog.error('doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))
+                            errStr = 'failed to refine task with {0}:{1}'.format(errtype.__name__,errvalue)
+                            tmpLog.error(errStr)
                             tmpStat = Interaction.SC_FAILED
                     # register
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to refine the task')
-                        # FIXME
-                        # update task
+                        impl.taskSpec.status = 'broken'
+                        if errStr != '':
+                            impl.taskSpec.setErrDiag(errStr,True)
+                        self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
                     else:
                         tmpLog.info('registering')                    
                         # fill JEDI tables
