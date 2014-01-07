@@ -128,7 +128,8 @@ class PostProcessorThread (WorkerThread):
                     tmpLog.info('start')
                     tmpStat = Interaction.SC_SUCCEEDED
                     # get impl
-                    impl = self.implFactory.instantiateImpl(taskSpec.vo,taskSpec.prodSourceLabel,self.taskBufferIF,self.ddmIF)
+                    impl = self.implFactory.instantiateImpl(taskSpec.vo,taskSpec.prodSourceLabel,None,
+                                                            self.taskBufferIF,self.ddmIF)
                     if impl == None:
                         # post processor is undefined
                         tmpLog.error('post-processor is undefined for vo={0} sourceLabel={1}'.format(taskSpec.vo,taskSpec.prodSourceLabel))
