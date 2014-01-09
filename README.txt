@@ -1,5 +1,8 @@
 Release Note
 
+* 1/9/2014
+  * fixed JG for cache
+
 * 12/20/2013
   * fixed for multiple input streams
 
