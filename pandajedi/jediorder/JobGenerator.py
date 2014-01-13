@@ -628,14 +628,6 @@ class JobGeneratorThread (WorkerThread):
             logFileSpec.destinationDBlock = jobSpec.destinationDBlock
             logFileSpec.destinationSE     = jobSpec.destinationSE
             jobSpec.addFile(logFileSpec)
-            # parameter map
-            paramMap = {}
-            paramMap['OUT']  = fileSpec.lfn
-            paramMap['IN']   = taskParamMap['buildSpec']['archiveName']
-            paramMap['SURL'] = taskParamMap['sourceURL']
-            # job parameter
-            jobSpec.jobParameters = self.makeBuildJobParameters(taskParamMap['buildSpec']['jobParameters'],
-                                                                paramMap)
             # insert lib.tgz file
             tmpStat,fileIdMap = self.taskBufferIF.insertBuildFileSpec_JEDI(jobSpec,reusedDatasetID,simul)
             # failed
@@ -649,6 +641,14 @@ class JobGeneratorThread (WorkerThread):
                 tmpFile.lfn = fileIdMap[tmpFile.lfn]['newLFN']
                 if not tmpFile.datasetID in datasetToRegister:
                     datasetToRegister.append(tmpFile.datasetID)
+            # parameter map
+            paramMap = {}
+            paramMap['OUT']  = fileSpec.lfn
+            paramMap['IN']   = taskParamMap['buildSpec']['archiveName']
+            paramMap['SURL'] = taskParamMap['sourceURL']
+            # job parameter
+            jobSpec.jobParameters = self.makeBuildJobParameters(taskParamMap['buildSpec']['jobParameters'],
+                                                                paramMap)
             # make file spec which will be used by runJobs
             runFileSpec = copy.copy(fileSpec)
             runFileSpec.dispatchDBlock = fileSpec.dataset
