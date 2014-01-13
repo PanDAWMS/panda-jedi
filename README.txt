@@ -1,6 +1,7 @@
 Release Note
 
 * 1/13/2014
+  * closing libDS
   * fixed to send email when no scouts succeeded
   * fixed to use unique name for lib.tgz
  

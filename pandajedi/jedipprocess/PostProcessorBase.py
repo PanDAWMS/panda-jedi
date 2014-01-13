@@ -43,7 +43,7 @@ class PostProcessorBase (object):
         nFilesFinished = 0
         for datasetSpec in taskSpec.datasetSpecList:
             # update dataset
-            if datasetSpec.type in ['output','log']:
+            if datasetSpec.type in ['output','log','lib']:
                 datasetSpec.status = 'done'
                 self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'datasetID':datasetSpec.datasetID,
                                                                   'jediTaskID':datasetSpec.jediTaskID})
