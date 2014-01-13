@@ -52,8 +52,10 @@ class PostProcessorBase (object):
                 nFiles += datasetSpec.nFiles
                 nFilesFinished += datasetSpec.nFilesFinished
         # update task status
-        taskSpec.lockedBy = None        
-        if nFiles == nFilesFinished:
+        taskSpec.lockedBy = None
+        if taskSpec.status == 'tobroken':
+            taskSpec.status = 'broken'
+        elif nFiles == nFilesFinished:
             taskSpec.status = 'finished'
         elif nFilesFinished == 0:
             taskSpec.status = 'failed'

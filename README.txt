@@ -1,5 +1,9 @@
 Release Note
 
+* 1/13/2014
+  * fixed to send email when no scouts succeeded
+  * fixed to use unique name for lib.tgz
+ 
 * 1/9/2014
   * fixed JG for cache
 

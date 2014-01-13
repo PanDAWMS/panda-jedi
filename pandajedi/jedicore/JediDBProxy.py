@@ -1195,10 +1195,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':status1'] = 'prepared'
             varMap[':status2'] = 'scouted'
+            varMap[':status3'] = 'tobroken'
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames('tabT'))
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
-            sqlRT += "AND tabT.status IN (:status1,:status2) "
+            sqlRT += "AND tabT.status IN (:status1,:status2,:status3) "
             if not vo in [None,'any']:
                 varMap[':vo'] = vo
                 sqlRT += "AND tabT.vo=:vo "
@@ -1230,7 +1231,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 allTasks.append(taskSpec)
             # get datasets    
             for taskSpec in allTasks:
-                if taskSpec.status == 'prepared':
+                if taskSpec.status == 'scouted':
+                    # make avalanche
+                    varMap = {}
+                    varMap[':jediTaskID'] = taskSpec.jediTaskID
+                    varMap[':status'] = 'running'
+                    self.cur.execute(sqlSC+comment,varMap)
+                    tmpLog.debug("changed status to {0} for jediTaskID={1}".format(varMap[':status'],taskSpec.jediTaskID))
+                else:
                     retTasks.append(taskSpec)
                     # lock task
                     varMap = {}
@@ -1246,13 +1254,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         datasetSpec = JediDatasetSpec()
                         datasetSpec.pack(resDS)
                         taskSpec.datasetSpecList.append(datasetSpec)
-                else:
-                    # make avalanche
-                    varMap = {}
-                    varMap[':jediTaskID'] = taskSpec.jediTaskID
-                    varMap[':status'] = 'running'
-                    self.cur.execute(sqlSC+comment,varMap)
-                    tmpLog.debug("changed status to {0} for jediTaskID={1}".format(varMap[':status'],taskSpec.jediTaskID))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -3255,7 +3256,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if scoutSucceeded:
                             newTaskStatus = 'scouted'
                         else:
-                            newTaskStatus = 'broken'
+                            newTaskStatus = 'tobroken'
                             errorDialog = 'no scout jobs succeeded'
                     elif taskSpec.status in ['running','merging','preprocessing']:
                         # update output datasets
@@ -4208,6 +4209,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFI  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
             sqlFI += JediFileSpec.bindValuesExpression()
             sqlFI += " RETURNING fileID INTO :newFileID"
+            # sql to update LFN
+            sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFU += "SET lfn=:newLFN "
+            sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             # make datasetSpec
             pandaFileSpec = jobSpec.Files[0]
             timeNow = datetime.datetime.utcnow()
@@ -4257,10 +4262,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     fileID = long(varMap[':newFileID'].getvalue())
                 else:
                     fileID = 0
+                # change placeholder in filename
+                newLFN = fileSpec.lfn.replace('$JEDIFILEID',str(fileID))
+                varMap = {}
+                varMap[':jediTaskID'] = fileSpec.jediTaskID
+                varMap[':datasetID'] = datasetID
+                varMap[':fileID'] = fileID
+                varMap[':newLFN'] = newLFN
+                if not simul:
+                    self.cur.execute(sqlFU+comment,varMap)
                 # return IDs in a map since changes to jobSpec are not effective
                 # since invoked in separate processes
                 fileIdMap[fileSpec.lfn] = {'datasetID':datasetID,
-                                           'fileID':fileID}
+                                           'fileID':fileID,
+                                           'newLFN':newLFN}
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

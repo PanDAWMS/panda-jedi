@@ -607,9 +607,10 @@ class JobGeneratorThread (WorkerThread):
                 libDsName = datasetSpec.datasetName
             jobSpec.destinationDBlock = libDsName
             jobSpec.destinationSE = siteName  
+            libDsFileNameBase = libDsName + '.$JEDIFILEID'
             # make lib.tgz
             fileSpec = FileSpec()
-            fileSpec.lfn        = libDsName + '.lib.tgz'
+            fileSpec.lfn        = libDsFileNameBase + '.lib.tgz'
             fileSpec.type       = 'output'
             fileSpec.attemptNr  = 0
             fileSpec.jediTaskID = taskSpec.jediTaskID
@@ -619,7 +620,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.addFile(fileSpec)
             # make log
             logFileSpec = FileSpec()
-            logFileSpec.lfn        = libDsName + '.log.tgz'
+            logFileSpec.lfn        = libDsFileNameBase + '.log.tgz'
             logFileSpec.type       = 'log'
             logFileSpec.attemptNr  = 0
             logFileSpec.jediTaskID = taskSpec.jediTaskID
@@ -645,6 +646,7 @@ class JobGeneratorThread (WorkerThread):
             for tmpFile in jobSpec.Files:
                 tmpFile.fileID = fileIdMap[tmpFile.lfn]['fileID']
                 tmpFile.datasetID = fileIdMap[tmpFile.lfn]['datasetID']
+                tmpFile.lfn = fileIdMap[tmpFile.lfn]['newLFN']
                 if not tmpFile.datasetID in datasetToRegister:
                     datasetToRegister.append(tmpFile.datasetID)
             # make file spec which will be used by runJobs

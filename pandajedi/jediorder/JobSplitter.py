@@ -20,7 +20,7 @@ class JobSplitter:
         retFatal    = self.SC_FATAL,[]
         retTmpError = self.SC_FAILED,[]
         # make logger
-        tmpLog = MsgWrapper(logger,'<jediTaskID={0} datasetID={1}'.format(taskSpec.jediTaskID,inputChunk.masterIndexName))
+        tmpLog = MsgWrapper(logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,inputChunk.masterIndexName))
         tmpLog.debug('start')
         if not inputChunk.isMerging:
             # set maxNumFiles using taskSpec if specified
