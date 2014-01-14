@@ -304,7 +304,10 @@ class JobGeneratorThread (WorkerThread):
                                 statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True)
                                 tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
                             jobsSubmitted = True
-                            if inputChunk.useScout():
+                            if inputChunk.isMerging:
+                                # don't change task status by merging
+                                pass
+                            elif inputChunk.useScout():
                                 taskSpec.status = 'scouting'
                             elif taskSpec.usePrePro():
                                 taskSpec.status = 'preprocessing'
