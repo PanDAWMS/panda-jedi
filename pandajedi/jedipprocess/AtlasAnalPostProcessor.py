@@ -40,7 +40,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                     continue
                 # freeze datasets
                 tmpLog.info('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
-                ddmIF.freezeDataset(datasetSpec.datasetName)
+                ddmIF.freezeDataset(datasetSpec.datasetName,ignoreUnknown=True)
                 # update dataset
                 datasetSpec.state = 'closed'
                 datasetSpec.stateCheckTime = datetime.datetime.utcnow()

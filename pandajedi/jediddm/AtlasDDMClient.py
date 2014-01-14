@@ -670,11 +670,12 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # freeze dataset
-    def freezeDataset(self,datasetName):
+    def freezeDataset(self,datasetName,ignoreUnknown=False):
         methodName = 'freezeDataset'
         methodName = '{0} datasetName={1}'.format(methodName,datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.info('start')
+        isOK = True
         try:
             # get DQ2 API            
             dq2=DQ2()
@@ -682,14 +683,22 @@ class AtlasDDMClient(DDMClientBase):
             dq2.freezeDataset(datasetName)
         except DQFrozenDatasetException:
             pass
+        except DQUnknownDatasetException:
+            if ignoreUnknown:
+                pass
+            else:
+                isOK = False
         except:
+            isOK = False
+        if isOK:
+            tmpLog.info('done')
+            return self.SC_SUCCEEDED,True
+        else:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
             return errCode,'{0} : {1}'.format(methodName,errMsg)
-        tmpLog.info('done')
-        return self.SC_SUCCEEDED,True
 
 
 
