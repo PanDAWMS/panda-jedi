@@ -52,10 +52,15 @@ taskSetupper.initializeMods(tbIF,ddmIF)
 for taskSpec,cloudName,inputChunk in tmpList:
     jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
     tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo),tbIF)
-    tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,None)
-
     splitter = JobSplitter()
+    gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper)
+
+    taskParamMap = None
+    if taskSpec.useLimitedSites():
+        tmpStat,taskParamMap = gen.readTaskParams(taskSpec,taskParamMap,tmpLog)
+
+    tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,taskParamMap)
+
     tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
 
-    gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper)
     newJobs = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog,True)

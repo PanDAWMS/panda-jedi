@@ -469,7 +469,7 @@ class JobGeneratorThread (WorkerThread):
                             elif tmpFileSpec.locality == 'cache':
                                 tmpInFileSpec.status = 'cached'
                             # local IO
-                            if taskSpec.useLocalIO():
+                            if taskSpec.useLocalIO() or (inputChunk.isMerging and taskParamMap['mergeSpec'].has_key('useLocalIO')):
                                 tmpInFileSpec.prodDBlockToken = 'local'
                             jobSpec.addFile(tmpInFileSpec)
                             # use remote access
