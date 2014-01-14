@@ -127,7 +127,7 @@ class TaskCommandoThread (WorkerThread):
                                 tmpRet = self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':jediTaskID})
                             else:
                                 tmpLog.info('sending kill command')
-                                tmpRet = self.taskBufferIF.killJobs(pandaIDs,commentStr,50,True)
+                                tmpRet = self.taskBufferIF.killJobs(pandaIDs,commentStr,'50',True)
                             tmpLog.info('done with {0}'.format(str(tmpRet)))
                     elif commandStr in ['retry','incexec']:
                         # change task params for incexec
