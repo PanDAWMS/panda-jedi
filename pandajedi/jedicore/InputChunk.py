@@ -193,8 +193,8 @@ class InputChunk:
         if maxSize == None:     
             # 20 GB at most by default
             maxSize = 20 * 1024 * 1024 * 1024
-        # set default output size
-        minOutSize = 2000 * 1024 * 1024
+        # set default output size 2G + 500MB (safety merging)
+        minOutSize = 2500 * 1024 * 1024
         # set default max number of events
         maxNumEvents = None
         # overwrite parameters when nFiles/EventsPerJob is used
