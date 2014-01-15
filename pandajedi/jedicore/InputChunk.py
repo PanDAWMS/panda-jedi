@@ -193,6 +193,8 @@ class InputChunk:
         if maxSize == None:     
             # 20 GB at most by default
             maxSize = 20 * 1024 * 1024 * 1024
+        # set default output size
+        minOutSize = 2000 * 1024 * 1024
         # set default max number of events
         maxNumEvents = None
         # overwrite parameters when nFiles/EventsPerJob is used
@@ -228,6 +230,7 @@ class InputChunk:
         newBoundaryID  = False
         nSecFilesMap   = {}
         numMaster      = 0
+        outSize        = 0
         while (maxNumFiles == None or inputNumFiles <= maxNumFiles) \
                 and (maxSize == None or (maxSize != None and fileSize <= maxSize)) \
                 and (maxWalltime <= 0 or expWalltime <= maxWalltime) \
@@ -252,8 +255,10 @@ class InputChunk:
                 # sum
                 inputNumFiles += 1
                 fileSize += (tmpFileSpec.fsize + sizeGradients)
+                outSize += sizeGradients
                 if sizeGradientsPerInSize != None:
                     fileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                    outSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                 # sum offset only for the first master
                 if firstMaster:
                     fileSize += sizeIntercepts
@@ -284,6 +289,7 @@ class InputChunk:
                             fileSize += tmpFileSpec.fsize
                             if sizeGradientsPerInSize != None:
                                 fileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                                outSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                             datasetUsage['used'] += 1
                 else:
                     if not nSecFilesMap.has_key(datasetSpec.datasetID):
@@ -310,6 +316,7 @@ class InputChunk:
                         fileSize += tmpFileSpec.fsize
                         if sizeGradientsPerInSize != None:
                             fileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                            outSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                         datasetUsage['used'] += 1
                         nSecFilesMap[datasetSpec.datasetID] += 1
             # unset first loop flag
@@ -332,6 +339,7 @@ class InputChunk:
             newNextStartEvent = nextStartEvent
             newNumMaster      = numMaster
             terminateFlag     = False
+            newOutSize        = outSize
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 # check continuity of event
                 if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
@@ -352,6 +360,10 @@ class InputChunk:
                 newInputNumFiles += 1
                 newNumMaster += 1
                 newFileSize += (tmpFileSpec.fsize + sizeGradients)
+                newOutSize += sizeGradients
+                if sizeGradientsPerInSize != None:
+                    newFileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                    newOutSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                 newExpWalltime += walltimeIntercepts
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
@@ -366,11 +378,15 @@ class InputChunk:
                         if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
                             break
                         newFileSize += tmpFileSpec.fsize
+                        if sizeGradientsPerInSize != None:
+                            newFileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
             # termination            
             if terminateFlag:
                 break
+            # check
             if newInputNumFiles > maxNumFiles \
                     or (maxSize != None and newFileSize > maxSize) \
+                    or (maxSize != None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize) \
                     or (maxWalltime > 0 and newExpWalltime > maxWalltime) \
                     or (maxNumEvents != None and newInputNumEvents > maxNumEvents):
                 break

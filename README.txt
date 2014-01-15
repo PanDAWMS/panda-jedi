@@ -1,5 +1,8 @@
 Release Note
 
+* 1/14/2014
+  * fixed InputChunk to use the output offset
+
 * 1/13/2014
   * not chaning task status by merging
   * closing libDS
