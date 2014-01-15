@@ -2986,9 +2986,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime "
         sqlSCD += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCD += "WHERE PandaID=:pandaID AND modificationTime>(CURRENT_DATE-14) "
+        # get size of lib
+        sqlLIB  = "SELECT MAX(fsize) "
+        sqlLIB += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
+        sqlLIB += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status AND "
+        sqlLIB += "tabD.type=:type AND tabF.type=:type "
         if useTransaction:
             # begin transaction
             self.conn.begin()
+        # get the size of lib 
+        libSize = None
+        varMap = {}
+        varMap[':jediTaskID'] = jediTaskID
+        varMap[':type'] = 'lib'
+        varMap[':status'] = 'finished'
+        self.cur.execute(sqlLIB+comment,varMap)
+        resLIB = self.cur.fetchone()
+        if resLIB != None:
+            libSize, = resLIB
         # get files    
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
@@ -3050,11 +3065,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     except:
                         pass
                     # workdir size
+                    tmpWorkSize = None
                     try:
                         tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
-                        workSizeList.append(long(tmpMatch.group(1)))
+                        tmpWorkSize = long(tmpMatch.group(1))
                     except:
                         pass
+                    # use lib size as workdir size
+                    if tmpWorkSize == None or (libSize != None and libSize > tmpWorkSize):
+                        tmpWorkSize = libSize
+                    if tmpWorkSize != None:
+                        workSizeList.append(tmpWorkSize)
             # normalization since job data is calculated per file record
             nFinisedJobs = len(finishedJobs)
             if nFinisedJobs == 0:

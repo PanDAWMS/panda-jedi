@@ -1,6 +1,7 @@
 Release Note
 
 * 1/14/2014
+  * fixed getScoutData to use lib size as work dir size
   * fixed InputChunk to use the output offset
 
 * 1/13/2014
