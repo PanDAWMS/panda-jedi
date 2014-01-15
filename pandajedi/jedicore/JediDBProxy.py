@@ -2995,15 +2995,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
         # get the size of lib 
-        libSize = None
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
         varMap[':type'] = 'lib'
         varMap[':status'] = 'finished'
         self.cur.execute(sqlLIB+comment,varMap)
         resLIB = self.cur.fetchone()
+        libSize = None
         if resLIB != None:
-            libSize, = resLIB
+            try:
+                libSize, = resLIB
+                libSize /= (1024 * 1024)
+            except:
+                pass
         # get files    
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
