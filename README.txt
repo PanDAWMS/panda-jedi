@@ -2,6 +2,7 @@ Release Note
 
 * 1/15/2014
   * added safety merging to the output offset
+  * fixed to set scope for lib
 
 * 1/14/2014
   * fixed getScoutData to use lib size as work dir size

@@ -1528,7 +1528,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         maxSerialNr = serialNr
                     # scope
                     if vo in jedi_config.ddm.voWithScope.split(','):
-                        fileSpec.scope = datasetName.split('.')[0]
+                        fileSpec.scope = self.extractScope(datasetName)
                     if not simul:    
                         # insert
                         varMap = fileSpec.valuesMap(useSeq=True)
@@ -4262,6 +4262,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # change type to lib
                 if fileSpec.type == 'output':
                     fileSpec.type = 'lib'
+                # scope
+                if datasetSpec.vo in jedi_config.ddm.voWithScope.split(','):
+                    fileSpec.scope = self.extractScope(datasetSpec.datasetName)
                 # append
                 fileSpecList.append((fileSpec,pandaFileSpec))
             # start transaction
@@ -4300,7 +4303,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # since invoked in separate processes
                 fileIdMap[fileSpec.lfn] = {'datasetID':datasetID,
                                            'fileID':fileID,
-                                           'newLFN':newLFN}
+                                           'newLFN':newLFN,
+                                           'scope':fileSpec.scope}
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

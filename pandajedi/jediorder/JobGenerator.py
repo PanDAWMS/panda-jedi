@@ -637,10 +637,12 @@ class JobGeneratorThread (WorkerThread):
             if not tmpStat:
                 tmpLog.error('failed to insert libDS for jediTaskID={0} siteName={0}'.format(taskSpec.jediTaskID,siteName))
                 return failedRet
-            # set fileID and datasetID
+            # set attributes
             for tmpFile in jobSpec.Files:
                 tmpFile.fileID = fileIdMap[tmpFile.lfn]['fileID']
                 tmpFile.datasetID = fileIdMap[tmpFile.lfn]['datasetID']
+                tmpFile.scope = fileIdMap[tmpFile.lfn]['scope']
+                # set new LFN where place holder is replaced
                 tmpFile.lfn = fileIdMap[tmpFile.lfn]['newLFN']
                 if not tmpFile.datasetID in datasetToRegister:
                     datasetToRegister.append(tmpFile.datasetID)
