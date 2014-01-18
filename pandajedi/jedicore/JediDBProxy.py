@@ -214,7 +214,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
-                                   nFilesPerJob,nEventsPerRange,nFilesForScout,includePatt,excludePatt):
+                                   nFilesPerJob,nEventsPerRange,nFilesForScout,includePatt,excludePatt,
+                                   xmlConfig):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -231,6 +232,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                 nFilesForScout))
         tmpLog.debug('useScout={0} nFilesForScout={1}'.format(useScout,nFilesForScout))
         tmpLog.debug('includePatt={0} excludePatt={1}'.format(str(includePatt),str(excludePatt)))
+        tmpLog.debug('xmlConfig={0}'.format(type(xmlConfig)))
         tmpLog.debug('len(fileMap)={0}'.format(len(fileMap)))
         # return value for failure
         diagMap = {'errMsg':'','nFilesForScout':nFilesForScout}
@@ -254,13 +256,38 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if not self.isMatched(fileVal['lfn'],excludePatt):
                         newFileMap[guid] = fileVal
                 fileMap = newFileMap
-            # loop over all files
+            # XML config
+            if xmlConfig != None:
+                newFileMap = {}
+                for guid,fileVal in fileMap.iteritems():
+                    if fileVal['lfn'] in xmlConfig.files_in_DS(datasetSpec.datasetName):
+                        newFileMap[guid] = fileVal
+                fileMap = newFileMap
+            # make map with LFN as key
             filelValMap = {}
             for guid,fileVal in fileMap.iteritems():
                 filelValMap[fileVal['lfn']] = (guid,fileVal)
-            # sort by LFN
-            lfnList = filelValMap.keys()
-            lfnList.sort()
+            # make LFN list
+            listBoundaryID = []
+            if xmlConfig == None:
+                # sort by LFN
+                lfnList = filelValMap.keys()
+                lfnList.sort()
+            else:
+                # sort as described in XML
+                tmpBoundaryID = 0
+                lfnList = []
+                for tmpJobXML in xmlConfig.jobs:
+                    for tmpLFN in tmpJobXML.files_in_DS(datasetSpec.datasetName):
+                        # check if the file is available
+                        if not filelValMap.has_key(tmpLFN):
+                            diagMap['errMsg'] = "{0} is not found in {1}".format(tmpLFN,datasetSpec.datasetName)
+                            tmpLog.error(diagMap['errMsg'])
+                            return failedRet
+                        lfnList.append(tmpLFN)
+                        listBoundaryID.append(tmpBoundaryID)
+                    # increment boundaryID
+                    tmpBoundaryID += 1
             # truncate if nessesary
             offsetVal = datasetSpec.getOffset()
             if offsetVal > 0:
@@ -277,7 +304,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             foundFileList = []
             uniqueLfnList = []
             totalNumEventsF = 0
-            for tmpLFN in lfnList:
+            for tmpIdx,tmpLFN in enumerate(lfnList):
                 # collect unique LFN list    
                 if not tmpLFN in uniqueLfnList:
                     uniqueLfnList.append(tmpLFN)
@@ -309,7 +336,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if datasetSpec.toKeepTrack():
                     fileSpec.keepTrack = 1
                 tmpFileSpecList = []
-                if givenFileList != []:
+                if xmlConfig != None:
+                    # splitting with XML
+                    fileSpec.boundaryID = listBoundaryID[tmpIdx]
+                    tmpFileSpecList.append(fileSpec)
+                elif givenFileList != []:
                     # given file list
                     for fileItem in givenFileList:
                         # check file name
@@ -1361,7 +1392,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # generate output files for task, and instantiate template datasets if necessary
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,isUnMerging,
-                            isPrePro):
+                            isPrePro,xmlConfigJob):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -1369,7 +1400,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start with simul={0} instantiateTmpl={1} instantiatedSite={2}'.format(simul,
                                                                                             instantiateTmpl,
                                                                                             instantiatedSite))
-        tmpLog.debug('isUnMerging={0} isPrePro={1}'.format(isUnMerging,isPrePro))
+        tmpLog.debug('isUnMerging={0} isPrePro={1} xmlConfigJob={2}'.format(isUnMerging,isPrePro,type(xmlConfigJob)))
         try:
             outMap = {}
             datasetToRegister = []
@@ -1513,38 +1544,52 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 for resR in resTmpList:
                     # make FileSpec
                     outTempID,datasetID,fileNameTemplate,serialNr,outType,streamName = resR
-                    fileSpec = JediFileSpec()
-                    fileSpec.jediTaskID   = jediTaskID
-                    fileSpec.datasetID    = fileDatasetID
-                    nameTemplate = fileNameTemplate.replace('${SN}','{SN:06d}')
-                    nameTemplate = nameTemplate.replace('${SN/P}','{SN:06d}')
-                    nameTemplate = nameTemplate.replace('${SN','{SN')
-                    fileSpec.lfn          = nameTemplate.format(SN=serialNr)
-                    fileSpec.status       = 'defined'
-                    fileSpec.creationDate = timeNow
-                    fileSpec.type         = outType
-                    fileSpec.keepTrack    = 1
-                    if maxSerialNr == None or maxSerialNr < serialNr:
-                        maxSerialNr = serialNr
-                    # scope
-                    if vo in jedi_config.ddm.voWithScope.split(','):
-                        fileSpec.scope = self.extractScope(datasetName)
-                    if not simul:    
-                        # insert
-                        varMap = fileSpec.valuesMap(useSeq=True)
-                        varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
-                        self.cur.execute(sqlI+comment,varMap)
-                        fileSpec.fileID = long(varMap[':newFileID'].getvalue())
-                        # increment SN
-                        varMap = {}
-                        varMap[':jediTaskID'] = jediTaskID
-                        varMap[':outTempID']  = outTempID
-                        self.cur.execute(sqlU+comment,varMap)
-                        nRow = self.cur.rowcount
-                        if nRow != 1:
-                            raise RuntimeError, 'Failed to increment SN for outTempID={0}'.format(outTempID)
-                    # append
-                    outMap[streamName] = fileSpec
+                    if xmlConfigJob == None or outType.endswith('log'):
+                        fileNameTemplateList = [(fileNameTemplate,streamName)]
+                    else:
+                        fileNameTemplateList = []
+                        # get output filenames from XML config
+                        for tmpFileName in xmlConfigJob.outputs().split(','):
+                            # ignore empty
+                            if tmpFileName == '':
+                                continue
+                            newStreamName = tmpFileName
+                            newFileNameTemplate = fileNameTemplate + '.' + xmlConfigJob.prepend_string() + '.' + newStreamName
+                            fileNameTemplateList.append((newFileNameTemplate,newStreamName))
+                    # loop over all filename templates
+                    for fileNameTemplate,streamName in fileNameTemplateList:
+                        fileSpec = JediFileSpec()
+                        fileSpec.jediTaskID   = jediTaskID
+                        fileSpec.datasetID    = fileDatasetID
+                        nameTemplate = fileNameTemplate.replace('${SN}','{SN:06d}')
+                        nameTemplate = nameTemplate.replace('${SN/P}','{SN:06d}')
+                        nameTemplate = nameTemplate.replace('${SN','{SN')
+                        fileSpec.lfn          = nameTemplate.format(SN=serialNr)
+                        fileSpec.status       = 'defined'
+                        fileSpec.creationDate = timeNow
+                        fileSpec.type         = outType
+                        fileSpec.keepTrack    = 1
+                        if maxSerialNr == None or maxSerialNr < serialNr:
+                            maxSerialNr = serialNr
+                        # scope
+                        if vo in jedi_config.ddm.voWithScope.split(','):
+                            fileSpec.scope = self.extractScope(datasetName)
+                        if not simul:    
+                            # insert
+                            varMap = fileSpec.valuesMap(useSeq=True)
+                            varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
+                            self.cur.execute(sqlI+comment,varMap)
+                            fileSpec.fileID = long(varMap[':newFileID'].getvalue())
+                            # increment SN
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':outTempID']  = outTempID
+                            self.cur.execute(sqlU+comment,varMap)
+                            nRow = self.cur.rowcount
+                            if nRow != 1:
+                                raise RuntimeError, 'Failed to increment SN for outTempID={0}'.format(outTempID)
+                        # append
+                        outMap[streamName] = fileSpec
             # set masterID to concrete datasets 
             for fileDatasetID,masterID in mstr_RelationMap.iteritems():
                 varMap = {}
@@ -1754,8 +1799,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID "
             if not fullSimulation:
                 sqlFR += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
-            sqlFR += "ORDER BY lfn) "
-            sqlFR += "WHERE rownum <= {0}"
+            sqlFR += "ORDER BY {0}) "
+            sqlFR += "WHERE rownum <= {1}"
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
@@ -1955,7 +2000,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     # set very large number for secondary to read all files
                                     maxFilesTobeRead = 1000000
                                 tmpLog.debug('trying to read {0} files from datasetID={1}'.format(maxFilesTobeRead,datasetID))
-                                self.cur.execute(sqlFR.format(maxFilesTobeRead)+comment,varMap)
+                                if not taskSpec.useLoadXML():
+                                    orderBy = 'lfn'
+                                else:
+                                    orderBy = 'boundaryID'
+                                self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead)+comment,varMap)
                                 resFileList = self.cur.fetchall()
                                 iFiles = 0
                                 for resFile in resFileList:
@@ -4924,6 +4973,41 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':status'] = 'prepared'
                     tmpLog.debug('set taskStatus={0}'.format(varMap[':status']))
                     self.cur.execute(sqlUT+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done")
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
+
+
+
+    # record retry history
+    def recordRetryHistory_JEDI(self,jediTaskID,oldNewPandaIDs):
+        comment = ' /* JediDBProxy.recordRetryHistory_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            sqlIN = "INSERT INTO {0}.JEDI_Job_Retry_History ".format(jedi_config.db.schemaJEDI) 
+            sqlIN += "(jediTaskID,oldPandaID,newPandaID) "
+            sqlIN += "VALUES(:jediTaskID,:oldPandaID,:newPandaID) "
+            # start transaction
+            self.conn.begin()
+            for newPandaID,oldPandaIDs in oldNewPandaIDs.iteritems():
+                for oldPandaID in oldPandaIDs:
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':oldPandaID'] = oldPandaID
+                    varMap[':newPandaID'] = newPandaID
+                    self.cur.execute(sqlIN+comment,varMap)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

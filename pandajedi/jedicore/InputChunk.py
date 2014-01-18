@@ -211,7 +211,7 @@ class InputChunk:
                 # unset max values to split only with boundaryID 
                 maxNumFiles = None
                 maxSize = None
-                maxWalltime = None
+                maxWalltime = 0
                 maxNumEvents = None
                 multiplicand = 1
         # get site when splitting per site
@@ -384,7 +384,7 @@ class InputChunk:
             if terminateFlag:
                 break
             # check
-            if newInputNumFiles > maxNumFiles \
+            if (maxNumFiles != None and newInputNumFiles > maxNumFiles) \
                     or (maxSize != None and newFileSize > maxSize) \
                     or (maxSize != None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize) \
                     or (maxWalltime > 0 and newExpWalltime > maxWalltime) \

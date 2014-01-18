@@ -12,6 +12,7 @@ from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+from pandajedi.jedicore import ParseJobXML
 from pandajedi.jedirefine import RefinerUtils
 from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.taskbuffer.FileSpec import FileSpec
@@ -257,9 +258,9 @@ class JobGeneratorThread (WorkerThread):
                     if goForward:
                         tmpLog.info('run job generator')
                         try:
-                            tmpStat,pandaJobs,datasetToRegister = self.doGenerate(taskSpec,cloudName,subChunks,
-                                                                                  inputChunk,tmpLog,
-                                                                                  taskParamMap=taskParamMap)
+                            tmpStat,pandaJobs,datasetToRegister,oldPandaIDs = self.doGenerate(taskSpec,cloudName,subChunks,
+                                                                                              inputChunk,tmpLog,
+                                                                                              taskParamMap=taskParamMap)
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('generator crashed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -295,9 +296,16 @@ class JobGeneratorThread (WorkerThread):
                         resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,
                                                                 fqans=fqans,toPending=True)
                         pandaIDs = []
-                        for items in resSubmit:
+                        oldNewPandaIDs = {}
+                        for idxItem,items in enumerate(resSubmit):
                             if items[0] != 'NULL':
                                 pandaIDs.append(items[0])
+                                if oldPandaIDs[idxItem] != []:
+                                    oldNewPandaIDs[items[0]] = oldPandaIDs[idxItem]
+                        # record retry history
+                        # FIXME
+                        #self.taskBufferIF.recordRetryHistory_JEDI(taskSpec.jediTaskID,oldNewPandaIDs)
+                        # check if submission was successful
                         if len(pandaIDs) == len(pandaJobs):
                             tmpLog.info('successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs)))
                             if self.execJobs:
@@ -354,19 +362,25 @@ class JobGeneratorThread (WorkerThread):
     # generate jobs
     def doGenerate(self,taskSpec,cloudName,inSubChunkList,inputChunk,tmpLog,simul=False,taskParamMap=None):
         # return for failure
-        failedRet = Interaction.SC_FAILED,None,None
+        failedRet = Interaction.SC_FAILED,None,None,None
         # read task parameters
-        if taskSpec.useBuild() or taskSpec.usePrePro() or inputChunk.isMerging:
+        if taskSpec.useBuild() or taskSpec.usePrePro() or inputChunk.isMerging or taskSpec.useLoadXML():
             tmpStat,taskParamMap = self.readTaskParams(taskSpec,taskParamMap,tmpLog)
             if not tmpStat:
                 return failedRet
         # priority for scout
         scoutPriority = 900
         try:
+            # load XML
+            xmlConfig = None
+            if taskSpec.useLoadXML():
+                loadXML = taskParamMap['loadXML']
+                xmlConfig = ParseJobXML.dom_parser(xmlStr=loadXML)
             # loop over all sub chunks
             jobSpecList = []
             outDsMap = {}
             datasetToRegister = []
+            oldPandaIDs = []
             for tmpInChunk in inSubChunkList:
                 siteName      = tmpInChunk['siteName']
                 inSubChunks   = tmpInChunk['subChunks']
@@ -381,6 +395,7 @@ class JobGeneratorThread (WorkerThread):
                         return failedRet
                     # append
                     jobSpecList.append(preproJobSpec)
+                    oldPandaIDs.append([])
                     break
                 # make build job
                 elif taskSpec.useBuild():
@@ -392,6 +407,9 @@ class JobGeneratorThread (WorkerThread):
                     # append
                     if buildJobSpec != None:
                         jobSpecList.append(buildJobSpec)
+                        oldPandaIDs.append([])
+                # make normal jobs
+                subOldPandaIDs = []
                 for inSubChunk in inSubChunks:
                     jobSpec = JobSpec()
                     jobSpec.jobDefinitionID  = 0
@@ -479,6 +497,9 @@ class JobGeneratorThread (WorkerThread):
                             if tmpFileSpec.locality == 'remote':
                                 jobSpec.transferType = siteCandidate.remoteProtocol
                                 jobSpec.sourceSite = siteCandidate.remoteSource
+                            # collect old PandaIDs
+                            if tmpFileSpec.PandaID != None and not tmpFileSpec.PandaID in subOldPandaIDs:
+                                subOldPandaIDs.append(tmpFileSpec.PandaID)
                         # check if merging 
                         if taskSpec.mergeOutput() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.toMerge():
                             isUnMerging = True
@@ -501,6 +522,14 @@ class JobGeneratorThread (WorkerThread):
                             instantiatedSite = siteName
                     else:
                         instantiateTmpl = False
+                    # XML config
+                    xmlConfigJob = None
+                    if xmlConfig != None:
+                        try:
+                            xmlConfigJob = xmlConfig.jobs[boundaryID]
+                        except:
+                            tmpLog.error('failed to get XML config for N={0}'.format(boundaryID))
+                            return failedRet
                     # outputs
                     outSubChunk,serialNr,tmpToRegister = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
                                                                                                provenanceID,
@@ -508,7 +537,8 @@ class JobGeneratorThread (WorkerThread):
                                                                                                instantiateTmpl,
                                                                                                instantiatedSite,
                                                                                                isUnMerging,
-                                                                                               False)
+                                                                                               False,
+                                                                                               xmlConfigJob)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
@@ -536,6 +566,10 @@ class JobGeneratorThread (WorkerThread):
                         tmpBuildFileSpec = copy.copy(buildFileSpec)
                         jobSpec.addFile(tmpBuildFileSpec)
                         paramList.append(('LIB',buildFileSpec.lfn))
+                    # placeholders for XML config
+                    if xmlConfigJob != None:
+                        paramList.append(('XML_OUTMAP',xmlConfigJob.get_outmap_str(outSubChunk)))
+                        paramList.append(('XML_EXESTR',xmlConfigJob.exec_string_enc()))
                     # job parameter
                     jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
                                                                    serialNr,paramList,jobSpec,simul,
@@ -543,8 +577,9 @@ class JobGeneratorThread (WorkerThread):
                                                                    jobSpec.Files)
                     # addd
                     jobSpecList.append(jobSpec)
+                    oldPandaIDs.append(subOldPandaIDs)
             # return
-            return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister
+            return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('{0}.doGenerate() failed with {1}:{2}'.format(self.__class__.__name__,

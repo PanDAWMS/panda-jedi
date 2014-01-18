@@ -61,7 +61,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,fileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nFilesForScout,includePatt,
-                                   excludePatt):
+                                   excludePatt,xmlConfig):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -70,7 +70,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   firstEventNumber,nMaxFiles,nMaxEvents,
                                                   useScout,fileList,useFilesWithNewAttemptNr,
                                                   nFilesPerJob,nEventsPerRange,nFilesForScout,
-                                                  includePatt,excludePatt)
+                                                  includePatt,excludePatt,xmlConfig)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -324,12 +324,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
     # generate output files for task
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None,
-                            isUnMerging=False,isPrePro=False):
+                            isUnMerging=False,isPrePro=False,xmlConfigJob=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,
-                                           isUnMerging,isPrePro)
+                                           isUnMerging,isPrePro,xmlConfigJob)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -808,6 +808,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.appendDatasets_JEDI(jediTaskID,inMasterDatasetSpecList,inSecDatasetSpecList)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # record retry history
+    def recordRetryHistory_JEDI(self,jediTaskID,oldNewPandaIDs):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.recordRetryHistory_JEDI(jediTaskID,oldNewPandaIDs)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

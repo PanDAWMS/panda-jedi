@@ -1,5 +1,9 @@
 Release Note
 
+* 1/17/2014
+  * added support for loadXML
+  * using Job_Retry_History
+
 * 1/15/2014
   * added safety merging to the output offset
   * fixed to set scope for lib

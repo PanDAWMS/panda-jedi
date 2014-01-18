@@ -35,6 +35,7 @@ class JediTaskSpec(object):
         'instantiateTmpl'    : 'IT',
         'useLocalIO'         : 'LI',
         'limitedSites'       : 'LS',
+        'loadXML'            : 'LX',
         'nMaxFilesPerJob'    : 'MF',
         'nEventsPerJob'      : 'NE',
         'nFilesPerJob'       : 'NF',
@@ -529,3 +530,10 @@ class JediTaskSpec(object):
         
 
         
+    # use loadXML
+    def useLoadXML(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['loadXML']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False

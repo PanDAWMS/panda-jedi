@@ -7,6 +7,7 @@ import datetime
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore import ParseJobXML
 from pandajedi.jedirefine import RefinerUtils
 from JediKnight import JediKnight
 from TaskGenerator import TaskGenerator
@@ -126,6 +127,17 @@ class ContentsFeederThread (WorkerThread):
                         nFilesForScout = 10 * nFilesPerJob
                     else:
                         nFilesForScout = 10
+                    # load XML
+                    if taskSpec.useLoadXML():
+                        try:
+                            loadXML = taskParamMap['loadXML']
+                            xmlConfig = ParseJobXML.dom_parser(xmlStr=loadXML)
+                        except:
+                            errtype,errvalue = sys.exc_info()[:2]
+                            tmpLog.error('failed to load XML config with {0}:{1}'.format(errtype.__name__,errvalue))
+                            taskBroken = True
+                    else:
+                        xmlConfig = None
                     # loop over all datasets
                     if not taskBroken:
                         ddmIF = self.ddmIF.getInterface(taskSpec.vo) 
@@ -284,7 +296,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               nEventsPerRange,
                                                                                                                               nFilesForScout,
                                                                                                                               includePatt,
-                                                                                                                              excludePatt)
+                                                                                                                              excludePatt,
+                                                                                                                              xmlConfig)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))
