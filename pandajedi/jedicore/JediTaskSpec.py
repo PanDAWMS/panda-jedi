@@ -29,6 +29,7 @@ class JediTaskSpec(object):
     _limitLength = {'errorDialog' : 255}
     # tokens for split rule
     splitRuleToken = {
+        'disableAutoRetry'   : 'DR',
         'firstEvent'         : 'FT',
         'groupBoundaryID'    : 'GB',
         'instantiateTmplSite': 'IA',
@@ -324,6 +325,16 @@ class JediTaskSpec(object):
     def useLocalIO(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['useLocalIO']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # disable automatic retry
+    def disableAutoRetry(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['disableAutoRetry']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

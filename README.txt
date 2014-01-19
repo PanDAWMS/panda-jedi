@@ -1,5 +1,8 @@
 Release Note
 
+* 1/19/2014
+  * added disableAutoRetry
+
 * 1/17/2014
   * added support for loadXML
   * using Job_Retry_History

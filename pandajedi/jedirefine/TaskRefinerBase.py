@@ -111,11 +111,12 @@ class TaskRefinerBase (object):
         taskSpec.workQueue_ID = workQueue.queue_id
         self.taskSpec = taskSpec
         # set split rule    
-        self.setSplitRule(taskParamMap,'nFilesPerJob',   JediTaskSpec.splitRuleToken['nFilesPerJob'])
-        self.setSplitRule(taskParamMap,'nEventsPerJob',  JediTaskSpec.splitRuleToken['nEventsPerJob'])
-        self.setSplitRule(taskParamMap,'nGBPerJob',      JediTaskSpec.splitRuleToken['nGBPerJob'])
-        self.setSplitRule(taskParamMap,'nMaxFilesPerJob',JediTaskSpec.splitRuleToken['nMaxFilesPerJob'])
-        self.setSplitRule(taskParamMap,'useLocalIO',     JediTaskSpec.splitRuleToken['useLocalIO'])
+        self.setSplitRule(taskParamMap,'nFilesPerJob',     JediTaskSpec.splitRuleToken['nFilesPerJob'])
+        self.setSplitRule(taskParamMap,'nEventsPerJob',    JediTaskSpec.splitRuleToken['nEventsPerJob'])
+        self.setSplitRule(taskParamMap,'nGBPerJob',        JediTaskSpec.splitRuleToken['nGBPerJob'])
+        self.setSplitRule(taskParamMap,'nMaxFilesPerJob',  JediTaskSpec.splitRuleToken['nMaxFilesPerJob'])
+        self.setSplitRule(taskParamMap,'useLocalIO',       JediTaskSpec.splitRuleToken['useLocalIO'])
+        self.setSplitRule(taskParamMap,'disableAutoRetry', JediTaskSpec.splitRuleToken['disableAutoRetry'])
         if taskParamMap.has_key('loadXML'):
             self.setSplitRule(None,3,JediTaskSpec.splitRuleToken['loadXML'])
             self.setSplitRule(None,4,JediTaskSpec.splitRuleToken['groupBoundaryID'])
