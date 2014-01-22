@@ -1,5 +1,8 @@
 Release Note
 
+* 1/22/2014
+  * enabled recordRetryHistory_JEDI
+
 * 1/19/2014
   * added disableAutoRetry
 

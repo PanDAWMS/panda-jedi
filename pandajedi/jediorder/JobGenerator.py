@@ -303,8 +303,7 @@ class JobGeneratorThread (WorkerThread):
                                 if oldPandaIDs[idxItem] != []:
                                     oldNewPandaIDs[items[0]] = oldPandaIDs[idxItem]
                         # record retry history
-                        # FIXME
-                        #self.taskBufferIF.recordRetryHistory_JEDI(taskSpec.jediTaskID,oldNewPandaIDs)
+                        self.taskBufferIF.recordRetryHistory_JEDI(taskSpec.jediTaskID,oldNewPandaIDs)
                         # check if submission was successful
                         if len(pandaIDs) == len(pandaJobs):
                             tmpLog.info('successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs)))
