@@ -241,7 +241,10 @@ class ContentsFeederThread (WorkerThread):
                                     firstEventNumber = None
                                     if datasetSpec.isMaster():
                                         # max attempts 
-                                        if taskParamMap.has_key('maxAttempt'):
+                                        if taskSpec.disableAutoRetry():
+                                            # disable auto retry 
+                                            maxAttempt = 1
+                                        elif taskParamMap.has_key('maxAttempt'):
                                             maxAttempt = taskParamMap['maxAttempt']
                                         else:
                                             # use default value
