@@ -120,6 +120,8 @@ class TaskRefinerBase (object):
         if taskParamMap.has_key('loadXML'):
             self.setSplitRule(None,3,JediTaskSpec.splitRuleToken['loadXML'])
             self.setSplitRule(None,4,JediTaskSpec.splitRuleToken['groupBoundaryID'])
+        if taskParamMap.has_key('pfnList'):
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['pfnList'])
         # return
         return
     

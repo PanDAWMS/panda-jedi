@@ -198,13 +198,27 @@ class ContentsFeederThread (WorkerThread):
                                                                              getNumEvents=getNumEvents,
                                                                              skipDuplicate=skipDuplicate)
                                     else:
-                                        # dummy file list for pseudo dataset
-                                        tmpRet = {str(uuid.uuid4()):{'lfn':'pseudo_lfn',
-                                                                     'scope':None,
-                                                                     'filesize':0,
-                                                                     'checksum':None,
-                                                                     }
-                                                  }
+                                        if not taskSpec.useListPFN():
+                                            # dummy file list for pseudo dataset
+                                            tmpRet = {str(uuid.uuid4()):{'lfn':'pseudo_lfn',
+                                                                         'scope':None,
+                                                                         'filesize':0,
+                                                                         'checksum':None,
+                                                                         }
+                                                      }
+                                        else:
+                                            # make dummy file list for PFN list
+                                            if taskParamMap.has_key('nFiles'):
+                                                nPFN = taskParamMap['nFiles']
+                                            else:
+                                                nPFN = 1
+                                            tmpRet = {}
+                                            for iPFN in range(nPFN):
+                                                tmpRet[str(uuid.uuid4())] = {'lfn':'{0:06d}'.format(iPFN),
+                                                                             'scope':None,
+                                                                             'filesize':0,
+                                                                             'checksum':None,
+                                                                             }
                                 except:
                                     errtype,errvalue = sys.exc_info()[:2]
                                     tmpLog.error('failed to get files due to {0}:{1}'.format(self.__class__.__name__,

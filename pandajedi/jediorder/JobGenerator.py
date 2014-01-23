@@ -363,7 +363,8 @@ class JobGeneratorThread (WorkerThread):
         # return for failure
         failedRet = Interaction.SC_FAILED,None,None,None
         # read task parameters
-        if taskSpec.useBuild() or taskSpec.usePrePro() or inputChunk.isMerging or taskSpec.useLoadXML():
+        if taskSpec.useBuild() or taskSpec.usePrePro() or inputChunk.isMerging or \
+                taskSpec.useLoadXML() or taskSpec.useListPFN():
             tmpStat,taskParamMap = self.readTaskParams(taskSpec,taskParamMap,tmpLog)
             if not tmpStat:
                 return failedRet
@@ -830,6 +831,14 @@ class JobGeneratorThread (WorkerThread):
             for tmpFileSpec in tmpFileSpecList:
                 tmpLFNs.append(tmpFileSpec.lfn)
             tmpLFNs.sort()
+            # change stream name and LFNs for PFN list
+            if taskSpec.useListPFN() and tmpDatasetSpec.isMaster() and tmpDatasetSpec.isPseudo():
+                streamName = 'IN'
+                tmpPFNs = []
+                for tmpLFN in tmpLFNs:
+                    tmpPFN = taskParamMap['pfnList'][long(tmpLFN)]
+                    tmpPFNs.append(tmpPFN)
+                tmpLFNs = tmpPFNs
             # add
             streamLFNsMap[streamName] = tmpLFNs
             # collect parameters for event-level split

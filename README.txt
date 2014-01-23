@@ -1,6 +1,7 @@
 Release Note
 
 * 1/22/2014
+  * added pfnList
   * fixed disableAutoRetry to disable JEDI retry too
   * enabled recordRetryHistory_JEDI
 

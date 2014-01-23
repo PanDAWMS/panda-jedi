@@ -30,6 +30,7 @@ class JediTaskSpec(object):
     # tokens for split rule
     splitRuleToken = {
         'disableAutoRetry'   : 'DR',
+        'useEventService'    : 'ES',
         'firstEvent'         : 'FT',
         'groupBoundaryID'    : 'GB',
         'instantiateTmplSite': 'IA',
@@ -41,6 +42,7 @@ class JediTaskSpec(object):
         'nEventsPerJob'      : 'NE',
         'nFilesPerJob'       : 'NF',
         'nGBPerJob'          : 'NG',
+        'pfnList'            : 'PL',
         'randomSeed'         : 'RS',
         'useBuild'           : 'UB',
         'usePrePro'          : 'UP',
@@ -335,6 +337,16 @@ class JediTaskSpec(object):
     def disableAutoRetry(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['disableAutoRetry']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # use PFN list
+    def useListPFN(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['pfnList']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False
