@@ -637,7 +637,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.lockedby         = 'jedi'
             jobSpec.workQueue_ID     = taskSpec.workQueue_ID
             # make libDS name
-            if datasetSpec == None or datasetSpec.state == 'closed':
+            if datasetSpec == None or datasetSpec.state == 'closed' or fileSpec == None:
                 # make new libDS
                 reusedDatasetID = None
                 libDsName = 'panda.{0}.{1}.lib._{2:06d}'.format(time.strftime('%m%d%H%M%S',time.gmtime()),

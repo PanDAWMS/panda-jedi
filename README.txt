@@ -1,5 +1,9 @@
 Release Note
 
+* 1/29/2014
+  * added protection against RUCIOTEST
+  * making new lib when previous attempt failed at the same site
+
 * 1/22/2014
   * added pfnList
   * fixed disableAutoRetry to disable JEDI retry too

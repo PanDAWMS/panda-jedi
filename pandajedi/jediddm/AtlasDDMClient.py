@@ -189,10 +189,10 @@ class AtlasDDMClient(DDMClientBase):
             ngEndPoints = []
             if 1 in ngGroup:
                 ngEndPoints += ['_SCRATCHDISK$','_LOCALGROUPDISK$','_LOCALGROUPTAPE$','_USERDISK$',
-                               '_DAQ$','_TMPDISK$','_TZERO$','_GRIDFTP$','MOCKTEST$']
+                               '_DAQ$','_TMPDISK$','_TZERO$','_GRIDFTP$','MOCKTEST$','_RUCIOTEST$']
             if 2 in ngGroup:
                 ngEndPoints += ['_LOCALGROUPDISK$','_LOCALGROUPTAPE$',
-                               '_DAQ$','_TMPDISK$','_TZERO$','_GRIDFTP$','MOCKTEST$']
+                               '_DAQ$','_TMPDISK$','_TZERO$','_GRIDFTP$','MOCKTEST$','_RUCIOTEST$']
             # get all associated endpoints
             siteAllEndPointsMap = {}
             for siteName,endPointPattList in siteEndPointMap.iteritems():
@@ -241,6 +241,7 @@ class AtlasDDMClient(DDMClientBase):
             for siteName,allEndPointList in siteAllEndPointsMap.iteritems():
                 tmpLfcSeMap = {}
                 tmpStoragePathMap = {}
+                tmpSiteSpec = siteMapper.getSite(siteName)
                 for tmpEndPoint in allEndPointList:
                     # storage type
                     if TiersOfATLAS.isTapeSite(tmpEndPoint):
@@ -284,7 +285,9 @@ class AtlasDDMClient(DDMClientBase):
                     tmpSePath = re.sub('(:\d+)*/srm/[^\?]+\?SFN=','',tmpSePath)
                     tmpStoragePathMap[tmpSePath] = {'siteName':siteName,'storageType':storageType}
                 # add to map to trigger LFC scan if complete replica is missing at the site
-                if not siteHasCompleteReplica or checkLFC:
+                if DataServiceUtils.isCachedFile(datasetSpec.datasetName,tmpSiteSpec):
+                    pass
+                elif not siteHasCompleteReplica or checkLFC:
                     for tmpKey,tmpVal in tmpLfcSeMap.iteritems():
                         if not lfcSeMap.has_key(tmpKey):
                             lfcSeMap[tmpKey] = []
