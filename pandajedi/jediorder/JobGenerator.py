@@ -418,6 +418,9 @@ class JobGeneratorThread (WorkerThread):
                     if taskSpec.disableAutoRetry():
                         # disable server/pilot retry
                         jobSpec.maxAttempt   = -1
+                    elif taskSpec.useEventService():
+                        # set max attempt for event service
+                        jobSpec.maxAttempt   = 2
                     else:
                         jobSpec.maxAttempt   = 0
                     jobSpec.jobName          = taskSpec.taskName
@@ -467,6 +470,11 @@ class JobGeneratorThread (WorkerThread):
                     # flag for merging
                     isUnMerging = False
                     isMerging = False
+                    # set specialHandling for Event Service
+                    specialHandling = ''
+                    if taskSpec.useEventService():
+                        nEventsPerWorker = taskSpec.getNumEventsPerWorker()
+                        specialHandling = 'es:'
                     # inputs
                     prodDBlock = None
                     setProdDBlock = False
@@ -504,9 +512,15 @@ class JobGeneratorThread (WorkerThread):
                             # collect old PandaIDs
                             if tmpFileSpec.PandaID != None and not tmpFileSpec.PandaID in subOldPandaIDs:
                                 subOldPandaIDs.append(tmpFileSpec.PandaID)
+                            # set specialHandling for Event Service
+                            if taskSpec.useEventService() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.isPseudo():
+                                specialHandling += '{0}/{1}/{2}^'.format(tmpFileSpec.lfn,tmpFileSpec.nEvents,nEventsPerWorker)
                         # check if merging 
                         if taskSpec.mergeOutput() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.toMerge():
                             isUnMerging = True
+                    specialHandling = specialHandling[:-1]
+                    if specialHandling != '':
+                        jobSpec.specialHandling = specialHandling
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock == False and prodDBlock != None:
                         jobSpec.prodDBlock = prodDBlock
@@ -562,7 +576,8 @@ class JobGeneratorThread (WorkerThread):
                             outDsMap[tmpFileSpec.datasetID] = tmpDataset 
                         # convert to job's FileSpec     
                         tmpDatasetSpec = outDsMap[tmpFileSpec.datasetID]
-                        tmpOutFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec)
+                        tmpOutFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec,
+                                                                          useEventService=taskSpec.useEventService())
                         jobSpec.addFile(tmpOutFileSpec)
                     # lib.tgz
                     paramList = []    

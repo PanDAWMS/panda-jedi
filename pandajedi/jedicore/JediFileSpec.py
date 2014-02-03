@@ -115,7 +115,7 @@ class JediFileSpec(object):
 
 
     # convert to job's FileSpec
-    def convertToJobFileSpec(self,datasetSpec,setType=None):
+    def convertToJobFileSpec(self,datasetSpec,setType=None,useEventService=False):
         jobFileSpec = JobFileSpec()
         jobFileSpec.fileID     = self.fileID
         jobFileSpec.datasetID  = datasetSpec.datasetID
@@ -152,6 +152,9 @@ class JediFileSpec(object):
                 # destination
                 if not datasetSpec.destination in ['',None]:
                     jobFileSpec.destinationSE = datasetSpec.destination
+                # set prodDBlockToken for Event Service
+                if useEventService:
+                    jobFileSpec.prodDBlockToken = 'objectstore^{0}'.format(datasetSpec.getObjectStore())
         # return
         return jobFileSpec
 

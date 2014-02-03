@@ -115,6 +115,7 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'nEventsPerJob',    JediTaskSpec.splitRuleToken['nEventsPerJob'])
         self.setSplitRule(taskParamMap,'nGBPerJob',        JediTaskSpec.splitRuleToken['nGBPerJob'])
         self.setSplitRule(taskParamMap,'nMaxFilesPerJob',  JediTaskSpec.splitRuleToken['nMaxFilesPerJob'])
+        self.setSplitRule(taskParamMap,'nEventsPerWorker', JediTaskSpec.splitRuleToken['nEventsPerWorker'])
         self.setSplitRule(taskParamMap,'useLocalIO',       JediTaskSpec.splitRuleToken['useLocalIO'])
         self.setSplitRule(taskParamMap,'disableAutoRetry', JediTaskSpec.splitRuleToken['disableAutoRetry'])
         if taskParamMap.has_key('loadXML'):
@@ -239,6 +240,9 @@ class TaskRefinerBase (object):
                     # make stream name
                     datasetSpec.streamName = "{0}{1}".format(datasetSpec.type.upper(),nOutMap[datasetSpec.type])
                     nOutMap[datasetSpec.type] += 1
+                    # set attribute for event service
+                    if self.taskSpec.useEventService() and taskParamMap.has_key('objectStore'):
+                        datasetSpec.setObjectStore(taskParamMap['objectStore'])
                     # extract output filename template and change the value field
                     outFileTemplate,tmpItem['value'] = RefinerUtils.extractReplaceOutFileTemplate(tmpItem['value'],
                                                                                                   datasetSpec.streamName)
@@ -327,6 +331,10 @@ class TaskRefinerBase (object):
                         if tmpItem.has_key('offset'):
                             firstEventOffset = tmpItem['offset']    
         jobParameters = jobParameters[:-1]
+        # append parameters for event service merging if necessary
+        esmergeParams = self.getParamsForEventServiceMerging(taskParamMap)
+        if esmergeParams != None:
+            jobParameters += esmergeParams
         self.setJobParamsTemplate(jobParameters)
         # set random seed offset
         if rndmSeedOffset != None:
@@ -450,5 +458,23 @@ class TaskRefinerBase (object):
         return    
 
 
+
+    # get parameters for event service merging
+    def getParamsForEventServiceMerging(self,taskParamMap):
+        # no event service
+        if not self.taskSpec.useEventService():
+            return None
+        # extract parameters
+        transPath = 'UnDefined'
+        jobParameters = 'UnDefined'
+        if taskParamMap.has_key('esmergeSpec'):
+            if taskParamMap['esmergeSpec'].has_key('transPath'):
+                transPath = taskParamMap['esmergeSpec']['transPath']
+            if taskParamMap['esmergeSpec'].has_key('jobParameters'):
+                jobParameters = taskParamMap['esmergeSpec']['jobParameters']
+        # return
+        return '<PANDA_ESMERGE_TRF>'+transPath+'</PANDA_ESMERGE_TRF>'+'<PANDA_ESMERGE_JOBP>'+jobParameters+'</PANDA_ESMERGE_JOBP>'
+
+        
     
 Interaction.installSC(TaskRefinerBase)

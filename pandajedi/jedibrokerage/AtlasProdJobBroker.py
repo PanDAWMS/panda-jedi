@@ -209,10 +209,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                          caches=taskSpec.transHome,
                                                                          cmtConfig=taskSpec.architecture)
             else:
-                # both release and cache are checked for nightlies
+                # nightlies
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
-                                                                         releases=taskSpec.transUses,
-                                                                         caches=taskSpec.transHome,
+                                                                         releases='nightlies',
                                                                          cmtConfig=taskSpec.architecture)
             newScanSiteList = []
             for tmpSiteName in scanSiteList:

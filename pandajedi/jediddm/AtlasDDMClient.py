@@ -773,4 +773,44 @@ class AtlasDDMClient(DDMClientBase):
             return errCode,'{0} : {1}'.format(methodName,errMsg)
         tmpLog.info('done')
         return self.SC_SUCCEEDED,True
+
+
+
+    # delete dataset
+    def deleteDataset(self,datasetName,emptyOnly,ignoreUnknown=False):
+        methodName = 'deleteDataset'
+        methodName = '{0} datasetName={1}'.format(methodName,datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.info('start')
+        isOK = True
+        retStr = ''
+        nFiles = -1
+        try:
+            # get DQ2 API            
+            dq2=DQ2()
+            # get the number of files
+            if emptyOnly:
+                nFiles = dq2.getNumberOfFiles(datasetName)
+            # erase
+            if not emptyOnly or nFiles == 0:
+                dq2.eraseDataset(datasetName)
+                retStr = 'deleted {0}'.format(datasetName)
+            else:
+                retStr = 'keep {0} where {1} files are available'.format(datasetName,nFiles)
+        except DQUnknownDatasetException:
+            if ignoreUnknown:
+                pass
+            else:
+                isOK = False
+        except:
+            isOK = False
+        if isOK:
+            tmpLog.info('done')
+            return self.SC_SUCCEEDED,retStr
+        else:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
         

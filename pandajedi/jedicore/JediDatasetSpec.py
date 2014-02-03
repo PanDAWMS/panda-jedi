@@ -32,6 +32,7 @@ class JediDatasetSpec(object):
     attrToken = {
         'offset':       'of',
         'nFilesPerJob': 'np',
+        'objectStore' : 'os',
         }
 
 
@@ -354,6 +355,22 @@ class JediDatasetSpec(object):
                 offset = int(tmpMatch.group(1))
                 return offset
         return 0
+
+
+
+    # set object store
+    def setObjectStore(self,objectStore):
+        self.setDatasetAttribute('{0}={1}'.format(self.attrToken['objectStore'],objectStore))
+
+
+
+    # get object store
+    def getObjectStore(self):
+        if self.attributes != None:
+            tmpMatch = re.search(self.attrToken['objectStore']+'=([^,]+)',self.attributes)
+            if tmpMatch != None:
+                return tmpMatch.group(1)
+        return None
 
 
 

@@ -1,5 +1,10 @@
 Release Note
 
+* 2/3/2014
+  * implemented event service functions
+  * fixed ATLAS pp to delete transient or empty datasets
+  * fixed ATLAS job brokerge for nightlies 
+
 * 1/29/2014
   * added protection against RUCIOTEST
   * making new lib when previous attempt failed at the same site

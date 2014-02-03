@@ -44,11 +44,17 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 # update dataset
                 datasetSpec.state = 'closed'
                 datasetSpec.stateCheckTime = datetime.datetime.utcnow()
-                # check prepro and 
+                # check if build step was succeeded
                 if datasetSpec.type == 'lib':
                     useLib = True
                 else:
                     nOkLib += 1
+                # delete transient or empty datasets
+                emptyOnly = True
+                if datasetSpec.type.startswith('trn_'):
+                    emptyOnly = False
+                retStr = ddmIF.deleteDataset(datasetSpec.datasetName,emptyOnly,ignoreUnknown=True)
+                tmpLog.info(retStr)
             # dialog
             if useLib and nOkLib == 0:
                 taskSpec.setErrDiag('No build jobs succeeded',True)

@@ -200,10 +200,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                              releases=taskSpec.transUses,
                                                                              cmtConfig=taskSpec.architecture)
                 else:
-                    # both release and cache are checked for nightlies
+                    # nightlies
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
-                                                                             releases=taskSpec.transUses,
-                                                                             caches=transHome,
+                                                                             releases='nightlies',
                                                                              cmtConfig=taskSpec.architecture)
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
