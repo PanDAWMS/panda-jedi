@@ -241,7 +241,7 @@ class TaskRefinerBase (object):
                     datasetSpec.streamName = "{0}{1}".format(datasetSpec.type.upper(),nOutMap[datasetSpec.type])
                     nOutMap[datasetSpec.type] += 1
                     # set attribute for event service
-                    if self.taskSpec.useEventService() and taskParamMap.has_key('objectStore'):
+                    if self.taskSpec.useEventService() and taskParamMap.has_key('objectStore') and datasetSpec.type in ['output']:
                         datasetSpec.setObjectStore(taskParamMap['objectStore'])
                     # extract output filename template and change the value field
                     outFileTemplate,tmpItem['value'] = RefinerUtils.extractReplaceOutFileTemplate(tmpItem['value'],

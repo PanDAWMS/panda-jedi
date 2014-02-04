@@ -414,15 +414,15 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec = JobSpec()
                     jobSpec.jobDefinitionID  = 0
                     jobSpec.jobExecutionID   = 0
-                    jobSpec.attemptNr        = 0
+                    jobSpec.attemptNr        = 1
                     if taskSpec.disableAutoRetry():
                         # disable server/pilot retry
                         jobSpec.maxAttempt   = -1
                     elif taskSpec.useEventService():
                         # set max attempt for event service
-                        jobSpec.maxAttempt   = 2
+                        jobSpec.maxAttempt   = 3
                     else:
-                        jobSpec.maxAttempt   = 0
+                        jobSpec.maxAttempt   = jobSpec.attemptNr
                     jobSpec.jobName          = taskSpec.taskName
                     if inputChunk.isMerging:
                         # use merge trf

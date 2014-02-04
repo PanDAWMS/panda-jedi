@@ -153,7 +153,7 @@ class JediFileSpec(object):
                 if not datasetSpec.destination in ['',None]:
                     jobFileSpec.destinationSE = datasetSpec.destination
                 # set prodDBlockToken for Event Service
-                if useEventService:
+                if useEventService and datasetSpec.getObjectStore() != None:
                     jobFileSpec.prodDBlockToken = 'objectstore^{0}'.format(datasetSpec.getObjectStore())
         # return
         return jobFileSpec

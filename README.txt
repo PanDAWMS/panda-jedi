@@ -1,5 +1,9 @@
 Release Note
 
+* 2/4/2014
+  * adding attemptNr to output/log LFN
+  * fixed for log+ObjectStore
+
 * 2/3/2014
   * implemented event service functions
   * fixed ATLAS pp to delete transient or empty datasets
