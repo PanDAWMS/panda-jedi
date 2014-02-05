@@ -1565,9 +1565,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         nameTemplate = nameTemplate.replace('${SN/P}','{SN:06d}')
                         nameTemplate = nameTemplate.replace('${SN','{SN')
                         fileSpec.lfn          = nameTemplate.format(SN=serialNr)
-                        # append attempt number
-                        if xmlConfigJob == None or outType.endswith('log') and re.search('\.\d+$',fileSpec.lfn) == None:
-                            fileSpec.lfn      = '{0}.1'.format(fileSpec.lfn)  
                         fileSpec.status       = 'defined'
                         fileSpec.creationDate = timeNow
                         fileSpec.type         = outType
