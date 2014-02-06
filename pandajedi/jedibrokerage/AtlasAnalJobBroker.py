@@ -31,14 +31,16 @@ class AtlasAnalJobBroker (JobBrokerBase):
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
         # get primary site candidates 
+        sitePreAssigned = False
+        excludeList = []
+        includeList = None
         if not taskSpec.site in ['',None]:
             # site is pre-assigned
             scanSiteList = [taskSpec.site]
             tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
+            sitePreAssigned = True
         else:
             scanSiteList = []
-            excludeList = []
-            includeList = None
             # get list of site access
             siteAccessList = self.taskBufferIF.listSiteAccess(None,taskSpec.userName)
             siteAccessMap = {}
@@ -122,14 +124,33 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # get sites where disk replica is available
                 tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite)
                 # get sites which can remotely access source sites
-                tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpSiteList,self.taskBufferIF,
-                                                                       protocol=allowedRemoteProtocol)
+                if not sitePreAssigned:
+                    tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpSiteList,self.taskBufferIF,
+                                                                           protocol=allowedRemoteProtocol)
+                else:
+                    tmpSatelliteSites = {}
                 for tmpSiteName in tmpSiteList:
                     if not dataWeight.has_key(tmpSiteName):
                         dataWeight[tmpSiteName] = 1
                     else:
                         dataWeight[tmpSiteName] += 1
                 for tmpSiteName,tmpWeightSrcMap in tmpSatelliteSites.iteritems():
+                    # check exclusion
+                    if AtlasBrokerUtils.isMatched(tmpSiteName,excludeList):
+                        continue
+                    # check inclusion
+                    if includeList != None and not AtlasBrokerUtils.isMatched(tmpSiteName,includeList):
+                        continue
+                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                    # limited access
+                    if tmpSiteSpec.accesscontrol == 'grouplist':
+                        if not siteAccessMap.has_key(tmpSiteSpec.sitename) or \
+                                siteAccessMap[tmpSiteSpec.sitename] != 'approved':
+                            continue
+                    # check cloud
+                    if not taskSpec.cloud in [None,'','any',tmpSiteSpec.cloud]: 
+                        continue
+                    # sum weight
                     if not dataWeight.has_key(tmpSiteName):
                         dataWeight[tmpSiteName] = tmpWeightSrcMap['weight']
                     else:
@@ -414,6 +435,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
         # append candidates
+        newScanSiteList = []
         for siteCandidateSpec in candidateSpecList:
             tmpSiteName = siteCandidateSpec.siteName
             # set available files
@@ -453,6 +475,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 tmpLog.debug('  skip {0} file unavailable'.format(siteCandidateSpec.siteName))
                 continue
             inputChunk.addSiteCandidate(siteCandidateSpec)
+            newScanSiteList.append(siteCandidateSpec.siteName)
             tmpLog.debug('  use {0} with weight={1} nLocalDisk={2} nLocalTaps={3} nCache={4} nRemote={5}'.format(siteCandidateSpec.siteName,
                                                                                                                  siteCandidateSpec.weight,
                                                                                                                  len(siteCandidateSpec.localDiskFiles),
@@ -460,6 +483,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                                                                  len(siteCandidateSpec.cacheFiles),
                                                                                                                  len(siteCandidateSpec.remoteFiles),
                                                                                                                  ))
+        scanSiteList = newScanSiteList
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
         # return
         tmpLog.debug('done')        
         return self.SC_SUCCEEDED,inputChunk

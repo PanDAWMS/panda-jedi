@@ -1,5 +1,8 @@
 Release Note
 
+* 2/6/2014
+  * fixed AtlasJB to use LOCALGROUPDISK
+
 * 2/4/2014
   * adding attemptNr to output/log LFN
   * fixed for log+ObjectStore

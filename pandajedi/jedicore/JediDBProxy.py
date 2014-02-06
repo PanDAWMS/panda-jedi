@@ -4424,6 +4424,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlFR += "ORDER BY firstEvent "
+            # sql to update file status
+            sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFU += "SET status=:status "
+            sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
             # sql to get max random seed
             sqlLR  = "SELECT MAX(firstEvent) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlLR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
@@ -4460,6 +4464,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('reuse fileID={0} datasetID={1} rndmSeed={2}'.format(tmpFileSpec.fileID,
                                                                                       tmpFileSpec.datasetID,
                                                                                       tmpFileSpec.firstEvent))
+                    # update status
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':datasetID']  = datasetSpec.datasetID
+                    varMap[':fileID']     = tmpFileSpec.fileID
+                    varMap[':status']     = 'picked'
+                    self.cur.execute(sqlFU+comment,varMap)
                 else:
                     # get max random seed
                     varMap = {}

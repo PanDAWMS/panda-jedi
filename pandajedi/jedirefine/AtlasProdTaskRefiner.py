@@ -25,6 +25,12 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             for datasetSpec in self.inSecDatasetSpecList:
                 if datasetSpec.datasetName.startswith('ddo.'):
                     datasetSpec.attributes = 'repeat,nosplit'
+            # append attempt number
+            for tmpKey,tmpOutTemplateMapList in self.outputTemplateMap.iteritems():
+                for tmpOutTemplateMap in tmpOutTemplateMapList:
+                    outFileTemplate = tmpOutTemplateMap['filenameTemplate']
+                    if re.search('\.\d+$',outFileTemplate) == None:
+                        tmpOutTemplateMap['filenameTemplate'] = outFileTemplate + '.1'
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))
