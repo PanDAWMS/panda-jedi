@@ -19,6 +19,8 @@ from JediDatasetSpec import JediDatasetSpec
 from InputChunk import InputChunk
 from MsgWrapper import MsgWrapper
 
+import JediCoreUtils
+
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -3016,7 +3018,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         returnMap = {}
         # sql to get scout job data
-        sqlSCF  = "SELECT tabF.fileID,tabF.datasetID,tabF.attemptNr "
+        sqlSCF  = "SELECT tabF.PandaID,tabF.fsize,tabF.startEvent,tabF.endEvent,tabF.nEvents "
         sqlSCF += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
         sqlSCF += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status "
         sqlSCF += "AND tabD.datasetID=tabF.datasetID "
@@ -3026,15 +3028,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlSCF += '{0},'.format(mapKey)
         sqlSCF  = sqlSCF[:-1]
         sqlSCF += ") AND tabD.masterID IS NULL " 
-        sqlSCP  = "SELECT PandaID FROM {0}.filesTable4 ".format(jedi_config.db.schemaPANDA)
-        sqlSCP += "WHERE fileID=:fileID AND jediTaskID=:jediTaskID AND datasetID=:datasetID AND attemptNr=:attemptNr"
         sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime "
         sqlSCD += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
-        sqlSCD += "WHERE PandaID=:pandaID "
+        sqlSCD += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus "
         sqlSCD += "UNION "
         sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime "
         sqlSCD += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
-        sqlSCD += "WHERE PandaID=:pandaID AND modificationTime>(CURRENT_DATE-14) "
+        sqlSCD += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND modificationTime>(CURRENT_DATE-14) "
         # get size of lib
         sqlLIB  = "SELECT MAX(fsize) "
         sqlLIB += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
@@ -3066,95 +3066,84 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[mapKey] = tmpType
         self.cur.execute(sqlSCF+comment,varMap)
         resList = self.cur.fetchall()
-        # the number of file records for normalization
-        nFileRecords = len(resList)
-        if nFileRecords == 0:
+        # scout scceeded or not
+        if resList == []:
             scoutSucceeded = False
-            nFileRecords = 1.0
         else:
             scoutSucceeded = True
-            nFileRecords = float(nFileRecords)
         # loop over all files    
         outSizeList  = []
         walltimeList = []
         memSizeList  = []
         workSizeList = []
         finishedJobs = []
-        for fileID,datasetID,attemptNr in resList:
-            # get PandaID
+        inFSizeMap   = {}
+        for pandaID,fsize,startEvent,endEvent,nEvents in resList:
+            if not inFSizeMap.has_key(pandaID):
+                inFSizeMap[pandaID] = 0
+            # get effective file size
+            effectiveFsize = JediCoreUtils.getEffectiveFileSize(fsize,startEvent,endEvent,nEvents)
+            inFSizeMap[pandaID] += effectiveFsize
+        # loop over all jobs
+        for pandaID,totalFSize in inFSizeMap.iteritems():
+            # get job data
             varMap = {}
-            varMap[':jediTaskID'] = jediTaskID
-            varMap[':datasetID']  = datasetID
-            varMap[':fileID']     = fileID
-            varMap[':attemptNr']  = attemptNr
-            self.cur.execute(sqlSCP+comment,varMap)
-            resPandaID = self.cur.fetchone()
-            if resPandaID != None:
-                pandaID, = resPandaID
-                # get job data
-                varMap = {}
-                varMap[':pandaID'] = pandaID
-                self.cur.execute(sqlSCD+comment,varMap)
-                resData = self.cur.fetchone()
-                if resData != None:
-                    jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime = resData
-                    if jobStatus != 'finished':
-                        continue
-                    finishedJobs.append(pandaID)
-                    # output size
-                    try:
-                        outSizeList.append(long(outputFileBytes))
-                    except:
-                        pass
-                    # execution time
-                    try:
-                        walltimeList.append(long(cpuConsumptionTime))
-                    except:
-                        pass
-                    # VM size
-                    try:
-                        tmpMatch = re.search('vmPeakMax=(\d+)',jobMetrics)
-                        memSizeList.append(long(tmpMatch.group(1)))
-                    except:
-                        pass
-                    # workdir size
-                    tmpWorkSize = None
-                    try:
-                        tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
-                        tmpWorkSize = long(tmpMatch.group(1))
-                    except:
-                        pass
-                    # use lib size as workdir size
-                    if tmpWorkSize == None or (libSize != None and libSize > tmpWorkSize):
-                        tmpWorkSize = libSize
-                    if tmpWorkSize != None:
-                        workSizeList.append(tmpWorkSize)
-            # normalization since job data is calculated per file record
-            nFinisedJobs = len(finishedJobs)
-            if nFinisedJobs == 0:
-                nFinisedJobs = 1.0
-            else:
-                nFinisedJobs = float(nFinisedJobs)
-            normFactor = nFileRecords / nFinisedJobs
-            # calculate median values
-            if outSizeList != []:
-                median = numpy.median(outSizeList) 
-                median /= (1024*1024)
-                returnMap['outDiskCount'] = long(median/normFactor)
-                returnMap['outDiskUnit']  = 'MB'
-            if walltimeList != []:
-                median = numpy.median(walltimeList)
-                returnMap['walltime']     = long(median/normFactor)
-                returnMap['walltimeUnit'] = 'kSI2kseconds'
-            if memSizeList != []:
-                median = numpy.median(memSizeList)
-                median /= 1024
-                returnMap['ramCount'] = long(median)
-                returnMap['ramUnit']  = 'MB'
-            if workSizeList != []:   
-                median = numpy.median(workSizeList)
-                returnMap['workDiskCount'] = long(median)
-                returnMap['workDiskUnit']  = 'MB'
+            varMap[':pandaID']  = pandaID
+            varMap[':jobStatus']= 'finished'
+            self.cur.execute(sqlSCD+comment,varMap)
+            resData = self.cur.fetchone()
+            if resData != None:
+                jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime = resData
+                finishedJobs.append(pandaID)
+                # output size
+                try:
+                    tmpVal = long(float(outputFileBytes) / totalFSize)
+                    outSizeList.append(tmpVal)
+                except:
+                    pass
+                # execution time
+                try:
+                    tmpVal = long(float(cpuConsumptionTime) / totalFSize)
+                    walltimeList.append(tmpVal)
+                except:
+                    pass
+                # VM size
+                try:
+                    tmpMatch = re.search('vmPeakMax=(\d+)',jobMetrics)
+                    memSizeList.append(long(tmpMatch.group(1)))
+                except:
+                    pass
+                # workdir size
+                tmpWorkSize = None
+                try:
+                    tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
+                    tmpWorkSize = long(tmpMatch.group(1))
+                except:
+                    pass
+                # use lib size as workdir size
+                if tmpWorkSize == None or (libSize != None and libSize > tmpWorkSize):
+                    tmpWorkSize = libSize
+                if tmpWorkSize != None:
+                    workSizeList.append(tmpWorkSize)
+        # calculate median values
+        if outSizeList != []:
+            median = numpy.median(outSizeList) 
+            median /= (1024*1024)
+            returnMap['outDiskCount'] = long(median)
+            returnMap['outDiskUnit']  = 'MB'
+        if walltimeList != []:
+            median = numpy.median(walltimeList)
+            returnMap['walltime']     = long(median)
+            returnMap['walltimeUnit'] = 'kSI2kseconds'
+        if memSizeList != []:
+            median = numpy.median(memSizeList)
+            median /= 1024
+            returnMap['ramCount'] = long(median)
+            returnMap['ramUnit']  = 'MB'
+        if workSizeList != []:   
+            median = numpy.median(workSizeList)
+            returnMap['workDiskCount'] = long(median)
+            returnMap['workDiskUnit']  = 'MB'
         if useTransaction:    
             # commit
             if not self._commit():

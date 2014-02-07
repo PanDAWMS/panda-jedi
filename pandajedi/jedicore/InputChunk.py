@@ -1,6 +1,8 @@
 import copy
 import random
 
+import JediCoreUtils
+
 
 # class for input
 class InputChunk:
@@ -178,7 +180,7 @@ class InputChunk:
     def getSubChunk(self,siteName,maxNumFiles=None,maxSize=None,
                     sizeGradients=0,sizeIntercepts=0,
                     nFilesPerJob=None,multiplicand=1,
-                    walltimeIntercepts=0,maxWalltime=0,
+                    walltimeGradient=0,maxWalltime=0,
                     nEventsPerJob=None,useBoundary=None,
                     sizeGradientsPerInSize=None,
                     tmpLog=None):
@@ -252,19 +254,22 @@ class InputChunk:
                 inputFileMap[self.masterDataset.datasetID].append(tmpFileSpec)
                 datasetUsage['used'] += 1
                 numMaster += 1
+                # get effective file size
+                effectiveFsize = JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
+                                                                    tmpFileSpec.endEvent,tmpFileSpec.nEvents)
                 # sum
                 inputNumFiles += 1
-                fileSize += (tmpFileSpec.fsize + sizeGradients)
-                outSize += sizeGradients
+                fileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
+                outSize += long(sizeGradients * effectiveFsize)
                 if sizeGradientsPerInSize != None:
-                    fileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
-                    outSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                    fileSize += long(effectiveFsize * sizeGradientsPerInSize)
+                    outSize += long(effectiveFsize * sizeGradientsPerInSize)
                 # sum offset only for the first master
                 if firstMaster:
                     fileSize += sizeIntercepts
                 firstMaster = False
                 # walltime
-                expWalltime += walltimeIntercepts
+                expWalltime += long(walltimeGradient * effectiveFsize)
                 # the number of events
                 if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
                     inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
@@ -357,14 +362,17 @@ class InputChunk:
                     if newInputNumFiles == 0:
                         terminateFlag = True
                     break
+                # get effective file size
+                effectiveFsize = JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
+                                                                    tmpFileSpec.endEvent,tmpFileSpec.nEvents)
                 newInputNumFiles += 1
                 newNumMaster += 1
-                newFileSize += (tmpFileSpec.fsize + sizeGradients)
-                newOutSize += sizeGradients
+                newFileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
+                newOutSize += long(sizeGradients * effectiveFsize)
                 if sizeGradientsPerInSize != None:
-                    newFileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
-                    newOutSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
-                newExpWalltime += walltimeIntercepts
+                    newFileSize += long(effectiveFsize * sizeGradientsPerInSize)
+                    newOutSize += long(effectiveFsize * sizeGradientsPerInSize)
+                newExpWalltime += long(walltimeGradient * effectiveFsize)
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.isNoSplit() and datasetSpec.getNumFilesPerJob() == None:

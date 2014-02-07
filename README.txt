@@ -1,5 +1,8 @@
 Release Note
 
+* 2/7/2014
+  * fixed getScoutData to calculate data per MB
+
 * 2/6/2014
   * fixed AtlasJB to use LOCALGROUPDISK
 

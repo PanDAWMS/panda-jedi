@@ -30,7 +30,7 @@ class JobSplitter:
             # set fsize intercepts using taskSpec                
             sizeIntercepts = taskSpec.getWorkDiskSize()
             # walltime
-            walltimeIntercepts = taskSpec.walltime
+            walltimeGradient = taskSpec.walltime
             # number of files per job if defined
             nFilesPerJob = taskSpec.getNumFilesPerJob()
             if nFilesPerJob == None and inputChunk.useScout() and not taskSpec.useLoadXML():
@@ -46,7 +46,7 @@ class JobSplitter:
             maxNumFiles = 50
             sizeGradients = 0
             sizeIntercepts = 0
-            walltimeIntercepts = 0
+            walltimeGradient = 0
             nFilesPerJob = None
             nEventsPerJob = None
             useBoundary = {'inSplit':3}
@@ -56,7 +56,7 @@ class JobSplitter:
                                                                                                    sizeGradients,
                                                                                                    sizeIntercepts,
                                                                                                    useBoundary))
-        tmpLog.debug('walltimeIntercepts={0} nFilesPerJob={1} nEventsPerJob={2}'.format(walltimeIntercepts,
+        tmpLog.debug('walltimeGradient={0} nFilesPerJob={1} nEventsPerJob={2}'.format(walltimeGradient,
                                                                                         nFilesPerJob,
                                                                                         nEventsPerJob))
         # split
@@ -94,7 +94,7 @@ class JobSplitter:
                                               sizeGradients=sizeGradients,
                                               sizeIntercepts=sizeIntercepts,
                                               nFilesPerJob=nFilesPerJob,
-                                              walltimeIntercepts=walltimeIntercepts,
+                                              walltimeGradient=walltimeGradient,
                                               maxWalltime=maxWalltime,
                                               nEventsPerJob=nEventsPerJob,
                                               useBoundary=useBoundary,
