@@ -1,5 +1,10 @@
 Release Note
 
+* 2/11/2014
+  * ignoring panda internal datasets
+  * added protection for unknown dataset
+  * support for wild-card in input dataset/container names
+
 * 2/7/2014
   * fixed getScoutData to calculate data per MB
 

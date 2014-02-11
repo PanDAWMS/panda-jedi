@@ -486,14 +486,22 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # list dataset/container
-    def listDatasets(self,datasetName):
+    def listDatasets(self,datasetName,ignorePandaDS=True):
         methodName = 'listDatasets'
         try:
             # get DQ2 API            
             dq2=DQ2()
             # get file list
             tmpRet = dq2.listDatasets(datasetName,onlyNames=True)
-            return self.SC_SUCCEEDED,tmpRet.keys()
+            dsList = tmpRet.keys()
+            if ignorePandaDS:
+                tmpDsList = []
+                for tmpDS in dsList:
+                    if re.search('_dis\d+$',tmpDS) != None or re.search('_sub\d+$',tmpDS):
+                        continue
+                    tmpDsList.append(tmpDS)
+                dsList = tmpDsList
+            return self.SC_SUCCEEDED,dsList
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
@@ -544,20 +552,24 @@ class AtlasDDMClient(DDMClientBase):
         methodName = 'expandContainer'
         try:
             dsList = []
-            # comma-concatenate
-            for tmpStr in containerName.split(','): 
+            # get real names
+            tmpS,tmpRealNameList = self.listDatasets(containerName)
+            if tmpS != self.SC_SUCCEEDED:
+                return tmpS,tmpRealNameList
+            # loop over all names
+            for tmpRealName in tmpRealNameList:
                 # container
-                if tmpStr.endswith('/'):
+                if tmpRealName.endswith('/'):
                     # get contents
-                    tmpS,tmpO = self.listDatasetsInContainer(tmpStr)
+                    tmpS,tmpO = self.listDatasetsInContainer(tmpRealName)
                     if tmpS != self.SC_SUCCEEDED:
                         return tmpS,tmpO
                 else:
-                    tmpO = [tmpStr]
-            # collect dataset names
-            for tmpStr in tmpO:
-                if not tmpStr in dsList:
-                    dsList.append(tmpStr)
+                    tmpO = [tmpRealName]
+                # collect dataset names
+                for tmpStr in tmpO:
+                    if not tmpStr in dsList:
+                        dsList.append(tmpStr)
             dsList.sort()        
             # return
             return self.SC_SUCCEEDED,dsList
@@ -816,4 +828,3 @@ class AtlasDDMClient(DDMClientBase):
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
             return errCode,'{0} : {1}'.format(methodName,errMsg)
-        

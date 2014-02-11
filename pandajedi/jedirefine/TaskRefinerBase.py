@@ -199,31 +199,37 @@ class TaskRefinerBase (object):
                     # remove /XYZ
                     incexecDS = incexecDS.split('/')[0]
                     if taskParamMap.has_key(incexecDS):
-                        datasetNameList += taskParamMap[incexecDS].split(',')
+                        for tmpDatasetName in taskParamMap[incexecDS].split(','):
+                            if not tmpDatasetName in datasetNameList:
+                                datasetNameList.append(tmpDatasetName)
                     # loop over all dataset names
                     inDatasetSpecList = []
                     for datasetName in datasetNameList:
                         # skip empty
                         if datasetName == '':
                             continue
-                        # exapand dataset container
-                        if tmpItem.has_key('expand') and tmpItem['expand'] == True:
+                        # expand
+                        if datasetSpec.isPseudo() or datasetSpec.type in ['random_seed'] or datasetName == 'DBR_LATEST':
+                            # pseudo input
+                            tmpDatasetNameList = [datasetName]
+                        elif tmpItem.has_key('expand') and tmpItem['expand'] == True:
+                            # expand dataset container
                             tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).expandContainer(datasetName)
-                            for elementDatasetName in tmpDatasetNameList:
-                                if not elementDatasetName in tmpItem['expandedList']:
-                                    tmpItem['expandedList'].append(elementDatasetName)
-                                    inDatasetSpec = copy.copy(datasetSpec)
-                                    inDatasetSpec.datasetName = elementDatasetName
-                                    inDatasetSpec.containerName = datasetName
-                                    inDatasetSpecList.append(inDatasetSpec)
                         else:
                             # normal dataset name
-                            if not datasetName in tmpItem['expandedList']:
-                                tmpItem['expandedList'].append(datasetName)
+                            tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).listDatasets(datasetName)
+                        for elementDatasetName in tmpDatasetNameList:
+                            if not elementDatasetName in tmpItem['expandedList']:
+                                tmpItem['expandedList'].append(elementDatasetName)
                                 inDatasetSpec = copy.copy(datasetSpec)
-                                inDatasetSpec.datasetName = datasetName
+                                inDatasetSpec.datasetName = elementDatasetName
                                 inDatasetSpec.containerName = datasetName
                                 inDatasetSpecList.append(inDatasetSpec)
+                    # empty input
+                    if inDatasetSpecList == []:
+                        errStr = 'doBasicRefine : unknown input dataset "{0}"'.format(datasetSpec.datasetName)
+                        self.taskSpec.setErrDiag(errStr)
+                        raise NameError,errStr
                     # set master flag
                     for inDatasetSpec in inDatasetSpecList:    
                         if nIn == 0:

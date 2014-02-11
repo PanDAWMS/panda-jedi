@@ -29,6 +29,7 @@ class JediTaskSpec(object):
     _limitLength = {'errorDialog' : 255}
     # tokens for split rule
     splitRuleToken = {
+        'allowEmptyInput'    : 'AE',
         'disableAutoRetry'   : 'DR',
         'nEventsPerWorker'   : 'ES',
         'firstEvent'         : 'FT',
@@ -363,6 +364,16 @@ class JediTaskSpec(object):
 
 
 
+    # allow empty input
+    def allowEmptyInput(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['allowEmptyInput']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
     # use PFN list
     def useListPFN(self):
         if self.splitRule != None:
@@ -566,8 +577,12 @@ class JediTaskSpec(object):
     # set error dialog
     def setErrDiag(self,diag,append=False):
         # set error dialog
-        if append and self.errorDialog != None:
+        if append == True and self.errorDialog != None:
             self.errorDialog = "{0} {1}".format(self.errorDialog,diag)
+        elif append == None:
+            # keep old log
+            if self.errorDialog == None:
+                self.errorDialog = diag
         else:
             self.errorDialog = diag
         

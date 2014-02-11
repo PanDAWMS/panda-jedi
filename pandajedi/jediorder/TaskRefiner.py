@@ -171,7 +171,7 @@ class TaskRefinerThread (WorkerThread):
                     # register
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to refine the task')
-                        impl.taskSpec.status = 'broken'
+                        impl.taskSpec.status = 'tobroken'
                         if errStr != '':
                             impl.taskSpec.setErrDiag(errStr,True)
                         self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
@@ -200,9 +200,9 @@ class TaskRefinerThread (WorkerThread):
                                                                                        impl.unmergeDatasetSpecMap,
                                                                                        uniqueTaskName) 
                                 if not tmpStat:
-                                    tmpErrStr = 'failed to register the task to JEDI in one shot'
+                                    tmpErrStr = 'failed to register the task to JEDI in a single shot'
                                     tmpLog.error(tmpErrStr)
-                                    impl.taskSpec.status = 'broken'
+                                    impl.taskSpec.status = 'tobroken'
                                     impl.taskSpec.setErrDiag(tmpErrStr,True)
                                     self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
                             else:        

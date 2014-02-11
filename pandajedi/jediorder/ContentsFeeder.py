@@ -139,6 +139,7 @@ class ContentsFeederThread (WorkerThread):
                     else:
                         xmlConfig = None
                     # loop over all datasets
+                    nFilesMaster = 0
                     if not taskBroken:
                         ddmIF = self.ddmIF.getInterface(taskSpec.vo) 
                         origNumFiles = None
@@ -341,10 +342,22 @@ class ContentsFeederThread (WorkerThread):
                                         # reduce the number of files for scout
                                         if useScout:
                                             nFilesForScout = diagMap['nFilesForScout']
+                                        # number of master input files
+                                        if datasetSpec.isMaster():
+                                            nFilesMaster += nFilesUnique
+                    # no mater input
+                    if not taskOnHold and not taskBroken and allUpdated and nFilesMaster == 0:
+                        tmpErrStr = 'no master input files. input dataset is empty'
+                        tmpLog.error(tmpErrStr)
+                        taskSpec.setErrDiag(tmpErrStr,None)
+                        if taskSpec.allowEmptyInput():
+                            taskOnHold = True
+                        else:
+                            taskBroken = True
                     # update task status
                     if taskBroken:
                         # task is broken
-                        taskSpec.status = 'broken'
+                        taskSpec.status = 'tobroken'
                         tmpLog.info('set taskStatus={0}'.format(taskSpec.status))
                         allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
                     elif taskOnHold:
@@ -355,7 +368,7 @@ class ContentsFeederThread (WorkerThread):
                         if not tmpStat:
                             tmpErrStr = 'failed to initialize TaskGenerator'
                             tmpLog.error(tmpErrStr)
-                            taskSpec.status = 'broken'
+                            taskSpec.status = 'tobroken'
                             taskSpec.setErrDiag(tmpErrStr)
                         else:
                             # make parent tasks if necessary
@@ -364,10 +377,10 @@ class ContentsFeederThread (WorkerThread):
                             tmpStat = taskGenerator.doGenerate(taskSpec,taskParamMap,missingFilesMap=missingMap)
                             if tmpStat == Interaction.SC_FATAL:
                                 # failed to make parent tasks
-                                taskSpec.status = 'broken'
+                                taskSpec.status = 'tobroken'
                                 tmpLog.error('failed to make parent tasks')
                         # go to pending state
-                        if taskSpec.status != 'broken':
+                        if not taskSpec.status in ['broken','tobroken']:
                             taskSpec.setOnHold()
                         tmpLog.info('set taskStatus={0}'.format(taskSpec.status))
                         allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)

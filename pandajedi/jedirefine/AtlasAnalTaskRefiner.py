@@ -90,6 +90,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 if datasetSpec.datasetName == 'DBR_LATEST':
                     tmpLog.debug('resolving real name for {0}'.format(datasetSpec.datasetName))
                     datasetSpec.datasetName = self.ddmIF.getInterface(self.taskSpec.vo).getLatestDBRelease(useResultCache=3600)
+                    datasetSpec.containerName = datasetSpec.datasetName
                 # set attributes to DBR
                 if datasetSpec.datasetName.startswith('ddo.'):
                     datasetSpec.attributes = 'repeat,nosplit'
@@ -122,7 +123,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
             errtype,errvalue = sys.exc_info()[:2]
             errStr = 'doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errStr)
-            self.taskSpec.setErrDiag(errStr,True)
+            self.taskSpec.setErrDiag(errStr,None)
             return self.SC_FAILED
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
