@@ -59,5 +59,5 @@ from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()
-tbIF.insertTaskParams_JEDI(metaID,jonStr)
+tbIF.insertTaskParams_JEDI(taskParamMap['vo'],taskParamMap['prodSourceLabel'],taskParamMap['userName'],taskParamMap['taskName'],jonStr)
 

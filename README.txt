@@ -1,5 +1,8 @@
 Release Note
 
+* 2/13/2014
+  * changed for new columns in t_task
+
 * 2/11/2014
   * ignoring panda internal datasets
   * added protection for unknown dataset

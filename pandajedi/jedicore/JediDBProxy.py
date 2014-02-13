@@ -2125,25 +2125,30 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # insert TaskParams
-    def insertTaskParams_JEDI(self,metaTaskID,taskParams):
+    def insertTaskParams_JEDI(self,vo,prodSourceLabel,userName,taskName,taskParams):
         comment = ' /* JediDBProxy.insertTaskParams_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += '<metaTaskID={0}>'.format(metaTaskID)
+        methodName += '<userName={0} taskName={1}>'.format(userName,taskName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
             # sql to insert task parameters
-            sqlT  = "INSERT INTO {0}.T_TASK (taskid,step_id,reqid,status,submit_time,jedi_task_parameters) VALUES ".format(jedi_config.db.schemaDEFT)
-            sqlT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,:stepID,:reqID,:status,CURRENT_DATE,:param) ".format(jedi_config.db.schemaDEFT)
+            sqlT  = "INSERT INTO {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlT += "(taskid,step_id,reqid,status,submit_time,vo,prodSourceLabel,userName,taskName,jedi_task_parameters) VALUES "
+            sqlT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,:stepID,:reqID,:status,CURRENT_DATE,:vo,:prodSourceLabel,:userName,:taskName,:param) ".format(jedi_config.db.schemaDEFT)
             sqlT += "RETURNING taskid INTO :jediTaskID"
             # begin transaction
             self.conn.begin()
             # insert task parameters
             varMap = {}
+            varMap[':vo']     = vo
             varMap[':stepID'] = 0
             varMap[':reqID']  = 0
             varMap[':param']  = taskParams
             varMap[':status'] = 'submit'
+            varMap[':userName'] = userName
+            varMap[':taskName'] = taskName
+            varMap[':prodSourceLabel'] = prodSourceLabel
             varMap[':jediTaskID'] = self.cur.var(cx_Oracle.NUMBER)
             self.cur.execute(sqlT+comment,varMap)
             jediTaskID = long(varMap[':jediTaskID'].getvalue())
@@ -2162,7 +2167,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # insert new TaskParams and update parent TaskParams. mainly used by TaskGenerator
-    def insertUpdateTaskParams_JEDI(self,jediTaskID,updateTaskParams,insertTaskParamsList):
+    def insertUpdateTaskParams_JEDI(self,jediTaskID,vo,prodSourceLabel,updateTaskParams,insertTaskParamsList):
         comment = ' /* JediDBProxy.insertUpdateTaskParams_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += '<jediTaskID={0}>'.format(jediTaskID)
@@ -2170,8 +2175,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to insert new task parameters
-            sqlIT  = "INSERT INTO {0}.T_TASK (taskid,step_id,reqid,status,submit_time,jedi_task_parameters) VALUES ".format(jedi_config.db.schemaDEFT)
-            sqlIT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,:stepID,:reqID,:status,CURRENT_DATE,:param) ".format(jedi_config.db.schemaDEFT)
+            sqlIT  = "INSERT INTO {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlIT += "(taskid,step_id,reqid,status,submit_time,vo,prodSourceLabel,jedi_task_parameters) VALUES "
+            sqlIT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,:stepID,:reqID,:status,CURRENT_DATE,:vo,:prodSourceLabel,:param) ".format(jedi_config.db.schemaDEFT)
             sqlIT += "RETURNING taskid INTO :jediTaskID"
             # sql to update parent task parameters
             sqlUT  = "UPDATE {0}.JEDI_TaskParams SET taskParams=:taskParams ".format(jedi_config.db.schemaJEDI)
@@ -2182,10 +2188,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             newJediTaskIDs = []
             for taskParams in insertTaskParamsList:
                 varMap = {}
+                varMap[':vo']     = vo
                 varMap[':stepID'] = 0
                 varMap[':reqID']  = 0
                 varMap[':param']  = taskParams
                 varMap[':status'] = 'submit'
+                varMap[':prodSourceLabel'] = prodSourceLabel
                 varMap[':jediTaskID'] = self.cur.var(cx_Oracle.NUMBER)
                 self.cur.execute(sqlIT+comment,varMap)
                 newJediTaskID = long(varMap[':jediTaskID'].getvalue())
@@ -2594,15 +2602,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlC += "WHERE status=:status "
             varMap = {}
             varMap[':status'] = 'submit'
-            # FIXME once vo and prodSourceLabel are added to DEFT tables
-            """
             if not vo in [None,'any']:
-                varMap[':comm_vo'] = vo
-                sqlC += "AND comm_vo=:comm_vo "
+                varMap[':vo'] = vo
+                sqlC += "AND vo=:vo "
             if not prodSourceLabel in [None,'any']:
-                varMap[':comm_prodSourceLabel'] = prodSourceLabel
-                sqlC += "AND comm_prodSourceLabel=:comm_prodSourceLabel "
-            """    
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                sqlC += "AND prodSourceLabel=:prodSourceLabel "
             sqlC += "ORDER BY submit_time "
             # start transaction
             self.conn.begin()

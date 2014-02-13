@@ -94,7 +94,10 @@ class AtlasTaskGenerator (TaskGeneratorBase):
                         taskParamMap['useInFilesWithNewAttemptNr'] = True
                         jsonStr = json.dumps(taskParamMap)
                         # insert and update task parameters
-                        sTmp,newJediTaskIDs = self.taskBufferIF.insertUpdateTaskParams_JEDI(taskSpec.jediTaskID,jsonStr,newJsonStrList)
+                        sTmp,newJediTaskIDs = self.taskBufferIF.insertUpdateTaskParams_JEDI(taskSpec.jediTaskID,
+                                                                                            taskSpec.vo,
+                                                                                            taskSpec.prodSourceLabel,
+                                                                                            jsonStr,newJsonStrList)
                         if sTmp:
                             tmpLog.info('inserted/updated tasks in DB : new jediTaskIDs={0}'.format(str(newJediTaskIDs)))
                         else:
