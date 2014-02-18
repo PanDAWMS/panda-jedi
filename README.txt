@@ -1,6 +1,7 @@
 Release Note
 
 * 2/17/2014
+  * fixed disk threshold for anal brokerage
   * fixed for transHome=None
 
 * 2/13/2014

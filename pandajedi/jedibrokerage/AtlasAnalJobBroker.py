@@ -298,18 +298,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
         for tmpSiteName in scanSiteList:
             # check at the site
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            # the number of jobs which will produce outputs
-            nRemJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'defined') + \
-                AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'activated') + \
-                AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running')
-            # free space - inputs - outputs(250MB*nJobs) must be >= 200GB
-            outSizePerJob = 0.250
+            # free space must be >= 200GB
             diskThreshold = 200
-            tmpSpaceSize = tmpSiteSpec.space - nRemJobs * outSizePerJob
+            tmpSpaceSize = tmpSiteSpec.space
             if tmpSiteSpec.space != 0 and tmpSpaceSize < diskThreshold:
-                tmpLog.debug('  skip {0} due to disk shortage in SE = {1}-{2}x{3} < {4}'.format(tmpSiteName,tmpSiteSpec.space,
-                                                                                                    outSizePerJob,nRemJobs,
-                                                                                                    diskThreshold))
+                tmpLog.debug('  skip {0} due to disk shortage in SE = {1} < {2}GB'.format(tmpSiteName,tmpSiteSpec.space,
+                                                                                          diskThreshold))
                 continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
