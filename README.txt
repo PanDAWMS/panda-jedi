@@ -1,5 +1,8 @@
 Release Note
 
+* 2/17/2014
+  * fixed for transHome=None
+
 * 2/13/2014
   * changed for new columns in t_task
 

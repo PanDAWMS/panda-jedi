@@ -430,8 +430,9 @@ class JobGeneratorThread (WorkerThread):
                     else:
                         jobSpec.transformation = taskSpec.transPath
                     jobSpec.cmtConfig        = taskSpec.architecture
-                    jobSpec.homepackage      = re.sub('-(?P<dig>\d)','/\g<dig>',taskSpec.transHome)
-                    jobSpec.homepackage      = re.sub('\r','',jobSpec.homepackage)
+                    if taskSpec.transHome != None:
+                        jobSpec.homepackage  = re.sub('-(?P<dig>\d)','/\g<dig>',taskSpec.transHome)
+                        jobSpec.homepackage  = re.sub('\r','',jobSpec.homepackage)
                     jobSpec.prodSourceLabel  = taskSpec.prodSourceLabel
                     if inputChunk.isMerging:
                         # set merging type
@@ -636,8 +637,9 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.jobName          = taskSpec.taskName
             jobSpec.transformation   = taskParamMap['buildSpec']['transPath']
             jobSpec.cmtConfig        = taskSpec.architecture
-            jobSpec.homepackage      = re.sub('-(?P<dig>\d)','/\g<dig>',taskSpec.transHome)
-            jobSpec.homepackage      = re.sub('\r','',jobSpec.homepackage)
+            if taskSpec.transHome != None:
+                jobSpec.homepackage  = re.sub('-(?P<dig>\d)','/\g<dig>',taskSpec.transHome)
+                jobSpec.homepackage  = re.sub('\r','',jobSpec.homepackage)
             jobSpec.prodSourceLabel  = taskParamMap['buildSpec']['prodSourceLabel']
             jobSpec.processingType   = taskSpec.processingType
             jobSpec.jediTaskID       = taskSpec.jediTaskID
