@@ -182,7 +182,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check site status
             skipFlag = False
-            if tmpSiteSpec.status in ['offline','brokeroff','test']:
+            if tmpSiteSpec.status in ['offline']:
+                skipFlag = True
+            elif not sitePreAssigned and tmpSiteSpec.status in ['brokeroff','test']:
                 skipFlag = True
             if not skipFlag:    
                 newScanSiteList.append(tmpSiteName)

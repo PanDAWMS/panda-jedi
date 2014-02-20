@@ -1,6 +1,7 @@
 Release Note
 
 * 2/20/2014
+  * changed ATLAS job brokerage to allow jobs go to brokeroff when preassigned 
   * removed disk size check for directIO sites from ATLAS job brokerage
   * enabled rucio endpoint
 
