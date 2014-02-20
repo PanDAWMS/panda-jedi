@@ -274,17 +274,28 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for scratch disk
-        minDiskCount = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
-        minDiskCount = minDiskCount / 1024 / 1024
+        minDiskCountS = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
+        minDiskCountS = minDiskCountS / 1024 / 1024
+        # size for direct IO sites
+        if taskSpec.useLocalIO():
+            minDiskCountR = minDiskCountS
+        else:
+            minDiskCountR = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()
+            minDiskCountR = minDiskCountR / 1024 / 1024
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check at the site
-            if tmpSiteSpec.maxwdir != 0 and minDiskCount > tmpSiteSpec.maxwdir:
-                tmpLog.debug('  skip {0} due to small scratch disk={1} < {2}'.format(tmpSiteName,
-                                                                                     tmpSiteSpec.maxwdir,
-                                                                                     minDiskCount))
-                continue
+            if tmpSiteSpec.maxwdir != 0:
+                if tmpSiteSpec.isDirectIO():
+                    minDiskCount = minDiskCountR
+                else:
+                    minDiskCount = minDiskCountS
+                if minDiskCount > tmpSiteSpec.maxwdir:
+                    tmpLog.debug('  skip {0} due to small scratch disk={1} < {2}'.format(tmpSiteName,
+                                                                                         tmpSiteSpec.maxwdir,
+                                                                                         minDiskCount))
+                    continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
         tmpLog.debug('{0} candidates passed scratch disk check'.format(len(scanSiteList)))
