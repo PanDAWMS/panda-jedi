@@ -1692,7 +1692,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type "
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
-                sql += "tabT.vo=:vo AND workQueue_ID IN ("
+                sql += "AND tabT.vo=:vo AND workQueue_ID IN ("
                 for tmpQueue_ID in workQueue.getIDs():
                     tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
                     varMap[tmpKey] = tmpQueue_ID
