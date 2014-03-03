@@ -46,7 +46,7 @@ class FactoryBase:
                 except:
                     subTypes = ['any']
             except:
-                self.logger('wrong config definition : {0}'.format(configStr))
+                self.logger.error('wrong config definition : {0}'.format(configStr))
                 continue
             # loop over all VOs
             for vo in vos:
@@ -75,6 +75,9 @@ class FactoryBase:
                             cls = getattr(mod,className)
                             # instantiate
                             impl = cls(*args)
+                            # set vo
+                            impl.vo = vo
+                            impl.prodSourceLabel = sourceLabel
                             # append
                             if not self.implMap.has_key(vo):
                                 self.implMap[vo] = {}
@@ -100,7 +103,7 @@ class FactoryBase:
             voImplMap = self.implMap[vo]
         elif self.implMap.has_key('any'):
             # catch all
-            voImplMap =self.implMap['any']
+            voImplMap = self.implMap['any']
         else:
             return None
         # check sourceLabel
@@ -131,7 +134,7 @@ class FactoryBase:
             voImplMap = self.classMap[vo]
         elif self.classMap.has_key('any'):
             # catch all
-            voImplMap =self.classMap['any']
+            voImplMap = self.classMap['any']
         else:
             return None
         # check sourceLabel
@@ -146,10 +149,16 @@ class FactoryBase:
         # check subType
         if srcImplMap.has_key(subType):
             # match subType
-            return srcImplMap[subType](*args)
+            impl = srcImplMap[subType](*args)
+            impl.vo = vo
+            impl.prodSourceLabel= sourceLabel
+            return impl
         elif srcImplMap.has_key('any'):
             # catch all
-            return srcImplMap['any'](*args)
+            impl = srcImplMap['any'](*args)
+            impl.vo = vo
+            impl.prodSourceLabel= sourceLabel
+            return impl
         else:
             return None
             

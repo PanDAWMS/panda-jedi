@@ -1690,8 +1690,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':dsOKStatus3']     = 'defined'
                 varMap[':dsOKStatus4']     = 'registered'
                 sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type "
-                sql += "FROM {0}.JEDI_Tasks tabT,ATLAS_PANDA.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
-                sql += "WHERE tabT.vo=:vo AND workQueue_ID IN ("
+                sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+                sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
+                sql += "tabT.vo=:vo AND workQueue_ID IN ("
                 for tmpQueue_ID in workQueue.getIDs():
                     tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
                     varMap[tmpKey] = tmpQueue_ID
@@ -1708,7 +1709,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sql += '{0},'.format(tmpKey)
                 sql  = sql[:-1]
                 sql += ') '
-                sql += "AND tabT.lockedBy IS NULL AND tabT.jediTaskID=tabD.jediTaskID "
+                sql += "AND tabT.lockedBy IS NULL "
                 sql += "AND nFilesToBeUsed > nFilesUsed AND type IN ("
                 for tmpType in JediDatasetSpec.getProcessTypes(): 
                     mapKey = ':type_'+tmpType
@@ -5025,4 +5026,82 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False
+
+
+
+    # get JEDI tasks with a selection criteria
+    def getTasksWithCriteria_JEDI(self,vo,prodSourceLabel,taskStatusList,taskCriteria,datasetCriteria,
+                                  taskParamList,datasetParamList):
+        comment = ' /* JediDBProxy.getTasksWithCriteria_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start with tC={0} dC={1}'.format(str(taskCriteria),str(datasetCriteria)))
+        # return value for failure
+        failedRet = None
+        try:
+            # sql
+            varMap = {}
+            sqlRT  = "SELECT "
+            for tmpPar in taskParamList:
+                sqlRT += "tabT.{0},".format(tmpPar)
+            for tmpPar in datasetParamList:
+                sqlRT += "tabD.{0},".format(tmpPar)
+            sqlRT  = sqlRT[:-1]
+            sqlRT += " "
+            sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
+            sqlRT += "AND tabT.status IN ("
+            for tmpStatus in taskStatusList:
+                tmpKey = ':status_{0}'.format(tmpStatus)
+                varMap[tmpKey] = tmpStatus
+                sqlRT += '{0},'.format(tmpKey)
+            sqlRT  = sqlRT[:-1]
+            sqlRT += ") "
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+                sqlRT += "AND tabT.vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
+            for tmpKey,tmpVal in taskCriteria.iteritems():
+                if tmpVal != None:
+                    sqlRT += "AND tabT.{0}=:{0} ".format(tmpKey)
+                    varMap[':{0}'.format(tmpKey)] = tmpVal
+                else:
+                    sqlRT += "AND tabT.{0} IS NULL ".format(tmpKey)
+            for tmpKey,tmpVal in datasetCriteria.iteritems():
+                if tmpVal != None:
+                    sqlRT += "AND tabD.{0}=:{0} ".format(tmpKey)
+                    varMap[':{0}'.format(tmpKey)] = tmpVal
+                else:
+                    sqlRT += "AND tabD.{0} IS NULL ".format(tmpKey)
+            sqlRT += "ORDER BY tabT.jediTaskID "
+            # begin transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            # get tasks
+            tmpLog.debug(sqlRT+comment+str(varMap))
+            self.cur.execute(sqlRT+comment,varMap)
+            resList = self.cur.fetchall()
+            retTasks = []
+            for resRT in resList:
+                taskParMap = {}
+                for tmpIdx,tmpPar in enumerate(taskParamList):
+                    taskParMap[tmpPar] = resRT[tmpIdx]
+                datasetParMap = {}
+                for tmpIdx,tmpPar in enumerate(datasetParamList):
+                    datasetParMap[tmpPar] = resRT[tmpIdx+len(taskParamList)]
+                retTasks.append((taskParMap,datasetParMap))
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('got {0} tasks'.format(len(retTasks)))
+            return retTasks
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return failedRet
         

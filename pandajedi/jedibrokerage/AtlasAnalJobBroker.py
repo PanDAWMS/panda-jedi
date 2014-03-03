@@ -34,43 +34,44 @@ class AtlasAnalJobBroker (JobBrokerBase):
         sitePreAssigned = False
         excludeList = []
         includeList = None
+        scanSiteList = []
+        # get list of site access
+        siteAccessList = self.taskBufferIF.listSiteAccess(None,taskSpec.userName)
+        siteAccessMap = {}
+        for tmpSiteName,tmpAccess in siteAccessList:
+            siteAccessMap[tmpSiteName] = tmpAccess
+        # site limitation
+        if taskSpec.useLimitedSites():
+            if 'excludedSite' in taskParamMap:
+                excludeList = taskParamMap['excludedSite']
+            if 'includedSite' in taskParamMap:
+                includeList = taskParamMap['includedSite']
+        # loop over all sites        
+        for siteName,tmpSiteSpec in self.siteMapper.siteSpecList.iteritems():
+            if tmpSiteSpec.type == 'analysis' and taskSpec.cloud in [None,'','any',tmpSiteSpec.cloud]:
+                # check if excluded
+                if AtlasBrokerUtils.isMatched(siteName,excludeList):
+                    tmpLog.debug('  skip {0} excluded'.format(siteName))
+                    continue
+                # check if included
+                if includeList != None and not AtlasBrokerUtils.isMatched(siteName,includeList):
+                    tmpLog.debug('  skip {0} not included'.format(siteName))
+                    continue
+                # limited access
+                if tmpSiteSpec.accesscontrol == 'grouplist':
+                    if not siteAccessMap.has_key(tmpSiteSpec.sitename) or \
+                            siteAccessMap[tmpSiteSpec.sitename] != 'approved':
+                        tmpLog.debug('  skip {0} limited access'.format(siteName))
+                        continue
+                scanSiteList.append(siteName)
+        # preassigned
         if not taskSpec.site in ['',None]:
             # site is pre-assigned
-            scanSiteList = [taskSpec.site]
             tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
             sitePreAssigned = True
-        else:
-            scanSiteList = []
-            # get list of site access
-            siteAccessList = self.taskBufferIF.listSiteAccess(None,taskSpec.userName)
-            siteAccessMap = {}
-            for tmpSiteName,tmpAccess in siteAccessList:
-                siteAccessMap[tmpSiteName] = tmpAccess
-            # site limitation
-            if taskSpec.useLimitedSites():
-                if 'excludedSite' in taskParamMap:
-                    excludeList = taskParamMap['excludedSite']
-                if 'includedSite' in taskParamMap:
-                    includeList = taskParamMap['includedSite']
-            # loop over all sites        
-            for siteName,tmpSiteSpec in self.siteMapper.siteSpecList.iteritems():
-                if tmpSiteSpec.type == 'analysis' and taskSpec.cloud in [None,'','any',tmpSiteSpec.cloud]:
-                    # check if excluded
-                    if AtlasBrokerUtils.isMatched(siteName,excludeList):
-                        tmpLog.debug('  skip {0} excluded'.format(siteName))
-                        continue
-                    # check if included
-                    if includeList != None and not AtlasBrokerUtils.isMatched(siteName,includeList):
-                        tmpLog.debug('  skip {0} not included'.format(siteName))
-                        continue
-                    # limited access
-                    if tmpSiteSpec.accesscontrol == 'grouplist':
-                        if not siteAccessMap.has_key(tmpSiteSpec.sitename) or \
-                                siteAccessMap[tmpSiteSpec.sitename] != 'approved':
-                            tmpLog.debug('  skip {0} limited access'.format(siteName))
-                            continue
-                    scanSiteList.append(siteName)
-            tmpLog.debug('cloud=%s has %s candidates' % (taskSpec.cloud,len(scanSiteList)))
+            if not taskSpec.site in scanSiteList:
+                scanSiteList.append(taskSpec.site)
+        tmpLog.debug('cloud=%s has %s candidates' % (taskSpec.cloud,len(scanSiteList)))
         # get job statistics
         tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,taskSpec.prodSourceLabel)
         if not tmpSt:
@@ -124,8 +125,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # get sites where disk replica is available
                 tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite)
                 # get sites which can remotely access source sites
-                if not sitePreAssigned:
+                if (not sitePreAssigned) or (sitePreAssigned and not taskSpec.site in tmpSiteList):
                     tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpSiteList,self.taskBufferIF,
+                                                                           self.siteMapper,nSites=50,
                                                                            protocol=allowedRemoteProtocol)
                 else:
                     tmpSatelliteSites = {}
@@ -171,6 +173,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 scanSiteList = newScanList
                 tmpLog.debug('{0} is available at {1} sites'.format(datasetName,len(scanSiteList)))
             tmpLog.debug('{0} candidates have input data'.format(len(scanSiteList)))
+            # check for preassigned
+            if sitePreAssigned and not taskSpec.site in scanSiteList:
+                scanSiteList = []
+                tmpLog.debug('data is unavailable locally or remotely at preassigned site {0}'.format(taskSpec.site))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -184,8 +190,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
             skipFlag = False
             if tmpSiteSpec.status in ['offline']:
                 skipFlag = True
-            elif not sitePreAssigned and tmpSiteSpec.status in ['brokeroff','test']:
-                skipFlag = True
+            elif tmpSiteSpec.status in ['brokeroff','test']:
+                if not sitePreAssigned:
+                    skipFlag = True
+                elif tmpSiteName != taskSpec.site:
+                    skipFlag = True
             if not skipFlag:    
                 newScanSiteList.append(tmpSiteName)
             else:
@@ -385,9 +394,18 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
+        # check for preassigned
+        if sitePreAssigned and not taskSpec.site in scanSiteList:
+            tmpLog.debug("preassigned site {0} didn't pass all tests".format(taskSpec.site))
+            tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retFatal
+        ######################################
+        # final procedure
         tmpLog.debug('final {0} candidates'.format(len(scanSiteList)))
         weightMap = {}
         candidateSpecList = []
+        preSiteCandidateSpec = None
         for tmpSiteName in scanSiteList:
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',  None,taskSpec.workQueue_ID)
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',  None,taskSpec.workQueue_ID)
@@ -398,6 +416,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 weight = weight * dataWeight[tmpSiteName]
             # make candidate
             siteCandidateSpec = SiteCandidate(tmpSiteName)
+            # preassigned
+            if sitePreAssigned and tmpSiteName == taskSpec.site:
+                preSiteCandidateSpec = siteCandidateSpec
             # set weight
             siteCandidateSpec.weight = weight
             # append
@@ -418,6 +439,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
             sitesWithWeight = weightMap[weightVal]
             random.shuffle(sitesWithWeight)
             candidateSpecList += sitesWithWeight[:(maxNumSites-len(candidateSpecList))]
+        # append preassigned
+        if sitePreAssigned and preSiteCandidateSpec != None and not preSiteCandidateSpec in candidateSpecList: 
+            candidateSpecList.append(preSiteCandidateSpec)
         # collect site names
         scanSiteList = []    
         for siteCandidateSpec in candidateSpecList:
@@ -445,6 +469,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
         newScanSiteList = []
         for siteCandidateSpec in candidateSpecList:
             tmpSiteName = siteCandidateSpec.siteName
+            # preassigned
+            if sitePreAssigned and tmpSiteName != taskSpec.site:
+                tmpLog.debug('  skip {0} non pre-assigned site'.format(tmpSiteName))
+                continue
             # set available files
             if inputChunk.getDatasets() == []: 
                 isAvailable = True
@@ -461,7 +489,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             siteCandidateSpec.remoteFiles += availableFiles[tmpRemoteSite]['localdisk']
                             # set remote site and access protocol
                             siteCandidateSpec.remoteProtocol = allowedRemoteProtocol
-                            siteCandidateSpec.remoteSource   = tmpSiteName
+                            siteCandidateSpec.remoteSource   = tmpRemoteSite
                             isAvailable = True
                             break
                 # local files

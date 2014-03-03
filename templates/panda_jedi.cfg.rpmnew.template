@@ -197,8 +197,11 @@ loopCycle = 60
 
 [watchdog]
 
+# interface config
+modConfig = atlas:test:pandajedi.jedidog.AtlasProdWatchDog:AtlasProdWatchDog
+
 # process config
-procConfig = ::1
+procConfig = atlas:managed|test|user:1
 
 # loop interval in seconds
 loopCycle = 300

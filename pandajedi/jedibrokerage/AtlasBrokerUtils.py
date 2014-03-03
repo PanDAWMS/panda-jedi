@@ -210,11 +210,15 @@ def getAnalSitesWithDataDisk(dataSiteMap):
 
 
 # get sites which can remotely access source sites
-def getSatelliteSites(siteList,taskBufferIF,protocol='xrd',nSites=5,threshold=0,
+def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,threshold=0,
                       cutoff=50,maxWeight=0.5):
     # loop over all sites
     retVal = {}
     for siteName in siteList:
+        # only in US for now
+        tmpSiteSpec = siteMapper.getSite(siteName)
+        if not tmpSiteSpec.cloud in ['US']:
+            continue
         # get sites with better network connections to sources
         tmpStat,tmpVal = taskBufferIF.getBestNNetworkSites_JEDI(siteName,protocol,nSites,
                                                                 threshold,cutoff,maxWeight,
@@ -224,6 +228,13 @@ def getSatelliteSites(siteList,taskBufferIF,protocol='xrd',nSites=5,threshold=0,
             return {}
         # loop over all destinations 
         for tmpD,tmpW in tmpVal.iteritems():
+            # check if FAX enabled
+            tmpSiteSpec = siteMapper.getSite(tmpD)
+            if not tmpSiteSpec.allowfax:
+                continue
+            # only in US for now
+            if not tmpSiteSpec.cloud in ['US']:
+                continue
             # use first or larger value
             if not retVal.has_key(tmpD) or retVal[tmpD]['weight'] < tmpW:
                 retVal[tmpD] = {'weight':tmpW,'source':[siteName]}

@@ -149,6 +149,7 @@ setup(
                'pandajedi.jedicore',
                'pandajedi.jediexec',
                'pandajedi.jeditest',               
+               'pandajedi.jedidog',
                'pandajedi.jediddm',
                'pandajedi.jedigen',
                'pandajedi.jedisetup',

@@ -17,7 +17,7 @@ class JediTaskSpec(object):
         'outDiskCount','outDiskUnit','workDiskCount','workDiskUnit',
         'ramCount','ramUnit','ioIntensity','ioIntensityUnit',
         'workQueue_ID','progress','failureRate','errorDialog',
-        'reqID','oldStatus','cloud','site'
+        'reqID','oldStatus','cloud','site','countryGroup'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()

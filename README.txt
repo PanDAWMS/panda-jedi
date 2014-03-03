@@ -1,5 +1,9 @@
 Release Note
 
+* 3/3/2014
+  * changed watchdog to allow vo/label specific acction
+  * enabled FAX
+
 * 2/20/2014
   * changed ATLAS job brokerage to allow jobs go to brokeroff when preassigned 
   * removed disk size check for directIO sites from ATLAS job brokerage

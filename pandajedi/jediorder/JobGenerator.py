@@ -443,6 +443,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.taskID           = taskSpec.reqID
                     jobSpec.jobsetID         = taskSpec.reqID
                     jobSpec.workingGroup     = taskSpec.workingGroup
+                    jobSpec.countryGroup     = taskSpec.countryGroup
                     jobSpec.computingSite    = siteName
                     jobSpec.cloud            = cloudName
                     jobSpec.VO               = taskSpec.vo
@@ -645,6 +646,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.jediTaskID       = taskSpec.jediTaskID
             jobSpec.jobsetID         = taskSpec.reqID
             jobSpec.workingGroup     = taskSpec.workingGroup
+            jobSpec.countryGroup     = taskSpec.countryGroup
             jobSpec.computingSite    = siteName
             jobSpec.cloud            = cloudName
             jobSpec.VO               = taskSpec.vo
@@ -748,6 +750,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.jediTaskID       = taskSpec.jediTaskID
             jobSpec.jobsetID         = taskSpec.reqID
             jobSpec.workingGroup     = taskSpec.workingGroup
+            jobSpec.countryGroup     = taskSpec.countryGroup
             jobSpec.computingSite    = siteName
             jobSpec.cloud            = cloudName
             jobSpec.VO               = taskSpec.vo

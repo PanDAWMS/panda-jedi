@@ -6,6 +6,7 @@ import datetime
 
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore.FactoryBase import FactoryBase
 from JediKnight import JediKnight
 from pandajedi.jediconfig import jedi_config
 
@@ -16,7 +17,7 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 
 # worker class for watchdog 
-class WatchDog (JediKnight):
+class WatchDog (JediKnight,FactoryBase):
 
     # constructor
     def __init__(self,commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels):
@@ -24,12 +25,15 @@ class WatchDog (JediKnight):
         self.prodSourceLabels = self.parseInit(prodSourceLabels)
         self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0],os.getpid())
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
-
+        FactoryBase.__init__(self,self.vos,self.prodSourceLabels,logger,
+                             jedi_config.watchdog.modConfig)
+        
 
     # main
     def start(self):
         # start base classes
         JediKnight.start(self)
+        FactoryBase.initializeMods(self,self.taskBufferIF,self.ddmIF)
         # go into main loop
         while True:
             startTime = datetime.datetime.utcnow()
@@ -61,6 +65,15 @@ class WatchDog (JediKnight):
                             tmpLog.error('failed to reactivate')
                         else:
                             tmpLog.info('reactivated {0} tasks'.format(tmpRet))
+                        # vo/prodSourceLabel specific action
+                        impl = self.getImpl(vo,prodSourceLabel)
+                        if impl != None:
+                            tmpLog.info('special action for vo={0} label={1} with {2}'.format(vo,prodSourceLabel,impl.__class__.__name__))
+                            tmpStat = impl.doAction()
+                            if tmpStat !=  Interaction.SC_SUCCEEDED:
+                                tmpLog.error('failed to run special acction for vo={0} label={1}'.format(vo,prodSourceLabel))
+                            else:
+                                tmpLog.info('done for vo={0} label={1}'.format(vo,prodSourceLabel))
                 tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]

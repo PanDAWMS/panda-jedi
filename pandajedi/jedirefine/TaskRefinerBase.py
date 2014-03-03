@@ -67,6 +67,8 @@ class TaskRefinerBase (object):
         taskSpec.splitRule = splitRule
         if taskParamMap.has_key('workingGroup'):
             taskSpec.workingGroup = taskParamMap['workingGroup']
+        if taskParamMap.has_key('countryGroup'):
+            taskSpec.countryGroup = taskParamMap['countryGroup']
         if taskParamMap.has_key('reqID'):
             taskSpec.reqID = taskParamMap['reqID']
         if taskParamMap.has_key('coreCount'):
