@@ -9,6 +9,7 @@ from pandajedi.jedicore.FactoryBase import FactoryBase
 from pandajedi.jedirefine import RefinerUtils
 from JediKnight import JediKnight
 
+from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jediconfig import jedi_config
 
@@ -171,10 +172,15 @@ class TaskRefinerThread (WorkerThread):
                     # register
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to refine the task')
-                        impl.taskSpec.status = 'tobroken'
+                        if impl == None or impl.taskSpec == None:
+                            tmpTaskSpec = JediTaskSpec()
+                            tmpTaskSpec.jediTaskID = jediTaskID
+                        else:
+                            tmpTaskSpec = impl.taskSpec
+                        tmpTaskSpec.status = 'tobroken'
                         if errStr != '':
-                            impl.taskSpec.setErrDiag(errStr,True)
-                        self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
+                            tmpTaskSpec.setErrDiag(errStr,True)
+                        self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':tmpTaskSpec.jediTaskID})
                     else:
                         tmpLog.info('registering')                    
                         # fill JEDI tables
