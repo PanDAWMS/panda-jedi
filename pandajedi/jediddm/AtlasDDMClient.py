@@ -548,11 +548,15 @@ class AtlasDDMClient(DDMClientBase):
     # expand Container
     def expandContainer(self,containerName):
         methodName = 'expandContainer'
+        methodName = '{0} contName={1}'.format(methodName,containerName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.info('start')
         try:
             dsList = []
             # get real names
             tmpS,tmpRealNameList = self.listDatasets(containerName)
             if tmpS != self.SC_SUCCEEDED:
+                tmpLog.error('failed to get real names')
                 return tmpS,tmpRealNameList
             # loop over all names
             for tmpRealName in tmpRealNameList:
@@ -561,6 +565,7 @@ class AtlasDDMClient(DDMClientBase):
                     # get contents
                     tmpS,tmpO = self.listDatasetsInContainer(tmpRealName)
                     if tmpS != self.SC_SUCCEEDED:
+                        tmpLog.error('failed to get datasets in {0}'.format(tmpRealName))
                         return tmpS,tmpO
                 else:
                     tmpO = [tmpRealName]
@@ -570,11 +575,14 @@ class AtlasDDMClient(DDMClientBase):
                         dsList.append(tmpStr)
             dsList.sort()        
             # return
+            tmpLog.info('got {0}'.format(str(dsList)))
             return self.SC_SUCCEEDED,dsList
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
-            return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error('failed with {0}'.format(errMsg))
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
 
         
 

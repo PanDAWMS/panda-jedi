@@ -2,6 +2,7 @@ Release Note
 
 * 3/4/2014
   * added protection to TR against errors happen before impl or taskSpec is generated
+  * changed finished/partial to done/finished
 
 * 3/3/2014
   * changed watchdog to allow vo/label specific acction

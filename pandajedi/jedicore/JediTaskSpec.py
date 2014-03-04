@@ -522,21 +522,21 @@ class JediTaskSpec(object):
 
     # return list of status to reject external changes
     def statusToRejectExtChange(cls):
-        return ['finished','prepared','broken','aborted','failed','aborting','finishing']
+        return ['finished','done','prepared','broken','aborted','failed','aborting','finishing']
     statusToRejectExtChange = classmethod(statusToRejectExtChange)
 
 
 
     # return list of status for retry
     def statusToRetry(cls):
-        return ['partial','failed']
+        return ['finished','failed']
     statusToRetry = classmethod(statusToRetry)
 
 
 
     # return list of status for incexec
     def statusToIncexec(cls):
-        return ['finished'] + cls.statusToRetry()
+        return ['done'] + cls.statusToRetry()
     statusToIncexec = classmethod(statusToIncexec)
 
 

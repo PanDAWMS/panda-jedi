@@ -56,18 +56,19 @@ class PostProcessorBase (object):
         if taskSpec.status == 'tobroken':
             taskSpec.status = 'broken'
         elif nFiles == nFilesFinished:
-            taskSpec.status = 'finished'
+            taskSpec.status = 'done'
         elif nFilesFinished == 0:
             taskSpec.status = 'failed'
             # set dialog for preprocess
             if taskSpec.usePrePro() and not taskSpec.checkPreProcessed():
                 taskSpec.setErrDiag('Preprocessing step failed',True)
         else:
-            taskSpec.status = 'partial'
+            taskSpec.status = 'finished'
         # end time
         taskSpec.endTime = datetime.datetime.utcnow()
         # update task
-        self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})    
+        self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
+                                          updateDEFT=True)    
         tmpLog.info('doBasicPostProcess set taskStatus={0}'.format(taskSpec.status))
         return
 

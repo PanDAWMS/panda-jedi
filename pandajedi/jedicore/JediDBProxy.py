@@ -945,7 +945,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update JEDI task
-    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None):
+    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None,updateDEFT=True):
         comment = ' /* JediDBProxy.updateTask_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(taskSpec.jediTaskID)
@@ -991,6 +991,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sql+comment,varMap)
             # the number of updated rows
             nRows = self.cur.rowcount
+            # update DEFT
+            if updateDEFT:
+                # count number of finished jobs
+                sqlC  = "SELECT count(distinct pandaID) "
+                sqlC += "FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
+                sqlC += "WHERE tabD.jediTaskID=tabC.jediTaskID AND tabD.jediTaskID=:jediTaskID "
+                sqlC += "AND tabC.status=:status "
+                sqlC += "AND masterID IS NULL AND pandaID IS NOT NULL "
+                varMap = {}
+                varMap[':jediTaskID'] = taskSpec.jediTaskID
+                varMap[':status'] = 'finished'
+                self.cur.execute(sqlC+comment,varMap)
+                res = self.cur.fetchone()
+                if res == None:
+                    tmpLog.debug('failed to count # of finished jobs when updating DEFT table')
+                else:
+                    nDone, = res 
+                    sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                    sqlD += "SET status=:status,total_done_jobs=:nDone,timeStamp=CURRENT_DATE "
+                    sqlD += "WHERE taskID=:jediTaskID "
+                    varMap = {}
+                    varMap[':status'] = taskSpec.status
+                    varMap[':jediTaskID'] = taskSpec.jediTaskID
+                    varMap[':nDone'] = nDone
+                    tmpLog.debug(sqlD+comment+str(varMap))
+                    self.cur.execute(sqlD+comment,varMap)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -4761,7 +4787,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     msgStr = 'no {0} for task in {1} status'.format(commStr,taskOldStatus)
                     tmpLog.debug(msgStr)
                     newTaskStatus = taskOldStatus
-                elif not taskOldStatus in ['finished','failed','partial']:
+                elif not taskOldStatus in ['finished','failed','done']:
                     # only tasks in a relevant final status 
                     msgStr = 'no {0} since not in relevant final status ({1})'.format(commStr,taskOldStatus)
                     tmpLog.debug(msgStr)
