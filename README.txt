@@ -1,5 +1,8 @@
 Release Note
 
+* 3/7/2014
+  * fixed wrong errorDiaglog="No build jobs succeeded" for group anal
+
 * 3/4/2014
   * added protection to TR against errors happen before impl or taskSpec is generated
   * changed finished/partial to done/finished

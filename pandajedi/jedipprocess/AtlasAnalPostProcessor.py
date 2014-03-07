@@ -35,8 +35,9 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 if not datasetSpec.type.endswith('log') and not datasetSpec.type.endswith('output') \
                         and not datasetSpec.type == 'lib':
                     continue
-                # only user or panda dataset
-                if not datasetSpec.datasetName.startswith('user') and not datasetSpec.datasetName.startswith('panda'):
+                # only user group, or panda dataset
+                if not datasetSpec.datasetName.startswith('user') and not datasetSpec.datasetName.startswith('panda') \
+                        and not datasetSpec.datasetName.startswith('group'):
                     continue
                 # freeze datasets
                 tmpLog.info('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
