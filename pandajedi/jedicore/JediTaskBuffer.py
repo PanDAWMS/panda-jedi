@@ -364,11 +364,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # insert TaskParams
-    def insertTaskParams_JEDI(self,vo,prodSourceLabel,userName,taskName,taskParams):
+    def insertTaskParams_JEDI(self,vo,prodSourceLabel,userName,taskName,taskParams,parent_tid=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.insertTaskParams_JEDI(vo,prodSourceLabel,userName,taskName,taskParams)
+        retVal = proxy.insertTaskParams_JEDI(vo,prodSourceLabel,userName,taskName,taskParams,parent_tid)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -841,3 +841,15 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         # return
         return retVal
 
+
+
+    # check parent task status 
+    def checkParentTask_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.checkParentTask_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

@@ -1,5 +1,8 @@
 Release Note
 
+* 3/10/2014
+  * added a mechanism for task chain
+
 * 3/7/2014
   * fixed wrong errorDiaglog="No build jobs succeeded" for group anal
 

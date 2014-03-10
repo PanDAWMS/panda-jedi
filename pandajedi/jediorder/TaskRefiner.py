@@ -109,13 +109,13 @@ class TaskRefinerThread (WorkerThread):
                     self.logger.debug('{0} terminating since no more items'.format(self.__class__.__name__))
                     return
                 # loop over all tasks
-                for jediTaskID,splitRule,taskStatus in taskList:
+                for jediTaskID,splitRule,taskStatus,parent_tid in taskList:
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'jediTaskID={0}'.format(jediTaskID))
                     tmpLog.info('start')
                     tmpStat = Interaction.SC_SUCCEEDED
                     errStr = ''
-                    # convert to map
+                    # read task parameters
                     try:
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                         taskParamMap = RefinerUtils.decodeJSON(taskParam)
@@ -159,6 +159,33 @@ class TaskRefinerThread (WorkerThread):
                             errStr = 'failed to extract common parameters with {0}:{1}'.format(errtype.__name__,errvalue)
                             tmpLog.error(errStr)
                             tmpStat = Interaction.SC_FAILED
+                    # check parent
+                    if tmpStat == Interaction.SC_SUCCEEDED:
+                        if parent_tid != None:
+                            tmpLog.info('check parent task')
+                            try:
+                                tmpStat = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
+                                if tmpStat == 0:
+                                    # parent is done
+                                    tmpStat = Interaction.SC_SUCCEEDED
+                                elif tmpStat == 1:
+                                    # parent is running
+                                    errStr = 'waiting until parent task {0} is done'.format(parent_tid)
+                                    impl.taskSpec.setOnHold()
+                                    impl.taskSpec.setErrDiag(errStr)
+                                    tmpLog.info(errStr)
+                                    self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
+                                    continue
+                                else:
+                                    # parent is corrupted
+                                    tmpStat = Interaction.SC_FAILED
+                                    tmpErrStr = 'parent task {0} was not completed.'.format(parent_tid)
+                                    taskSpec.setErrDiag(tmpErrStr)
+                            except:
+                                errtype,errvalue = sys.exc_info()[:2]
+                                errStr = 'failed to check parent task with {0}:{1}'.format(errtype.__name__,errvalue)
+                                tmpLog.error(errStr)
+                                tmpStat = Interaction.SC_FAILED
                     # refine
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         tmpLog.info('refining with {0}'.format(impl.__class__.__name__))

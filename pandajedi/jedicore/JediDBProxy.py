@@ -2152,7 +2152,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # insert TaskParams
-    def insertTaskParams_JEDI(self,vo,prodSourceLabel,userName,taskName,taskParams):
+    def insertTaskParams_JEDI(self,vo,prodSourceLabel,userName,taskName,taskParams,parent_tid=None):
         comment = ' /* JediDBProxy.insertTaskParams_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += '<userName={0} taskName={1}>'.format(userName,taskName)
@@ -2161,8 +2161,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql to insert task parameters
             sqlT  = "INSERT INTO {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-            sqlT += "(taskid,step_id,reqid,status,submit_time,vo,prodSourceLabel,userName,taskName,jedi_task_parameters) VALUES "
-            sqlT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,:stepID,:reqID,:status,CURRENT_DATE,:vo,:prodSourceLabel,:userName,:taskName,:param) ".format(jedi_config.db.schemaDEFT)
+            sqlT += "(taskid,step_id,reqid,status,submit_time,vo,prodSourceLabel,userName,taskName,jedi_task_parameters,parent_tid) VALUES "
+            sqlT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,".format(jedi_config.db.schemaDEFT)
+            sqlT += ":stepID,:reqID,:status,CURRENT_DATE,:vo,:prodSourceLabel,:userName,:taskName,:param,:parent_tid) "
             sqlT += "RETURNING taskid INTO :jediTaskID"
             # begin transaction
             self.conn.begin()
@@ -2175,6 +2176,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status'] = 'submit'
             varMap[':userName'] = userName
             varMap[':taskName'] = taskName
+            varMap[':parent_tid'] = parent_tid
             varMap[':prodSourceLabel'] = prodSourceLabel
             varMap[':jediTaskID'] = self.cur.var(cx_Oracle.NUMBER)
             self.cur.execute(sqlT+comment,varMap)
@@ -2203,8 +2205,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql to insert new task parameters
             sqlIT  = "INSERT INTO {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-            sqlIT += "(taskid,step_id,reqid,status,submit_time,vo,prodSourceLabel,jedi_task_parameters) VALUES "
-            sqlIT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,:stepID,:reqID,:status,CURRENT_DATE,:vo,:prodSourceLabel,:param) ".format(jedi_config.db.schemaDEFT)
+            sqlIT += "(taskid,step_id,reqid,status,submit_time,vo,prodSourceLabel,jedi_task_parameters,parent_tid) VALUES "
+            sqlIT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,".format(jedi_config.db.schemaDEFT)
+            sqlIT += ":stepID,:reqID,:status,CURRENT_DATE,:vo,:prodSourceLabel,:param,:parent_tid) "
             sqlIT += "RETURNING taskid INTO :jediTaskID"
             # sql to update parent task parameters
             sqlUT  = "UPDATE {0}.JEDI_TaskParams SET taskParams=:taskParams ".format(jedi_config.db.schemaJEDI)
@@ -2220,6 +2223,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':reqID']  = 0
                 varMap[':param']  = taskParams
                 varMap[':status'] = 'submit'
+                varMap[':parent_tid'] = jediTaskID
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 varMap[':jediTaskID'] = self.cur.var(cx_Oracle.NUMBER)
                 self.cur.execute(sqlIT+comment,varMap)
@@ -2625,7 +2629,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         retTaskIDs = []
         try:
             # sql to get jediTaskIDs to refine from the command table
-            sqlC  = "SELECT taskid FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlC  = "SELECT taskid,parent_tid FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
             sqlC += "WHERE status=:status "
             varMap = {}
             varMap[':status'] = 'submit'
@@ -2646,7 +2650,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('got {0} tasks'.format(len(resList)))            
-            for jediTaskID, in resList:
+            for jediTaskID,parent_tid in resList:
                 tmpLog.debug('start jediTaskID={0}'.format(jediTaskID))
                # start transaction
                 self.conn.begin()
@@ -2685,14 +2689,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':taskName'] = str(uuid.uuid4())
                         varMap[':status'] = 'registered'
                         varMap[':userName'] = 'tobeset'
+                        varMap[':parent_tid'] = parent_tid
                         sqlIT =  "INSERT INTO {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                        sqlIT += "(jediTaskID,taskName,status,userName,creationDate,modificationtime"
+                        sqlIT += "(jediTaskID,taskName,status,userName,creationDate,modificationtime,parent_tid"
                         if vo != None:
                             sqlIT += ',vo'
                         if prodSourceLabel != None:
                             sqlIT += ',prodSourceLabel'
                         sqlIT += ") "
-                        sqlIT += "VALUES(:jediTaskID,:taskName,:status,:userName,CURRENT_DATE,CURRENT_DATE"
+                        sqlIT += "VALUES(:jediTaskID,:taskName,:status,:userName,CURRENT_DATE,CURRENT_DATE,:parent_tid"
                         if vo != None:
                             sqlIT += ',:vo'
                             varMap[':vo'] = vo
@@ -2741,7 +2746,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlUC+comment,varMap)
                     # append
                     if isOK:
-                        retTaskIDs.append((jediTaskID,None,'registered'))
+                        retTaskIDs.append((jediTaskID,None,'registered',parent_tid))
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
@@ -2753,7 +2758,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # FIXME
             #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(seconds=10)
-            sqlOrpS  = "SELECT tabT.jediTaskID,tabT.splitRule,tabT.status "
+            sqlOrpS  = "SELECT tabT.jediTaskID,tabT.splitRule,tabT.status,tabT.parent_tid "
             sqlOrpS += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlOrpS += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlOrpS += "AND tabT.status IN (:status1,:status2) AND tabT.modificationtime<:timeLimit "
@@ -2770,14 +2775,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # update modtime to avoid immediate reattempts
             sqlOrpU  = "UPDATE {0}.JEDI_Tasks SET modificationtime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlOrpU += "WHERE jediTaskID=:jediTaskID "
-            for jediTaskID,splitRule,taskStatus in resList:
+            for jediTaskID,splitRule,taskStatus,parent_tid in resList:
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 tmpLog.debug(sqlOrpU+comment+str(varMap))
                 self.cur.execute(sqlOrpU+comment,varMap)
                 nRow = self.cur.rowcount
                 if nRow == 1 and not jediTaskID in retTaskIDs:
-                    retTaskIDs.append((jediTaskID,splitRule,taskStatus))
+                    retTaskIDs.append((jediTaskID,splitRule,taskStatus,parent_tid))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -5130,4 +5135,53 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return failedRet
+
+
+
+    # check parent task status 
+    def checkParentTask_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.checkParentTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            sql = "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI) 
+            sql += "WHERE jediTaskID=:jediTaskID "
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sql+comment,varMap)
+            resTK = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            retVal = False
+            if resTK == None:
+                tmpLog.error('parent not found')
+                # set 1 (running) just in case
+                retVal = 1
+            else:
+                # task status
+                taskStatus, = resTK
+                tmpLog.error('parent status {0}'.format(taskStatus))
+                if taskStatus in ['done','finished']:
+                    # parent is completed
+                    retVal = 0
+                elif taskStatus in ['broken','aborted','failed']:
+                    # parent is corrupted
+                    retVal = False
+                else:
+                    # parent is running
+                    retVal = 1
+            # return
+            tmpLog.debug("done with {0}".format(retVal))
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
         
