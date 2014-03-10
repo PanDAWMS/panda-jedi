@@ -108,9 +108,51 @@ class AtlasAnalPostProcessor (PostProcessorBase):
         newUrlData['jobsetID'] = taskSpec.reqID
         newUrlData['prodUserName'] = taskSpec.userName
         newUrlData['hours'] = 71
+        # summary
+        listInDS = []
+        listOutDS = []
+        listLogDS = []
+        numTotal = 0
+        numOK = 0
+        numNG = 0
+        numCancel = 0
+        for datasetSpec in taskSpec.datasetSpecList:
+            # dataset summary
+            if datasetSpec.type == 'log':
+                if not datasetSpec.containerName in listLogDS:
+                    listLogDS.append(datasetSpec.containerName)
+            elif datasetSpec.type == 'input':
+                if not datasetSpec.containerName in listInDS:
+                    listInDS.append(datasetSpec.containerName)
+            elif datasetSpec.type == 'output':
+                if not datasetSpec.containerName in listOutDS:
+                    listOutDS.append(datasetSpec.containerName)
+            # process summary
+            if datasetSpec.isMaster():
+                try:
+                    numTotal += datasetSpec.nFiles
+                    numOK    += datasetSpec.nFilesFinished
+                    numNG    += datasetSpec.nFilesFailed
+                except:
+                    pass
+        try:
+            numCancel = numTotal - numOK - numNG
+        except:
+            pass
+        listInDS.sort()
+        listOutDS.sort()
+        listLogDS.sort()
+        dsSummary = ''
+        for tmpDS in listInDS:
+            dsSummary += 'In  : {0}\n'.format(tmpDS)
+        for tmpDS in listOutDS:
+            dsSummary += 'Out : {0}\n'.format(tmpDS)
+        for tmpDS in listLogDS:
+            dsSummary += 'Log : {0}\n'.format(tmpDS)
+        dsSummary = dsSummary[:-1]
         # make message
         message = \
-            """Subject: JEDI notification for JobsetID:{JobsetID} (jediTaskID:{jediTaskID})
+            """Subject: JEDI notification for JobsetID:{JobsetID} (jediTaskID:{jediTaskID}) ({numOK}/{numTotal} Succeeded)
 From: {fromAdd}
 To: {toAdd}
 
@@ -121,7 +163,15 @@ Ended   : {endTime} (UTC)
 
 Final Status : {status}
 
+Total Number of Inputs : {numTotal}
+             Succeeded : {numOK}
+             Failed    : {numNG}
+             Cancelled : {numCancel}
+
+
 Error Dialog : {errorDialog}
+
+{dsSummary}
 
 Parameters : {params}
 
@@ -145,6 +195,11 @@ JediMonURL : http://pandamon.cern.ch/jedi/taskinfo?task={jediTaskID}""".format(\
             taskName=taskSpec.taskName,
             oldPandaMon=urllib.urlencode(urlData),
             newPandaMon=urllib.urlencode(newUrlData),
+            numTotal=numTotal,
+            numOK=numOK,
+            numNG=numNG,
+            numCancel=numCancel,
+            dsSummary=dsSummary,
             )
                     
         # tailer            
