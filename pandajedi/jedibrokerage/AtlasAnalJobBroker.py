@@ -48,21 +48,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 includeList = taskParamMap['includedSite']
         # loop over all sites        
         for siteName,tmpSiteSpec in self.siteMapper.siteSpecList.iteritems():
-            if tmpSiteSpec.type == 'analysis' and taskSpec.cloud in [None,'','any',tmpSiteSpec.cloud]:
-                # check if excluded
-                if AtlasBrokerUtils.isMatched(siteName,excludeList):
-                    tmpLog.debug('  skip {0} excluded'.format(siteName))
-                    continue
-                # check if included
-                if includeList != None and not AtlasBrokerUtils.isMatched(siteName,includeList):
-                    tmpLog.debug('  skip {0} not included'.format(siteName))
-                    continue
-                # limited access
-                if tmpSiteSpec.accesscontrol == 'grouplist':
-                    if not siteAccessMap.has_key(tmpSiteSpec.sitename) or \
-                            siteAccessMap[tmpSiteSpec.sitename] != 'approved':
-                        tmpLog.debug('  skip {0} limited access'.format(siteName))
-                        continue
+            if tmpSiteSpec.type == 'analysis':
                 scanSiteList.append(siteName)
         # preassigned
         if not taskSpec.site in ['',None]:
@@ -71,7 +57,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             sitePreAssigned = True
             if not taskSpec.site in scanSiteList:
                 scanSiteList.append(taskSpec.site)
-        tmpLog.debug('cloud=%s has %s candidates' % (taskSpec.cloud,len(scanSiteList)))
+        tmpLog.debug('initial {0} candidates'.format(len(scanSiteList)))
         # get job statistics
         tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,taskSpec.prodSourceLabel)
         if not tmpSt:
@@ -137,21 +123,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     else:
                         dataWeight[tmpSiteName] += 1
                 for tmpSiteName,tmpWeightSrcMap in tmpSatelliteSites.iteritems():
-                    # check exclusion
-                    if AtlasBrokerUtils.isMatched(tmpSiteName,excludeList):
-                        continue
-                    # check inclusion
-                    if includeList != None and not AtlasBrokerUtils.isMatched(tmpSiteName,includeList):
-                        continue
-                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                    # limited access
-                    if tmpSiteSpec.accesscontrol == 'grouplist':
-                        if not siteAccessMap.has_key(tmpSiteSpec.sitename) or \
-                                siteAccessMap[tmpSiteSpec.sitename] != 'approved':
-                            continue
-                    # check cloud
-                    if not taskSpec.cloud in [None,'','any',tmpSiteSpec.cloud]: 
-                        continue
                     # sum weight
                     if not dataWeight.has_key(tmpSiteName):
                         dataWeight[tmpSiteName] = tmpWeightSrcMap['weight']
@@ -374,6 +345,50 @@ class AtlasAnalJobBroker (JobBrokerBase):
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList        
         tmpLog.debug('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+        ######################################
+        # check inclusion and exclusion
+        newScanSiteList = []
+        sitesForANY = []
+        for tmpSiteName in scanSiteList:
+            autoSite = False
+            # check exclusion
+            if AtlasBrokerUtils.isMatched(tmpSiteName,excludeList):
+                tmpLog.debug('  skip {0} excluded'.format(tmpSiteName))
+                continue
+            # check inclusion
+            if includeList != None and not AtlasBrokerUtils.isMatched(tmpSiteName,includeList):
+                if 'AUTO' in includeList:
+                    autoSite = True
+                else:
+                    tmpLog.debug('  skip {0} not included'.format(tmpSiteName))
+                    continue
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            # limited access
+            if tmpSiteSpec.accesscontrol == 'grouplist':
+                if not siteAccessMap.has_key(tmpSiteSpec.sitename) or \
+                        siteAccessMap[tmpSiteSpec.sitename] != 'approved':
+                    tmpLog.debug('  skip {0} limited access'.format(tmpSiteName))
+                    continue
+            # check cloud
+            if not taskSpec.cloud in [None,'','any',tmpSiteSpec.cloud]: 
+                tmpLog.debug('  skip {0} cloud missmatch'.format(tmpSiteName))
+                continue
+            if autoSite:
+                sitesForANY.append(tmpSiteName)
+            else:
+                newScanSiteList.append(tmpSiteName)
+        # use AUTO sites if no sites are included
+        if newScanSiteList == []:
+            newScanSiteList = sitesForANY
+        else:
+            for tmpSiteName in sitesForANY:
+                tmpLog.debug('  skip {0} not included'.format(tmpSiteName))
+        scanSiteList = newScanSiteList        
+        tmpLog.debug('{0} candidates passed inclusion/exclusion/cloud'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

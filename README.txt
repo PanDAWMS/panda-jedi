@@ -1,6 +1,7 @@
 Release Note
 
 * 3/10/2014
+  * improved ATLAS job brokerage for --site=A,B,C,AUTO
   * added a mechanism for task chain
   * fixed JEDI email notification to show process and dataset summary
 
