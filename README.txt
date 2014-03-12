@@ -1,5 +1,8 @@
 Release Note
 
+* 3/12/2014
+  * fixed notification for merge
+
 * 3/10/2014
   * improved ATLAS job brokerage for --site=A,B,C,AUTO
   * added a mechanism for task chain

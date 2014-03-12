@@ -128,7 +128,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 if not datasetSpec.containerName in listOutDS:
                     listOutDS.append(datasetSpec.containerName)
             # process summary
-            if datasetSpec.isMaster():
+            if datasetSpec.isMasterInput():
                 try:
                     numTotal += datasetSpec.nFiles
                     numOK    += datasetSpec.nFilesFinished

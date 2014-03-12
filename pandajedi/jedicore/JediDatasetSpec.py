@@ -264,6 +264,15 @@ class JediDatasetSpec(object):
 
 
 
+    # check if it is a master input dataset
+    def isMasterInput(self):
+        if self.masterID == None and self.type in self.getInputTypes():
+            return True
+        else:
+            return False
+
+
+
     # remove nosplit attribute
     def remAttribute(self,attrName):
         if self.attributes != None:
