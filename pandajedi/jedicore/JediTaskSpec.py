@@ -515,7 +515,7 @@ class JediTaskSpec(object):
     def setOnHold(self):
         # change status
         if self.status in ['ready','running','merging','scouting','defined',
-                           'topreprocess','preprocessing']:
+                           'topreprocess','preprocessing','registered']:
             self.oldStatus = self.status
             self.status = 'pending'
 
