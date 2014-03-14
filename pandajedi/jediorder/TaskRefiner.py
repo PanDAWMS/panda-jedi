@@ -173,6 +173,8 @@ class TaskRefinerThread (WorkerThread):
                                     errStr = 'waiting until parent task {0} is done'.format(parent_tid)
                                     impl.taskSpec.setOnHold()
                                     impl.taskSpec.setErrDiag(errStr)
+                                    # reset splitRule
+                                    impl.taskSpec.splitRule = splitRule
                                     tmpLog.info(errStr)
                                     self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
                                     continue

@@ -3,6 +3,7 @@ Release Note
 * 3/14/2014
   * changed the initial task status to waiting from submit
   * chaned to propagate more task status to DEFT
+  * reset splitRule when waiting for parent
 
 * 3/12/2014
   * fixed notification for merge
