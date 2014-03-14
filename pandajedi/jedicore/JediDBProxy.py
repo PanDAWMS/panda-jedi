@@ -930,7 +930,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':status'] = 'ready'
                     tmpLog.debug(sqlU+comment+str(varMap))
                     self.cur.execute(sqlU+comment,varMap)
-                    tmpLog.debug('set to {0}'.format(varMap[':status']))
+                    # update DEFT task status
+                    taskStatus = varMap[':status']
+                    if taskStatus in ['broken','assigning']:
+                        sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                        sqlD += "SET status=:status,timeStamp=CURRENT_DATE "
+                        sqlD += "WHERE taskID=:jediTaskID "
+                        varMap = {}
+                        varMap[':status'] = taskStatus
+                        varMap[':jediTaskID'] = taskSpec.jediTaskID
+                        tmpLog.debug(sqlD+comment+str(varMap))
+                        self.cur.execute(sqlD+comment,varMap)
+                    tmpLog.debug('set to {0}'.format(taskStatus))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -1017,6 +1028,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':nDone'] = nDone
                     tmpLog.debug(sqlD+comment+str(varMap))
                     self.cur.execute(sqlD+comment,varMap)
+            elif taskSpec.status in ['running','broken','assigning','scouting']:
+                # update DEFT task status
+                if taskSpec.status == 'scouting':
+                    deftStatus = 'submitting'
+                else:
+                    deftStatus = taskSpec.status
+                sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                sqlD += "SET status=:status,timeStamp=CURRENT_DATE "
+                sqlD += "WHERE taskID=:jediTaskID "
+                varMap = {}
+                varMap[':status'] = deftStatus
+                varMap[':jediTaskID'] = taskSpec.jediTaskID
+                tmpLog.debug(sqlD+comment+str(varMap))
+                self.cur.execute(sqlD+comment,varMap)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -2173,7 +2198,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':stepID'] = 0
             varMap[':reqID']  = 0
             varMap[':param']  = taskParams
-            varMap[':status'] = 'submit'
+            varMap[':status'] = 'waiting'
             varMap[':userName'] = userName
             varMap[':taskName'] = taskName
             varMap[':parent_tid'] = parent_tid
@@ -2222,7 +2247,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':stepID'] = 0
                 varMap[':reqID']  = 0
                 varMap[':param']  = taskParams
-                varMap[':status'] = 'submit'
+                varMap[':status'] = 'waiting'
                 varMap[':parent_tid'] = jediTaskID
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 varMap[':jediTaskID'] = self.cur.var(cx_Oracle.NUMBER)
@@ -2632,7 +2657,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlC  = "SELECT taskid,parent_tid FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
             sqlC += "WHERE status=:status "
             varMap = {}
-            varMap[':status'] = 'submit'
+            varMap[':status'] = 'waiting'
             if not vo in [None,'any']:
                 varMap[':vo'] = vo
                 sqlC += "AND vo=:vo "
@@ -2657,7 +2682,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # lock
                 varMap = {}
                 varMap[':taskid'] = jediTaskID
-                varMap[':status'] = 'submit'
+                varMap[':status'] = 'waiting'
                 sqlLock  = "SELECT taskid FROM {0}.T_TASK WHERE taskid=:taskid AND status=:status ".format(jedi_config.db.schemaDEFT)
                 sqlLock += "FOR UPDATE NOWAIT "
                 toSkip = False                
@@ -2740,7 +2765,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if isOK:        
                         varMap = {}
                         varMap[':taskid'] = jediTaskID
-                        varMap[':status'] = 'submitted'
+                        varMap[':status'] = 'registered'
                         sqlUC = "UPDATE {0}.T_TASK SET status=:status,timestamp=CURRENT_DATE WHERE taskid=:taskid ".format(jedi_config.db.schemaDEFT)
                         tmpLog.debug(sqlUC+comment+str(varMap))
                         self.cur.execute(sqlUC+comment,varMap)
