@@ -5190,7 +5190,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 # task status
                 taskStatus, = resTK
-                tmpLog.error('parent status {0}'.format(taskStatus))
+                tmpLog.debug('parent status = {0}'.format(taskStatus))
                 if taskStatus in ['done','finished']:
                     # parent is completed
                     retVal = 0
