@@ -171,6 +171,7 @@ class TaskRefinerThread (WorkerThread):
                                 elif tmpStat == 1:
                                     # parent is running
                                     errStr = 'waiting until parent task {0} is done'.format(parent_tid)
+                                    impl.taskSpec.status = taskStatus
                                     impl.taskSpec.setOnHold()
                                     impl.taskSpec.setErrDiag(errStr)
                                     # reset splitRule
