@@ -170,7 +170,7 @@ class TaskRefinerThread (WorkerThread):
                                     tmpStat = Interaction.SC_SUCCEEDED
                                 elif tmpStat == 1:
                                     # parent is running
-                                    errStr = 'waiting until parent task {0} is done'.format(parent_tid)
+                                    errStr = 'pending until parent task {0} is done'.format(parent_tid)
                                     impl.taskSpec.status = taskStatus
                                     impl.taskSpec.setOnHold()
                                     impl.taskSpec.setErrDiag(errStr)
