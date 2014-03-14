@@ -1,6 +1,7 @@
 Release Note
 
 * 3/14/2014
+  * changed to set parent_tid=taskid when no parent
   * changed the initial task status to waiting from submit
   * chaned to propagate more task status to DEFT
   * reset splitRule when waiting for parent

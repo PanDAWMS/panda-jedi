@@ -2188,7 +2188,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlT  = "INSERT INTO {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
             sqlT += "(taskid,step_id,reqid,status,submit_time,vo,prodSourceLabel,userName,taskName,jedi_task_parameters,parent_tid) VALUES "
             sqlT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,".format(jedi_config.db.schemaDEFT)
-            sqlT += ":stepID,:reqID,:status,CURRENT_DATE,:vo,:prodSourceLabel,:userName,:taskName,:param,:parent_tid) "
+            sqlT += ":stepID,:reqID,:status,CURRENT_DATE,:vo,:prodSourceLabel,:userName,:taskName,"
+            if parent_tid == None:
+                sqlT += "{0}.PRODSYS2_TASK_ID_SEQ.currval) ".format(jedi_config.db.schemaDEFT)
+            else:
+                sqlT += ":param,:parent_tid) "
             sqlT += "RETURNING taskid INTO :jediTaskID"
             # begin transaction
             self.conn.begin()
@@ -2201,7 +2205,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status'] = 'waiting'
             varMap[':userName'] = userName
             varMap[':taskName'] = taskName
-            varMap[':parent_tid'] = parent_tid
+            if parent_tid != None:
+                varMap[':parent_tid']  = parent_tid
             varMap[':prodSourceLabel'] = prodSourceLabel
             varMap[':jediTaskID'] = self.cur.var(cx_Oracle.NUMBER)
             self.cur.execute(sqlT+comment,varMap)

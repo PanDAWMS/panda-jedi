@@ -161,7 +161,7 @@ class TaskRefinerThread (WorkerThread):
                             tmpStat = Interaction.SC_FAILED
                     # check parent
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        if parent_tid != None:
+                        if not parent_tid in [None,jediTaskID]:
                             tmpLog.info('check parent task')
                             try:
                                 tmpStat = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
