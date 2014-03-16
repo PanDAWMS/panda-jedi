@@ -1,5 +1,8 @@
 Release Note
 
+* 3/15/2014
+  * chaned to propagate aborted to DEFT
+
 * 3/14/2014
   * changed to set parent_tid=taskid when no parent
   * changed the initial task status to waiting from submit

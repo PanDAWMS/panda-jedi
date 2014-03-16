@@ -1028,7 +1028,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':nDone'] = nDone
                     tmpLog.debug(sqlD+comment+str(varMap))
                     self.cur.execute(sqlD+comment,varMap)
-            elif taskSpec.status in ['running','broken','assigning','scouting']:
+            elif taskSpec.status in ['running','broken','assigning','scouting','aborted']:
                 # update DEFT task status
                 if taskSpec.status == 'scouting':
                     deftStatus = 'submitting'
