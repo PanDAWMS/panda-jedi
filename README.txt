@@ -1,5 +1,8 @@
 Release Note
 
+* 3/19/2014
+  * chaned to set t_task.start_time
+
 * 3/15/2014
   * chaned to propagate aborted to DEFT
 
