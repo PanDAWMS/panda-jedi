@@ -256,7 +256,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed memory check ={1}{2}'.format(len(scanSiteList),
-                                                                             minRamCount,taskSpec.ramCountUnit))
+                                                                             minRamCount,taskSpec.ramUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
