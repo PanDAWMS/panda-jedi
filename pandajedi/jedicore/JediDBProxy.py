@@ -4741,7 +4741,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # return for failure
         failedRet = False,None
         # check protocol
-        if protocol == 'xrd':
+        if protocol in ['xrd','fax']:
             field = 'xrdcpval'
         else:
             tmpLog.error('unsupported protocol={0}'.format(protocol))

@@ -65,7 +65,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         # allowed remote access protocol
-        allowedRemoteProtocol = 'xrd'
+        allowedRemoteProtocol = 'fax'
         ######################################
         # selection for data availability
         dataWeight = {}

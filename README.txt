@@ -1,5 +1,8 @@
 Release Note
 
+* 3/20/2014
+  * changed xrd to fax
+
 * 3/19/2014
   * chaned to set t_task.start_time
 
