@@ -324,12 +324,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
     # generate output files for task
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None,
-                            isUnMerging=False,isPrePro=False,xmlConfigJob=None):
+                            isUnMerging=False,isPrePro=False,xmlConfigJob=None,siteDsMap=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,
-                                           isUnMerging,isPrePro,xmlConfigJob)
+                                           isUnMerging,isPrePro,xmlConfigJob,siteDsMap)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

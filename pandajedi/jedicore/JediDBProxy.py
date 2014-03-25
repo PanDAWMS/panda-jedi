@@ -1455,7 +1455,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # generate output files for task, and instantiate template datasets if necessary
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,isUnMerging,
-                            isPrePro,xmlConfigJob):
+                            isPrePro,xmlConfigJob,siteDsMap):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -1534,31 +1534,42 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileDatasetID = datasetID
                 # instantiate template datasets
                 if instantiateTmpl:
-                    # check if concrete dataset is already there
-                    varMap = {}
-                    varMap[':jediTaskID'] = jediTaskID
-                    varMap[':type1']    = re.sub('^tmpl_','',tmpl_VarMap[':type1'])
-                    varMap[':type2']    = re.sub('^tmpl_','',tmpl_VarMap[':type2'])
-                    varMap[':templateID'] = datasetID
-                    varMap[':closedState'] = 'closed'
-                    if provenanceID != None:
-                        varMap[':provenanceID'] = provenanceID
-                    if instantiatedSite != None:
-                        sqlDT = sqlD + "AND site=:site "
-                        varMap[':site'] = instantiatedSite
+                    doInstantiate = False
+                    if isUnMerging:
+                        # instantiate new datasets in each submission for merging 
+                        if siteDsMap.has_key(datasetID) and siteDsMap[datasetID].has_key(instantiatedSite):
+                            fileDatasetID = siteDsMap[datasetID][instantiatedSite]
+                            tmpLog.debug('found concrete premerged datasetID={0}'.format(fileDatasetID))
+                        else:
+                            doInstantiate = True
                     else:
-                        sqlDT = sqlD
-                    sqlDT += "AND (state IS NULL OR state<>:closedState) "
-                    sqlDT += "AND templateID=:templateID "    
-                    self.cur.execute(sqlDT+comment,varMap)
-                    resDT = self.cur.fetchone()
-                    if resDT != None:
-                        fileDatasetID = resDT[0]
-                        # collect ID of dataset to be registered 
-                        if resDT[-1] == 'defined':
-                            datasetToRegister.append(fileDatasetID)
-                        tmpLog.debug('found concrete datasetID={0}'.format(fileDatasetID))
-                    else:
+                        # check if concrete dataset is already there
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':type1']    = re.sub('^tmpl_','',tmpl_VarMap[':type1'])
+                        varMap[':type2']    = re.sub('^tmpl_','',tmpl_VarMap[':type2'])
+                        varMap[':templateID'] = datasetID
+                        varMap[':closedState'] = 'closed'
+                        if provenanceID != None:
+                            varMap[':provenanceID'] = provenanceID
+                        if instantiatedSite != None:
+                            sqlDT = sqlD + "AND site=:site "
+                            varMap[':site'] = instantiatedSite
+                        else:
+                            sqlDT = sqlD
+                        sqlDT += "AND (state IS NULL OR state<>:closedState) "
+                        sqlDT += "AND templateID=:templateID "    
+                        self.cur.execute(sqlDT+comment,varMap)
+                        resDT = self.cur.fetchone()
+                        if resDT != None:
+                            fileDatasetID = resDT[0]
+                            # collect ID of dataset to be registered 
+                            if resDT[-1] == 'defined':
+                                datasetToRegister.append(fileDatasetID)
+                            tmpLog.debug('found concrete datasetID={0}'.format(fileDatasetID))
+                        else:
+                            doInstantiate = True
+                    if doInstantiate:
                         # read dataset template
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
@@ -1595,6 +1606,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             mstr_RelationMap[fileDatasetID] = masterID
                         # collect ID of dataset to be registered 
                         datasetToRegister.append(fileDatasetID)
+                        # collect IDs for pre-merging
+                        if isUnMerging:
+                            if not siteDsMap.has_key(datasetID):
+                                siteDsMap[datasetID] = {}
+                            if not siteDsMap[datasetID].has_key(instantiatedSite):
+                                siteDsMap[datasetID][instantiatedSite] = fileDatasetID
                     # keep relation between template and concrete    
                     tmpl_RelationMap[datasetID] = fileDatasetID
                 # get output templates
@@ -1667,13 +1684,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('done')
-            return outMap,maxSerialNr,datasetToRegister
+            return outMap,maxSerialNr,datasetToRegister,siteDsMap
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return None,None,None
+            return None,None,None,siteDsMap
 
 
     # insert output file templates
@@ -1832,6 +1849,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnList  = []
             taskDatasetMap = {}
             jediTaskIDList = []
+            taskAvalancheMap = {}
             for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType in resList:
                 tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3}'.format(jediTaskID,datasetID,
                                                                                             tmpNumFiles,datasetType))
@@ -1874,6 +1892,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDU += "RETURNING nFilesUsed,nFilesTobeUsed INTO :newnFilesUsed,:newnFilesTobeUsed "
             # sql to read DN
             sqlDN  = "SELECT dn FROM {0}.users WHERE name=:name ".format(jedi_config.db.schemaMETA)
+            # sql to count the number of files for avalanche
+            sqlAV  = "SELECT SUM(nFiles-nFilesToBeUsed) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlAV += "WHERE jediTaskID=:jediTaskID AND type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sqlAV += '{0},'.format(mapKey)
+            sqlAV  = sqlAV[:-1]
+            sqlAV += ') AND masterID IS NULL '
             # loop over all tasks
             iTasks = 0
             for jediTaskID in jediTaskIDList:
@@ -1913,6 +1939,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         # failed with something else
                         raise errType,errValue
+                # count the number of files for avalanche
+                if not toSkip:
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    for tmpType in JediDatasetSpec.getInputTypes():
+                        mapKey = ':type_'+tmpType
+                        varMap[mapKey] = tmpType
+                    tmpLog.debug(sqlAV+comment+str(varMap))
+                    self.cur.execute(sqlAV+comment,varMap)
+                    resAV = self.cur.fetchone()
+                    tmpLog.debug(str(resAV))
+                    if resAV == None:
+                        # no file info
+                        toSkip = True
+                        tmpLog.error('skipped since failed to get number of files for avalanche')
+                    else:
+                        numAvalanche, = resAV
                 # change userName for analysis
                 if not toSkip:
                     # for analysis use DN as userName
@@ -1944,6 +1987,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         taskSpec = copy.copy(origTaskSpec)
                         # make InputChunk
                         inputChunk = InputChunk(taskSpec)
+                        # set useScout
+                        if numAvalanche == 0:
+                            inputChunk.setUseScout(False)
+                        else:
+                            inputChunk.setUseScout(True)
                         # merging
                         if datasetType in JediDatasetSpec.getMergeProcessTypes():
                             inputChunk.isMerging = True
@@ -2013,7 +2061,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # read job params and files
                         if not toSkip:
                             # read template to generate job parameters
-
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
                             self.cur.execute(sqlJobP+comment,varMap)
@@ -2125,12 +2172,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         else:
                             tmpLog.debug('escape due to toSkip for jediTaskID={0} datasetID={1}'.format(jediTaskID,primaryDatasetID)) 
                             break
+                        # use only one master per task in a single cyclye
+                        break
+                        """
                         # enough tasks 
                         if iTasks >= nTasks:
                             break
                         # already read enough files to generate jobs 
                         if maxNumJobs <= 0:
                             break
+                        """    
                 if not toSkip:        
                     # commit
                     if not self._commit():

@@ -1,5 +1,9 @@
 Release Note
 
+* 3/25/2014
+  * fixed to avoid duplicated usage of premerged datasets
+  * fixed to set status=scouting even if scout jobs run on multiple datasets
+
 * 3/20/2014
   * changed xrd to fax
 

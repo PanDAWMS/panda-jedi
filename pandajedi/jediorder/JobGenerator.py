@@ -381,6 +381,7 @@ class JobGeneratorThread (WorkerThread):
             outDsMap = {}
             datasetToRegister = []
             oldPandaIDs = []
+            siteDsMap = {}
             for tmpInChunk in inSubChunkList:
                 siteName      = tmpInChunk['siteName']
                 inSubChunks   = tmpInChunk['subChunks']
@@ -551,14 +552,15 @@ class JobGeneratorThread (WorkerThread):
                             tmpLog.error('failed to get XML config for N={0}'.format(boundaryID))
                             return failedRet
                     # outputs
-                    outSubChunk,serialNr,tmpToRegister = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
-                                                                                               provenanceID,
-                                                                                               simul,
-                                                                                               instantiateTmpl,
-                                                                                               instantiatedSite,
-                                                                                               isUnMerging,
-                                                                                               False,
-                                                                                               xmlConfigJob)
+                    outSubChunk,serialNr,tmpToRegister,siteDsMap = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
+                                                                                                         provenanceID,
+                                                                                                         simul,
+                                                                                                         instantiateTmpl,
+                                                                                                         instantiatedSite,
+                                                                                                         isUnMerging,
+                                                                                                         False,
+                                                                                                         xmlConfigJob,
+                                                                                                         siteDsMap)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')

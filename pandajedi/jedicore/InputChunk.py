@@ -33,6 +33,8 @@ class InputChunk:
         self.readBlock = None
         # merging
         self.isMerging = False
+        # use scout
+        self.useScoutFlag = None
 
 
 
@@ -161,10 +163,18 @@ class InputChunk:
 
     # use scout
     def useScout(self):
+        if self.masterDataset != None and self.useScoutFlag != None:
+            return self.useScoutFlag
         if self.masterDataset != None and \
                 self.masterDataset.nFiles > self.masterDataset.nFilesToBeUsed:
             return True
         return False
+
+
+
+    # set use scout
+    def setUseScout(self,useScoutFlag):
+        self.useScoutFlag = useScoutFlag
 
 
 
