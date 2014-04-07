@@ -299,15 +299,17 @@ class AtlasDDMClient(DDMClientBase):
             fileMap        = {}
             lfnMap         = {}
             lfnFileSepcMap = {}
+            scopeMap       = {}
             for tmpFile in datasetSpec.Files:
                 fileMap[tmpFile.GUID] = tmpFile.lfn
                 lfnMap[tmpFile.lfn] = tmpFile
                 lfnFileSepcMap[tmpFile.lfn] = tmpFile
+                scopeMap[tmpFile.lfn] = tmpFile.scope
             # get SURLs
             surlMap = {}
             for lfcHost,seList in lfcSeMap.iteritems():
                 tmpLog.debug('lookup in LFC:{0} for {1}'.format(lfcHost,str(seList)))               
-                tmpStat,tmpRetMap = self.getSURLsFromLFC(fileMap,lfcHost,seList)
+                tmpStat,tmpRetMap = self.getSURLsFromLFC(fileMap,lfcHost,seList,scopes=scopeMap)
                 tmpLog.debug(str(tmpStat))
                 if tmpStat != self.SC_SUCCEEDED:
                     raise RuntimeError,tmpRetMap
@@ -372,7 +374,7 @@ class AtlasDDMClient(DDMClientBase):
         
 
     # get SURLs from LFC
-    def getSURLsFromLFC(self,files,lfcHost,storages,verbose=False):
+    def getSURLsFromLFC(self,files,lfcHost,storages,verbose=False,scopes={}):
         try:
             # connect
             apiLFC = dq2.filecatalog.create_file_catalog(lfcHost)
@@ -387,7 +389,10 @@ class AtlasDDMClient(DDMClientBase):
                     sys.stdout.write('.')
                     sys.stdout.flush()
                 iGUID += 1
-                listGUID[guid] = tmpLFN
+                if lfcHost.startswith('rucio') and scopes.has_key(tmpLFN):
+                    listGUID[guid] = scopes[tmpLFN]+':'+tmpLFN
+                else:
+                    listGUID[guid] = tmpLFN
                 if iGUID % nGUID == 0 or iGUID == len(files):
                     # get replica
                     resReplicas = apiLFC.bulkFindReplicas(listGUID)

@@ -1,5 +1,8 @@
 Release Note
 
+* 4/7/2014
+  * fixed RucioFC lookup
+
 * 3/25/2014
   * fixed to avoid duplicated usage of premerged datasets
   * fixed to set status=scouting even if scout jobs run on multiple datasets
