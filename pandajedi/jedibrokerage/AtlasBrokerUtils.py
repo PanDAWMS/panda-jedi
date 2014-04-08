@@ -219,6 +219,9 @@ def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,t
         tmpSiteSpec = siteMapper.getSite(siteName)
         if not tmpSiteSpec.cloud in ['US']:
             continue
+        # check if the site can be used as source
+        if tmpSiteSpec.wansourcelimit <= 0:
+            continue
         # get sites with better network connections to sources
         tmpStat,tmpVal = taskBufferIF.getBestNNetworkSites_JEDI(siteName,protocol,nSites,
                                                                 threshold,cutoff,maxWeight,
@@ -228,11 +231,8 @@ def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,t
             return {}
         # loop over all destinations 
         for tmpD,tmpW in tmpVal.iteritems():
-            # check if FAX enabled
-            tmpSiteSpec = siteMapper.getSite(tmpD)
-            if not tmpSiteSpec.allowfax:
-                continue
             # only in US for now
+            tmpSiteSpec = siteMapper.getSite(tmpD)
             if not tmpSiteSpec.cloud in ['US']:
                 continue
             # use first or larger value
@@ -324,6 +324,9 @@ def hasZeroShare(siteSpec,workQueue_ID):
 # check if site name is matched with one of list items
 def isMatched(siteName,nameList):
     for tmpName in nameList:
+        # ignore empty
+        if tmpName == '':
+            continue
         # wild card
         if '*' in tmpName:
             tmpName = tmpName.replace('*','.*')

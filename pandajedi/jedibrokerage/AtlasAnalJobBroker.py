@@ -6,6 +6,7 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
 from JobBrokerBase import JobBrokerBase
+from pandaserver.taskbuffer import PrioUtil
 import AtlasBrokerUtils
 
 # logger
@@ -58,12 +59,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if not taskSpec.site in scanSiteList:
                 scanSiteList.append(taskSpec.site)
         tmpLog.debug('initial {0} candidates'.format(len(scanSiteList)))
-        # get job statistics
-        tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,taskSpec.prodSourceLabel)
-        if not tmpSt:
-            tmpLog.error('failed to get job statistics')
-            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            return retTmpError
         # allowed remote access protocol
         allowedRemoteProtocol = 'fax'
         ######################################
@@ -117,12 +112,17 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                            protocol=allowedRemoteProtocol)
                 else:
                     tmpSatelliteSites = {}
+                # make weight map for local
                 for tmpSiteName in tmpSiteList:
                     if not dataWeight.has_key(tmpSiteName):
                         dataWeight[tmpSiteName] = 1
                     else:
                         dataWeight[tmpSiteName] += 1
+                # make weight map for remote
                 for tmpSiteName,tmpWeightSrcMap in tmpSatelliteSites.iteritems():
+                    # skip since local data is available
+                    if tmpSiteName in tmpSiteList:
+                        continue
                     # sum weight
                     if not dataWeight.has_key(tmpSiteName):
                         dataWeight[tmpSiteName] = tmpWeightSrcMap['weight']
@@ -134,12 +134,15 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     remoteSourceList[tmpSiteName][datasetName] = tmpWeightSrcMap['source']
                 # first list
                 if scanSiteList == None:
-                    scanSiteList = tmpSiteList + tmpSatelliteSites.keys()
+                    scanSiteList = []
+                    for tmpSiteName in tmpSiteList + tmpSatelliteSites.keys():
+                        if not tmpSiteName in scanSiteList:
+                            scanSiteList.append(tmpSiteName)
                     continue
                 # pickup sites which have all data
                 newScanList = []
-                for tmpSiteName in scanSiteList + tmpSatelliteSites.keys():
-                    if tmpSiteName in tmpSiteList:
+                for tmpSiteName in tmpSiteList + tmpSatelliteSites.keys():
+                    if tmpSiteName in scanSiteList and not tmpSiteName in newScanList:
                         newScanList.append(tmpSiteName)
                 scanSiteList = newScanList
                 tmpLog.debug('{0} is available at {1} sites'.format(datasetName,len(scanSiteList)))
@@ -402,9 +405,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # calculate weight
+        fqans = taskSpec.makeFQANs()
+        tmpDm1,tmpDm2,tmpPriorityOffset,tmpSerNum,tmpWeight = self.taskBufferIF.getPrioParameters([],taskSpec.userName,fqans,
+                                                                                                  taskSpec.workingGroup,True)
+        currentPriority = PrioUtil.calculatePriority(tmpPriorityOffset,tmpSerNum,tmpWeight)
+        tmpLog.debug('currentPriority={0}'.format(currentPriority))
         tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
                                                                                     taskSpec.prodSourceLabel,
-                                                                                    taskSpec.currentPriority)
+                                                                                    currentPriority)
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -422,10 +430,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
         candidateSpecList = []
         preSiteCandidateSpec = None
         for tmpSiteName in scanSiteList:
-            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',  None,taskSpec.workQueue_ID)
-            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',  None,taskSpec.workQueue_ID)
-            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,taskSpec.workQueue_ID)
+            # get number of jobs in each job status. Using workQueueID=None to include non-JEDI jobs
+            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',  None,None)
+            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',  None,None)
+            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,None)
             weight = float(nRunning + 1) / float(nActivated + nAssigned + 1) / float(nAssigned + 1)
+            if remoteSourceList.has_key(tmpSiteName):
+                nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,None)
+                weight = float(nThrottled + 1)
             # noramize weights by taking data availability into account
             if dataWeight.has_key(tmpSiteName):
                 weight = weight * dataWeight[tmpSiteName]
@@ -465,8 +477,16 @@ class AtlasAnalJobBroker (JobBrokerBase):
         availableFileMap = {}     
         for datasetSpec in inputChunk.getDatasets():
             try:
+                # get list of site to be scanned
+                fileScanSiteList = []
+                for tmpSiteName in scanSiteList:
+                    fileScanSiteList.append(tmpSiteName)
+                    if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(datasetSpec.datasetName):
+                        for tmpRemoteSite in remoteSourceList[tmpSiteName][datasetSpec.datasetName]:
+                            if not tmpRemoteSite in fileScanSiteList:
+                                fileScanSiteList.append(tmpRemoteSite)
                 # mapping between sites and storage endpoints
-                siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(scanSiteList,self.siteMapper)
+                siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(fileScanSiteList,self.siteMapper)
                 # get available files per site/endpoint
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
                                                             siteStorageEP,

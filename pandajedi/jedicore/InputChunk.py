@@ -193,6 +193,7 @@ class InputChunk:
                     walltimeGradient=0,maxWalltime=0,
                     nEventsPerJob=None,useBoundary=None,
                     sizeGradientsPerInSize=None,
+                    maxOutSize=None,
                     tmpLog=None):
         # check if there are unused files/events
         if not self.checkUnused():
@@ -246,7 +247,8 @@ class InputChunk:
         while (maxNumFiles == None or inputNumFiles <= maxNumFiles) \
                 and (maxSize == None or (maxSize != None and fileSize <= maxSize)) \
                 and (maxWalltime <= 0 or expWalltime <= maxWalltime) \
-                and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents <= maxNumEvents)):
+                and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents <= maxNumEvents)) \
+                and (maxOutSize == None or outSize <= maxOutSize):
             # get one file (or one file group for MP) from master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
@@ -406,7 +408,8 @@ class InputChunk:
                     or (maxSize != None and newFileSize > maxSize) \
                     or (maxSize != None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize) \
                     or (maxWalltime > 0 and newExpWalltime > maxWalltime) \
-                    or (maxNumEvents != None and newInputNumEvents > maxNumEvents):
+                    or (maxNumEvents != None and newInputNumEvents > maxNumEvents) \
+                    or (maxOutSize != None and newOutSize > maxOutSize):
                 break
         # reset nUsed for repeated datasets
         for tmpDatasetID,datasetUsage in self.datasetMap.iteritems():

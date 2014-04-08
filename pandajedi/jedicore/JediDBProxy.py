@@ -4260,7 +4260,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':status'] = 'pending'
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=timeLimit)
-            sqlTL  = "SELECT jediTaskID,creationDate,errorDialog "
+            sqlTL  = "SELECT jediTaskID,creationDate,errorDialog,parent_tid "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlTL += "AND tabT.status=:status AND tabT.modificationTime<:timeLimit AND tabT.oldStatus IS NOT NULL "
@@ -4278,28 +4278,64 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTO  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTO += "SET status=:newStatus,errorDialog=:errorDialog,modificationtime=CURRENT_DATE "
             sqlTO += "WHERE jediTaskID=:jediTaskID "
+            # sql to keep pending
+            sqlTK  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTK += "SET modificationtime=CURRENT_DATE "
+            sqlTK += "WHERE jediTaskID=:jediTaskID "
+            # sql to update DEFT task status
+            sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlTT += "SET status=:status,timeStamp=CURRENT_DATE "
+            sqlTT += "WHERE taskID=:jediTaskID "
             # start transaction
             self.conn.begin()
             self.cur.execute(sqlTL+comment,varMap)
             resTL = self.cur.fetchall()
             # loop over all tasks
             nRow = 0
-            for jediTaskID,creationDate,errorDialog in resTL:
+            for jediTaskID,creationDate,errorDialog,parent_tid in resTL:
+                timeoutFlag = False
+                keepFlag = False
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
-                if timeoutDate != None and creationDate < timeoutDate:
-                    varMap[':newStatus'] = 'timeout'
-                    if errorDialog == None:
-                        errorDialog = ''
+                # check parent
+                if not parent_tid in [None,jediTaskID]:
+                    tmpStat = self.checkParentTask_JEDI(parent_tid,useCommit=False)
+                    # if parent is running
+                    if tmpStat == 1:
+                        # keep pending 
+                        sql = sqlTK
+                        keepFlag = True
                     else:
-                        errorDialog += '.'
-                    errorDialog += 'timeout in pending'
-                    varMap[':errorDialog'] = errorDialog
-                    sql = sqlTO
+                        # back to previous status
+                        sql = sqlTU
                 else:
-                    sql = sqlTU
+                    # if timeout
+                    if timeoutDate != None and creationDate < timeoutDate:
+                        timeoutFlag = True
+                        varMap[':newStatus'] = 'timeout'
+                        if errorDialog == None:
+                            errorDialog = ''
+                        else:
+                            errorDialog += '. '
+                        errorDialog += 'timeout in pending'
+                        varMap[':errorDialog'] = errorDialog
+                        sql = sqlTO
+                    else:
+                        sql = sqlTU
                 self.cur.execute(sql+comment,varMap)
+                if timeoutFlag:
+                    tmpLog.debug('jediTaskID={0} timeout'.format(jediTaskID))
+                elif keepFlag:
+                    tmpLog.debug('jediTaskID={0} keep pending'.format(jediTaskID))
+                else:
+                    tmpLog.debug('jediTaskID={0} reactivated'.format(jediTaskID))
                 nRow += self.cur.rowcount
+                # update DEFT for timeout
+                if timeoutFlag:
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':status'] = 'aborted'
+                    self.cur.execute(sqlTT+comment,varMap)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -4331,7 +4367,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to read files
             sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
-            sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND type=:type AND status=:status "
+            sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND type=:type "
+            sqlFR += "AND status IN (:status1,:status2,:status3) "
             sqlFR += "ORDER BY creationDate DESC "
             # start transaction
             self.conn.begin()
@@ -4353,7 +4390,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':jediTaskID'] = jediTaskID
                 varMap[':datasetID']  = datasetSpec.datasetID
                 varMap[':type']       = 'lib'
-                varMap[':status']     = 'finished'
+                varMap[':status1']    = 'finished'
+                varMap[':status2']    = 'defined'
+                varMap[':status3']    = 'running'
                 self.cur.execute(sqlFR+comment,varMap)
                 resFileList = self.cur.fetchall()
                 for resFile in resFileList:
@@ -4802,8 +4841,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDS =  "SELECT * FROM "
             sqlDS += "(SELECT destination,CASE WHEN {0}>={1} THEN {2} ".format(field,cutoff,maxWeight)
             sqlDS += "ELSE ROUND({0}/{1}*{2},2) END AS {0} ".format(field,cutoff,maxWeight)
-            sqlDS += "FROM {0}.sites_matrix_data ".format(jedi_config.db.schemaMETA)
-            sqlDS += "WHERE source=:source AND {0} IS NOT NULL AND {0}>:threshold ORDER BY {0} DESC) ".format(field)
+            sqlDS += "FROM {0}.sites_matrix_data tabM, {0}.schedconfig tabS ".format(jedi_config.db.schemaMETA)
+            sqlDS += "WHERE source=:source AND tabM.source=tabS.siteid "
+            sqlDS += "AND wansinklimit IS NOT NULL AND wansinklimit<>0 "
+            sqlDS += "AND {0} IS NOT NULL AND {0}>:threshold ORDER BY {0} DESC) ".format(field)
             sqlDS += "WHERE rownum<=:nSites"
             # start transaction
             self.conn.begin()
@@ -5228,7 +5269,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # check parent task status 
-    def checkParentTask_JEDI(self,jediTaskID):
+    def checkParentTask_JEDI(self,jediTaskID,useCommit=True):
         comment = ' /* JediDBProxy.checkParentTask_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -5240,12 +5281,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
             # start transaction
-            self.conn.begin()
+            if useCommit:
+                self.conn.begin()
             self.cur.execute(sql+comment,varMap)
             resTK = self.cur.fetchone()
-            # commit
-            if not self._commit():
-                raise RuntimeError, 'Commit error'
+            if useCommit:
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
             retVal = False
             if resTK == None:
                 tmpLog.error('parent not found')
@@ -5268,8 +5311,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug("done with {0}".format(retVal))
             return retVal
         except:
-            # roll back
-            self._rollback()
+            if useCommit:
+                # roll back
+                self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
             return False

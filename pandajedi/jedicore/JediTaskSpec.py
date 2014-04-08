@@ -595,3 +595,14 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # make VOMS FQANs
+    def makeFQANs(self):
+        # no working group
+        if self.workingGroup == None:
+            return []
+        fqan = '/{0}/{1}/Role=production'.format(self.vo,self.workingGroup)
+        # return
+        return [fqan]

@@ -41,17 +41,26 @@ class JobSplitter:
             useBoundary = taskSpec.useGroupWithBoundaryID()
             # fsize intercepts per input size
             sizeGradientsPerInSize = None
+            # max primay output size
+            maxOutSize = None
         else:
             # set parameters for merging
             maxNumFiles = 50
             sizeGradients = 0
-            sizeIntercepts = 0
             walltimeGradient = 0
             nFilesPerJob = None
             nEventsPerJob = None
             useBoundary = {'inSplit':3}
-            # intercepts per input size is 1
+            # gradients per input size is 1
             sizeGradientsPerInSize = 1
+            # intercepts for libDS
+            sizeIntercepts = taskSpec.getWorkDiskSize()
+            # mergein of 500MB
+            interceptsMergin = 500 * 1024 * 1024
+            if sizeIntercepts < interceptsMergin:
+                sizeIntercepts = interceptsMergin
+            # max output size is 5GB for merging 
+            maxOutSize = 5 * 1024 * 1024 * 1024
         tmpLog.debug('maxNumFiles={0} sizeGradients={1} sizeIntercepts={2} useBoundary={3}'.format(maxNumFiles,
                                                                                                    sizeGradients,
                                                                                                    sizeIntercepts,
@@ -59,6 +68,8 @@ class JobSplitter:
         tmpLog.debug('walltimeGradient={0} nFilesPerJob={1} nEventsPerJob={2}'.format(walltimeGradient,
                                                                                         nFilesPerJob,
                                                                                         nEventsPerJob))
+        tmpLog.debug('sizeGradientsPerInSize={0} maxOutSize={1}'.format(sizeGradientsPerInSize,
+                                                                        maxOutSize))
         # split
         returnList = []
         subChunks  = []
@@ -98,6 +109,8 @@ class JobSplitter:
                                               maxWalltime=maxWalltime,
                                               nEventsPerJob=nEventsPerJob,
                                               useBoundary=useBoundary,
+                                              sizeGradientsPerInSize=sizeGradientsPerInSize,
+                                              maxOutSize=maxOutSize,
                                               tmpLog=tmpLog)
             if subChunk == None:
                 break

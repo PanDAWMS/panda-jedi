@@ -13,6 +13,7 @@ from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore import ParseJobXML
+from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedirefine import RefinerUtils
 from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.taskbuffer.FileSpec import FileSpec
@@ -292,7 +293,7 @@ class JobGeneratorThread (WorkerThread):
                     if readyToSubmitJob:
                         # submit
                         tmpLog.info('submit jobs')
-                        fqans = self.makeFQANs(taskSpec)
+                        fqans = taskSpec.makeFQANs()
                         resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,
                                                                 fqans=fqans,toPending=True)
                         pandaIDs = []
@@ -368,8 +369,9 @@ class JobGeneratorThread (WorkerThread):
             tmpStat,taskParamMap = self.readTaskParams(taskSpec,taskParamMap,tmpLog)
             if not tmpStat:
                 return failedRet
-        # priority for scout
+        # special priorities 
         scoutPriority = 900
+        mergePriority = 5000
         try:
             # load XML
             xmlConfig = None
@@ -459,7 +461,10 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.minRamUnit       = taskSpec.ramUnit
                     jobSpec.coreCount        = taskSpec.coreCount
                     jobSpec.ipConnectivity   = 'yes'
-                    if inputChunk.useScout() and taskSpec.taskPriority < scoutPriority:
+                    if inputChunk.isMerging:
+                        # give higher priority to merge jobs
+                        jobSpec.assignedPriority = mergePriority
+                    elif inputChunk.useScout() and taskSpec.taskPriority < scoutPriority:
                         # give higher priority to scouts
                         jobSpec.assignedPriority = scoutPriority
                     else:
@@ -481,6 +486,7 @@ class JobGeneratorThread (WorkerThread):
                     # inputs
                     prodDBlock = None
                     setProdDBlock = False
+                    totalMasterSize = 0
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
                         # get boundaryID if grouping is done with boundaryID
                         if useBoundary != None and boundaryID == None:
@@ -518,6 +524,10 @@ class JobGeneratorThread (WorkerThread):
                             # set specialHandling for Event Service
                             if taskSpec.useEventService() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.isPseudo():
                                 specialHandling += '{0}/{1}/{2}^'.format(tmpFileSpec.lfn,tmpFileSpec.nEvents,nEventsPerWorker)
+                            # calcurate total master size
+                            if tmpDatasetSpec.isMaster():
+                                totalMasterSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
+                                                                                      tmpFileSpec.endEvent,tmpFileSpec.nEvents)
                         # check if merging 
                         if taskSpec.mergeOutput() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.toMerge():
                             isUnMerging = True
@@ -543,6 +553,15 @@ class JobGeneratorThread (WorkerThread):
                             instantiatedSite = siteName
                     else:
                         instantiateTmpl = False
+                    # multiply maxDiskCount and maxCpuCount by total master size
+                    try:
+                        jobSpec.maxCpuCount *= totalMasterSize
+                    except:
+                        pass
+                    try:
+                        jobSpec.maxDiskCount *= totalMasterSize
+                    except:
+                        pass
                     # XML config
                     xmlConfigJob = None
                     if xmlConfig != None:
@@ -626,7 +645,9 @@ class JobGeneratorThread (WorkerThread):
             # lib.tgz is already available
             if fileSpec != None:
                 pandaFileSpec = fileSpec.convertToJobFileSpec(datasetSpec,setType='input')
-                pandaFileSpec.status = 'ready'
+                pandaFileSpec.dispatchDBlock = pandaFileSpec.dataset
+                if fileSpec.status == 'finished':
+                    pandaFileSpec.status = 'ready'
                 # make dummy jobSpec
                 jobSpec = JobSpec()
                 jobSpec.addFile(pandaFileSpec)
@@ -1052,17 +1073,6 @@ class JobGeneratorThread (WorkerThread):
 
 
 
-    # make VOMS FQANs
-    def makeFQANs(self,taskSpec):
-        # no working group
-        if taskSpec.workingGroup == None:
-            return []
-        fqan = '/{0}/{1}/Role=production'.format(taskSpec.vo,taskSpec.workingGroup)
-        # return
-        return [fqan]
-
-
-        
 ########## launch 
                 
 def launcher(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels,cloudList,

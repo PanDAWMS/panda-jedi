@@ -2,6 +2,11 @@ Release Note
 
 * 4/7/2014
   * fixed RucioFC lookup
+  * fixed to set higher priorities to pmerge
+  * fixed to use proper currentPriority in AtlasAnalJobBroker
+  * changed to reuse lib.tgz in analysis
+  * fixed splitter for merging
+  * changed AtlasAnalJobBroker to take throttled jobs into account
 
 * 3/25/2014
   * fixed to avoid duplicated usage of premerged datasets
