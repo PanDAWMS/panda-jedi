@@ -63,9 +63,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check site status
             skipFlag = False
-            if tmpSiteSpec.status != 'online' and taskSpec.prodSourceLabel == 'managed':
-                skipFlag = True
-            elif tmpSiteSpec.status in ['offline','brokeroff'] and taskSpec.prodSourceLabel == 'test':
+            if tmpSiteSpec.status != 'online':
                 skipFlag = True
             if not skipFlag:    
                 newScanSiteList.append(tmpSiteName)
@@ -128,7 +126,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     return retFatal
                 # append
                 self.dataSiteMap[datasetName] = tmpRet
-                tmpLog.debug(str(tmpRet))
+                tmpLog.debug('map of data availability : {0}'.format(str(tmpRet)))
             # check if T1 has the data
             if self.dataSiteMap[datasetName].has_key(cloudName):
                 cloudHasData = True
@@ -146,6 +144,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     t1hasData = True
             # data is missing at T1         
             if not t1hasData:
+                tmpLog.debug('{0} is unavailable at T1. scanning T2 sites in homeCloud={1}'.format(datasetName,cloudName))
                 # make subscription to T1
                 # FIXME
                 pass
@@ -155,9 +154,13 @@ class AtlasProdJobBroker (JobBrokerBase):
                     if cloudHasData and tmpSiteName in self.dataSiteMap[datasetName][cloudName]['t2']:
                         newScanSiteList.append(tmpSiteName)
                     else:
-                        tmpLog.debug('  skip %s due to T2 data' % tmpSiteName)
+                        tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                        if tmpSiteSpec.cloud != cloudName:
+                            tmpLog.debug('  skip %s due to foreign T2' % tmpSiteName)
+                        else:
+                            tmpLog.debug('  skip %s due to missing data at T2' % tmpSiteName)
                 scanSiteList = newScanSiteList
-                tmpLog.debug('{0} candidates passed for non-T1 input:{1}'.format(len(scanSiteList),datasetName))
+                tmpLog.debug('{0} candidates passed for T2 scan in the home cloud with input:{1}'.format(len(scanSiteList),datasetName))
                 if scanSiteList == []:
                     tmpLog.error('no candidates')
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -337,7 +340,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList        
-            tmpLog.debug('{0} candidates passed walltime check ={1}{2}'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
+            tmpLog.debug('{0} candidates passed walltime check ={1}({2})'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

@@ -1,5 +1,9 @@
 Release Note
 
+* 4/9/2014
+  * added AtlasAnalWatchDog
+  * improved log in AtlasProdJobBroker
+
 * 4/7/2014
   * fixed RucioFC lookup
   * fixed to set higher priorities to pmerge

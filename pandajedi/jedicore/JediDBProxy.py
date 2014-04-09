@@ -2249,11 +2249,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlT  = "INSERT INTO {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
             sqlT += "(taskid,status,submit_time,vo,prodSourceLabel,userName,taskName,jedi_task_parameters,parent_tid) VALUES "
             sqlT += "({0}.PRODSYS2_TASK_ID_SEQ.nextval,".format(jedi_config.db.schemaDEFT)
-            sqlT += ":status,CURRENT_DATE,:vo,:prodSourceLabel,:userName,:taskName,"
+            sqlT += ":status,CURRENT_DATE,:vo,:prodSourceLabel,:userName,:taskName,:param,"
             if parent_tid == None:
                 sqlT += "{0}.PRODSYS2_TASK_ID_SEQ.currval) ".format(jedi_config.db.schemaDEFT)
             else:
-                sqlT += ":param,:parent_tid) "
+                sqlT += ":parent_tid) "
             sqlT += "RETURNING taskid INTO :jediTaskID"
             # begin transaction
             self.conn.begin()
@@ -5317,4 +5317,93 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False
+
+
+
+    # get lib.tgz for waiting jobs
+    def getLibForWaitingRunJob_JEDI(self,vo,prodSourceLabel,checkInterval):
+        comment = ' /* JediDBProxy.getLibForWaitingRunJob_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get the list of user/jobIDs 
+            sqlL  = "SELECT prodUserName,jobsetID,jobDefinitionID,MAX(PandaID) "
+            sqlL += "FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA) 
+            sqlL += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel "
+            sqlL += "AND processingType=:processingType AND modificationTime<:timeLimit "
+            sqlL += "GROUP BY prodUserName,jobsetID,jobDefinitionID "
+            # sql to get data of lib.tgz
+            sqlD  = "SELECT lfn,dataset,jediTaskID,datasetID,fileID "
+            sqlD += "FROM {0}.filesTable4 ".format(jedi_config.db.schemaPANDA)
+            sqlD += "WHERE PandaID=:PandaID AND type=:type AND status=:status "
+            # sql to read file spec
+            sqlF  = "SELECT {0} ".format(JediFileSpec.columnNames())
+            sqlF += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
+            # sql to update modificationTime
+            sqlU  = "UPDATE {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA) 
+            sqlU += "SET modificationTime=CURRENT_DATE "
+            sqlU += "WHERE prodUserName=:prodUserName AND jobsetID=:jobsetID AND jobDefinitionID=:jobDefinitionID "
+            # start transaction
+            self.conn.begin()
+            self.cur.arraysize = 1000000
+            retList = []
+            # get the list of waiting user/jobIDs
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':processingType'] = 'jedi'
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=checkInterval)
+            self.cur.execute(sqlL+comment,varMap)
+            resL = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # loop over all user/jobIDs
+            for prodUserName,jobsetID,jobDefinitionID,pandaID in resL:
+                self.conn.begin()
+                # get data of lib.tgz
+                varMap = {}
+                varMap[':PandaID'] = pandaID
+                varMap[':type'] = 'input'
+                varMap[':status'] = 'unknown'
+                self.cur.execute(sqlD+comment,varMap)
+                resD = self.cur.fetchall()
+                # loop over all files
+                for lfn,datasetName,jediTaskID,datasetID,fileID in resD:
+                    if re.search('\.lib\.tgz(\.\d+)*$',lfn) != None:
+                        # read file spec
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':datasetID'] = datasetID
+                        varMap[':fileID'] = fileID
+                        self.cur.execute(sqlF+comment,varMap)
+                        resF = self.cur.fetchone()
+                        # make FileSpec
+                        if resF != None:
+                            tmpFileSpec = JediFileSpec()
+                            tmpFileSpec.pack(resF)
+                            retList.append((prodUserName,datasetName,tmpFileSpec))
+                            break
+                # update modificationTime
+                varMap = {}
+                varMap[':prodUserName'] = prodUserName
+                varMap[':jobsetID'] = jobsetID
+                varMap[':jobDefinitionID'] = jobDefinitionID
+                self.cur.execute(sqlU+comment,varMap)
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done with {0}".format(len(retList)))
+            return retList
+        except:
+            if useCommit:
+                # roll back
+                self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return []
         
