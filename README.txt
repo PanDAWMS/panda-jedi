@@ -3,6 +3,7 @@ Release Note
 * 4/9/2014
   * added AtlasAnalWatchDog
   * improved log in AtlasProdJobBroker
+  * added randomSleep to all workers
 
 * 4/7/2014
   * fixed RucioFC lookup

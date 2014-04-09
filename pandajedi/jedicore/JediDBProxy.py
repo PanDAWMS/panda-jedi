@@ -5332,7 +5332,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlL  = "SELECT prodUserName,jobsetID,jobDefinitionID,MAX(PandaID) "
             sqlL += "FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA) 
             sqlL += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel "
-            sqlL += "AND processingType=:processingType AND modificationTime<:timeLimit "
+            sqlL += "AND lockedBy=:lockedBy AND modificationTime<:timeLimit "
             sqlL += "GROUP BY prodUserName,jobsetID,jobDefinitionID "
             # sql to get data of lib.tgz
             sqlD  = "SELECT lfn,dataset,jediTaskID,datasetID,fileID "
@@ -5354,7 +5354,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':vo'] = vo
             varMap[':prodSourceLabel'] = prodSourceLabel
-            varMap[':processingType'] = 'jedi'
+            varMap[':lockedBy'] = 'jedi'
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=checkInterval)
             self.cur.execute(sqlL+comment,varMap)
             resL = self.cur.fetchall()

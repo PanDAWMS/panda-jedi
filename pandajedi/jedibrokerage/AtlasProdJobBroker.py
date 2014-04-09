@@ -160,7 +160,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         else:
                             tmpLog.debug('  skip %s due to missing data at T2' % tmpSiteName)
                 scanSiteList = newScanSiteList
-                tmpLog.debug('{0} candidates passed for T2 scan in the home cloud with input:{1}'.format(len(scanSiteList),datasetName))
+                tmpLog.debug('{0} candidates passed T2 scan in the home cloud with input:{1}'.format(len(scanSiteList),datasetName))
                 if scanSiteList == []:
                     tmpLog.error('no candidates')
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

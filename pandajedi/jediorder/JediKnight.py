@@ -1,4 +1,6 @@
 import sys
+import time
+import random
 
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.ThreadUtils import ZombiCleaner
@@ -40,6 +42,11 @@ class JediKnight (Interaction.CommandReceiveInterface):
             return par.split('|')
         except:
             return [par]
+
+
+    # sleep to avoid synchronization of loop
+    def randomSleep(self,minVal=0,maxVal=30):
+        time.sleep(random.randint(minVal,maxVal))
 
 
             

@@ -103,6 +103,8 @@ class TaskBroker (JediKnight,FactoryBase):
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)
+            # randomize cycle
+            self.randomSleep()
 
 
 
