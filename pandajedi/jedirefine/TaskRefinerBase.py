@@ -71,6 +71,8 @@ class TaskRefinerBase (object):
             taskSpec.countryGroup = taskParamMap['countryGroup']
         if taskParamMap.has_key('reqID'):
             taskSpec.reqID = taskParamMap['reqID']
+        else:
+            taskSpec.reqID = jediTaskID
         if taskParamMap.has_key('coreCount'):
             taskSpec.coreCount = taskParamMap['coreCount']
         else:

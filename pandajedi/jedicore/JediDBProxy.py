@@ -938,7 +938,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         sqlD += "WHERE taskID=:jediTaskID "
                         varMap = {}
                         varMap[':status'] = taskStatus
-                        varMap[':jediTaskID'] = taskSpec.jediTaskID
+                        varMap[':jediTaskID'] = jediTaskID
                         tmpLog.debug(sqlD+comment+str(varMap))
                         self.cur.execute(sqlD+comment,varMap)
                     tmpLog.debug('set to {0}'.format(taskStatus))

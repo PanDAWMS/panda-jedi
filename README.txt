@@ -1,5 +1,8 @@
 Release Note
 
+* 4/14/2014
+  * fixed for task broker
+
 * 4/9/2014
   * added AtlasAnalWatchDog
   * improved log in AtlasProdJobBroker
