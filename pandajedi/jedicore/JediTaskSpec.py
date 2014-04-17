@@ -522,7 +522,7 @@ class JediTaskSpec(object):
 
     # return list of status to reject external changes
     def statusToRejectExtChange(cls):
-        return ['finished','done','prepared','broken','aborted','failed','aborting','finishing']
+        return ['finished','done','prepared','broken','tobroken','aborted','toabort','aborting','failed','finishing']
     statusToRejectExtChange = classmethod(statusToRejectExtChange)
 
 
@@ -551,7 +551,7 @@ class JediTaskSpec(object):
     # return mapping of command and status
     def commandStatusMap(cls):
         return {'kill' : {'doing': 'aborting',
-                          'done' : 'aborted'},
+                          'done' : 'toabort'},
                 'finish' : {'doing': 'finishing',
                             'done' : 'prepared'},
                 'retry' : {'doing': 'toretry',

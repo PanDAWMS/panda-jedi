@@ -38,16 +38,10 @@ class PostProcessorBase (object):
 
     # basic post procedure
     def doBasicPostProcess(self,taskSpec,tmpLog):
-        # loop over all datasets
+        # count nFiles
         nFiles = 0
         nFilesFinished = 0
         for datasetSpec in taskSpec.datasetSpecList:
-            # update dataset
-            if datasetSpec.type in ['output','log','lib']:
-                datasetSpec.status = 'done'
-                self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'datasetID':datasetSpec.datasetID,
-                                                                  'jediTaskID':datasetSpec.jediTaskID})
-            # count nFiles
             if datasetSpec.isMaster():
                 nFiles += datasetSpec.nFiles
                 nFilesFinished += datasetSpec.nFilesFinished
@@ -55,6 +49,8 @@ class PostProcessorBase (object):
         taskSpec.lockedBy = None
         if taskSpec.status == 'tobroken':
             taskSpec.status = 'broken'
+        elif taskSpec.status == 'toabort':
+            taskSpec.status = 'aborted'
         elif nFiles == nFilesFinished:
             taskSpec.status = 'done'
         elif nFilesFinished == 0:
@@ -64,6 +60,26 @@ class PostProcessorBase (object):
                 taskSpec.setErrDiag('Preprocessing step failed',True)
         else:
             taskSpec.status = 'finished'
+        # update dataset
+        for datasetSpec in taskSpec.datasetSpecList:
+            if taskSpec.status in ['failed','broken','aborted']:
+                datasetSpec.status = 'failed'
+            else:
+                # set dataset status
+                if datasetSpec.type in ['output','log','lib']:
+                    # normal output datasets
+                    if datasetSpec.nFiles > datasetSpec.nFilesFinished:
+                        datasetSpec.status = 'finished'
+                    else:
+                        datasetSpec.status = 'done'
+                elif datasetSpec.type.startswith('trn_') or datasetSpec.type.startswith('tmpl_'):
+                    # set done for template or transient datasets
+                    datasetSpec.status = 'done'
+                else:
+                    # not for input
+                    continue
+            self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'datasetID':datasetSpec.datasetID,
+                                                              'jediTaskID':datasetSpec.jediTaskID})
         # end time
         taskSpec.endTime = datetime.datetime.utcnow()
         # update task

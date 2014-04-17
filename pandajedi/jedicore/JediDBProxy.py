@@ -1290,10 +1290,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status1'] = 'prepared'
             varMap[':status2'] = 'scouted'
             varMap[':status3'] = 'tobroken'
+            varMap[':status4'] = 'toabort'
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames('tabT'))
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
-            sqlRT += "AND tabT.status IN (:status1,:status2,:status3) "
+            sqlRT += "AND tabT.status IN (:status1,:status2,:status3,:status4) "
             if not vo in [None,'any']:
                 varMap[':vo'] = vo
                 sqlRT += "AND tabT.vo=:vo "
@@ -3297,8 +3298,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':taskstatus2']  = 'scouting'
                 varMap[':taskstatus3']  = 'merging'
                 varMap[':taskstatus4']  = 'preprocessing'
-                varMap[':dsEndStatus1'] = 'broken'
+                varMap[':dsEndStatus1'] = 'finished'
                 varMap[':dsEndStatus2'] = 'done'
+                varMap[':dsEndStatus3'] = 'failed'
                 if vo != None:
                     varMap[':vo'] = vo
                 if prodSourceLabel != None:
@@ -3320,7 +3322,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sql += '{0},'.format(mapKey)
                     varMap[mapKey] = tmpType
                 sql  = sql[:-1]
-                sql += ') AND NOT status IN (:dsEndStatus1,:dsEndStatus2) AND ('
+                sql += ') AND NOT status IN (:dsEndStatus1,:dsEndStatus2,:dsEndStatus3) AND ('
                 sql += 'nFilesToBeUsed<>nFilesUsed '
                 sql += 'OR (nFilesUsed=0 AND nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>0) '
                 sql += 'OR nFilesUsed>nFilesFinished+nFilesFailed) '
@@ -3471,7 +3473,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':datasetID']  = datasetID
                             varMap[':jediTaskID'] = jediTaskID
                             if masterID != None:
-                                # seconday dataset
+                                # seconday dataset, this will be reset in post-processor
                                 varMap[':status'] = 'done'
                             else:
                                 # master dataset
@@ -3484,7 +3486,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     varMap[':status'] = 'failed'
                                 else:
                                     # partially succeeded
-                                    varMap[':status'] = 'partial'
+                                    varMap[':status'] = 'finished'
                             self.cur.execute(sqlDIU+comment,varMap)
                         # new task status
                         if taskSpec.status == 'preprocessing' and preprocessedFlag:

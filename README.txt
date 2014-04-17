@@ -1,5 +1,9 @@
 Release Note
 
+* 4/17/2014
+  * introduced toabort
+  * fixed pp to set failed to datasets for failed tasks
+
 * 4/14/2014
   * fixed for task broker
 
