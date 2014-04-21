@@ -191,6 +191,9 @@ class TaskRefinerBase (object):
                 datasetSpec.nFilesFinished = 0
                 datasetSpec.nFilesFailed = 0
                 datasetSpec.nFilesOnHold = 0
+                datasetSpec.nEvents = 0
+                datasetSpec.nEventsUsed = 0
+                datasetSpec.nEventsToBeUsed = 0
                 datasetSpec.status = 'defined'
                 if datasetSpec.type in JediDatasetSpec.getInputTypes() + ['random_seed']:
                     datasetSpec.streamName = RefinerUtils.extractStreamName(tmpItem['value'])

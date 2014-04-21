@@ -1,5 +1,8 @@
 Release Note
 
+* 4/21/2014
+  * initializing nevents, total_req_jobs and metadata
+
 * 4/17/2014
   * introduced toabort
   * fixed pp to set failed to datasets for failed tasks

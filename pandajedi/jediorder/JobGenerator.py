@@ -463,6 +463,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.minRamUnit       = taskSpec.ramUnit
                     jobSpec.coreCount        = taskSpec.coreCount
                     jobSpec.ipConnectivity   = 'yes'
+                    jobSpec.metadata         = ''
                     if inputChunk.isMerging:
                         # give higher priority to merge jobs
                         jobSpec.assignedPriority = mergePriority
@@ -680,6 +681,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.AtlasRelease     = re.sub('\r','',jobSpec.AtlasRelease)
             jobSpec.lockedby         = 'jedi'
             jobSpec.workQueue_ID     = taskSpec.workQueue_ID
+            jobSpec.metadata         = ''
             # make libDS name
             if datasetSpec == None or datasetSpec.state == 'closed' or fileSpec == None:
                 # make new libDS

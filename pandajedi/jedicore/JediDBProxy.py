@@ -2830,8 +2830,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':taskid'] = jediTaskID
                         varMap[':status'] = 'registered'
                         varMap[':ndone']  = 0
+                        varMap[':nreq']   = 0
                         sqlUC  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-                        sqlUC += "SET status=:status,timestamp=CURRENT_DATE,total_done_jobs=:ndone WHERE taskid=:taskid "
+                        sqlUC += "SET status=:status,timestamp=CURRENT_DATE,total_done_jobs=:ndone,total_req_jobs=:nreq WHERE taskid=:taskid "
                         tmpLog.debug(sqlUC+comment+str(varMap))
                         self.cur.execute(sqlUC+comment,varMap)
                     # append
