@@ -120,6 +120,9 @@ class ContentsFeederThread (WorkerThread):
                         errtype,errvalue = sys.exc_info()[:2]
                         tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
                         taskBroken = True
+                    # renaming of parameters
+                    if taskParamMap.has_key('nEventsPerInputFile'):
+                        taskParamMap['nEventsPerFile'] = taskParamMap['nEventsPerInputFile']
                     # the number of files per job
                     nFilesPerJob = None
                     if taskParamMap.has_key('nFilesPerJob'):

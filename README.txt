@@ -1,5 +1,8 @@
 Release Note
 
+* 4/23/2014
+  * changed CC to allow nEventsPerInputFile
+
 * 4/21/2014
   * initializing nevents, total_req_jobs and metadata
 
