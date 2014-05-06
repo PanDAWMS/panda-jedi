@@ -491,6 +491,7 @@ class JobGeneratorThread (WorkerThread):
                     setProdDBlock = False
                     totalMasterSize = 0
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
+
                         # get boundaryID if grouping is done with boundaryID
                         if useBoundary != None and boundaryID == None:
                             if tmpDatasetSpec.isMaster():

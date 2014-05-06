@@ -1,5 +1,11 @@
 Release Note
 
+* 5/6/2014
+  * fixed for t_task.total_events
+
+* 4/29/2014
+  * use startEvent and endEvent of files for event service
+
 * 4/23/2014
   * changed CC to allow nEventsPerInputFile
 
