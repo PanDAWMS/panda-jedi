@@ -1,5 +1,8 @@
 Release Note
 
+* 5/8/2014
+  * added a build number to version name
+
 * 5/6/2014
   * fixed for t_task.total_events
 
