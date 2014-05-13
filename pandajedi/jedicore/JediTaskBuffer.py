@@ -866,3 +866,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get tasks to get reassigned
+    def getTasksToReassign_JEDI(self,vo=None,prodSourceLabel=None):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getTasksToReassign_JEDI(vo,prodSourceLabel)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

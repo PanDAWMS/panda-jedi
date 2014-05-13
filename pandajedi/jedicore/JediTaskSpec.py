@@ -541,6 +541,13 @@ class JediTaskSpec(object):
 
 
 
+    # return list of status for reassign
+    def statusToReassign(cls):
+        return ['registered','defined','ready','running','scouting','scouted','pending','assigning']
+    statusToReassign = classmethod(statusToReassign)
+
+
+
     # return list of status for Job Generator
     def statusForJobGenerator(cls):
         return ['ready','running','scouting','topreprocess','preprocessing']
@@ -557,7 +564,9 @@ class JediTaskSpec(object):
                 'retry' : {'doing': 'toretry',
                            'done' : 'ready'},
                 'incexec' : {'doing': 'toincexec',
-                           'done' : 'rerefine'},
+                             'done' : 'rerefine'},
+                'reassign' : {'doing': 'toreassign',
+                              'done' : 'reassigning'},
                 }
     commandStatusMap = classmethod(commandStatusMap)
 

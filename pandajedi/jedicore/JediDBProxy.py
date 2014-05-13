@@ -3891,8 +3891,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':status'] = newTaskStatus
                         varMap[':errDiag'] = comComment
                         sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                        sqlTU += "SET status=:status,oldStatus=status,modificationTime=CURRENT_DATE,errorDialog=:errDiag "
-                        sqlTU += "WHERE jediTaskID=:jediTaskID "
+                        sqlTU += "SET status=:status,oldStatus=status,modificationTime=CURRENT_DATE,errorDialog=:errDiag"
+                        sqlTU += " WHERE jediTaskID=:jediTaskID "
                         self.cur.execute(sqlTU+comment,varMap)
                     # update command table
                     varMap = {}
@@ -5411,4 +5411,61 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return []
-        
+
+
+
+    # get tasks to get reassigned
+    def getTasksToReassign_JEDI(self,vo=None,prodSourceLabel=None):
+        comment = ' /* JediDBProxy.getTasksToReassign_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1}>".format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        retTasks = []
+        try:
+            # sql to get tasks to reassign
+            varMap = {}
+            varMap[':status'] = 'reassigning'
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=3)
+            sqlSCF  = "SELECT {0} ".format(JediTaskSpec.columnNames('tabT'))
+            sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlSCF += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlSCF += "AND tabT.status=:status AND tabT.modificationTime<:timeLimit "
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+                sqlSCF += "AND vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                sqlSCF += "AND prodSourceLabel=:prodSourceLabel "
+            sqlSCF += "FOR UPDATE"
+            sqlSPC  = "UPDATE {0}.JEDI_Tasks SET modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlSPC += "WHERE jediTaskID=:jediTaskID "
+            # begin transaction
+            self.conn.begin()
+            # get tasks
+            tmpLog.debug(sqlSCF+comment+str(varMap))
+            self.cur.execute(sqlSCF+comment,varMap)
+            resList = self.cur.fetchall()
+            for resRT in resList:
+                # make taskSpec
+                taskSpec = JediTaskSpec()
+                taskSpec.pack(resRT)
+                # update modificationTime
+                varMap = {}
+                varMap[':jediTaskID'] = taskSpec.jediTaskID
+                self.cur.execute(sqlSPC+comment,varMap)
+                nRow = self.cur.rowcount
+                if nRow > 0:
+                    retTasks.append(taskSpec)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return    
+            tmpLog.debug('got {0} tasks'.format(len(retTasks)))
+            return retTasks
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return []

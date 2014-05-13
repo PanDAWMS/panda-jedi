@@ -15,6 +15,7 @@ from dq2.common.DQConstants import DatasetState, Metadata
 from dq2.clientapi.DQ2 import \
     DQUnknownDatasetException, \
     DQDatasetExistsException, \
+    DQSubscriptionExistsException, \
     DQFrozenDatasetException
 from dq2.container.exceptions import DQContainerExistsException
 import dq2.filecatalog
@@ -777,6 +778,31 @@ class AtlasDDMClient(DDMClientBase):
 
 
 
+    # set dataset metadata
+    def setDatasetMetadata(self,datasetName,metadataName,metadaValue):
+        methodName = 'setDatasetMetadata'
+        methodName = '{0} datasetName={1} metadataName={2} metadaValue={3}'.format(methodName,datasetName,
+                                                                                   metadataName,metadaValue)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.info('start')
+        try:
+            # get DQ2 API            
+            dq2 = DQ2()
+            # set
+            dq2.setMetaDataAttribute(datasetName,metadataName,metadaValue)
+        except DQUnknownDatasetException:
+            pass
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
+        tmpLog.info('done')
+        return self.SC_SUCCEEDED,True
+
+
+
     # register location
     def registerDatasetLocation(self,datasetName,location,lifetime=None,owner=None):
         methodName = 'registerDatasetLocation'
@@ -787,7 +813,7 @@ class AtlasDDMClient(DDMClientBase):
             # cleanup DN
             owner = parse_dn(owner)
             # get DQ2 API            
-            dq2=DQ2()
+            dq2 = DQ2()
             # set
             dq2.registerDatasetLocation(datasetName,location,lifetime=lifetime)
             dq2.setReplicaMetaDataAttribute(datasetName,location,'owner',owner)
@@ -839,3 +865,35 @@ class AtlasDDMClient(DDMClientBase):
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
             return errCode,'{0} : {1}'.format(methodName,errMsg)
+
+
+
+    # register subscription
+    def registerDatasetSubscription(self,datasetName,location,activity=None,ignoreUnknown=False):
+        methodName = 'registerDatasetSubscription'
+        methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.info('start')
+        isOK = True
+        try:
+            # get DQ2 API            
+            dq2 = DQ2()
+            # call
+            dq2.registerDatasetSubscription(datasetName,location,activity=activity)
+        except DQSubscriptionExistsException:
+            pass
+        except DQUnknownDatasetException:
+            if ignoreUnknown:
+                pass
+            else:
+                isOK = False
+        except:
+            isOK = False
+        if not isOK:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
+        tmpLog.info('done')
+        return self.SC_SUCCEEDED,True

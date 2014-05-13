@@ -111,7 +111,7 @@ class TaskCommandoThread (WorkerThread):
                     commentStr = commandMap['comment']
                     tmpLog.info('start for {0}'.format(commandStr))
                     tmpStat = Interaction.SC_SUCCEEDED
-                    if commandStr in ['kill','finish']:
+                    if commandStr in ['kill','finish','reassign']:
                         # get active PandaIDs to be killed
                         pandaIDs = self.taskBufferIF.getPandaIDsWithTask_JEDI(jediTaskID,True)
                         if pandaIDs == None:
@@ -124,7 +124,19 @@ class TaskCommandoThread (WorkerThread):
                                 tmpLog.info('completed the command')
                                 tmpTaskSpec = JediTaskSpec()
                                 tmpTaskSpec.jediTaskID = jediTaskID
-                                tmpTaskSpec.forceUpdate('oldStatus')
+                                if commandStr != 'reassign':
+                                    # keep oldStatus for task reassignment since it is reset when actually reassigned
+                                    tmpTaskSpec.forceUpdate('oldStatus')
+                                else:
+                                    # extract cloud or site
+                                    tmpItems = commentStr.split(':')
+                                    if tmpItems[0] == 'cloud':
+                                        tmpTaskSpec.cloud = tmpItems[1]
+                                    else:
+                                        tmpTaskSpec.site = tmpItems[1]
+                                    # back to oldStatus if necessary 
+                                    if tmpItems[2] == 'y':
+                                        tmpTaskSpec.forceUpdate('oldStatus')
                                 tmpTaskSpec.status = JediTaskSpec.commandStatusMap()[commandStr]['done']
                                 tmpRet = self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':jediTaskID})
                             else:

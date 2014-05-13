@@ -1,5 +1,8 @@
 Release Note
 
+* 5/13/2014
+  * added reassignTask
+
 * 5/8/2014
   * added a build number to version name
 
