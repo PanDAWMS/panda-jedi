@@ -1,5 +1,9 @@
 Release Note
 
+* 5/21/2014
+  * changed ATLAS anal brokerage to use CVMFS check for nightlies
+  * added addEventServiceTask.py
+
 * 5/13/2014
   * added reassignTask
 

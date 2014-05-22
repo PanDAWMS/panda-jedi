@@ -208,8 +208,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 else:
                     # nightlies
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
-                                                                             releases='nightlies',
-                                                                             cmtConfig=taskSpec.architecture)
+                                                                             releases='CVMFS')
+                    #                                                         releases='nightlies',
+                    #                                                         cmtConfig=taskSpec.architecture)
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)

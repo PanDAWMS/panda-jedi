@@ -30,6 +30,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                                                                              workQueue.queue_name))
         workQueueID = workQueue.queue_id
         # check cloud status
+        if not self.siteMapper.checkCloud(cloudName):
+            tmpLog.debug("  done : SKIP cloud undefined")
+            return self.retThrottled
         cloudSpec = self.siteMapper.getCloud(cloudName)
         if cloudSpec['status'] in ['offline']:
             tmpLog.debug("  done : SKIP cloud.status={0}".format(cloudSpec['status']))
