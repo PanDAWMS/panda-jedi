@@ -1,5 +1,8 @@
 Release Note
 
+* 5/27/2014
+  * added multiple attempts to ctl script
+
 * 5/26/2014
   * changed error level of import failure in FactoryBase
 

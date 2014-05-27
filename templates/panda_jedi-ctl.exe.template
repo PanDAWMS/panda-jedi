@@ -49,10 +49,23 @@ start)
 	echo ERROR: JEDI is already running with lockfile:$LOCKFILE
     else
 	echo start JEDI
-	$PROGNAME --pid $PIDFILE >> $JEDISTDOUT 2>> $JEDISTDERR
-	ERROR=$?
-	[ $ERROR = 0 ] && touch $LOCKFILE
-	echo $ERROR
+	for itry in `seq 1 5`
+	do
+	    echo trying $itry
+	    $PROGNAME --pid $PIDFILE >> $JEDISTDOUT 2>> $JEDISTDERR
+	    touch $LOCKFILE
+	    sleep 10
+	    ps -p `cat $PIDFILE` > /dev/null
+	    ERROR=$?
+	    echo $ERROR
+	    if [ $ERROR = 0 ]; then
+		echo succeeded
+		break
+	    else
+		echo failed
+		rm -f $LOCKFILE
+	    fi
+	done
     fi
     ;;
 stop)

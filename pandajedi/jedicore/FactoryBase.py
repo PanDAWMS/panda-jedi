@@ -68,12 +68,16 @@ class FactoryBase:
                         # import
                         try:
                             # import module
+                            self.logger.info("vo={0} label={1} subtype{2}".format(vo,sourceLabel,subType))
+                            self.logger.info("importing {0}".format(moduleName))
                             mod = __import__(moduleName)
                             for subModuleName in moduleName.split('.')[1:]:
                                 mod = getattr(mod,subModuleName)
                             # get class
+                            self.logger.info("getting class {0}".format(className))
                             cls = getattr(mod,className)
                             # instantiate
+                            self.logger.info("instantiating")
                             impl = cls(*args)
                             # set vo
                             impl.vo = vo
@@ -87,7 +91,7 @@ class FactoryBase:
                                 self.classMap[vo][sourceLabel] = {}
                             self.implMap[vo][sourceLabel][subType] = impl
                             self.classMap[vo][sourceLabel][subType] = cls
-                            self.logger.info("{0} for {1}:{2}:{3}".format(cls,vo,sourceLabel,subType))
+                            self.logger.info("{0} is ready for {1}:{2}:{3}".format(cls,vo,sourceLabel,subType))
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             self.logger.error(
