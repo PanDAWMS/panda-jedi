@@ -1,5 +1,8 @@
 Release Note
 
+* 5/26/2014
+  * changed error level of import failure in FactoryBase
+
 * 5/21/2014
   * changed ATLAS anal brokerage to use CVMFS check for nightlies
   * added addEventServiceTask.py

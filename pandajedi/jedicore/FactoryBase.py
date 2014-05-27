@@ -90,7 +90,16 @@ class FactoryBase:
                             self.logger.info("{0} for {1}:{2}:{3}".format(cls,vo,sourceLabel,subType))
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
-                            self.logger.error('failed to import impl due to {0} {1}'.format(errtype.__name__,errvalue))
+                            self.logger.error(
+                                'failed to import {mn}.{cn} for vo={vo} label={lb} subtype={st} due to {et} {ev}'.format(et=errtype.__name__,
+                                                                                                                         ev=errvalue,
+                                                                                                                         st=subType,
+                                                                                                                         vo=vo,
+                                                                                                                         lb=sourceLabel,
+                                                                                                                         cn=className,
+                                                                                                                         mn=moduleName)
+                                )
+                            raise ImportError, 'failed to import {0}.{1}'.format(moduleName,className)
         # return
         return True
 

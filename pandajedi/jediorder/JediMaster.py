@@ -171,6 +171,15 @@ class JediMaster:
                                                      vo,plabel))
                 proc.start()
                 knightList.append(proc)
+        # check initial failures
+        time.sleep(5)
+        for knight in knightList:
+            if not knight.is_alive():
+                timeNow = datetime.datetime.utcnow()
+                print "{0} {1}: ERROR    pid={2} died in initialization".format(str(timeNow),
+                                                                                self.__class__.__name__,
+                                                                                knight.pid)
+                os.killpg(os.getpgrp(),signal.SIGKILL)
         # join
         for knight in knightList:    
             knight.join()
