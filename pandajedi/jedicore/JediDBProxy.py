@@ -1760,9 +1760,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if simTasks == None:
                 varMap = {}
                 varMap[':vo']              = vo
+                if not prodSourceLabel in [None,'','any']:
+                    varMap[':prodSourceLabel'] = prodSourceLabel
                 if not cloudName in [None,'','any']:
                     varMap[':cloud']       = cloudName
-                varMap[':prodSourceLabel'] = prodSourceLabel
                 varMap[':dsStatus']        = 'ready'            
                 varMap[':dsOKStatus1']     = 'ready'
                 varMap[':dsOKStatus2']     = 'done'
@@ -1778,7 +1779,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sql += '{0},'.format(tmpKey)
                 sql  = sql[:-1]
                 sql += ') '
-                sql += "AND prodSourceLabel=:prodSourceLabel "
+                if not prodSourceLabel in [None,'','any']:
+                    sql += "AND prodSourceLabel=:prodSourceLabel "
                 if not cloudName in [None,'','any']:
                     sql += "AND tabT.cloud=:cloud "
                 sql += "AND tabT.status IN ("
@@ -2598,6 +2600,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # loop over all processingTypes
             retMap = {}
             for numFile,processingType in resList:
+                if numFile == None:
+                    numFile = 0
                 retMap[processingType] = int(math.ceil(numFile))
             # commit
             if not self._commit():

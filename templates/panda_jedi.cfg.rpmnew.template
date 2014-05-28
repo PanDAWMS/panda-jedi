@@ -62,6 +62,7 @@ schemaMETA = ATLAS_PANDAMETA
 [ddm]
 
 # interface config
+#modConfig = atlas:3:pandajedi.jediddm.AtlasDDMClient:AtlasDDMClient,vo_example:1:pandajedi.jediddm.GenDDMClient:GenDDMClient
 modConfig = atlas:3:pandajedi.jediddm.AtlasDDMClient:AtlasDDMClient
 
 # list of VOs which use scope
@@ -97,6 +98,7 @@ loopCycle = 60
 [taskrefine]
 
 # interface config
+#modConfig = atlas:any:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner:any,atlas:any:pandajedi.jedirefine.FileRecovery:FileRecovery:recov,atlas:user:pandajedi.jedirefine.AtlasAnalTaskRefiner:AtlasAnalTaskRefiner:any,vo_example:any:pandajedi.jedirefine.GenTaskRefiner:GenTaskRefiner
 modConfig = atlas:any:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner:any,atlas:any:pandajedi.jedirefine.FileRecovery:FileRecovery:recov,atlas:user:pandajedi.jedirefine.AtlasAnalTaskRefiner:AtlasAnalTaskRefiner:any
 
 # process config
@@ -119,7 +121,8 @@ loopCycle = 60
 [jobbroker]
 
 # interface config
-modConfig = atlas:managed|test:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBroker
+#modConfig = atlas:any:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBroker,atlas:user:pandajedi.jedibrokerage.AtlasAnalJobBroker:AtlasAnalJobBroker,vo_example:any:pandajedi.jedibrokerage.GenJobBroker:GenJobBroker
+modConfig = atlas:any:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBroker,atlas:user:pandajedi.jedibrokerage.AtlasAnalJobBroker:AtlasAnalJobBroker
 
 
 
@@ -132,7 +135,8 @@ modConfig = atlas:managed|test:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasP
 [jobthrottle]
 
 # interface config
-modConfig = atlas:managed|test:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProdJobThrottler
+#modConfig = atlas:any:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProdJobThrottler,atlas:user:pandajedi.jedithrottle.AtlasAnalJobThrottler:AtlasAnalJobThrottler,vo_example:any:pandajedi.jedithrottle.GenJobThrottler:GenJobThrottler
+modConfig = atlas:any:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProdJobThrottler,atlas:user:pandajedi.jedithrottle.AtlasAnalJobThrottler:AtlasAnalJobThrottler
 
 
 
@@ -145,7 +149,8 @@ modConfig = atlas:managed|test:pandajedi.jedithrottle.AtlasProdJobThrottler:Atla
 [jobgen]
 
 # process config
-procConfig = atlas:managed|test:1:CA,CERN,DE,ES,FR,IT,ND,NL,RU,TW,UK,US
+#procConfig = atlas:managed|test|ptest:2:CA,CERN,DE,ES,FR,IT,ND,NL,RU,TW,UK,US;atlas:user:1:;vo_example:any:1:
+procConfig = atlas:managed|test|ptest:2:CA,CERN,DE,ES,FR,IT,ND,NL,RU,TW,UK,US;atlas:user:1:
 
 # number of tasks per cycle
 nTasks = 50
@@ -173,6 +178,7 @@ typicalNumFile = :::logmerge:1000000
 [postprocessor]
 
 # interface config
+#modConfig = atlas:any:pandajedi.jedipprocess.AtlasProdPostProcessor:AtlasProdPostProcessor,atlas:user:pandajedi.jedipprocess.AtlasAnalPostProcessor:AtlasAnalPostProcessor,vo_example:any:pandajedi.jedipprocess.GenPostProcessor:GenPostProcessor
 modConfig = atlas:any:pandajedi.jedipprocess.AtlasProdPostProcessor:AtlasProdPostProcessor,atlas:user:pandajedi.jedipprocess.AtlasAnalPostProcessor:AtlasAnalPostProcessor
 
 # process config
@@ -198,10 +204,11 @@ loopCycle = 60
 [watchdog]
 
 # interface config
+#modConfig = atlas:test:pandajedi.jedidog.AtlasProdWatchDog:AtlasProdWatchDog,atlas:user:pandajedi.jedidog.AtlasAnalWatchDog:AtlasAnalWatchDog,vo_example:any:pandajedi.jedidog.GenWatchDog:GenWatchDog
 modConfig = atlas:test:pandajedi.jedidog.AtlasProdWatchDog:AtlasProdWatchDog,atlas:user:pandajedi.jedidog.AtlasAnalWatchDog:AtlasAnalWatchDog
 
 # process config
-procConfig = atlas:managed|test|user:1
+procConfig = ::1
 
 # loop interval in seconds
 loopCycle = 300
@@ -280,4 +287,6 @@ modConfig = atlas:managed|test:pandajedi.jedigen.AtlasTaskGenerator:AtlasTaskGen
 [tasksetup]
 
 # interface config
-modConfig = atlas:managed|test:pandajedi.jedisetup.AtlasTaskSetupper:AtlasTaskSetupper
+#modConfig = atlas:any:pandajedi.jedisetup.AtlasTaskSetupper:AtlasTaskSetupper,vo_example:any:pandajedi.jedisetup.GenTaskSetupper:GenTaskSetupper
+modConfig = atlas:any:pandajedi.jedisetup.AtlasTaskSetupper:AtlasTaskSetupper
+

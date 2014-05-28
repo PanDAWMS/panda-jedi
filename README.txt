@@ -1,5 +1,8 @@
 Release Note
 
+* 5/28/2014
+  * added plugins for general purpose
+
 * 5/27/2014
   * added multiple attempts to ctl script
 

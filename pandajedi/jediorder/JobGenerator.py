@@ -87,13 +87,13 @@ class JobGenerator (JediKnight):
                                 cycleStr = 'pid={5} vo={0} cloud={1} queue={2}(id={3}) label={4}'.format(vo,cloudName,
                                                                                                          workQueue.queue_name,
                                                                                                          workQueue.queue_id,
-                                                                                                         prodSourceLabel,
+                                                                                                         workQueue.queue_type,
                                                                                                          self.pid)
                                 tmpLog.debug('start {0}'.format(cycleStr))
                                 # throttle
-                                tmpLog.debug('check throttle with {0}'.format(throttle.getClassName(vo,prodSourceLabel)))
+                                tmpLog.debug('check throttle with {0}'.format(throttle.getClassName(vo,workQueue.queue_type)))
                                 try:
-                                    tmpSt,thrFlag = throttle.toBeThrottled(vo,prodSourceLabel,cloudName,workQueue,jobStat)
+                                    tmpSt,thrFlag = throttle.toBeThrottled(vo,workQueue.queue_type,cloudName,workQueue,jobStat)
                                 except:
                                     errtype,errvalue = sys.exc_info()[:2]
                                     tmpLog.error('throttler failed with {0} {1}'.format(errtype,errvalue))
@@ -106,14 +106,14 @@ class JobGenerator (JediKnight):
                                         continue
                                 tmpLog.debug('minPriority={0} maxNumJobs={1}'.format(throttle.minPriority,throttle.maxNumJobs))
                                 # get typical number of files
-                                typicalNumFilesMap = self.taskBufferIF.getTypicalNumInput_JEDI(vo,prodSourceLabel,workQueue,
+                                typicalNumFilesMap = self.taskBufferIF.getTypicalNumInput_JEDI(vo,workQueue.queue_type,workQueue,
                                                                                                useResultCache=600)
                                 if typicalNumFilesMap == None:
                                     raise RuntimeError,'failed to get typical number of files'
                                 # get the list of input 
                                 tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,vo,
                                                                                        workQueue,
-                                                                                       prodSourceLabel,
+                                                                                       workQueue.queue_type,
                                                                                        cloudName,
                                                                                        nTasks=jedi_config.jobgen.nTasks,
                                                                                        nFiles=jedi_config.jobgen.nFiles,
