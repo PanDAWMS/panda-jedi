@@ -414,8 +414,8 @@ class JobGeneratorThread (WorkerThread):
                         jobSpecList.append(buildJobSpec)
                         oldPandaIDs.append([])
                 # make normal jobs
-                subOldPandaIDs = []
                 for inSubChunk in inSubChunks:
+                    subOldPandaIDs = []
                     jobSpec = JobSpec()
                     jobSpec.jobDefinitionID  = 0
                     jobSpec.jobExecutionID   = 0

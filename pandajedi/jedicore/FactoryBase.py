@@ -68,7 +68,7 @@ class FactoryBase:
                         # import
                         try:
                             # import module
-                            self.logger.info("vo={0} label={1} subtype{2}".format(vo,sourceLabel,subType))
+                            self.logger.info("vo={0} label={1} subtype={2}".format(vo,sourceLabel,subType))
                             self.logger.info("importing {0}".format(moduleName))
                             mod = __import__(moduleName)
                             for subModuleName in moduleName.split('.')[1:]:

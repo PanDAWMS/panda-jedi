@@ -1,7 +1,8 @@
 Release Note
 
-* 5/28/2014
+* 5/30/2014
   * added plugins for general purpose
+  * fixed job_retry_history
 
 * 5/27/2014
   * added multiple attempts to ctl script
