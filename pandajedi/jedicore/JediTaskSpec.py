@@ -17,7 +17,8 @@ class JediTaskSpec(object):
         'outDiskCount','outDiskUnit','workDiskCount','workDiskUnit',
         'ramCount','ramUnit','ioIntensity','ioIntensityUnit',
         'workQueue_ID','progress','failureRate','errorDialog',
-        'reqID','oldStatus','cloud','site','countryGroup','parent_tid'
+        'reqID','oldStatus','cloud','site','countryGroup','parent_tid',
+        'eventService'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
@@ -336,10 +337,8 @@ class JediTaskSpec(object):
 
     # use Event Service
     def useEventService(self):
-        if self.splitRule != None:
-            tmpMatch = re.search(self.splitRuleToken['nEventsPerWorker']+'=(\d+)',self.splitRule)
-            if tmpMatch != None:
-                return True
+        if self.eventService == 1:
+            return True
         return False
 
 

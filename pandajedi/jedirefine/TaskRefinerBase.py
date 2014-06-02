@@ -101,6 +101,12 @@ class TaskRefinerBase (object):
         if taskParamMap.has_key('site'):
             self.siteName = taskParamMap['site']
             taskSpec.site = self.siteName
+        # event service
+        if taskParamMap.has_key('nEventsPerWorker'):
+            taskSpec.eventService = 1
+        else:
+            taskSpec.eventService = 0
+        # work queue
         workQueue,tmpStr = workQueueMapper.getQueueWithSelParams(taskSpec.vo,
                                                                  taskSpec.prodSourceLabel,
                                                                  processingType=taskSpec.processingType,
