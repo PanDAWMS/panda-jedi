@@ -152,11 +152,11 @@ class AtlasAnalPostProcessor (PostProcessorBase):
         dsSummary = dsSummary[:-1]
         # make message
         message = \
-            """Subject: JEDI notification for JobsetID:{JobsetID} (jediTaskID:{jediTaskID}) ({numOK}/{numTotal} Succeeded)
+            """Subject: JEDI notification for TaskID:{jediTaskID} ({numOK}/{numTotal} Succeeded)
 From: {fromAdd}
 To: {toAdd}
 
-Summary of JobsetID:{JobsetID} (jediTaskID:{jediTaskID})
+Summary of TaskID:{jediTaskID}
 
 Created : {creationDate} (UTC)
 Ended   : {endTime} (UTC)
@@ -176,13 +176,7 @@ Error Dialog : {errorDialog}
 Parameters : {params}
 
 
-PandaMonURL : http://panda.cern.ch/server/pandamon/query?{oldPandaMon}
-
-TaskMonitorURL : https://dashb-atlas-task.cern.ch/templates/task-analysis/#task={taskName}
-
-NewPandaMonURL : https://pandamon.cern.ch/jobinfo?{newPandaMon}
-
-JediMonURL : http://pandamon.cern.ch/jedi/taskinfo?task={jediTaskID}""".format(\
+PandaMonURL : http://bigpanda.cern.ch/jobs/?jeditaskid={jediTaskID}""".format(\
             jediTaskID=taskSpec.jediTaskID,
             JobsetID=taskSpec.reqID,
             fromAdd=fromAdd,
@@ -212,8 +206,8 @@ Report Panda problems of any sort to
   the eGroup for help request
     hn-atlas-dist-analysis-help@cern.ch
 
-  the Savannah for software bug
-    https://savannah.cern.ch/projects/panda/
+  the JIRA portal for software bug
+    https://its.cern.ch/jira/browse/ATLASPANDA
 """        
         # return
         return message

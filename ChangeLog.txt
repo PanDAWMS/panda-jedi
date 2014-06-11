@@ -1,5 +1,8 @@
 Release Note
 
+* 6/11/2014
+  * modified email notification to use BigPandaMon and JIRA
+
 * 6/1/2014
   * added eventService to JEDI_Tasks
 
