@@ -1,0 +1,17 @@
+@@install_dir@@/var/log/panda/*log {
+    rotate 180	
+    daily
+    compress    
+    missingok
+    notifempty
+    sharedscripts
+    postrotate
+    	killall -u atlpan python > /dev/null 2>/dev/null || true
+	killall -u atlpan python2.6 > /dev/null 2>/dev/null || true
+	/sbin/service panda-jedi stop > /dev/null 2>/dev/null || true
+	/sbin/service panda-jedi start > /dev/null 2>/dev/null || true
+	sleep 60
+	@@install_dir@@/usr/bin/panda_jedi-reniceJEDI > /dev/null 2>/dev/null || true
+    endscript
+}
+

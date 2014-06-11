@@ -174,6 +174,11 @@ setup(
                 ('etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
                                ]
                  ),
+                # misc files 
+                ('etc/misc', ['templates/panda_jedi.cron.rpmnew.template',
+                              'templates/panda_jedi.logrotate.rpmnew.template',
+                               ]
+                 ),
                 # sysconfig
                 ('etc/sysconfig', ['templates/panda_jedi-sysconfig.rpmnew.template',
                                    ]
