@@ -792,13 +792,13 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.destinationSE    = siteName
             jobSpec.metadata         = ''
             # get log file
-            outSubChunk,serialNr,datasetToRegister = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
-                                                                                           None,
-                                                                                           simul,
-                                                                                           True,
-                                                                                           siteName,
-                                                                                           False,
-                                                                                           True)
+            outSubChunk,serialNr,datasetToRegister,siteDsMap = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
+                                                                                                     None,
+                                                                                                     simul,
+                                                                                                     True,
+                                                                                                     siteName,
+                                                                                                     False,
+                                                                                                     True)
             if outSubChunk == None:
                 # failed
                 tmpLog.error('doGeneratePrePro failed to get OutputFiles')
