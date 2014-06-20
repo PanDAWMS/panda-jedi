@@ -218,7 +218,8 @@ class TaskRefinerThread (WorkerThread):
                         # fill JEDI tables
                         try:
                             # enable protection against task duplication
-                            if taskParamMap.has_key('uniqueTaskName') and taskParamMap['uniqueTaskName']:
+                            if taskParamMap.has_key('uniqueTaskName') and taskParamMap['uniqueTaskName'] and \
+                                    not impl.taskSpec.checkPreProcessed():
                                 uniqueTaskName = True
                             else:
                                 uniqueTaskName = False
@@ -226,6 +227,9 @@ class TaskRefinerThread (WorkerThread):
                             if impl.updatedTaskParams != None:
                                 strTaskParams = RefinerUtils.encodeJSON(impl.updatedTaskParams)
                             if taskStatus == 'registered':
+                                # unset pre-process flag
+                                if impl.taskSpec.checkPreProcessed():
+                                    impl.taskSpec.setPostPreProcess()
                                 # full registration
                                 tmpStat = self.taskBufferIF.registerTaskInOneShot_JEDI(jediTaskID,impl.taskSpec,
                                                                                        impl.inMasterDatasetSpec,

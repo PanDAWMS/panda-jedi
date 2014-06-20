@@ -317,10 +317,10 @@ class JobGeneratorThread (WorkerThread):
                             if inputChunk.isMerging:
                                 # don't change task status by merging
                                 pass
-                            elif inputChunk.useScout():
-                                taskSpec.status = 'scouting'
                             elif taskSpec.usePrePro():
                                 taskSpec.status = 'preprocessing'
+                            elif inputChunk.useScout():
+                                taskSpec.status = 'scouting'
                             else:
                                 taskSpec.status = 'running'
                         else:

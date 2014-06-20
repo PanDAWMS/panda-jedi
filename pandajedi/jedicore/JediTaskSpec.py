@@ -53,6 +53,7 @@ class JediTaskSpec(object):
     # enum for preprocessing
     enum_toPreProcess = '1'
     enum_preProcessed = '2'
+    enum_postPProcess = '3'
     # enum for limited sites
     enum_limitedSites = {'1' : 'inc',
                          '2' : 'exc',
@@ -430,6 +431,25 @@ class JediTaskSpec(object):
             if tmpMatch != None and tmpMatch.group(1) == self.enum_preProcessed:
                 return True
         return False
+
+
+
+    # set post preprocess
+    def setPostPreProcess(self):
+        if self.splitRule == None:
+            # new
+            self.splitRule = self.splitRuleToken['usePrePro']+'='+self.enum_postPProcess
+        else:
+            tmpMatch = re.search(self.splitRuleToken['usePrePro']+'=(\d+)',self.splitRule)
+            if tmpMatch == None:
+                # append
+                self.splitRule += ','+self.splitRuleToken['usePrePro']+'='+self.enum_postPProcess
+            else:
+                # replace
+                self.splitRule = re.sub(self.splitRuleToken['usePrePro']+'=(\d+)',
+                                        self.splitRuleToken['usePrePro']+'='+self.enum_postPProcess,
+                                        self.splitRule)
+        return
 
 
 
