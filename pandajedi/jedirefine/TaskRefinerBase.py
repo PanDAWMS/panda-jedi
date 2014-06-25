@@ -128,6 +128,7 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'nEventsPerWorker', JediTaskSpec.splitRuleToken['nEventsPerWorker'])
         self.setSplitRule(taskParamMap,'useLocalIO',       JediTaskSpec.splitRuleToken['useLocalIO'])
         self.setSplitRule(taskParamMap,'disableAutoRetry', JediTaskSpec.splitRuleToken['disableAutoRetry'])
+        self.setSplitRule(taskParamMap,'nEsConsumers',     JediTaskSpec.splitRuleToken['nEsConsumers'])
         if taskParamMap.has_key('loadXML'):
             self.setSplitRule(None,3,JediTaskSpec.splitRuleToken['loadXML'])
             self.setSplitRule(None,4,JediTaskSpec.splitRuleToken['groupBoundaryID'])

@@ -17,6 +17,7 @@ from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedirefine import RefinerUtils
 from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.taskbuffer.FileSpec import FileSpec
+from pandaserver.taskbuffer import EventServiceUtils
 from pandaserver.userinterface import Client as PandaClient
 
 from JobThrottler import JobThrottler
@@ -264,6 +265,10 @@ class JobGeneratorThread (WorkerThread):
                             tmpStat,pandaJobs,datasetToRegister,oldPandaIDs = self.doGenerate(taskSpec,cloudName,subChunks,
                                                                                               inputChunk,tmpLog,
                                                                                               taskParamMap=taskParamMap)
+                            # increase event service consumers
+                            if tmpStat == Interaction.SC_SUCCEEDED:
+                                if taskSpec.useEventService() and taskSpec.getNumEventServiceConsumer() > 1:
+                                    pandaJobs = self.increaseEventServiceConsumers(pandaJobs,taskSpec.getNumEventServiceConsumer())
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('generator crashed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -303,7 +308,7 @@ class JobGeneratorThread (WorkerThread):
                         for idxItem,items in enumerate(resSubmit):
                             if items[0] != 'NULL':
                                 pandaIDs.append(items[0])
-                                if oldPandaIDs[idxItem] != []:
+                                if len(oldPandaIDs) > idxItem and oldPandaIDs[idxItem] != []:
                                     oldNewPandaIDs[items[0]] = oldPandaIDs[idxItem]
                         # record retry history
                         self.taskBufferIF.recordRetryHistory_JEDI(taskSpec.jediTaskID,oldNewPandaIDs)
@@ -386,6 +391,7 @@ class JobGeneratorThread (WorkerThread):
             datasetToRegister = []
             oldPandaIDs = []
             siteDsMap = {}
+            esIndex = 0
             for tmpInChunk in inSubChunkList:
                 siteName      = tmpInChunk['siteName']
                 inSubChunks   = tmpInChunk['subChunks']
@@ -485,7 +491,7 @@ class JobGeneratorThread (WorkerThread):
                     specialHandling = ''
                     if taskSpec.useEventService():
                         nEventsPerWorker = taskSpec.getNumEventsPerWorker()
-                        specialHandling = 'es:'
+                        specialHandling = EventServiceUtils.getHeaderForES(esIndex)
                     # inputs
                     prodDBlock = None
                     setProdDBlock = False
@@ -526,8 +532,8 @@ class JobGeneratorThread (WorkerThread):
                                 subOldPandaIDs.append(tmpFileSpec.PandaID)
                             # set specialHandling for Event Service
                             if taskSpec.useEventService() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.isPseudo():
-                                specialHandling += '{0}/{1}/{2}/{3}^'.format(tmpFileSpec.lfn,tmpFileSpec.startEvent,
-                                                                             tmpFileSpec.endEvent,nEventsPerWorker)
+                                specialHandling += EventServiceUtils.encodeFileInfo(tmpFileSpec.lfn,tmpFileSpec.startEvent,
+                                                                                    tmpFileSpec.endEvent,nEventsPerWorker)
                             # calcurate total master size
                             if tmpDatasetSpec.isMaster():
                                 totalMasterSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
@@ -624,6 +630,9 @@ class JobGeneratorThread (WorkerThread):
                     # addd
                     jobSpecList.append(jobSpec)
                     oldPandaIDs.append(subOldPandaIDs)
+                    # incremet index of event service job
+                    if taskSpec.useEventService():
+                        esIndex += 1
             # return
             return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs
         except:
@@ -1075,6 +1084,33 @@ class JobGeneratorThread (WorkerThread):
             parTemplate = parTemplate.replace('${'+streamName+'}',str(parVal))
         # return
         return parTemplate
+
+
+
+    # increase event service consumers
+    def increaseEventServiceConsumers(self,pandaJobs,nConsumers):
+        newPandaJobs = []
+        for pandaJob in pandaJobs:
+            for iConsumers in range (nConsumers):
+                newPandaJob = self.clonePandaJob(pandaJob)
+                newPandaJobs.append(newPandaJob)
+        # return
+        return newPandaJobs
+                    
+
+
+    # close panda job with new specialHandling
+    def clonePandaJob(self,pandaJob):
+        newPandaJob = copy.copy(pandaJob)
+        newPandaJob.Files = []
+        for fileSpec in pandaJob.Files:
+            newFileSpec = copy.copy(fileSpec)
+            # append PandaID as suffix for log files
+            if newFileSpec.type == 'log':
+                newFileSpec.lfn += '.$PANDAID'
+            newPandaJob.addFile(newFileSpec)
+        return newPandaJob
+
 
 
 

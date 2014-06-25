@@ -32,6 +32,7 @@ class JediTaskSpec(object):
     splitRuleToken = {
         'allowEmptyInput'    : 'AE',
         'disableAutoRetry'   : 'DR',
+        'nEsConsumers'       : 'EC',
         'nEventsPerWorker'   : 'ES',
         'firstEvent'         : 'FT',
         'groupBoundaryID'    : 'GB',
@@ -348,6 +349,17 @@ class JediTaskSpec(object):
     def getNumEventsPerWorker(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['nEventsPerWorker']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None    
+
+
+
+
+    # get the number of event service consumers
+    def getNumEventServiceConsumer(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['nEsConsumers']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
