@@ -397,6 +397,7 @@ class TaskRefinerBase (object):
             try:
                 # replace placeholders 
                 replaceParams = RefinerUtils.decodeJSON(tmpJsonStr)
+                self.tmpLog.debug("replace placeholders with "+str(replaceParams))
                 for tmpKey,tmpVal in replaceParams.iteritems():
                     self.replacePlaceHolders(taskParamMap,tmpKey,tmpVal)
             except:
