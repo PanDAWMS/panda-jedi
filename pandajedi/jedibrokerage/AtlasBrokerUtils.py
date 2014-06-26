@@ -3,7 +3,7 @@ import sys
 
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
-
+from pandaserver.taskbuffer import ProcessGroups
 
 
 # get hospital queues
@@ -302,20 +302,58 @@ def getSiteStorageEndpointMap(siteList,siteMapper):
 
 
 # check if the queue is suppressed
-def hasZeroShare(siteSpec,workQueue_ID):
+def hasZeroShare(siteSpec,taskSpec,tmpLog):
     # per-site share is undefined
     if siteSpec.fairsharePolicy in ['',None]:
         return False
-    # loop over all policies
-    for tmpItem in siteSpec.fairsharePolicy.split(','):
-        tmpMatch = re.search('(^|,|:)id={0}:'.format(workQueue_ID),tmpItem)
-        if tmpMatch != None:
-            tmpShare = tmpItem.split(':')[-1]
-            tmpSahre = tmpShare.replace('%','')
-            if tmpSahre == '0':
-                return True
+    try:
+        # get process group
+        tmpProGroup = ProcessGroups.getProcessGroup(taskSpec.processingType)
+        # loop over all policies
+        for tmpItem in siteSpec.fairsharePolicy.split(','):
+            if re.search('(^|,|:)id=',tmpItem) != None: 
+                # new format
+                tmpMatch = re.search('(^|,|:)id={0}:'.format(taskSpec.workQueue_ID),tmpItem)
+                if tmpMatch != None:
+                    tmpShare = tmpItem.split(':')[-1]
+                    tmpSahre = tmpShare.replace('%','')
+                    if tmpSahre == '0':
+                        return True
+                    else:
+                        return False
             else:
-                return False
+                # old format
+                tmpType  = None
+                tmpGroup = None
+                tmpShare = tmpItem.split(':')[-1]
+                for tmpStr in tmpItem.split(':'):
+                    if tmpStr.startswith('type='):
+                        tmpType = tmpStr.split('=')[-1]
+                    elif tmpStr.startswith('group='):
+                        tmpGroup = tmpStr.split('=')[-1]
+                # check matching for type
+                if not tmpType in ['any',None]:
+                    if '*' in tmpType:
+                        tmpType = tmpType.replace('*','.*')
+                    # type mismatch
+                    if re.search('^'+tmpType+'$',tmpProGroup) == None:
+                        continue
+                # check matching for group
+                if not tmpGroup in ['any',None] and taskSpec.workingGroup != None:
+                    if '*' in tmpGroup:
+                        tmpGroup = tmpGroup.replace('*','.*')
+                    # group mismatch
+                    if re.search('^'+tmpGroup+'$',taskSpec.workingGroup) == None:
+                        continue
+                # check share
+                tmpShare = tmpItem.split(':')[-1]
+                if tmpShare in ['0','0%']:
+                    return True
+                else:
+                    return False
+    except:
+        errtype,errvalue = sys.exc_info()[:2]
+        tmpLog.error('hasZeroShare failed with {0}:{1}'.format(errtype,errvalue))
     # return
     return False
 

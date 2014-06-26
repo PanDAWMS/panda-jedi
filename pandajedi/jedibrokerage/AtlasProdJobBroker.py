@@ -171,7 +171,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check at the site
-            if AtlasBrokerUtils.hasZeroShare(tmpSiteSpec,taskSpec.workQueue_ID):
+            if AtlasBrokerUtils.hasZeroShare(tmpSiteSpec,taskSpec,tmpLog):
                 tmpLog.debug('  skip {0} due to zero share'.format(tmpSiteName))
                 continue
             newScanSiteList.append(tmpSiteName)                

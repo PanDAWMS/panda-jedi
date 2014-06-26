@@ -1,5 +1,8 @@
 Release Note
 
+* 6/26/2014
+  * changed AtlasProdJobBroker to work with old fairsharepolicy format
+
 * 6/25/2014
   * added support for multiple consumers
 
