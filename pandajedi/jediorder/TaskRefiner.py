@@ -184,8 +184,8 @@ class TaskRefinerThread (WorkerThread):
                                 else:
                                     # parent is corrupted
                                     tmpStat = Interaction.SC_FAILED
-                                    tmpErrStr = 'parent task {0} was not completed.'.format(parent_tid)
-                                    taskSpec.setErrDiag(tmpErrStr)
+                                    tmpErrStr = 'parent task {0} failed to complete'.format(parent_tid)
+                                    impl.taskSpec.setErrDiag(tmpErrStr)
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
                                 errStr = 'failed to check parent task with {0}:{1}'.format(errtype.__name__,errvalue)

@@ -5285,6 +5285,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
+            retVal = None
             sql = "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI) 
             sql += "WHERE jediTaskID=:jediTaskID "
             varMap = {}
@@ -5298,7 +5299,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
-            retVal = False
             if resTK == None:
                 tmpLog.error('parent not found')
                 # set 1 (running) just in case
@@ -5312,7 +5312,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     retVal = 0
                 elif taskStatus in ['broken','aborted','failed']:
                     # parent is corrupted
-                    retVal = False
+                    retVal = 2
                 else:
                     # parent is running
                     retVal = 1
@@ -5325,7 +5325,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return False
+            return retVal
 
 
 
