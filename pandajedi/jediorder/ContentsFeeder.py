@@ -221,7 +221,7 @@ class ContentsFeederThread (WorkerThread):
                                                 nPFN = 1
                                             tmpRet = {}
                                             for iPFN in range(nPFN):
-                                                tmpRet[str(uuid.uuid4())] = {'lfn':'{0:06d}'.format(iPFN),
+                                                tmpRet[str(uuid.uuid4())] = {'lfn':'{0:06d}:{1}'.format(iPFN,taskParamMap['pfnList'][iPFN].split('/')[-1]),
                                                                              'scope':None,
                                                                              'filesize':0,
                                                                              'checksum':None,

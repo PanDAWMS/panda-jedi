@@ -299,8 +299,8 @@ class JobGeneratorThread (WorkerThread):
                     # submit
                     if readyToSubmitJob:
                         # submit
-                        tmpLog.info('submit jobs')
                         fqans = taskSpec.makeFQANs()
+                        tmpLog.info('submit jobs with FQAN={0}'.format(','.join(str(fqan) for fqan in fqans)))
                         resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,
                                                                 fqans=fqans,toPending=True)
                         pandaIDs = []
@@ -893,7 +893,7 @@ class JobGeneratorThread (WorkerThread):
                 streamName = 'IN'
                 tmpPFNs = []
                 for tmpLFN in tmpLFNs:
-                    tmpPFN = taskParamMap['pfnList'][long(tmpLFN)]
+                    tmpPFN = taskParamMap['pfnList'][long(tmpLFN.split(':')[0])]
                     tmpPFNs.append(tmpPFN)
                 tmpLFNs = tmpPFNs
             # add

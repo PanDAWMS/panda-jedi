@@ -4,6 +4,11 @@ try:
 except:
     testTaskType = 'test'
 
+try:
+    vo = sys.argv[2]
+except:
+    vo = 'atlas'
+
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 
 tbIF = JediTaskBufferInterface()
@@ -22,5 +27,5 @@ parent_conn, child_conn = multiprocessing.Pipe()
 
 contentsFeeder = multiprocessing.Process(target=ContentsFeeder.launcher,
                                                 args=(child_conn,tbIF,ddmIF,
-                                                      'atlas',testTaskType))
+                                                      vo,testTaskType))
 contentsFeeder.start()

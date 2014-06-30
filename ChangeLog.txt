@@ -1,6 +1,8 @@
 Release Note
 
 * 6/30/2014
+  * added vo info to FQAN list when submtting jobs
+  * using basename as LFN for useListPFN
   * added ticketID and ticketSystemType
   * fixed Booster in AtlasProdWatchDog
 

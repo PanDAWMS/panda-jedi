@@ -641,8 +641,12 @@ class JediTaskSpec(object):
     # make VOMS FQANs
     def makeFQANs(self):
         # no working group
-        if self.workingGroup == None:
-            return []
-        fqan = '/{0}/{1}/Role=production'.format(self.vo,self.workingGroup)
+        if self.workingGroup != None:
+            fqan = '/{0}/{1}/Role=production'.format(self.vo,self.workingGroup)
+        else:
+            if self.vo != None: 
+                fqan = '/{0}/Role=NULL'.format(self.vo)
+            else:
+                return []
         # return
         return [fqan]
