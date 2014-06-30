@@ -69,6 +69,10 @@ class TaskRefinerBase (object):
             taskSpec.workingGroup = taskParamMap['workingGroup']
         if taskParamMap.has_key('countryGroup'):
             taskSpec.countryGroup = taskParamMap['countryGroup']
+        if taskParamMap.has_key('ticketID'):
+            taskSpec.ticketID = taskParamMap['ticketID']
+        if taskParamMap.has_key('ticketSystenType'):
+            taskSpec.ticketSystemType = taskParamMap['ticketSystemType']
         if taskParamMap.has_key('reqID'):
             taskSpec.reqID = taskParamMap['reqID']
         else:

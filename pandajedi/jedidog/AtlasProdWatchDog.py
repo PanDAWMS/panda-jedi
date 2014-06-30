@@ -47,15 +47,32 @@ class AtlasProdWatchDog (WatchDogBase):
         # loop over all work queues
         for workQueue in workQueueList:
             gTmpLog.debug('start workQueue={0}'.format(workQueue.queue_name))
-            # get tasks
+            # get tasks to be boosted
             taskVarList = self.taskBufferIF.getTasksWithCriteria_JEDI(self.vo,self.prodSourceLabel,['running'],
                                                                       taskCriteria={'workQueue_ID':workQueue.queue_id},
-                                                                      datasetCriteria={'masterID':None},
+                                                                      datasetCriteria={'masterID':None,'type':['input','pseudo_input']},
                                                                       taskParamList=['jediTaskID','taskPriority','currentPriority'],
                                                                       datasetParamList=['nFiles','nFilesUsed','nFilesTobeUsed',
                                                                                         'nFilesFinished','nFilesFailed'])
+            boostedPrio = 900
+            toBoostRatio = 0.9 
             for taskParam,datasetParam in taskVarList:
-                pass
+                jediTaskID = taskParam['jediTaskID']
+                taskPriority = taskParam['taskPriority']
+                currentPriority = taskParam['currentPriority']
+                # high enough
+                if currentPriority >= boostedPrio:
+                    continue
+                nFiles = datasetParam['nFiles']
+                nFilesFinished = datasetParam['nFilesFinished']
+                nFilesFailed = datasetParam['nFilesFailed']
+                gTmpLog.info('jediTaskID={0} nFiles={1} nFilesFinishedFailed={2}'.format(jediTaskID,nFiles,nFilesFinished+nFilesFailed))
+                try:
+                    if float(nFilesFinished+nFilesFailed) / float(nFiles) >= toBoostRatio:
+                        gTmpLog.info('>>> boost jediTaskID={0}'.format(jediTaskID))
+                        self.taskBufferIF. changeTaskPriorityPanda(jediTaskID,boostedPrio)
+                except:
+                    pass
 
 
         

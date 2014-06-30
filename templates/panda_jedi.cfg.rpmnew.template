@@ -204,8 +204,8 @@ loopCycle = 60
 [watchdog]
 
 # interface config
-#modConfig = atlas:test:pandajedi.jedidog.AtlasProdWatchDog:AtlasProdWatchDog,atlas:user:pandajedi.jedidog.AtlasAnalWatchDog:AtlasAnalWatchDog,vo_example:any:pandajedi.jedidog.GenWatchDog:GenWatchDog
-modConfig = atlas:test:pandajedi.jedidog.AtlasProdWatchDog:AtlasProdWatchDog,atlas:user:pandajedi.jedidog.AtlasAnalWatchDog:AtlasAnalWatchDog
+#modConfig = atlas:managed|test:pandajedi.jedidog.AtlasProdWatchDog:AtlasProdWatchDog,atlas:user:pandajedi.jedidog.AtlasAnalWatchDog:AtlasAnalWatchDog,vo_example:any:pandajedi.jedidog.GenWatchDog:GenWatchDog
+modConfig = atlas:managed|test:pandajedi.jedidog.AtlasProdWatchDog:AtlasProdWatchDog,atlas:user:pandajedi.jedidog.AtlasAnalWatchDog:AtlasAnalWatchDog
 
 # process config
 procConfig = ::1

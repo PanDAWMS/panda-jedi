@@ -1,5 +1,9 @@
 Release Note
 
+* 6/30/2014
+  * added ticketID and ticketSystemType
+  * fixed Booster in AtlasProdWatchDog
+
 * 6/27/2014
   * fixed TaskRefiner to properly tasks when parent task failed to complete
 

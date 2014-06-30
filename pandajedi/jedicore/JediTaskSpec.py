@@ -18,7 +18,7 @@ class JediTaskSpec(object):
         'ramCount','ramUnit','ioIntensity','ioIntensityUnit',
         'workQueue_ID','progress','failureRate','errorDialog',
         'reqID','oldStatus','cloud','site','countryGroup','parent_tid',
-        'eventService'
+        'eventService','ticketID','ticketSystemType'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()

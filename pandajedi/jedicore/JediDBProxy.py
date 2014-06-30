@@ -6,7 +6,6 @@ import numpy
 import datetime
 import cx_Oracle
 
-
 from pandajedi.jediconfig import jedi_config
 
 from pandaserver import taskbuffer
@@ -5235,13 +5234,27 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
             for tmpKey,tmpVal in taskCriteria.iteritems():
-                if tmpVal != None:
+                if isinstance(tmpVal,list):
+                    sqlRT += "AND tabT.{0} IN (".format(tmpKey)
+                    for tmpValItem in tmpVal:
+                        sqlRT += ":{0}_{1},".format(tmpKey,tmpValItem)
+                        varMap[':{0}_{1}'.format(tmpKey,tmpValItem)] = tmpValItem
+                    sqlRT = sqlRT[:-1]   
+                    sqlRT += ") "
+                elif tmpVal != None:
                     sqlRT += "AND tabT.{0}=:{0} ".format(tmpKey)
                     varMap[':{0}'.format(tmpKey)] = tmpVal
                 else:
                     sqlRT += "AND tabT.{0} IS NULL ".format(tmpKey)
             for tmpKey,tmpVal in datasetCriteria.iteritems():
-                if tmpVal != None:
+                if isinstance(tmpVal,list):
+                    sqlRT += "AND tabD.{0} IN (".format(tmpKey)
+                    for tmpValItem in tmpVal:
+                        sqlRT += ":{0}_{1},".format(tmpKey,tmpValItem)
+                        varMap[':{0}_{1}'.format(tmpKey,tmpValItem)] = tmpValItem
+                    sqlRT = sqlRT[:-1]   
+                    sqlRT += ") "
+                elif tmpVal != None:
                     sqlRT += "AND tabD.{0}=:{0} ".format(tmpKey)
                     varMap[':{0}'.format(tmpKey)] = tmpVal
                 else:
