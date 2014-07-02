@@ -1,5 +1,8 @@
 Release Note
 
+* 7/2/2014
+  * implemented to process dependent tasks before parent is completed
+
 * 6/30/2014
   * added vo info to FQAN list when submtting jobs
   * using basename as LFN for useListPFN

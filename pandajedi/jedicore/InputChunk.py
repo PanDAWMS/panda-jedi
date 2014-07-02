@@ -439,3 +439,11 @@ class InputChunk:
             returnList.append((tmpDatasetSpec,tmpRetList))
         # return
         return returnList
+
+
+
+    # check if master is mutable
+    def isMutableMaster(self):
+        if self.masterDataset != None and self.masterDataset.state == 'mutable':
+            return True
+        return False

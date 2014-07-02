@@ -104,6 +104,7 @@ class ContentsFeederThread (WorkerThread):
                     allUpdated = True
                     taskBroken = False
                     taskOnHold = False
+                    runningTask = False
                     missingMap = {}
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(jediTaskID))
@@ -144,6 +145,12 @@ class ContentsFeederThread (WorkerThread):
                             taskBroken = True
                     else:
                         xmlConfig = None
+                    # check no wait
+                    noWaitParent = False
+                    if taskSpec.noWaitParent() and not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
+                        tmpStat = self.taskBufferIF.checkParentTask_JEDI(taskSpec.parent_tid)
+                        if tmpStat == 'running':
+                            noWaitParent = True
                     # loop over all datasets
                     nFilesMaster = 0
                     if not taskBroken:
@@ -163,6 +170,10 @@ class ContentsFeederThread (WorkerThread):
                                 else:
                                     # dummy metadata for pseudo dataset
                                     tmpMetadata = {'state':'closed'}
+                                # set mutable when parent is running and the dataset is open
+                                if noWaitParent and tmpMetadata['state'] == 'open':
+                                    # dummy metadata when parent is running
+                                    tmpMetadata = {'state':'mutable'}
                                 gotMetadata = True
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
@@ -296,7 +307,7 @@ class ContentsFeederThread (WorkerThread):
                                                         nMaxFiles = int(math.ceil(nMaxFiles))
                                     # use scout
                                     useScout = False    
-                                    if datasetSpec.isMaster() and not taskParamMap.has_key('skipScout'):
+                                    if datasetSpec.isMaster() and taskSpec.useScout():
                                         useScout = True
                                     # use files with new attempt numbers    
                                     useFilesWithNewAttemptNr = False
@@ -321,7 +332,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               nFilesForScout,
                                                                                                                               includePatt,
                                                                                                                               excludePatt,
-                                                                                                                              xmlConfig)
+                                                                                                                              xmlConfig,
+                                                                                                                              noWaitParent)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))
@@ -351,12 +363,21 @@ class ContentsFeederThread (WorkerThread):
                                         # number of master input files
                                         if datasetSpec.isMaster():
                                             nFilesMaster += nFilesUnique
-                    # no mater input
+                                    # running task
+                                    if diagMap['isRunningTask']:
+                                        runningTask = True
+                                    # no activated pending input for noWait
+                                    if noWaitParent and diagMap['nActivatedPending'] == 0:
+                                        tmpErrStr = 'insufficient inputs are ready'
+                                        tmpLog.info(tmpErrStr)
+                                        taskSpec.setErrDiag(tmpErrStr)
+                                        taskOnHold = True
+                     # no mater input
                     if not taskOnHold and not taskBroken and allUpdated and nFilesMaster == 0:
                         tmpErrStr = 'no master input files. input dataset is empty'
                         tmpLog.error(tmpErrStr)
                         taskSpec.setErrDiag(tmpErrStr,None)
-                        if taskSpec.allowEmptyInput():
+                        if taskSpec.allowEmptyInput() or noWaitParent:
                             taskOnHold = True
                         else:
                             taskBroken = True
@@ -366,34 +387,37 @@ class ContentsFeederThread (WorkerThread):
                         taskSpec.status = 'tobroken'
                         tmpLog.info('set taskStatus={0}'.format(taskSpec.status))
                         allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
-                    elif taskOnHold:
-                        # initialize task generator
-                        taskGenerator = TaskGenerator(taskSpec.vo,taskSpec.prodSourceLabel)
-                        tmpStat = taskGenerator.initializeMods(self.taskBufferIF,
-                                                               self.ddmIF.getInterface(taskSpec.vo))
-                        if not tmpStat:
-                            tmpErrStr = 'failed to initialize TaskGenerator'
-                            tmpLog.error(tmpErrStr)
-                            taskSpec.status = 'tobroken'
-                            taskSpec.setErrDiag(tmpErrStr)
-                        else:
-                            # make parent tasks if necessary
-                            tmpLog.info('make parent tasks with {0} (if necessary)'.format(taskGenerator.getClassName(taskSpec.vo,
-                                                                                                                      taskSpec.prodSourceLabel)))
-                            tmpStat = taskGenerator.doGenerate(taskSpec,taskParamMap,missingFilesMap=missingMap)
-                            if tmpStat == Interaction.SC_FATAL:
-                                # failed to make parent tasks
-                                taskSpec.status = 'tobroken'
-                                tmpLog.error('failed to make parent tasks')
-                        # go to pending state
-                        if not taskSpec.status in ['broken','tobroken']:
-                            taskSpec.setOnHold()
-                        tmpLog.info('set taskStatus={0}'.format(taskSpec.status))
-                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
-                    elif allUpdated:
-                        # all OK
-                        tmpLog.info('set taskStatus=ready or assigning')
-                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID)
+                    # change task status unless the task is running
+                    if not runningTask:
+                        if taskOnHold:
+                            if not noWaitParent:
+                                # initialize task generator
+                                taskGenerator = TaskGenerator(taskSpec.vo,taskSpec.prodSourceLabel)
+                                tmpStat = taskGenerator.initializeMods(self.taskBufferIF,
+                                                                       self.ddmIF.getInterface(taskSpec.vo))
+                                if not tmpStat:
+                                    tmpErrStr = 'failed to initialize TaskGenerator'
+                                    tmpLog.error(tmpErrStr)
+                                    taskSpec.status = 'tobroken'
+                                    taskSpec.setErrDiag(tmpErrStr)
+                                else:
+                                    # make parent tasks if necessary
+                                    tmpLog.info('make parent tasks with {0} (if necessary)'.format(taskGenerator.getClassName(taskSpec.vo,
+                                                                                                                              taskSpec.prodSourceLabel)))
+                                    tmpStat = taskGenerator.doGenerate(taskSpec,taskParamMap,missingFilesMap=missingMap)
+                                    if tmpStat == Interaction.SC_FATAL:
+                                        # failed to make parent tasks
+                                        taskSpec.status = 'tobroken'
+                                        tmpLog.error('failed to make parent tasks')
+                            # go to pending state
+                            if not taskSpec.status in ['broken','tobroken']:
+                                taskSpec.setOnHold()
+                            tmpLog.info('set taskStatus={0}'.format(taskSpec.status))
+                            allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
+                        elif allUpdated:
+                            # all OK
+                            tmpLog.info('set taskStatus=ready or assigning')
+                            allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID)
                     tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]

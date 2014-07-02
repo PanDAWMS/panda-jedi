@@ -4,6 +4,7 @@ import datetime
 
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
+from pandajedi.jedicore import JediException
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.FactoryBase import FactoryBase
 from pandajedi.jedirefine import RefinerUtils
@@ -113,7 +114,7 @@ class TaskRefinerThread (WorkerThread):
                 # loop over all tasks
                 for jediTaskID,splitRule,taskStatus,parent_tid in taskList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'jediTaskID={0}'.format(jediTaskID))
+                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(jediTaskID))
                     tmpLog.info('start')
                     tmpStat = Interaction.SC_SUCCEEDED
                     errStr = ''
@@ -162,25 +163,29 @@ class TaskRefinerThread (WorkerThread):
                             tmpLog.error(errStr)
                             tmpStat = Interaction.SC_FAILED
                     # check parent
+                    noWaitParent = False
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         if not parent_tid in [None,jediTaskID]:
                             tmpLog.info('check parent task')
                             try:
                                 tmpStat = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
-                                if tmpStat == 0:
+                                if tmpStat == 'completed':
                                     # parent is done
                                     tmpStat = Interaction.SC_SUCCEEDED
-                                elif tmpStat == 1:
-                                    # parent is running
-                                    errStr = 'pending until parent task {0} is done'.format(parent_tid)
-                                    impl.taskSpec.status = taskStatus
-                                    impl.taskSpec.setOnHold()
-                                    impl.taskSpec.setErrDiag(errStr)
-                                    # reset splitRule
-                                    impl.taskSpec.splitRule = splitRule
-                                    tmpLog.info(errStr)
-                                    self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
-                                    continue
+                                elif tmpStat == 'running':
+                                    if not impl.taskSpec.noWaitParent():
+                                        # parent is running
+                                        errStr = 'pending until parent task {0} is done'.format(parent_tid)
+                                        impl.taskSpec.status = taskStatus
+                                        impl.taskSpec.setOnHold()
+                                        impl.taskSpec.setErrDiag(errStr)
+                                        tmpLog.info(errStr)
+                                        self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
+                                        continue
+                                    else:
+                                        # not wait for parent
+                                        tmpStat = Interaction.SC_SUCCEEDED
+                                        noWaitParent = True
                                 else:
                                     # parent is corrupted
                                     tmpStat = Interaction.SC_FAILED
@@ -198,9 +203,18 @@ class TaskRefinerThread (WorkerThread):
                             tmpStat = impl.doRefine(jediTaskID,taskParamMap)
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
-                            errStr = 'failed to refine task with {0}:{1}'.format(errtype.__name__,errvalue)
-                            tmpLog.error(errStr)
-                            tmpStat = Interaction.SC_FAILED
+                            # no wait for parent
+                            if impl.taskSpec.noWaitParent() and errtype == JediException.UnknownDatasetError:
+                                impl.taskSpec.status = taskStatus
+                                impl.taskSpec.setOnHold()
+                                errStr = 'pending until parent produces input'
+                                tmpLog.info(errStr)
+                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
+                                continue
+                            else:
+                                errStr = 'failed to refine task'
+                                tmpLog.error(errStr)
+                                tmpStat = Interaction.SC_FAILED
                     # register
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to refine the task')

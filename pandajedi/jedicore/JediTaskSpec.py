@@ -42,14 +42,16 @@ class JediTaskSpec(object):
         'limitedSites'       : 'LS',
         'loadXML'            : 'LX',
         'nMaxFilesPerJob'    : 'MF',
+        'mergeOutput'        : 'MO',
         'nEventsPerJob'      : 'NE',
         'nFilesPerJob'       : 'NF',
         'nGBPerJob'          : 'NG',
+        'noWaitParent'       : 'NW',
         'pfnList'            : 'PL',
         'randomSeed'         : 'RS',
         'useBuild'           : 'UB',
         'usePrePro'          : 'UP',
-        'mergeOutput'        : 'MO',
+        'useScout'           : 'US',
         }
     # enum for preprocessing
     enum_toPreProcess = '1'
@@ -59,6 +61,11 @@ class JediTaskSpec(object):
     enum_limitedSites = {'1' : 'inc',
                          '2' : 'exc',
                          '3' : 'incexc'}
+
+    # enum for scout
+    enum_noScout   = '1'
+    enum_useScout  = '2'
+    enum_postScout = '3'
 
 
 
@@ -294,6 +301,27 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # not wait for completion of parent 
+    def noWaitParent(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['noWaitParent']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # check splitRile if not wait for completion of parent 
+    def noWaitParentSL(cls,splitRule):
+        if splitRule != None:
+            tmpMatch = re.search(cls.splitRuleToken['noWaitParent']+'=(\d+)',splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+    noWaitParentSL = classmethod(noWaitParentSL)
 
 
 
@@ -650,3 +678,46 @@ class JediTaskSpec(object):
                 return []
         # return
         return [fqan]
+
+
+
+    # set split rule
+    def setSplitRule(self,ruleName,ruleValue):
+        if self.splitRule == None:
+            # new
+            self.splitRule = self.splitRuleToken[ruleName]+'='+ruleValue
+        else:
+            tmpMatch = re.search(self.splitRuleToken[ruleName]+'=(\d+)',self.splitRule)
+            if tmpMatch == None:
+                # append
+                self.splitRule += ','+self.splitRuleToken[ruleName]+'='+ruleValue
+            else:
+                # replace
+                self.splitRule = re.sub(self.splitRuleToken[ruleName]+'=(\d+)',
+                                        self.splitRuleToken[ruleName]+'='+ruleValue,
+                                        self.splitRule)
+
+
+
+    # set to use scout
+    def setUseScout(self,useFlag):
+        if useFlag:
+            self.setSplitRule('useScout',self.enum_useScout)
+        else:
+            self.setSplitRule('useScout',self.enum_noScout)
+
+
+
+    # set post scout
+    def setPostScout(self):
+        self.setSplitRule('useScout',self.enum_postScout)
+
+
+
+    # use scout
+    def useScout(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useScout']+'=(\d+)',self.splitRule)
+            if tmpMatch != None and tmpMatch.group(1) == self.enum_useScout:
+                return True
+        return False

@@ -6,6 +6,7 @@ import types
 
 import RefinerUtils
 from pandajedi.jedicore import Interaction
+from pandajedi.jedicore import JediException
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediFileSpec import JediFileSpec
@@ -71,7 +72,7 @@ class TaskRefinerBase (object):
             taskSpec.countryGroup = taskParamMap['countryGroup']
         if taskParamMap.has_key('ticketID'):
             taskSpec.ticketID = taskParamMap['ticketID']
-        if taskParamMap.has_key('ticketSystenType'):
+        if taskParamMap.has_key('ticketSystemType'):
             taskSpec.ticketSystemType = taskParamMap['ticketSystemType']
         if taskParamMap.has_key('reqID'):
             taskSpec.reqID = taskParamMap['reqID']
@@ -97,6 +98,9 @@ class TaskRefinerBase (object):
             taskSpec.ramCount = taskParamMap['ramCount']
         else:
             taskSpec.ramCount = 0
+        # scout
+        if not taskParamMap.has_key('skipScout'):
+            taskSpec.setUseScout(True)
         # cloud
         if taskParamMap.has_key('cloud'):
             self.cloudName = taskParamMap['cloud']
@@ -138,6 +142,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,4,JediTaskSpec.splitRuleToken['groupBoundaryID'])
         if taskParamMap.has_key('pfnList'):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['pfnList'])
+        if taskParamMap.has_key('noWaitParent'):
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noWaitParent'])
         # return
         return
     
@@ -247,7 +253,7 @@ class TaskRefinerBase (object):
                     if inDatasetSpecList == []:
                         errStr = 'doBasicRefine : unknown input dataset "{0}"'.format(datasetSpec.datasetName)
                         self.taskSpec.setErrDiag(errStr)
-                        raise NameError,errStr
+                        raise JediException.UnknownDatasetError,errStr
                     # set master flag
                     for inDatasetSpec in inDatasetSpecList:    
                         if nIn == 0:
@@ -479,7 +485,15 @@ class TaskRefinerBase (object):
         if self.taskSpec.splitRule in [None,'']:
             self.taskSpec.splitRule = tmpStr
         else:
-            self.taskSpec.splitRule += ',{0}'.format(tmpStr)
+            tmpMatch = re.search(valName+'=(\d+)',self.taskSpec.splitRule)
+            if tmpMatch == None:
+                # append
+                self.taskSpec.splitRule += ',{0}'.format(tmpStr)
+            else:
+                # replace
+                self.taskSpec.splitRule = re.sub(valName+'=(\d+)',
+                                                 tmpStr,
+                                                 self.taskSpec.splitRule)
         return    
 
 
