@@ -221,7 +221,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nFilesForScout,includePatt,excludePatt,
-                                   xmlConfig,noWaitParent):
+                                   xmlConfig,noWaitParent,parent_tid):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -238,7 +238,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                 nFilesForScout))
         tmpLog.debug('useScout={0} nFilesForScout={1}'.format(useScout,nFilesForScout))
         tmpLog.debug('includePatt={0} excludePatt={1}'.format(str(includePatt),str(excludePatt)))
-        tmpLog.debug('xmlConfig={0} noWaitParent={1}'.format(type(xmlConfig),noWaitParent))
+        tmpLog.debug('xmlConfig={0} noWaitParent={1} parent_tid={2}'.format(type(xmlConfig),noWaitParent,parent_tid))
         tmpLog.debug('len(fileMap)={0}'.format(len(fileMap)))
         # return value for failure
         diagMap = {'errMsg':'',
@@ -254,8 +254,39 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         else:
             isMutableDataset = False
         try:
-            # current current date
+            # current date
             timeNow = datetime.datetime.utcnow()
+            # get list of files produced by parent
+            if datasetSpec.checkConsistency():
+                # sql to get the list
+                sqlPPC  = "SELECT lfn FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
+                sqlPPC += "WHERE tabD.jediTaskID=tabC.jediTaskID AND tabD.datasetID=tabC.datasetID "
+                sqlPPC += "AND tabD.jediTaskID=:jediTaskID AND tabD.type IN (:type1,:type2) "
+                sqlPPC += "AND tabD.datasetName=:datasetName AND tabC.status=:fileStatus"
+                varMap = {}
+                varMap[':type1'] = 'output'
+                varMap[':type2'] = 'log'
+                varMap[':jediTaskID']  = parent_tid
+                varMap[':fileStatus']  = 'finished'
+                varMap[':datasetName'] = datasetSpec.datasetName
+                # begin transaction
+                self.conn.begin()
+                self.cur.execute(sqlPPC+comment,varMap)
+                tmpPPC = self.cur.fetchall()
+                producedFileList = []
+                for tmpLFN, in tmpPPC:
+                    producedFileList.append(tmpLFN)
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+                # check if files are 'finished' in JEDI table
+                newFileMap = {}
+                for guid,fileVal in fileMap.iteritems():
+                    if fileVal['lfn'] in producedFileList:
+                        newFileMap[guid] = fileVal
+                    else:
+                        tmpLog.debug('{0} skipped since was not properly produced by the parent according to JEDI table'.format(fileVal['lfn']))
+                fileMap = newFileMap
             # include files
             if includePatt != []:
                 newFileMap = {}

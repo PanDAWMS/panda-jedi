@@ -227,6 +227,15 @@ class JediDatasetSpec(object):
 
 
 
+    # check if consistency is checked
+    def checkConsistency(self):
+        if self.attributes != None and 'cc' in self.attributes.split(','):
+            return True
+        else:
+            return False
+
+
+
     # check if it is pseudo
     def isPseudo(self):
         if self.datasetName == 'pseudo_dataset' \
@@ -248,7 +257,8 @@ class JediDatasetSpec(object):
 
     # check if duplicated files are used
     def useDuplicatedFiles(self):
-        if self.attributes != None and 'usedup' in self.attributes:
+        if self.attributes != None and ('usedup' in self.attributes or \
+                                            'ud' in  self.attributes.split(',')):
             return True
         else:
             return False

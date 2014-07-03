@@ -333,7 +333,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               includePatt,
                                                                                                                               excludePatt,
                                                                                                                               xmlConfig,
-                                                                                                                              noWaitParent)
+                                                                                                                              noWaitParent,
+                                                                                                                              taskSpec.parent_tid)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))

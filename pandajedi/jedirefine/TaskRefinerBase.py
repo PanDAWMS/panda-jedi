@@ -198,6 +198,10 @@ class TaskRefinerBase (object):
                     datasetSpec.setDatasetAttribute(tmpItem['attributes'])
                 if tmpItem.has_key('ratio'):
                     datasetSpec.setDatasetAttribute('ratio={0}'.format(tmpItem['ratio']))
+                if tmpItem.has_key('check'):
+                    datasetSpec.setDatasetAttribute('cc')
+                if tmpItem.has_key('usedup'):
+                    datasetSpec.setDatasetAttribute('ud')
                 if tmpItem.has_key('offset'):
                     datasetSpec.setOffset(tmpItem['offset'])
                 if tmpItem.has_key('nFilesPerJob'):
