@@ -4986,7 +4986,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDS += "(SELECT destination,CASE WHEN {0}>={1} THEN {2} ".format(field,cutoff,maxWeight)
             sqlDS += "ELSE ROUND({0}/{1}*{2},2) END AS {0} ".format(field,cutoff,maxWeight)
             sqlDS += "FROM {0}.sites_matrix_data tabM, {0}.schedconfig tabS ".format(jedi_config.db.schemaMETA)
-            sqlDS += "WHERE source=:source AND tabM.source=tabS.siteid "
+            sqlDS += "WHERE source=:source AND tabM.destination=tabS.siteid "
             sqlDS += "AND wansinklimit IS NOT NULL AND wansinklimit<>0 "
             sqlDS += "AND {0} IS NOT NULL AND {0}>:threshold ORDER BY {0} DESC) ".format(field)
             sqlDS += "WHERE rownum<=:nSites"
