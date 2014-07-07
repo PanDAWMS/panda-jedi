@@ -1,5 +1,8 @@
 Release Note
 
+* 7/7/2014
+  * changed CF to remove list files
+
 * 7/3/2014
   * added consistency check for input datasets
 

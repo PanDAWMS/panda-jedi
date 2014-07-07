@@ -897,3 +897,73 @@ class AtlasDDMClient(DDMClientBase):
             return errCode,'{0} : {1}'.format(methodName,errMsg)
         tmpLog.info('done')
         return self.SC_SUCCEEDED,True
+
+
+
+    # find lost files
+    def findLostFiles(self,datasetName,fileMap):
+        methodName = 'findLostFiles'
+        methodName += ' <datasetName={0}>'.format(datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.info('start')
+        try:
+            # get replicas
+            tmpStat,tmpOut = self.listDatasetReplicas(datasetName)
+            if tmpStat != self.SC_SUCCEEDED:
+                tmpLog.error('faild to get dataset replicas with {0}'.format(tmpOut))
+                raise tmpStat,tmpOut
+            # check if complete replica is available
+            hasCompReplica = False
+            datasetReplicaMap = tmpOut
+            for tmpEndPoint in datasetReplicaMap.keys():
+                if datasetReplicaMap[tmpEndPoint][-1]['found'] != None and \
+                        datasetReplicaMap[tmpEndPoint][-1]['total'] == datasetReplicaMap[tmpEndPoint][-1]['found']:
+                    hasCompReplica = True
+                    break
+            # no lost files
+            if hasCompReplica:
+                tmpLog.info('done with no lost files')
+                self.SC_SUCCEEDED,{}
+            # get LFNs and scopes
+            lfnMap = {}
+            scopeMap = {}
+            for tmpGUID in fileMap.keys():
+                tmpLFN = fileMap[tmpGUID]['lfn']
+                lfnMap[tmpGUID] = tmpLFN
+                scopeMap[tmpLFN] = fileMap[tmpGUID]['scope']
+            # get LFC and SE
+            lfcSeMap = {}
+            for tmpEndPoint in datasetReplicaMap.keys():
+                # get LFC
+                lfc = TiersOfATLAS.getLocalCatalog(tmpEndPoint)
+                # add map
+                if not lfcSeMap.has_key(lfc):
+                    lfcSeMap[lfc] = []
+                # get SE
+                seStr = TiersOfATLAS.getSiteProperty(tmpEndPoint, 'srm')
+                tmpMatch = re.search('://([^:/]+):*\d*/',seStr)
+                if tmpMatch != None:
+                    se = tmpMatch.group(1)
+                    if not se in lfcSeMap[lfc]:
+                        lfcSeMap[lfc].append(se)
+            # get SURLs
+            for lfcHost,seList in lfcSeMap.iteritems():
+                tmpStat,tmpRetMap = self.getSURLsFromLFC(lfnMap,lfcHost,seList,scopes=scopeMap)
+                if tmpStat != self.SC_SUCCEEDED:
+                    tmpLog.error('faild to get SURLs with {0}'.format(tmpRetMap))
+                    raise tmpStat,tmpRetMap
+                # look for missing files
+                newLfnMap = {}
+                for tmpGUID,tmpLFN in lfnMap.iteritems():
+                    if not tmpLFN in tmpRetMap:
+                        newLfnMap[tmpGUID] = tmpLFN
+                lfnMap = newLfnMap
+            tmpLog.info('done with lost '+','.join(str(tmpLFN) for tmpLFN in lfnMap.values()))
+            return self.SC_SUCCEEDED,lfnMap
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
+    

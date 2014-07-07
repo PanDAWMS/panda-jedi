@@ -159,7 +159,7 @@ class ContentsFeederThread (WorkerThread):
                         if taskParamMap.has_key('nFiles'):
                             origNumFiles = taskParamMap['nFiles']
                         for datasetSpec in dsList:
-                            tmpLog.info('start for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))
+                            tmpLog.info('start loop for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))
                             # get dataset metadata
                             tmpLog.info('get metadata')
                             gotMetadata = False
@@ -177,8 +177,8 @@ class ContentsFeederThread (WorkerThread):
                                 gotMetadata = True
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
-                                tmpLog.error('{0} failed due get metadata to {1}:{2}'.format(self.__class__.__name__,
-                                                                                             errtype.__name__,errvalue))
+                                tmpLog.error('{0} failed to get metadata to {1}:{2}'.format(self.__class__.__name__,
+                                                                                            errtype.__name__,errvalue))
                                 if errtype == Interaction.JEDIFatalError:
                                     # fatal error
                                     datasetStatus = 'broken'
@@ -207,14 +207,20 @@ class ContentsFeederThread (WorkerThread):
                                         if fileList != [] and taskParamMap.has_key('useInFilesInContainer') and \
                                                 not datasetSpec.containerName in ['',None]:
                                             # read files from container if file list is specified in task parameters
-                                            tmpRet = ddmIF.getFilesInDataset(datasetSpec.containerName,
-                                                                             getNumEvents=getNumEvents,
-                                                                             skipDuplicate=skipDuplicate
-                                                                             )
+                                            tmpDatasetName = datasetSpec.containerName
                                         else:
-                                            tmpRet = ddmIF.getFilesInDataset(datasetSpec.datasetName,
-                                                                             getNumEvents=getNumEvents,
-                                                                             skipDuplicate=skipDuplicate)
+                                            tmpDatasetName = datasetSpec.datasetName
+                                        tmpRet = ddmIF.getFilesInDataset(tmpDatasetName,
+                                                                         getNumEvents=getNumEvents,
+                                                                         skipDuplicate=skipDuplicate
+                                                                         )
+                                        # remove lost files
+                                        tmpLostFiles = ddmIF.findLostFiles(tmpDatasetName,tmpRet)
+                                        if tmpLostFiles != {}:
+                                            tmpLog.info('found {0} lost files in {1}'.format(len(tmpLostFiles),tmpDatasetName))
+                                            for tmpListGUID,tmpLostLFN in tmpLostFiles.iteritems():
+                                                tmpLog.info('removed {0}'.format(tmpLostLFN))
+                                                del tmpRet[tmpListGUID]
                                     else:
                                         if not taskSpec.useListPFN():
                                             # dummy file list for pseudo dataset
@@ -373,6 +379,7 @@ class ContentsFeederThread (WorkerThread):
                                         tmpLog.info(tmpErrStr)
                                         taskSpec.setErrDiag(tmpErrStr)
                                         taskOnHold = True
+                            tmpLog.info('end loop')
                      # no mater input
                     if not taskOnHold and not taskBroken and allUpdated and nFilesMaster == 0:
                         tmpErrStr = 'no master input files. input dataset is empty'

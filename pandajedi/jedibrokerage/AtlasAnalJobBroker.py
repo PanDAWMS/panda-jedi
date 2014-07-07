@@ -539,6 +539,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
                         siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
                         isAvailable = True
+                    else:
+                        tmpLog.debug('{0} is incompete at {1} : nFiles={2} nLocal={3} nCached={4}'.format(tmpDatasetName,
+                                                                                                          tmpSiteName,
+                                                                                                          len(tmpDatasetSpec.Files),
+                                                                                                          len(availableFiles[tmpSiteName]['localdisk']),
+                                                                                                          len(availableFiles[tmpSiteName]['cache'])))
                 if not isAvailable:
                     break
             # append
