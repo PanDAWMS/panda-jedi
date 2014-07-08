@@ -880,3 +880,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # kill child tasks
+    def killChildTasks_JEDI(self,jediTaskID,taskStatus):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.killChildTasks_JEDI(jediTaskID,taskStatus)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

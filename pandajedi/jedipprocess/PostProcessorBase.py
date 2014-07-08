@@ -85,7 +85,10 @@ class PostProcessorBase (object):
         # update task
         self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
                                           updateDEFT=True)    
-        tmpLog.info('doBasicPostProcess set taskStatus={0}'.format(taskSpec.status))
+        # kill child tasks
+        if taskSpec.status in ['failed','broken','aborted']:
+            self.taskBufferIF.killChildTasks_JEDI(taskSpec.jediTaskID,taskSpec.status)
+        tmpLog.info('doBasicPostProcess done with taskStatus={0}'.format(taskSpec.status))
         return
 
 

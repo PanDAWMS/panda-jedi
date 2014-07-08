@@ -1,5 +1,8 @@
 Release Note
 
+* 7/8/2014
+  * changed PP to kill child tasks when parent is killed/failed/broken
+
 * 7/7/2014
   * changed CF to remove list files
 

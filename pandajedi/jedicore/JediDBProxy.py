@@ -5622,3 +5622,60 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return []
+
+
+
+    # kill child tasks
+    def killChildTasks_JEDI(self,jediTaskID,taskStatus,useCommit=True):
+        comment = ' /* JediDBProxy.killChildTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        retTasks = []
+        try:
+            # sql to get tasks
+            sqlGT  = "SELECT jediTaskID,status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlGT += "WHERE parent_tid=:jediTaskID AND parent_tid<>jediTaskID "
+            # sql to change status
+            sqlCT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCT += "SET status=:status,errorDialog=:errorDialog "
+            sqlCT += "WHERE jediTaskID=:jediTaskID "
+            # begin transaction
+            if useCommit:
+                self.conn.begin()
+            # get tasks
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            self.cur.execute(sqlGT+comment,varMap)
+            resList = self.cur.fetchall()
+            for cJediTaskID,cTaskStatus in resList:
+                # no more changes
+                if cTaskStatus in JediTaskSpec.statusToRejectExtChange():
+                    continue
+                # change status
+                cTaskStatus = 'toabort'
+                varMap = {}
+                varMap[':jediTaskID'] = cJediTaskID
+                varMap[':status'] = cTaskStatus
+                varMap[':errorDialog'] = 'parent task is {0}'.format(taskStatus)
+                self.cur.execute(sqlCT+comment,varMap)
+                tmpLog.debug('set {0} to jediTaskID={1}'.format(cTaskStatus,cJediTaskID))
+                # kill child
+                tmpStat = self.killChildTasks_JEDI(cJediTaskID,cTaskStatus,useCommit=False)
+                if not tmpStat:
+                    raise RuntimeError, 'Failed to kill child tasks'
+            # commit
+            if useCommit:
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+            # return    
+            tmpLog.debug('done')
+            return True
+        except:
+            # roll back
+            if useCommit:
+                self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
