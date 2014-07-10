@@ -3067,7 +3067,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     duplicatedFlag = True
                     tmpErrStr += '{0},'.format(tmpJediTaskID)
                 if duplicatedFlag:
-                    taskSpec.status = 'aborted'
+                    taskSpec.status = 'toabort'
                     tmpErrStr = tmpErrStr[:-1]
                     tmpErrStr = '{0} since there is duplicated task -> jediTaskID={1}'.format(taskSpec.status,tmpErrStr)
                     taskSpec.setErrDiag(tmpErrStr)
@@ -4464,7 +4464,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # if timeout
                     if timeoutDate != None and creationDate < timeoutDate:
                         timeoutFlag = True
-                        varMap[':newStatus'] = 'timeout'
+                        varMap[':newStatus'] = 'toabort'
                         if errorDialog == None:
                             errorDialog = ''
                         else:

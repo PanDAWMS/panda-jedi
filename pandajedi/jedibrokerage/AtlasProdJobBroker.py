@@ -4,6 +4,7 @@ import sys
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
+from pandajedi.jedicore import JediCoreUtils
 from JobBrokerBase import JobBrokerBase
 import AtlasBrokerUtils
 
@@ -322,7 +323,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # selection for walltime
-        minWalltime = taskSpec.walltime
+        minWalltime = taskSpec.walltime * inputChunk.getMaxAtomSize(effectiveSize=True)
         if not minWalltime in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:

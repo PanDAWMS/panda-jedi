@@ -133,7 +133,7 @@ class InputChunk:
 
 
     # get maximum size of atomic subchunk
-    def getMaxAtomSize(self):
+    def getMaxAtomSize(self,effectiveSize=False):
         # number of files per job if defined
         nFilesPerJob = self.taskSpec.getNumFilesPerJob()
         if nFilesPerJob == None:
@@ -150,8 +150,14 @@ class InputChunk:
             # get size
             tmpAtomSize = 0
             for tmpDatasetSpec,tmpFileSpecList in subChunk:
+                if effectiveSize and not tmpDatasetSpec.isMaster():
+                    continue
                 for tmpFileSpec in tmpFileSpecList:
-                    tmpAtomSize += tmpFileSpec.fsize
+                    if effectiveSize:
+                        tmpAtomSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
+                                                                          tmpFileSpec.endEvent,tmpFileSpec.nEvents)
+                    else:
+                        tmpAtomSize += tmpFileSpec.fsize
             if maxAtomSize < tmpAtomSize:
                 maxAtomSize = tmpAtomSize
         # reset counters
