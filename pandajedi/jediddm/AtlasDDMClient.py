@@ -923,7 +923,7 @@ class AtlasDDMClient(DDMClientBase):
             # no lost files
             if hasCompReplica:
                 tmpLog.info('done with no lost files')
-                self.SC_SUCCEEDED,{}
+                return self.SC_SUCCEEDED,{}
             # get LFNs and scopes
             lfnMap = {}
             scopeMap = {}
