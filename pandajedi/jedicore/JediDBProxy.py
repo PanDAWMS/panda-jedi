@@ -5034,11 +5034,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start command={0}'.format(commStr))
-        updateTask = False
+        newTaskStatus = None
         # check command
         if not commStr in ['retry','incexec']:
             tmpLog.debug('unknown command={0}'.format(commStr))
-            return updateTask
+            return False,None
         try:
             # sql to retry files
             sqlRF  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
@@ -5051,7 +5051,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update task status
             sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlUT += " SET status=:status,oldStatus=NULL,modificationtime=CURRENT_DATE WHERE jediTaskID=:jediTaskID "
+            sqlUT += "SET status=:status,oldStatus=NULL,modificationtime=CURRENT_DATE,errorDialog=:errorDialog "
+            sqlUT += "WHERE jediTaskID=:jediTaskID "
             # start transaction
             self.conn.begin()
             self.cur.arraysize = 100000
@@ -5069,16 +5070,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # check task status
                 taskStatus,taskOldStatus = resTK
                 newTaskStatus = None
-                if taskOldStatus == 'finished' and commStr == 'retry':
+                newErrorDialog = None
+                if taskOldStatus == 'done' and commStr == 'retry':
                     # no retry for finished task
                     msgStr = 'no {0} for task in {1} status'.format(commStr,taskOldStatus)
                     tmpLog.debug(msgStr)
                     newTaskStatus = taskOldStatus
+                    newErrorDialog = msgStr
                 elif not taskOldStatus in ['finished','failed','done']:
                     # only tasks in a relevant final status 
                     msgStr = 'no {0} since not in relevant final status ({1})'.format(commStr,taskOldStatus)
                     tmpLog.debug(msgStr)
                     newTaskStatus = taskOldStatus
+                    newErrorDialog = msgStr
                 else:
                     # get input datasets
                     varMap = {}
@@ -5169,15 +5173,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
                         else:
                             # to to finalization since no files left in ready status
-                            tmpLog.debug('no {0} since no files left'.format(commStr))
+                            msgStr = 'no {0} since no files left'.format(commStr)
+                            tmpLog.debug(msgStr)
                             newTaskStatus = taskOldStatus
+                            newErrorDialog = msgStr
                     else:
                         # for incremental execution
                         newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
                 # update task
                 varMap = {}
-                varMap[':jediTaskID'] = jediTaskID
-                varMap[':status'] = newTaskStatus
+                varMap[':jediTaskID']  = jediTaskID
+                varMap[':status']      = newTaskStatus
+                varMap[':errorDialog'] = newErrorDialog
                 if newTaskStatus != taskOldStatus:
                     tmpLog.debug('set taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
                 else:
@@ -5188,13 +5195,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 raise RuntimeError, 'Commit error'
             # return
             tmpLog.debug("done")
-            return updateTask
+            return True,newTaskStatus
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return None
+            return None,None
 
 
 

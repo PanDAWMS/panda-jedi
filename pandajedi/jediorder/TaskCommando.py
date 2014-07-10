@@ -90,6 +90,8 @@ class TaskCommandoThread (WorkerThread):
         self.taskList = taskList
         self.taskBufferIF = taskbufferIF
         self.ddmIF = ddmIF
+        self.msgType = 'taskcommando'
+
 
 
     # main
@@ -171,7 +173,11 @@ class TaskCommandoThread (WorkerThread):
                                 tmpLog.error('failed to change task params with {0}:{1}'.format(errtype.__name__,errvalue))
                                 continue
                         # retry failed files
-                        tmpRet = self.taskBufferIF.retryTask_JEDI(jediTaskID,commandStr)
+                        tmpRet,newTaskStatus = self.taskBufferIF.retryTask_JEDI(jediTaskID,commandStr)
+                        if tmpRet == True:
+                            tmpMsg = 'set task.status={0}'.format(newTaskStatus)
+                            tmpLog.sendMsg(tmpMsg,self.msgType)
+                            tmpLog.info(tmpMsg)
                         tmpLog.info('done with {0}'.format(tmpRet))
                     else:
                         tmpLog.error('unknown command')

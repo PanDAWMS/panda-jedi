@@ -1,6 +1,7 @@
 Release Note
 
 * 7/10/2014
+  * fixed retryTask
   * changed status=timeout to aborted
   * fixed calculation for effective walltime
   * removed <> from http logging messages
