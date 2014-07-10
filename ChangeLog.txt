@@ -1,6 +1,7 @@
 Release Note
 
 * 7/10/2014
+  * removed <> from http logging messages
   * added refresh() to *Base
   * added http logging
   * changed to propagate aborting to DEFT

@@ -1,3 +1,4 @@
+import re
 import datetime
 from pandajedi.jediconfig import jedi_config
 from pandaserver.userinterface import Client
@@ -18,6 +19,11 @@ class MsgWrapper:
             self.monToken = self.token
         else:
             self.monToken = monToken
+        # remove <> for django
+        try:
+            self.monToken = re.sub('<(?P<name>[^>]+)>','\g<name>',self.monToken)
+        except:
+            pass
         # message buffer
         self.msgBuffer = []
         self.lineLimit = lineLimit
