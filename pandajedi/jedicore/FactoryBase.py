@@ -109,7 +109,7 @@ class FactoryBase:
 
 
     # get implementation for vo and sourceLabel. Only work with initializeMods()
-    def getImpl(self,vo,sourceLabel,subType='any'):
+    def getImpl(self,vo,sourceLabel,subType='any',doRefresh=True):
         # check VO
         if self.implMap.has_key(vo):
             # match VO
@@ -131,10 +131,16 @@ class FactoryBase:
         # check subType
         if srcImplMap.has_key(subType):
             # match subType
-            return srcImplMap[subType]
+            tmpImpl = srcImplMap[subType]
+            if doRefresh:
+                tmpImpl.refresh()
+            return tmpImpl
         elif srcImplMap.has_key('any'):
             # catch all
-            return srcImplMap['any']
+            tmpImpl = srcImplMap['any']
+            if doRefresh:
+                tmpImpl.refresh()
+            return tmpImpl
         else:
             return None
 
@@ -179,7 +185,7 @@ class FactoryBase:
                                                             
     # get class name of impl
     def getClassName(self,vo=None,sourceLabel=None):
-        impl = self.getImpl(vo,sourceLabel)
+        impl = self.getImpl(vo,sourceLabel,doRefresh=False)
         if impl == None:
             return None
         return impl.__class__.__name__

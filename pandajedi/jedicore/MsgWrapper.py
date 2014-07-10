@@ -1,16 +1,23 @@
 import datetime
+from pandajedi.jediconfig import jedi_config
 from pandaserver.userinterface import Client
+from pandacommon.pandalogger.PandaLogger import PandaLogger
 
 
 class MsgWrapper:
 
-    def __init__(self,logger,token=None,lineLimit=500):
+    def __init__(self,logger,token=None,lineLimit=500,monToken=None):
         self.logger = logger
         # use timestamp as token if undefined
         if token == None:
             self.token = "<{0}>".format(datetime.datetime.utcnow().isoformat('/'))
         else:
             self.token = token
+        # token for http logger
+        if monToken == None:
+            self.monToken = self.token
+        else:
+            self.monToken = monToken
         # message buffer
         self.msgBuffer = []
         self.lineLimit = lineLimit
@@ -64,3 +71,29 @@ class MsgWrapper:
         if o.startswith('http'):
             return '<a href="{0}">log</a>'.format(o)
         return o
+
+
+    # send message to logger
+    def sendMsg(self,message,msgType,msgLevel='info'):
+        try:
+            # get logger
+            tmpPandaLogger = PandaLogger()
+            # lock HTTP handler
+            tmpPandaLogger.lock()
+            tmpPandaLogger.setParams({'Type':msgType})
+            # get logger
+            tmpLogger = tmpPandaLogger.getHttpLogger(jedi_config.master.loggername)
+            # add message
+            message = self.monToken + ' ' + message
+            if msgLevel=='error':
+                tmpLogger.error(message)
+            elif msgLevel=='warning':
+                tmpLogger.warning(message)
+            elif msgLevel=='info':
+                tmpLogger.info(message)
+            else:
+                tmpLogger.debug(message)                
+            # release HTTP handler
+            tmpPandaLogger.release()
+        except:
+            pass

@@ -98,6 +98,8 @@ class TaskRefinerThread (WorkerThread):
         self.ddmIF = ddmIF
         self.implFactory = implFactory
         self.workQueueMapper = workQueueMapper
+        self.msgType = 'taskrefiner'
+
 
 
     # main
@@ -245,22 +247,25 @@ class TaskRefinerThread (WorkerThread):
                                 if impl.taskSpec.checkPreProcessed():
                                     impl.taskSpec.setPostPreProcess()
                                 # full registration
-                                tmpStat = self.taskBufferIF.registerTaskInOneShot_JEDI(jediTaskID,impl.taskSpec,
-                                                                                       impl.inMasterDatasetSpec,
-                                                                                       impl.inSecDatasetSpecList,
-                                                                                       impl.outDatasetSpecList,
-                                                                                       impl.outputTemplateMap,
-                                                                                       impl.jobParamsTemplate,
-                                                                                       strTaskParams,
-                                                                                       impl.unmergeMasterDatasetSpec,
-                                                                                       impl.unmergeDatasetSpecMap,
-                                                                                       uniqueTaskName) 
+                                tmpStat,newTaskStatus = self.taskBufferIF.registerTaskInOneShot_JEDI(jediTaskID,impl.taskSpec,
+                                                                                                     impl.inMasterDatasetSpec,
+                                                                                                     impl.inSecDatasetSpecList,
+                                                                                                     impl.outDatasetSpecList,
+                                                                                                     impl.outputTemplateMap,
+                                                                                                     impl.jobParamsTemplate,
+                                                                                                     strTaskParams,
+                                                                                                     impl.unmergeMasterDatasetSpec,
+                                                                                                     impl.unmergeDatasetSpecMap,
+                                                                                                     uniqueTaskName) 
                                 if not tmpStat:
                                     tmpErrStr = 'failed to register the task to JEDI in a single shot'
                                     tmpLog.error(tmpErrStr)
                                     impl.taskSpec.status = 'tobroken'
                                     impl.taskSpec.setErrDiag(tmpErrStr,True)
                                     self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
+                                tmpMsg = 'set task.status={0}'.format(newTaskStatus)
+                                tmpLog.info(tmpMsg)
+                                tmpLog.sendMsg(tmpMsg,self.msgType)
                             else:        
                                 # appending for incremetnal execution
                                 tmpStat = self.taskBufferIF.appendDatasets_JEDI(jediTaskID,impl.inMasterDatasetSpec,

@@ -1,10 +1,16 @@
 Release Note
 
+* 7/10/2014
+  * added refresh() to *Base
+  * added http logging
+  * changed to propagate aborting to DEFT
+  * added caching for SiteMapper
+
 * 7/8/2014
-  * changed PP to kill child tasks when parent is killed/failed/broken
+  * changed PP to kill child tasks when parent is aborted/failed/broken
 
 * 7/7/2014
-  * changed CF to remove list files
+  * changed CF to remove lost files
 
 * 7/3/2014
   * added consistency check for input datasets

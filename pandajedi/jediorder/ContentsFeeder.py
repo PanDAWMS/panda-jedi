@@ -86,6 +86,7 @@ class ContentsFeederThread (WorkerThread):
         self.taskDsList = taskDsList
         self.taskBufferIF = taskbufferIF
         self.ddmIF = ddmIF
+        self.msgType = 'contentsfeeder'
 
 
     # main
@@ -393,7 +394,9 @@ class ContentsFeederThread (WorkerThread):
                     if taskBroken:
                         # task is broken
                         taskSpec.status = 'tobroken'
-                        tmpLog.info('set taskStatus={0}'.format(taskSpec.status))
+                        tmpMsg = 'set task.status={0}'.format(taskSpec.status)
+                        tmpLog.info(tmpMsg)
+                        tmpLog.sendMsg(tmpMsg,self.msgType)
                         allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
                     # change task status unless the task is running
                     if not runningTask:
@@ -420,12 +423,16 @@ class ContentsFeederThread (WorkerThread):
                             # go to pending state
                             if not taskSpec.status in ['broken','tobroken']:
                                 taskSpec.setOnHold()
-                            tmpLog.info('set taskStatus={0}'.format(taskSpec.status))
+                            tmpMsg = 'set task.status={0}'.format(taskSpec.status)
+                            tmpLog.info(tmpMsg)
+                            tmpLog.sendMsg(tmpMsg,self.msgType)
                             allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
                         elif allUpdated:
                             # all OK
-                            tmpLog.info('set taskStatus=ready or assigning')
-                            allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID)
+                            allRet,newTaskStatus = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,getTaskStatus=True)
+                            tmpMsg = 'set task.status={0}'.format(newTaskStatus)
+                            tmpLog.info(tmpMsg)
+                            tmpLog.sendMsg(tmpMsg,self.msgType)
                     tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]

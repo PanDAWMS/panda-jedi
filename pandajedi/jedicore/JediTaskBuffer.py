@@ -1,11 +1,17 @@
 # DB API for JEDI
 
+import datetime
+
 from pandajedi.jediconfig import jedi_config
 
 from pandaserver.taskbuffer import TaskBuffer
 from pandaserver.brokerage.SiteMapper import SiteMapper
 import JediDBProxyPool
 from Interaction import CommandReceiveInterface
+
+# logger
+from pandacommon.pandalogger.PandaLogger import PandaLogger
+logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 # use customized proxy pool
 TaskBuffer.DBProxyPool = JediDBProxyPool.DBProxyPool
@@ -20,12 +26,20 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         TaskBuffer.TaskBuffer.init(self,jedi_config.db.dbhost,
                                    jedi_config.db.dbpasswd,
                                    nDBConnection=1)
+        # site mapper
         self.siteMapper = SiteMapper(self)
+        # update time for site mapper
+        self.dateTimeForSM = datetime.datetime.utcnow()
+        logger.debug('__init__')
 
 
 
     # get SiteMapper
     def getSiteMapper(self):
+        timeNow = datetime.datetime.utcnow()
+        if datetime.datetime.utcnow()-self.dateTimeForSM > datetime.timedelta(minutes=10):
+            self.siteMapper = SiteMapper(self)
+            self.dateTimeForSM = timeNow
         return self.siteMapper
 
     
@@ -179,11 +193,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # update JEDI task status by ContentsFeeder
-    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None):
+    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
+        retVal = proxy.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,getTaskStatus)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

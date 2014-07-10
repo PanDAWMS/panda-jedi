@@ -174,7 +174,8 @@ class JobGeneratorThread (WorkerThread):
         self.execJobs     = execJobs
         self.numGenJobs   = 0
         self.taskSetupper = taskSetupper
-        
+        self.msgType      = 'jobgenerator'
+
 
     # main
     def runImpl(self):
@@ -192,8 +193,10 @@ class JobGeneratorThread (WorkerThread):
                 for taskSpec,cloudName,inputChunk in inputList:
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,
-                                                                                            inputChunk.masterIndexName))
+                                                                                            inputChunk.masterIndexName),
+                                        monToken='<jediTaskID={0}>'.format(taskSpec.jediTaskID))
                     tmpLog.info('start with VO={0} cloud={1}'.format(taskSpec.vo,cloudName))
+                    tmpLog.sendMsg('start to generate jobs',self.msgType)
                     readyToSubmitJob = False
                     jobsSubmitted = False
                     goForward = True
@@ -314,7 +317,9 @@ class JobGeneratorThread (WorkerThread):
                         self.taskBufferIF.recordRetryHistory_JEDI(taskSpec.jediTaskID,oldNewPandaIDs)
                         # check if submission was successful
                         if len(pandaIDs) == len(pandaJobs):
-                            tmpLog.info('successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs)))
+                            tmpMsg = 'successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs))
+                            tmpLog.info(tmpMsg)
+                            tmpLog.sendMsg(tmpMsg,self.msgType)
                             if self.execJobs:
                                 statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True)
                                 tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
@@ -341,7 +346,11 @@ class JobGeneratorThread (WorkerThread):
                     taskSpec.lockedBy = None
                     retDB = self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
                                                               oldStatus=JediTaskSpec.statusForJobGenerator())
-                    tmpLog.info('update task.status={0} with {1}'.format(taskSpec.status,str(retDB)))
+                    tmpMsg = 'set task.status={0}'.format(taskSpec.status)
+                    tmpLog.info(tmpMsg)
+                    if not taskSpec.errorDialog in ['',None]:
+                        tmpMsg += ' ' + taskSpec.errorDialog
+                    tmpLog.sendMsg(tmpMsg,self.msgType)
                     tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]

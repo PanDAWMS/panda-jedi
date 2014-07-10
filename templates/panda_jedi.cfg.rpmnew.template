@@ -11,6 +11,9 @@ uname = atlpan
 # gid
 gname = zp
 
+# logger name
+loggername = jedi
+
 
 
 

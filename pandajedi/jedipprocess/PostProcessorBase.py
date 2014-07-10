@@ -32,7 +32,13 @@ class PostProcessorBase (object):
     def __init__(self,taskBufferIF,ddmIF):
         self.ddmIF = ddmIF
         self.taskBufferIF = taskBufferIF
-        self.siteMapper = taskBufferIF.getSiteMapper()
+        self.msgType = 'postprocessor'
+        self.refresh()
+
+
+    # refresh 
+    def refresh(self):
+        self.siteMapper = self.taskBufferIF.getSiteMapper()
 
 
 
@@ -60,6 +66,7 @@ class PostProcessorBase (object):
                 taskSpec.setErrDiag('Preprocessing step failed',True)
         else:
             taskSpec.status = 'finished'
+        tmpLog.sendMsg('set task.status={0}'.format(taskSpec.status),self.msgType)
         # update dataset
         for datasetSpec in taskSpec.datasetSpecList:
             if taskSpec.status in ['failed','broken','aborted']:

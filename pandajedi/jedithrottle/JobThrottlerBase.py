@@ -5,7 +5,6 @@ class JobThrottlerBase (object):
 
     def __init__(self,taskBufferIF):
         self.taskBufferIF = taskBufferIF
-        self.siteMapper = taskBufferIF.getSiteMapper()
         # returns
         self.retTmpError    = self.SC_FAILED,True
         self.retThrottled   = self.SC_SUCCEEDED,True
@@ -13,6 +12,12 @@ class JobThrottlerBase (object):
         # limit
         self.maxNumJobs  = None
         self.minPriority = None
+        self.refresh()
+
+
+    # refresh
+    def refresh(self):
+        self.siteMapper = self.taskBufferIF.getSiteMapper()
 
         
     # set maximum number of jobs to be submitted    

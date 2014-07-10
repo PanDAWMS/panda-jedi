@@ -6,7 +6,12 @@ class TaskBrokerBase (object):
     def __init__(self,taskBufferIF,ddmIF):
         self.ddmIF = ddmIF
         self.taskBufferIF = taskBufferIF
-        self.siteMapper = taskBufferIF.getSiteMapper()
+        self.refresh()
+
+
+
+    def refresh(self):
+        self.siteMapper = self.taskBufferIF.getSiteMapper()
 
 
 

@@ -56,11 +56,13 @@ class AtlasProdTaskBroker (TaskBrokerBase):
         for tmpReqID,tmpCloud in cloudsInPanda.iteritems():
             if not tmpCloud in ['NULL','',None]:
                 tmpLog.debug('reqID={0} jediTaskID={1} -> {2}'.format(tmpReqID,reqIdTaskIdMap[tmpReqID],tmpCloud))
+                """
                 # check file availability
                 tmpSt = self.findMissingFiles(reqIdTaskIdMap[tmpReqID],tmpCloud)
                 if tmpSt != self.SC_SUCCEEDED:
                     tmpLog.error('failed to check file availability for jediTaskID={0}'.format(reqIdTaskIdMap[tmpReqID]))
                     continue
+                """    
                 retMap[reqIdTaskIdMap[tmpReqID]] = tmpCloud
         tmpLog.debug('ret {0}'.format(str(retMap)))
         # return

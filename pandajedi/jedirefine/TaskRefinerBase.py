@@ -20,8 +20,14 @@ class TaskRefinerBase (object):
     def __init__(self,taskBufferIF,ddmIF):
         self.ddmIF = ddmIF
         self.taskBufferIF = taskBufferIF
-        self.siteMapper = taskBufferIF.getSiteMapper()
         self.initializeRefiner(None)
+        self.refresh()
+
+
+
+    # refresh
+    def refresh(self):
+        self.siteMapper = self.taskBufferIF.getSiteMapper()
 
 
 

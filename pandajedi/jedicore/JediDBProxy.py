@@ -91,7 +91,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def refreshWrokQueueMap(self):
         # avoid frequent lookup
         if self.updateTimeForWorkQueue != None and \
-               (datetime.datetime.utcnow()-self.self.updateTimeForWorkQueue) < datetime.timedelta(hours=3):
+               (datetime.datetime.utcnow()-self.updateTimeForWorkQueue) < datetime.timedelta(minutes=10):
             return
         comment = ' /* JediDBProxy.refreshWrokQueueMap */'
         methodName = self.getMethodName(comment)
@@ -110,6 +110,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # make map
             self.workQueueMap.makeMap(res)
             tmpLog.debug('done')
+            self.updateTimeForWorkQueue = datetime.datetime.utcnow()
             return True
         except:
             # roll back
@@ -970,7 +971,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update JEDI task status by ContentsFeeder
-    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None):
+    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False):
         comment = ' /* JediDBProxy.updateTaskStatusByContFeeder_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -989,6 +990,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             # check status
+            taskStatus = None
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
             tmpLog.debug(sqlS+comment+str(varMap))
@@ -1039,13 +1041,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            return True
+            if not getTaskStatus:
+                return True
+            else:
+                return True,taskStatus
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return False
+            if not getTaskStatus:
+                return False
+            else:
+                return False,None
 
 
 
@@ -1122,7 +1130,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':nDone'] = nDone
                     tmpLog.debug(sqlD+comment+str(varMap))
                     self.cur.execute(sqlD+comment,varMap)
-            elif taskSpec.status in ['running','broken','assigning','scouting','aborted']:
+            elif taskSpec.status in ['running','broken','assigning','scouting','aborted','aborting']:
                 # update DEFT task status
                 if taskSpec.status == 'scouting':
                     deftStatus = 'submitting'
@@ -3227,13 +3235,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('done')
-            return True
+            return True,taskSpec.status
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return False
+            return False,None
 
 
 

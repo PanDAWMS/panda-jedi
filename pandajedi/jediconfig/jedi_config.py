@@ -34,4 +34,3 @@ for tmpSection in tmpConf.sections():
             tmpVal = int(tmpVal)
         # update dict
         setattr(tmpSelf,tmpKey,tmpVal)
-                                                        
