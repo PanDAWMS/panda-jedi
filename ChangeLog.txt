@@ -1,5 +1,8 @@
 Release Note
 
+* 7/19/2014
+  * fixed maxDiskCout
+
 * 7/10/2014
   * fixed retryTask
   * changed status=timeout to aborted

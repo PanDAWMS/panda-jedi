@@ -472,8 +472,8 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.AtlasRelease     = re.sub('\r','',jobSpec.AtlasRelease)
                     jobSpec.maxCpuCount      = taskSpec.walltime
                     jobSpec.maxCpuUnit       = taskSpec.walltimeUnit
-                    jobSpec.maxDiskCount     = taskSpec.workDiskCount
-                    jobSpec.maxDiskUnit      = taskSpec.workDiskUnit
+                    jobSpec.maxDiskCount     = taskSpec.outDiskCount
+                    jobSpec.maxDiskUnit      = taskSpec.outDiskUnit
                     jobSpec.minRamCount      = taskSpec.ramCount
                     jobSpec.minRamUnit       = taskSpec.ramUnit
                     jobSpec.coreCount        = taskSpec.coreCount
@@ -579,6 +579,11 @@ class JobGeneratorThread (WorkerThread):
                         pass
                     try:
                         jobSpec.maxDiskCount *= totalMasterSize
+                    except:
+                        pass
+                    # add offset to maxDiskCount
+                    try:
+                        jobSpec.maxDiskCount += taskSpec.workDiskCount
                     except:
                         pass
                     # XML config
