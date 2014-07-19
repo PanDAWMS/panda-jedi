@@ -1,6 +1,7 @@
 Release Note
 
 * 7/19/2014
+  * added a protection to CF to set ready to task when only secondary is checked
   * fixed maxDiskCout
 
 * 7/10/2014

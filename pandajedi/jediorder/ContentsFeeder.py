@@ -154,6 +154,7 @@ class ContentsFeederThread (WorkerThread):
                             noWaitParent = True
                     # loop over all datasets
                     nFilesMaster = 0
+                    checkedMaster = False
                     if not taskBroken:
                         ddmIF = self.ddmIF.getInterface(taskSpec.vo) 
                         origNumFiles = None
@@ -370,6 +371,7 @@ class ContentsFeederThread (WorkerThread):
                                             nFilesForScout = diagMap['nFilesForScout']
                                         # number of master input files
                                         if datasetSpec.isMaster():
+                                            checkedMaster = True
                                             nFilesMaster += nFilesUnique
                                     # running task
                                     if diagMap['isRunningTask']:
@@ -382,7 +384,7 @@ class ContentsFeederThread (WorkerThread):
                                         taskOnHold = True
                             tmpLog.info('end loop')
                      # no mater input
-                    if not taskOnHold and not taskBroken and allUpdated and nFilesMaster == 0:
+                    if not taskOnHold and not taskBroken and allUpdated and nFilesMaster == 0 and checkedMaster:
                         tmpErrStr = 'no master input files. input dataset is empty'
                         tmpLog.error(tmpErrStr)
                         taskSpec.setErrDiag(tmpErrStr,None)
