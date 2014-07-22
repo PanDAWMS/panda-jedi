@@ -211,15 +211,12 @@ def getAnalSitesWithDataDisk(dataSiteMap):
 
 # get sites which can remotely access source sites
 def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,threshold=0,
-                      cutoff=50,maxWeight=0.5):
+                      cutoff=25,maxWeight=0.5):
     # loop over all sites
     retVal = {}
     for siteName in siteList:
-        # only in US for now
-        tmpSiteSpec = siteMapper.getSite(siteName)
-        if not tmpSiteSpec.cloud in ['US']:
-            continue
         # check if the site can be used as source
+        tmpSiteSpec = siteMapper.getSite(siteName)
         if tmpSiteSpec.wansourcelimit <= 0:
             continue
         # get sites with better network connections to sources
@@ -231,11 +228,8 @@ def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,t
             return {}
         # loop over all destinations 
         for tmpD,tmpW in tmpVal.iteritems():
-            # only in US for now
-            tmpSiteSpec = siteMapper.getSite(tmpD)
-            if not tmpSiteSpec.cloud in ['US']:
-                continue
             # use first or larger value
+            tmpSiteSpec = siteMapper.getSite(tmpD)
             if not retVal.has_key(tmpD) or retVal[tmpD]['weight'] < tmpW:
                 retVal[tmpD] = {'weight':tmpW,'source':[siteName]}
             elif retVal.has_key(tmpD) and retVal[tmpD]['weight'] == tmpW:

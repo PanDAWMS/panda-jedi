@@ -1,5 +1,8 @@
 Release Note
 
+* 7/22/2014
+  * removed US constraint from network-aware brokerage
+
 * 7/19/2014
   * added a protection to CF to set ready to task when only secondary is checked
   * fixed maxDiskCout
