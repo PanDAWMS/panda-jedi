@@ -370,9 +370,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.checksum     = fileVal['checksum']
                 fileSpec.creationDate = timeNow
                 fileSpec.attemptNr    = 0
-                # set maxAttempt only for master
-                if datasetSpec.isMaster():
-                    fileSpec.maxAttempt = maxAttempt
+                fileSpec.failedAttempt = 0
+                fileSpec.maxAttempt = maxAttempt
                 # this info will come from Rucio in the future
                 if fileVal.has_key('nevents'):
                     fileSpec.nEvents = fileVal['nevents']
@@ -983,7 +982,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlS += "WHERE jediTaskID=:jediTaskID FOR UPDATE "
             # sql to update task
             sqlU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlU += "SET status=:status,modificationTime=:updateTime,lockedBy=NULL,lockedTime=NULL"
+            sqlU += "SET status=:status,modificationTime=:updateTime,stateChangeTime=CURRENT_DATE,lockedBy=NULL,lockedTime=NULL"
             if taskSpec != None:
                 sqlU += ",oldStatus=:oldStatus,errorDialog=:errorDialog"
             sqlU += " WHERE jediTaskID=:jediTaskID "
@@ -1079,11 +1078,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # set attributes
             timeNow = datetime.datetime.utcnow()
             taskSpec.modificationTime = timeNow
-            # values for UPDATE
-            varMap = taskSpec.valuesMap(useSeq=False,onlyChanged=True)
-            # sql
-            sql  = "UPDATE {0}.JEDI_Tasks SET {1} WHERE ".format(jedi_config.db.schemaJEDI,
-                                                                 taskSpec.bindUpdateChangesExpression())
+            # sql to get old status
+            sqlS  = "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI) 
+            sql = 'WHERE '
+            varMap = {}
             for tmpKey,tmpVal in criteria.iteritems():
                 crKey = ':cr_{0}'.format(tmpKey)
                 sql += '{0}={1} AND '.format(tmpKey,crKey)
@@ -1099,9 +1097,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql = sql[:-4]
             # begin transaction
             self.conn.begin()
+            # get old status
+            self.cur.execute(sqlS+sql+comment,varMap)
+            res = self.cur.fetchone()
+            if res != None and res[0] != taskSpec.status:
+                taskSpec.stateChangeTime = timeNow
             # update task
-            tmpLog.debug(sql+comment+str(varMap))
-            self.cur.execute(sql+comment,varMap)
+            sqlU  = "UPDATE {0}.JEDI_Tasks SET {1} ".format(jedi_config.db.schemaJEDI,
+                                                            taskSpec.bindUpdateChangesExpression())
+            for tmpKey,tmpVal in taskSpec.valuesMap(useSeq=False,onlyChanged=True).iteritems():
+                varMap[tmpKey] = tmpVal
+            tmpLog.debug(sqlU+sql+comment+str(varMap))
+            self.cur.execute(sqlU+sql+comment,varMap)
             # the number of updated rows
             nRows = self.cur.rowcount
             # update DEFT
@@ -1409,7 +1416,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlLK += "WHERE jediTaskID=:jediTaskID "
             sqlDS  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
             sqlDS += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
-            sqlSC  = "UPDATE {0}.JEDI_Tasks SET status=:status,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlSC  = "UPDATE {0}.JEDI_Tasks SET status=:status,modificationTime=CURRENT_DATE,stateChangeTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlSC += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
@@ -2885,13 +2892,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':userName'] = 'tobeset'
                         varMap[':parent_tid'] = parent_tid
                         sqlIT =  "INSERT INTO {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                        sqlIT += "(jediTaskID,taskName,status,userName,creationDate,modificationtime,parent_tid"
+                        sqlIT += "(jediTaskID,taskName,status,userName,creationDate,modificationTime,parent_tid,stateChangeTime"
                         if vo != None:
                             sqlIT += ',vo'
                         if prodSourceLabel != None:
                             sqlIT += ',prodSourceLabel'
                         sqlIT += ") "
-                        sqlIT += "VALUES(:jediTaskID,:taskName,:status,:userName,CURRENT_DATE,CURRENT_DATE,:parent_tid"
+                        sqlIT += "VALUES(:jediTaskID,:taskName,:status,:userName,CURRENT_DATE,CURRENT_DATE,:parent_tid,CURRENT_DATE"
                         if vo != None:
                             sqlIT += ',:vo'
                             varMap[':vo'] = vo
@@ -3501,7 +3508,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFUU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update task status
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlTU += "SET status=:status,modificationTime=CURRENT_DATE,lockedBy=NULL,lockedTime=NULL,errorDialog=:errorDialog,splitRule=:splitRule "
+            sqlTU += "SET status=:status,modificationTime=CURRENT_DATE,lockedBy=NULL,lockedTime=NULL,"
+            sqlTU += "errorDialog=:errorDialog,splitRule=:splitRule,stateChangeTime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID "
             # sql to update split rule
             sqlUSL  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
@@ -3803,7 +3811,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if taskCloudMap != {}:
                 # sql to set cloud
                 sql  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                sql += "SET cloud=:cloud,status=:status,oldStatus=NULL "
+                sql += "SET cloud=:cloud,status=:status,oldStatus=NULL,stateChangeTime=CURRENT_DATE "
                 sql += "WHERE jediTaskID=:jediTaskID "
                 for jediTaskID,cloudName in taskCloudMap.iteritems():
                     varMap = {}
@@ -4038,8 +4046,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':status'] = newTaskStatus
                         varMap[':errDiag'] = comComment
                         sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                        sqlTU += "SET status=:status,oldStatus=status,modificationTime=CURRENT_DATE,errorDialog=:errDiag"
-                        sqlTU += " WHERE jediTaskID=:jediTaskID "
+                        sqlTU += "SET status=:status,oldStatus=status,modificationTime=CURRENT_DATE,errorDialog=:errDiag,stateChangeTime=CURRENT_DATE "
+                        sqlTU += "WHERE jediTaskID=:jediTaskID "
                         self.cur.execute(sqlTU+comment,varMap)
                     # update command table
                     varMap = {}
@@ -4428,7 +4436,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTU += "WHERE jediTaskID=:jediTaskID "
             # sql to timeout tasks    
             sqlTO  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlTO += "SET status=:newStatus,errorDialog=:errorDialog,modificationtime=CURRENT_DATE "
+            sqlTO += "SET status=:newStatus,errorDialog=:errorDialog,modificationtime=CURRENT_DATE,stateChangeTime=CURRENT_DATE "
             sqlTO += "WHERE jediTaskID=:jediTaskID "
             # sql to keep pending
             sqlTK  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
@@ -5028,7 +5036,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # retry or incrementally execute a task
-    def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5):
+    def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5,useCommit=True,statusCheck=True):
         comment = ' /* JediDBProxy.retryTask_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -5051,10 +5059,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update task status
             sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlUT += "SET status=:status,oldStatus=NULL,modificationtime=CURRENT_DATE,errorDialog=:errorDialog "
+            sqlUT += "SET status=:status,oldStatus=NULL,modificationtime=CURRENT_DATE,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
             sqlUT += "WHERE jediTaskID=:jediTaskID "
             # start transaction
-            self.conn.begin()
+            if useCommit:
+                self.conn.begin()
             self.cur.arraysize = 100000
             # check task status
             varMap = {}
@@ -5071,13 +5080,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 taskStatus,taskOldStatus = resTK
                 newTaskStatus = None
                 newErrorDialog = None
-                if taskOldStatus == 'done' and commStr == 'retry':
+                if taskOldStatus == 'done' and commStr == 'retry' and statusCheck:
                     # no retry for finished task
                     msgStr = 'no {0} for task in {1} status'.format(commStr,taskOldStatus)
                     tmpLog.debug(msgStr)
                     newTaskStatus = taskOldStatus
                     newErrorDialog = msgStr
-                elif not taskOldStatus in ['finished','failed','done']:
+                elif not taskOldStatus in ['finished','failed','done'] and statusCheck:
                     # only tasks in a relevant final status 
                     msgStr = 'no {0} since not in relevant final status ({1})'.format(commStr,taskOldStatus)
                     tmpLog.debug(msgStr)
@@ -5190,15 +5199,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 else:
                     tmpLog.debug('back to taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
                 self.cur.execute(sqlUT+comment,varMap)
-            # commit
-            if not self._commit():
-                raise RuntimeError, 'Commit error'
+                # retry or reactivate child tasks
+                if newTaskStatus != taskOldStatus:
+                    self.retryChildTasks_JEDI(jediTaskID,useCommit=False)
+            if useCommit:
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
             # return
             tmpLog.debug("done")
             return True,newTaskStatus
         except:
-            # roll back
-            self._rollback()
+            if useCommit:
+                # roll back
+                self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
             return None,None
@@ -5288,7 +5302,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         goDefined = True
                     # update task
                     sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                    sqlUT += " SET status=:status,modificationtime=CURRENT_DATE WHERE jediTaskID=:jediTaskID "
+                    sqlUT += "SET status=:status,modificationtime=CURRENT_DATE,stateChangeTime=CURRENT_DATE "
+                    sqlUT += "WHERE jediTaskID=:jediTaskID "
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
                     if goDefined:
@@ -5649,12 +5664,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         retTasks = []
         try:
-            # sql to get tasks
+            # sql to get child tasks
             sqlGT  = "SELECT jediTaskID,status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlGT += "WHERE parent_tid=:jediTaskID AND parent_tid<>jediTaskID "
             # sql to change status
             sqlCT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlCT += "SET status=:status,errorDialog=:errorDialog "
+            sqlCT += "SET status=:status,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
             sqlCT += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             if useCommit:
@@ -5680,6 +5695,108 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpStat = self.killChildTasks_JEDI(cJediTaskID,cTaskStatus,useCommit=False)
                 if not tmpStat:
                     raise RuntimeError, 'Failed to kill child tasks'
+            # commit
+            if useCommit:
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+            # return    
+            tmpLog.debug('done')
+            return True
+        except:
+            # roll back
+            if useCommit:
+                self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
+
+
+
+    # retry child tasks
+    def retryChildTasks_JEDI(self,jediTaskID,useCommit=True):
+        comment = ' /* JediDBProxy.retryChildTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        retTasks = []
+        try:
+            # sql to get output datasets of parent task
+            sqlPD  = "SELECT datasetName FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlPD += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
+            # sql to get child tasks
+            sqlGT  = "SELECT jediTaskID,status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlGT += "WHERE parent_tid=:jediTaskID AND parent_tid<>jediTaskID "
+            # sql to get input datasets of child task
+            sqlRD  = "SELECT datasetID,datasetName FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD += "WHERE jediTaskID=:jediTaskID AND type IN ("
+            for tmpType in JediDatasetSpec.getProcessTypes():
+                mapKey = ':type_'+tmpType
+                sqlRD += '{0},'.format(mapKey)
+            sqlRD  = sqlRD[:-1]
+            sqlRD += ') '
+            # sql to change task status
+            sqlCT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCT += "SET status=:status,errorDialog=NULL,stateChangeTime=CURRENT_DATE "
+            sqlCT += "WHERE jediTaskID=:jediTaskID "
+            # sql to set mutable to dataset status
+            sqlMD  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlMD += "SET state=:state,stateCheckTime=CURRENT_DATE "
+            sqlMD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # sql to set dataset status
+            sqlCD  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlCD += "SET status=:status "
+            sqlCD += "WHERE jediTaskID=:jediTaskID AND type=:type "
+            # begin transaction
+            if useCommit:
+                self.conn.begin()
+            # get output datasets of parent task
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':type1'] = 'output'
+            varMap[':type2'] = 'log'
+            self.cur.execute(sqlPD+comment,varMap)
+            resList = self.cur.fetchall()
+            parentDatasets = []
+            for tmpDS, in resList:
+                parentDatasets.append(tmpDS)
+            # get child tasks
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            self.cur.execute(sqlGT+comment,varMap)
+            resList = self.cur.fetchall()
+            for cJediTaskID,cTaskStatus in resList:
+                # get input datasets of child task
+                varMap = {}
+                varMap[':jediTaskID'] = cJediTaskID
+                for tmpType in JediDatasetSpec.getProcessTypes():
+                    mapKey = ':type_'+tmpType
+                    varMap[mapKey] = tmpType
+                self.cur.execute(sqlRD+comment,varMap)
+                dsList = self.cur.fetchall()
+                inputReady = False
+                for datasetID,datasetName in dsList:
+                    # set dataset status to mutable
+                    if datasetName in parentDatasets:
+                        varMap = {}
+                        varMap[':jediTaskID'] = cJediTaskID
+                        varMap[':datasetID'] = datasetID
+                        varMap[':state'] = 'mutable'
+                        self.cur.execute(sqlMD+comment,varMap)
+                        inputReady = True
+                # set task status
+                if not inputReady:
+                    # set task status to registered since dataset is not ready
+                    varMap = {}
+                    varMap[':jediTaskID'] = cJediTaskID
+                    varMap[':status'] = 'registered'
+                    self.cur.execute(sqlCT+comment,varMap)
+                    tmpLog.debug('set status of child jediTaskID={0} to {1}'.format(cJediTaskID,
+                                                                                    varMap[':status']))
+                elif not cTaskStatus in ['ready','running','scouting','scouted']:
+                    # incexec child task
+                    tmpLog.debug('incremental execution for child jediTaskID={0}'.format(cJediTaskID))
+                    self.retryTask_JEDI(cJediTaskID,'incexec',useCommit=False,statusCheck=False)
             # commit
             if useCommit:
                 if not self._commit():

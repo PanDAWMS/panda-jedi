@@ -276,10 +276,9 @@ class ContentsFeederThread (WorkerThread):
                                             nEventsPerJob = taskParamMap['nEventsPerJob']
                                         elif taskParamMap.has_key('nEventsPerRange'):
                                             nEventsPerRange = taskParamMap['nEventsPerRange']
-                                    # max attempts and first event number
+                                    # max attempts
                                     maxAttempt = None
-                                    firstEventNumber = None
-                                    if datasetSpec.isMaster():
+                                    if datasetSpec.isMaster() or datasetSpec.toKeepTrack():
                                         # max attempts 
                                         if taskSpec.disableAutoRetry():
                                             # disable auto retry 
@@ -289,6 +288,9 @@ class ContentsFeederThread (WorkerThread):
                                         else:
                                             # use default value
                                             maxAttempt = 3
+                                    # first event number
+                                    firstEventNumber = None
+                                    if datasetSpec.isMaster():
                                         # first event number
                                         firstEventNumber = 1 + taskSpec.getFirstEventOffset()
                                     # nMaxEvents

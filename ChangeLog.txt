@@ -1,5 +1,10 @@
 Release Note
 
+* 7/23/2014
+  * added retryChildTasks_JEDI
+  * added stateChangeTime
+  * setting maxAttempt for secondary files as well
+
 * 7/22/2014
   * removed US constraint from network-aware brokerage
 
