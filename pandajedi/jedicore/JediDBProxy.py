@@ -1036,6 +1036,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':jediTaskID'] = jediTaskID
                         tmpLog.debug(sqlD+comment+str(varMap))
                         self.cur.execute(sqlD+comment,varMap)
+                        self.setSuperStatus_JEDI(jediTaskID,taskStatus)
                     tmpLog.debug('set to {0}'.format(taskStatus))
             # commit
             if not self._commit():
@@ -1137,6 +1138,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':nDone'] = nDone
                     tmpLog.debug(sqlD+comment+str(varMap))
                     self.cur.execute(sqlD+comment,varMap)
+                    self.setSuperStatus_JEDI(taskSpec.jediTaskID,taskSpec.status)
             elif taskSpec.status in ['running','broken','assigning','scouting','aborted','aborting']:
                 # update DEFT task status
                 if taskSpec.status == 'scouting':
@@ -1153,6 +1155,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':jediTaskID'] = taskSpec.jediTaskID
                 tmpLog.debug(sqlD+comment+str(varMap))
                 self.cur.execute(sqlD+comment,varMap)
+                self.setSuperStatus_JEDI(taskSpec.jediTaskID,deftStatus)
                 if taskSpec.status == 'running':
                     varMap = {}
                     varMap[':jediTaskID'] = taskSpec.jediTaskID
@@ -2938,10 +2941,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error("failed to insert param for jediTaskID={0} with {1} {2}".format(jediTaskID,errtype,errvalue))
                     # update
-                    if isOK:        
+                    if isOK:       
+                        deftStatus = 'registered'
                         varMap = {}
                         varMap[':taskid'] = jediTaskID
-                        varMap[':status'] = 'registered'
+                        varMap[':status'] = deftStatus
                         varMap[':ndone']  = 0
                         varMap[':nreq']   = 0
                         varMap[':tevts']   = 0
@@ -2950,6 +2954,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         sqlUC += "WHERE taskid=:taskid "
                         tmpLog.debug(sqlUC+comment+str(varMap))
                         self.cur.execute(sqlUC+comment,varMap)
+                        self.setSuperStatus_JEDI(jediTaskID,deftStatus)
                     # append
                     if isOK:
                         retTaskIDs.append((jediTaskID,None,'registered',parent_tid))
@@ -4492,10 +4497,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow += self.cur.rowcount
                 # update DEFT for timeout
                 if timeoutFlag:
+                    deftStatus = 'aborted'
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
-                    varMap[':status'] = 'aborted'
+                    varMap[':status'] = deftStatus
                     self.cur.execute(sqlTT+comment,varMap)
+                    self.setSuperStatus_JEDI(jediTaskID,deftStatus)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -5808,6 +5815,31 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             if useCommit:
                 self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
+
+
+
+    # set super status
+    def setSuperStatus_JEDI(self,jediTaskID,superStatus):
+        comment = ' /* JediDBProxy.setSuperStatus_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        retTasks = []
+        try:
+            # sql to set super status
+            sqlCT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCT += "SET superStatus=:superStatus "
+            sqlCT += "WHERE jediTaskID=:jediTaskID "
+            # set super status
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':superStatus'] = superStatus
+            self.cur.execute(sqlCT+comment,varMap)
+            return True
+        except:
             # error
             self.dumpErrorMessage(tmpLog)
             return False

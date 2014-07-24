@@ -1,5 +1,8 @@
 Release Note
 
+* 7/24/2014
+  * setting superStatus
+
 * 7/23/2014
   * added retryChildTasks_JEDI
   * added stateChangeTime
