@@ -10,7 +10,7 @@ from pandaserver.taskbuffer import ProcessGroups
 def getHospitalQueues(siteMapper):
     retMap = {}
     # hospital words
-    goodWordList = ['CORE$','VL$','MEM$','MP\d+$','LONG$']
+    goodWordList = ['CORE$','VL$','MEM$','MP\d+$','LONG$','_HIMEM','_\d+$']
     # loop over all clouds
     for tmpCloudName in siteMapper.getCloudList():
         # get cloud

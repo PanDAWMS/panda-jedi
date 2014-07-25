@@ -1,5 +1,8 @@
 Release Note
 
+* 7/25/2014
+  * added more patterns for hospital queues
+
 * 7/24/2014
   * setting superStatus
 
