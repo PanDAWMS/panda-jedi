@@ -200,6 +200,7 @@ class InputChunk:
                     nEventsPerJob=None,useBoundary=None,
                     sizeGradientsPerInSize=None,
                     maxOutSize=None,
+                    coreCount=1,
                     tmpLog=None):
         # check if there are unused files/events
         if not self.checkUnused():
@@ -287,7 +288,7 @@ class InputChunk:
                     fileSize += sizeIntercepts
                 firstMaster = False
                 # walltime
-                expWalltime += long(walltimeGradient * effectiveFsize)
+                expWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
                 # the number of events
                 if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
                     inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
@@ -390,7 +391,7 @@ class InputChunk:
                 if sizeGradientsPerInSize != None:
                     newFileSize += long(effectiveFsize * sizeGradientsPerInSize)
                     newOutSize += long(effectiveFsize * sizeGradientsPerInSize)
-                newExpWalltime += long(walltimeGradient * effectiveFsize)
+                newExpWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.isNoSplit() and datasetSpec.getNumFilesPerJob() == None:

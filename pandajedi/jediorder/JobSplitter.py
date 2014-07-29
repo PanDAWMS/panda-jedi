@@ -97,8 +97,13 @@ class JobSplitter:
                     maxSize = siteSpec.maxwdir * 1024 * 1024
                 # max walltime      
                 maxWalltime = siteSpec.maxtime
+                # core count
+                if siteSpec.coreCount > 0:
+                    coreCount = siteSpec.coreCount
+                else:
+                    coreCount = 1
                 tmpLog.debug('chosen {0}'.format(siteName))
-                tmpLog.debug('maxSize={0} maxWalltime={1}'.format(maxSize,maxWalltime))
+                tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2}'.format(maxSize,maxWalltime,coreCount))
             # get sub chunk
             subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
                                               maxNumFiles=maxNumFiles,
@@ -111,6 +116,7 @@ class JobSplitter:
                                               useBoundary=useBoundary,
                                               sizeGradientsPerInSize=sizeGradientsPerInSize,
                                               maxOutSize=maxOutSize,
+                                              coreCount=coreCount,
                                               tmpLog=tmpLog)
             if subChunk == None:
                 break

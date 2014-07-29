@@ -3276,11 +3276,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlSCF += '{0},'.format(mapKey)
         sqlSCF  = sqlSCF[:-1]
         sqlSCF += ") AND tabD.masterID IS NULL " 
-        sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime "
+        sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount "
         sqlSCD += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCD += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus "
         sqlSCD += "UNION "
-        sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime "
+        sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount "
         sqlSCD += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCD += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND modificationTime>(CURRENT_DATE-14) "
         # get size of lib
@@ -3341,8 +3341,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlSCD+comment,varMap)
             resData = self.cur.fetchone()
             if resData != None:
-                jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime = resData
+                jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,defCoreCount = resData
                 finishedJobs.append(pandaID)
+                # core count
+                coreCount = 1
+                try:
+                    if actualCoreCount != None:
+                        coreCount = actualCoreCount
+                    else:
+                        # extract coreCount
+                        tmpMatch = re.search('coreCount=(\d+)',jobMetrics)
+                        if tmpMatch != None:
+                            coreCount = long(tmpMatch.group(1))
+                        else:
+                            # use jobdef
+                            if not defCoreCount in [None,0]:
+                                coreCount = defCoreCount
+                except:
+                    pass
                 # output size
                 try:
                     tmpVal = long(float(outputFileBytes) / totalFSize)
@@ -3351,7 +3367,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     pass
                 # execution time
                 try:
-                    tmpVal = long(float(cpuConsumptionTime) / totalFSize)
+                    tmpVal = long(float(cpuConsumptionTime) / totalFSize * coreCount)
                     walltimeList.append(tmpVal)
                 except:
                     pass

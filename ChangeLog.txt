@@ -1,5 +1,8 @@
 Release Note
 
+* 7/29/2014
+  * modified scout data calculation to take coreCount into account
+
 * 7/25/2014
   * added more patterns for hospital queues
 

@@ -54,9 +54,14 @@ class AtlasProdJobBroker (JobBrokerBase):
             t1Sites += self.hospitalQueueMap[cloudName]
         # MP    
         if taskSpec.coreCount != None and taskSpec.coreCount > 1:
-            useMP = True
+            # use MCORE only
+            useMP = 'only'
+        elif taskSpec.coreCount == 0:
+            # use MCORE and normal 
+            useMP = 'any'
         else:
-            useMP = False
+            # not use MCORE
+            useMP = 'unuse'
         ######################################
         # selection for status
         newScanSiteList = []
@@ -95,7 +100,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for high priorities
-        if taskSpec.currentPriority >= 950 and not useMP:
+        if taskSpec.currentPriority >= 950 and useMP != 'only':
             newScanSiteList = []
             for tmpSiteName in scanSiteList:            
                 if tmpSiteName in t1Sites:
@@ -192,8 +197,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check at the site
-            if (useMP and tmpSiteSpec.coreCount > 1) or \
-               (not useMP and tmpSiteSpec.coreCount in [0,1,None]):
+            if useMP == 'any' or (useMP == 'only' and tmpSiteSpec.coreCount > 1) or \
+                    (useMP =='unuse' and tmpSiteSpec.coreCount in [0,1,None]):
                     newScanSiteList.append(tmpSiteName)
             else:
                 tmpLog.debug('  skip %s due to core mismatch site:%s != task:%s' % \
