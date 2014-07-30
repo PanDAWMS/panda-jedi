@@ -3367,7 +3367,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     pass
                 # execution time
                 try:
-                    tmpVal = long(float(cpuConsumptionTime) / totalFSize * coreCount)
+                    tmpVal = long(float(cpuConsumptionTime) / totalFSize)
                     walltimeList.append(tmpVal)
                 except:
                     pass
