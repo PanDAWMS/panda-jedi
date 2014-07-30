@@ -610,7 +610,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # activate pending
                         toActivateFID = []
                         if isMutableDataset:
-                            if nPending >= sizePendingInputChunk:
+                            if nPending >= sizePendingInputChunk and sizePendingInputChunk > 0:
                                 toActivateFID = pendingFID[:(int(nPending/sizePendingInputChunk)*sizePendingInputChunk)]
                         else:
                             nReady += nInsert
@@ -2966,9 +2966,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':status1'] = 'registered'
             varMap[':status2'] = JediTaskSpec.commandStatusMap()['incexec']['done']
-            # FIXME
-            #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
-            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=1)
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
             sqlOrpS  = "SELECT tabT.jediTaskID,tabT.splitRule,tabT.status,tabT.parent_tid "
             sqlOrpS += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlOrpS += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -3048,7 +3046,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    inSecDatasetSpecList,outDatasetSpecList,
                                    outputTemplateMap,jobParamsTemplate,taskParams,
                                    unmergeMasterDatasetSpec,unmergeDatasetSpecMap,
-                                   uniqueTaskName):
+                                   uniqueTaskName,oldTaskStatus):
         comment = ' /* JediDBProxy.registerTaskInOneShot_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -3089,14 +3087,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # update task
             varMap = taskSpec.valuesMap(useSeq=False,onlyChanged=True)
             varMap[':jediTaskID'] = jediTaskID
+            varMap[':preStatus']  = oldTaskStatus
             sql  = "UPDATE {0}.JEDI_Tasks SET {1} WHERE ".format(jedi_config.db.schemaJEDI,
                                                                  taskSpec.bindUpdateChangesExpression())
-            sql += "jediTaskID=:jediTaskID "
+            sql += "jediTaskID=:jediTaskID AND status=:preStatus "
             self.cur.execute(sql+comment,varMap)
             nRow = self.cur.rowcount
             tmpLog.debug('update {0} row in task table'.format(nRow))
             if nRow != 1:
-                tmpLog.error('the task not found in task table')
+                tmpLog.error('the task not found in task table or already registered')
             elif duplicatedFlag:
                 pass
             else:

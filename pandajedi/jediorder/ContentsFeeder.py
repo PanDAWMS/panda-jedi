@@ -379,7 +379,7 @@ class ContentsFeederThread (WorkerThread):
                                     if diagMap['isRunningTask']:
                                         runningTask = True
                                     # no activated pending input for noWait
-                                    if noWaitParent and diagMap['nActivatedPending'] == 0:
+                                    if noWaitParent and diagMap['nActivatedPending'] == 0 and not (useScout and nFilesForScout == 0):
                                         tmpErrStr = 'insufficient inputs are ready'
                                         tmpLog.info(tmpErrStr)
                                         taskSpec.setErrDiag(tmpErrStr)

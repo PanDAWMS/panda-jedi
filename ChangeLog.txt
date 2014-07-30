@@ -1,5 +1,8 @@
 Release Note
 
+* 7/30/2014
+  * added a protection against multiple registration of the same task
+
 * 7/29/2014
   * modified scout data calculation to take coreCount into account
 

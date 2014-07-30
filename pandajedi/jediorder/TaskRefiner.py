@@ -256,7 +256,8 @@ class TaskRefinerThread (WorkerThread):
                                                                                                      strTaskParams,
                                                                                                      impl.unmergeMasterDatasetSpec,
                                                                                                      impl.unmergeDatasetSpecMap,
-                                                                                                     uniqueTaskName) 
+                                                                                                     uniqueTaskName,
+                                                                                                     taskStatus) 
                                 if not tmpStat:
                                     tmpErrStr = 'failed to register the task to JEDI in a single shot'
                                     tmpLog.error(tmpErrStr)

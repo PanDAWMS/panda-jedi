@@ -513,7 +513,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                    inSecDatasetSpecList,outDatasetSpecList,
                                    outputTemplateMap,jobParamsTemplate,taskParams,
                                    unmergeMasterDatasetSpec,unmergeDatasetSpecMap,
-                                   uniqueTaskName):
+                                   uniqueTaskName,oldTaskStatus):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -521,7 +521,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   inSecDatasetSpecList,outDatasetSpecList,
                                                   outputTemplateMap,jobParamsTemplate,taskParams,
                                                   unmergeMasterDatasetSpec,unmergeDatasetSpecMap,
-                                                  uniqueTaskName)
+                                                  uniqueTaskName,oldTaskStatus)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
