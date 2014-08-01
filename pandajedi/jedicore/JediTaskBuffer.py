@@ -74,7 +74,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,fileList,useFilesWithNewAttemptNr,
-                                   nFilesPerJob,nEventsPerRange,nFilesForScout,includePatt,
+                                   nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,
                                    excludePatt,xmlConfig,noWaitParent,parent_tid):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
@@ -83,7 +83,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   nEventsPerFile,nEventsPerJob,maxAttempt,
                                                   firstEventNumber,nMaxFiles,nMaxEvents,
                                                   useScout,fileList,useFilesWithNewAttemptNr,
-                                                  nFilesPerJob,nEventsPerRange,nFilesForScout,
+                                                  nFilesPerJob,nEventsPerRange,nChunksForScout,
                                                   includePatt,excludePatt,xmlConfig,
                                                   noWaitParent,parent_tid)
         # release proxy

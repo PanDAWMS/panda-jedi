@@ -129,12 +129,8 @@ class ContentsFeederThread (WorkerThread):
                     nFilesPerJob = None
                     if taskParamMap.has_key('nFilesPerJob'):
                         nFilesPerJob = taskParamMap['nFilesPerJob']
-                    # the number of files used by scout 
-                    nFilesForScout = 0
-                    if nFilesPerJob != None:
-                        nFilesForScout = 10 * nFilesPerJob
-                    else:
-                        nFilesForScout = 10
+                    # the number of chunks used by scout 
+                    nChunksForScout = 10
                     # load XML
                     if taskSpec.useLoadXML():
                         try:
@@ -339,7 +335,7 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               useFilesWithNewAttemptNr,
                                                                                                                               nFilesPerJob,
                                                                                                                               nEventsPerRange,
-                                                                                                                              nFilesForScout,
+                                                                                                                              nChunksForScout,
                                                                                                                               includePatt,
                                                                                                                               excludePatt,
                                                                                                                               xmlConfig,
@@ -370,7 +366,7 @@ class ContentsFeederThread (WorkerThread):
                                                 taskParamMap['nFiles'] -= nFilesUnique
                                         # reduce the number of files for scout
                                         if useScout:
-                                            nFilesForScout = diagMap['nFilesForScout']
+                                            nChunksForScout = diagMap['nChunksForScout']
                                         # number of master input files
                                         if datasetSpec.isMaster():
                                             checkedMaster = True
@@ -379,11 +375,12 @@ class ContentsFeederThread (WorkerThread):
                                     if diagMap['isRunningTask']:
                                         runningTask = True
                                     # no activated pending input for noWait
-                                    if noWaitParent and diagMap['nActivatedPending'] == 0 and not (useScout and nFilesForScout == 0):
+                                    if noWaitParent and diagMap['nActivatedPending'] == 0 and not (useScout and nChunksForScout == 0):
                                         tmpErrStr = 'insufficient inputs are ready'
                                         tmpLog.info(tmpErrStr)
                                         taskSpec.setErrDiag(tmpErrStr)
                                         taskOnHold = True
+                                        break
                             tmpLog.info('end loop')
                      # no mater input
                     if not taskOnHold and not taskBroken and allUpdated and nFilesMaster == 0 and checkedMaster:

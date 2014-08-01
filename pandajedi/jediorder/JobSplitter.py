@@ -31,12 +31,12 @@ class JobSplitter:
             sizeIntercepts = taskSpec.getWorkDiskSize()
             # walltime
             walltimeGradient = taskSpec.walltime
-            # number of files per job if defined
-            nFilesPerJob = taskSpec.getNumFilesPerJob()
-            if nFilesPerJob == None and inputChunk.useScout() and not taskSpec.useLoadXML():
-                nFilesPerJob = 1
             # number of events per job if defined
             nEventsPerJob = taskSpec.getNumEventsPerJob()
+            # number of files per job if defined
+            nFilesPerJob = taskSpec.getNumFilesPerJob()
+            if nFilesPerJob == None and nEventsPerJob == None and inputChunk.useScout() and not taskSpec.useLoadXML():
+                nFilesPerJob = 1
             # grouping with boundaryID
             useBoundary = taskSpec.useGroupWithBoundaryID()
             # fsize intercepts per input size

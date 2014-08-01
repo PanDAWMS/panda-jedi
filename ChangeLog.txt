@@ -1,5 +1,8 @@
 Release Note
 
+* 8/1/2014
+  * fixed scouts to take nEventsPerJob into account
+
 * 7/30/2014
   * added a protection against multiple registration of the same task
 

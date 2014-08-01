@@ -221,7 +221,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
-                                   nFilesPerJob,nEventsPerRange,nFilesForScout,includePatt,excludePatt,
+                                   nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
                                    xmlConfig,noWaitParent,parent_tid):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
@@ -235,15 +235,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                 nMaxFiles,nMaxEvents))
         tmpLog.debug('useFilesWithNewAttemptNr={0} nFilesPerJob={1} nEventsPerRange={2}'.format(useFilesWithNewAttemptNr,
                                                                                                 nFilesPerJob,
-                                                                                                nEventsPerRange,
-                                                                                                nFilesForScout))
-        tmpLog.debug('useScout={0} nFilesForScout={1}'.format(useScout,nFilesForScout))
+                                                                                                nEventsPerRange))
+        tmpLog.debug('useScout={0} nChunksForScout={1}'.format(useScout,nChunksForScout))
         tmpLog.debug('includePatt={0} excludePatt={1}'.format(str(includePatt),str(excludePatt)))
         tmpLog.debug('xmlConfig={0} noWaitParent={1} parent_tid={2}'.format(type(xmlConfig),noWaitParent,parent_tid))
         tmpLog.debug('len(fileMap)={0}'.format(len(fileMap)))
         # return value for failure
         diagMap = {'errMsg':'',
-                   'nFilesForScout':nFilesForScout,
+                   'nChunksForScout':nChunksForScout,
                    'nActivatedPending':0,
                    'isRunningTask':False}
         failedRet = False,0,None,diagMap
@@ -254,6 +253,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             isMutableDataset = True
         else:
             isMutableDataset = False
+        # event level splitting
+        if nEventsPerJob != None and nFilesPerJob == None:
+            isEventSplit = True
+        else:
+            isEventSplit = False
         try:
             # current date
             timeNow = datetime.datetime.utcnow()
@@ -263,7 +267,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlPPC  = "SELECT lfn FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
                 sqlPPC += "WHERE tabD.jediTaskID=tabC.jediTaskID AND tabD.datasetID=tabC.datasetID "
                 sqlPPC += "AND tabD.jediTaskID=:jediTaskID AND tabD.type IN (:type1,:type2) "
-                sqlPPC += "AND tabD.datasetName=:datasetName AND tabC.status=:fileStatus"
+                sqlPPC += "AND tabD.datasetName=:datasetName AND tabC.status=:fileStatus "
                 varMap = {}
                 varMap[':type1'] = 'output'
                 varMap[':type2'] = 'log'
@@ -493,6 +497,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nUsed    = 0
             pendingFID = []
             nActivatedPending = 0
+            nEventsToUseEventSplit = 0
+            nFilesToUseEventSplit = 0
             retVal = None,missingFileList,None,diagMap
             # begin transaction
             self.conn.begin()
@@ -513,16 +519,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # task status is irrelevant
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
                 else:
+                    tmpLog.debug('task.status={0}'.format(taskStatus))
                     # running task
                     if taskStatus == 'running':
                         diagMap['isRunningTask'] = True
-                    # size of pending input chunk
+                    # size of pending input chunk to be activated
+                    sizePendingEventChunk = None
                     if taskStatus == 'defined' and useScout:
-                        sizePendingInputChunk = nFilesForScout
-                    else:
-                        sizePendingInputChunk = 20
+                        # number of files for scout
+                        sizePendingFileChunk = nChunksForScout
+                        # number of files per job is specified
                         if not nFilesPerJob in [None,0]:
-                            sizePendingInputChunk *= nFilesPerJob
+                            sizePendingFileChunk *= nFilesPerJob
+                        # number of events for scout
+                        if isEventSplit:
+                            sizePendingEventChunk = nChunksForScout * nEventsPerJob
+                    else:
+                        # the number of chunks in one bunch
+                        nChunkInBunch = 20
+                        # number of files to be activated
+                        sizePendingFileChunk = nChunkInBunch
+                        # number of files per job is specified
+                        if not nFilesPerJob in [None,0]:
+                            sizePendingFileChunk *= nFilesPerJob
+                        # number of events to be activated
+                        if isEventSplit:
+                            sizePendingEventChunk = nChunkInBunch * nEventsPerJob
                     # check dataset status
                     varMap = {}
                     varMap[':jediTaskID'] = datasetSpec.jediTaskID
@@ -559,6 +581,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             elif status == 'pending':
                                 nPending += 1
                                 pendingFID.append(fileID)
+                                # count number of events for scouts with event-level splitting
+                                if isEventSplit:
+                                    try:
+                                        if nEventsToUseEventSplit < sizePendingEventChunk:
+                                            nEventsToUseEventSplit += (endEvent-startEvent+1)
+                                            nFilesToUseEventSplit += 1
+                                    except:
+                                        pass
                             elif not status in ['lost','missing']:
                                 nUsed += 1
                         # insert files
@@ -607,11 +637,29 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if isMutableDataset:
                                 fileID = long(varMap[':newFileID'].getvalue())
                                 pendingFID.append(fileID)
+                            # count number of events for scouts with event-level splitting
+                            if isEventSplit:
+                                try:
+                                    if nEventsToUseEventSplit < sizePendingEventChunk:
+                                        nEventsToUseEventSplit += (fileSpec.endEvent-fileSpec.startEvent+1)
+                                        nFilesToUseEventSplit += 1
+                                except:
+                                    pass
                         # activate pending
                         toActivateFID = []
                         if isMutableDataset:
-                            if nPending >= sizePendingInputChunk and sizePendingInputChunk > 0:
-                                toActivateFID = pendingFID[:(int(nPending/sizePendingInputChunk)*sizePendingInputChunk)]
+                            if not datasetSpec.isMaster():
+                                # activate all files except master dataset
+                                toActivateFID = pendingFID
+                            else:
+                                if isEventSplit:
+                                    # enough events are pending
+                                    if nEventsToUseEventSplit >= sizePendingEventChunk:
+                                        toActivateFID = pendingFID[:nFilesToUseEventSplit]
+                                else:
+                                    # enough files are pending
+                                    if nPending >= sizePendingFileChunk and sizePendingFileChunk > 0:
+                                        toActivateFID = pendingFID[:(int(nPending/sizePendingFileChunk)*sizePendingFileChunk)]
                         else:
                             nReady += nInsert
                             toActivateFID = pendingFID
@@ -645,13 +693,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
                         varMap[':datasetID'] = datasetSpec.datasetID
                         varMap[':nFiles'] = nInsert + len(existingFiles)
-                        if taskStatus == 'defined' and nReady > nFilesForScout and useScout:
-                            # set a fewer number for scout
-                            varMap[':nFilesTobeUsed'] = nFilesForScout
+                        if taskStatus == 'defined' and useScout and not isEventSplit and nChunksForScout != None and nReady > sizePendingFileChunk:
+                            # set a fewer number for scout for file level splitting
+                            varMap[':nFilesTobeUsed'] = sizePendingFileChunk
+                        elif taskStatus == 'defined' and useScout and isEventSplit and nReady > nFilesToUseEventSplit:
+                            # set a fewer number for scout for event level splitting
+                            varMap[':nFilesTobeUsed'] = nFilesToUseEventSplit
                         else:
                             varMap[':nFilesTobeUsed'] = nReady + nUsed
                         if useScout:
-                            diagMap['nFilesForScout'] = nFilesForScout-varMap[':nFilesTobeUsed']
+                            if not isEventSplit:
+                                # file level splitting
+                                if nFilesPerJob in [None,0]:
+                                    # number of files per job is not specified
+                                    diagMap['nChunksForScout'] = nChunksForScout-varMap[':nFilesTobeUsed']
+                                else:
+                                    tmpQ,tmpR = divmod(varMap[':nFilesTobeUsed'],nFilesPerJob)
+                                    diagMap['nChunksForScout'] = nChunksForScout-tmpQ
+                                    if tmpR > 0:
+                                        diagMap['nChunksForScout'] -= 1
+                            else:
+                                # event level splitting
+                                if varMap[':nFilesTobeUsed'] > 0:
+                                    tmpQ,tmpR = divmod(nEventsToUseEventSplit,nEventsPerJob)
+                                    diagMap['nChunksForScout'] = nChunksForScout-tmpQ
+                                    if tmpR > 0:
+                                        diagMap['nChunksForScout'] -= 1
                         if missingFileList != [] or (isMutableDataset and nActivatedPending == 0):    
                             # don't change status when some files are missing or no pending inputs are activated
                             varMap[':status' ] = datasetSpec.status
