@@ -205,12 +205,17 @@ class TaskRefinerThread (WorkerThread):
                             tmpStat = impl.doRefine(jediTaskID,taskParamMap)
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
-                            # no wait for parent
-                            if impl.taskSpec.noWaitParent() and errtype == JediException.UnknownDatasetError:
+                            # wait unknown input if noWaitParent or waitInput
+                            if (impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput()) \
+                                    and errtype == JediException.UnknownDatasetError:
+                                if impl.taskSpec.noWaitParent():
+                                    tmpErrStr = 'pending until parent produces input'
+                                else:
+                                    tmpErrStr = 'pending until input is staged'
                                 impl.taskSpec.status = taskStatus
                                 impl.taskSpec.setOnHold()
-                                errStr = 'pending until parent produces input'
-                                tmpLog.info(errStr)
+                                impl.taskSpec.setErrDiag(tmpErrStr)
+                                tmpLog.info(tmpErrStr)
                                 self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
                                 continue
                             else:

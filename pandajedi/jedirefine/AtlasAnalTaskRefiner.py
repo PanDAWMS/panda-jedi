@@ -124,7 +124,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
             errStr = 'doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errStr)
             self.taskSpec.setErrDiag(errStr,None)
-            return self.SC_FAILED
+            raise errtype,errvalue
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
             

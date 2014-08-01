@@ -3133,10 +3133,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             duplicatedFlag = False
             if uniqueTaskName == True:
                 sqlDup  = "SELECT jediTaskID FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                sqlDup += "WHERE userName=:userName AND taskName=:taskName FOR UPDATE "
+                sqlDup += "WHERE userName=:userName AND taskName=:taskName AND jediTaskID<>:jediTaskID FOR UPDATE "
                 varMap = {}
-                varMap[':userName'] = taskSpec.userName
-                varMap[':taskName'] = taskSpec.taskName
+                varMap[':userName']   = taskSpec.userName
+                varMap[':taskName']   = taskSpec.taskName
+                varMap[':jediTaskID'] = jediTaskID    
                 self.cur.execute(sqlDup+comment,varMap)
                 resDupList = self.cur.fetchall()
                 tmpErrStr = ''

@@ -1,6 +1,7 @@
 Release Note
 
 * 8/1/2014
+  * introduced waitInput for Event Picking
   * fixed scouts to take nEventsPerJob into account
 
 * 7/30/2014

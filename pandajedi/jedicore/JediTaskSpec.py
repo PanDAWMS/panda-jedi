@@ -53,6 +53,7 @@ class JediTaskSpec(object):
         'useBuild'           : 'UB',
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
+        'waitInput'          : 'WI',
         }
     # enum for preprocessing
     enum_toPreProcess = '1'
@@ -720,5 +721,15 @@ class JediTaskSpec(object):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['useScout']+'=(\d+)',self.splitRule)
             if tmpMatch != None and tmpMatch.group(1) == self.enum_useScout:
+                return True
+        return False
+
+
+
+    # wait until input shows up
+    def waitInput(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['waitInput']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
                 return True
         return False
