@@ -2,6 +2,7 @@ Release Note
 
 * 8/5/2014
   * added campaign info
+  * skipping some checks in AtlasProdJobBrokerage when site is preassigned
 
 * 8/1/2014
   * introduced waitInput for Event Picking

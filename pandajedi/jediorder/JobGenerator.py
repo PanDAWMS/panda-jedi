@@ -541,8 +541,10 @@ class JobGeneratorThread (WorkerThread):
                                 subOldPandaIDs.append(tmpFileSpec.PandaID)
                             # set specialHandling for Event Service
                             if taskSpec.useEventService() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.isPseudo():
-                                specialHandling += EventServiceUtils.encodeFileInfo(tmpFileSpec.lfn,tmpFileSpec.startEvent,
-                                                                                    tmpFileSpec.endEvent,nEventsPerWorker)
+                                specialHandling += EventServiceUtils.encodeFileInfo(tmpFileSpec.lfn,
+                                                                                    tmpFileSpec.firstEvent+tmpFileSpec.startEvent-1,
+                                                                                    tmpFileSpec.firstEvent+tmpFileSpec.endEvent-1,
+                                                                                    nEventsPerWorker)
                             # calcurate total master size
                             if tmpDatasetSpec.isMaster():
                                 totalMasterSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,

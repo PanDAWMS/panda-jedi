@@ -32,10 +32,13 @@ class AtlasProdJobBroker (JobBrokerBase):
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
         # get sites in the cloud
+        sitePreAssigned = False
         if not taskSpec.site in ['',None]:
+            sitePreAssigned = True
             scanSiteList = [taskSpec.site]
             tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
         elif inputChunk.getPreassignedSite() != None:
+            sitePreAssigned = True
             scanSiteList = [inputChunk.getPreassignedSite()]
             tmpLog.debug('site={0} is pre-assigned in masterDS'.format(inputChunk.getPreassignedSite()))
         else:
@@ -64,23 +67,24 @@ class AtlasProdJobBroker (JobBrokerBase):
             useMP = 'unuse'
         ######################################
         # selection for status
-        newScanSiteList = []
-        for tmpSiteName in scanSiteList:
-            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            # check site status
-            skipFlag = False
-            if tmpSiteSpec.status != 'online':
-                skipFlag = True
-            if not skipFlag:    
-                newScanSiteList.append(tmpSiteName)
-            else:
-                tmpLog.debug('  skip %s due to status=%s' % (tmpSiteName,tmpSiteSpec.status))
-        scanSiteList = newScanSiteList        
-        tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
-        if scanSiteList == []:
-            tmpLog.error('no candidates')
-            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            return retTmpError
+        if not sitePreAssigned:
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # check site status
+                skipFlag = False
+                if tmpSiteSpec.status != 'online':
+                    skipFlag = True
+                if not skipFlag:    
+                    newScanSiteList.append(tmpSiteName)
+                else:
+                    tmpLog.debug('  skip %s due to status=%s' % (tmpSiteName,tmpSiteSpec.status))
+            scanSiteList = newScanSiteList        
+            tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
         ######################################
         # selection for reprocessing
         if taskSpec.processingType == 'reprocessing':
@@ -115,62 +119,63 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for data availability
-        for datasetSpec in inputChunk.getDatasets():
-            datasetName = datasetSpec.datasetName
-            if not self.dataSiteMap.has_key(datasetName):
-                # get the list of sites where data is available
-                tmpLog.debug('getting the list of sites where {0} is avalable'.format(datasetName))
-                tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,
-                                                                 self.ddmIF,datasetName)
-                if tmpSt == self.SC_FAILED:
-                    tmpLog.error('failed to get the list of sites where data is available, since %s' % tmpRet)
-                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    return retTmpError
-                if tmpSt == self.SC_FATAL:
-                    tmpLog.error('fatal error when getting the list of sites where data is available, since %s' % tmpRet)
-                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    return retFatal
-                # append
-                self.dataSiteMap[datasetName] = tmpRet
-                tmpLog.debug('map of data availability : {0}'.format(str(tmpRet)))
-            # check if T1 has the data
-            if self.dataSiteMap[datasetName].has_key(cloudName):
-                cloudHasData = True
-            else:
-                cloudHasData = False
-            t1hasData = False
-            if cloudHasData:
-                for tmpSE,tmpSeVal in self.dataSiteMap[datasetName][cloudName]['t1'].iteritems():
-                    if tmpSeVal['state'] == 'complete':
+        if not sitePreAssigned:
+            for datasetSpec in inputChunk.getDatasets():
+                datasetName = datasetSpec.datasetName
+                if not self.dataSiteMap.has_key(datasetName):
+                    # get the list of sites where data is available
+                    tmpLog.debug('getting the list of sites where {0} is avalable'.format(datasetName))
+                    tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,
+                                                                     self.ddmIF,datasetName)
+                    if tmpSt == self.SC_FAILED:
+                        tmpLog.error('failed to get the list of sites where data is available, since %s' % tmpRet)
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        return retTmpError
+                    if tmpSt == self.SC_FATAL:
+                        tmpLog.error('fatal error when getting the list of sites where data is available, since %s' % tmpRet)
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        return retFatal
+                    # append
+                    self.dataSiteMap[datasetName] = tmpRet
+                    tmpLog.debug('map of data availability : {0}'.format(str(tmpRet)))
+                # check if T1 has the data
+                if self.dataSiteMap[datasetName].has_key(cloudName):
+                    cloudHasData = True
+                else:
+                    cloudHasData = False
+                t1hasData = False
+                if cloudHasData:
+                    for tmpSE,tmpSeVal in self.dataSiteMap[datasetName][cloudName]['t1'].iteritems():
+                        if tmpSeVal['state'] == 'complete':
+                            t1hasData = True
+                            break
+                    # T1 has incomplete data while no data at T2
+                    if not t1hasData and self.dataSiteMap[datasetName][cloudName]['t2'] == []:
+                        # use incomplete data at T1 anyway
                         t1hasData = True
-                        break
-                # T1 has incomplete data while no data at T2
-                if not t1hasData and self.dataSiteMap[datasetName][cloudName]['t2'] == []:
-                    # use incomplete data at T1 anyway
-                    t1hasData = True
-            # data is missing at T1         
-            if not t1hasData:
-                tmpLog.debug('{0} is unavailable at T1. scanning T2 sites in homeCloud={1}'.format(datasetName,cloudName))
-                # make subscription to T1
-                # FIXME
-                pass
-                # use T2 until data is complete at T1
-                newScanSiteList = []
-                for tmpSiteName in scanSiteList:                    
-                    if cloudHasData and tmpSiteName in self.dataSiteMap[datasetName][cloudName]['t2']:
-                        newScanSiteList.append(tmpSiteName)
-                    else:
-                        tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                        if tmpSiteSpec.cloud != cloudName:
-                            tmpLog.debug('  skip %s due to foreign T2' % tmpSiteName)
+                # data is missing at T1         
+                if not t1hasData:
+                    tmpLog.debug('{0} is unavailable at T1. scanning T2 sites in homeCloud={1}'.format(datasetName,cloudName))
+                    # make subscription to T1
+                    # FIXME
+                    pass
+                    # use T2 until data is complete at T1
+                    newScanSiteList = []
+                    for tmpSiteName in scanSiteList:                    
+                        if cloudHasData and tmpSiteName in self.dataSiteMap[datasetName][cloudName]['t2']:
+                            newScanSiteList.append(tmpSiteName)
                         else:
-                            tmpLog.debug('  skip %s due to missing data at T2' % tmpSiteName)
-                scanSiteList = newScanSiteList
-                tmpLog.debug('{0} candidates passed T2 scan in the home cloud with input:{1}'.format(len(scanSiteList),datasetName))
-                if scanSiteList == []:
-                    tmpLog.error('no candidates')
-                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    return retTmpError
+                            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                            if tmpSiteSpec.cloud != cloudName:
+                                tmpLog.debug('  skip %s due to foreign T2' % tmpSiteName)
+                            else:
+                                tmpLog.debug('  skip %s due to missing data at T2' % tmpSiteName)
+                    scanSiteList = newScanSiteList
+                    tmpLog.debug('{0} candidates passed T2 scan in the home cloud with input:{1}'.format(len(scanSiteList),datasetName))
+                    if scanSiteList == []:
+                        tmpLog.error('no candidates')
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        return retTmpError
         ######################################
         # selection for fairshare
         newScanSiteList = []
@@ -193,22 +198,23 @@ class AtlasProdJobBroker (JobBrokerBase):
         pass
         ######################################
         # selection for MP
-        newScanSiteList = []
-        for tmpSiteName in scanSiteList:
-            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            # check at the site
-            if useMP == 'any' or (useMP == 'only' and tmpSiteSpec.coreCount > 1) or \
-                    (useMP =='unuse' and tmpSiteSpec.coreCount in [0,1,None]):
-                    newScanSiteList.append(tmpSiteName)
-            else:
-                tmpLog.debug('  skip %s due to core mismatch site:%s != task:%s' % \
-                             (tmpSiteName,tmpSiteSpec.coreCount,taskSpec.coreCount))
-        scanSiteList = newScanSiteList        
-        tmpLog.debug('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
-        if scanSiteList == []:
-            tmpLog.error('no candidates')
-            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            return retTmpError
+        if not sitePreAssigned:
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # check at the site
+                if useMP == 'any' or (useMP == 'only' and tmpSiteSpec.coreCount > 1) or \
+                        (useMP =='unuse' and tmpSiteSpec.coreCount in [0,1,None]):
+                        newScanSiteList.append(tmpSiteName)
+                else:
+                    tmpLog.debug('  skip %s due to core mismatch site:%s != task:%s' % \
+                                 (tmpSiteName,tmpSiteSpec.coreCount,taskSpec.coreCount))
+            scanSiteList = newScanSiteList        
+            tmpLog.debug('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
         ######################################
         # selection for release
         if taskSpec.transHome != None:
@@ -220,8 +226,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             else:
                 # nightlies
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
-                                                                         releases='nightlies',
-                                                                         cmtConfig=taskSpec.architecture)
+                                                                         releases='CVMFS')
+                #                                                         releases='nightlies',
+                #                                                         cmtConfig=taskSpec.architecture)
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -379,23 +386,24 @@ class AtlasProdJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # selection for nPilot
-        nWNmap = self.taskBufferIF.getCurrentSiteData()
-        newScanSiteList = []
-        for tmpSiteName in scanSiteList:
-            # check at the site
-            nPilot = 0
-            if nWNmap.has_key(tmpSiteName):
-                nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
-            if nPilot == 0 and not taskSpec.prodSourceLabel in ['test']:
-                tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
-                continue
-            newScanSiteList.append(tmpSiteName)
-        scanSiteList = newScanSiteList        
-        tmpLog.debug('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
-        if scanSiteList == []:
-            tmpLog.error('no candidates')
-            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            return retTmpError
+        if not sitePreAssigned:
+            nWNmap = self.taskBufferIF.getCurrentSiteData()
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                # check at the site
+                nPilot = 0
+                if nWNmap.has_key(tmpSiteName):
+                    nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
+                if nPilot == 0 and not taskSpec.prodSourceLabel in ['test']:
+                    tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
+                    continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList        
+            tmpLog.debug('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
         ######################################
         # get available files
         totalSize = 0
