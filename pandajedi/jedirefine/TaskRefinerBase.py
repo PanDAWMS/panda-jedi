@@ -120,6 +120,9 @@ class TaskRefinerBase (object):
             taskSpec.eventService = 1
         else:
             taskSpec.eventService = 0
+        # campaign
+        if taskParamMap.has_key('campaign'):
+            taskSpec.campaign = taskParamMap['campaign']
         # work queue
         workQueue,tmpStr = workQueueMapper.getQueueWithSelParams(taskSpec.vo,
                                                                  taskSpec.prodSourceLabel,

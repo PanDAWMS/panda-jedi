@@ -19,7 +19,7 @@ class JediTaskSpec(object):
         'workQueue_ID','progress','failureRate','errorDialog',
         'reqID','oldStatus','cloud','site','countryGroup','parent_tid',
         'eventService','ticketID','ticketSystemType','stateChangeTime',
-        'superStatus'
+        'superStatus','campaign'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
