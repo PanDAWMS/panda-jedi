@@ -270,7 +270,7 @@ class JobGeneratorThread (WorkerThread):
                                                                                               taskParamMap=taskParamMap)
                             # increase event service consumers
                             if tmpStat == Interaction.SC_SUCCEEDED:
-                                if taskSpec.useEventService() and taskSpec.getNumEventServiceConsumer() > 1:
+                                if taskSpec.useEventService():
                                     pandaJobs = self.increaseEventServiceConsumers(pandaJobs,taskSpec.getNumEventServiceConsumer())
                         except:
                             errtype,errvalue = sys.exc_info()[:2]

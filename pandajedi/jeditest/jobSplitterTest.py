@@ -64,6 +64,6 @@ for taskSpec,cloudName,inputChunk in tmpList:
     tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
 
     tmpStat,pandaJobs,datasetToRegister,oldPandaIDs = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog,True)
-    if taskSpec.useEventService() and taskSpec.getNumEventServiceConsumer() > 1:
+    if taskSpec.useEventService():
         pandaJobs = gen.increaseEventServiceConsumers(pandaJobs,taskSpec.getNumEventServiceConsumer())
 

@@ -1,5 +1,8 @@
 Release Note
 
+* 8/6/2014
+  * fixed JG for ES jobs to have temporary log file names
+
 * 8/5/2014
   * added campaign info
   * skipping some checks in AtlasProdJobBrokerage when site is preassigned
