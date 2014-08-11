@@ -520,7 +520,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(tmpDatasetName):
                     for tmpRemoteSite in remoteSourceList[tmpSiteName][tmpDatasetName]:
                         if availableFiles.has_key(tmpRemoteSite) and \
-                                len(tmpDatasetSpec.Files) <= availableFiles[tmpRemoteSite]['localdisk']:
+                                len(tmpDatasetSpec.Files) <= len(availableFiles[tmpRemoteSite]['localdisk']):
                             # use only remote disk files
                             siteCandidateSpec.remoteFiles += availableFiles[tmpRemoteSite]['localdisk']
                             # set remote site and access protocol
