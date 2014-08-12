@@ -1,5 +1,8 @@
 Release Note
 
+* 8/12/2014
+  * fixed file rescue for orphaned merging
+
 * 8/11/2014
   * fixed AtlasAnalJB for remote access sites
 
