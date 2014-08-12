@@ -1,6 +1,7 @@
 Release Note
 
 * 8/12/2014
+  * fixed TaskRefinerBase for GRL
   * fixed file rescue for orphaned merging
   * added lock against multiple processing
   * using tobroken in JG

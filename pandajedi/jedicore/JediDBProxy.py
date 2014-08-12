@@ -2,6 +2,7 @@ import re
 import sys
 import copy
 import math
+import types
 import numpy
 import datetime
 import cx_Oracle
@@ -391,7 +392,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpFileSpecList.append(fileSpec)
                 elif givenFileList != []:
                     # given file list
-                    for fileItem in givenFileList:
+                    for tmpFileItem in givenFileList:
+                        if type(tmpFileItem) == types.DictType:
+                            fileItem = tmpFileItem
+                        else:
+                            fileItem = {'lfn':tmpFileItem}
                         # check file name
                         fileNamePatt = fileItem['lfn']
                         if useFilesWithNewAttemptNr:
@@ -465,9 +470,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     return failedRet
             # look for missing files if file list is specified
             missingFileList = []    
-            for fileItem in givenFileList:
+            for tmpFileItem in givenFileList:
+                if type(tmpFileItem) == types.DictType:
+                    fileItem = tmpFileItem
+                else:
+                    fileItem = {'lfn':tmpFileItem}
                 if not fileItem['lfn'] in foundFileList:
                     missingFileList.append(fileItem['lfn'])
+            tmpLog.debug('{0} files missing'.format(len(missingFileList)))
             # sql to check if task is locked
             sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE ".format(jedi_config.db.schemaJEDI)
             # sql to check dataset status
