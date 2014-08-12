@@ -1090,6 +1090,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         # skip task brokerage since cloud is preassigned
                         varMap[':status'] = 'ready'
+                        # set old update time to trigger JG immediately
+                        varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     tmpLog.debug(sqlU+comment+str(varMap))
                     self.cur.execute(sqlU+comment,varMap)
                     # update DEFT task status
@@ -1928,6 +1930,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start label={0} nTasks={1} nFiles={2} minPriority={3}'.format(prodSourceLabel,nTasks,
                                                                                     nFiles,minPriority))
         tmpLog.debug('maxNumJobs={0} typicalNumFilesMap={1}'.format(maxNumJobs,str(typicalNumFilesMap)))
+        tmpLog.debug('simTasks={0}'.format(str(simTasks)))
         # return value for failure
         failedRet = None
         # set max number of jobs if undefined
@@ -1948,6 +1951,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':dsOKStatus2']     = 'done'
                 varMap[':dsOKStatus3']     = 'defined'
                 varMap[':dsOKStatus4']     = 'registered'
+                varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
                 sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type "
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
@@ -1970,6 +1974,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql  = sql[:-1]
                 sql += ') '
                 sql += "AND tabT.lockedBy IS NULL "
+                sql += "AND tabT.modificationTime<:timeLimit "
                 sql += "AND nFilesToBeUsed > nFilesUsed AND type IN ("
                 for tmpType in JediDatasetSpec.getProcessTypes(): 
                     mapKey = ':type_'+tmpType
@@ -2047,9 +2052,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
             # sql to read task
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sqlRT += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL FOR UPDATE NOWAIT".format(jedi_config.db.schemaJEDI)
+            sqlRT += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL FOR UPDATE ".format(jedi_config.db.schemaJEDI)
             # sql to lock task
-            sqlLock  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlLock  = "UPDATE {0}.JEDI_Tasks  ".format(jedi_config.db.schemaJEDI)
+            sqlLock += "SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE,modificationTime=CURRENT_DATE "
             sqlLock += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL "
             # sql to read template
             sqlJobP = "SELECT jobParamsTemplate FROM {0}.JEDI_JobParams_Template WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
