@@ -209,7 +209,7 @@ class JobGeneratorThread (WorkerThread):
                         if not tmpStat:
                             tmpErrStr = 'failed to initialize JobBroker'
                             tmpLog.error(tmpErrStr)
-                            taskSpec.status = 'broken'
+                            taskSpec.status = 'tobroken'
                             taskSpec.setErrDiag(tmpErrStr)                        
                             goForward = False
                     # read task params if nessesary
@@ -218,7 +218,7 @@ class JobGeneratorThread (WorkerThread):
                         if not tmpStat:
                             tmpErrStr = 'failed to read task params'
                             tmpLog.error(tmpErrStr)
-                            taskSpec.status = 'broken'
+                            taskSpec.status = 'tobroken'
                             taskSpec.setErrDiag(tmpErrStr)                        
                             goForward = False
                     # run brokerage
@@ -279,7 +279,7 @@ class JobGeneratorThread (WorkerThread):
                         if tmpStat != Interaction.SC_SUCCEEDED:
                             tmpErrStr = 'job generation failed'
                             tmpLog.error(tmpErrStr)
-                            taskSpec.status = 'broken'
+                            taskSpec.status = 'tobroken'
                             taskSpec.setErrDiag(tmpErrStr)
                             goForward = False
                     # setup task
@@ -290,7 +290,7 @@ class JobGeneratorThread (WorkerThread):
                         if tmpStat == Interaction.SC_FATAL:
                             tmpErrStr = 'fatal error when setup task'
                             tmpLog.error(tmpErrStr)
-                            taskSpec.status = 'broken'
+                            taskSpec.status = 'tobroken'
                             taskSpec.setErrDiag(tmpErrStr,True)
                         elif tmpStat != Interaction.SC_SUCCEEDED:
                             tmpErrStr = 'failed to setup task'

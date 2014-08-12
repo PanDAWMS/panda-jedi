@@ -3,6 +3,7 @@ Release Note
 * 8/12/2014
   * fixed file rescue for orphaned merging
   * added lock against multiple processing
+  * using tobroken in JG
 
 * 8/11/2014
   * fixed AtlasAnalJB for remote access sites
