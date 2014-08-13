@@ -530,11 +530,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # prepare tasks to be finished
-    def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None):
+    def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None,pid='lock'):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.prepareTasksToBeFinished_JEDI(vo,prodSourceLabel,nTasks,simTasks)
+        retVal = proxy.prepareTasksToBeFinished_JEDI(vo,prodSourceLabel,nTasks,simTasks,pid)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

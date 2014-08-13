@@ -2,6 +2,7 @@ Release Note
 
 * 8/13/2014
   * fixed AtlasAnalJB for nThrottle
+  * changed to lock tasks before prepare or process
   * added more debug info to AtlasAnalJB
   * removing currentPrrio limit when counting jobs in AtlasAnalJB
 
