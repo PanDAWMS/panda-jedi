@@ -1,5 +1,8 @@
 Release Note
 
+* 8/13/2014
+  * added more debug info to AtlasAnalJB
+
 * 8/12/2014
   * fixed file rescue for pseudo input
   * improved performance of getTasksToBeProcessed
