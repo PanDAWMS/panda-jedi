@@ -2,6 +2,7 @@ Release Note
 
 * 8/13/2014
   * added more debug info to AtlasAnalJB
+  * removing currentPrrio limit when counting jobs in AtlasAnalJB
 
 * 8/12/2014
   * fixed file rescue for pseudo input

@@ -413,8 +413,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         currentPriority -= 500
         tmpLog.debug('currentPriority={0}'.format(currentPriority))
         tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
-                                                                                    taskSpec.prodSourceLabel,
-                                                                                    currentPriority)
+                                                                                    taskSpec.prodSourceLabel)
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
