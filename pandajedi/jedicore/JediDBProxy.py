@@ -1945,7 +1945,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         failedRet = None
         # set max number of jobs if undefined
         if maxNumJobs == None:
-            maxNumJobs = 100
+            maxNumJobs = 5000
             tmpLog.debug('set maxNumJobs={0} since undefined '.format(maxNumJobs))
         try:
             # sql to get tasks/datasets
@@ -2100,7 +2100,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlAV += ') AND masterID IS NULL '
             # loop over all tasks
             iTasks = 0
-            for jediTaskID in jediTaskIDList:
+            for tmpIdxTask,jediTaskID in enumerate(jediTaskIDList):
                 # begin transaction
                 self.conn.begin()
                 # read task
@@ -2109,12 +2109,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':jediTaskID'] = jediTaskID
                 try:
                     # select
+                    tmpLog.debug('getting jediTaskID={0} {1}/{2}'.format(jediTaskID,tmpIdxTask,len(jediTaskIDList)))
                     self.cur.execute(sqlRT+comment,varMap)
                     resRT = self.cur.fetchone()
                     # locked by another
                     if resRT == None:
                         toSkip = True
                         tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
+                        if not self._commit():
+                            raise RuntimeError, 'Commit error'
+                        continue
+
                     else:
                         origTaskSpec = JediTaskSpec()
                         origTaskSpec.pack(resRT)
@@ -2128,6 +2133,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if nRow != 1:
                                 tmpLog.debug('failed to lock jediTaskID={0}'.format(jediTaskID))
                                 toSkip = True
+                                if not self._commit():
+                                    raise RuntimeError, 'Commit error'
+                                continue
                 except:
                     errType,errValue = sys.exc_info()[:2]
                     if self.isNoWaitException(errValue):
@@ -2647,7 +2655,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlTR += "AND prodSourceLabel=:prodSourceLabel " 
             # sql to get picked datasets
             sqlDP  = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-            sqlDP += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3) " 
+            sqlDP += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3,:type4) " 
             # sql to rollback files
             sqlF  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oStatus AND keepTrack=:keepTrack "
@@ -2687,6 +2695,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':type1'] = 'input'
                 varMap[':type2'] = 'trn_log'
                 varMap[':type3'] = 'trn_output'
+                varMap[':type4'] = 'pseudo_input'
                 self.cur.execute(sqlDP+comment,varMap)
                 resDatasetList = self.cur.fetchall()
                 # loop over all input datasets

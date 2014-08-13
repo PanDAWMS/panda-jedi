@@ -1,6 +1,8 @@
 Release Note
 
 * 8/12/2014
+  * fixed file rescue for pseudo input
+  * improved performance of getTasksToBeProcessed
   * fixed TaskRefinerBase for GRL
   * fixed file rescue for orphaned merging
   * added lock against multiple processing
