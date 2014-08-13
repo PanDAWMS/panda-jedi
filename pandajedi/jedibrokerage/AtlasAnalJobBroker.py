@@ -439,7 +439,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             nThrottled = 0
             if remoteSourceList.has_key(tmpSiteName):
                 nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,None)
-                weight = float(nThrottled + 1)
+                weight /= float(nThrottled + 1)
             # noramize weights by taking data availability into account
             tmpDataWeight = 1
             if dataWeight.has_key(tmpSiteName):
