@@ -1498,7 +1498,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlLK += "WHERE jediTaskID=:jediTaskID "
             sqlDS  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
             sqlDS += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
-            sqlSC  = "UPDATE {0}.JEDI_Tasks SET status=:status,modificationTime=CURRENT_DATE,stateChangeTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlSC  = "UPDATE {0}.JEDI_Tasks SET status=:status,modificationTime=:updateTime,stateChangeTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlSC += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
@@ -1522,6 +1522,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap = {}
                     varMap[':jediTaskID'] = taskSpec.jediTaskID
                     varMap[':status'] = 'running'
+                    # set old update time to trigger JG immediately
+                    varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     self.cur.execute(sqlSC+comment,varMap)
                     tmpLog.debug("changed status to {0} for jediTaskID={1}".format(varMap[':status'],taskSpec.jediTaskID))
                 else:

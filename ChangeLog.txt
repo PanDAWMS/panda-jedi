@@ -1,6 +1,7 @@
 Release Note
 
 * 8/13/2014
+  * removed delay after scouts
   * fixed AtlasAnalJB for nThrottle
   * changed to lock tasks before prepare or process
   * added more debug info to AtlasAnalJB
