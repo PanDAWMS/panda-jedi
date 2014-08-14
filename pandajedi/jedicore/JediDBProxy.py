@@ -3599,11 +3599,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             jediTaskIDList.sort()
             tmpLog.debug('got {0} tasks'.format(len(jediTaskIDList)))
             # sql to lock task
-            sqlLK  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy ".format(jedi_config.db.schemaJEDI)
+            sqlLK  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:newLockedBy ".format(jedi_config.db.schemaJEDI)
             sqlLK += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL "
             # sql to read task
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sqlRT += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL ".format(jedi_config.db.schemaJEDI)
+            sqlRT += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy=:newLockedBy ".format(jedi_config.db.schemaJEDI)
             # sql to read dataset status
             sqlRD  = "SELECT datasetID,status,nFiles,nFilesFinished,masterID,state "
             sqlRD += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND status=:status AND type IN (".format(jedi_config.db.schemaJEDI)
@@ -3655,9 +3655,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 try:
                     # lock
                     varMap = {}
-                    varMap[':jediTaskID'] = jediTaskID
-                    varMap[':lockedBy'] = pid
-                    varMap[':status'] = taskStatus
+                    varMap[':jediTaskID']  = jediTaskID
+                    varMap[':newLockedBy'] = pid
+                    varMap[':status']      = taskStatus
                     self.cur.execute(sqlLK+comment,varMap)
                     nRow = self.cur.rowcount
                     if nRow != 1:
@@ -3668,7 +3668,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         continue
                     # read task
                     varMap = {}
-                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':jediTaskID']  = jediTaskID
+                    varMap[':newLockedBy'] = pid
                     self.cur.execute(sqlRT+comment,varMap)
                     resRT = self.cur.fetchone()
                     # locked by another
