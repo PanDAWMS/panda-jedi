@@ -314,7 +314,11 @@ class JobGeneratorThread (WorkerThread):
                                 if len(oldPandaIDs) > idxItem and oldPandaIDs[idxItem] != []:
                                     oldNewPandaIDs[items[0]] = oldPandaIDs[idxItem]
                         # record retry history
-                        self.taskBufferIF.recordRetryHistory_JEDI(taskSpec.jediTaskID,oldNewPandaIDs)
+                        if inputChunk.isMerging:
+                            relationType = 'merge'
+                        else:
+                            relationType = None
+                        self.taskBufferIF.recordRetryHistory_JEDI(taskSpec.jediTaskID,oldNewPandaIDs,relationType)
                         # check if submission was successful
                         if len(pandaIDs) == len(pandaJobs):
                             tmpMsg = 'successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs))

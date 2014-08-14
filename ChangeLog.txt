@@ -1,5 +1,9 @@
 Release Note
 
+* 8/14/2014
+  * changed some method to avoid row contention
+  * fixed AtlasDDM for sites which share the same DDM endpoints 
+
 * 8/13/2014
   * removed delay after scouts
   * fixed AtlasAnalJB for nThrottle

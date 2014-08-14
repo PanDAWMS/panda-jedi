@@ -282,10 +282,14 @@ class AtlasDDMClient(DDMClientBase):
                         continue
                     # add full path to storage map
                     tmpSePath = tmpMatch.group(1)
-                    tmpStoragePathMap[tmpSePath] = {'siteName':siteName,'storageType':storageType}
+                    if not tmpSePath in tmpStoragePathMap:
+                        tmpStoragePathMap[tmpSePath] = []
+                    tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType})
                     # add compact path
                     tmpSePath = re.sub('(:\d+)*/srm/[^\?]+\?SFN=','',tmpSePath)
-                    tmpStoragePathMap[tmpSePath] = {'siteName':siteName,'storageType':storageType}
+                    if not tmpSePath in tmpStoragePathMap:
+                        tmpStoragePathMap[tmpSePath] = []
+                    tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType})
                 # add to map to trigger LFC scan if complete replica is missing at the site
                 if DataServiceUtils.isCachedFile(datasetSpec.datasetName,tmpSiteSpec):
                     pass
@@ -349,10 +353,11 @@ class AtlasDDMClient(DDMClientBase):
                         # check SURL
                         if tmpSURL.startswith(tmpSePath):
                             # add
-                            siteName = storagePathMap[tmpSePath]['siteName']
-                            storageType = storagePathMap[tmpSePath]['storageType']
-                            if not tmpFileSpec in returnMap[siteName][storageType]:
-                                returnMap[siteName][storageType].append(tmpFileSpec)
+                            for tmpSiteDict in storagePathMap[tmpSePath]:
+                                siteName = tmpSiteDict['siteName']
+                                storageType = tmpSiteDict['storageType']
+                                if not tmpFileSpec in returnMap[siteName][storageType]:
+                                    returnMap[siteName][storageType].append(tmpFileSpec)
                             break
             # dump
             dumpStr = ''

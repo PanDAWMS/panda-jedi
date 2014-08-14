@@ -1949,6 +1949,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if maxNumJobs == None:
             maxNumJobs = 5000
             tmpLog.debug('set maxNumJobs={0} since undefined '.format(maxNumJobs))
+        # time limit to avoid duplication
+        timeLimit = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
         try:
             # sql to get tasks/datasets
             if simTasks == None:
@@ -1963,7 +1965,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':dsOKStatus2']     = 'done'
                 varMap[':dsOKStatus3']     = 'defined'
                 varMap[':dsOKStatus4']     = 'registered'
-                varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+                varMap[':timeLimit']       = timeLimit
                 sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status "
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
@@ -2065,13 +2067,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not jediTaskID in jediTaskIDList:
                     jediTaskIDList.append(jediTaskID)
             tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
-            # sql to lock task
-            sqlLock  = "UPDATE {0}.JEDI_Tasks  ".format(jedi_config.db.schemaJEDI)
-            sqlLock += "SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE,modificationTime=CURRENT_DATE "
-            sqlLock += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL "
             # sql to read task
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sqlRT += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sqlRT += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlRT += "WHERE jediTaskID=:jediTaskID AND status=:statusInDB AND lockedBy IS NULL FOR UPDATE NOWAIT "
+            # sql to lock task
+            sqlLock  = "UPDATE {0}.JEDI_Tasks  ".format(jedi_config.db.schemaJEDI)
+            sqlLock += "SET lockedBy=:newLockedBy,lockedTime=CURRENT_DATE,modificationTime=CURRENT_DATE "
+            sqlLock += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL AND modificationTime<:timeLimit "
             # sql to read template
             sqlJobP = "SELECT jobParamsTemplate FROM {0}.JEDI_JobParams_Template WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
             # sql to read datasets
@@ -2111,29 +2114,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # read task
                 toSkip = False
                 try:
-                    # lock task
-                    if simTasks == None:
-                        varMap = {}
-                        varMap[':lockedBy'] = pid
-                        varMap[':jediTaskID'] = jediTaskID
-                        varMap[':status'] = taskStatusMap[jediTaskID]
-                        self.cur.execute(sqlLock+comment,varMap)
-                        nRow = self.cur.rowcount
-                        if nRow != 1:
-                            tmpLog.debug('failed to lock jediTaskID={0}'.format(jediTaskID))
-                            toSkip = True
-                            if not self._commit():
-                                raise RuntimeError, 'Commit error'
-                            continue
                     # select
                     tmpLog.debug('getting jediTaskID={0} {1}/{2}'.format(jediTaskID,tmpIdxTask,len(jediTaskIDList)))
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
-                    if simTasks == None:
-                        sqlRT += "AND lockedBy=:newLockedBy "
-                        varMap[':newLockedBy'] = pid
-                    else:
-                        sqlRT += "AND lockedBy IS NULL "
+                    varMap[':statusInDB'] = taskStatusMap[jediTaskID]
+                    tmpLog.debug(sqlRT+comment+str(varMap))
                     self.cur.execute(sqlRT+comment,varMap)
                     resRT = self.cur.fetchone()
                     # locked by another
@@ -2146,14 +2132,31 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         origTaskSpec = JediTaskSpec()
                         origTaskSpec.pack(resRT)
-                        origTaskSpec.lockedBy = None
-                        origTaskSpec.lockedTime = None
+                    # lock task
+                    if simTasks == None:
+                        varMap = {}
+                        varMap[':jediTaskID']  = jediTaskID
+                        varMap[':newLockedBy'] = pid
+                        varMap[':status'] = taskStatusMap[jediTaskID]
+                        varMap[':timeLimit'] = timeLimit
+                        tmpLog.debug(sqlLock+comment+str(varMap))
+                        self.cur.execute(sqlLock+comment,varMap)
+                        nRow = self.cur.rowcount
+                        if nRow != 1:
+                            tmpLog.debug('failed to lock jediTaskID={0}'.format(jediTaskID))
+                            toSkip = True
+                            if not self._commit():
+                                raise RuntimeError, 'Commit error'
+                            continue
                 except:
                     errType,errValue = sys.exc_info()[:2]
                     if self.isNoWaitException(errValue):
                         # resource busy and acquire with NOWAIT specified
                         toSkip = True
                         tmpLog.debug('skip locked with NOWAIT jediTaskID={0}'.format(jediTaskID))
+                        if not self._commit():
+                            raise RuntimeError, 'Commit error'
+                        continue
                     else:
                         # failed with something else
                         raise errType,errValue
@@ -3600,12 +3603,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             jediTaskIDList = jediTaskIDstatusMap.keys()
             jediTaskIDList.sort()
             tmpLog.debug('got {0} tasks'.format(len(jediTaskIDList)))
+            # sql to read task
+            sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
+            sqlRT += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlRT += "WHERE jediTaskID=:jediTaskID AND status=:statusInDB AND lockedBy IS NULL FOR UPDATE NOWAIT "
             # sql to lock task
             sqlLK  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:newLockedBy ".format(jedi_config.db.schemaJEDI)
             sqlLK += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL "
-            # sql to read task
-            sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sqlRT += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy=:newLockedBy ".format(jedi_config.db.schemaJEDI)
             # sql to read dataset status
             sqlRD  = "SELECT datasetID,status,nFiles,nFilesFinished,masterID,state "
             sqlRD += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND status=:status AND type IN (".format(jedi_config.db.schemaJEDI)
@@ -3655,6 +3659,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 toSkip = False
                 errorDialog = None
                 try:
+                    # read task
+                    varMap = {}
+                    varMap[':jediTaskID']  = jediTaskID
+                    varMap[':statusInDB']  = taskStatus
+                    self.cur.execute(sqlRT+comment,varMap)
+                    resRT = self.cur.fetchone()
+                    # locked by another
+                    if resRT == None:
+                        toSkip = True
+                        if not self._commit():
+                            raise RuntimeError, 'Commit error'
+                        continue
+                    else:
+                        taskSpec = JediTaskSpec()
+                        taskSpec.pack(resRT)
+                        taskSpec.lockedBy = None
+                        taskSpec.lockedTime = None
                     # lock
                     varMap = {}
                     varMap[':jediTaskID']  = jediTaskID
@@ -3668,28 +3689,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if not self._commit():
                             raise RuntimeError, 'Commit error'
                         continue
-                    # read task
-                    varMap = {}
-                    varMap[':jediTaskID']  = jediTaskID
-                    varMap[':newLockedBy'] = pid
-                    self.cur.execute(sqlRT+comment,varMap)
-                    resRT = self.cur.fetchone()
-                    # locked by another
-                    if resRT == None:
-                        toSkip = True
-                        if not self._commit():
-                            raise RuntimeError, 'Commit error'
-                        continue
-                    else:
-                        taskSpec = JediTaskSpec()
-                        taskSpec.pack(resRT)
-                        taskSpec.lockedBy = None
                 except:
                     errType,errValue = sys.exc_info()[:2]
                     if self.isNoWaitException(errValue):
                         # resource busy and acquire with NOWAIT specified
                         toSkip = True
                         tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
+                        if not self._commit():
+                            raise RuntimeError, 'Commit error'
+                        continue
                     else:
                         # failed with something else
                         raise errType,errValue
@@ -5480,7 +5488,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # record retry history
-    def recordRetryHistory_JEDI(self,jediTaskID,oldNewPandaIDs):
+    def recordRetryHistory_JEDI(self,jediTaskID,oldNewPandaIDs,relationType):
         comment = ' /* JediDBProxy.recordRetryHistory_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -5488,8 +5496,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             sqlIN = "INSERT INTO {0}.JEDI_Job_Retry_History ".format(jedi_config.db.schemaJEDI) 
-            sqlIN += "(jediTaskID,oldPandaID,newPandaID) "
-            sqlIN += "VALUES(:jediTaskID,:oldPandaID,:newPandaID) "
+            if relationType == None:
+                sqlIN += "(jediTaskID,oldPandaID,newPandaID) "
+                sqlIN += "VALUES(:jediTaskID,:oldPandaID,:newPandaID) "
+            else:
+                sqlIN += "(jediTaskID,oldPandaID,newPandaID,relationType) "
+                sqlIN += "VALUES(:jediTaskID,:oldPandaID,:newPandaID,:relationType) "
             # start transaction
             self.conn.begin()
             for newPandaID,oldPandaIDs in oldNewPandaIDs.iteritems():
@@ -5498,6 +5510,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':jediTaskID'] = jediTaskID
                     varMap[':oldPandaID'] = oldPandaID
                     varMap[':newPandaID'] = newPandaID
+                    if relationType != None:
+                        varMap[':relationType'] = relationType
                     self.cur.execute(sqlIN+comment,varMap)
             # commit
             if not self._commit():

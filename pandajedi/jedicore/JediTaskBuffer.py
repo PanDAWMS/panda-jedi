@@ -831,11 +831,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # record retry history
-    def recordRetryHistory_JEDI(self,jediTaskID,oldNewPandaIDs):
+    def recordRetryHistory_JEDI(self,jediTaskID,oldNewPandaIDs,relationType):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.recordRetryHistory_JEDI(jediTaskID,oldNewPandaIDs)
+        retVal = proxy.recordRetryHistory_JEDI(jediTaskID,oldNewPandaIDs,relationType)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
