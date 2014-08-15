@@ -590,7 +590,7 @@ class JediTaskSpec(object):
 
     # return list of status for retry
     def statusToRetry(cls):
-        return ['finished','failed']
+        return ['finished','failed','aborted']
     statusToRetry = classmethod(statusToRetry)
 
 

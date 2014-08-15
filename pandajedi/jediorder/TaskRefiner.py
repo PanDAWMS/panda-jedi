@@ -157,6 +157,7 @@ class TaskRefinerThread (WorkerThread):
                         try:
                             # initalize impl
                             impl.initializeRefiner(tmpLog)
+                            impl.oldTaskStatus = taskStatus
                             # extarct common parameters
                             impl.extractCommon(jediTaskID,taskParamMap,self.workQueueMapper,splitRule)
                         except:

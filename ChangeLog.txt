@@ -1,6 +1,7 @@
 Release Note
 
 * 8/14/2014
+  * changed to allow reactivation of aborted tasks 
   * changed some method to avoid row contention
   * fixed AtlasDDM for sites which share the same DDM endpoints 
 

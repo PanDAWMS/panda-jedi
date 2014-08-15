@@ -45,6 +45,7 @@ class TaskRefinerBase (object):
         self.updatedTaskParams = None
         self.unmergeMasterDatasetSpec = {}
         self.unmergeDatasetSpecMap = {}
+        self.oldTaskStatus = None
 
 
 
@@ -264,7 +265,7 @@ class TaskRefinerBase (object):
                                 inDatasetSpec.containerName = datasetName
                                 inDatasetSpecList.append(inDatasetSpec)
                     # empty input
-                    if inDatasetSpecList == []:
+                    if inDatasetSpecList == [] and self.oldTaskStatus != 'rerefine':
                         errStr = 'doBasicRefine : unknown input dataset "{0}"'.format(datasetSpec.datasetName)
                         self.taskSpec.setErrDiag(errStr)
                         raise JediException.UnknownDatasetError,errStr

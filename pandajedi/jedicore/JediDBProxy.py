@@ -5217,7 +5217,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update task status
             sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlUT += "SET status=:status,oldStatus=NULL,modificationtime=CURRENT_DATE,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
+            sqlUT += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
             sqlUT += "WHERE jediTaskID=:jediTaskID "
             # start transaction
             if useCommit:
@@ -5244,7 +5244,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug(msgStr)
                     newTaskStatus = taskOldStatus
                     newErrorDialog = msgStr
-                elif not taskOldStatus in ['finished','failed','done'] and statusCheck:
+                elif not taskOldStatus in JediTaskSpec.statusToIncexec() and statusCheck:
                     # only tasks in a relevant final status 
                     msgStr = 'no {0} since not in relevant final status ({1})'.format(commStr,taskOldStatus)
                     tmpLog.debug(msgStr)
@@ -5354,8 +5354,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':errorDialog'] = newErrorDialog
                 if newTaskStatus != taskOldStatus:
                     tmpLog.debug('set taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
+                    # set old update time to trigger subsequent process
+                    varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                 else:
                     tmpLog.debug('back to taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
+                    varMap[':updateTime'] = datetime.datetime.utcnow()
                 self.cur.execute(sqlUT+comment,varMap)
                 # retry or reactivate child tasks
                 if newTaskStatus != taskOldStatus:
@@ -5411,7 +5414,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # get existing input datasets
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
-                    sqlDS  = "SELECT datasetName,status "
+                    sqlDS  = "SELECT datasetName,status,nFilesTobeUsed,nFilesUsed,masterID "
                     sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI) 
                     sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
                     for tmpType in JediDatasetSpec.getInputTypes():
@@ -5423,8 +5426,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sqlDS+comment,varMap)
                     resDS = self.cur.fetchall()
                     existingDatasets = {}
-                    for datasetName,datasetStatus in resDS:
+                    for datasetName,datasetStatus,nFilesTobeUsed,nFilesUsed,masterID in resDS:
                         existingDatasets[datasetName] = datasetStatus
+                        # remaining master files 
+                        try:
+                            if masterID == None and nFilesTobeUsed-nFilesUsed > 0:
+                                goDefined = True
+                        except:
+                            pass
                     # insert datasets
                     sqlID  = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI,
                                                                            JediDatasetSpec.columnNames())
@@ -5433,7 +5442,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     for datasetSpec in inMasterDatasetSpecList:
                         # skip existing datasets
                         if datasetSpec.datasetName in existingDatasets:
-                            # check dataset status
+                            # check dataset status and remaiing files
                             if existingDatasets[datasetSpec.datasetName] in JediDatasetSpec.statusToUpdateContents():
                                 goDefined = True
                             continue
@@ -5460,16 +5469,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         goDefined = True
                     # update task
                     sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                    sqlUT += "SET status=:status,modificationtime=CURRENT_DATE,stateChangeTime=CURRENT_DATE "
+                    sqlUT += "SET status=:status,modificationtime=:updateTime,stateChangeTime=CURRENT_DATE "
                     sqlUT += "WHERE jediTaskID=:jediTaskID "
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
                     if goDefined:
-                        # pass to ContentsFeeder
-                        varMap[':status'] = 'defined'
+                        # no new datasets
+                        if inMasterDatasetSpecList == []:
+                            # pass to JG
+                            varMap[':status'] = 'ready'
+                        else:
+                            # pass to ContentsFeeder
+                            varMap[':status'] = 'defined'
                     else:
                         # go to finalization since no datasets are appended
                         varMap[':status'] = 'prepared'
+                    # set old update time to trigger subsequent process
+                    varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     tmpLog.debug('set taskStatus={0}'.format(varMap[':status']))
                     self.cur.execute(sqlUT+comment,varMap)
             # commit
