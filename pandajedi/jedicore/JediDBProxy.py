@@ -703,7 +703,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
                         varMap[':datasetID'] = datasetSpec.datasetID
                         varMap[':nFiles'] = nInsert + len(existingFiles)
-                        if taskStatus == 'defined' and useScout and not isEventSplit and nChunksForScout != None and nReady > sizePendingFileChunk:
+                        if xmlConfig != None:
+                            # disable scout for --loadXML
+                            varMap[':nFilesTobeUsed'] = nReady + nUsed
+                        elif taskStatus == 'defined' and useScout and not isEventSplit and nChunksForScout != None and nReady > sizePendingFileChunk:
                             # set a fewer number for scout for file level splitting
                             varMap[':nFilesTobeUsed'] = sizePendingFileChunk
                         elif taskStatus == 'defined' and useScout and isEventSplit and nReady > nFilesToUseEventSplit:
@@ -4142,7 +4145,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # lock
                 varMap = {}
                 varMap[':comm_task'] = jediTaskID
-                sqlLock  = "SELECT * FROM {0}.PRODSYS_COMM WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
+                sqlLock  = "SELECT comm_cmd FROM {0}.PRODSYS_COMM WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
                 sqlLock += "FOR UPDATE "
                 toSkip = False                
                 try:
@@ -4253,6 +4256,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     nRow = self.cur.rowcount
                     if nRow == 1 and not retTaskIDs.has_key(jediTaskID):
                         retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment}
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+            # read clob
+            sqlCC  = "SELECT comm_parameters FROM {0}.PRODSYS_COMM WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
+            for jediTaskID in retTaskIDs.keys():
+                # start transaction
+                self.conn.begin()
+                varMap = {}
+                varMap[':comm_task'] = jediTaskID
+                self.cur.execute(sqlCC+comment, varMap)
+                tmpComComment = None
+                for clobCC, in self.cur:
+                    if clobCC != None:
+                        tmpComComment = clobCC.read()
+                    break
+                if not tmpComComment in ['',None]:
+                    retTaskIDs[jediTaskID]['comment'] = tmpComComment
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
@@ -5211,6 +5232,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRF += "SET maxAttempt=maxAttempt+:maxAttempt "
             sqlRF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlRF += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt=attemptNr "
+            # sql to count unprocessd files
+            sqlCU  = "SELECT COUNT(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
+            sqlCU += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt>attemptNr "
             # sql to retry/incexecute datasets
             sqlRD  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlRD += "SET status=:status,nFilesUsed=nFilesUsed-:nDiff,nFilesFailed=nFilesFailed-:nDiff "
@@ -5282,6 +5307,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if state == 'closed' and nFiles == nFilesFinished:
                                 tmpLog.debug('no refresh for datasetID={0} : state={1}'.format(datasetID,state))
                                 continue
+                            # count unprocessed files
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
+                            varMap[':status']     = 'ready'
+                            varMap[':keepTrack']  = 1
+                            self.cur.execute(sqlCU+comment,varMap)
+                            nUnp, = self.cur.fetchone()
                             # update files
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
@@ -5292,8 +5325,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.cur.execute(sqlRF+comment,varMap)
                             nDiff = self.cur.rowcount
                             # no retry if no failed files
-                            if commStr == 'retry' and nDiff == 0:
-                                tmpLog.debug('no {0} for datasetID={1} : nDiff=0'.format(commStr,datasetID))
+                            if commStr == 'retry' and nDiff == 0 and nUnp == 0:
+                                tmpLog.debug('no {0} for datasetID={1} : nDiff=0 and nReady=0'.format(commStr,datasetID))
                                 continue
                             # update dataset
                             varMap = {}
@@ -5469,7 +5502,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         goDefined = True
                     # update task
                     sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                    sqlUT += "SET status=:status,modificationtime=:updateTime,stateChangeTime=CURRENT_DATE "
+                    sqlUT += "SET status=:status,lockedBy=NULL,lockedTime=NULL,modificationtime=:updateTime,stateChangeTime=CURRENT_DATE "
                     sqlUT += "WHERE jediTaskID=:jediTaskID "
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID

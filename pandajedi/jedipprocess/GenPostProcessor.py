@@ -21,7 +21,7 @@ class GenPostProcessor (PostProcessorBase):
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicPostProcess failed with {0}:{1}'.format(errtype.__name__,errvalue))
-            return self.SC_FAILED
+            return self.SC_FATAL
         return self.SC_SUCCEEDED
             
     

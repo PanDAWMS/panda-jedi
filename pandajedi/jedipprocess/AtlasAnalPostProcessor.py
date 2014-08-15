@@ -68,7 +68,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicPostProcess failed with {0}:{1}'.format(errtype.__name__,errvalue))
-            retVal = self.SC_FAILED
+            retVal = self.SC_FATAL
         return retVal
 
 

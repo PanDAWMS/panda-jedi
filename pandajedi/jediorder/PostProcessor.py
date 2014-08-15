@@ -134,7 +134,7 @@ class PostProcessorThread (WorkerThread):
                     if impl == None:
                         # post processor is undefined
                         tmpLog.error('post-processor is undefined for vo={0} sourceLabel={1}'.format(taskSpec.vo,taskSpec.prodSourceLabel))
-                        tmpStat = Interaction.SC_FAILED
+                        tmpStat = Interaction.SC_FATAL
                     # execute    
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         tmpLog.info('post-process with {0}'.format(impl.__class__.__name__))
@@ -143,9 +143,9 @@ class PostProcessorThread (WorkerThread):
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('doPostProcess failed with {0}:{1}'.format(errtype.__name__,errvalue))
-                            tmpStat = Interaction.SC_FAILED
+                            tmpStat = Interaction.SC_FATAL
                     # done
-                    if tmpStat != Interaction.SC_SUCCEEDED:
+                    if tmpStat == Interaction.SC_FATAL:
                         # task is broken
                         tmpErrStr = 'post-process failed'
                         tmpLog.error(tmpErrStr)
@@ -153,6 +153,14 @@ class PostProcessorThread (WorkerThread):
                         taskSpec.setErrDiag(tmpErrStr)
                         taskSpec.lockedBy = None
                         self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})    
+                    elif tmpStat == Interaction.SC_FAILED:
+                        tmpErrStr = 'post processing failed'
+                        taskSpec.setOnHold()
+                        taskSpec.setErrDiag(tmpErrStr,True)
+                        taskSpec.lockedBy = None
+                        self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
+                        tmpLog.info('set task.status={0} since {1}'.format(taskSpec.status,taskSpec.errorDialog))
+                        continue
                     # final procedure
                     try:
                         impl.doFinalProcedure(taskSpec,tmpLog)

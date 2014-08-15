@@ -1,5 +1,12 @@
 Release Note
 
+* 8/15/2014
+  * fixed for loadXML
+  * fixed for retry
+  * fixed incexec to use comm_parameters
+  * changed AtlasProdPP to freeze output and log datasets
+  * decreased limit for instance renewal in Interaction
+
 * 8/14/2014
   * changed to allow reactivation of aborted tasks 
   * changed some method to avoid row contention
