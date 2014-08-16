@@ -19,6 +19,7 @@ from JediDatasetSpec import JediDatasetSpec
 from InputChunk import InputChunk
 from MsgWrapper import MsgWrapper
 
+import ParseJobXML
 import JediCoreUtils
 
 
@@ -309,6 +310,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileMap = newFileMap
             # XML config
             if xmlConfig != None:
+                try:
+                    xmlConfig = ParseJobXML.dom_parser(xmlStr=xmlConfig)
+                except:
+                    errtype,errvalue = sys.exc_info()[:2]
+                    tmpErrStr = 'failed to load XML config with {0}:{1}'.format(errtype.__name__,errvalue)
+                    raise RuntimeError,tmpErrStr
                 newFileMap = {}
                 for guid,fileVal in fileMap.iteritems():
                     if fileVal['lfn'] in xmlConfig.files_in_DS(datasetSpec.datasetName):

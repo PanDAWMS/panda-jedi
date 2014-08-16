@@ -157,7 +157,9 @@ class MethodClass(object):
             child_process.nused += 1
             # kill old or problematic process
             if child_process.nused > 1000 or not retException in [None,JEDITemporaryError,JEDIFatalError]:
-                dumpStdOut(self.className,'methodName={0} ret={1} nused={2}'.format(self.methodName,retException,child_process.nused))
+                dumpStdOut(self.className,'methodName={0} ret={1} nused={2} {3}'.format(self.methodName,retException,
+                                                                                        child_process.nused,
+                                                                                        strException))
                 # close connection
                 try:
                     pipe.close()
