@@ -907,3 +907,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # lock task
+    def lockTask_JEDI(self,jediTaskID,pid):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.lockTask_JEDI(jediTaskID,pid)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

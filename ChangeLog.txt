@@ -1,6 +1,7 @@
 Release Note
 
 * 8/16/2014
+  * locking task in JG
   * fixed for xmlConfig
 
 * 8/15/2014

@@ -6056,3 +6056,42 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False
+
+
+
+    # lock task
+    def lockTask_JEDI(self,jediTaskID,pid):
+        comment = ' /* JediDBProxy.lockTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0} pid={1}>".format(jediTaskID,pid)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to lock task
+            sqlPD  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlPD += "SET lockedTime=CURRENT_DATE,modificationTime=CURRENT_DATE "
+            sqlPD += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy "
+            # begin transaction
+            self.conn.begin()
+            # lock
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':lockedBy'] = pid
+            self.cur.execute(sqlPD+comment,varMap)
+            nRow = self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            if nRow == 1:
+                retVal = True
+            else:
+                retVal = False
+            # return    
+            tmpLog.debug('done with {0}'.format(retVal))
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False

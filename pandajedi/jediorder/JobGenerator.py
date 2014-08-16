@@ -138,7 +138,8 @@ class JobGenerator (JediKnight):
                                             thr = JobGeneratorThread(inputList,threadPool,
                                                                      self.taskBufferIF,self.ddmIF,
                                                                      siteMapper,self.execJobs,
-                                                                     taskSetupper)
+                                                                     taskSetupper,
+                                                                     self.pid)
                                             thr.start()
                                         # join
                                         threadPool.join()
@@ -163,7 +164,7 @@ class JobGeneratorThread (WorkerThread):
 
     # constructor
     def __init__(self,inputList,threadPool,taskbufferIF,ddmIF,siteMapper,
-                 execJobs,taskSetupper):
+                 execJobs,taskSetupper,pid):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -175,6 +176,7 @@ class JobGeneratorThread (WorkerThread):
         self.numGenJobs   = 0
         self.taskSetupper = taskSetupper
         self.msgType      = 'jobgenerator'
+        self.pid          = pid
 
 
     # main
@@ -282,6 +284,13 @@ class JobGeneratorThread (WorkerThread):
                             taskSpec.status = 'tobroken'
                             taskSpec.setErrDiag(tmpErrStr)
                             goForward = False
+                    # lock task
+                    if goForward:
+                        tmpLog.info('lock task')
+                        tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
+                        if tmpStat == False:
+                            tmpLog.info('skip due to lock failure')
+                            continue
                     # setup task
                     if goForward:
                         tmpLog.info('run setupper with {0}'.format(self.taskSetupper.getClassName(taskSpec.vo,
@@ -299,6 +308,13 @@ class JobGeneratorThread (WorkerThread):
                             taskSpec.setErrDiag(tmpErrStr,True)
                         else:
                             readyToSubmitJob = True
+                    # lock task
+                    if goForward:
+                        tmpLog.info('lock task')
+                        tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
+                        if tmpStat == False:
+                            tmpLog.info('skip due to lock failure')
+                            continue
                     # submit
                     if readyToSubmitJob:
                         # submit
