@@ -48,7 +48,7 @@ class PostProcessorBase (object):
         nFiles = 0
         nFilesFinished = 0
         for datasetSpec in taskSpec.datasetSpecList:
-            if datasetSpec.isMaster():
+            if datasetSpec.isMasterInput():
                 nFiles += datasetSpec.nFiles
                 nFilesFinished += datasetSpec.nFilesFinished
         # update task status

@@ -1,6 +1,7 @@
 Release Note
 
 * 8/17/2014
+  * fixed PP to check only master inputs
   * sending task view in notification
   * setting retry in history
   * added safety mergin in workDiskCoung
