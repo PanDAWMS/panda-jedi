@@ -1,5 +1,12 @@
 Release Note
 
+* 8/17/2014
+  * sending task view in notification
+  * setting retry in history
+  * added safety mergin in workDiskCoung
+  * fixed getScoutData
+  * fixed AtlasAnalJB to correctly use scout data
+
 * 8/16/2014
   * locking task in JG
   * fixed for xmlConfig

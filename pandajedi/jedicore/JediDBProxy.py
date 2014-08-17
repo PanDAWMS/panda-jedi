@@ -1939,7 +1939,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,
                                    nTasks=50,nFiles=100,isPeeking=False,simTasks=None,
                                    minPriority=None,maxNumJobs=None,typicalNumFilesMap=None,
-                                   fullSimulation=False):
+                                   fullSimulation=False,simDatasets=None):
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
         if simTasks != None:
@@ -2041,6 +2041,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[mapKey] = tmpType
                 sql  = sql[:-1]
                 sql += ') AND masterID IS NULL '
+                if simDatasets != None:
+                    sql += "AND tabD.datasetID IN ("
+                    for tmpDsIdx,tmpDatasetID in enumerate(simDatasets):
+                        tmpKey = ':datasetID{0}'.format(tmpDsIdx)
+                        varMap[tmpKey] = tmpDatasetID
+                        sql += '{0},'.format(tmpKey)
+                    sql = sql[:-1]
+                    sql += ') '
                 if not fullSimulation:
                     sql += "AND nFilesToBeUsed > nFilesUsed "
             # begin transaction
@@ -2080,7 +2088,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to read task
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
             sqlRT += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlRT += "WHERE jediTaskID=:jediTaskID AND status=:statusInDB AND lockedBy IS NULL FOR UPDATE NOWAIT "
+            sqlRT += "WHERE jediTaskID=:jediTaskID AND status=:statusInDB AND lockedBy IS NULL "
+            if simTasks == None:
+                sqlRT += "FOR UPDATE NOWAIT "
             # sql to lock task
             sqlLock  = "UPDATE {0}.JEDI_Tasks  ".format(jedi_config.db.schemaJEDI)
             sqlLock += "SET lockedBy=:newLockedBy,lockedTime=CURRENT_DATE,modificationTime=CURRENT_DATE "
@@ -2090,7 +2100,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to read datasets
             sqlRD  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
             sqlRD += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-            sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE NOWAIT "
+            sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            if simTasks == None:
+                sqlRD += "FOR UPDATE NOWAIT "
             # sql to read files
             sqlFR  = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
@@ -3410,6 +3422,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if useTransaction:
             # begin transaction
             self.conn.begin()
+        self.cur.arraysize = 100000
         # get the size of lib 
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
@@ -3480,13 +3493,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     pass
                 # output size
                 try:
-                    tmpVal = long(float(outputFileBytes) / totalFSize)
+                    tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
                     outSizeList.append(tmpVal)
                 except:
                     pass
                 # execution time
                 try:
-                    tmpVal = long(float(cpuConsumptionTime) / totalFSize)
+                    tmpVal = long(math.ceil(float(cpuConsumptionTime) / totalFSize))
                     walltimeList.append(tmpVal)
                 except:
                     pass
@@ -3497,7 +3510,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 except:
                     pass
                 # workdir size
-                tmpWorkSize = None
+                tmpWorkSize = 0
                 try:
                     tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
                     tmpWorkSize = long(tmpMatch.group(1))
@@ -3510,10 +3523,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     workSizeList.append(tmpWorkSize)
         # calculate median values
         if outSizeList != []:
-            median = numpy.median(outSizeList) 
-            median /= (1024*1024)
+            median = max(outSizeList) 
+            median /= 1024
             returnMap['outDiskCount'] = long(median)
-            returnMap['outDiskUnit']  = 'MB'
+            returnMap['outDiskUnit']  = 'kB'
         if walltimeList != []:
             median = numpy.median(walltimeList)
             returnMap['walltime']     = long(median)
@@ -3524,7 +3537,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap['ramCount'] = long(median)
             returnMap['ramUnit']  = 'MB'
         if workSizeList != []:   
-            median = numpy.median(workSizeList)
+            median = max(workSizeList)
             returnMap['workDiskCount'] = long(median)
             returnMap['workDiskUnit']  = 'MB'
         if useTransaction:    

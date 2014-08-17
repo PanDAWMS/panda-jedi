@@ -176,7 +176,7 @@ Error Dialog : {errorDialog}
 Parameters : {params}
 
 
-PandaMonURL : http://bigpanda.cern.ch/jobs/?jeditaskid={jediTaskID}""".format(\
+PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(\
             jediTaskID=taskSpec.jediTaskID,
             JobsetID=taskSpec.reqID,
             fromAdd=fromAdd,

@@ -537,15 +537,17 @@ class JediTaskSpec(object):
 
     # get the size of workDisk in bytes
     def getWorkDiskSize(self):
+        safetyMargin = 300 * 1024 * 1024
         tmpSize = self.workDiskCount
         if tmpSize == None:
             return 0
         if self.workDiskUnit == 'GB':
             tmpSize = tmpSize * 1024 * 1024 * 1024
-            return tmpSize
-        if self.workDiskUnit == 'MB':
+        elif self.workDiskUnit == 'MB':
             tmpSize = tmpSize * 1024 * 1024
-            return tmpSize
+        elif self.workDiskUnit == 'kB':
+            tmpSize = tmpSize * 1024
+        tmpSize += safetyMargin
         return tmpSize
 
 
@@ -557,10 +559,10 @@ class JediTaskSpec(object):
             return 0
         if self.outDiskUnit == 'GB':
             tmpSize = tmpSize * 1024 * 1024 * 1024
-            return tmpSize
-        if self.outDiskUnit == 'MB':
+        elif self.outDiskUnit == 'MB':
             tmpSize = tmpSize * 1024 * 1024
-            return tmpSize
+        elif self.outDiskUnit == 'kB':
+            tmpSize = tmpSize * 1024
         return tmpSize
 
 

@@ -333,7 +333,7 @@ class JobGeneratorThread (WorkerThread):
                         if inputChunk.isMerging:
                             relationType = 'merge'
                         else:
-                            relationType = None
+                            relationType = 'retry'
                         self.taskBufferIF.recordRetryHistory_JEDI(taskSpec.jediTaskID,oldNewPandaIDs,relationType)
                         # check if submission was successful
                         if len(pandaIDs) == len(pandaJobs):

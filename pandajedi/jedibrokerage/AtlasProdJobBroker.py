@@ -279,7 +279,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for scratch disk
-        minDiskCount = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
+        minDiskCount = taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(effectiveSize=True) \
+            + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
         minDiskCount = minDiskCount / 1024 / 1024
         newScanSiteList = []
         for tmpSiteName in scanSiteList:

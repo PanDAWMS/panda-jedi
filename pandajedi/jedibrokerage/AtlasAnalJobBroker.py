@@ -106,7 +106,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # get sites where disk replica is available
                 tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite)
                 # get sites which can remotely access source sites
-                if (not sitePreAssigned) or (sitePreAssigned and not taskSpec.site in tmpSiteList):
+                if inputChunk.isMerging:
+                    # disable remote access for merging
+                    tmpSatelliteSites = {}
+                elif (not sitePreAssigned) or (sitePreAssigned and not taskSpec.site in tmpSiteList):
                     tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpSiteList,self.taskBufferIF,
                                                                            self.siteMapper,nSites=50,
                                                                            protocol=allowedRemoteProtocol)
@@ -260,14 +263,24 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for scratch disk
-        minDiskCountS = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
+        tmpMaxAtomSize  = inputChunk.getMaxAtomSize()
+        tmpEffAtomSize  = inputChunk.getMaxAtomSize(effectiveSize=True)
+        tmpOutDiskSize  = taskSpec.getOutDiskSize()
+        tmpWorkDiskSize = taskSpec.getWorkDiskSize()
+        minDiskCountS = tmpOutDiskSize*tmpEffAtomSize + tmpWorkDiskSize + tmpMaxAtomSize
         minDiskCountS = minDiskCountS / 1024 / 1024
         # size for direct IO sites
         if taskSpec.useLocalIO():
             minDiskCountR = minDiskCountS
         else:
-            minDiskCountR = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()
+            minDiskCountR = tmpOutDiskSize*tmpEffAtomSize + tmpWorkDiskSize
             minDiskCountR = minDiskCountR / 1024 / 1024
+        tmpLog.debug('maxAtomSize={0} effectiveAtomSize={1} outDiskCount={2} workDiskSize={3}'.format(tmpMaxAtomSize,
+                                                                                                      tmpEffAtomSize,
+                                                                                                      tmpOutDiskSize,
+                                                                                                      tmpWorkDiskSize))
+        tmpLog.debug('minDiskCountScratch={0} minDiskCountRemote={1}'.format(minDiskCountS,
+                                                                             minDiskCountR))
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)

@@ -261,7 +261,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,
                                    nTasks=50,nFiles=100,simTasks=None,minPriority=None,
                                    maxNumJobs=None,typicalNumFilesMap=None,
-                                   fullSimulation=False):
+                                   fullSimulation=False,simDatasets=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -270,7 +270,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   minPriority=minPriority,
                                                   maxNumJobs=maxNumJobs,
                                                   typicalNumFilesMap=typicalNumFilesMap,
-                                                  fullSimulation=fullSimulation)
+                                                  fullSimulation=fullSimulation,
+                                                  simDatasets=simDatasets)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
