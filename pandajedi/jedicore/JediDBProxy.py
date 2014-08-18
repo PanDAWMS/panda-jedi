@@ -5251,7 +5251,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRF  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlRF += "SET maxAttempt=maxAttempt+:maxAttempt "
             sqlRF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
-            sqlRF += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt=attemptNr "
+            sqlRF += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt<=attemptNr "
             # sql to count unprocessd files
             sqlCU  = "SELECT COUNT(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlCU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
@@ -5393,7 +5393,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
                         else:
                             # to to finalization since no files left in ready status
-                            msgStr = 'no {0} since no files left'.format(commStr)
+                            msgStr = 'no {0} since no new/unprocessed files available'.format(commStr)
                             tmpLog.debug(msgStr)
                             newTaskStatus = taskOldStatus
                             newErrorDialog = msgStr

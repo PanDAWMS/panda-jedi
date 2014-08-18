@@ -428,19 +428,23 @@ class JobGeneratorThread (WorkerThread):
                 buildFileSpec = None
                 # make preprocessing job
                 if taskSpec.usePrePro():
-                    tmpStat,preproJobSpec,datasetToRegister = self.doGeneratePrePro(taskSpec,cloudName,siteName,taskParamMap,
-                                                                                    inSubChunks,tmpLog,simul)
+                    tmpStat,preproJobSpec,tmpToRegister = self.doGeneratePrePro(taskSpec,cloudName,siteName,taskParamMap,
+                                                                                inSubChunks,tmpLog,simul)
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to generate prepro job')
                         return failedRet
                     # append
                     jobSpecList.append(preproJobSpec)
                     oldPandaIDs.append([])
+                    # append datasets
+                    for tmpToRegisterItem in tmpToRegister:
+                        if not tmpToRegisterItem in datasetToRegister:
+                            datasetToRegister.append(tmpToRegisterItem)
                     break
                 # make build job
                 elif taskSpec.useBuild():
-                    tmpStat,buildJobSpec,buildFileSpec,datasetToRegister = self.doGenerateBuild(taskSpec,cloudName,siteName,
-                                                                                                taskParamMap,tmpLog,simul)
+                    tmpStat,buildJobSpec,buildFileSpec,tmpToRegister = self.doGenerateBuild(taskSpec,cloudName,siteName,
+                                                                                            taskParamMap,tmpLog,simul)
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to generate build job')
                         return failedRet
@@ -448,6 +452,10 @@ class JobGeneratorThread (WorkerThread):
                     if buildJobSpec != None:
                         jobSpecList.append(buildJobSpec)
                         oldPandaIDs.append([])
+                    # append datasets
+                    for tmpToRegisterItem in tmpToRegister:
+                        if not tmpToRegisterItem in datasetToRegister:
+                            datasetToRegister.append(tmpToRegisterItem)
                 # make normal jobs
                 for inSubChunk in inSubChunks:
                     subOldPandaIDs = []
