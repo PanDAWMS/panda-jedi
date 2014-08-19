@@ -1,6 +1,7 @@
 Release Note
 
 * 8/18/2014
+  * introduced fairshare in tobeProcessed
   * allowing retry for maxAttempt<=attemptNr
   * fixed JG to register all output datasets 
 

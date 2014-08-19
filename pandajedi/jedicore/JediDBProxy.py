@@ -4,6 +4,7 @@ import copy
 import math
 import types
 import numpy
+import random
 import datetime
 import cx_Oracle
 
@@ -1976,7 +1977,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':dsOKStatus3']     = 'defined'
                 varMap[':dsOKStatus4']     = 'registered'
                 varMap[':timeLimit']       = timeLimit
-                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status "
+                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.userName "
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
                 sql += "AND tabT.vo=:vo AND workQueue_ID IN ("
@@ -2023,9 +2024,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 varMap = {}
                 if not fullSimulation:
-                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status "
+                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.userName "
                 else:
-                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed,tabD.type,tabT.status "
+                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed,tabD.type,tabT.status,tabT.userName "
                 sql += "FROM {0}.JEDI_Tasks tabT,{1}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI,
                                                                                  jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ("
@@ -2070,7 +2071,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             taskStatusMap = {}
             jediTaskIDList = []
             taskAvalancheMap = {}
-            for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,taskStatus in resList:
+            userTaskMap = {}
+            for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,taskStatus,userName in resList:
                 tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3}'.format(jediTaskID,datasetID,
                                                                                             tmpNumFiles,datasetType))
                 # just return the max priority
@@ -2082,9 +2084,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not taskDatasetMap.has_key(jediTaskID):
                     taskDatasetMap[jediTaskID] = []
                 taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType))
-                if not jediTaskID in jediTaskIDList:
-                    jediTaskIDList.append(jediTaskID)
+                # make user-task mapping
+                if not userName in userTaskMap:
+                    userTaskMap[userName] = []
+                if not jediTaskID in userTaskMap[userName]:
+                    userTaskMap[userName].append(jediTaskID)
             tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
+            # make list
+            for userName in userTaskMap.keys():
+                userTaskMap[userName].sort()
+            userNameList = userTaskMap.keys()
+            random.shuffle(userNameList)
+            while userNameList != []:
+                for userName in userNameList:
+                    if userTaskMap[userName] == []:
+                        userNameList.remove(userName)
+                    else:
+                        jediTaskIDList.append(userTaskMap[userName].pop(0))
             # sql to read task
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
             sqlRT += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
