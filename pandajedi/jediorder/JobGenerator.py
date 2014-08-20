@@ -425,6 +425,7 @@ class JobGeneratorThread (WorkerThread):
                 siteName      = tmpInChunk['siteName']
                 inSubChunks   = tmpInChunk['subChunks']
                 siteCandidate = tmpInChunk['siteCandidate']
+                siteSpec      = self.siteMapper.getSite(siteName) 
                 buildFileSpec = None
                 # make preprocessing job
                 if taskSpec.usePrePro():
@@ -621,7 +622,8 @@ class JobGeneratorThread (WorkerThread):
                     except:
                         pass
                     # add input size
-                    jobSpec.maxDiskCount += totalFileSize
+                    if taskSpec.useLocalIO() or not siteSpec.isDirectIO():
+                        jobSpec.maxDiskCount += totalFileSize
                     # maxDiskCount in MB
                     jobSpec.maxDiskCount /= (1024*1024)
                     jobSpec.maxDiskCount = long(jobSpec.maxDiskCount)
