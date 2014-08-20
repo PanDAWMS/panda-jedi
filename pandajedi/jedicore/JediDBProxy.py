@@ -5280,6 +5280,29 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlUT += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
             sqlUT += "WHERE jediTaskID=:jediTaskID "
+            # sql to update output/lib/log datasets
+            sqlUO1  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlUO1 += "SET status=:status "
+            sqlUO1 += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3,"
+            for tmpType in JediDatasetSpec.getProcessTypes():
+                if tmpType in JediDatasetSpec.getInputTypes():
+                    continue
+                mapKey = ':type_'+tmpType
+                sqlUO1 += '{0},'.format(mapKey)
+            sqlUO1 = sqlUO1[:-1]
+            sqlUO1 += ") "
+            sqlUO1 += "AND (nFiles IS NULL OR nFilesFinished IS NULL OR nFiles>nFilesFinished) "
+            sqlUO2  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlUO2 += "SET status=:status "
+            sqlUO2 += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3, "
+            for tmpType in JediDatasetSpec.getProcessTypes():
+                if tmpType in JediDatasetSpec.getInputTypes():
+                    continue
+                mapKey = ':type_'+tmpType
+                sqlUO2 += '{0},'.format(mapKey)
+            sqlUO2 = sqlUO2[:-1]
+            sqlUO2 += ") "
+            sqlUO2 += "AND nFiles=nFilesFinished "
             # start transaction
             if useCommit:
                 self.conn.begin()
@@ -5334,7 +5357,25 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if not secMap.has_key(masterID):
                                 secMap[masterID] = []
                             secMap[masterID].append((datasetID,nFilesFinished,status,state))
+                            # update dataset
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
+                            varMap[':nDiff'] = 0
+                            varMap[':status'] = 'ready'
+                            tmpLog.debug('set status={0} for 2nd datasetID={1} diff={2}'.format(varMap[':status'],datasetID,nDiff))
+                            self.cur.execute(sqlRD+comment,varMap)
                         else:
+                            # set done if no more try is needed
+                            if nFiles == nFilesFinished and status == 'failed':
+                                # update dataset
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                varMap[':nDiff'] = 0
+                                varMap[':status'] = 'done'
+                                tmpLog.debug('set status={0} for datasetID={1}'.format(varMap[':status'],datasetID))
+                                self.cur.execute(sqlRD+comment,varMap)
                             # no retry if master dataset successfully finished
                             if commStr == 'retry' and nFiles == nFilesFinished:
                                 tmpLog.debug('no {0} for datasetID={1} : nFiles==nFilesFinished'.format(commStr,datasetID))
@@ -5429,6 +5470,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('back to taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
                     varMap[':updateTime'] = datetime.datetime.utcnow()
                 self.cur.execute(sqlUT+comment,varMap)
+                # update output/lib/log
+                if newTaskStatus != taskOldStatus:
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':type1']      = 'output'
+                    varMap[':type2']      = 'lib'
+                    varMap[':type3']      = 'log'
+                    varMap[':status']     = 'finished'
+                    for tmpType in JediDatasetSpec.getProcessTypes():
+                        if tmpType in JediDatasetSpec.getInputTypes():
+                            continue
+                        mapKey = ':type_'+tmpType
+                        varMap[mapKey] = tmpType
+                    self.cur.execute(sqlUO1+comment,varMap)
+                    varMap[':status']     = 'done'
+                    self.cur.execute(sqlUO2+comment,varMap)
                 # retry or reactivate child tasks
                 if newTaskStatus != taskOldStatus:
                     self.retryChildTasks_JEDI(jediTaskID,useCommit=False)

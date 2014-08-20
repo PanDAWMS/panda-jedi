@@ -3,6 +3,7 @@ Release Note
 * 8/20/2014
   * fixed JG to use MB in maxDiskCount
   * fixed JG not to include input size in maxDiskCount for remoteIO sites
+  * fixed retryTask for task with smultiple inputs
 
 * 8/19/2014
   * reduced cutoff to 15 for selection of WAN access sites
