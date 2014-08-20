@@ -41,8 +41,10 @@ workQueue = tbIF.getWorkQueueMap().getQueueWithID(queueID)
 threadPool = ThreadPool()
 
 # get typical number of files
-typicalNumFilesMap = tbIF.getTypicalNumInput_JEDI(vo,prodSourceLabel,workQueue,
-                                                  useResultCache=600)
+#typicalNumFilesMap = tbIF.getTypicalNumInput_JEDI(vo,prodSourceLabel,workQueue,
+#                                                  useResultCache=600)
+
+typicalNumFilesMap = {}
 
 tmpList = tbIF.getTasksToBeProcessed_JEDI(None,vo,workQueue,
                                           prodSourceLabel,

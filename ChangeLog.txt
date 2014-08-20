@@ -1,5 +1,8 @@
 Release Note
 
+* 8/20/2014
+  * fixed JG to use MB in maxDiskCount
+
 * 8/19/2014
   * reduced cutoff to 15 for selection of WAN access sites
   * updating task when incexec

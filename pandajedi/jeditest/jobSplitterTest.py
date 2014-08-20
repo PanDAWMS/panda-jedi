@@ -53,7 +53,7 @@ for taskSpec,cloudName,inputChunk in tmpList:
     jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
     tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo),tbIF)
     splitter = JobSplitter()
-    gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper)
+    gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper,None)
 
     taskParamMap = None
     if taskSpec.useLimitedSites():

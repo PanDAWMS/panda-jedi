@@ -500,8 +500,8 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.AtlasRelease     = re.sub('\r','',jobSpec.AtlasRelease)
                     jobSpec.maxCpuCount      = taskSpec.walltime
                     jobSpec.maxCpuUnit       = taskSpec.walltimeUnit
-                    jobSpec.maxDiskCount     = taskSpec.outDiskCount
-                    jobSpec.maxDiskUnit      = taskSpec.outDiskUnit
+                    jobSpec.maxDiskCount     = taskSpec.getOutDiskSize()
+                    jobSpec.maxDiskUnit      = 'MB'
                     jobSpec.minRamCount      = taskSpec.ramCount
                     jobSpec.minRamUnit       = taskSpec.ramUnit
                     jobSpec.coreCount        = taskSpec.coreCount
@@ -533,6 +533,7 @@ class JobGeneratorThread (WorkerThread):
                     prodDBlock = None
                     setProdDBlock = False
                     totalMasterSize = 0
+                    totalFileSize = 0
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
                         # get boundaryID if grouping is done with boundaryID
                         if useBoundary != None and boundaryID == None:
@@ -577,6 +578,9 @@ class JobGeneratorThread (WorkerThread):
                             if tmpDatasetSpec.isMaster():
                                 totalMasterSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
                                                                                       tmpFileSpec.endEvent,tmpFileSpec.nEvents)
+                            # total file size
+                            if tmpInFileSpec.status != 'cached':
+                                totalFileSize += tmpFileSpec.fsize
                         # check if merging 
                         if taskSpec.mergeOutput() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.toMerge():
                             isUnMerging = True
@@ -613,9 +617,14 @@ class JobGeneratorThread (WorkerThread):
                         pass
                     # add offset to maxDiskCount
                     try:
-                        jobSpec.maxDiskCount += taskSpec.workDiskCount
+                        jobSpec.maxDiskCount += taskSpec.getWorkDiskSize()
                     except:
                         pass
+                    # add input size
+                    jobSpec.maxDiskCount += totalFileSize
+                    # maxDiskCount in MB
+                    jobSpec.maxDiskCount /= (1024*1024)
+                    jobSpec.maxDiskCount = long(jobSpec.maxDiskCount)
                     # XML config
                     xmlConfigJob = None
                     if xmlConfig != None:
