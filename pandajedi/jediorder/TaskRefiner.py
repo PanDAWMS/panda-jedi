@@ -273,7 +273,9 @@ class TaskRefinerThread (WorkerThread):
                                 tmpMsg = 'set task.status={0}'.format(newTaskStatus)
                                 tmpLog.info(tmpMsg)
                                 tmpLog.sendMsg(tmpMsg,self.msgType)
-                            else:        
+                            else:
+                                # update task with new params
+                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
                                 # appending for incremetnal execution
                                 tmpStat = self.taskBufferIF.appendDatasets_JEDI(jediTaskID,impl.inMasterDatasetSpec,
                                                                                 impl.inSecDatasetSpecList)

@@ -2,6 +2,7 @@ Release Note
 
 * 8/19/2014
   * reduced cutoff to 15 for selection of WAN access sites
+  * updating task when incexec
 
 * 8/18/2014
   * introduced fairshare in tobeProcessed
