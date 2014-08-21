@@ -1,6 +1,7 @@
 Release Note
 
 * 8/20/2014
+  * added protection against large --nGBPerJob
   * fixed JG to use MB in maxDiskCount
   * fixed JG not to include input size in maxDiskCount for remoteIO sites
   * fixed retryTask for task with multiple inputs

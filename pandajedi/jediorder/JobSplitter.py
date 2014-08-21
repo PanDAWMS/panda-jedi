@@ -92,7 +92,7 @@ class JobSplitter:
                 siteSpec = siteMapper.getSite(siteName)
                 # get maxSize if it is set in taskSpec
                 maxSize = taskSpec.getMaxSizePerJob()
-                if maxSize == None:
+                if maxSize == None or maxSize > (siteSpec.maxwdir * 1024 * 1024):
                     # use maxwdir as the default maxSize
                     maxSize = siteSpec.maxwdir * 1024 * 1024
                 # max walltime      
