@@ -139,6 +139,10 @@ class AtlasAnalPostProcessor (PostProcessorBase):
             numCancel = numTotal - numOK - numNG
         except:
             pass
+        if numOK == numTotal:
+            msgSucceeded = 'All Succeeded'
+        else:
+            msgSucceeded = 'Succeeded'
         listInDS.sort()
         listOutDS.sort()
         listLogDS.sort()
@@ -152,7 +156,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
         dsSummary = dsSummary[:-1]
         # make message
         message = \
-            """Subject: JEDI notification for TaskID:{jediTaskID} ({numOK}/{numTotal} Succeeded)
+            """Subject: JEDI notification for TaskID:{jediTaskID} ({numOK}/{numTotal} {msgSucceeded})
 From: {fromAdd}
 To: {toAdd}
 
@@ -194,6 +198,7 @@ PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(\
             numNG=numNG,
             numCancel=numCancel,
             dsSummary=dsSummary,
+            msgSucceeded=msgSucceeded,
             )
                     
         # tailer            

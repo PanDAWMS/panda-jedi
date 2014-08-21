@@ -85,6 +85,9 @@ class PostProcessorBase (object):
                 else:
                     # not for input
                     continue
+            # set nFiles
+            if datasetSpec.type in ['output','log','lib']:
+                datasetSpec.nFiles = datasetSpec.nFilesFinished
             self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'datasetID':datasetSpec.datasetID,
                                                               'jediTaskID':datasetSpec.jediTaskID})
         # end time

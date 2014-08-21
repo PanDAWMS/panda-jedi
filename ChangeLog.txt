@@ -1,5 +1,9 @@
 Release Note
 
+* 8/21/2014
+  * adding All to email notification when all input succeeded
+  * updating nFiles of output/log/lib datasets when the task is done
+
 * 8/20/2014
   * added protection against large --nGBPerJob
   * fixed JG to use MB in maxDiskCount
