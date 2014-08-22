@@ -157,8 +157,9 @@ class TaskCommandoThread (WorkerThread):
                                 # change params
                                 for newKey,newVal in newParamMap.iteritems():
                                     if newVal == None:
-                                        # delete 
-                                        del taskParamMap[newKey]
+                                        # delete
+                                        if newKey in taskParamMap:
+                                            del taskParamMap[newKey]
                                     else:
                                         # change
                                         taskParamMap[newKey] = newVal

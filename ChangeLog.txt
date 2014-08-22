@@ -1,5 +1,8 @@
 Release Note
 
+* 8/22/2014
+  * fixed TC to delete only existing params for incexec
+
 * 8/21/2014
   * adding All to email notification when all input succeeded
   * updating nFiles of output/log/lib datasets when the task is done
