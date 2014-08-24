@@ -152,6 +152,12 @@ class TaskCommandoThread (WorkerThread):
                                 # read task params
                                 taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                                 taskParamMap = RefinerUtils.decodeJSON(taskParam)
+                                # remove some params
+                                for newKey in ['nFiles']:
+                                    try:
+                                        del taskParamMap[newKey]
+                                    except:
+                                        pass
                                 # convert new params
                                 newParamMap = RefinerUtils.decodeJSON(commentStr)
                                 # change params

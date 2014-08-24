@@ -1,5 +1,10 @@
 Release Note
 
+* 8/24/2014
+  * reusing lib.tgz when DDM endpoints are shared
+  * resetting nFiles and nEvents when incexec
+  * using firstSubmission
+
 * 8/22/2014
   * fixed TC to delete only existing params for incexec
 

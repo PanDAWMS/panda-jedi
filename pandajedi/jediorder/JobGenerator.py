@@ -18,6 +18,7 @@ from pandajedi.jedirefine import RefinerUtils
 from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.taskbuffer.FileSpec import FileSpec
 from pandaserver.taskbuffer import EventServiceUtils
+from pandaserver.dataservice import DataServiceUtils
 from pandaserver.userinterface import Client as PandaClient
 
 from JobThrottler import JobThrottler
@@ -203,6 +204,7 @@ class JobGeneratorThread (WorkerThread):
                     jobsSubmitted = False
                     goForward = True
                     taskParamMap = None
+                    oldStatus = taskSpec.status
                     # initialize brokerage
                     if goForward:        
                         jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
@@ -317,6 +319,11 @@ class JobGeneratorThread (WorkerThread):
                             continue
                     # submit
                     if readyToSubmitJob:
+                        # check if first submission
+                        if oldStatus == 'ready' and inputChunk.useScout():
+                            firstSubmission = True
+                        else:
+                            firstSubmission = False
                         # submit
                         fqans = taskSpec.makeFQANs()
                         tmpLog.info('submit jobs with FQAN={0}'.format(','.join(str(fqan) for fqan in fqans)))
@@ -341,7 +348,8 @@ class JobGeneratorThread (WorkerThread):
                             tmpLog.info(tmpMsg)
                             tmpLog.sendMsg(tmpMsg,self.msgType)
                             if self.execJobs:
-                                statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True)
+                                statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True,
+                                                                          firstSubmission=firstSubmission)
                                 tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
                             jobsSubmitted = True
                             if inputChunk.isMerging:
@@ -704,8 +712,10 @@ class JobGeneratorThread (WorkerThread):
         failedRet = Interaction.SC_FAILED,None,None,None
         try:
             datasetToRegister = []
+            # get sites which share DDM endpoint
+            associatedSites = DataServiceUtils.getSitesShareDDM(self.siteMapper,siteName) 
             # get lib.tgz file
-            tmpStat,fileSpec,datasetSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID,siteName)
+            tmpStat,fileSpec,datasetSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID,siteName,associatedSites)
             # failed
             if not tmpStat:
                 tmpLog.error('failed to get lib.tgz for jediTaskID={0} siteName={0}'.format(taskSpec.jediTaskID,siteName))

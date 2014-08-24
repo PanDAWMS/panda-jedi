@@ -4727,12 +4727,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get file spec of lib.tgz
-    def getBuildFileSpec_JEDI(self,jediTaskID,siteName):
+    def getBuildFileSpec_JEDI(self,jediTaskID,siteName,associatedSites):
         comment = ' /* JediDBProxy.getBuildFileSpec_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += " <jediTaskID={0} siteName={1}>".format(jediTaskID,siteName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
+        tmpLog.debug('associatedSites={0}'.format(str(associatedSites)))
         try:
             # sql to get dataset
             sqlRD  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
@@ -4747,36 +4748,42 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR += "ORDER BY creationDate DESC "
             # start transaction
             self.conn.begin()
-            # get dataset
-            varMap = {}
-            varMap[':type'] = 'lib'
-            varMap[':site'] = siteName
-            varMap[':jediTaskID'] = jediTaskID
-            self.cur.execute(sqlRD+comment,varMap)
-            resList = self.cur.fetchall()
-            # loop over all datasets
-            fileSpec = None
-            datasetSpec = None
-            for resItem in resList:
-                datasetSpec = JediDatasetSpec()
-                datasetSpec.pack(resItem)
-                # get file
+            foundFlag = False
+            for tmpSiteName in [siteName]+associatedSites:
+                # get dataset
                 varMap = {}
+                varMap[':type'] = 'lib'
+                varMap[':site'] = tmpSiteName
                 varMap[':jediTaskID'] = jediTaskID
-                varMap[':datasetID']  = datasetSpec.datasetID
-                varMap[':type']       = 'lib'
-                varMap[':status1']    = 'finished'
-                varMap[':status2']    = 'defined'
-                varMap[':status3']    = 'running'
-                self.cur.execute(sqlFR+comment,varMap)
-                resFileList = self.cur.fetchall()
-                for resFile in resFileList:
-                    # make FileSpec
-                    fileSpec = JediFileSpec()
-                    fileSpec.pack(resFile)
-                    break
-                # no more dataset lookup
-                if fileSpec != None:
+                self.cur.execute(sqlRD+comment,varMap)
+                resList = self.cur.fetchall()
+                # loop over all datasets
+                fileSpec = None
+                datasetSpec = None
+                for resItem in resList:
+                    datasetSpec = JediDatasetSpec()
+                    datasetSpec.pack(resItem)
+                    # get file
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':datasetID']  = datasetSpec.datasetID
+                    varMap[':type']       = 'lib'
+                    varMap[':status1']    = 'finished'
+                    varMap[':status2']    = 'defined'
+                    varMap[':status3']    = 'running'
+                    self.cur.execute(sqlFR+comment,varMap)
+                    resFileList = self.cur.fetchall()
+                    for resFile in resFileList:
+                        # make FileSpec
+                        fileSpec = JediFileSpec()
+                        fileSpec.pack(resFile)
+                        foundFlag = True
+                        break
+                    # no more dataset lookup
+                    if foundFlag:
+                        break
+                # no more lookup with other sites
+                if foundFlag:
                     break
             # commit
             if not self._commit():
@@ -5368,10 +5375,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if commStr == 'retry' and nFiles == nFilesFinished:
                                 tmpLog.debug('no {0} for datasetID={1} : nFiles==nFilesFinished'.format(commStr,datasetID))
                                 continue
-                            # no refresh of dataset contents if dataset is closed
-                            if state == 'closed' and nFiles == nFilesFinished:
-                                tmpLog.debug('no refresh for datasetID={0} : state={1}'.format(datasetID,state))
-                                continue
                             # count unprocessed files
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
@@ -5398,7 +5401,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':datasetID']  = datasetID
                             varMap[':nDiff'] = nDiff
-                            if commStr == 'retry' or state == 'closed':
+                            if commStr == 'retry':
                                 varMap[':status'] = 'ready'
                             elif commStr == 'incexec':
                                 varMap[':status'] = 'toupdate'
@@ -5500,6 +5503,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         goDefined = False
+        refreshContents = False 
         commandStr = 'incexec'
         try:
             # start transaction
@@ -5542,8 +5546,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         existingDatasets[datasetName] = datasetStatus
                         # remaining master files 
                         try:
-                            if masterID == None and nFilesTobeUsed-nFilesUsed > 0:
+                            if masterID == None and \
+                                    (nFilesTobeUsed-nFilesUsed > 0 or datasetStatus in JediDatasetSpec.statusToUpdateContents()):
                                 goDefined = True
+                                if datasetStatus in JediDatasetSpec.statusToUpdateContents():
+                                    refreshContents = True
                         except:
                             pass
                     # insert datasets
@@ -5587,7 +5594,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':jediTaskID'] = jediTaskID
                     if goDefined:
                         # no new datasets
-                        if inMasterDatasetSpecList == []:
+                        if inMasterDatasetSpecList == [] and not refreshContents:
                             # pass to JG
                             varMap[':status'] = 'ready'
                         else:
