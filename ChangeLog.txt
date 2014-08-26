@@ -2,6 +2,7 @@ Release Note
 
 * 8/26/2014
   * fixed JG to bunch of datasets for each task in a single cycle
+  * introduced max num of datasets in getTasksTobeProcessed 
 
 * 8/25/2014
   * fixed JG for merging with only logs

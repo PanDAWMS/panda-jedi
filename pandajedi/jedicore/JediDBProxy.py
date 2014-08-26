@@ -2262,6 +2262,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 origTaskSpec.resetChangedAttr('userName')
                 # read datasets
                 if not toSkip:
+                    iDsPerTask = 0
+                    nDsPerTask = 10
                     for datasetID,tmpNumFiles,datasetType in taskDatasetMap[jediTaskID]:
                         primaryDatasetID = datasetID
                         datasetIDs = [datasetID]
@@ -2451,10 +2453,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 returnMap[jediTaskID] = []
                                 iTasks += 1
                             returnMap[jediTaskID].append((taskSpec,cloudName,inputChunk))
+                            iDsPerTask += 1
                             # reduce the number of jobs
                             maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
                         else:
                             tmpLog.debug('escape due to toSkip for jediTaskID={0} datasetID={1}'.format(jediTaskID,primaryDatasetID)) 
+                            break
+                        if iDsPerTask > nDsPerTask:
                             break
                 if not toSkip:        
                     # commit
