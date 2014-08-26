@@ -2369,7 +2369,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 else:
                                     # set very large number for secondary to read all files
                                     maxFilesTobeRead = 1000000
-                                tmpLog.debug('trying to read {0} files from datasetID={1}'.format(maxFilesTobeRead,datasetID))
+                                tmpLog.debug('jediTaskID={2} trying to read {0} files from datasetID={1}'.format(maxFilesTobeRead,
+                                                                                                                 datasetID,jediTaskID))
                                 if not taskSpec.useLoadXML():
                                     orderBy = 'lfn'
                                 else:
@@ -2399,7 +2400,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     iFiles += 1
                                 if iFiles == 0:
                                     # no input files
-                                    tmpLog.debug('datasetID={0} has no files to be processed'.format(datasetID))
+                                    tmpLog.debug('jediTaskID={0} datasetID={1} has no files to be processed'.format(jediTaskID,datasetID))
                                     toSkip = True
                                     break
                                 elif simTasks == None and tmpDatasetSpec.toKeepTrack():
