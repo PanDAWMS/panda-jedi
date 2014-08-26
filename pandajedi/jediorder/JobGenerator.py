@@ -127,7 +127,7 @@ class JobGenerator (JediKnight):
                                     # failed
                                     tmpLog.error('failed to get the list of input chunks to generate jobs')
                                 else:
-                                    tmpLog.debug('got {0} input chunks'.format(len(tmpList)))
+                                    tmpLog.debug('got {0} input tasks'.format(len(tmpList)))
                                     if len(tmpList) != 0: 
                                         # put to a locked list
                                         inputList = ListWithLock(tmpList)
@@ -185,201 +185,208 @@ class JobGeneratorThread (WorkerThread):
         while True:
             try:
                 # get a part of list
-                nInput = 2
-                inputList = self.inputList.get(nInput)
+                nInput = 1
+                taskInputList = self.inputList.get(nInput)
                 # no more datasets
-                if len(inputList) == 0:
+                if len(taskInputList) == 0:
                     self.logger.debug('{0} terminating after generating {1} jobs since no more inputs '.format(self.__class__.__name__,
                                                                                                                self.numGenJobs))
                     return
-                # loop over all inputs
-                for taskSpec,cloudName,inputChunk in inputList:
-                    # make logger
-                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,
-                                                                                            inputChunk.masterIndexName),
-                                        monToken='<jediTaskID={0}>'.format(taskSpec.jediTaskID))
-                    tmpLog.info('start with VO={0} cloud={1}'.format(taskSpec.vo,cloudName))
-                    tmpLog.sendMsg('start to generate jobs',self.msgType)
-                    readyToSubmitJob = False
-                    jobsSubmitted = False
-                    goForward = True
-                    taskParamMap = None
-                    oldStatus = taskSpec.status
-                    # initialize brokerage
-                    if goForward:        
-                        jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
-                        tmpStat = jobBroker.initializeMods(self.ddmIF.getInterface(taskSpec.vo),
-                                                           self.taskBufferIF)
-                        if not tmpStat:
-                            tmpErrStr = 'failed to initialize JobBroker'
-                            tmpLog.error(tmpErrStr)
-                            taskSpec.status = 'tobroken'
-                            taskSpec.setErrDiag(tmpErrStr)                        
-                            goForward = False
-                    # read task params if nessesary
-                    if taskSpec.useLimitedSites():
-                        tmpStat,taskParamMap = self.readTaskParams(taskSpec,taskParamMap,tmpLog)
-                        if not tmpStat:
-                            tmpErrStr = 'failed to read task params'
-                            tmpLog.error(tmpErrStr)
-                            taskSpec.status = 'tobroken'
-                            taskSpec.setErrDiag(tmpErrStr)                        
-                            goForward = False
-                    # run brokerage
-                    if goForward:
-                        tmpLog.info('run brokerage with {0}'.format(jobBroker.getClassName(taskSpec.vo,
-                                                                                           taskSpec.prodSourceLabel)))
-                        try:
-                            tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,taskParamMap)
-                        except:
-                            errtype,errvalue = sys.exc_info()[:2]
-                            tmpLog.error('brokerage crashed with {0}:{1}'.format(errtype.__name__,errvalue))
-                            tmpStat = Interaction.SC_FAILED
-                        if tmpStat != Interaction.SC_SUCCEEDED:
-                            tmpErrStr = 'brokerage failed'
-                            tmpLog.error(tmpErrStr)
-                            taskSpec.setOnHold()
-                            taskSpec.setErrDiag(tmpErrStr,True)
-                            goForward = False
-                    # run splitter
-                    if goForward:
-                        tmpLog.info('run splitter')
-                        splitter = JobSplitter()
-                        try:
-                            tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
-                            # * remove the last sub-chunk when inputChunk is read in a block 
-                            #   since alignment could be broken in the last sub-chunk 
-                            #    e.g., inputChunk=10 -> subChunks=4,4,2 and remove 2
-                            # * don't remove it for the last inputChunk
-                            # e.g., inputChunks = 10(remove),10(remove),3(not remove)
-                            if len(subChunks[-1]['subChunks']) > 1 and inputChunk.masterDataset != None \
-                                    and inputChunk.readBlock == True:
-                                subChunks[-1]['subChunks'] = subChunks[-1]['subChunks'][:-1]
-                        except:
-                            errtype,errvalue = sys.exc_info()[:2]
-                            tmpLog.error('splitter crashed with {0}:{1}'.format(errtype.__name__,errvalue))
-                            tmpStat = Interaction.SC_FAILED
-                        if tmpStat != Interaction.SC_SUCCEEDED:
-                            tmpErrStr = 'splitting failed'
-                            tmpLog.error(tmpErrStr)
-                            taskSpec.setOnHold()
-                            taskSpec.setErrDiag(tmpErrStr)                                
-                            goForward = False
-                    # generate jobs
-                    if goForward:
-                        tmpLog.info('run job generator')
-                        try:
-                            tmpStat,pandaJobs,datasetToRegister,oldPandaIDs = self.doGenerate(taskSpec,cloudName,subChunks,
-                                                                                              inputChunk,tmpLog,
-                                                                                              taskParamMap=taskParamMap)
-                            # increase event service consumers
-                            if tmpStat == Interaction.SC_SUCCEEDED:
-                                if taskSpec.useEventService():
-                                    pandaJobs = self.increaseEventServiceConsumers(pandaJobs,taskSpec.getNumEventServiceConsumer())
-                        except:
-                            errtype,errvalue = sys.exc_info()[:2]
-                            tmpLog.error('generator crashed with {0}:{1}'.format(errtype.__name__,errvalue))
-                            tmpStat = Interaction.SC_FAILED
-                        if tmpStat != Interaction.SC_SUCCEEDED:
-                            tmpErrStr = 'job generation failed'
-                            tmpLog.error(tmpErrStr)
-                            taskSpec.status = 'tobroken'
-                            taskSpec.setErrDiag(tmpErrStr)
-                            goForward = False
-                    # lock task
-                    if goForward:
-                        tmpLog.info('lock task')
-                        tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
-                        if tmpStat == False:
-                            tmpLog.info('skip due to lock failure')
-                            continue
-                    # setup task
-                    if goForward:
-                        tmpLog.info('run setupper with {0}'.format(self.taskSetupper.getClassName(taskSpec.vo,
-                                                                                                  taskSpec.prodSourceLabel)))
-                        tmpStat = self.taskSetupper.doSetup(taskSpec,datasetToRegister)
-                        if tmpStat == Interaction.SC_FATAL:
-                            tmpErrStr = 'fatal error when setup task'
-                            tmpLog.error(tmpErrStr)
-                            taskSpec.status = 'tobroken'
-                            taskSpec.setErrDiag(tmpErrStr,True)
-                        elif tmpStat != Interaction.SC_SUCCEEDED:
-                            tmpErrStr = 'failed to setup task'
-                            tmpLog.error(tmpErrStr)
-                            taskSpec.setOnHold()
-                            taskSpec.setErrDiag(tmpErrStr,True)
-                        else:
-                            readyToSubmitJob = True
-                    # lock task
-                    if goForward:
-                        tmpLog.info('lock task')
-                        tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
-                        if tmpStat == False:
-                            tmpLog.info('skip due to lock failure')
-                            continue
-                    # submit
-                    if readyToSubmitJob:
-                        # check if first submission
-                        if oldStatus == 'ready' and inputChunk.useScout():
-                            firstSubmission = True
-                        else:
-                            firstSubmission = False
-                        # submit
-                        fqans = taskSpec.makeFQANs()
-                        tmpLog.info('submit jobs with FQAN={0}'.format(','.join(str(fqan) for fqan in fqans)))
-                        resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,
-                                                                fqans=fqans,toPending=True)
-                        pandaIDs = []
-                        oldNewPandaIDs = {}
-                        for idxItem,items in enumerate(resSubmit):
-                            if items[0] != 'NULL':
-                                pandaIDs.append(items[0])
-                                if len(oldPandaIDs) > idxItem and oldPandaIDs[idxItem] != []:
-                                    oldNewPandaIDs[items[0]] = oldPandaIDs[idxItem]
-                        # record retry history
-                        if inputChunk.isMerging:
-                            relationType = 'merge'
-                        else:
-                            relationType = 'retry'
-                        self.taskBufferIF.recordRetryHistory_JEDI(taskSpec.jediTaskID,oldNewPandaIDs,relationType)
-                        # check if submission was successful
-                        if len(pandaIDs) == len(pandaJobs):
-                            tmpMsg = 'successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs))
-                            tmpLog.info(tmpMsg)
-                            tmpLog.sendMsg(tmpMsg,self.msgType)
-                            if self.execJobs:
-                                statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True,
-                                                                          firstSubmission=firstSubmission)
-                                tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
-                            jobsSubmitted = True
-                            if inputChunk.isMerging:
-                                # don't change task status by merging
-                                pass
-                            elif taskSpec.usePrePro():
-                                taskSpec.status = 'preprocessing'
-                            elif inputChunk.useScout():
-                                taskSpec.status = 'scouting'
+                # loop over all tasks
+                for tmpJediTaskID,inputList in taskInputList:
+                    # loop over all inputs
+                    for idxInputList,tmpInputItem in enumerate(inputList):
+                        taskSpec,cloudName,inputChunk = tmpInputItem
+                        # make logger
+                        tmpLog = MsgWrapper(self.logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,
+                                                                                                inputChunk.masterIndexName),
+                                            monToken='<jediTaskID={0}>'.format(taskSpec.jediTaskID))
+                        tmpLog.info('start with VO={0} cloud={1}'.format(taskSpec.vo,cloudName))
+                        tmpLog.sendMsg('start to generate jobs',self.msgType)
+                        readyToSubmitJob = False
+                        jobsSubmitted = False
+                        goForward = True
+                        taskParamMap = None
+                        oldStatus = taskSpec.status
+                        # initialize brokerage
+                        if goForward:        
+                            jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
+                            tmpStat = jobBroker.initializeMods(self.ddmIF.getInterface(taskSpec.vo),
+                                                               self.taskBufferIF)
+                            if not tmpStat:
+                                tmpErrStr = 'failed to initialize JobBroker'
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.status = 'tobroken'
+                                taskSpec.setErrDiag(tmpErrStr)                        
+                                goForward = False
+                        # read task params if nessesary
+                        if taskSpec.useLimitedSites():
+                            tmpStat,taskParamMap = self.readTaskParams(taskSpec,taskParamMap,tmpLog)
+                            if not tmpStat:
+                                tmpErrStr = 'failed to read task params'
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.status = 'tobroken'
+                                taskSpec.setErrDiag(tmpErrStr)                        
+                                goForward = False
+                        # run brokerage
+                        if goForward:
+                            tmpLog.info('run brokerage with {0}'.format(jobBroker.getClassName(taskSpec.vo,
+                                                                                               taskSpec.prodSourceLabel)))
+                            try:
+                                tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,taskParamMap)
+                            except:
+                                errtype,errvalue = sys.exc_info()[:2]
+                                tmpLog.error('brokerage crashed with {0}:{1}'.format(errtype.__name__,errvalue))
+                                tmpStat = Interaction.SC_FAILED
+                            if tmpStat != Interaction.SC_SUCCEEDED:
+                                tmpErrStr = 'brokerage failed'
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.setOnHold()
+                                taskSpec.setErrDiag(tmpErrStr,True)
+                                goForward = False
+                        # run splitter
+                        if goForward:
+                            tmpLog.info('run splitter')
+                            splitter = JobSplitter()
+                            try:
+                                tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
+                                # * remove the last sub-chunk when inputChunk is read in a block 
+                                #   since alignment could be broken in the last sub-chunk 
+                                #    e.g., inputChunk=10 -> subChunks=4,4,2 and remove 2
+                                # * don't remove it for the last inputChunk
+                                # e.g., inputChunks = 10(remove),10(remove),3(not remove)
+                                if len(subChunks[-1]['subChunks']) > 1 and inputChunk.masterDataset != None \
+                                        and inputChunk.readBlock == True:
+                                    subChunks[-1]['subChunks'] = subChunks[-1]['subChunks'][:-1]
+                            except:
+                                errtype,errvalue = sys.exc_info()[:2]
+                                tmpLog.error('splitter crashed with {0}:{1}'.format(errtype.__name__,errvalue))
+                                tmpStat = Interaction.SC_FAILED
+                            if tmpStat != Interaction.SC_SUCCEEDED:
+                                tmpErrStr = 'splitting failed'
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.setOnHold()
+                                taskSpec.setErrDiag(tmpErrStr)                                
+                                goForward = False
+                        # generate jobs
+                        if goForward:
+                            tmpLog.info('run job generator')
+                            try:
+                                tmpStat,pandaJobs,datasetToRegister,oldPandaIDs = self.doGenerate(taskSpec,cloudName,subChunks,
+                                                                                                  inputChunk,tmpLog,
+                                                                                                  taskParamMap=taskParamMap)
+                                # increase event service consumers
+                                if tmpStat == Interaction.SC_SUCCEEDED:
+                                    if taskSpec.useEventService():
+                                        pandaJobs = self.increaseEventServiceConsumers(pandaJobs,taskSpec.getNumEventServiceConsumer())
+                            except:
+                                errtype,errvalue = sys.exc_info()[:2]
+                                tmpLog.error('generator crashed with {0}:{1}'.format(errtype.__name__,errvalue))
+                                tmpStat = Interaction.SC_FAILED
+                            if tmpStat != Interaction.SC_SUCCEEDED:
+                                tmpErrStr = 'job generation failed'
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.status = 'tobroken'
+                                taskSpec.setErrDiag(tmpErrStr)
+                                goForward = False
+                        # lock task
+                        if goForward:
+                            tmpLog.info('lock task')
+                            tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
+                            if tmpStat == False:
+                                tmpLog.info('skip due to lock failure')
+                                continue
+                        # setup task
+                        if goForward:
+                            tmpLog.info('run setupper with {0}'.format(self.taskSetupper.getClassName(taskSpec.vo,
+                                                                                                      taskSpec.prodSourceLabel)))
+                            tmpStat = self.taskSetupper.doSetup(taskSpec,datasetToRegister)
+                            if tmpStat == Interaction.SC_FATAL:
+                                tmpErrStr = 'fatal error when setup task'
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.status = 'tobroken'
+                                taskSpec.setErrDiag(tmpErrStr,True)
+                            elif tmpStat != Interaction.SC_SUCCEEDED:
+                                tmpErrStr = 'failed to setup task'
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.setOnHold()
+                                taskSpec.setErrDiag(tmpErrStr,True)
                             else:
-                                taskSpec.status = 'running'
+                                readyToSubmitJob = True
+                        # lock task
+                        if goForward:
+                            tmpLog.info('lock task')
+                            tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
+                            if tmpStat == False:
+                                tmpLog.info('skip due to lock failure')
+                                continue
+                        # submit
+                        if readyToSubmitJob:
+                            # check if first submission
+                            if oldStatus == 'ready' and inputChunk.useScout():
+                                firstSubmission = True
+                            else:
+                                firstSubmission = False
+                            # submit
+                            fqans = taskSpec.makeFQANs()
+                            tmpLog.info('submit jobs with FQAN={0}'.format(','.join(str(fqan) for fqan in fqans)))
+                            resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,
+                                                                    fqans=fqans,toPending=True)
+                            pandaIDs = []
+                            oldNewPandaIDs = {}
+                            for idxItem,items in enumerate(resSubmit):
+                                if items[0] != 'NULL':
+                                    pandaIDs.append(items[0])
+                                    if len(oldPandaIDs) > idxItem and oldPandaIDs[idxItem] != []:
+                                        oldNewPandaIDs[items[0]] = oldPandaIDs[idxItem]
+                            # record retry history
+                            if inputChunk.isMerging:
+                                relationType = 'merge'
+                            else:
+                                relationType = 'retry'
+                            self.taskBufferIF.recordRetryHistory_JEDI(taskSpec.jediTaskID,oldNewPandaIDs,relationType)
+                            # check if submission was successful
+                            if len(pandaIDs) == len(pandaJobs):
+                                tmpMsg = 'successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs))
+                                tmpLog.info(tmpMsg)
+                                tmpLog.sendMsg(tmpMsg,self.msgType)
+                                if self.execJobs:
+                                    statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True,
+                                                                              firstSubmission=firstSubmission)
+                                    tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
+                                jobsSubmitted = True
+                                if inputChunk.isMerging:
+                                    # don't change task status by merging
+                                    pass
+                                elif taskSpec.usePrePro():
+                                    taskSpec.status = 'preprocessing'
+                                elif inputChunk.useScout():
+                                    taskSpec.status = 'scouting'
+                                else:
+                                    taskSpec.status = 'running'
+                            else:
+                                tmpErrStr = 'submitted only {0}/{1}'.format(len(pandaIDs),len(pandaJobs))
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.setOnHold()
+                                taskSpec.setErrDiag(tmpErrStr)
+                            # the number of generated jobs     
+                            self.numGenJobs += len(pandaIDs)    
+                        # reset unused files
+                        self.taskBufferIF.resetUnusedFiles_JEDI(taskSpec.jediTaskID,inputChunk)
+                        # unset lockedBy when all inputs are done for a task
+                        if idxInputList+1 == len(inputList):
+                            taskSpec.lockedBy = None
                         else:
-                            tmpErrStr = 'submitted only {0}/{1}'.format(len(pandaIDs),len(pandaJobs))
-                            tmpLog.error(tmpErrStr)
-                            taskSpec.setOnHold()
-                            taskSpec.setErrDiag(tmpErrStr)
-                        # the number of generated jobs     
-                        self.numGenJobs += len(pandaIDs)    
-                    # reset unused files
-                    self.taskBufferIF.resetUnusedFiles_JEDI(taskSpec.jediTaskID,inputChunk)
-                    # update task
-                    taskSpec.lockedBy = None
-                    retDB = self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
-                                                              oldStatus=JediTaskSpec.statusForJobGenerator())
-                    tmpMsg = 'set task.status={0}'.format(taskSpec.status)
-                    tmpLog.info(tmpMsg)
-                    if not taskSpec.errorDialog in ['',None]:
-                        tmpMsg += ' ' + taskSpec.errorDialog
-                    tmpLog.sendMsg(tmpMsg,self.msgType)
-                    tmpLog.info('done')
+                            taskSpec.lockedBy = self.pid
+                        # update task
+                        retDB = self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
+                                                                  oldStatus=JediTaskSpec.statusForJobGenerator())
+                        tmpMsg = 'set task.status={0}'.format(taskSpec.status)
+                        tmpLog.info(tmpMsg)
+                        if not taskSpec.errorDialog in ['',None]:
+                            tmpMsg += ' ' + taskSpec.errorDialog
+                        tmpLog.sendMsg(tmpMsg,self.msgType)
+                        tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('%s.runImpl() failed with %s %s' % (self.__class__.__name__,errtype.__name__,errvalue))

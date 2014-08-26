@@ -40,30 +40,31 @@ threadPool = ThreadPool()
 typicalNumFilesMap = tbIF.getTypicalNumInput_JEDI(vo,prodSourceLabel,workQueue,
                                                   useResultCache=600)
 
-tmpList = tbIF.getTasksToBeProcessed_JEDI(None,vo,workQueue,
-                                          prodSourceLabel,
-                                          cloudName,nFiles=10,simTasks=[jediTaskID],
-                                          fullSimulation=True,
-                                          typicalNumFilesMap=typicalNumFilesMap)
+tmpListList = tbIF.getTasksToBeProcessed_JEDI(None,vo,workQueue,
+                                              prodSourceLabel,
+                                              cloudName,nFiles=10,simTasks=[jediTaskID],
+                                              fullSimulation=True,
+                                              typicalNumFilesMap=typicalNumFilesMap)
 
 taskSetupper = TaskSetupper(vo,prodSourceLabel)
 taskSetupper.initializeMods(tbIF,ddmIF)
 
-for taskSpec,cloudName,inputChunk in tmpList:
-    jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
-    tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo),tbIF)
-    splitter = JobSplitter()
-    gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper,None)
+for dummyID,tmpList in tmpListList:
+    for taskSpec,cloudName,inputChunk in tmpList:
+        jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
+        tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo),tbIF)
+        splitter = JobSplitter()
+        gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper,None)
 
-    taskParamMap = None
-    if taskSpec.useLimitedSites():
-        tmpStat,taskParamMap = gen.readTaskParams(taskSpec,taskParamMap,tmpLog)
+        taskParamMap = None
+        if taskSpec.useLimitedSites():
+            tmpStat,taskParamMap = gen.readTaskParams(taskSpec,taskParamMap,tmpLog)
 
-    tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,taskParamMap)
+        tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,taskParamMap)
 
-    tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
+        tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
 
-    tmpStat,pandaJobs,datasetToRegister,oldPandaIDs = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog,True)
-    if taskSpec.useEventService():
-        pandaJobs = gen.increaseEventServiceConsumers(pandaJobs,taskSpec.getNumEventServiceConsumer())
+        tmpStat,pandaJobs,datasetToRegister,oldPandaIDs = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog,True)
+        if taskSpec.useEventService():
+            pandaJobs = gen.increaseEventServiceConsumers(pandaJobs,taskSpec.getNumEventServiceConsumer())
 
