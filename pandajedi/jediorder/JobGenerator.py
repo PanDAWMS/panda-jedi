@@ -1083,36 +1083,54 @@ class JobGeneratorThread (WorkerThread):
                     parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
         # loop over all streams to collect transient and final steams
         transientStreamCombo = {}
-        for streamName,listLFN in streamLFNsMap.iteritems():
+        for streamName in streamLFNsMap.keys():
             # collect transient and final steams
-            if streamName != None and streamName.startswith('TRN_'):
-                counterStreamName = re.sub('^TRN_','',streamName)
-                if counterStreamName in streamLFNsMap:
-                    transientStreamCombo[counterStreamName] = {
-                        'out': counterStreamName,
-                        'in':  streamName
-                        }
+            if streamName != None and not streamName.startswith('TRN_'):
+                counterStreamName = 'TRN_'+streamName
+                if not counterStreamName in streamLFNsMap:
+                    # empty list
+                    streamLFNsMap[counterStreamName] = []
+                transientStreamCombo[streamName] = {
+                    'out': streamName,
+                    'in':  counterStreamName,
+                    }
         # replace params related to transient files
         replaceStrMap = {}
+        emptyStreamMap = {}
         for streamName,transientStreamMap in transientStreamCombo.iteritems():
             # remove serial number
             streamNameBase = re.sub('\d+$','',streamName)
+            # empty streams
+            if not streamNameBase in emptyStreamMap:
+                emptyStreamMap[streamNameBase] = []
             # make param
             replaceStr = ''
-            for tmpLFN in streamLFNsMap[transientStreamMap['in']]:
-                replaceStr += '{0},'.format(tmpLFN)
-            replaceStr = replaceStr[:-1]
-            replaceStr += ':'
-            for tmpLFN in streamLFNsMap[transientStreamMap['out']]:
-                replaceStr += '{0},'.format(tmpLFN)
-            replaceStr = replaceStr[:-1]
+            if streamLFNsMap[transientStreamMap['in']] == []:
+                emptyStreamMap[streamNameBase].append(streamName) 
+            else:
+                for tmpLFN in streamLFNsMap[transientStreamMap['in']]:
+                    replaceStr += '{0},'.format(tmpLFN)
+                replaceStr = replaceStr[:-1]
+                replaceStr += ':'
+                for tmpLFN in streamLFNsMap[transientStreamMap['out']]:
+                    replaceStr += '{0},'.format(tmpLFN)
+                replaceStr = replaceStr[:-1]
             # concatenate per base stream name
             if not replaceStrMap.has_key(streamNameBase):
                 replaceStrMap[streamNameBase] = ''
             replaceStrMap[streamNameBase] += '{0} '.format(replaceStr)
         for streamNameBase,replaceStr in replaceStrMap.iteritems():
             targetName = '${TRN_'+streamNameBase+':'+streamNameBase+'}'
-            parTemplate = parTemplate.replace(targetName,replaceStr)
+            if targetName in parTemplate:
+                parTemplate = parTemplate.replace(targetName,replaceStr)
+                # remove putputs with empty input files
+                for emptyStream in emptyStreamMap[streamNameBase]:
+                    tmpFileIdx = 0
+                    for tmpJobFileSpec in jobFileList:
+                        if tmpJobFileSpec.lfn in streamLFNsMap[emptyStream]:
+                            jobFileList.pop(tmpFileIdx)
+                            break
+                        tmpFileIdx += 1
         # replace placeholders for numbers
         for streamName,parVal in [('SN',         serialNr),
                                   ('SN/P',       '{0:06d}'.format(serialNr)),

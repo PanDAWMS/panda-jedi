@@ -1,5 +1,8 @@
 Release Note
 
+* 8/25/2014
+  * fixed JG for merging with only logs
+
 * 8/24/2014
   * reusing lib.tgz when DDM endpoints are shared
   * resetting nFiles and nEvents when incexec
