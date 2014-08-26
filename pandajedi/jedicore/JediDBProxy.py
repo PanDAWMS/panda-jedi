@@ -5382,7 +5382,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':datasetID']  = datasetID
                             varMap[':nDiff'] = 0
                             varMap[':status'] = 'ready'
-                            tmpLog.debug('set status={0} for 2nd datasetID={1} diff={2}'.format(varMap[':status'],datasetID,nDiff))
+                            tmpLog.debug('set status={0} for 2nd datasetID={1}'.format(varMap[':status'],datasetID))
                             self.cur.execute(sqlRD+comment,varMap)
                         else:
                             # set done if no more try is needed

@@ -4,6 +4,7 @@ Release Note
   * fixed JG to bunch of datasets for each task in a single cycle
   * introduced max num of datasets in getTasksTobeProcessed 
   * replacing LS in splitRule
+  * fixed retryTask
 
 * 8/25/2014
   * fixed JG for merging with only logs
