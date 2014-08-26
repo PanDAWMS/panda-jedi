@@ -2449,8 +2449,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if not toSkip:
                             if not jediTaskID in returnMap:
                                 returnMap[jediTaskID] = []
+                                iTasks += 1
                             returnMap[jediTaskID].append((taskSpec,cloudName,inputChunk))
-                            iTasks += 1
                             # reduce the number of jobs
                             maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
                         else:
@@ -2470,7 +2470,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # already read enough files to generate jobs 
                 if maxNumJobs <= 0:
                     break
-            tmpLog.debug('done for {0} combo of task-dataset'.format(iTasks))
+            tmpLog.debug('done for {0} tasks'.format(iTasks))
             # change map to list
             returnList  = []
             for tmpJediTaskID,tmpTaskDsList in returnMap.iteritems():
