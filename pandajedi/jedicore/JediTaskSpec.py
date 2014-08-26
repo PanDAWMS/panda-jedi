@@ -352,8 +352,15 @@ class JediTaskSpec(object):
             # new
             self.splitRule = self.splitRuleToken['limitedSites']+'='+tag
         else:
-            # append
-            self.splitRule += ','+self.splitRuleToken['limitedSites']+'='+tag
+            tmpMatch = re.search(self.splitRuleToken['limitedSites']+'=(\d+)',self.splitRule)
+            if tmpMatch == None:
+                # append
+                self.splitRule += ','+self.splitRuleToken['limitedSites']+'='+tag
+            else:
+                # replace
+                self.splitRule = re.sub(self.splitRuleToken['limitedSites']+'=(\d+)',
+                                        self.splitRuleToken['limitedSites']+'='+tag,
+                                        self.splitRule)
 
 
 
