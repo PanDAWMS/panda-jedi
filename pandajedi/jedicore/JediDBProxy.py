@@ -5467,11 +5467,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':keepTrack']  = 1
                             self.cur.execute(sqlRF+comment,varMap)
                             nDiff = self.cur.rowcount
+                            # reset running files
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
+                            varMap[':oldStatus']  = 'running'
+                            varMap[':newStatus']  = 'ready'
+                            varMap[':keepTrack']  = 1
+                            varMap[':maxAttempt'] = maxAttempt
+                            self.cur.execute(sqlRR+comment,varMap)
+                            nRun = self.cur.rowcount
                             # update dataset
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':datasetID']  = datasetID
                             varMap[':nDiff'] = nDiff
+                            varMap[':nRun'] = nRun
                             if commStr == 'retry' or state == 'closed':
                                 varMap[':status'] = 'ready'
                             elif commStr == 'incexec':
