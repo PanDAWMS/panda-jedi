@@ -511,11 +511,17 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                 fileScanSiteList.append(tmpRemoteSite)
                 # mapping between sites and storage endpoints
                 siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(fileScanSiteList,self.siteMapper)
+                # disable file lookup for merge jobs
+                if inputChunk.isMerging:
+                    checkCompleteness = False
+                else:
+                    checkCompleteness = True
                 # get available files per site/endpoint
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
                                                             siteStorageEP,
                                                             self.siteMapper,
-                                                            ngGroup=[2])
+                                                            ngGroup=[2],
+                                                            checkCompleteness=checkCompleteness)
                 if tmpAvFileMap == None:
                     raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap

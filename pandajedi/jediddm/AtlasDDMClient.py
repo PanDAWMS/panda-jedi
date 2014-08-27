@@ -179,7 +179,8 @@ class AtlasDDMClient(DDMClientBase):
 
                         
     # get available files
-    def getAvailableFiles(self,datasetSpec,siteEndPointMap,siteMapper,ngGroup=[],checkLFC=False):
+    def getAvailableFiles(self,datasetSpec,siteEndPointMap,siteMapper,ngGroup=[],checkLFC=False,
+                          checkCompleteness=True):
         # make logger
         methodName = 'getAvailableFiles'
         methodName += ' <datasetID={0}>'.format(datasetSpec.datasetID)
@@ -251,8 +252,9 @@ class AtlasDDMClient(DDMClientBase):
                     else:
                         storageType = 'localdisk'
                     # no scan when site has complete replicas
-                    if datasetReplicaMap.has_key(tmpEndPoint) and datasetReplicaMap[tmpEndPoint][-1]['found'] != None \
-                       and datasetReplicaMap[tmpEndPoint][-1]['total'] == datasetReplicaMap[tmpEndPoint][-1]['found']:
+                    if (datasetReplicaMap.has_key(tmpEndPoint) and datasetReplicaMap[tmpEndPoint][-1]['found'] != None \
+                       and datasetReplicaMap[tmpEndPoint][-1]['total'] == datasetReplicaMap[tmpEndPoint][-1]['found']) \
+                       or not checkCompleteness:
                         completeReplicaMap[tmpEndPoint] = storageType
                         siteHasCompleteReplica = True
                     # no LFC scan for many-time datasets
@@ -286,10 +288,12 @@ class AtlasDDMClient(DDMClientBase):
                         tmpStoragePathMap[tmpSePath] = []
                     tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType})
                     # add compact path
+                    tmpSePathBack = tmpSePath
                     tmpSePath = re.sub('(:\d+)*/srm/[^\?]+\?SFN=','',tmpSePath)
-                    if not tmpSePath in tmpStoragePathMap:
-                        tmpStoragePathMap[tmpSePath] = []
-                    tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType})
+                    if tmpSePathBack != tmpSePath:
+                        if not tmpSePath in tmpStoragePathMap:
+                            tmpStoragePathMap[tmpSePath] = []
+                        tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType})
                 # add to map to trigger LFC scan if complete replica is missing at the site
                 if DataServiceUtils.isCachedFile(datasetSpec.datasetName,tmpSiteSpec):
                     pass
@@ -299,7 +303,9 @@ class AtlasDDMClient(DDMClientBase):
                             lfcSeMap[tmpKey] = []
                         lfcSeMap[tmpKey] += tmpVal
                     for tmpKey,tmpVal in tmpStoragePathMap.iteritems():
-                        storagePathMap[tmpKey] = tmpVal
+                        if not tmpKey in storagePathMap:
+                            storagePathMap[tmpKey] = []
+                        storagePathMap[tmpKey] += tmpVal
             # collect GUIDs and LFNs
             fileMap        = {}
             lfnMap         = {}

@@ -5483,10 +5483,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':datasetID']  = datasetID
                             varMap[':nDiff'] = nDiff
                             varMap[':nRun'] = nRun
-                            if commStr == 'retry' or state == 'closed':
-                                varMap[':status'] = 'ready'
-                            elif commStr == 'incexec':
-                                varMap[':status'] = 'refresh'
+                            varMap[':status'] = 'ready'
                             self.cur.execute(sqlRD+comment,varMap)
                     # update task
                     if commStr == 'retry':
