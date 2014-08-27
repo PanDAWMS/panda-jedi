@@ -736,6 +736,16 @@ class JediTaskSpec(object):
 
 
 
+    # post scout
+    def isPostScout(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useScout']+'=(\d+)',self.splitRule)
+            if tmpMatch != None and tmpMatch.group(1) == self.enum_postScout:
+                return True
+        return False
+
+        
+
     # wait until input shows up
     def waitInput(self):
         if self.splitRule != None:

@@ -106,7 +106,7 @@ class TaskRefinerBase (object):
         else:
             taskSpec.ramCount = 0
         # scout
-        if not taskParamMap.has_key('skipScout'):
+        if not taskParamMap.has_key('skipScout') and not taskSpec.isPostScout():
             taskSpec.setUseScout(True)
         # cloud
         if taskParamMap.has_key('cloud'):

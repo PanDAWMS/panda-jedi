@@ -2,6 +2,7 @@ Release Note
 
 * 8/27/2014
   * fixed retryTask for running inputs
+  * not to overwite useScout when incexec
 
 * 8/26/2014
   * fixed JG to bunch of datasets for each task in a single cycle

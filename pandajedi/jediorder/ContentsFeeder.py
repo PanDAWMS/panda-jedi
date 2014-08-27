@@ -306,7 +306,7 @@ class ContentsFeederThread (WorkerThread):
                                                         nMaxFiles = int(math.ceil(nMaxFiles))
                                     # use scout
                                     useScout = False    
-                                    if datasetSpec.isMaster() and taskSpec.useScout():
+                                    if datasetSpec.isMaster() and taskSpec.useScout() and datasetSpec.status != 'toupdate':
                                         useScout = True
                                     # use files with new attempt numbers    
                                     useFilesWithNewAttemptNr = False
