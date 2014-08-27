@@ -301,12 +301,7 @@ class JobGeneratorThread (WorkerThread):
                             tmpLog.info('run setupper with {0}'.format(self.taskSetupper.getClassName(taskSpec.vo,
                                                                                                       taskSpec.prodSourceLabel)))
                             tmpStat = self.taskSetupper.doSetup(taskSpec,datasetToRegister)
-                            if tmpStat == Interaction.SC_FATAL:
-                                tmpErrStr = 'fatal error when setup task'
-                                tmpLog.error(tmpErrStr)
-                                taskSpec.status = 'tobroken'
-                                taskSpec.setErrDiag(tmpErrStr,True)
-                            elif tmpStat != Interaction.SC_SUCCEEDED:
+                            if tmpStat != Interaction.SC_SUCCEEDED:
                                 tmpErrStr = 'failed to setup task'
                                 tmpLog.error(tmpErrStr)
                                 taskSpec.setOnHold()

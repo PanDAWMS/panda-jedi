@@ -4709,12 +4709,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # if timeout
                     if timeoutDate != None and creationDate < timeoutDate:
                         timeoutFlag = True
-                        varMap[':newStatus'] = 'toabort'
+                        varMap[':newStatus'] = 'aborting'
                         if errorDialog == None:
                             errorDialog = ''
                         else:
                             errorDialog += '. '
-                        errorDialog += 'timeout in pending'
+                        errorDialog += 'timeout while in pending'
                         varMap[':errorDialog'] = errorDialog
                         sql = sqlTO
                     else:
@@ -5305,12 +5305,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlCU += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt>attemptNr "
             # sql to retry/incexecute datasets
             sqlRD  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-            sqlRD += "SET status=:status,nFilesUsed=nFilesUsed-:nDiff,nFilesFailed=nFilesFailed-:nDiff "
+            sqlRD += "SET status=:status,nFilesUsed=nFilesUsed-:nDiff-:nRun,nFilesFailed=nFilesFailed-:nDiff "
             sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update task status
             sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlUT += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
             sqlUT += "WHERE jediTaskID=:jediTaskID "
+            # sql to reset running files
+            sqlRR  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlRR += "SET status=:newStatus,attemptNr=attemptNr+1,maxAttempt=maxAttempt+:maxAttempt " 
+            sqlRR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oldStatus "
+            sqlRR += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL "
             # sql to update output/lib/log datasets
             sqlUO  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlUO += "SET status=:status "
@@ -5381,6 +5386,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':datasetID']  = datasetID
                             varMap[':nDiff'] = 0
+                            varMap[':nRun'] = 0
                             varMap[':status'] = 'ready'
                             tmpLog.debug('set status={0} for 2nd datasetID={1}'.format(varMap[':status'],datasetID))
                             self.cur.execute(sqlRD+comment,varMap)
@@ -5392,6 +5398,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':datasetID']  = datasetID
                                 varMap[':nDiff'] = 0
+                                varMap[':nRun'] = 0
                                 varMap[':status'] = 'done'
                                 tmpLog.debug('set status={0} for datasetID={1}'.format(varMap[':status'],datasetID))
                                 self.cur.execute(sqlRD+comment,varMap)
@@ -5416,15 +5423,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':keepTrack']  = 1
                             self.cur.execute(sqlRF+comment,varMap)
                             nDiff = self.cur.rowcount
+                            # reset running files
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
+                            varMap[':oldStatus']  = 'running'
+                            varMap[':newStatus']  = 'ready'
+                            varMap[':keepTrack']  = 1
+                            varMap[':maxAttempt'] = maxAttempt
+                            self.cur.execute(sqlRR+comment,varMap)
+                            nRun = self.cur.rowcount
                             # no retry if no failed files
-                            if commStr == 'retry' and nDiff == 0 and nUnp == 0:
-                                tmpLog.debug('no {0} for datasetID={1} : nDiff=0 and nReady=0'.format(commStr,datasetID))
+                            if commStr == 'retry' and nDiff == 0 and nUnp == 0 and nRun == 0:
+                                tmpLog.debug('no {0} for datasetID={1} : nDiff/nReady/nRun=0'.format(commStr,datasetID))
                                 continue
                             # update dataset
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':datasetID']  = datasetID
                             varMap[':nDiff'] = nDiff
+                            varMap[':nRun'] = nRun
                             if commStr == 'retry':
                                 varMap[':status'] = 'ready'
                             elif commStr == 'incexec':
