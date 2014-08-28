@@ -52,7 +52,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                     nOkLib += 1
                 # delete transient or empty datasets
                 emptyOnly = True
-                if datasetSpec.type.startswith('trn_'):
+                if datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']:
                     emptyOnly = False
                 retStr = ddmIF.deleteDataset(datasetSpec.datasetName,emptyOnly,ignoreUnknown=True)
                 tmpLog.info(retStr)
