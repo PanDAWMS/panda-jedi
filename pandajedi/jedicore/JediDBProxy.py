@@ -4763,6 +4763,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRD  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
             sqlRD += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlRD += "WHERE jediTaskID=:jediTaskID AND type=:type AND site=:site "
+            sqlRD += "AND (state IS NULL OR state<>:state) "
             sqlRD += "ORDER BY creationTime DESC "
             # sql to read files
             sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
@@ -4778,6 +4779,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap = {}
                 varMap[':type'] = 'lib'
                 varMap[':site'] = tmpSiteName
+                varMap[':state'] = 'closed'
                 varMap[':jediTaskID'] = jediTaskID
                 self.cur.execute(sqlRD+comment,varMap)
                 resList = self.cur.fetchall()

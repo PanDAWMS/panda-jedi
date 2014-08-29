@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import socket
@@ -153,7 +154,7 @@ class TaskCommandoThread (WorkerThread):
                                 taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                                 taskParamMap = RefinerUtils.decodeJSON(taskParam)
                                 # remove some params
-                                for newKey in ['nFiles']:
+                                for newKey in ['nFiles','fixedSandbox']:
                                     try:
                                         del taskParamMap[newKey]
                                     except:
@@ -169,6 +170,19 @@ class TaskCommandoThread (WorkerThread):
                                     else:
                                         # change
                                         taskParamMap[newKey] = newVal
+                                # overwrite sandbox
+                                if 'fixedSandbox' in taskParamMap:
+                                    # noBuild
+                                    for tmpParam in taskParamMap['jobParameters']:
+                                        if tmpParam['type'] == 'constant' and re.search('^-a [^ ]+$',tmpParam['value']) != None:
+                                            tmpParam['value'] = '-a {0}'.taskParamMap['fixedSandbox']
+                                    # build
+                                    if taskParamMap.has_key('buildSpec'):
+                                        taskParamMap['buildSpec']['archiveName'] = taskParamMap['fixedSandbox']
+                                    # merge
+                                    if taskParamMap.has_key('mergeSpec'):
+                                        taskParamMap['mergeSpec']['jobParameters'] = \
+                                            re.sub('-a [^ ]+','-a {0}'.format(taskParamMap['fixedSandbox']),taskParamMap['mergeSpec']['jobParameters'])
                                 # encode new param
                                 strTaskParams = RefinerUtils.encodeJSON(taskParamMap)
                                 tmpRet = self.taskBufferIF.updateTaskParams_JEDI(jediTaskID,strTaskParams)
