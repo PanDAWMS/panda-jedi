@@ -112,10 +112,18 @@ class TaskRefinerBase (object):
         if taskParamMap.has_key('cloud'):
             self.cloudName = taskParamMap['cloud']
             taskSpec.cloud = self.cloudName
+        else:
+            # set dummy to force update
+            taskSpec.cloud = 'dummy'
+            taskSpec.cloud = None
         # site
         if taskParamMap.has_key('site'):
             self.siteName = taskParamMap['site']
             taskSpec.site = self.siteName
+        else:
+            # set dummy to force update
+            taskSpec.site = 'dummy'
+            taskSpec.site = None
         # event service
         if taskParamMap.has_key('nEventsPerWorker'):
             taskSpec.eventService = 1

@@ -4,6 +4,7 @@ Release Note
   * fixed getAnalSitesWithData
   * added fixedSandbox
   * setting 0 for SKIPEVENTS when unspecified
+  * resetting cloud and site
 
 * 8/27/2014
   * fixed retryTask for running inputs
