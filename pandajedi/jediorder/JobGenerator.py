@@ -928,7 +928,7 @@ class JobGeneratorThread (WorkerThread):
         # make the list of stream/LFNs
         streamLFNsMap = {}
         # parameters for placeholders
-        skipEvents = None
+        skipEvents = 0
         maxEvents  = None
         firstEvent = None
         rndmSeed   = None
