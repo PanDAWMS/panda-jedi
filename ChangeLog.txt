@@ -1,5 +1,8 @@
 Release Note
 
+* 8/29/2014
+  * fixed getAnalSitesWithData
+
 * 8/27/2014
   * fixed retryTask for running inputs
   * not to overwite useScout when incexec

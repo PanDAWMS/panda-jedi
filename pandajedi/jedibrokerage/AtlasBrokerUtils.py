@@ -135,7 +135,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
             if tmpDDM == '':
                 continue
             # get prefix
-            tmpPrefix = re.sub('_[^_]+$','',tmpDDM) 
+            tmpPrefix = re.sub('_[^_]+$','_',tmpDDM) 
             # already checked 
             if tmpPrefix in checkedEndPoints:
                 continue
