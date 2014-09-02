@@ -179,10 +179,6 @@ class JediTaskSpec(object):
         from config import panda_config
         ret = "VALUES("
         for attr in cls.attributes:
-#            if useSeq and cls._seqAttrMap.has_key(attr):
-#                ret += "%s," % cls._seqAttrMap[attr]
-#            else:
-#                ret += ":%s," % attr
             if useSeq and cls._seqAttrMap.has_key(attr):
                 if panda_config.backend == 'mysql':
                     # mysql
