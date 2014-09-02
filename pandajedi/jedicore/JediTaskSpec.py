@@ -32,6 +32,7 @@ class JediTaskSpec(object):
     # tokens for split rule
     splitRuleToken = {
         'allowEmptyInput'    : 'AE',
+        'ddmBackEnd'         : 'DE',
         'disableAutoRetry'   : 'DR',
         'nEsConsumers'       : 'EC',
         'nEventsPerWorker'   : 'ES',
@@ -753,3 +754,31 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # set DDM backend
+    def setDdmBackEnd(self,backEnd):
+        if self.splitRule == None:
+            # new
+            self.splitRule = self.splitRuleToken['ddmBackEnd']+'='+backEnd
+        else:
+            tmpMatch = re.search(self.splitRuleToken['ddmBackEnd']+'=([^,$]+)',self.splitRule)
+            if tmpMatch == None:
+                # append
+                self.splitRule += ','+self.splitRuleToken['ddmBackEnd']+'='+backEnd
+            else:
+                # replace
+                self.splitRule = re.sub(self.splitRuleToken['ddmBackEnd']+'=([^,$]+)',
+                                        self.splitRuleToken['ddmBackEnd']+'='+backEnd,
+                                        self.splitRule)
+
+
+
+    # get DDM backend
+    def getDdmBackEnd(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['ddmBackEnd']+'=([^,$]+)',self.splitRule)
+            if tmpMatch != None:
+                return tmpMatch.group(1)
+        return None    

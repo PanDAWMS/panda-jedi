@@ -395,7 +395,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 nPilot = 0
                 if nWNmap.has_key(tmpSiteName):
                     nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
-                if nPilot == 0 and not taskSpec.prodSourceLabel in ['test']:
+                if nPilot == 0 and not 'test' in taskSpec.prodSourceLabel:
                     tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
                     continue
                 newScanSiteList.append(tmpSiteName)

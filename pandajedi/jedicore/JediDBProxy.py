@@ -4657,7 +4657,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':status'] = 'pending'
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=timeLimit)
-            sqlTL  = "SELECT jediTaskID,creationDate,errorDialog,parent_tid,splitRule "
+            sqlTL  = "SELECT jediTaskID,creationDate,errorDialog,parent_tid,splitRule,startTime "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlTL += "AND tabT.status=:status AND tabT.modificationTime<:timeLimit AND tabT.oldStatus IS NOT NULL "
@@ -4689,7 +4689,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resTL = self.cur.fetchall()
             # loop over all tasks
             nRow = 0
-            for jediTaskID,creationDate,errorDialog,parent_tid,splitRule in resTL:
+            for jediTaskID,creationDate,errorDialog,parent_tid,splitRule,startTime in resTL:
                 timeoutFlag = False
                 keepFlag = False
                 varMap = {}
@@ -4707,7 +4707,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         sql = sqlTU
                 else:
                     # if timeout
-                    if timeoutDate != None and creationDate < timeoutDate:
+                    if timeoutDate != None and creationDate < timeoutDate and \
+                            (startTime == None or startTime < timeoutDate):
                         timeoutFlag = True
                         varMap[':newStatus'] = 'aborting'
                         if errorDialog == None:
@@ -5310,9 +5311,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRD += "SET status=:status,nFilesUsed=nFilesUsed-:nDiff-:nRun,nFilesFailed=nFilesFailed-:nDiff "
             sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update task status
-            sqlUT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlUT += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
-            sqlUT += "WHERE jediTaskID=:jediTaskID "
+            sqlUTB  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlUTB += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
+            sqlUTB += "WHERE jediTaskID=:jediTaskID "
+            sqlUTN  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlUTN += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE,startTime=CURRENT_DATE "
+            sqlUTN += "WHERE jediTaskID=:jediTaskID "
             # sql to reset running files
             sqlRR  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlRR += "SET status=:newStatus,attemptNr=attemptNr+1,maxAttempt=maxAttempt+:maxAttempt " 
@@ -5509,10 +5513,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('set taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
                     # set old update time to trigger subsequent process
                     varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
+                    self.cur.execute(sqlUTN+comment,varMap)
                 else:
                     tmpLog.debug('back to taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
                     varMap[':updateTime'] = datetime.datetime.utcnow()
-                self.cur.execute(sqlUT+comment,varMap)
+                    self.cur.execute(sqlUTB+comment,varMap)
                 # update output/lib/log
                 if newTaskStatus != taskOldStatus:
                     varMap = {}

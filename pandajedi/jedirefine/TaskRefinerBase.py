@@ -3,6 +3,7 @@ import sys
 import uuid
 import copy
 import types
+import datetime
 
 import RefinerUtils
 from pandajedi.jedicore import Interaction
@@ -73,6 +74,7 @@ class TaskRefinerBase (object):
         taskSpec.processingType = taskParamMap['processingType']
         taskSpec.taskType = taskParamMap['taskType']
         taskSpec.splitRule = splitRule
+        taskSpec.startTime = datetime.datetime.utcnow()
         if taskParamMap.has_key('workingGroup'):
             taskSpec.workingGroup = taskParamMap['workingGroup']
         if taskParamMap.has_key('countryGroup'):
@@ -163,6 +165,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['pfnList'])
         if taskParamMap.has_key('noWaitParent'):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noWaitParent'])
+        if 'ddmBackEnd' in taskParamMap:
+            self.taskSpec.setDdmBackEnd(taskParamMap['ddmBackEnd'])
         # return
         return
     

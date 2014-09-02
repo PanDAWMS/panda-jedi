@@ -535,8 +535,16 @@ class JobGeneratorThread (WorkerThread):
                     # flag for merging
                     isUnMerging = False
                     isMerging = False
-                    # set specialHandling for Event Service
+                    # special handling
                     specialHandling = ''
+                    # DDM backend
+                    tmpDdmBackEnd = taskSpec.getDdmBackEnd()
+                    if tmpDdmBackEnd != None:
+                        if specialHandling == '':
+                            specialHandling = 'ddm:{0},'.format(tmpDdmBackEnd)
+                        else:
+                            specialHandling += 'ddm:{0},'.format(tmpDdmBackEnd)
+                    # set specialHandling for Event Service
                     if taskSpec.useEventService():
                         nEventsPerWorker = taskSpec.getNumEventsPerWorker()
                         specialHandling = EventServiceUtils.getHeaderForES(esIndex)
@@ -772,6 +780,18 @@ class JobGeneratorThread (WorkerThread):
                 libDsName = datasetSpec.datasetName
             jobSpec.destinationDBlock = libDsName
             jobSpec.destinationSE = siteName  
+            # special handling
+            specialHandling = ''
+            # DDM backend
+            tmpDdmBackEnd = taskSpec.getDdmBackEnd()
+            if tmpDdmBackEnd != None:
+                if specialHandling == '':
+                    specialHandling = 'ddm:{0},'.format(tmpDdmBackEnd)
+                else:
+                    specialHandling += 'ddm:{0},'.format(tmpDdmBackEnd)
+            specialHandling = specialHandling[:-1]
+            if specialHandling != '':
+                jobSpec.specialHandling = specialHandling
             libDsFileNameBase = libDsName + '.$JEDIFILEID'
             # make lib.tgz
             fileSpec = FileSpec()

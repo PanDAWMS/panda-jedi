@@ -525,14 +525,20 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # register new dataset/container
-    def registerNewDataset(self,datasetName):
+    def registerNewDataset(self,datasetName,backEnd=None,location=None):
         methodName = 'registerNewDataset'
         try:
-            # get DQ2 API            
-            dq2=DQ2()
+            # get DQ2 API
+            if backEnd == None:
+                dq2 = DQ2()
+            else:
+                dq2 = DQ2(force_backend=backEnd)
             if not datasetName.endswith('/'):
                 # register dataset
-                dq2.registerNewDataset(datasetName)
+                if location == None or backEnd == None:
+                    dq2.registerNewDataset(datasetName)
+                else:
+                    dq2.registerNewDataset(datasetName,rse=location)
             else:
                 # register container
                 dq2.registerContainer(datasetName)
@@ -604,11 +610,14 @@ class AtlasDDMClient(DDMClientBase):
         
 
     # add dataset to container
-    def addDatasetsToContainer(self,containerName,datasetNames):
+    def addDatasetsToContainer(self,containerName,datasetNames,backEnd=None):
         methodName = 'addDatasetsToContainer'
         try:
-            # get DQ2 API            
-            dq2=DQ2()
+            # get DQ2 API
+            if backEnd == None:
+                dq2 = DQ2()
+            else:
+                dq2 = DQ2(force_backend=backEnd)
             # add
             dq2.registerDatasetsInContainer(containerName,datasetNames)
             return self.SC_SUCCEEDED,True
@@ -815,7 +824,7 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # register location
-    def registerDatasetLocation(self,datasetName,location,lifetime=None,owner=None):
+    def registerDatasetLocation(self,datasetName,location,lifetime=None,owner=None,backEnd=None):
         methodName = 'registerDatasetLocation'
         methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
         tmpLog = MsgWrapper(logger,methodName)
@@ -823,8 +832,11 @@ class AtlasDDMClient(DDMClientBase):
         try:
             # cleanup DN
             owner = parse_dn(owner)
-            # get DQ2 API            
-            dq2 = DQ2()
+            # get DQ2 API
+            if backEnd == None:
+                dq2 = DQ2()
+            else:
+                dq2 = DQ2(force_backend=backEnd)
             # set
             dq2.registerDatasetLocation(datasetName,location,lifetime=lifetime)
             dq2.setReplicaMetaDataAttribute(datasetName,location,'owner',owner)
