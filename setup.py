@@ -146,7 +146,7 @@ class install_data_panda (install_data_org):
         
 # setup for distutils
 setup(
-    name="panda-jedi",
+    name="panda-jedi-mysql",
     version=release_version,
     description='JEDI Package',
     long_description='''This package contains JEDI components''',
