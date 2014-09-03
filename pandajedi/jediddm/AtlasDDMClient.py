@@ -507,7 +507,7 @@ class AtlasDDMClient(DDMClientBase):
             # get DQ2 API            
             dq2=DQ2()
             # get file list
-            tmpRet = dq2.listDatasets(datasetName,onlyNames=True)
+            tmpRet = dq2.listDatasets2({'name':datasetName},long=False,all=False)
             dsList = tmpRet.keys()
             if ignorePandaDS:
                 tmpDsList = []

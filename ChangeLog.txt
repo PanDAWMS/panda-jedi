@@ -1,6 +1,9 @@
 Release Note
 
 * 9/2/2014
+  * changed AtlasDDM to use listDatasets2
+
+* 9/2/2014
   * changed AtlasDDM to work with dq2 and rucio
   * updating startTime at submitssion or retry
   * changed pending killer to take startTime into account
