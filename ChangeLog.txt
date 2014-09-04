@@ -1,7 +1,8 @@
 Release Note
 
-* 9/2/2014
+* 9/3/2014
   * changed AtlasDDM to use listDatasets2
+  * changed TR to set proper status/error when registration is failed
 
 * 9/2/2014
   * changed AtlasDDM to work with dq2 and rucio

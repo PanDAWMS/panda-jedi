@@ -3424,7 +3424,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return False,None
+            return False,'tobroken'
 
 
 
