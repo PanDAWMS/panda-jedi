@@ -1171,7 +1171,9 @@ class JobGeneratorThread (WorkerThread):
         for jobFileSpec in jobFileList:
             if jobFileSpec.isUnMergedOutput():
                 mergedFileName = re.sub('^panda\.um\.','',jobFileSpec.lfn)
-                parTemplate = parTemplate.replace(mergedFileName ,jobFileSpec.lfn)
+                parTemplate = parTemplate.replace(mergedFileName,jobFileSpec.lfn)
+        # remove duplicated panda.um
+        parTemplate = parTemplate.replace('panda.um.panda.um.','panda.um.')
         # return
         return parTemplate
 

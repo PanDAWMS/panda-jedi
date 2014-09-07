@@ -1,5 +1,8 @@
 Release Note
 
+* 9/7/2014
+  * removing duplicated panda.um
+
 * 9/3/2014
   * changed AtlasDDM to use listDatasets2
   * changed TR to set proper status/error when registration is failed
