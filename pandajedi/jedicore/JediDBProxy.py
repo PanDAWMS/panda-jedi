@@ -4357,21 +4357,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # read clob
             sqlCC  = "SELECT comm_parameters FROM {0}.PRODSYS_COMM WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
             for jediTaskID in retTaskIDs.keys():
-                # start transaction
-                self.conn.begin()
-                varMap = {}
-                varMap[':comm_task'] = jediTaskID
-                self.cur.execute(sqlCC+comment, varMap)
-                tmpComComment = None
-                for clobCC, in self.cur:
-                    if clobCC != None:
-                        tmpComComment = clobCC.read()
-                    break
-                if not tmpComComment in ['',None]:
-                    retTaskIDs[jediTaskID]['comment'] = tmpComComment
-                # commit
-                if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                if retTaskIDs[jediTaskID]['command'] in ['incexec']:
+                    # start transaction
+                    self.conn.begin()
+                    varMap = {}
+                    varMap[':comm_task'] = jediTaskID
+                    self.cur.execute(sqlCC+comment, varMap)
+                    tmpComComment = None
+                    for clobCC, in self.cur:
+                        if clobCC != None:
+                            tmpComComment = clobCC.read()
+                        break
+                    if not tmpComComment in ['',None]:
+                        retTaskIDs[jediTaskID]['comment'] = tmpComComment
+                    # commit
+                    if not self._commit():
+                        raise RuntimeError, 'Commit error'
             # convert to list
             retTaskList = []
             for jediTaskID,varMap in retTaskIDs.iteritems():
