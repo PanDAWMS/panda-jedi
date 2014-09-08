@@ -217,7 +217,8 @@ class TaskRefinerThread (WorkerThread):
                                 impl.taskSpec.setOnHold()
                                 impl.taskSpec.setErrDiag(tmpErrStr)
                                 tmpLog.info(tmpErrStr)
-                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
+                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
+                                                                  insertUnknown=impl.unknownDatasetList)
                                 continue
                             else:
                                 errStr = 'failed to refine task'

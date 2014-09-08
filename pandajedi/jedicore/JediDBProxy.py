@@ -1148,7 +1148,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update JEDI task
-    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None,updateDEFT=True):
+    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None,updateDEFT=True,insertUnknown=None):
         comment = ' /* JediDBProxy.updateTask_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(taskSpec.jediTaskID)
@@ -1200,6 +1200,33 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[tmpKey] = tmpVal
             tmpLog.debug(sqlU+sql+comment+str(varMap))
             self.cur.execute(sqlU+sql+comment,varMap)
+            # insert unknown datasets
+            if insertUnknown != None:
+                # sql to check
+                sqlUC  = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+                sqlUC += "WHERE jediTaskID=:jediTaskID AND type=:type AND datasetName=:datasetName "
+                # sql to insert dataset
+                sqlUI  = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI,JediDatasetSpec.columnNames())
+                sqlUI += JediDatasetSpec.bindValuesExpression()
+                # loop over all datasets
+                for tmpUnknownDataset in insertUnknown:
+                    # check if already in DB
+                    varMap = {}
+                    varMap[':type'] = JediDatasetSpec.getUnknownInputType()
+                    varMap[':jediTaskID'] = taskSpec.jediTaskID
+                    varMap[':datasetName'] = tmpUnknownDataset
+                    self.cur.execute(sqlUC+comment,varMap)
+                    resUC = self.cur.fetchone()
+                    if resUC == None:
+                        # insert dataset
+                        datasetSpec = JediDatasetSpec()
+                        datasetSpec.jediTaskID = taskSpec.jediTaskID
+                        datasetSpec.datasetName = tmpUnknownDataset
+                        datasetSpec.creationTime = datetime.datetime.utcnow()
+                        datasetSpec.modificationTime = datasetSpec.creationTime
+                        datasetSpec.type = JediDatasetSpec.getUnknownInputType()
+                        varMap = datasetSpec.valuesMap(useSeq=True)
+                        self.cur.execute(sqlUI+comment,varMap)
             # the number of updated rows
             nRows = self.cur.rowcount
             # update DEFT
@@ -3271,6 +3298,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             elif duplicatedFlag:
                 pass
             else:
+                # delete unknown datasets
+                tmpLog.debug('deleting unknown datasets')
+                sql  = "DELETE FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+                sql += "WHERE jediTaskID=:jediTaskID AND type=:type "
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':type'] = JediDatasetSpec.getUnknownInputType()
+                self.cur.execute(sql+comment,varMap)
                 tmpLog.debug('inserting datasets')
                 # sql to insert datasets
                 sql  = "INSERT INTO {0}.JEDI_Datasets ({1}) ".format(jedi_config.db.schemaJEDI,
