@@ -1,5 +1,8 @@
 Release Note
 
+* 9/8/2014
+  * fixed file lookup for container
+
 * 9/7/2014
   * removing duplicated panda.um
 

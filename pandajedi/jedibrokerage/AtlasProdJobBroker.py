@@ -407,7 +407,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # get available files
-        totalSize = 0
         normalizeFactors = {}        
         availableFileMap = {}
         for datasetSpec in inputChunk.getDatasets():
@@ -427,8 +426,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpLog.error('failed to get available files with %s %s' % (errtype.__name__,errvalue))
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
-            # get total size
-            totalSize += datasetSpec.getSize()
             # loop over all sites to get the size of available files
             for tmpSiteName in scanSiteList:
                 if not normalizeFactors.has_key(tmpSiteName):
@@ -439,6 +436,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                     for tmpFileSpec in \
                             availableFiles['localdisk']+availableFiles['localtape']+availableFiles['cache']:
                         normalizeFactors[tmpSiteName] += tmpFileSpec.fsize
+        # get max total size
+        tmpTotalSizes = normalizeFactors.values()
+        tmpTotalSizes.sort()
+        totalSize = tmpTotalSizes.pop()
         ######################################
         # calculate weight
         tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
