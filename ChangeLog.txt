@@ -1,6 +1,7 @@
 Release Note
 
 * 9/10/2014
+  * fixed undefined variables in JediDBProxy
   * added addNthFieldToLFN
 
 * 9/8/2014
