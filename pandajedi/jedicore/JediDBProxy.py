@@ -1442,6 +1442,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not tmpKey in JediTaskSpec.attributes:
                 tmpLog.error('unknown attribute {0} is used in criteria'.format(tmpKey))
                 return failedRet
+        varMap = {}
         try:
             # sql
             sql  = "SELECT jediTaskID "
