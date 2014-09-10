@@ -32,6 +32,7 @@ class JediTaskSpec(object):
     # tokens for split rule
     splitRuleToken = {
         'allowEmptyInput'    : 'AE',
+        'addNthFieldToLFN'   : 'AN',
         'ddmBackEnd'         : 'DE',
         'disableAutoRetry'   : 'DR',
         'nEsConsumers'       : 'EC',
@@ -781,4 +782,14 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['ddmBackEnd']+'=([^,$]+)',self.splitRule)
             if tmpMatch != None:
                 return tmpMatch.group(1)
+        return None    
+
+
+
+    # get field number to add middle name to LFN 
+    def getFieldNumToLFN(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['addNthFieldToLFN']+'=([^,$]+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
         return None    

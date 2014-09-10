@@ -609,6 +609,11 @@ class JobGeneratorThread (WorkerThread):
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock == False and prodDBlock != None:
                         jobSpec.prodDBlock = prodDBlock
+                    # extract middle name
+                    middleName = ''
+                    if taskSpec.getFieldNumToLFN() != None and not jobSpec.prodDBlock in [None,'NULL','']:
+                        if len(jobSpec.prodDBlock.split('.')) >= taskSpec.getFieldNumToLFN():
+                            middleName = '.'+jobSpec.prodDBlock.split('.')[taskSpec.getFieldNumToLFN()-1]
                     # set provenanceID
                     provenanceID = None    
                     if useBoundary != None and useBoundary['outMap'] == True:
@@ -662,7 +667,8 @@ class JobGeneratorThread (WorkerThread):
                                                                                                          isUnMerging,
                                                                                                          False,
                                                                                                          xmlConfigJob,
-                                                                                                         siteDsMap)
+                                                                                                         siteDsMap,
+                                                                                                         middleName)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
@@ -695,6 +701,8 @@ class JobGeneratorThread (WorkerThread):
                     if xmlConfigJob != None:
                         paramList.append(('XML_OUTMAP',xmlConfigJob.get_outmap_str(outSubChunk)))
                         paramList.append(('XML_EXESTR',xmlConfigJob.exec_string_enc()))
+                    # middle name
+                    paramList.append(('MIDDLENAME',middleName))
                     # job parameter
                     jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
                                                                    serialNr,paramList,jobSpec,simul,

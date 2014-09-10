@@ -1,5 +1,8 @@
 Release Note
 
+* 9/10/2014
+  * added addNthFieldToLFN
+
 * 9/8/2014
   * fixed file lookup for container
   * introduced trn_unknown

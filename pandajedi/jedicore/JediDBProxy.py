@@ -1687,7 +1687,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # generate output files for task, and instantiate template datasets if necessary
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,isUnMerging,
-                            isPrePro,xmlConfigJob,siteDsMap):
+                            isPrePro,xmlConfigJob,siteDsMap,middleName):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -1696,6 +1696,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                             instantiateTmpl,
                                                                                             instantiatedSite))
         tmpLog.debug('isUnMerging={0} isPrePro={1} xmlConfigJob={2}'.format(isUnMerging,isPrePro,type(xmlConfigJob)))
+        tmpLog.debug('middleName={0}'.format(middleName))
         try:
             outMap = {}
             datasetToRegister = []
@@ -1876,6 +1877,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         nameTemplate = fileNameTemplate.replace('${SN}','{SN:06d}')
                         nameTemplate = nameTemplate.replace('${SN/P}','{SN:06d}')
                         nameTemplate = nameTemplate.replace('${SN','{SN')
+                        nameTemplate = nameTemplate.replace('${MIDDLENAME}',middleName)
                         fileSpec.lfn          = nameTemplate.format(SN=serialNr)
                         fileSpec.status       = 'defined'
                         fileSpec.creationDate = timeNow
