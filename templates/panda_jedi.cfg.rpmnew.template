@@ -36,6 +36,13 @@ dbpasswd = FIXME
 # database
 dbname = PandaDB
 
+# database port
+dbport = 4444
+
+# database backend
+backend = oracle
+#backend = mysql
+
 # number of task buffer instances
 nWorkers = 5
 

@@ -50,16 +50,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.workQueueMap = WorkQueueMapper()
         # update time for work queue map
         self.updateTimeForWorkQueue = None
-
+        # backend
+        self.backend = jedi_config.db.backend
 
 
     # connect to DB (just for INTR)
     def connect(self,dbhost=jedi_config.db.dbhost,dbpasswd=jedi_config.db.dbpasswd,
                 dbuser=jedi_config.db.dbuser,dbname=jedi_config.db.dbname,
-                dbtimeout=None,reconnect=False):
+                dbtimeout=None, reconnect=False, dbport=jedi_config.db.dbport):
         return taskbuffer.OraDBProxy.DBProxy.connect(self,dbhost=dbhost,dbpasswd=dbpasswd,
                                                      dbuser=dbuser,dbname=dbname,
-                                                     dbtimeout=dbtimeout,reconnect=reconnect)
+                                                     dbtimeout=dbtimeout, reconnect=reconnect,
+                                                     dbport=dbport)
 
 
 
