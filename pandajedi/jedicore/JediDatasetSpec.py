@@ -125,15 +125,12 @@ class JediDatasetSpec(object):
 
     # return expression of bind variables for INSERT
     def bindValuesExpression(cls,useSeq=True):
-        from config import panda_config
+        from pandajedi.jediconfig import jedi_config
+
         ret = "VALUES("
         for attr in cls._attributes:
-#            if useSeq and cls._seqAttrMap.has_key(attr):
-#                ret += "%s," % cls._seqAttrMap[attr]
-#            else:
-#                ret += ":%s," % attr
             if useSeq and cls._seqAttrMap.has_key(attr):
-                if panda_config.backend == 'mysql':
+                if jedi_config.db.backend == 'mysql':
                     # mysql
                     ret += "%s," % "NULL"
                 else:
