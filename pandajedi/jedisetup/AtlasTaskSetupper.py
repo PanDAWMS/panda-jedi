@@ -52,6 +52,8 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     if not tmpStat:
                         tmpLog.error('failed to get output and log datasets')
                         return retFatal
+                    # DDM backend
+                    ddmBackEnd = taskSpec.getDdmBackEnd()
                     tmpLog.info('checking {0}'.format(datasetSpec.datasetName)) 
                     # check if dataset and container are available in DDM
                     for targetName in [datasetSpec.datasetName,datasetSpec.containerName]:
@@ -61,9 +63,22 @@ class AtlasTaskSetupper (TaskSetupperBase):
                             # check dataset/container in DDM
                             tmpList = ddmIF.listDatasets(targetName)
                             if tmpList == []:
+                                # get location
+                                location = None
+                                if targetName == datasetSpec.datasetName:
+                                    # dataset
+                                    if datasetSpec.site in ['',None]:
+                                        if taskSpec.cloud != None:
+                                            # use T1 SE
+                                            tmpT1Name = siteMapper.getCloud(taskSpec.cloud)['source']
+                                            location = siteMapper.getDdmEndpoint(tmpT1Name,datasetSpec.storageToken)
+                                    else:
+                                        location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
                                 # register dataset/container
-                                tmpLog.info('registering {0}'.format(targetName))
-                                tmpStat = ddmIF.registerNewDataset(targetName)
+                                tmpLog.info('registering {0} with location={1} backend={2}'.format(targetName,
+                                                                                                   location,
+                                                                                                   ddmBackEnd))
+                                tmpStat = ddmIF.registerNewDataset(targetName,backEnd=ddmBackEnd,location=location)
                                 if not tmpStat:
                                     tmpLog.error('failed to register {0}'.format(targetName))
                                     return retFatal
@@ -78,12 +93,13 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                         return retFatal
                                     # register location
                                     if targetName == datasetSpec.datasetName and not datasetSpec.site in ['',None]: 
-                                        location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
                                         tmpLog.info('registring location={0}'.format(location))
-                                        tmpStat = ddmIF.registerDatasetLocation(targetName,location,owner=taskSpec.userName)
+                                        tmpStat = ddmIF.registerDatasetLocation(targetName,location,owner=taskSpec.userName,
+                                                                                backEnd=ddmBackEnd)
                                         if not tmpStat:
-                                            tmpLog.error('failed to register location {0} for {1}'.format(location,
-                                                                                                          targetName))
+                                            tmpLog.error('failed to register location {0} with {2} for {1}'.format(location,
+                                                                                                                   targetName,
+                                                                                                                   ddmBackEnd))
                                             return retFatal
                                 avDatasetList.append(targetName)
                             else:
@@ -96,7 +112,8 @@ class AtlasTaskSetupper (TaskSetupperBase):
                         # add dataset
                         if not datasetSpec.datasetName in cnDatasetMap[datasetSpec.containerName]:
                             tmpLog.info('adding {0} to {1}'.format(datasetSpec.datasetName,datasetSpec.containerName)) 
-                            tmpStat = ddmIF.addDatasetsToContainer(datasetSpec.containerName,[datasetSpec.datasetName])
+                            tmpStat = ddmIF.addDatasetsToContainer(datasetSpec.containerName,[datasetSpec.datasetName],
+                                                                   backEnd=ddmBackEnd)
                             if not tmpStat:
                                 tmpLog.error('failed to add {0} to {1}'.format(datasetSpec.datasetName,
                                                                                datasetSpec.containerName))

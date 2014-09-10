@@ -535,8 +535,16 @@ class JobGeneratorThread (WorkerThread):
                     # flag for merging
                     isUnMerging = False
                     isMerging = False
-                    # set specialHandling for Event Service
+                    # special handling
                     specialHandling = ''
+                    # DDM backend
+                    tmpDdmBackEnd = taskSpec.getDdmBackEnd()
+                    if tmpDdmBackEnd != None:
+                        if specialHandling == '':
+                            specialHandling = 'ddm:{0},'.format(tmpDdmBackEnd)
+                        else:
+                            specialHandling += 'ddm:{0},'.format(tmpDdmBackEnd)
+                    # set specialHandling for Event Service
                     if taskSpec.useEventService():
                         nEventsPerWorker = taskSpec.getNumEventsPerWorker()
                         specialHandling = EventServiceUtils.getHeaderForES(esIndex)
@@ -601,6 +609,11 @@ class JobGeneratorThread (WorkerThread):
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock == False and prodDBlock != None:
                         jobSpec.prodDBlock = prodDBlock
+                    # extract middle name
+                    middleName = ''
+                    if taskSpec.getFieldNumToLFN() != None and not jobSpec.prodDBlock in [None,'NULL','']:
+                        if len(jobSpec.prodDBlock.split('.')) >= taskSpec.getFieldNumToLFN():
+                            middleName = '.'+jobSpec.prodDBlock.split('.')[taskSpec.getFieldNumToLFN()-1]
                     # set provenanceID
                     provenanceID = None    
                     if useBoundary != None and useBoundary['outMap'] == True:
@@ -654,7 +667,8 @@ class JobGeneratorThread (WorkerThread):
                                                                                                          isUnMerging,
                                                                                                          False,
                                                                                                          xmlConfigJob,
-                                                                                                         siteDsMap)
+                                                                                                         siteDsMap,
+                                                                                                         middleName)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
@@ -687,6 +701,8 @@ class JobGeneratorThread (WorkerThread):
                     if xmlConfigJob != None:
                         paramList.append(('XML_OUTMAP',xmlConfigJob.get_outmap_str(outSubChunk)))
                         paramList.append(('XML_EXESTR',xmlConfigJob.exec_string_enc()))
+                    # middle name
+                    paramList.append(('MIDDLENAME',middleName))
                     # job parameter
                     jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
                                                                    serialNr,paramList,jobSpec,simul,
@@ -772,6 +788,18 @@ class JobGeneratorThread (WorkerThread):
                 libDsName = datasetSpec.datasetName
             jobSpec.destinationDBlock = libDsName
             jobSpec.destinationSE = siteName  
+            # special handling
+            specialHandling = ''
+            # DDM backend
+            tmpDdmBackEnd = taskSpec.getDdmBackEnd()
+            if tmpDdmBackEnd != None:
+                if specialHandling == '':
+                    specialHandling = 'ddm:{0},'.format(tmpDdmBackEnd)
+                else:
+                    specialHandling += 'ddm:{0},'.format(tmpDdmBackEnd)
+            specialHandling = specialHandling[:-1]
+            if specialHandling != '':
+                jobSpec.specialHandling = specialHandling
             libDsFileNameBase = libDsName + '.$JEDIFILEID'
             # make lib.tgz
             fileSpec = FileSpec()
@@ -1151,7 +1179,9 @@ class JobGeneratorThread (WorkerThread):
         for jobFileSpec in jobFileList:
             if jobFileSpec.isUnMergedOutput():
                 mergedFileName = re.sub('^panda\.um\.','',jobFileSpec.lfn)
-                parTemplate = parTemplate.replace(mergedFileName ,jobFileSpec.lfn)
+                parTemplate = parTemplate.replace(mergedFileName,jobFileSpec.lfn)
+        # remove duplicated panda.um
+        parTemplate = parTemplate.replace('panda.um.panda.um.','panda.um.')
         # return
         return parTemplate
 

@@ -1,5 +1,25 @@
 Release Note
 
+* 9/10/2014
+  * added addNthFieldToLFN
+
+* 9/8/2014
+  * fixed file lookup for container
+  * introduced trn_unknown
+  * added protection against changed comm_parameter
+
+* 9/7/2014
+  * removing duplicated panda.um
+
+* 9/3/2014
+  * changed AtlasDDM to use listDatasets2
+  * changed TR to set proper status/error when registration is failed
+
+* 9/2/2014
+  * changed AtlasDDM to work with dq2 and rucio
+  * updating startTime at submitssion or retry
+  * changed pending killer to take startTime into account
+
 * 8/29/2014
   * fixed getAnalSitesWithData
   * added fixedSandbox

@@ -89,50 +89,51 @@ class AtlasProdTaskBroker (TaskBrokerBase):
         tt2Map      = {}
         expRWs      = {}
         jobSpecList = []
-        for taskSpec,cloudName,inputChunk in inputList:
-            # make JobSpec to be submitted for TaskAssigner
-            jobSpec = JobSpec()
-            jobSpec.taskID     = taskSpec.reqID
-            jobSpec.jediTaskID = taskSpec.jediTaskID
-            # set managed to trigger TA
-            jobSpec.prodSourceLabel  = 'managed'
-            jobSpec.processingType   = taskSpec.processingType
-            jobSpec.workingGroup     = taskSpec.workingGroup
-            jobSpec.metadata         = taskSpec.processingType
-            jobSpec.assignedPriority = taskSpec.taskPriority
-            jobSpec.currentPriority  = taskSpec.currentPriority
-            jobSpec.maxDiskCount     = (taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()) / 1024 / 1024
-            prodDBlock = None
-            setProdDBlock = False
-            for datasetSpec in inputChunk.getDatasets():
-                prodDBlock = datasetSpec.datasetName
-                if datasetSpec.isMaster():
-                    jobSpec.prodDBlock = datasetSpec.datasetName
-                    setProdDBlock = True
-                for fileSpec in datasetSpec.Files:
-                    tmpInFileSpec = fileSpec.convertToJobFileSpec(datasetSpec)
-                    jobSpec.addFile(tmpInFileSpec)
-            # use secondary dataset name as prodDBlock
-            if setProdDBlock == False and prodDBlock != None:
-                jobSpec.prodDBlock = prodDBlock
-            # append
-            jobSpecList.append(jobSpec)
-            prioMap[jobSpec.taskID] = jobSpec.currentPriority
-            tt2Map[jobSpec.taskID]  = jobSpec.processingType
-            # get RW for a priority
-            if not allRwMap.has_key(jobSpec.currentPriority):
-                tmpRW = self.taskBufferIF.calculateRWwithPrio_JEDI(vo,prodSourceLabel,workQueue,
-                                                                   jobSpec.currentPriority) 
-                if tmpRW == None:
-                    tmpLog.error('failed to calculate RW with prio={0}'.format(jobSpec.currentPriority))
+        for tmpJediTaskID,tmpInputList in inputList:
+            for taskSpec,cloudName,inputChunk in tmpInputList:
+                # make JobSpec to be submitted for TaskAssigner
+                jobSpec = JobSpec()
+                jobSpec.taskID     = taskSpec.reqID
+                jobSpec.jediTaskID = taskSpec.jediTaskID
+                # set managed to trigger TA
+                jobSpec.prodSourceLabel  = 'managed'
+                jobSpec.processingType   = taskSpec.processingType
+                jobSpec.workingGroup     = taskSpec.workingGroup
+                jobSpec.metadata         = taskSpec.processingType
+                jobSpec.assignedPriority = taskSpec.taskPriority
+                jobSpec.currentPriority  = taskSpec.currentPriority
+                jobSpec.maxDiskCount     = (taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()) / 1024 / 1024
+                prodDBlock = None
+                setProdDBlock = False
+                for datasetSpec in inputChunk.getDatasets():
+                    prodDBlock = datasetSpec.datasetName
+                    if datasetSpec.isMaster():
+                        jobSpec.prodDBlock = datasetSpec.datasetName
+                        setProdDBlock = True
+                    for fileSpec in datasetSpec.Files:
+                        tmpInFileSpec = fileSpec.convertToJobFileSpec(datasetSpec)
+                        jobSpec.addFile(tmpInFileSpec)
+                # use secondary dataset name as prodDBlock
+                if setProdDBlock == False and prodDBlock != None:
+                    jobSpec.prodDBlock = prodDBlock
+                # append
+                jobSpecList.append(jobSpec)
+                prioMap[jobSpec.taskID] = jobSpec.currentPriority
+                tt2Map[jobSpec.taskID]  = jobSpec.processingType
+                # get RW for a priority
+                if not allRwMap.has_key(jobSpec.currentPriority):
+                    tmpRW = self.taskBufferIF.calculateRWwithPrio_JEDI(vo,prodSourceLabel,workQueue,
+                                                                       jobSpec.currentPriority) 
+                    if tmpRW == None:
+                        tmpLog.error('failed to calculate RW with prio={0}'.format(jobSpec.currentPriority))
+                        return retTmpError
+                    allRwMap[jobSpec.currentPriority] = tmpRW
+                # get expected RW
+                expRW = self.taskBufferIF.calculateTaskRW_JEDI(jobSpec.jediTaskID)
+                if expRW == None:
+                    tmpLog.error('failed to calculate RW for jediTaskID={0}'.format(jobSpec.jediTaskID))
                     return retTmpError
-                allRwMap[jobSpec.currentPriority] = tmpRW
-            # get expected RW
-            expRW = self.taskBufferIF.calculateTaskRW_JEDI(jobSpec.jediTaskID)
-            if expRW == None:
-                tmpLog.error('failed to calculate RW for jediTaskID={0}'.format(jobSpec.jediTaskID))
-                return retTmpError
-            expRWs[jobSpec.taskID] = expRW
+                expRWs[jobSpec.taskID] = expRW
         # get fullRWs
         fullRWs = self.taskBufferIF.calculateRWwithPrio_JEDI(vo,prodSourceLabel,None,None)
         if fullRWs == None:

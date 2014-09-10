@@ -206,6 +206,13 @@ class JediDatasetSpec(object):
     getMergeProcessTypes = classmethod(getMergeProcessTypes)
 
 
+    
+    # get type of unkown input
+    def getUnknownInputType(cls):
+        return 'trn_unknown'
+    getUnknownInputType = classmethod(getUnknownInputType)
+
+
 
     # check if JEDI needs to keep track of file usage
     def toKeepTrack(self):

@@ -3,6 +3,7 @@ import sys
 import uuid
 import copy
 import types
+import datetime
 
 import RefinerUtils
 from pandajedi.jedicore import Interaction
@@ -46,6 +47,7 @@ class TaskRefinerBase (object):
         self.unmergeMasterDatasetSpec = {}
         self.unmergeDatasetSpecMap = {}
         self.oldTaskStatus = None
+        self.unknownDatasetList = [] 
 
 
 
@@ -73,6 +75,7 @@ class TaskRefinerBase (object):
         taskSpec.processingType = taskParamMap['processingType']
         taskSpec.taskType = taskParamMap['taskType']
         taskSpec.splitRule = splitRule
+        taskSpec.startTime = datetime.datetime.utcnow()
         if taskParamMap.has_key('workingGroup'):
             taskSpec.workingGroup = taskParamMap['workingGroup']
         if taskParamMap.has_key('countryGroup'):
@@ -156,6 +159,7 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'disableAutoRetry', JediTaskSpec.splitRuleToken['disableAutoRetry'])
         self.setSplitRule(taskParamMap,'nEsConsumers',     JediTaskSpec.splitRuleToken['nEsConsumers'])
         self.setSplitRule(taskParamMap,'waitInput',        JediTaskSpec.splitRuleToken['waitInput'])
+        self.setSplitRule(taskParamMap,'addNthFieldToLFN', JediTaskSpec.splitRuleToken['addNthFieldToLFN'])
         if taskParamMap.has_key('loadXML'):
             self.setSplitRule(None,3,JediTaskSpec.splitRuleToken['loadXML'])
             self.setSplitRule(None,4,JediTaskSpec.splitRuleToken['groupBoundaryID'])
@@ -163,6 +167,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['pfnList'])
         if taskParamMap.has_key('noWaitParent'):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noWaitParent'])
+        if 'ddmBackEnd' in taskParamMap:
+            self.taskSpec.setDdmBackEnd(taskParamMap['ddmBackEnd'])
         # return
         return
     
@@ -276,6 +282,8 @@ class TaskRefinerBase (object):
                     if inDatasetSpecList == [] and self.oldTaskStatus != 'rerefine':
                         errStr = 'doBasicRefine : unknown input dataset "{0}"'.format(datasetSpec.datasetName)
                         self.taskSpec.setErrDiag(errStr)
+                        if not datasetSpec.datasetName in self.unknownDatasetList:
+                            self.unknownDatasetList.append(datasetSpec.datasetName)
                         raise JediException.UnknownDatasetError,errStr
                     # set master flag
                     for inDatasetSpec in inDatasetSpecList:    

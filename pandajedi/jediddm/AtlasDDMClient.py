@@ -230,6 +230,12 @@ class AtlasDDMClient(DDMClientBase):
                             if not assEndPoint in siteAllEndPointsMap[siteName] and \
                                    not self.checkNGEndPoint(assEndPoint,ngEndPoints):
                                 siteAllEndPointsMap[siteName].append(assEndPoint)
+            # get files
+            tmpStat,tmpOut = self.getFilesInDataset(datasetSpec.datasetName)
+            if tmpStat != self.SC_SUCCEEDED:
+                tmpLog.error('faild to get file list with {0}'.format(tmpOut))
+                raise tmpStat,tmpOut
+            totalNumFiles = len(tmpOut)
             # get replica map
             tmpStat,tmpOut = self.listDatasetReplicas(datasetSpec.datasetName)
             if tmpStat != self.SC_SUCCEEDED:
@@ -240,11 +246,11 @@ class AtlasDDMClient(DDMClientBase):
             lfcSeMap = {}
             storagePathMap = {}
             completeReplicaMap = {}
-            siteHasCompleteReplica = False
             for siteName,allEndPointList in siteAllEndPointsMap.iteritems():
                 tmpLfcSeMap = {}
                 tmpStoragePathMap = {}
                 tmpSiteSpec = siteMapper.getSite(siteName)
+                siteHasCompleteReplica = False
                 for tmpEndPoint in allEndPointList:
                     # storage type
                     if TiersOfATLAS.isTapeSite(tmpEndPoint):
@@ -253,8 +259,9 @@ class AtlasDDMClient(DDMClientBase):
                         storageType = 'localdisk'
                     # no scan when site has complete replicas
                     if (datasetReplicaMap.has_key(tmpEndPoint) and datasetReplicaMap[tmpEndPoint][-1]['found'] != None \
-                       and datasetReplicaMap[tmpEndPoint][-1]['total'] == datasetReplicaMap[tmpEndPoint][-1]['found']) \
-                       or not checkCompleteness:
+                            and datasetReplicaMap[tmpEndPoint][-1]['total'] == datasetReplicaMap[tmpEndPoint][-1]['found'] \
+                            and datasetReplicaMap[tmpEndPoint][-1]['total'] >= totalNumFiles) \
+                            or not checkCompleteness:
                         completeReplicaMap[tmpEndPoint] = storageType
                         siteHasCompleteReplica = True
                     # no LFC scan for many-time datasets
@@ -309,12 +316,14 @@ class AtlasDDMClient(DDMClientBase):
             # collect GUIDs and LFNs
             fileMap        = {}
             lfnMap         = {}
-            lfnFileSepcMap = {}
+            lfnFileSpecMap = {}
             scopeMap       = {}
             for tmpFile in datasetSpec.Files:
                 fileMap[tmpFile.GUID] = tmpFile.lfn
                 lfnMap[tmpFile.lfn] = tmpFile
-                lfnFileSepcMap[tmpFile.lfn] = tmpFile
+                if not tmpFile.lfn in lfnFileSpecMap:
+                    lfnFileSpecMap[tmpFile.lfn] = []
+                lfnFileSpecMap[tmpFile.lfn].append(tmpFile)
                 scopeMap[tmpFile.lfn] = tmpFile.scope
             # get SURLs
             surlMap = {}
@@ -352,7 +361,8 @@ class AtlasDDMClient(DDMClientBase):
             avaLFNs = surlMap.keys()
             avaLFNs.sort()
             for tmpLFN in avaLFNs:
-                tmpFileSpec = lfnFileSepcMap[tmpLFN]                
+                tmpFileSpecList = lfnFileSpecMap[tmpLFN]
+                tmpFileSpec = tmpFileSpecList[0]
                 # loop over all SURLs
                 for tmpSURL in surlMap[tmpLFN]:
                     for tmpSePath in storagePathMap.keys():
@@ -363,7 +373,7 @@ class AtlasDDMClient(DDMClientBase):
                                 siteName = tmpSiteDict['siteName']
                                 storageType = tmpSiteDict['storageType']
                                 if not tmpFileSpec in returnMap[siteName][storageType]:
-                                    returnMap[siteName][storageType].append(tmpFileSpec)
+                                    returnMap[siteName][storageType] += tmpFileSpecList
                             break
             # dump
             dumpStr = ''
@@ -507,7 +517,7 @@ class AtlasDDMClient(DDMClientBase):
             # get DQ2 API            
             dq2=DQ2()
             # get file list
-            tmpRet = dq2.listDatasets(datasetName,onlyNames=True)
+            tmpRet = dq2.listDatasets2({'name':datasetName},long=False,all=False)
             dsList = tmpRet.keys()
             if ignorePandaDS:
                 tmpDsList = []
@@ -525,14 +535,20 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # register new dataset/container
-    def registerNewDataset(self,datasetName):
+    def registerNewDataset(self,datasetName,backEnd=None,location=None):
         methodName = 'registerNewDataset'
         try:
-            # get DQ2 API            
-            dq2=DQ2()
+            # get DQ2 API
+            if backEnd == None:
+                dq2 = DQ2()
+            else:
+                dq2 = DQ2(force_backend=backEnd)
             if not datasetName.endswith('/'):
                 # register dataset
-                dq2.registerNewDataset(datasetName)
+                if location == None or backEnd == None:
+                    dq2.registerNewDataset(datasetName)
+                else:
+                    dq2.registerNewDataset(datasetName,rse=location)
             else:
                 # register container
                 dq2.registerContainer(datasetName)
@@ -604,11 +620,14 @@ class AtlasDDMClient(DDMClientBase):
         
 
     # add dataset to container
-    def addDatasetsToContainer(self,containerName,datasetNames):
+    def addDatasetsToContainer(self,containerName,datasetNames,backEnd=None):
         methodName = 'addDatasetsToContainer'
         try:
-            # get DQ2 API            
-            dq2=DQ2()
+            # get DQ2 API
+            if backEnd == None:
+                dq2 = DQ2()
+            else:
+                dq2 = DQ2(force_backend=backEnd)
             # add
             dq2.registerDatasetsInContainer(containerName,datasetNames)
             return self.SC_SUCCEEDED,True
@@ -815,7 +834,7 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # register location
-    def registerDatasetLocation(self,datasetName,location,lifetime=None,owner=None):
+    def registerDatasetLocation(self,datasetName,location,lifetime=None,owner=None,backEnd=None):
         methodName = 'registerDatasetLocation'
         methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
         tmpLog = MsgWrapper(logger,methodName)
@@ -823,8 +842,11 @@ class AtlasDDMClient(DDMClientBase):
         try:
             # cleanup DN
             owner = parse_dn(owner)
-            # get DQ2 API            
-            dq2 = DQ2()
+            # get DQ2 API
+            if backEnd == None:
+                dq2 = DQ2()
+            else:
+                dq2 = DQ2(force_backend=backEnd)
             # set
             dq2.registerDatasetLocation(datasetName,location,lifetime=lifetime)
             dq2.setReplicaMetaDataAttribute(datasetName,location,'owner',owner)
