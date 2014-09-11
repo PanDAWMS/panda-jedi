@@ -3534,6 +3534,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         memSizeList  = []
         workSizeList = []
         finishedJobs = []
+        inFSizeList  = []
         inFSizeMap   = {}
         for pandaID,fsize,startEvent,endEvent,nEvents in resList:
             if not inFSizeMap.has_key(pandaID):
@@ -3552,6 +3553,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if resData != None:
                 jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,defCoreCount = resData
                 finishedJobs.append(pandaID)
+                inFSizeList.append(totalFSize)
                 # core count
                 coreCount = 1
                 try:
@@ -3576,7 +3578,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     pass
                 # execution time
                 try:
-                    tmpVal = long(math.ceil(float(cpuConsumptionTime) / totalFSize))
+                    tmpVal = cpuConsumptionTime
                     walltimeList.append(tmpVal)
                 except:
                     pass
@@ -3602,10 +3604,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if outSizeList != []:
             median = max(outSizeList) 
             median /= 1024
+            # upper limit 2MB output per 1MB input
+            upperLimit = 2 * 1024
+            if median > upperLimit:
+                median = upperLimit
             returnMap['outDiskCount'] = long(median)
             returnMap['outDiskUnit']  = 'kB'
         if walltimeList != []:
-            median = numpy.median(walltimeList)
+            median = float(max(walltimeList)) / float(max(inFSizeList))
+            median = math.ceil(median)
             returnMap['walltime']     = long(median)
             returnMap['walltimeUnit'] = 'kSI2kseconds'
         if memSizeList != []:

@@ -1,5 +1,8 @@
 Release Note
 
+* 9/11/2014
+  * added protection to getScoutData against widely distributed input sizes
+
 * 9/10/2014
   * fixed undefined variables in JediDBProxy
   * added addNthFieldToLFN
