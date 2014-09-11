@@ -2,6 +2,7 @@ Release Note
 
 * 9/11/2014
   * added protection to getScoutData against widely distributed input sizes
+  * fixed AtlasAnalJobBroker to take effective input size into account for walltime
 
 * 9/10/2014
   * fixed undefined variables in JediDBProxy
