@@ -1737,7 +1737,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             timeNow = datetime.datetime.utcnow()
             # begin transaction
             self.conn.begin()
-            self.cur.arraysize = 10000
+            self.cur.arraysize = 100
             # get datasets
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
