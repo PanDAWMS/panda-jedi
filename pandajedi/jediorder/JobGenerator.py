@@ -499,7 +499,7 @@ class JobGeneratorThread (WorkerThread):
                     else:
                         jobSpec.processingType = taskSpec.processingType
                     jobSpec.jediTaskID       = taskSpec.jediTaskID
-                    jobSpec.taskID           = taskSpec.reqID
+                    jobSpec.taskID           = taskSpec.jediTaskID
                     jobSpec.jobsetID         = taskSpec.reqID
                     jobSpec.workingGroup     = taskSpec.workingGroup
                     jobSpec.countryGroup     = taskSpec.countryGroup

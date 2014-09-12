@@ -32,38 +32,22 @@ class AtlasProdTaskBroker (TaskBrokerBase):
         # return for failure
         retFatal    = self.SC_FATAL,{}
         retTmpError = self.SC_FAILED,{}
-        # get list of reqIDs wchih are mapped to taskID in Panda
-        reqIdTaskIdMap = {}
+        # get list of jediTaskIDs
+        taskIdList = []
         for taskSpec in taskSpecList:
-            if taskSpec.reqID != None:
-                if reqIdTaskIdMap.has_key(taskSpec.reqID):
-                    tmpLog.error('reqID={0} is dubplicated in jediTaskID={1},{2}'.format(taskSpec.reqID,
-                                                                                         taskSpec.jediTaskID,
-                                                                                         reqIdTaskIdMap[taskSpec.reqID]))
-                else:
-                    reqIdTaskIdMap[taskSpec.reqID] = taskSpec.jediTaskID
-                    tmpLog.debug('jediTaskID={0} has reqID={1}'.format(taskSpec.jediTaskID,taskSpec.reqID))
-            else:
-                tmpLog.error('jediTaskID={0} has undefined reqID'.format(taskSpec.jediTaskID)) 
+            taskIdList.append(taskSpec.jediTaskID)
         # check with panda
         tmpLog.debug('check with panda')
-        tmpPandaStatus,cloudsInPanda = PandaClient.seeCloudTask(reqIdTaskIdMap.keys())
+        tmpPandaStatus,cloudsInPanda = PandaClient.seeCloudTask(taskIdList)
         if tmpPandaStatus != 0:
             tmpLog.error('failed to see clouds')
             return retTmpError
         # make return map
         retMap = {}
-        for tmpReqID,tmpCloud in cloudsInPanda.iteritems():
+        for tmpTaskID,tmpCloud in cloudsInPanda.iteritems():
+            tmpLog.debug('jediTaskID={0} -> {1}'.format(tmpTaskID,tmpCloud))
             if not tmpCloud in ['NULL','',None]:
-                tmpLog.debug('reqID={0} jediTaskID={1} -> {2}'.format(tmpReqID,reqIdTaskIdMap[tmpReqID],tmpCloud))
-                """
-                # check file availability
-                tmpSt = self.findMissingFiles(reqIdTaskIdMap[tmpReqID],tmpCloud)
-                if tmpSt != self.SC_SUCCEEDED:
-                    tmpLog.error('failed to check file availability for jediTaskID={0}'.format(reqIdTaskIdMap[tmpReqID]))
-                    continue
-                """    
-                retMap[reqIdTaskIdMap[tmpReqID]] = tmpCloud
+                retMap[tmpTaskID] = tmpCloud
         tmpLog.debug('ret {0}'.format(str(retMap)))
         # return
         tmpLog.debug('done')        
@@ -93,7 +77,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
             for taskSpec,cloudName,inputChunk in tmpInputList:
                 # make JobSpec to be submitted for TaskAssigner
                 jobSpec = JobSpec()
-                jobSpec.taskID     = taskSpec.reqID
+                jobSpec.taskID     = taskSpec.jediTaskID
                 jobSpec.jediTaskID = taskSpec.jediTaskID
                 # set managed to trigger TA
                 jobSpec.prodSourceLabel  = 'managed'
@@ -151,7 +135,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
         while nBunchTask < len(jobSpecList):
             # get a bunch
             jobsBunch = jobSpecList[nBunchTask:nBunchTask+maxBunchTask]
-            strIDs = 'taskID(reqID)='
+            strIDs = 'jediTaskID='
             for tmpJobSpec in jobsBunch:
                 strIDs += '{0},'.format(tmpJobSpec.taskID)
             strIDs = strIDs[:-1]

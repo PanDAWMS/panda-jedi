@@ -1,6 +1,7 @@
 Release Note
 
 * 9/12/2014
+  * cleanup for reqID
   * added a hint to getOutputFiles_JEDI
   * reduced fetch size in getOutputFiles_JEDI
 
