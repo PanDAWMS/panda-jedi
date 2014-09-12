@@ -1,5 +1,8 @@
 Release Note
 
+* 9/12/2014
+  * added a hint to getOutputFiles_JEDI
+
 * 9/11/2014
   * added protection to getScoutData against widely distributed input sizes
   * fixed AtlasAnalJobBroker to take effective input size into account for walltime
