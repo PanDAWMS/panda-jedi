@@ -138,7 +138,7 @@ class MethodClass(object):
                 # send command
                 pipe.send(commandObj)
                 # wait response
-                timeoutPeriod = 180
+                timeoutPeriod = 300
                 if not pipe.poll(timeoutPeriod):
                     raise JEDITimeoutError,"didn't return response for %ssec" % timeoutPeriod
                 # get response

@@ -29,7 +29,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             for tmpKey,tmpOutTemplateMapList in self.outputTemplateMap.iteritems():
                 for tmpOutTemplateMap in tmpOutTemplateMapList:
                     outFileTemplate = tmpOutTemplateMap['filenameTemplate']
-                    if re.search('\.\d+$',outFileTemplate) == None:
+                    if re.search('\.\d+$',outFileTemplate) == None and not outFileTemplate.endswith('.panda.um'):
                         tmpOutTemplateMap['filenameTemplate'] = outFileTemplate + '.1'
         except:
             errtype,errvalue = sys.exc_info()[:2]

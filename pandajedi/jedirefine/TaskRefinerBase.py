@@ -348,9 +348,14 @@ class TaskRefinerBase (object):
                             umOutTemplateMap = {'jediTaskID' : self.taskSpec.jediTaskID,
                                                 'serialNr' : 1,
                                                 'streamName' : umDatasetSpec.streamName,
-                                                'filenameTemplate' : 'panda.um.' + outFileTemplate,
                                                 'outtype' : datasetSpec.type,
                                                 }
+                            # append temporary name
+                            if taskParamMap.has_key('umNameAtEnd') and taskParamMap['umNameAtEnd'] == True:
+                                # append temporary name at the end
+                                umOutTemplateMap['filenameTemplate'] = outFileTemplate + '.panda.um'
+                            else:
+                                umOutTemplateMap['filenameTemplate'] = 'panda.um.' + outFileTemplate
                             if self.outputTemplateMap.has_key(umDatasetSpec.outputMapKey()):
                                 # multiple files are associated to the same output datasets
                                 self.outputTemplateMap[umDatasetSpec.outputMapKey()].append(umOutTemplateMap)

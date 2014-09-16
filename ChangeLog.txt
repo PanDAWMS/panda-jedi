@@ -1,5 +1,8 @@
 Release Note
 
+* 9/16/2014
+  * added umNameAtEnd
+
 * 9/12/2014
   * cleanup for reqID
   * added a hint to getOutputFiles_JEDI
