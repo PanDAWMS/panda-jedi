@@ -2,6 +2,7 @@ Release Note
 
 * 9/22/2014
   * removed the hint from getOutputFiles_JEDI
+  * added protection for non exiting cliParams to AtlasAnalPP
 
 * 9/16/2014
   * added umNameAtEnd

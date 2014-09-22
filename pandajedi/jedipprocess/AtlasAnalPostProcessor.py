@@ -154,6 +154,11 @@ class AtlasAnalPostProcessor (PostProcessorBase):
         for tmpDS in listLogDS:
             dsSummary += 'Log : {0}\n'.format(tmpDS)
         dsSummary = dsSummary[:-1]
+        # CLI param
+        if 'cliParams' in self.taskParamMap:
+            cliParams = self.taskParamMap['cliParams']
+        else:
+            cliParams = None
         # make message
         message = \
             """Subject: JEDI notification for TaskID:{jediTaskID} ({numOK}/{numTotal} {msgSucceeded})
@@ -189,7 +194,7 @@ PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(\
             endTime=taskSpec.endTime,
             status=taskSpec.status,
             errorDialog=taskSpec.errorDialog,
-            params=self.taskParamMap['cliParams'],
+            params=cliParams,
             taskName=taskSpec.taskName,
             oldPandaMon=urllib.urlencode(urlData),
             newPandaMon=urllib.urlencode(newUrlData),
