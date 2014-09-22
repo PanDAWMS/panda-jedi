@@ -1701,8 +1701,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             outMap = {}
             datasetToRegister = []
             # sql to get dataset
-            sqlD  = "SELECT /*+ INDEX_RS_ASC(tab JEDI_DATASETS_PK) */ "
-            sqlD += "datasetID,datasetName,vo,masterID,status FROM {0}.JEDI_Datasets tab ".format(jedi_config.db.schemaJEDI)
+            sqlD  = "SELECT "
+            sqlD += "datasetID,datasetName,vo,masterID,status FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlD += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
             if provenanceID != None:
                 sqlD += "AND (provenanceID IS NULL OR provenanceID=:provenanceID) "
