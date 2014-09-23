@@ -650,6 +650,9 @@ class JobGeneratorThread (WorkerThread):
                     # maxDiskCount in MB
                     jobSpec.maxDiskCount /= (1024*1024)
                     jobSpec.maxDiskCount = long(jobSpec.maxDiskCount)
+                    # FIXME one maxwdir is used
+                    if siteSpec.maxinputsize < jobSpec.maxDiskCount:
+                        jobSpec.maxDiskCount = siteSpec.maxinputsize
                     # XML config
                     xmlConfigJob = None
                     if xmlConfig != None:

@@ -1,5 +1,8 @@
 Release Note
 
+* 9/23/2014
+  * capped maxDiskCount until maxwdir is used everywhere
+
 * 9/22/2014
   * removed the hint from getOutputFiles_JEDI
   * added protection for non exiting cliParams to AtlasAnalPP
