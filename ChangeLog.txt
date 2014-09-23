@@ -3,6 +3,8 @@ Release Note
 * 9/23/2014
   * fixed AtlasProdJobBroker for noInput
   * capped maxDiskCount until maxwdir is used everywhere
+  * added capability to reset resource requirements
+  * added split rule for merge step
 
 * 9/22/2014
   * removed the hint from getOutputFiles_JEDI

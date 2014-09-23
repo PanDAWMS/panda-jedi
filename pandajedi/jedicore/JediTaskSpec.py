@@ -56,6 +56,9 @@ class JediTaskSpec(object):
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
         'waitInput'          : 'WI',
+        'nFilesPerMergeJob'    : 'ZF',
+        'nGBPerMergeJob'       : 'ZG',
+        'nMaxFilesPerMergeJob' : 'ZM',
         }
     # enum for preprocessing
     enum_toPreProcess = '1'
@@ -213,6 +216,17 @@ class JediTaskSpec(object):
 
 
 
+    # get the max size per merge job if defined
+    def getMaxSizePerMergeJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['nGBPerMergeJob']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                nGBPerJob = int(tmpMatch.group(1)) * 1024 * 1024 * 1024
+                return nGBPerJob
+        return None    
+
+
+
     # get the maxnumber of files per job if defined
     def getMaxNumFilesPerJob(self):
         if self.splitRule != None:
@@ -223,11 +237,30 @@ class JediTaskSpec(object):
 
 
 
+    # get the maxnumber of files per merge job if defined
+    def getMaxNumFilesPerMergeJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['nMaxFilesPerMergeJob']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None
+
+
 
     # get the number of files per job if defined
     def getNumFilesPerJob(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['nFilesPerJob']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None    
+
+
+
+    # get the number of files per merge job if defined
+    def getNumFilesPerMergeJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['nFilesPerMergeJob']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    

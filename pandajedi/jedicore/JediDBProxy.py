@@ -3474,6 +3474,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         returnMap = {}
+        # sql to get preset values
+        sqlGPV  = "SELECT outDiskCount,walltime,ramCount,workDiskCount "
+        sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+        sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data
         sqlSCF  = "SELECT tabF.PandaID,tabF.fsize,tabF.startEvent,tabF.endEvent,tabF.nEvents "
         sqlSCF += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
@@ -3501,6 +3505,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
         self.cur.arraysize = 100000
+        # get preset values
+        varMap = {}
+        varMap[':jediTaskID'] = jediTaskID
+        self.cur.execute(sqlGPV+comment,varMap)
+        resGPV = self.cur.fetchone()
+        if resGPV != None:
+            preOutDiskCount,preWalltime,preRamCount,preWorkDiskCount = resGPV
+        else:
+            preOutDiskCount = 0
+            preWalltime = 0
+            preRamCount = 0
+            preWorkDiskCount = 0
         # get the size of lib 
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
@@ -3611,20 +3627,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 median = upperLimit
             returnMap['outDiskCount'] = long(median)
             returnMap['outDiskUnit']  = 'kB'
+            # use preset value if larger
+            if preOutDiskCount != None and preOutDiskCount > returnMap['outDiskCount']:
+                returnMap['outDiskCount'] = preOutDiskCount
         if walltimeList != []:
             median = float(max(walltimeList)) / float(max(inFSizeList))
             median = math.ceil(median)
             returnMap['walltime']     = long(median)
             returnMap['walltimeUnit'] = 'kSI2kseconds'
+            # use preset value if larger
+            if preWalltime != None and preWalltime > returnMap['walltime']:
+                returnMap['walltime'] = preWalltime
         if memSizeList != []:
             median = numpy.median(memSizeList)
             median /= 1024
             returnMap['ramCount'] = long(median)
             returnMap['ramUnit']  = 'MB'
+            # use preset value if larger
+            if preRamCount != None and preRamCount > returnMap['ramCount']:
+                returnMap['ramCount'] = preRamCount
         if workSizeList != []:   
             median = max(workSizeList)
             returnMap['workDiskCount'] = long(median)
             returnMap['workDiskUnit']  = 'MB'
+            # use preset value if larger
+            if preWorkDiskCount != None and preWorkDiskCount > returnMap['workDiskCount']:
+                returnMap['workDiskCount'] = preWorkDiskCount
         if useTransaction:    
             # commit
             if not self._commit():

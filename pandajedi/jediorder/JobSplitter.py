@@ -43,13 +43,18 @@ class JobSplitter:
             sizeGradientsPerInSize = None
             # max primay output size
             maxOutSize = None
+            # max size per job
+            maxSizePerJob = taskSpec.getMaxSizePerJob()
         else:
             # set parameters for merging
-            maxNumFiles = 50
+            maxNumFiles = taskSpec.getMaxNumFilesPerMergeJob()
+            if maxNumFiles == None:
+                maxNumFiles = 50
             sizeGradients = 0
             walltimeGradient = 0
-            nFilesPerJob = None
+            nFilesPerJob = taskSpec.getNumFilesPerMergeJob()
             nEventsPerJob = None
+            maxSizePerJob = taskSpec.getMaxSizePerMergeJob()
             useBoundary = {'inSplit':3}
             # gradients per input size is 1
             sizeGradientsPerInSize = 1
@@ -91,7 +96,7 @@ class JobSplitter:
                 siteName = siteCandidate.siteName
                 siteSpec = siteMapper.getSite(siteName)
                 # get maxSize if it is set in taskSpec
-                maxSize = taskSpec.getMaxSizePerJob()
+                maxSize = maxSizePerJob
                 if maxSize == None or maxSize > (siteSpec.maxwdir * 1024 * 1024):
                     # use maxwdir as the default maxSize
                     maxSize = siteSpec.maxwdir * 1024 * 1024

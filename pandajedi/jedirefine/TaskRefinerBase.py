@@ -101,9 +101,9 @@ class TaskRefinerBase (object):
         else:
             taskSpec.outDiskCount = 0
         if taskParamMap.has_key('workDiskCount'):
-            taskSpec.outDiskCount = taskParamMap['workDiskCount']
+            taskSpec.workDiskCount = taskParamMap['workDiskCount']
         else:
-            taskSpec.outDiskCount = 0
+            taskSpec.workDiskCount = 0
         if taskParamMap.has_key('ramCount'):
             taskSpec.ramCount = taskParamMap['ramCount']
         else:
@@ -160,6 +160,9 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'nEsConsumers',     JediTaskSpec.splitRuleToken['nEsConsumers'])
         self.setSplitRule(taskParamMap,'waitInput',        JediTaskSpec.splitRuleToken['waitInput'])
         self.setSplitRule(taskParamMap,'addNthFieldToLFN', JediTaskSpec.splitRuleToken['addNthFieldToLFN'])
+        self.setSplitRule(taskParamMap,'nFilesPerMergeJob',    JediTaskSpec.splitRuleToken['nFilesPerMergeJob'])
+        self.setSplitRule(taskParamMap,'nGBPerMergeJob',       JediTaskSpec.splitRuleToken['nGBPerMergeJob'])
+        self.setSplitRule(taskParamMap,'nMaxFilesPerMergeJob', JediTaskSpec.splitRuleToken['nMaxFilesPerMergeJob'])
         if taskParamMap.has_key('loadXML'):
             self.setSplitRule(None,3,JediTaskSpec.splitRuleToken['loadXML'])
             self.setSplitRule(None,4,JediTaskSpec.splitRuleToken['groupBoundaryID'])

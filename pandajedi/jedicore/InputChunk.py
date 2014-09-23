@@ -376,7 +376,8 @@ class InputChunk:
                         break
                     newNextStartEvent = tmpFileSpec.endEvent + 1
                 # check boundary
-                if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
+                if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID \
+                        and useBoundary['inSplit'] != 3:
                     # no files in the next loop
                     if newInputNumFiles == 0:
                         terminateFlag = True
@@ -396,7 +397,8 @@ class InputChunk:
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.isNoSplit() and datasetSpec.getNumFilesPerJob() == None:
                     # check boundaryID
-                    if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
+                    if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID \
+                            and useBoundary['inSplit'] != 3:
                         break
                     newNumSecondary = datasetSpec.getNumMultByRatio(newNumMaster) - nSecFilesMap[datasetSpec.datasetID]
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
