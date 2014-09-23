@@ -439,7 +439,10 @@ class AtlasProdJobBroker (JobBrokerBase):
         # get max total size
         tmpTotalSizes = normalizeFactors.values()
         tmpTotalSizes.sort()
-        totalSize = tmpTotalSizes.pop()
+        if tmpTotalSizes != []:
+            totalSize = tmpTotalSizes.pop()
+        else:
+            totalSize = 0
         ######################################
         # calculate weight
         tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,

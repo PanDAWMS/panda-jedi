@@ -1,6 +1,7 @@
 Release Note
 
 * 9/23/2014
+  * fixed AtlasProdJobBroker for noInput
   * capped maxDiskCount until maxwdir is used everywhere
 
 * 9/22/2014
