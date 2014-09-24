@@ -1,5 +1,8 @@
 Release Note
 
+* 9/24/2014
+  * increased timeout of Interaction to 600
+
 * 9/23/2014
   * changed for prod tasks to avalanche when 5 scout jobs succeeded 
   * introduced scoutSuccessRate
