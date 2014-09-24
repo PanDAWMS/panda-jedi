@@ -52,6 +52,7 @@ class JediTaskSpec(object):
         'noWaitParent'       : 'NW',
         'pfnList'            : 'PL',
         'randomSeed'         : 'RS',
+        'scoutSuccessRate'   : 'SS',
         'useBuild'           : 'UB',
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
@@ -823,6 +824,16 @@ class JediTaskSpec(object):
     def getFieldNumToLFN(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['addNthFieldToLFN']+'=([^,$]+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None    
+
+
+
+    # get required success rate for scout jobs
+    def getScoutSuccessRate(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['scoutSuccessRate']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    

@@ -1,6 +1,8 @@
 Release Note
 
 * 9/23/2014
+  * changed for prod tasks to avalanche when 5 scout jobs succeeded 
+  * introduced scoutSuccessRate
   * fixed AtlasProdJobBroker for noInput
   * capped maxDiskCount until maxwdir is used everywhere
   * added capability to reset resource requirements

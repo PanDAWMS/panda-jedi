@@ -160,6 +160,7 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'nEsConsumers',     JediTaskSpec.splitRuleToken['nEsConsumers'])
         self.setSplitRule(taskParamMap,'waitInput',        JediTaskSpec.splitRuleToken['waitInput'])
         self.setSplitRule(taskParamMap,'addNthFieldToLFN', JediTaskSpec.splitRuleToken['addNthFieldToLFN'])
+        self.setSplitRule(taskParamMap,'scoutSuccessRate', JediTaskSpec.splitRuleToken['scoutSuccessRate'])
         self.setSplitRule(taskParamMap,'nFilesPerMergeJob',    JediTaskSpec.splitRuleToken['nFilesPerMergeJob'])
         self.setSplitRule(taskParamMap,'nGBPerMergeJob',       JediTaskSpec.splitRuleToken['nGBPerMergeJob'])
         self.setSplitRule(taskParamMap,'nMaxFilesPerMergeJob', JediTaskSpec.splitRuleToken['nMaxFilesPerMergeJob'])

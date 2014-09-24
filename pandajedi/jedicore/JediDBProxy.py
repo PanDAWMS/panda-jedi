@@ -3467,7 +3467,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get scout job data
-    def getScoutJobData_JEDI(self,jediTaskID,useTransaction=False):
+    def getScoutJobData_JEDI(self,jediTaskID,useTransaction=False,scoutSuccessRate=None):
         comment = ' /* JediDBProxy.getScoutJobData_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -3541,7 +3541,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.cur.execute(sqlSCF+comment,varMap)
         resList = self.cur.fetchall()
         # scout scceeded or not
-        if resList == []:
+        if resList == [] or (scoutSuccessRate != None and len(scoutSucceeded) < scoutSuccessRate):
             scoutSucceeded = False
         else:
             scoutSucceeded = True
@@ -3724,18 +3724,53 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
-            # select
+            # get tasks
             tmpLog.debug(sql+comment+str(varMap))
             self.cur.execute(sql+comment,varMap)
             resList = self.cur.fetchall()
+            # make list
+            jediTaskIDstatusMap = {}
+            for jediTaskID,taskStatus in resList:
+                jediTaskIDstatusMap[jediTaskID] = taskStatus 
+            # get tasks for early avalanche
+            if simTasks == None and prodSourceLabel in [None,'managed']:
+                minSuccessScouts = 5
+                varMap = {}
+                varMap['taskstatus'] = 'scouting'
+                varMap['prodSourceLabel'] = 'managed'
+                if vo != None:
+                    varMap[':vo'] = vo
+                sqlEA  = "SELECT * FROM "
+                sqlEA += "(SELECT tabT.jediTaskID,SUM(nFilesFinished) totFinished,SUM(nFilesToBeUsed) totToBeUsed "
+                sqlEA += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
+                sqlEA += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+                sqlEA += "AND tabT.jediTaskID=tabD.jediTaskID "
+                sqlEA += "AND tabT.status=:taskstatus AND prodSourceLabel=:prodSourceLabel "
+                if vo != None:
+                    sqlEA += "AND tabT.vo=:vo "
+                sqlEA += "AND tabT.lockedBy IS NULL "
+                sqlEA += 'AND tabD.type IN ('
+                for tmpType in JediDatasetSpec.getInputTypes():
+                    mapKey = ':type_'+tmpType
+                    sqlEA += '{0},'.format(mapKey)
+                    varMap[mapKey] = tmpType
+                sqlEA  = sqlEA[:-1]
+                sqlEA += ') '
+                sqlEA += 'GROUP BY tabT.jediTaskID) '
+                sqlEA += 'WHERE totToBeUsed>0 AND totFinished*{0}>=totToBeUsed '.format(minSuccessScouts)
+                sqlEA += 'AND rownum<={0}'.format(nTasks)
+                # get tasks
+                tmpLog.debug(sqlEA+comment+str(varMap))
+                self.cur.execute(sqlEA+comment,varMap)
+                resList = self.cur.fetchall()
+                # append to list
+                for jediTaskID,totFinished,totToBeUsed in resList:
+                    if not jediTaskID in jediTaskIDstatusMap:
+                        jediTaskIDstatusMap[jediTaskID] = varMap['taskstatus']
+                        tmpLog.debug('got jediTaskID={0} for early avalanche'.format(jediTaskID))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            # make list
-            jediTaskIDstatusMap = {}
-            jediTaskIDList = []
-            for jediTaskID,taskStatus in resList:
-                jediTaskIDstatusMap[jediTaskID] = taskStatus 
             jediTaskIDList = jediTaskIDstatusMap.keys()
             jediTaskIDList.sort()
             tmpLog.debug('got {0} tasks'.format(len(jediTaskIDList)))
@@ -3841,7 +3876,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not toSkip:
                     if taskSpec.status == 'scouting':
                         # set average job data
-                        scoutSucceeded,scoutData = self.getScoutJobData_JEDI(jediTaskID)
+                        scoutSucceeded,scoutData = self.getScoutJobData_JEDI(jediTaskID,
+                                                                             scoutSuccessRate=taskSpec.getScoutSuccessRate())
                         # sql to update task data
                         if scoutData != {}:
                             varMap = {}
@@ -3878,7 +3914,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             taskSpec.setPostScout()
                         else:
                             newTaskStatus = 'tobroken'
-                            errorDialog = 'no scout jobs succeeded'
+                            if taskSpec.getScoutSuccessRate() == None:
+                                errorDialog = 'no scout jobs succeeded'
+                            else:
+                                errorDialog = 'not enough scout jobs succeeded'
                     elif taskSpec.status in ['running','merging','preprocessing','ready']:
                         # get input datasets
                         varMap = {}
