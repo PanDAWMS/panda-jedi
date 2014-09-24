@@ -3,6 +3,7 @@ import sys
 import time
 import urllib
 import datetime
+import random
 
 from pandajedi.jedicore import Interaction
 from PostProcessorBase import PostProcessorBase
@@ -24,6 +25,8 @@ class AtlasAnalPostProcessor (PostProcessorBase):
         try:
             # get DDM I/F
             ddmIF = self.ddmIF.getInterface(taskSpec.vo)
+            # shuffle datasets
+            random.shuffle(taskSpec.datasetSpecList)
             # loop over all datasets
             useLib = False
             nOkLib = 0
@@ -39,9 +42,17 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 if not datasetSpec.datasetName.startswith('user') and not datasetSpec.datasetName.startswith('panda') \
                         and not datasetSpec.datasetName.startswith('group'):
                     continue
+                # check if already closed
+                datasetAttrs = self.taskBufferIF.getDatasetAttributes_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID,['state'])
+                if 'state' in datasetAttrs and datasetAttrs['state'] == 'closed':
+                    tmpLog.info('skip freezing closed datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
+                    closedFlag = True
+                else:
+                    closedFlag = False
                 # freeze datasets
-                tmpLog.info('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
-                ddmIF.freezeDataset(datasetSpec.datasetName,ignoreUnknown=True)
+                if not closedFlag:
+                    tmpLog.info('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
+                    ddmIF.freezeDataset(datasetSpec.datasetName,ignoreUnknown=True)
                 # update dataset
                 datasetSpec.state = 'closed'
                 datasetSpec.stateCheckTime = datetime.datetime.utcnow()
@@ -51,11 +62,17 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 else:
                     nOkLib += 1
                 # delete transient or empty datasets
-                emptyOnly = True
-                if datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']:
-                    emptyOnly = False
-                retStr = ddmIF.deleteDataset(datasetSpec.datasetName,emptyOnly,ignoreUnknown=True)
-                tmpLog.info(retStr)
+                if not closedFlag:
+                    emptyOnly = True
+                    if datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']:
+                        emptyOnly = False
+                    retStr = ddmIF.deleteDataset(datasetSpec.datasetName,emptyOnly,ignoreUnknown=True)
+                    tmpLog.info(retStr)
+                # update dataset in DB
+                self.taskBufferIF.updateDatasetAttributes_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID,
+                                                               {'state':datasetSpec.state,
+                                                                'stateCheckTime':datasetSpec.stateCheckTime})
+
             # dialog
             if useLib and nOkLib == 0:
                 taskSpec.setErrDiag('No build jobs succeeded',True)

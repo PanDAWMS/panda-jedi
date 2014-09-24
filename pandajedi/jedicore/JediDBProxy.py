@@ -933,6 +933,95 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return failedRet
 
+
+
+    # update JEDI dataset attributes
+    def updateDatasetAttributes_JEDI(self,jediTaskID,datasetID,attributes):
+        comment = ' /* JediDBProxy.updateDatasetAttributes_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0} datasetID={1}>'.format(jediTaskID,datasetID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        # return value for failure
+        failedRet = False
+        try:
+            # sql for update
+            sql  = "UPDATE {0}.JEDI_Datasets SET ".format(jedi_config.db.schemaJEDI)
+            # values for UPDATE
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':datasetID'] = datasetID
+            for tmpKey,tmpVal in attributes.iteritems():
+                crKey = ':{0}'.format(tmpKey)
+                sql += '{0}={1},'.format(tmpKey,crKey)
+                varMap[crKey] = tmpVal
+            sql = sql[:-1]
+            sql += ' '
+            sql += 'WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID '
+            # begin transaction
+            self.conn.begin()
+            # update dataset
+            tmpLog.debug(sql+comment+str(varMap))            
+            self.cur.execute(sql+comment,varMap)
+            # the number of updated rows
+            nRows = self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('updated {0} rows'.format(nRows))
+            return True,nRows
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return failedRet
+
+
+
+    # get JEDI dataset attributes
+    def getDatasetAttributes_JEDI(self,jediTaskID,datasetID,attributes):
+        comment = ' /* JediDBProxy.getDatasetAttributes_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0} datasetID={1}>'.format(jediTaskID,datasetID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        # return value for failure
+        failedRet = {}
+        try:
+            # sql for get attributes
+            sql  = "SELECT "
+            for tmpKey in attributes:
+                sql += '{0},'.format(tmpKey)
+            sql = sql[:-1] + ' '
+            sql += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sql += 'WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID '
+            # values for UPDATE
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':datasetID'] = datasetID
+            # begin transaction
+            self.conn.begin()
+            # select
+            self.cur.execute(sql+comment,varMap)
+            res = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # make return
+            retMap = {}
+            if res != None:
+                for tmpIdx,tmpKey in enumerate(attributes):
+                    retMap[tmpKey] = res[tmpIdx]
+            tmpLog.debug('got {0}'.format(str(retMap)))
+            return retMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return failedRet
+
                 
         
     # get JEDI dataset with datasetID

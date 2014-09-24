@@ -1,6 +1,7 @@
 Release Note
 
 * 9/24/2014
+  * improved AtlasAnalysisPP for multiple threads processing the same task
   * increased timeout of Interaction to 600
 
 * 9/23/2014
