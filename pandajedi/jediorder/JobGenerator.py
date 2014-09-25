@@ -653,6 +653,12 @@ class JobGeneratorThread (WorkerThread):
                     # FIXME one maxwdir is used
                     if siteSpec.maxinputsize < jobSpec.maxDiskCount:
                         jobSpec.maxDiskCount = siteSpec.maxinputsize
+                    # unset maxCpuCount and minRamCount for merge jobs 
+                    if inputChunk.isMerging:
+                        if jobSpec.maxCpuCount != [None,'NULL']:
+                            jobSpec.maxCpuCount = 0
+                        if jobSpec.minRamCount != [None,'NULL']:
+                            jobSpec.minRamCount = 0
                     # XML config
                     xmlConfigJob = None
                     if xmlConfig != None:
