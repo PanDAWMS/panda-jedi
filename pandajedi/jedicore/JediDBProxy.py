@@ -1384,6 +1384,40 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # update JEDI task lock
+    def updateTaskLock_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.updateTaskLock_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        # return value for failure
+        failedRet = False
+        try:
+            # sql to update lock
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            sqlS  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI) 
+            sqlS += 'SET lockedTime=CURRENT_DATE '
+            sqlS += 'WHERE jediTaskID=:jediTaskID '
+            # begin transaction
+            self.conn.begin()
+            # get old status
+            self.cur.execute(sqlS+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return failedRet
+
+
+
     # get JEDI task with ID
     def getTaskWithID_JEDI(self,jediTaskID,fullFlag,lockTask=False,pid=None,lockInterval=None):
         comment = ' /* JediDBProxy.getTaskWithID_JEDI */'

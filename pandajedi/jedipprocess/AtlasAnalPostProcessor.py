@@ -30,6 +30,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
             # loop over all datasets
             useLib = False
             nOkLib = 0
+            lockUpdateTime = datetime.datetime.utcnow()
             for datasetSpec in taskSpec.datasetSpecList:
                 # ignore template
                 if datasetSpec.type.startswith('tmpl_'):
@@ -50,9 +51,12 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 else:
                     closedFlag = False
                 # freeze datasets
-                if not closedFlag:
+                if not closedFlag and not (datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']):
                     tmpLog.info('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
                     ddmIF.freezeDataset(datasetSpec.datasetName,ignoreUnknown=True)
+                else:
+                    if datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']:
+                        tmpLog.info('skip freezing transient datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
                 # update dataset
                 datasetSpec.state = 'closed'
                 datasetSpec.stateCheckTime = datetime.datetime.utcnow()
@@ -72,7 +76,11 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 self.taskBufferIF.updateDatasetAttributes_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID,
                                                                {'state':datasetSpec.state,
                                                                 'stateCheckTime':datasetSpec.stateCheckTime})
-
+                # update task lock
+                if datetime.datetime.utcnow()-lockUpdateTime > datetime.timedelta(minutes=5):
+                    lockUpdateTime = datetime.datetime.utcnow()
+                    # update lock
+                    self.taskBufferIF.updateTaskLock_JEDI(taskSpec.jediTaskID)
             # dialog
             if useLib and nOkLib == 0:
                 taskSpec.setErrDiag('No build jobs succeeded',True)

@@ -218,6 +218,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # update JEDI task lock
+    def updateTaskLock_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.updateTaskLock_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # update JEDI task status by ContentsFeeder
     def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False):
         # get DBproxy
