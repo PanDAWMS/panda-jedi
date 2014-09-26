@@ -1621,6 +1621,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
             sqlRT += "AND (lockedBy IS NULL OR lockedTime<:timeLimit) "
             sqlRT += "AND rownum<{0} ".format(nTasks)
+            sqlNW  = "SELECT jediTaskID FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlNW += "WHERE jediTaskID=:jediTaskID FOR UPDATE NOWAIT"
             sqlLK  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlLK += "WHERE jediTaskID=:jediTaskID AND (lockedBy IS NULL OR lockedTime<:timeLimit) AND status=:status "
             sqlTS  = "SELECT {0} ".format(JediTaskSpec.columnNames())
@@ -1651,6 +1653,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for jediTaskID,taskStatus in taskStatList:
                 # begin transaction
                 self.conn.begin()
+                # check task
+                try:
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    self.cur.execute(sqlNW+comment,varMap)
+                except:
+                    tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
+                    # commit
+                    if not self._commit():
+                        raise RuntimeError, 'Commit error'
+                    continue
                 # special action for scouted
                 if taskStatus == 'scouted':
                     # make avalanche
