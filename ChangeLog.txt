@@ -1,5 +1,8 @@
 Release Note
 
+* 9/26/2014
+  * improved getTasksToBeFinished_JEDI to avoid row lock contention
+
 * 9/25/2014
   * setting minRamCount and maxCpuCount to pmerge jobs
 

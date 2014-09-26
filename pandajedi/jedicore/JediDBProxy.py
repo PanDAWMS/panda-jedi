@@ -1609,7 +1609,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status2'] = 'scouted'
             varMap[':status3'] = 'tobroken'
             varMap[':status4'] = 'toabort'
-            sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames('tabT'))
+            sqlRT  = "SELECT tabT.jediTaskID,tabT.status "
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlRT += "AND tabT.status IN (:status1,:status2,:status3,:status4) "
@@ -1620,58 +1620,79 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
             sqlRT += "AND (lockedBy IS NULL OR lockedTime<:timeLimit) "
-            sqlRT += "AND rownum<{0} FOR UPDATE ".format(nTasks)
+            sqlRT += "AND rownum<{0} ".format(nTasks)
             sqlLK  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
-            sqlLK += "WHERE jediTaskID=:jediTaskID "
+            sqlLK += "WHERE jediTaskID=:jediTaskID AND (lockedBy IS NULL OR lockedTime<:timeLimit) AND status=:status "
+            sqlTS  = "SELECT {0} ".format(JediTaskSpec.columnNames())
+            sqlTS += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTS += "WHERE jediTaskID=:jediTaskID "
             sqlDS  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
             sqlDS += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
-            sqlSC  = "UPDATE {0}.JEDI_Tasks SET status=:status,modificationTime=:updateTime,stateChangeTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
-            sqlSC += "WHERE jediTaskID=:jediTaskID "
+            sqlSC  = "UPDATE {0}.JEDI_Tasks SET status=:newStatus,modificationTime=:updateTime,stateChangeTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlSC += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
             # get tasks
-            #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
-            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+            timeLimit = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+            varMap[':timeLimit'] = timeLimit
             tmpLog.debug(sqlRT+comment+str(varMap))
             self.cur.execute(sqlRT+comment,varMap)
             resList = self.cur.fetchall()
             retTasks = []
             allTasks = []
-            for resRT in resList:
-                taskSpec = JediTaskSpec()
-                taskSpec.pack(resRT)
-                allTasks.append(taskSpec)
-            # get datasets    
-            for taskSpec in allTasks:
-                if taskSpec.status == 'scouted':
-                    # make avalanche
-                    varMap = {}
-                    varMap[':jediTaskID'] = taskSpec.jediTaskID
-                    varMap[':status'] = 'running'
-                    # set old update time to trigger JG immediately
-                    varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
-                    self.cur.execute(sqlSC+comment,varMap)
-                    tmpLog.debug("changed status to {0} for jediTaskID={1}".format(varMap[':status'],taskSpec.jediTaskID))
-                else:
-                    retTasks.append(taskSpec)
-                    # lock task
-                    varMap = {}
-                    varMap[':jediTaskID'] = taskSpec.jediTaskID
-                    varMap[':lockedBy'] = pid
-                    self.cur.execute(sqlLK+comment,varMap)
-                    # read datasets
-                    varMap = {}
-                    varMap[':jediTaskID'] = taskSpec.jediTaskID
-                    self.cur.execute(sqlDS+comment,varMap)
-                    resList = self.cur.fetchall()
-                    for resDS in resList:
-                        datasetSpec = JediDatasetSpec()
-                        datasetSpec.pack(resDS)
-                        taskSpec.datasetSpecList.append(datasetSpec)
+            taskStatList = []
+            for jediTaskID,taskStatus in resList:
+                taskStatList.append((jediTaskID,taskStatus))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
+            # get tasks and datasets    
+            for jediTaskID,taskStatus in taskStatList:
+                # begin transaction
+                self.conn.begin()
+                # special action for scouted
+                if taskStatus == 'scouted':
+                    # make avalanche
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':newStatus'] = 'running'
+                    varMap[':oldStatus'] = taskStatus
+                    # set old update time to trigger JG immediately
+                    varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
+                    self.cur.execute(sqlSC+comment,varMap)
+                    tmpLog.debug("changed status to {0} for jediTaskID={1}".format(varMap[':newStatus'],jediTaskID))
+                else:
+                    # lock task
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':lockedBy'] = pid
+                    varMap[':status'] = taskStatus
+                    varMap[':timeLimit'] = timeLimit
+                    self.cur.execute(sqlLK+comment,varMap)
+                    nRows = self.cur.rowcount
+                    if nRows == 1:
+                        # read task
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        self.cur.execute(sqlTS+comment,varMap)
+                        resTS = self.cur.fetchone()
+                        if resTS != None:
+                            taskSpec = JediTaskSpec()
+                            taskSpec.pack(resTS)
+                            retTasks.append(taskSpec)
+                            # read datasets
+                            varMap = {}
+                            varMap[':jediTaskID'] = taskSpec.jediTaskID
+                            self.cur.execute(sqlDS+comment,varMap)
+                            resList = self.cur.fetchall()
+                            for resDS in resList:
+                                datasetSpec = JediDatasetSpec()
+                                datasetSpec.pack(resDS)
+                                taskSpec.datasetSpecList.append(datasetSpec)
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
             tmpLog.debug('got {0} tasks'.format(len(retTasks)))
             return retTasks
         except:
