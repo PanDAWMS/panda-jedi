@@ -268,6 +268,13 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.setOnHold()
                                 taskSpec.setErrDiag(tmpErrStr)                                
                                 goForward = False
+                        # lock task
+                        if goForward:
+                            tmpLog.info('lock task')
+                            tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
+                            if tmpStat == False:
+                                tmpLog.info('skip due to lock failure')
+                                continue
                         # generate jobs
                         if goForward:
                             tmpLog.info('run job generator')
