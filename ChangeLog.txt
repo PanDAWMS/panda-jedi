@@ -1,5 +1,8 @@
 Release Note
 
+* 10/3/2014
+  * fixed JG to propagate middle-name to merged files 
+
 * 9/26/2014
   * improved getTasksToBeFinished_JEDI to avoid row lock contention
   * changed AtlasAnalPostProcessor to skip freezing trn

@@ -619,8 +619,19 @@ class JobGeneratorThread (WorkerThread):
                     # extract middle name
                     middleName = ''
                     if taskSpec.getFieldNumToLFN() != None and not jobSpec.prodDBlock in [None,'NULL','']:
-                        if len(jobSpec.prodDBlock.split('.')) >= taskSpec.getFieldNumToLFN():
-                            middleName = '.'+jobSpec.prodDBlock.split('.')[taskSpec.getFieldNumToLFN()-1]
+                        if inputChunk.isMerging:
+                            # extract from LFN of unmerged files
+                            for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
+                                if not tmpDatasetSpec.isMaster():
+                                    try:
+                                        middleName = '.'+tmpFileSpecList[0].lfn.split('.')[4]
+                                    except:
+                                        pass
+                                    break
+                        else:
+                            # extract from dataset name
+                            if len(jobSpec.prodDBlock.split('.')) >= taskSpec.getFieldNumToLFN():
+                                middleName = '.'+jobSpec.prodDBlock.split('.')[taskSpec.getFieldNumToLFN()-1]
                     # set provenanceID
                     provenanceID = None    
                     if useBoundary != None and useBoundary['outMap'] == True:
