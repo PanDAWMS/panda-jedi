@@ -104,7 +104,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for high priorities
-        if taskSpec.currentPriority >= 950 and useMP != 'only':
+        if taskSpec.currentPriority >= 950 and useMP != 'only' and not sitePreAssigned:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:            
                 if tmpSiteName in t1Sites:

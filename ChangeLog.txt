@@ -1,5 +1,7 @@
 Release Note
 
+* 10/5/2014
+  * fixed AtlasProdJobBroker for pre-assigned high prio tasks  
 * 10/3/2014
   * fixed JG to propagate middle-name to merged files 
 
