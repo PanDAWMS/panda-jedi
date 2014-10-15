@@ -4,6 +4,7 @@ import sys
 from pandajedi.jedicore import Interaction
 from TaskRefinerBase import TaskRefinerBase
 
+from pandaserver.dataservice import DataServiceUtils
 
 
 # brokerage for ATLAS production
@@ -31,6 +32,14 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                     outFileTemplate = tmpOutTemplateMap['filenameTemplate']
                     if re.search('\.\d+$',outFileTemplate) == None and not outFileTemplate.endswith('.panda.um'):
                         tmpOutTemplateMap['filenameTemplate'] = outFileTemplate + '.1'
+            # set destination if nessesary
+            for datasetSpec in self.outDatasetSpecList:
+                storageToken = DataServiceUtils.getDestinationSE(datasetSpec.storageToken)
+                if storageToken != None:
+                    tmpSiteList = self.ddmIF.getInterface(self.taskSpec.vo).getSitesWithEndPoint(storageToken,self.siteMapper,'production')
+                    if tmpSiteList == []:
+                        raise RuntimeError,'cannot find online siteID associated to {0}'.format(storageToken)
+                    datasetSpec.destination = tmpSiteList[0]
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))

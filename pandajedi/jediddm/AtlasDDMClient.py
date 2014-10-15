@@ -999,4 +999,32 @@ class AtlasDDMClient(DDMClientBase):
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
             return errCode,'{0} : {1}'.format(methodName,errMsg)
-    
+
+
+
+    # get sites associated to a DDM endpoint
+    def getSitesWithEndPoint(self,endPoint,siteMapper,siteType):
+        retList = []
+        # get alternate name                                                                                                          
+        altNameList = TiersOfATLAS.getSiteProperty(endPoint,'alternateName')
+        if altNameList != None and altNameList != [''] and len(altNameList) > 0:
+            altName = altNameList[0]
+            # loop over all sites
+            for tmpSiteName,tmpSiteSpec in siteMapper.siteSpecList.iteritems():
+                # check type
+                if tmpSiteSpec.type != siteType:
+                    continue
+                # check status
+                if tmpSiteSpec.status == 'offline':
+                    continue
+                # end point
+                tmpAltNameList = TiersOfATLAS.getSiteProperty(tmpSiteSpec.ddm,'alternateName')
+                if tmpAltNameList == None or tmpAltNameList == [''] or len(tmpAltNameList) == 0:
+                    continue
+                if altName != tmpAltNameList[0]:
+                    continue
+                # append
+                if not tmpSiteName in retList:
+                    retList.append(tmpSiteName)
+        # return
+        return retList
