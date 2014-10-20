@@ -1,5 +1,8 @@
 Release Note
 
+* 10/20/2014
+  * fixed JG for startEvent
+
 * 10/15/2014
   * improved AtlasProdTR to set destination from dst:
 

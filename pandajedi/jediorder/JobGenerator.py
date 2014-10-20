@@ -597,8 +597,8 @@ class JobGeneratorThread (WorkerThread):
                             # set specialHandling for Event Service
                             if taskSpec.useEventService() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.isPseudo():
                                 specialHandling += EventServiceUtils.encodeFileInfo(tmpFileSpec.lfn,
-                                                                                    tmpFileSpec.firstEvent+tmpFileSpec.startEvent-1,
-                                                                                    tmpFileSpec.firstEvent+tmpFileSpec.endEvent-1,
+                                                                                    tmpFileSpec.startEvent,
+                                                                                    tmpFileSpec.endEvent,
                                                                                     nEventsPerWorker)
                             # calcurate total master size
                             if tmpDatasetSpec.isMaster():
