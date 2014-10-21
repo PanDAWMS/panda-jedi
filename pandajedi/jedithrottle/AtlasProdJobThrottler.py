@@ -26,9 +26,10 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nJobsInBunchMaxES = 1000
         # make logger
         tmpLog = MsgWrapper(logger)
-        tmpLog.debug('start vo={0} label={1} cloud={2} workQueue={3}'.format(vo,prodSourceLabel,cloudName,
-                                                                             workQueue.queue_name))
-        workQueueID = workQueue.queue_id
+        workQueueIDs = workQueue.getIDs()
+        tmpLog.debug('start vo={0} label={1} cloud={2} workQueue={3} workQueueID={4}'.format(vo,prodSourceLabel,cloudName,
+                                                                                             workQueue.queue_name,
+                                                                                             str(workQueueIDs)))
         # check cloud status
         if not self.siteMapper.checkCloud(cloudName):
             tmpLog.debug("  done : SKIP cloud undefined")
@@ -51,17 +52,18 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nNotRun  = 0
         nDefine  = 0
         nWaiting = 0
-        if jobStat.has_key(cloudName) and \
-               jobStat[cloudName].has_key(workQueueID):
-            for pState,pNumber in jobStat[cloudName][workQueueID].iteritems():
-                if pState in ['running']:
-                    nRunning += pNumber
-                elif pState in ['assigned','activated','starting']:
-                    nNotRun  += pNumber
-                elif pState in ['defined']:
-                    nDefine  += pNumber
-                elif pState in ['waiting']:
-                    nWaiting += pNumber
+        for workQueueID in workQueueIDs:
+            if jobStat.has_key(cloudName) and \
+                   jobStat[cloudName].has_key(workQueueID):
+                for pState,pNumber in jobStat[cloudName][workQueueID].iteritems():
+                    if pState in ['running']:
+                        nRunning += pNumber
+                    elif pState in ['assigned','activated','starting']:
+                        nNotRun  += pNumber
+                    elif pState in ['defined']:
+                        nDefine  += pNumber
+                    elif pState in ['waiting']:
+                        nWaiting += pNumber
         # check if higher prio tasks are waiting
         tmpStat,highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI('managed',cloudName,workQueue)
         highestPrioInPandaDB = highestPrioJobStat['highestPrio']
@@ -119,6 +121,10 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         self.setMaxNumJobs(nJobsInBunch)
         # check number of jobs when high priority jobs are not waiting. test jobs are sent without throttling
         limitPriority = False
+        tmpLog.debug(" nQueueLimit:{0} nQueued:{1} nDefine:{2} nRunning:{3}".format(nQueueLimit,
+                                                                                    nNotRun+nDefine,
+                                                                                    nDefine,
+                                                                                    nRunning))
         # check when high prio tasks are not waiting
         if not highPrioQueued:
             if nRunning == 0 and (nNotRun+nDefine) > nQueueLimit:

@@ -1,5 +1,8 @@
 Release Note
 
+* 10/21/2014
+  * fixed AtlasProdJobThrottler for composit work queues
+
 * 10/20/2014
   * fixed JG for startEvent
 

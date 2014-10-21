@@ -3114,6 +3114,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         varMapO[':prodSourceLabel'] = prodSourceLabel
         sql0  = "SELECT max(currentPriority) FROM {0} "
         sqlS  = "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
+        sqlS += "AND processingType<>:pmerge "
         sqlS += "AND cloud=:cloud AND workQueue_ID IN ("
         for tmpQueue_ID in workQueue.getIDs():
             tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
@@ -3143,8 +3144,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 else:
                     varMap[':jobStatus1'] = 'defined'
                     varMap[':jobStatus2'] = 'assigned'
+                varMap[':pmerge'] = 'pmerge'
                 self.cur.arraysize = 100
-                tmpLog.debug((sql0+comment).format(table))
+                tmpLog.debug((sql0+comment).format(table)+str(varMap))
                 self.cur.execute((sql0+comment).format(table), varMap)
                 res = self.cur.fetchone()
                 # if there is a job
