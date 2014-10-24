@@ -1,5 +1,8 @@
 Release Note
 
+* 10/24/2014
+  * added safety margin in walltime estimation
+
 * 10/21/2014
   * fixed AtlasProdJobThrottler for composit work queues
 
