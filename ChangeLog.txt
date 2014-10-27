@@ -1,6 +1,8 @@
 Release Note
 
 * 10/27/2014
+  * added timeout to join in JG
+  * added meas_date limit to NN
   * changed AtlasAnalJB for AthAnalysis
   * changed to allow tape access to users
   * added t1Weight

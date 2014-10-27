@@ -57,6 +57,8 @@ class JobGenerator (JediKnight):
         # go into main loop
         while True:
             startTime = datetime.datetime.utcnow()
+            # global thread pool
+            globalThreadPool = ThreadPool()
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
@@ -141,13 +143,24 @@ class JobGenerator (JediKnight):
                                                                      siteMapper,self.execJobs,
                                                                      taskSetupper,
                                                                      self.pid)
+                                            globalThreadPool.add(thr)
                                             thr.start()
                                         # join
-                                        threadPool.join()
+                                        threadPool.join(60*15)
+                                        # dump
+                                        tmpLog.debug('dump one-time pool : {0}'.format(threadPool.dump()))
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
                                                                          errtype.__name__,errvalue))
+            try:
+                # clean up global thread pool
+                globalThreadPool.clean()
+                # dump
+                tmpLog.debug('dump global pool : {0}'.format(globalThreadPool.dump()))
+            except:
+                errtype,errvalue = sys.exc_info()[:2]
+                tmpLog.error('failed to dump global pool with {0} {1}'.format(errtype.__name__,errvalue))
             # sleep if needed
             tmpLog.debug('end')            
             loopCycle = jedi_config.jobgen.loopCycle
