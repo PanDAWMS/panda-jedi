@@ -65,26 +65,25 @@ class ThreadPool:
         
     # join
     def join(self,timeOut=None):
-        self.lock.acquire()
         thrlist = tuple(self.list)
-        self.lock.release()
         for thr in thrlist:
-            thr.join(timeOut)
+            try:
+                thr.join(timeOut)
+                if thr.isAlive():
+                    break
+            except:
+                pass
 
     # remove inactive threads
     def clean(self):
-        self.lock.acquire()
         thrlist = tuple(self.list)
-        self.lock.release()
         for thr in thrlist:
             if not thr.isAlive():
                 self.remove(thr)
         
     # dump contents
     def dump(self):
-        self.lock.acquire()
         thrlist = tuple(self.list)
-        self.lock.release()
         nActv = 0
         nDone = 0
         for thr in thrlist:

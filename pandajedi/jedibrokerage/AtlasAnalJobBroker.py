@@ -575,8 +575,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if availableFiles.has_key(tmpSiteName):
                     if len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localdisk']) or \
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['cache']) or \
-                            (tmpDatasetName in tapeOnlyDatasets and \
-                                 len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localtape'])):
+                            len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localtape']):
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
                         # add cached files to local list since cached files go to pending when reassigned
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['cache']
