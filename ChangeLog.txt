@@ -1,6 +1,7 @@
 Release Note
 
 * 10/27/2014
+  * changed AtlasAnalJB for AthAnalysis
   * changed to allow tape access to users
   * added t1Weight
   * fixed AtlasProdTaskPP to delete intermediate datasets

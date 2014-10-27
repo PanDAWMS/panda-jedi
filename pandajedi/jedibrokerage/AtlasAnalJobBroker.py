@@ -203,8 +203,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             elif 'AthAnalysisBase' in taskSpec.transHome:
                 # AthAnalysis
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
-                                                                         releases='CVMFS',
-                                                                         cmtConfig=taskSpec.architecture)
+                                                                         cmtConfig=taskSpec.architecture,
+                                                                         onlyCmtConfig=True)
             else:    
                 # remove AnalysisTransforms-
                 transHome = re.sub('^[^-]+-*','',taskSpec.transHome)
