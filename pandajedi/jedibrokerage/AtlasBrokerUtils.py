@@ -192,13 +192,13 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
 
 
 # get analysis sites where data is available at disk
-def getAnalSitesWithDataDisk(dataSiteMap):
+def getAnalSitesWithDataDisk(dataSiteMap,includeTape=False):
     siteList = []
     siteWithIncomp = []
     for tmpSiteName,tmpSeValMap in dataSiteMap.iteritems():
         for tmpSE,tmpValMap in tmpSeValMap.iteritems():
-            # on disk 
-            if not tmpValMap['tape']:
+            # on disk or tape
+            if includeTape or not tmpValMap['tape']:
                 if tmpValMap['state'] == 'complete':
                     # complete replica at disk
                     if not tmpSiteName in siteList:

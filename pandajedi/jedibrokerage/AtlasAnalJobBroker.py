@@ -65,6 +65,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         # selection for data availability
         dataWeight = {}
         remoteSourceList = {}
+        tapeOnlyDatasets = []
         if inputChunk.getDatasets() != []:    
             for datasetSpec in inputChunk.getDatasets():
                 datasetName = datasetSpec.datasetName
@@ -95,22 +96,24 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     return retFatal
                 # check if the data is available on disk
                 if AtlasBrokerUtils.getAnalSitesWithDataDisk(self.dataSiteMap[datasetName]) == []:
-                    tmpLog.error('{0} is avaiable only on tape'.format(datasetName))
-                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    return retFatal
+                    tmpLog.debug('{0} is avaiable only on tape'.format(datasetName))
+                    tapeOnlyDatasets.append(datasetName)
+                    #taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    #return retFatal
             # get the list of sites where data is available    
             scanSiteList = None     
             normFactor = 0
             for datasetName,tmpDataSite in self.dataSiteMap.iteritems():
                 normFactor += 1
-                # get sites where disk replica is available
-                tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite)
+                # get sites where replica is available
+                tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=True)
+                tmpDiskSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=False)
                 # get sites which can remotely access source sites
                 if inputChunk.isMerging:
                     # disable remote access for merging
                     tmpSatelliteSites = {}
                 elif (not sitePreAssigned) or (sitePreAssigned and not taskSpec.site in tmpSiteList):
-                    tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpSiteList,self.taskBufferIF,
+                    tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpDiskSiteList,self.taskBufferIF,
                                                                            self.siteMapper,nSites=50,
                                                                            protocol=allowedRemoteProtocol)
                 else:
@@ -121,6 +124,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         dataWeight[tmpSiteName] = 1
                     else:
                         dataWeight[tmpSiteName] += 1
+                    # give more weight to disk
+                    if tmpSiteName in tmpDiskSiteList:
+                        dataWeight[tmpSiteName] += 1 
                 # make weight map for remote
                 for tmpSiteName,tmpWeightSrcMap in tmpSatelliteSites.iteritems():
                     # skip since local data is available
@@ -191,9 +197,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     tmpCmtConfig = 'x86_64-slc6-gcc46-opt'
                 else:
                     tmpCmtConfig = taskSpec.architecture
-                siteListWithSW = taskBuffer.checkSitesWithRelease(scanSiteList,
-                                                                  cmtConfig=tmpCmtConfig,
-                                                                  onlyCmtConfig=True)
+                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                                                                         cmtConfig=tmpCmtConfig,
+                                                                         onlyCmtConfig=True)
+            elif 'AthAnalysisBase' in taskSpec.transHome:
+                # AthAnalysis
+                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                                                                         releases='CVMFS',
+                                                                         cmtConfig=taskSpec.architecture)
             else:    
                 # remove AnalysisTransforms-
                 transHome = re.sub('^[^-]+-*','',taskSpec.transHome)
@@ -563,7 +574,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # local files
                 if availableFiles.has_key(tmpSiteName):
                     if len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localdisk']) or \
-                            len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['cache']):
+                            len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['cache']) or \
+                            (tmpDatasetName in tapeOnlyDatasets and \
+                                 len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localtape'])):
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
                         # add cached files to local list since cached files go to pending when reassigned
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['cache']
@@ -572,11 +585,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
                         isAvailable = True
                     else:
-                        tmpLog.debug('{0} is incompete at {1} : nFiles={2} nLocal={3} nCached={4}'.format(tmpDatasetName,
-                                                                                                          tmpSiteName,
-                                                                                                          len(tmpDatasetSpec.Files),
-                                                                                                          len(availableFiles[tmpSiteName]['localdisk']),
-                                                                                                          len(availableFiles[tmpSiteName]['cache'])))
+                        tmpMsg = '{0} is incompete at {1} : nFiles={2} nLocal={3} nCached={4} nTape={5}'
+                        tmpLog.debug(tmpMsg.format(tmpDatasetName,
+                                                   tmpSiteName,
+                                                   len(tmpDatasetSpec.Files),
+                                                   len(availableFiles[tmpSiteName]['localdisk']),
+                                                   len(availableFiles[tmpSiteName]['cache']),
+                                                   len(availableFiles[tmpSiteName]['localtape']),
+                                                   ))
                 if not isAvailable:
                     break
             # append

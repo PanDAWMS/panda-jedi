@@ -386,6 +386,26 @@ class AtlasProdJobBroker (JobBrokerBase):
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         ######################################
+        # selection for T1 weight
+        t1Weight = taskSpec.getT1Weight()
+        if t1Weight == 0:
+            # use T1 weight in cloudconfig
+            t1Weight = self.siteMapper.getCloud(cloudName)['weight']
+        tmpLog.debug('T1 weight {0}'.format(t1Weight))
+        if t1Weight < 0:
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                if not tmpSiteName in t1Sites:
+                    tmpLog.debug('  skip {0} due to negative T1 weight'.format(tmpSiteName))
+                    continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList
+        tmpLog.debug('{0} candidates passed T1 weight check'.format(len(scanSiteList)))
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            return retTmpError
+        ######################################
         # selection for nPilot
         if not sitePreAssigned:
             nWNmap = self.taskBufferIF.getCurrentSiteData()
@@ -464,6 +484,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 weight = weight * float(normalizeFactors[tmpSiteName]+totalSize) / float(totalSize)
             # make candidate
             siteCandidateSpec = SiteCandidate(tmpSiteName)
+            # T1 weight
+            if tmpSiteName in t1Sites:
+                weight *= t1Weight
             # set weight
             siteCandidateSpec.weight = weight
             # set available files

@@ -53,6 +53,7 @@ class JediTaskSpec(object):
         'pfnList'            : 'PL',
         'randomSeed'         : 'RS',
         'scoutSuccessRate'   : 'SS',
+        't1Weight'           : 'TW',
         'useBuild'           : 'UB',
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
@@ -837,3 +838,13 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
+
+
+
+    # get T1 weight
+    def getT1Weight(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['t1Weight']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return 1

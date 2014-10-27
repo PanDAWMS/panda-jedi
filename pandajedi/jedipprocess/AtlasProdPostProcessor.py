@@ -22,13 +22,22 @@ class AtlasProdPostProcessor (PostProcessorBase):
         for datasetSpec in taskSpec.datasetSpecList:
             try:
                 # freeze output and log datasets
-                if datasetSpec.type in ['output','log']:
+                if datasetSpec.type in ['output','log','trn_log']:
                     tmpLog.info('freezing datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
                     ddmIF.freezeDataset(datasetSpec.datasetName,ignoreUnknown=True)
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.warning('failed to freeze datasets with {0}:{1}'.format(errtype.__name__,errvalue))
                 return self.SC_FAILED
+            try:
+                # delete transient datasets
+                if datasetSpec.type in ['trn_output']:
+                    tmpLog.info('deleting datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
+                    retStr = ddmIF.deleteDataset(datasetSpec.datasetName,emptyOnly,ignoreUnknown=True)
+                    tmpLog.info(retStr)
+            except:
+                errtype,errvalue = sys.exc_info()[:2]
+                tmpLog.warning('failed to delete datasets with {0}:{1}'.format(errtype.__name__,errvalue))
         try:
             self.doBasicPostProcess(taskSpec,tmpLog)
         except:
