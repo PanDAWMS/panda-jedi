@@ -1,5 +1,8 @@
 Release Note
 
+* 10/28/2014
+  * added memory monitor in Interaction
+
 * 10/27/2014
   * fixed tape lookup in AtlasAnalJB
   * added timeout to join in JG

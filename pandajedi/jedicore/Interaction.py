@@ -96,6 +96,8 @@ class ProcessClass(object):
     def __init__(self,pid,connection):
         self.pid = pid
         self.nused = 0
+        self.usedMemory = 0
+        self.nMemLookup = 50
         # reduce connection to make it picklable
         self.reduced_pipe = multiprocessing.reduction.reduce_connection(connection)
 
@@ -108,6 +110,31 @@ class ProcessClass(object):
     def reduceConnection(self,connection):
         self.reduced_pipe = multiprocessing.reduction.reduce_connection(connection)
 
+    # get memory usage
+    def getMemUsage(self):
+        # update memory info
+        if self.nused % self.nMemLookup == 0:
+            try:
+                # read memory info from /proc
+                t = open('/proc/{0}/status'.format(self.pid))
+                v = t.read()
+                t.close()
+                value = 0
+                for line in v.split('\n'):
+                    if line.startswith('VmRSS'):
+                        items = line.split()
+                        value = int(items[1])
+                        if items[2] in ['kB','KB']:
+                            value *= 1024
+                        elif items[2] in ['mB','MB']:
+                            value *= (1024*1024)
+                        break
+                self.usedMemory = value
+            except:
+                pass
+            return self.usedMemory
+        else:
+            return None
 
                      
 # method class
@@ -155,11 +182,22 @@ class MethodClass(object):
                                (self.vo,errtype.__name__,self.className,self.methodName,errvalue)
             # increment nused
             child_process.nused += 1
+            # memory check
+            largeMemory = False
+            memUsed = child_process.getMemUsage()
+            if memUsed != None:
+                memStr= 'pid={0} memory={1} B'.format(child_process.pid,memUsed)
+                if memUsed > 2*1024*1024*1024:
+                    largeMemory = True
+                    memStr += ' exceeds the limit'
+                dumpStdOut(self.className,memStr)
             # kill old or problematic process
-            if child_process.nused > 1000 or not retException in [None,JEDITemporaryError,JEDIFatalError]:
-                dumpStdOut(self.className,'methodName={0} ret={1} nused={2} {3}'.format(self.methodName,retException,
-                                                                                        child_process.nused,
-                                                                                        strException))
+            if child_process.nused > 1000 or not retException in [None,JEDITemporaryError,JEDIFatalError] or \
+                    largeMemory:
+                dumpStdOut(self.className,'methodName={0} ret={1} nused={2} {3} in pid={4}'.format(self.methodName,retException,
+                                                                                                   child_process.nused,
+                                                                                                   strException,
+                                                                                                   child_process.pid))
                 # close connection
                 try:
                     pipe.close()

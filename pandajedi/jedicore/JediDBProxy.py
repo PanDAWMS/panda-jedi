@@ -2282,6 +2282,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 userTaskMap[userName].sort()
             userNameList = userTaskMap.keys()
             random.shuffle(userNameList)
+            tmpLog.debug('{0} users ready'.format(len(userNameList)))
             while userNameList != []:
                 for userName in userNameList:
                     if userTaskMap[userName] == []:
