@@ -844,7 +844,7 @@ class JediTaskSpec(object):
     # get T1 weight
     def getT1Weight(self):
         if self.splitRule != None:
-            tmpMatch = re.search(self.splitRuleToken['t1Weight']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken['t1Weight']+'=(-*\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return 1
