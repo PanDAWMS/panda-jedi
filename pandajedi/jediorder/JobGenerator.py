@@ -147,7 +147,7 @@ class JobGenerator (JediKnight):
                                             thr.start()
                                         # join
                                         tmpLog.debug('try to join')
-                                        threadPool.join(60*15)
+                                        threadPool.join(60*10)
                                         # dump
                                         tmpLog.debug('dump one-time pool : {0}'.format(threadPool.dump()))
             except:

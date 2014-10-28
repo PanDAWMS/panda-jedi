@@ -1,4 +1,5 @@
 import re
+import os
 import sys
 import copy
 import math
@@ -2141,6 +2142,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                     nFiles,minPriority))
         tmpLog.debug('maxNumJobs={0} typicalNumFilesMap={1}'.format(maxNumJobs,str(typicalNumFilesMap)))
         tmpLog.debug('simTasks={0}'.format(str(simTasks)))
+        tmpLog.debug('memUsage start {0} MB'.format(self.getMemoryUsage()))
         # return value for failure
         failedRet = None
         # set max number of jobs if undefined
@@ -2668,6 +2670,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnList  = []
             for tmpJediTaskID,tmpTaskDsList in returnMap.iteritems():
                 returnList.append((tmpJediTaskID,tmpTaskDsList))
+            tmpLog.debug('memUsage end {0} MB'.format(self.getMemoryUsage()))
             return returnList
         except:
             # roll back
@@ -6504,3 +6507,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False
+
+
+    # get memory usage
+    def getMemoryUsage(self):
+        try:
+            t = open('/proc/{0}/status'.format(os.getpid()))
+            v = t.read()
+            t.close()
+            value = 0
+            for line in v.split('\n'):
+                if line.startswith('VmRSS'):
+                    items = line.split()
+                    value = int(items[1])
+                    if items[2] in ['kB','KB']:
+                        value /= 1024
+                    elif items[2] in ['mB','MB']:
+                        pass
+                    break
+            return value
+        except:
+            return None
