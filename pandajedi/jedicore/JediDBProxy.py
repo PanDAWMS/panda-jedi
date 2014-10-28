@@ -2142,7 +2142,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                     nFiles,minPriority))
         tmpLog.debug('maxNumJobs={0} typicalNumFilesMap={1}'.format(maxNumJobs,str(typicalNumFilesMap)))
         tmpLog.debug('simTasks={0}'.format(str(simTasks)))
-        tmpLog.debug('memUsage start {0} MB'.format(self.getMemoryUsage()))
+        memStart = self.getMemoryUsage()
+        tmpLog.debug('memUsage start {0} MB pid={1}'.format(memStart,os.getpid()))
         # return value for failure
         failedRet = None
         # set max number of jobs if undefined
@@ -2345,7 +2346,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             lockedTasks = []
             lockedByAnother = []
             for tmpIdxTask,jediTaskID in enumerate(jediTaskIDList):
-                tmpLog.debug('getting jediTaskID={0} {1}/{2}'.format(jediTaskID,tmpIdxTask,len(jediTaskIDList)))
+                tmpLog.debug('getting jediTaskID={0} {1}/{2}/{3}'.format(jediTaskID,tmpIdxTask,
+                                                                         len(jediTaskIDList),iTasks))
                 # locked by another
                 if jediTaskID in lockedByAnother:
                     tmpLog.debug('skip locked by another jediTaskID={0}'.format(jediTaskID))
@@ -2664,13 +2666,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     break
                 # already read enough files to generate jobs 
                 if maxNumJobs <= 0:
-                    break
+                    #break
+                    pass
+                # memory check
+                try:
+                    memLimit = 1*1024
+                    memNow = self.getMemoryUsage()
+                    tmpLog.debug('memUsage now {0} MB pid={1}'.format(memNow,os.getpid()))
+                    if memNow-memStart > memLimit:
+                        tmpLog.debug('memory limit exceeds {0}-{1} > {2} MB'.format(memNow,memStart,memLimit))
+                        break
+                except:
+                    pass
             tmpLog.debug('done for {0} tasks'.format(iTasks))
             # change map to list
             returnList  = []
             for tmpJediTaskID,tmpTaskDsList in returnMap.iteritems():
                 returnList.append((tmpJediTaskID,tmpTaskDsList))
-            tmpLog.debug('memUsage end {0} MB'.format(self.getMemoryUsage()))
+            tmpLog.debug('memUsage end {0} MB pid={1}'.format(self.getMemoryUsage(),os.getpid()))
             return returnList
         except:
             # roll back

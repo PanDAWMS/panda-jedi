@@ -97,7 +97,7 @@ class ProcessClass(object):
         self.pid = pid
         self.nused = 0
         self.usedMemory = 0
-        self.nMemLookup = 50
+        self.nMemLookup = 20
         # reduce connection to make it picklable
         self.reduced_pipe = multiprocessing.reduction.reduce_connection(connection)
 
