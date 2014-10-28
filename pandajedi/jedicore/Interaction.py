@@ -125,9 +125,9 @@ class ProcessClass(object):
                         items = line.split()
                         value = int(items[1])
                         if items[2] in ['kB','KB']:
-                            value *= 1024
+                            value /= 1024
                         elif items[2] in ['mB','MB']:
-                            value *= (1024*1024)
+                            pass
                         break
                 self.usedMemory = value
             except:
@@ -186,8 +186,8 @@ class MethodClass(object):
             largeMemory = False
             memUsed = child_process.getMemUsage()
             if memUsed != None:
-                memStr= 'pid={0} memory={1} B'.format(child_process.pid,memUsed)
-                if memUsed > 2*1024*1024*1024:
+                memStr= 'pid={0} memory={1}MB'.format(child_process.pid,memUsed)
+                if memUsed > 2*1024:
                     largeMemory = True
                     memStr += ' exceeds the limit'
                 dumpStdOut(self.className,memStr)
