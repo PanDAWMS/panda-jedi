@@ -2,6 +2,7 @@ Release Note
 
 * 10/29/2014
   * added ProcessWrapper
+  * fixed JediDBProxy to correctly set superstatus when clouds are assigned
 
 * 10/28/2014
   * added memory monitor in Interaction
