@@ -485,7 +485,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 else:
                     fileItem = {'lfn':tmpFileItem}
                 if not fileItem['lfn'] in foundFileList:
-                    missingFileList.append(fileItem['lfn'])
+                    #missingFileList.append(fileItem['lfn'])
+                    pass
             tmpLog.debug('{0} files missing'.format(len(missingFileList)))
             # sql to check if task is locked
             sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE ".format(jedi_config.db.schemaJEDI)
@@ -514,6 +515,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nReady   = 0
             nPending = 0
             nUsed    = 0
+            nLost    = 0
             pendingFID = []
             nActivatedPending = 0
             nEventsToUseEventSplit = 0
@@ -610,6 +612,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         pass
                             elif not status in ['lost','missing']:
                                 nUsed += 1
+                            elif status in ['lost','missing']:
+                                nLost += 1
                         # insert files
                         existingFileList = existingFiles.keys()
                         uniqueLfnList = []
@@ -706,15 +710,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 continue
                             if varMap['status'] == 'ready':
                                 nReady += 1
+                            if varMap['status'] in ['lost','missing']:
+                                nLost += 1
                             self.cur.execute(sqlFU+comment,varMap)
                         # updata dataset
                         varMap = {}
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
                         varMap[':datasetID'] = datasetSpec.datasetID
-                        varMap[':nFiles'] = nInsert + len(existingFiles)
+                        varMap[':nFiles'] = nInsert + len(existingFiles) - nLost
                         if xmlConfig != None:
                             # disable scout for --loadXML
-                            varMap[':nFilesTobeUsed'] = nReady + nUsed
+                            varMap[':nFilesTobeUsed'] = nReady + nUsed - nLost
                         elif taskStatus == 'defined' and useScout and not isEventSplit and nChunksForScout != None and nReady > sizePendingFileChunk:
                             # set a fewer number for scout for file level splitting
                             varMap[':nFilesTobeUsed'] = sizePendingFileChunk
@@ -722,7 +728,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             # set a fewer number for scout for event level splitting
                             varMap[':nFilesTobeUsed'] = nFilesToUseEventSplit
                         else:
-                            varMap[':nFilesTobeUsed'] = nReady + nUsed
+                            varMap[':nFilesTobeUsed'] = nReady + nUsed - nLost
                         if useScout:
                             if not isEventSplit:
                                 # file level splitting
@@ -2345,6 +2351,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             iTasks = 0
             lockedTasks = []
             lockedByAnother = []
+            memoryExceed = False
             for tmpIdxTask,jediTaskID in enumerate(jediTaskIDList):
                 tmpLog.debug('getting jediTaskID={0} {1}/{2}/{3}'.format(jediTaskID,tmpIdxTask,
                                                                          len(jediTaskIDList),iTasks))
@@ -2554,10 +2561,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 typicalNumFilesPerJob = typicalNumFilesMap[taskSpec.processingType]
                             # max number of files based on typical usage
                             typicalMaxNumFiles = typicalNumFilesPerJob * maxNumJobs
-                            if typicalMaxNumFiles > nFiles:
-                                maxNumFiles = typicalMaxNumFiles
-                            else:
-                                maxNumFiles = nFiles
+                            maxNumFiles = nFiles
                             # set lower limit to avoid too fine slashing
                             lowerLimitOnMaxNumFiles = 100    
                             if maxNumFiles < lowerLimitOnMaxNumFiles:
@@ -2647,12 +2651,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             returnMap[jediTaskID].append((taskSpec,cloudName,inputChunk))
                             iDsPerTask += 1
                             # reduce the number of jobs
-                            maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
+                            #maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
                         else:
                             tmpLog.debug('escape due to toSkip for jediTaskID={0} datasetID={1}'.format(jediTaskID,primaryDatasetID)) 
                             break
                         if iDsPerTask > nDsPerTask:
                             break
+                        # memory check
+                        try:
+                            memLimit = 1*1024
+                            memNow = JediCoreUtils.getMemoryUsage()
+                            tmpLog.debug('memUsage now {0} MB pid={1}'.format(memNow,os.getpid()))
+                            if memNow-memStart > memLimit:
+                                tmpLog.warning('memory limit exceeds {0}-{1} > {2} MB : JediTasKID={3}'.format(memNow,memStart,memLimit,
+                                                                                                               jediTaskID))
+                                memoryExceed = True
+                                break
+                        except:
+                            pass
                 if not toSkip:        
                     # commit
                     if not self._commit():
@@ -2668,16 +2684,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if maxNumJobs <= 0:
                     #break
                     pass
-                # memory check
-                try:
-                    memLimit = 1*1024
-                    memNow = JediCoreUtils.getMemoryUsage()
-                    tmpLog.debug('memUsage now {0} MB pid={1}'.format(memNow,os.getpid()))
-                    if memNow-memStart > memLimit:
-                        tmpLog.debug('memory limit exceeds {0}-{1} > {2} MB'.format(memNow,memStart,memLimit))
-                        break
-                except:
-                    pass
+                # memory limit exceeds
+                if memoryExceed:
+                    break
             tmpLog.debug('done for {0} tasks'.format(iTasks))
             # change map to list
             returnList  = []

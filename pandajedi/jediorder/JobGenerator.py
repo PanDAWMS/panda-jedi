@@ -170,10 +170,9 @@ class JobGenerator (JediKnight):
                 memNow = JediCoreUtils.getMemoryUsage()
                 tmpLog.debug('memUsage now {0} MB pid={1}'.format(memNow,os.getpid()))
                 if memNow > memLimit:
-                    time.sleep(15)
-                    tmpLog.debug('memory limit exceeds {0} > {1} MB pid={2}'.format(memNow,memLimit,
-                                                                                    os.getpid()))
-                    os.kill(os.getpid(),signal.SIGKILL)
+                    tmpLog.warning('memory limit exceeds {0} > {1} MB pid={2}'.format(memNow,memLimit,
+                                                                                      os.getpid()))
+                    #os.kill(os.getpid(),signal.SIGKILL)
             except:
                 pass
             # sleep if needed
