@@ -190,7 +190,7 @@ class MethodClass(object):
                 if memUsed > 2*1024:
                     largeMemory = True
                     memStr += ' exceeds the limit'
-                dumpStdOut(self.className,memStr)
+                    dumpStdOut(self.className,memStr)
             # kill old or problematic process
             if child_process.nused > 1000 or not retException in [None,JEDITemporaryError,JEDIFatalError] or \
                     largeMemory:

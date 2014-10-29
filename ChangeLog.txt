@@ -1,5 +1,8 @@
 Release Note
 
+* 10/29/2014
+  * added ProcessWrapper
+
 * 10/28/2014
   * added memory monitor in Interaction
 

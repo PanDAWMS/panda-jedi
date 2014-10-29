@@ -1,3 +1,6 @@
+import os
+
+
 # get effective file size
 def getEffectiveFileSize(fsize,startEvent,endEvent,nEvents):
     inMB = 1024 * 1024
@@ -16,3 +19,31 @@ def getEffectiveFileSize(fsize,startEvent,endEvent,nEvents):
     effectiveFsize = float(effectiveFsize) / inMB 
     # return
     return effectiveFsize
+
+
+
+# get memory usage
+def getMemoryUsage():
+    try:
+        t = open('/proc/{0}/status'.format(os.getpid()))
+        v = t.read()
+        t.close()
+        value = 0
+        for line in v.split('\n'):
+            if line.startswith('VmRSS'):
+                items = line.split()
+                value = int(items[1])
+                if items[2] in ['kB','KB']:
+                    value /= 1024
+                elif items[2] in ['mB','MB']:
+                    pass
+                break
+        return value
+    except:
+        return None
+
+
+
+# check process
+def checkProcess(pid):
+    return os.path.exists('/proc/{0}/status'.format(pid))

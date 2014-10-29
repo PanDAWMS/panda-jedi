@@ -12,6 +12,7 @@ import multiprocessing
 from pandajedi.jediddm.DDMInterface import DDMInterface
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 from pandajedi.jedicore.ThreadUtils import ZombiCleaner
+from pandajedi.jedicore.ProcessUtils import ProcessWrapper
 
 from pandajedi.jediconfig import jedi_config
 
@@ -123,10 +124,10 @@ class JediMaster:
                 cloud = [cloud]
             for iproc in range(nProc):
                 parent_conn, child_conn = multiprocessing.Pipe()
-                proc = multiprocessing.Process(target=self.launcher,
-                                               args=('pandajedi.jediorder.JobGenerator',
-                                                     child_conn,taskBufferIF,ddmIF,
-                                                     vo,plabel,cloud,True,True))
+                proc = ProcessWrapper(target=self.launcher,
+                                      args=('pandajedi.jediorder.JobGenerator',
+                                            child_conn,taskBufferIF,ddmIF,
+                                            vo,plabel,cloud,True,True))
                 proc.start()
                 knightList.append(proc)
         # setup PostProcessor
@@ -202,6 +203,8 @@ if __name__ == "__main__":
     options,args = parser.parse_args()
     uid = pwd.getpwnam(jedi_config.master.uname).pw_uid
     gid = grp.getgrnam(jedi_config.master.gname).gr_gid
+    timeNow = datetime.datetime.utcnow()
+    print "{0} JediMaster: INFO    start".format(str(timeNow))
     # make daemon context
     dc = daemon.DaemonContext(stdout=sys.stdout,
                               stderr=sys.stderr,

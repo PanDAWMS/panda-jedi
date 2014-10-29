@@ -128,7 +128,7 @@ class WorkerThread (threading.Thread):
 class ZombiCleaner (threading.Thread):
 
     # constructor
-    def __init__(self,interval=60):
+    def __init__(self,interval=20):
         threading.Thread.__init__(self)
         self.interval = interval
 

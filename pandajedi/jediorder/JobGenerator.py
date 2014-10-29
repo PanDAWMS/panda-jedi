@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import copy
+import signal
 import urllib
 import socket
 import random
@@ -162,8 +163,20 @@ class JobGenerator (JediKnight):
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed to dump global pool with {0} {1}'.format(errtype.__name__,errvalue))
+            tmpLog.debug('end')
+            # memory check
+            try:
+                memLimit = 1.5*1024
+                memNow = JediCoreUtils.getMemoryUsage()
+                tmpLog.debug('memUsage now {0} MB pid={1}'.format(memNow,os.getpid()))
+                if memNow > memLimit:
+                    time.sleep(15)
+                    tmpLog.debug('memory limit exceeds {0} > {1} MB pid={2}'.format(memNow,memLimit,
+                                                                                    os.getpid()))
+                    os.kill(os.getpid(),signal.SIGKILL)
+            except:
+                pass
             # sleep if needed
-            tmpLog.debug('end')            
             loopCycle = jedi_config.jobgen.loopCycle
             timeDelta = datetime.datetime.utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds

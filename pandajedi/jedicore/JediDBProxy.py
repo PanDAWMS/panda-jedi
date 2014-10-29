@@ -2142,7 +2142,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                     nFiles,minPriority))
         tmpLog.debug('maxNumJobs={0} typicalNumFilesMap={1}'.format(maxNumJobs,str(typicalNumFilesMap)))
         tmpLog.debug('simTasks={0}'.format(str(simTasks)))
-        memStart = self.getMemoryUsage()
+        memStart = JediCoreUtils.getMemoryUsage()
         tmpLog.debug('memUsage start {0} MB pid={1}'.format(memStart,os.getpid()))
         # return value for failure
         failedRet = None
@@ -2671,7 +2671,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # memory check
                 try:
                     memLimit = 1*1024
-                    memNow = self.getMemoryUsage()
+                    memNow = JediCoreUtils.getMemoryUsage()
                     tmpLog.debug('memUsage now {0} MB pid={1}'.format(memNow,os.getpid()))
                     if memNow-memStart > memLimit:
                         tmpLog.debug('memory limit exceeds {0}-{1} > {2} MB'.format(memNow,memStart,memLimit))
@@ -2683,7 +2683,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnList  = []
             for tmpJediTaskID,tmpTaskDsList in returnMap.iteritems():
                 returnList.append((tmpJediTaskID,tmpTaskDsList))
-            tmpLog.debug('memUsage end {0} MB pid={1}'.format(self.getMemoryUsage(),os.getpid()))
+            tmpLog.debug('memUsage end {0} MB pid={1}'.format(JediCoreUtils.getMemoryUsage(),os.getpid()))
             return returnList
         except:
             # roll back
@@ -6522,22 +6522,3 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False
 
 
-    # get memory usage
-    def getMemoryUsage(self):
-        try:
-            t = open('/proc/{0}/status'.format(os.getpid()))
-            v = t.read()
-            t.close()
-            value = 0
-            for line in v.split('\n'):
-                if line.startswith('VmRSS'):
-                    items = line.split()
-                    value = int(items[1])
-                    if items[2] in ['kB','KB']:
-                        value /= 1024
-                    elif items[2] in ['mB','MB']:
-                        pass
-                    break
-            return value
-        except:
-            return None
