@@ -7,6 +7,9 @@ import datetime
 import multiprocessing
 import multiprocessing.reduction
 
+# patch multiprocessing
+import JediPatch
+
 #import multiprocessing
 #logger = multiprocessing.log_to_stderr()
 #logger.setLevel(multiprocessing.SUBDEBUG)
