@@ -7,6 +7,8 @@ import datetime
 import multiprocessing
 import multiprocessing.reduction
 
+import JediCoreUtils
+
 #import multiprocessing, logging
 #logger = multiprocessing.log_to_stderr()
 #logger.setLevel(multiprocessing.SUBDEBUG)
@@ -160,6 +162,9 @@ class MethodClass(object):
             try:
                 # get child process
                 child_process = self.connectionQueue.get()
+                # check child process
+                if not JediCoreUtils.checkProcess(child_process.pid):
+                    raise JEDINoChildError,"child process pid={0} doesn't exist".format(child_process.pid)
                 # get pipe
                 pipe = child_process.connection()
                 # send command
@@ -189,7 +194,7 @@ class MethodClass(object):
                 memStr= 'pid={0} memory={1}MB'.format(child_process.pid,memUsed)
                 if memUsed > 2*1024:
                     largeMemory = True
-                    memStr += ' exceeds the limit'
+                    memStr += ' exceeds memory limit'
                     dumpStdOut(self.className,memStr)
             # kill old or problematic process
             if child_process.nused > 1000 or not retException in [None,JEDITemporaryError,JEDIFatalError] or \
@@ -417,6 +422,11 @@ class JEDIFatalError(Exception):
 
 # exception for timeout error
 class JEDITimeoutError(Exception):
+    pass
+
+
+# exception for no child error
+class JEDINoChildError(Exception):
     pass
 
 

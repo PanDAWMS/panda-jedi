@@ -54,27 +54,31 @@ class JobGenerator (JediKnight):
     # main
     def start(self):
         # start base class
-        JediKnight.start(self)
+        #JediKnight.start(self)
+        # global thread pool
+        globalThreadPool = ThreadPool()
         # go into main loop
         while True:
             startTime = datetime.datetime.utcnow()
-            # global thread pool
-            globalThreadPool = ThreadPool()
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
                 tmpLog.debug('start')
                 # get SiteMapper
                 siteMapper = self.taskBufferIF.getSiteMapper()
+                tmpLog.debug('got siteMapper')
                 # get work queue mapper
                 workQueueMapper = self.taskBufferIF.getWorkQueueMap()
+                tmpLog.debug('got workQueueMapper')
                 # get Throttle
                 throttle = JobThrottler(self.vos,self.prodSourceLabels)
                 throttle.initializeMods(self.taskBufferIF)
+                tmpLog.debug('got Throttle')
                 # get TaskSetupper
                 taskSetupper = TaskSetupper(self.vos,self.prodSourceLabels)
                 taskSetupper.initializeMods(self.taskBufferIF,self.ddmIF)
                 # loop over all vos
+                tmpLog.debug('go into loop')
                 for vo in self.vos:
                     # loop over all sourceLabels
                     for prodSourceLabel in self.prodSourceLabels:
@@ -172,7 +176,10 @@ class JobGenerator (JediKnight):
                 if memNow > memLimit:
                     tmpLog.warning('memory limit exceeds {0} > {1} MB pid={2}'.format(memNow,memLimit,
                                                                                       os.getpid()))
-                    #os.kill(os.getpid(),signal.SIGKILL)
+                    tmpLog.debug('join')
+                    globalThreadPool.join()
+                    tmpLog.debug('kill')
+                    os.kill(os.getpid(),signal.SIGKILL)
             except:
                 pass
             # sleep if needed

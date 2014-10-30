@@ -1199,7 +1199,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':status']      = taskSpec.status
                         varMap[':oldStatus']   = taskSpec.oldStatus
                         varMap[':errorDialog'] = taskSpec.errorDialog
-                    elif cloudName == None and prodSourceLabel in ['managed','test']:
+                    elif cloudName == None and prodSourceLabel in ['managed','test','rucio_test']:
                         # set assigning for TaskBrokerage
                         varMap[':status'] = 'assigning'
                         # set old update time to trigger TaskBrokerage immediately

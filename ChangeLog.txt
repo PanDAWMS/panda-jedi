@@ -1,5 +1,9 @@
 Release Note
 
+* 10/30/2014
+  * added child process check in Interaction
+  * added more informative message for refine failure
+
 * 10/29/2014
   * added ProcessWrapper
   * fixed JediDBProxy to correctly set superstatus when clouds are assigned

@@ -221,7 +221,7 @@ class TaskRefinerThread (WorkerThread):
                                                                   insertUnknown=impl.unknownDatasetList)
                                 continue
                             else:
-                                errStr = 'failed to refine task'
+                                errStr  = 'failed to refine task with {0}:{1}'.format(errtype.__name__,errvalue)
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
                     # register
