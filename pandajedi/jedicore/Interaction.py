@@ -7,9 +7,7 @@ import datetime
 import multiprocessing
 import multiprocessing.reduction
 
-import JediCoreUtils
-
-#import multiprocessing, logging
+#import multiprocessing
 #logger = multiprocessing.log_to_stderr()
 #logger.setLevel(multiprocessing.SUBDEBUG)
 
@@ -160,22 +158,31 @@ class MethodClass(object):
             retException = None
             strException = None
             try:
+                stepIdx = 0
                 # get child process
                 child_process = self.connectionQueue.get()
-                # check child process
-                if not JediCoreUtils.checkProcess(child_process.pid):
-                    raise JEDINoChildError,"child process pid={0} doesn't exist".format(child_process.pid)
                 # get pipe
+                stepIdx = 1
                 pipe = child_process.connection()
+                # get ack
+                stepIdx = 2
+                timeoutPeriodACK = 30
+                if not pipe.poll(timeoutPeriodACK):
+                    raise JEDITimeoutError,"didn't get ACK for %ssec" % timeoutPeriodACK
+                ack = pipe.recv()
                 # send command
+                stepIdx = 3
                 pipe.send(commandObj)
                 # wait response
+                stepIdx = 4
                 timeoutPeriod = 600
                 if not pipe.poll(timeoutPeriod):
-                    raise JEDITimeoutError,"didn't return response for %ssec" % timeoutPeriod
+                    raise JEDITimeoutError,"didn't get response for %ssec" % timeoutPeriod
                 # get response
+                stepIdx = 5
                 ret = pipe.recv()
                 # set exception type based on error
+                stepIdx = 6
                 if ret.statusCode == SC_FAILED:
                     retException = JEDITemporaryError
                 elif ret.statusCode == SC_FATAL:
@@ -183,8 +190,9 @@ class MethodClass(object):
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 retException = errtype
-                strException = 'VO=%s type=%s : %s.%s %s' % \
-                               (self.vo,errtype.__name__,self.className,self.methodName,errvalue)
+                strException = 'VO=%s type=%s stepIdx=%s : %s.%s %s' % \
+                               (self.vo,errtype.__name__,stepIdx,
+                                self.className,self.methodName,errvalue)
             # increment nused
             child_process.nused += 1
             # memory check
@@ -217,7 +225,9 @@ class MethodClass(object):
                     dumpStdOut(self.className,'terminated pid={0}'.format(child_process.pid))
                 except:
                     errtype,errvalue = sys.exc_info()[:2]
-                    dumpStdOut(self.className,'failed to terminate {0} with {1}:{2}'.format(child_process.pid,errtype,errvalue))
+                    if not 'No child processes' in str(errvalue):
+                        dumpStdOut(self.className,'failed to terminate {0} with {1}:{2}'.format(child_process.pid,
+                                                                                                errtype,errvalue))
                 # make new child process
                 self.voIF.launchChild()
             else:
@@ -326,6 +336,8 @@ class CommandReceiveInterface(object):
     # main loop    
     def start(self):
         while True:
+            # send ACK
+            self.con.send('ack')
             # get command
             commandObj = self.con.recv()
             # make return
