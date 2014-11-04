@@ -1,5 +1,8 @@
 Release Note
 
+* 11/4/2014
+  * changed for lumiBlockNr
+
 * 10/30/2014
   * added child process check in Interaction
   * added more informative message for refine failure

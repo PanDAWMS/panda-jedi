@@ -593,6 +593,7 @@ class JobGeneratorThread (WorkerThread):
                     setProdDBlock = False
                     totalMasterSize = 0
                     totalFileSize = 0
+                    lumiBlockNr = None
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
                         # get boundaryID if grouping is done with boundaryID
                         if useBoundary != None and boundaryID == None:
@@ -640,12 +641,18 @@ class JobGeneratorThread (WorkerThread):
                             # total file size
                             if tmpInFileSpec.status != 'cached':
                                 totalFileSize += tmpFileSpec.fsize
+                            # lumi block number
+                            if tmpDatasetSpec.isMaster() and lumiBlockNr == None:
+                                lumiBlockNr = tmpFileSpec.lumiBlockNr
                         # check if merging 
                         if taskSpec.mergeOutput() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.toMerge():
                             isUnMerging = True
                     specialHandling = specialHandling[:-1]
                     if specialHandling != '':
                         jobSpec.specialHandling = specialHandling
+                    # set lumi block number
+                    if lumiBlockNr != None:
+                        jobSpec.setLumiBlockNr(lumiBlockNr)
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock == False and prodDBlock != None:
                         jobSpec.prodDBlock = prodDBlock

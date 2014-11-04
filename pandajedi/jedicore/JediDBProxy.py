@@ -386,11 +386,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.attemptNr    = 0
                 fileSpec.failedAttempt = 0
                 fileSpec.maxAttempt = maxAttempt
-                # this info will come from Rucio in the future
                 if fileVal.has_key('nevents'):
                     fileSpec.nEvents = fileVal['nevents']
                 else:
                     fileSpec.nEvents = nEventsPerFile
+                if fileVal.has_key('lumiblocknr'):
+                    try:
+                        fileSpec.lumiBlockNr = long(fileVal['lumiblocknr'])
+                    except:
+                        pass
                 # keep track
                 if datasetSpec.toKeepTrack():
                     fileSpec.keepTrack = 1
