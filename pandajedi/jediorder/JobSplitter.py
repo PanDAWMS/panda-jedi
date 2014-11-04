@@ -54,7 +54,7 @@ class JobSplitter:
             walltimeGradient = 0
             nFilesPerJob = taskSpec.getNumFilesPerMergeJob()
             nEventsPerJob = None
-            maxSizePerJob = taskSpec.getMaxSizePerMergeJob()
+            maxSizePerJob = None
             useBoundary = {'inSplit':3}
             # gradients per input size is 1
             sizeGradientsPerInSize = 1
@@ -64,8 +64,10 @@ class JobSplitter:
             interceptsMergin = 500 * 1024 * 1024
             if sizeIntercepts < interceptsMergin:
                 sizeIntercepts = interceptsMergin
-            # max output size is 5GB for merging 
-            maxOutSize = 5 * 1024 * 1024 * 1024
+            maxOutSize = taskSpec.getMaxSizePerMergeJob()
+            if maxOutSize == None:
+                # max output size is 5GB for merging by default
+                maxOutSize = 5 * 1024 * 1024 * 1024
         tmpLog.debug('maxNumFiles={0} sizeGradients={1} sizeIntercepts={2} useBoundary={3}'.format(maxNumFiles,
                                                                                                    sizeGradients,
                                                                                                    sizeIntercepts,

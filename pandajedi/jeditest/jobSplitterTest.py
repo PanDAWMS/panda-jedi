@@ -24,6 +24,10 @@ from pandajedi.jediorder.TaskSetupper import TaskSetupper
 
 import sys
 jediTaskID = int(sys.argv[1])
+try:
+    datasetID = [int(sys.argv[2])]
+except:
+    datasetID = None
 
 s,taskSpec = tbIF.getTaskWithID_JEDI(jediTaskID)
 
@@ -44,7 +48,8 @@ tmpListList = tbIF.getTasksToBeProcessed_JEDI(None,vo,workQueue,
                                               prodSourceLabel,
                                               cloudName,nFiles=10,simTasks=[jediTaskID],
                                               fullSimulation=True,
-                                              typicalNumFilesMap=typicalNumFilesMap)
+                                              typicalNumFilesMap=typicalNumFilesMap,
+                                              simDatasets=datasetID)
 
 taskSetupper = TaskSetupper(vo,prodSourceLabel)
 taskSetupper.initializeMods(tbIF,ddmIF)

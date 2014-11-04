@@ -1,6 +1,7 @@
 Release Note
 
 * 11/4/2014
+  * fixed nGBPerMergeJob
   * changed for lumiBlockNr
 
 * 10/30/2014

@@ -192,6 +192,17 @@ class InputChunk:
 
 
 
+    # get max output size
+    def getOutSize(self,outSizeMap):
+        values = outSizeMap.values()
+        values.sort()
+        try:
+            return values[-1]
+        except:
+            return 0
+        
+
+
     # get subchunk with a selection criteria
     def getSubChunk(self,siteName,maxNumFiles=None,maxSize=None,
                     sizeGradients=0,sizeIntercepts=0,
@@ -250,14 +261,16 @@ class InputChunk:
         newBoundaryID  = False
         nSecFilesMap   = {}
         numMaster      = 0
-        outSize        = 0
+        outSizeMap     = {}
         while (maxNumFiles == None or inputNumFiles <= maxNumFiles) \
                 and (maxSize == None or (maxSize != None and fileSize <= maxSize)) \
                 and (maxWalltime <= 0 or expWalltime <= maxWalltime) \
                 and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents <= maxNumEvents)) \
-                and (maxOutSize == None or outSize <= maxOutSize):
+                and (maxOutSize == None or self.getOutSize(outSizeMap) <= maxOutSize):
             # get one file (or one file group for MP) from master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
+            if not self.masterDataset.datasetID in outSizeMap:
+                outSizeMap[self.masterDataset.datasetID] = 0
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 # check start event to keep continuity
                 if maxNumEvents != None and tmpFileSpec.startEvent != None:
@@ -279,10 +292,10 @@ class InputChunk:
                 # sum
                 inputNumFiles += 1
                 fileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
-                outSize += long(sizeGradients * effectiveFsize)
+                outSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveFsize)
                 if sizeGradientsPerInSize != None:
                     fileSize += long(effectiveFsize * sizeGradientsPerInSize)
-                    outSize += long(effectiveFsize * sizeGradientsPerInSize)
+                    outSizeMap[self.masterDataset.datasetID] += long(effectiveFsize * sizeGradientsPerInSize)
                 # sum offset only for the first master
                 if firstMaster:
                     fileSize += sizeIntercepts
@@ -301,6 +314,8 @@ class InputChunk:
                     boundaryID = tmpFileSpec.boundaryID
             # get files from secondaries
             for datasetSpec in self.secondaryDatasetList:
+                if not datasetSpec.datasetID in outSizeMap:
+                    outSizeMap[datasetSpec.datasetID] = 0
                 if datasetSpec.isNoSplit():
                     # every job uses dataset without splitting
                     if firstLoop:
@@ -313,7 +328,7 @@ class InputChunk:
                             fileSize += tmpFileSpec.fsize
                             if sizeGradientsPerInSize != None:
                                 fileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
-                                outSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                                outSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                             datasetUsage['used'] += 1
                 else:
                     if not nSecFilesMap.has_key(datasetSpec.datasetID):
@@ -340,7 +355,7 @@ class InputChunk:
                         fileSize += tmpFileSpec.fsize
                         if sizeGradientsPerInSize != None:
                             fileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
-                            outSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                            outSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                         datasetUsage['used'] += 1
                         nSecFilesMap[datasetSpec.datasetID] += 1
             # unset first loop flag
@@ -363,7 +378,9 @@ class InputChunk:
             newNextStartEvent = nextStartEvent
             newNumMaster      = numMaster
             terminateFlag     = False
-            newOutSize        = outSize
+            newOutSizeMap     = copy.copy(outSizeMap)
+            if not self.masterDataset.datasetID in newOutSizeMap:
+                newOutSizeMap[self.masterDataset.datasetID] = 0
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 # check continuity of event
                 if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
@@ -388,13 +405,15 @@ class InputChunk:
                 newInputNumFiles += 1
                 newNumMaster += 1
                 newFileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
-                newOutSize += long(sizeGradients * effectiveFsize)
+                newOutSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveFsize)
                 if sizeGradientsPerInSize != None:
                     newFileSize += long(effectiveFsize * sizeGradientsPerInSize)
-                    newOutSize += long(effectiveFsize * sizeGradientsPerInSize)
+                    newOutSizeMap[self.masterDataset.datasetID] += long(effectiveFsize * sizeGradientsPerInSize)
                 newExpWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
+                if not datasetSpec.datasetID in newOutSizeMap:
+                    newOutSizeMap[datasetSpec.datasetID] = 0
                 if not datasetSpec.isNoSplit() and datasetSpec.getNumFilesPerJob() == None:
                     # check boundaryID
                     if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID \
@@ -409,16 +428,18 @@ class InputChunk:
                         newFileSize += tmpFileSpec.fsize
                         if sizeGradientsPerInSize != None:
                             newFileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                            newOutSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
             # termination            
             if terminateFlag:
                 break
             # check
+            newOutSize = self.getOutSize(newOutSizeMap)
             if (maxNumFiles != None and newInputNumFiles > maxNumFiles) \
                     or (maxSize != None and newFileSize > maxSize) \
                     or (maxSize != None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize) \
                     or (maxWalltime > 0 and newExpWalltime > maxWalltime) \
                     or (maxNumEvents != None and newInputNumEvents > maxNumEvents) \
-                    or (maxOutSize != None and newOutSize > maxOutSize):
+                    or (maxOutSize != None and self.getOutSize(newOutSizeMap) > maxOutSize):
                 break
         # reset nUsed for repeated datasets
         for tmpDatasetID,datasetUsage in self.datasetMap.iteritems():

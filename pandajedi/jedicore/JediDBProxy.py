@@ -2498,8 +2498,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     varMap[mapKey] = tmpType
                                     sqlDS += '{0},'.format(mapKey)
                             sqlDS  = sqlDS[:-1]
-                            sqlDS += ') AND status=:dsStatus AND masterID=:masterID '
-                            varMap[':dsStatus']   = 'ready'
+                            if simTasks == None:
+                                sqlDS += ') AND status=:dsStatus '
+                                varMap[':dsStatus']   = 'ready'
+                            else:
+                                sqlDS += ') '
+                            sqlDS += 'AND masterID=:masterID '
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':masterID']   = datasetID 
                             # select
