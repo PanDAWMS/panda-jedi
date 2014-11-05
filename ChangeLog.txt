@@ -1,5 +1,8 @@
 Release Note
 
+* 11/5/2014
+  * fixed JG to set destinationDBlock
+
 * 11/4/2014
   * fixed nGBPerMergeJob
   * changed for lumiBlockNr

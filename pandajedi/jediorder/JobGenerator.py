@@ -743,6 +743,7 @@ class JobGeneratorThread (WorkerThread):
                     for tmpToRegisterItem in tmpToRegister:
                         if not tmpToRegisterItem in datasetToRegister:
                             datasetToRegister.append(tmpToRegisterItem)
+                    destinationDBlock = None
                     for tmpFileSpec in outSubChunk.values():
                         # get dataset
                         if not outDsMap.has_key(tmpFileSpec.datasetID):
@@ -758,6 +759,11 @@ class JobGeneratorThread (WorkerThread):
                         tmpOutFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec,
                                                                           useEventService=taskSpec.useEventService())
                         jobSpec.addFile(tmpOutFileSpec)
+                        # use the first dataset as destinationDBlock
+                        if destinationDBlock == None:
+                            destinationDBlock = tmpDatasetSpec.datasetName
+                    if destinationDBlock != None:
+                        jobSpec.destinationDBlock = destinationDBlock
                     # lib.tgz
                     paramList = []    
                     if buildFileSpec != None:
