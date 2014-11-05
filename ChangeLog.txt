@@ -2,6 +2,7 @@ Release Note
 
 * 11/5/2014
   * fixed JG to set destinationDBlock
+  * fixed AtlasProdJB to check storageToken
 
 * 11/4/2014
   * fixed nGBPerMergeJob

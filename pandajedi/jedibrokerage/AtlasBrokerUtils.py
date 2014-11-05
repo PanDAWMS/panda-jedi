@@ -51,7 +51,7 @@ def getHospitalQueues(siteMapper):
     
 
 # get sites where data is available
-def getSitesWithData(siteMapper,ddmIF,datasetName):
+def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
     # get num of files
     try:
         tmpFileMap = ddmIF.getFilesInDataset(datasetName)
@@ -84,6 +84,14 @@ def getSitesWithData(siteMapper,ddmIF,datasetName):
                 # check name with regexp pattern
                 if re.search(tmpSePat,tmpSE) == None:
                     continue
+                # check space token
+                if not storageToken in ['',None,'NULL']:
+                    seStr = ddmIF.getSiteProperty(tmpSE,'srm')
+                    try:
+                        if seStr.split(':')[1] != storageToken:
+                            continue
+                    except:
+                        pass
                 # check archived metadata
                 # FIXME 
                 pass

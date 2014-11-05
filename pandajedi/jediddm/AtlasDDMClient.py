@@ -180,7 +180,7 @@ class AtlasDDMClient(DDMClientBase):
                         
     # get available files
     def getAvailableFiles(self,datasetSpec,siteEndPointMap,siteMapper,ngGroup=[],checkLFC=False,
-                          checkCompleteness=True):
+                          checkCompleteness=True,storageToken=None):
         # make logger
         methodName = 'getAvailableFiles'
         methodName += ' <datasetID={0}>'.format(datasetSpec.datasetID)
@@ -289,6 +289,13 @@ class AtlasDDMClient(DDMClientBase):
                         tmpLog.error('faild to extract SE+PATH from %s for %s:%s' % \
                                      (seStr,siteName,tmpEndPoint))
                         continue
+                    # check token
+                    if not storageToken in [None,'','NULL']:
+                        try:
+                            if seStr.split(':')[1] != storageToken:
+                                continue
+                        except:
+                            pass
                     # add full path to storage map
                     tmpSePath = tmpMatch.group(1)
                     if not tmpSePath in tmpStoragePathMap:

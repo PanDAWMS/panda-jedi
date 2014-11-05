@@ -126,7 +126,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                     # get the list of sites where data is available
                     tmpLog.debug('getting the list of sites where {0} is avalable'.format(datasetName))
                     tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,
-                                                                     self.ddmIF,datasetName)
+                                                                     self.ddmIF,datasetName,
+                                                                     datasetSpec.storageToken)
                     if tmpSt == self.SC_FAILED:
                         tmpLog.error('failed to get the list of sites where data is available, since %s' % tmpRet)
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -437,7 +438,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
                                                             siteStorageEP,
                                                             self.siteMapper,
-                                                            ngGroup=[1])
+                                                            ngGroup=[1],
+                                                            storageToken=datasetSpec.storageToken)
                 if tmpAvFileMap == None:
                     raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
