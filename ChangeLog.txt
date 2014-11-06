@@ -1,5 +1,8 @@
 Release Note
 
+* 11/6/2014
+  * introduced respectLB and nEventsPerMergeJob
+
 * 11/5/2014
   * fixed JG to set destinationDBlock
   * fixed AtlasProdJB to check storageToken

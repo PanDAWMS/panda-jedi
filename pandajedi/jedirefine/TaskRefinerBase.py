@@ -162,6 +162,7 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'addNthFieldToLFN', JediTaskSpec.splitRuleToken['addNthFieldToLFN'])
         self.setSplitRule(taskParamMap,'scoutSuccessRate', JediTaskSpec.splitRuleToken['scoutSuccessRate'])
         self.setSplitRule(taskParamMap,'t1Weight',         JediTaskSpec.splitRuleToken['t1Weight'])
+        self.setSplitRule(taskParamMap,'nEventsPerMergeJob',   JediTaskSpec.splitRuleToken['nEventsPerMergeJob'])
         self.setSplitRule(taskParamMap,'nFilesPerMergeJob',    JediTaskSpec.splitRuleToken['nFilesPerMergeJob'])
         self.setSplitRule(taskParamMap,'nGBPerMergeJob',       JediTaskSpec.splitRuleToken['nGBPerMergeJob'])
         self.setSplitRule(taskParamMap,'nMaxFilesPerMergeJob', JediTaskSpec.splitRuleToken['nMaxFilesPerMergeJob'])
@@ -172,6 +173,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['pfnList'])
         if taskParamMap.has_key('noWaitParent'):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noWaitParent'])
+        if 'respectLB' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['respectLB'])
         if 'ddmBackEnd' in taskParamMap:
             self.taskSpec.setDdmBackEnd(taskParamMap['ddmBackEnd'])
         # return

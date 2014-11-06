@@ -53,7 +53,7 @@ class JobSplitter:
             sizeGradients = 0
             walltimeGradient = 0
             nFilesPerJob = taskSpec.getNumFilesPerMergeJob()
-            nEventsPerJob = None
+            nEventsPerJob = taskSpec.getNumEventsPerMergeJob()
             maxSizePerJob = None
             useBoundary = {'inSplit':3}
             # gradients per input size is 1
@@ -68,6 +68,9 @@ class JobSplitter:
             if maxOutSize == None:
                 # max output size is 5GB for merging by default
                 maxOutSize = 5 * 1024 * 1024 * 1024
+        # LB
+        respectLB = taskSpec.respectLumiblock()
+        # dump
         tmpLog.debug('maxNumFiles={0} sizeGradients={1} sizeIntercepts={2} useBoundary={3}'.format(maxNumFiles,
                                                                                                    sizeGradients,
                                                                                                    sizeIntercepts,
@@ -75,8 +78,9 @@ class JobSplitter:
         tmpLog.debug('walltimeGradient={0} nFilesPerJob={1} nEventsPerJob={2}'.format(walltimeGradient,
                                                                                         nFilesPerJob,
                                                                                         nEventsPerJob))
-        tmpLog.debug('sizeGradientsPerInSize={0} maxOutSize={1}'.format(sizeGradientsPerInSize,
-                                                                        maxOutSize))
+        tmpLog.debug('sizeGradientsPerInSize={0} maxOutSize={1} respectLB={2}'.format(sizeGradientsPerInSize,
+                                                                                      maxOutSize,
+                                                                                      respectLB))
         # split
         returnList = []
         subChunks  = []
@@ -124,6 +128,7 @@ class JobSplitter:
                                               sizeGradientsPerInSize=sizeGradientsPerInSize,
                                               maxOutSize=maxOutSize,
                                               coreCount=coreCount,
+                                              respectLB=respectLB,
                                               tmpLog=tmpLog)
             if subChunk == None:
                 break

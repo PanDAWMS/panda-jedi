@@ -140,11 +140,14 @@ class InputChunk:
             nFilesPerJob = 1
         # grouping with boundaryID
         useBoundary = self.taskSpec.useGroupWithBoundaryID()    
+        # LB
+        respectLB = self.taskSpec.respectLumiblock()
         maxAtomSize = 0    
         while True:
             # get one subchunk
             subChunk = self.getSubChunk(None,nFilesPerJob=nFilesPerJob,
-                                        useBoundary=useBoundary)
+                                        useBoundary=useBoundary,
+                                        respectLB=respectLB)
             if subChunk == None:
                 break
             # get size
@@ -212,6 +215,7 @@ class InputChunk:
                     sizeGradientsPerInSize=None,
                     maxOutSize=None,
                     coreCount=1,
+                    respectLB=False,
                     tmpLog=None):
         # check if there are unused files/events
         if not self.checkUnused():
@@ -262,6 +266,8 @@ class InputChunk:
         nSecFilesMap   = {}
         numMaster      = 0
         outSizeMap     = {}
+        lumiBlockNr    = None
+        newLumiBlockNr = False
         while (maxNumFiles == None or inputNumFiles <= maxNumFiles) \
                 and (maxSize == None or (maxSize != None and fileSize <= maxSize)) \
                 and (maxWalltime <= 0 or expWalltime <= maxWalltime) \
@@ -280,6 +286,10 @@ class InputChunk:
                 if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID \
                         and useBoundary['inSplit'] != 3:
                     newBoundaryID = True
+                    break
+                # check LB
+                if respectLB and lumiBlockNr != None and lumiBlockNr != tmpFileSpec.lumiBlockNr:
+                    newLumiBlockNr = True
                     break
                 if not inputFileMap.has_key(self.masterDataset.datasetID):
                     inputFileMap[self.masterDataset.datasetID] = []
@@ -312,6 +322,9 @@ class InputChunk:
                 # boundaryID
                 if splitWithBoundaryID:
                     boundaryID = tmpFileSpec.boundaryID
+                # LB
+                if respectLB:
+                    lumiBlockNr = tmpFileSpec.lumiBlockNr
             # get files from secondaries
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.datasetID in outSizeMap:
@@ -369,6 +382,9 @@ class InputChunk:
             # boundayID is changed
             if newBoundaryID:
                 break
+            # LB is changed
+            if newLumiBlockNr:
+                break
             # check master in the next loop
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             newInputNumFiles  = inputNumFiles
@@ -395,6 +411,12 @@ class InputChunk:
                 # check boundary
                 if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID \
                         and useBoundary['inSplit'] != 3:
+                    # no files in the next loop
+                    if newInputNumFiles == 0:
+                        terminateFlag = True
+                    break
+                # check LB
+                if respectLB and lumiBlockNr != None and lumiBlockNr != tmpFileSpec.lumiBlockNr:
                     # no files in the next loop
                     if newInputNumFiles == 0:
                         terminateFlag = True

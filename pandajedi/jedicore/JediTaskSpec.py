@@ -51,6 +51,7 @@ class JediTaskSpec(object):
         'nGBPerJob'          : 'NG',
         'noWaitParent'       : 'NW',
         'pfnList'            : 'PL',
+        'respectLB'          : 'RL',
         'randomSeed'         : 'RS',
         'scoutSuccessRate'   : 'SS',
         't1Weight'           : 'TW',
@@ -58,6 +59,7 @@ class JediTaskSpec(object):
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
         'waitInput'          : 'WI',
+        'nEventsPerMergeJob'   : 'ZE',
         'nFilesPerMergeJob'    : 'ZF',
         'nGBPerMergeJob'       : 'ZG',
         'nMaxFilesPerMergeJob' : 'ZM',
@@ -243,6 +245,16 @@ class JediTaskSpec(object):
     def getMaxNumFilesPerMergeJob(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['nMaxFilesPerMergeJob']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None
+
+
+
+    # get the number of events per merge job if defined
+    def getNumEventsPerMergeJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['nMaxEventsPerMergeJob']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None
@@ -848,3 +860,13 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return 1
+
+
+
+    # respect Lumiblock boundaries
+    def respectLumiblock(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['respectLB']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
