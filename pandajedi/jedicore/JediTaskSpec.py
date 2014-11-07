@@ -254,7 +254,7 @@ class JediTaskSpec(object):
     # get the number of events per merge job if defined
     def getNumEventsPerMergeJob(self):
         if self.splitRule != None:
-            tmpMatch = re.search(self.splitRuleToken['nMaxEventsPerMergeJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken['nEventsPerMergeJob']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None
