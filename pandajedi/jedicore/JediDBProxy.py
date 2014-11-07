@@ -4595,7 +4595,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sqlUC+comment,varMap)
                     # append
                     if isOK:
-                        retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment}
+                        retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment,
+                                                  'oldStatus':taskStatus}
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
@@ -4607,7 +4608,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # FIXME
                 #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
                 varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
-                sqlOrpS  = "SELECT jediTaskID,errorDialog "
+                sqlOrpS  = "SELECT jediTaskID,errorDialog,oldStatus "
                 sqlOrpS += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sqlOrpS += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
                 sqlOrpS += "AND tabT.status=:status AND tabT.modificationtime<:timeLimit "
@@ -4624,14 +4625,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # update modtime to avoid immediate reattempts
                 sqlOrpU  = "UPDATE {0}.JEDI_Tasks SET modificationtime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
                 sqlOrpU += "WHERE jediTaskID=:jediTaskID "
-                for jediTaskID,comComment in resList:
+                for jediTaskID,comComment,oldStatus in resList:
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
                     tmpLog.debug(sqlOrpU+comment+str(varMap))
                     self.cur.execute(sqlOrpU+comment,varMap)
                     nRow = self.cur.rowcount
                     if nRow == 1 and not retTaskIDs.has_key(jediTaskID):
-                        retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment}
+                        retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment,
+                                                  'oldStatus':oldStatus}
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'

@@ -112,6 +112,7 @@ class TaskCommandoThread (WorkerThread):
                     tmpLog = MsgWrapper(self.logger,' <jediTaskID={0}>'.format(jediTaskID))
                     commandStr = commandMap['command']
                     commentStr = commandMap['comment']
+                    oldStatus  = commandMap['oldStatus']
                     tmpLog.info('start for {0}'.format(commandStr))
                     tmpStat = Interaction.SC_SUCCEEDED
                     if commandStr in ['kill','finish','reassign']:
@@ -127,6 +128,7 @@ class TaskCommandoThread (WorkerThread):
                                 tmpLog.info('completed the command')
                                 tmpTaskSpec = JediTaskSpec()
                                 tmpTaskSpec.jediTaskID = jediTaskID
+                                updateTaskStatus = True
                                 if commandStr != 'reassign':
                                     # keep oldStatus for task reassignment since it is reset when actually reassigned
                                     tmpTaskSpec.forceUpdate('oldStatus')
@@ -139,8 +141,11 @@ class TaskCommandoThread (WorkerThread):
                                         tmpTaskSpec.site = tmpItems[1]
                                     # back to oldStatus if necessary 
                                     if tmpItems[2] == 'y':
+                                        tmpTaskSpec.status = oldStatus
                                         tmpTaskSpec.forceUpdate('oldStatus')
-                                tmpTaskSpec.status = JediTaskSpec.commandStatusMap()[commandStr]['done']
+                                        updateTaskStatus = False
+                                if updateTaskStatus:
+                                    tmpTaskSpec.status = JediTaskSpec.commandStatusMap()[commandStr]['done']
                                 tmpRet = self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':jediTaskID})
                             else:
                                 tmpLog.info('sending kill command')

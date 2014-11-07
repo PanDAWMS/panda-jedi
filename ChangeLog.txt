@@ -1,5 +1,8 @@
 Release Note
 
+* 11/7/2014
+  * fixed reassignTaskToSite 
+
 * 11/6/2014
   * introduced respectLB and nEventsPerMergeJob
 
