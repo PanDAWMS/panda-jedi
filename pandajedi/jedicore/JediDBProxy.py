@@ -5572,7 +5572,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDS += "FROM {0}.sites_matrix_data tabM, {0}.schedconfig tabS ".format(jedi_config.db.schemaMETA)
             sqlDS += "WHERE source=:source AND tabM.destination=tabS.siteid "
             sqlDS += "AND wansinklimit IS NOT NULL AND wansinklimit<>0 "
-            sqlDS += "AND meas_date>=(SYSDATE-3/24) "
+            sqlDS += "AND xrdcp_last_update>=(SYSDATE-3/24) "
             sqlDS += "AND {0} IS NOT NULL AND {0}>:threshold ORDER BY {0} DESC) ".format(field)
             sqlDS += "WHERE rownum<=:nSites"
             # start transaction

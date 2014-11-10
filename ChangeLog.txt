@@ -1,5 +1,8 @@
 Release Note
 
+* 11/10/2014
+  * changed meas_date to xrdcp_last_update
+
 * 11/7/2014
   * fixed reassignTaskToSite 
 
