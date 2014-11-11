@@ -1,5 +1,9 @@
 Release Note
 
+* 11/11/2014
+  * fixed getRW
+  * removed patch
+
 * 11/10/2014
   * changed meas_date to xrdcp_last_update
 

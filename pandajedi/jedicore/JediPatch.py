@@ -36,4 +36,4 @@ def SocketClient(address):
     return conn
 
 
-MP.SocketClient = SocketClient
+#MP.SocketClient = SocketClient
