@@ -1,5 +1,8 @@
 Release Note
 
+* 11/12/2014
+  * added random and reusable to dataset attributes
+
 * 11/11/2014
   * fixed getRW
   * removed patch

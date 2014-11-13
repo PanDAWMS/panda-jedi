@@ -357,6 +357,9 @@ class InputChunk:
                             # set large number to get all associated secondary files
                             nSecondary = 10000
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
+                    # reset nUsed
+                    if datasetSpec.isReusable() and datasetUsage['used']+nSecondary > len(datasetSpec.Files):
+                        datasetUsage['used'] = 0
                     for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
                         # check boundaryID
                         if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:

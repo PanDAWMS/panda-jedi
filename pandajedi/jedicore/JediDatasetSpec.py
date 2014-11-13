@@ -211,6 +211,8 @@ class JediDatasetSpec(object):
     def toKeepTrack(self):
         if self.isNoSplit() and self.isRepeated():
             return False
+        elif self.isReusable():
+            return False
         else:
             return True
 
@@ -228,6 +230,24 @@ class JediDatasetSpec(object):
     # check if it is repeatedly used
     def isRepeated(self):
         if self.attributes != None and 'repeat' in self.attributes:
+            return True
+        else:
+            return False
+
+
+
+    # check if it is randomly used
+    def isRandom(self):
+        if self.attributes != None and 'rd' in self.attributes.split(','):
+            return True
+        else:
+            return False
+
+
+
+    # check if it is reusable
+    def isReusable(self):
+        if self.attributes != None and 'ru' in self.attributes.split(','):
             return True
         else:
             return False

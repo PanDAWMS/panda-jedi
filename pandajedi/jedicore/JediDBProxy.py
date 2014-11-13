@@ -2651,6 +2651,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         inputChunk.readBlock = True
                                     else:
                                         inputChunk.readBlock = False
+                                # randomize
+                                if tmpDatasetSpec.isRandom():
+                                    random.shuffle(tmpDatasetSpec.Files)
                         # add to return
                         if not toSkip:
                             if not jediTaskID in returnMap:

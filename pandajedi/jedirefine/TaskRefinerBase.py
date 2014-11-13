@@ -235,6 +235,10 @@ class TaskRefinerBase (object):
                     datasetSpec.setDatasetAttribute('cc')
                 if tmpItem.has_key('usedup'):
                     datasetSpec.setDatasetAttribute('ud')
+                if tmpItem.has_key('random'):
+                    datasetSpec.setDatasetAttribute('rd')
+                if tmpItem.has_key('reusable'):
+                    datasetSpec.setDatasetAttribute('ru')
                 if tmpItem.has_key('offset'):
                     datasetSpec.setOffset(tmpItem['offset'])
                 if tmpItem.has_key('nFilesPerJob'):
