@@ -88,6 +88,8 @@ class AtlasProdWatchDog (WatchDogBase):
         for taskSpec in taskList:
             tmpLog = MsgWrapper(logger,'<jediTaskID={0}'.format(taskSpec.jediTaskID))
             tmpLog.debug('start to reassign')
+            # DDM backend
+            ddmBackEnd = taskSpec.getDdmBackEnd()
             # update cloudtasks
             tmpStat = self.taskBufferIF.setCloudTaskByUser('jedi',taskSpec.jediTaskID,taskSpec.cloud,'assigned',True)
             if tmpStat != 'SUCCEEDED':
@@ -119,9 +121,11 @@ class AtlasProdWatchDog (WatchDogBase):
                     isOK = False
                     break
                 # make subscription
-                tmpLog.debug('registering subscription to {0}'.format(location))
+                tmpLog.debug('registering subscription to {0} with backend={1}'.format(location,
+                                                                                       ddmBackEnd))
                 tmpStat = ddmIF.registerDatasetSubscription(datasetSpec.datasetName,location,
-                                                            activity='Production',ignoreUnknown=True)
+                                                            activity='Production',ignoreUnknown=True,
+                                                            backEnd=ddmBackEnd)
                 if tmpStat != True:
                     tmpLog.error("failed to make subscription")
                     isOK = False

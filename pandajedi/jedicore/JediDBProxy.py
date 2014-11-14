@@ -4596,7 +4596,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':status'] = newTaskStatus
                         varMap[':errDiag'] = comComment
                         sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                        sqlTU += "SET status=:status,oldStatus=status,modificationTime=CURRENT_DATE,errorDialog=:errDiag,stateChangeTime=CURRENT_DATE "
+                        sqlTU += "SET status=:status,"
+                        if not taskStatus in ['pending']:
+                            sqlTU += "oldStatus=status,"
+                        sqlTU += "modificationTime=CURRENT_DATE,errorDialog=:errDiag,stateChangeTime=CURRENT_DATE "
                         sqlTU += "WHERE jediTaskID=:jediTaskID "
                         self.cur.execute(sqlTU+comment,varMap)
                     # update command table

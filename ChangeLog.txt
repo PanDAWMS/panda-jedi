@@ -2,6 +2,7 @@ Release Note
 
 * 11/14/2014
   * changed AtlasAnalJB to check core matching
+  * fixed reassignTask to not use pending as oldStatus
 
 * 11/13/2014
   * fixed setCloudToTasks_JEDI to avoid late update

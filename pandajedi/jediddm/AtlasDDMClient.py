@@ -909,15 +909,19 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # register subscription
-    def registerDatasetSubscription(self,datasetName,location,activity=None,ignoreUnknown=False):
+    def registerDatasetSubscription(self,datasetName,location,activity=None,ignoreUnknown=False,
+                                    backEnd=None):
         methodName = 'registerDatasetSubscription'
         methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.info('start')
         isOK = True
         try:
-            # get DQ2 API            
-            dq2 = DQ2()
+            # get DQ2 API
+            if backEnd == None:
+                dq2 = DQ2()
+            else:
+                dq2 = DQ2(force_backend=backEnd)
             # call
             dq2.registerDatasetSubscription(datasetName,location,activity=activity)
         except DQSubscriptionExistsException:
