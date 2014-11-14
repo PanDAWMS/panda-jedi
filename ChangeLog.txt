@@ -1,5 +1,8 @@
 Release Note
 
+* 11/14/2014
+  * changed AtlasAnalJB to check core matching
+
 * 11/13/2014
   * fixed setCloudToTasks_JEDI to avoid late update
   * skipping file lookup for prod merging

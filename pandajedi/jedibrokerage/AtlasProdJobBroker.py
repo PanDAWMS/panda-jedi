@@ -110,7 +110,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if tmpSiteName in t1Sites:
                     newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpLog.debug('  skip %s due to high prio which needs to run at T1' % tmpSiteName)
+                    tmpLog.debug('  skip {0} due to high prio which needs to run at {1} T1'.format(tmpSiteName,
+                                                                                                   cloudName))
             scanSiteList = newScanSiteList
             tmpLog.debug('{0} candidates passed for high prio'.format(len(scanSiteList)))
             if scanSiteList == []:

@@ -61,6 +61,16 @@ class AtlasAnalJobBroker (JobBrokerBase):
         tmpLog.debug('initial {0} candidates'.format(len(scanSiteList)))
         # allowed remote access protocol
         allowedRemoteProtocol = 'fax'
+        # MP    
+        if taskSpec.coreCount != None and taskSpec.coreCount > 1:
+            # use MCORE only
+            useMP = 'only'
+        elif taskSpec.coreCount == 0:
+            # use MCORE and normal 
+            useMP = 'any'
+        else:
+            # not use MCORE
+            useMP = 'unuse'
         ######################################
         # selection for data availability
         dataWeight = {}
@@ -188,6 +198,25 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
+        ######################################
+        # selection for MP
+        if not sitePreAssigned:
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # check at the site
+                if useMP == 'any' or (useMP == 'only' and tmpSiteSpec.coreCount > 1) or \
+                        (useMP =='unuse' and tmpSiteSpec.coreCount in [0,1,None]):
+                        newScanSiteList.append(tmpSiteName)
+                else:
+                    tmpLog.debug('  skip %s due to core mismatch site:%s != task:%s' % \
+                                 (tmpSiteName,tmpSiteSpec.coreCount,taskSpec.coreCount))
+            scanSiteList = newScanSiteList        
+            tmpLog.debug('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
         ######################################
         # selection for release
         if not taskSpec.transHome in [None,'AnalysisTransforms']:
