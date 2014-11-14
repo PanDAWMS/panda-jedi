@@ -1,5 +1,9 @@
 Release Note
 
+* 11/13/2014
+  * fixed setCloudToTasks_JEDI to avoid late update
+  * skipping file lookup for prod merging
+
 * 11/12/2014
   * added random and reusable to dataset attributes
 

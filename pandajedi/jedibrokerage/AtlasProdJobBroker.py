@@ -434,11 +434,17 @@ class AtlasProdJobBroker (JobBrokerBase):
             try:
                 # mapping between sites and storage endpoints
                 siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(scanSiteList,self.siteMapper)
+                # disable file lookup for merge jobs
+                if inputChunk.isMerging:
+                    checkCompleteness = False
+                else:
+                    checkCompleteness = True
                 # get available files per site/endpoint
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
                                                             siteStorageEP,
                                                             self.siteMapper,
                                                             ngGroup=[1],
+                                                            checkCompleteness=checkCompleteness,
                                                             storageToken=datasetSpec.storageToken)
                 if tmpAvFileMap == None:
                     raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'

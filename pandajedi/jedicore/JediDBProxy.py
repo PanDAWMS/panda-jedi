@@ -4339,7 +4339,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # sql to set cloud
                 sql  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
                 sql += "SET cloud=:cloud,status=:status,oldStatus=NULL,stateChangeTime=CURRENT_DATE "
-                sql += "WHERE jediTaskID=:jediTaskID "
+                sql += "WHERE jediTaskID=:jediTaskID AND cloud IS NULL "
                 # sql to update DEFT
                 sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
                 sqlD += "SET status=:status,timeStamp=CURRENT_DATE"
@@ -4356,12 +4356,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     nRow = self.cur.rowcount
                     tmpLog.debug('set cloud={0} for jediTaskID={1} with {2}'.format(cloudName,jediTaskID,nRow))
                     # update DEFT
-                    deftStatus = 'ready'
-                    self.setSuperStatus_JEDI(jediTaskID,deftStatus)
-                    varMap = {}
-                    varMap[':jediTaskID'] = jediTaskID
-                    varMap[':status']     = deftStatus
-                    self.cur.execute(sqlD+comment,varMap)
+                    if nRow > 0:
+                        deftStatus = 'ready'
+                        self.setSuperStatus_JEDI(jediTaskID,deftStatus)
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':status']     = deftStatus
+                        self.cur.execute(sqlD+comment,varMap)
                     # commit
                     if not self._commit():
                         raise RuntimeError, 'Commit error'
