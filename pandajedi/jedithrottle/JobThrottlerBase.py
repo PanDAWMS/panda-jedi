@@ -13,6 +13,7 @@ class JobThrottlerBase (object):
         self.maxNumJobs  = None
         self.minPriority = None
         self.refresh()
+        self.msgType      = 'jobthrottler'
 
 
     # refresh

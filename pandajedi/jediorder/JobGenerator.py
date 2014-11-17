@@ -411,8 +411,10 @@ class JobGeneratorThread (WorkerThread):
                         # unset lockedBy when all inputs are done for a task
                         if idxInputList+1 == len(inputList):
                             taskSpec.lockedBy = None
+                            taskSpec.lockedTime = None
                         else:
                             taskSpec.lockedBy = self.pid
+                            taskSpec.lockedTime = datetime.datetime.utcnow()
                         # update task
                         retDB = self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
                                                                   oldStatus=JediTaskSpec.statusForJobGenerator())

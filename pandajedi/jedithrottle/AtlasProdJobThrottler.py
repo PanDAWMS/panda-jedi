@@ -24,24 +24,33 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nJobsInBunchMax = 500
         nJobsInBunchMin = 300
         nJobsInBunchMaxES = 1000
+        nWaitingLimit = 4
+        nWaitingBunchLimit = 2
         # make logger
         tmpLog = MsgWrapper(logger)
         workQueueIDs = workQueue.getIDs()
         tmpLog.debug('start vo={0} label={1} cloud={2} workQueue={3} workQueueID={4}'.format(vo,prodSourceLabel,cloudName,
                                                                                              workQueue.queue_name,
                                                                                              str(workQueueIDs)))
+        msgHeader = '{0}:{1} cloud={2} queue={3}:'.format(vo,prodSourceLabel,cloudName,workQueue.queue_name)
         # check cloud status
         if not self.siteMapper.checkCloud(cloudName):
-            tmpLog.debug("  done : SKIP cloud undefined")
+            msgBody = "SKIP cloud={0} undefined".format(cloudName)
+            tmpLog.debug("  done : "+msgBody)
+            tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
             return self.retThrottled
         cloudSpec = self.siteMapper.getCloud(cloudName)
         if cloudSpec['status'] in ['offline']:
-            tmpLog.debug("  done : SKIP cloud.status={0}".format(cloudSpec['status']))
+            msgBody = "SKIP cloud.status={0}".format(cloudSpec['status'])
+            tmpLog.debug("  done : "+msgBody)
+            tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
             return self.retThrottled
         if cloudSpec['status'] in ['test']:
             if workQueue.queue_name != 'test':
-                tmpLog.debug("  done : SKIP cloud.status={0} for non test queue ({1})".format(cloudSpec['status'],
-                                                                                              workQueue.queue_name))
+                msgBody = "SKIP cloud.status={0} for non test queue ({1})".format(cloudSpec['status'],
+                                                                                  workQueue.queue_name)
+                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
+                tmpLog.debug("  done : "+msgBody)
                 return self.retThrottled
         # check if unthrottled
         if workQueue.queue_share == None:
@@ -130,24 +139,33 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             if nRunning == 0 and (nNotRun+nDefine) > nQueueLimit:
                 limitPriority = True
                 # pilot is not running or DDM has a problem
-                tmpLog.debug("  done : SKIP no running and enough nQueued={0}>{1}".format(nNotRun+nDefine,nQueueLimit))
+                msgBody = "SKIP no running and enough nQueued({0})>{1}".format(nNotRun+nDefine,nQueueLimit)
+                tmpLog.debug("  done : "+msgBody)
+                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
                 return self.retThrottled
             elif nRunning != 0 and float(nNotRun)/float(nRunning) > threshold and (nNotRun+nDefine) > nQueueLimit:
                 limitPriority = True
                 # enough jobs in Panda
-                tmpLog.debug("  done : SKIP nQueued/nRunning={0}>{1} & nQueued={2}>{3}".format(float(nNotRun)/float(nRunning),
-                                                                                               threshold,nNotRun+nDefine,
-                                                                                               nQueueLimit))
+                msgBody = "SKIP nQueued({0})/nRunning({1})>{2} & nQueued({3})>{4}".format(nNotRun,nRunning,
+                                                                                          threshold,nNotRun+nDefine,
+                                                                                          nQueueLimit)
+                tmpLog.debug("  done : "+msgBody)
+                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
                 return self.retThrottled
             elif nDefine > nQueueLimit:
                 limitPriority = True
                 # brokerage is stuck
-                tmpLog.debug("  done : SKIP too many nDefin={0}>{1}".format(nDefine,nQueueLimit))
+                msgBody = "SKIP too many nDefined({0})>{1}".format(nDefine,nQueueLimit)
+                tmpLog.debug("  done : "+msgBody)
+                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
                 return self.retThrottled
-            elif nWaiting > nRunning*4 and nWaiting > nJobsInBunch*2:
+            elif nWaiting > nRunning*nWaitingLimit and nWaiting > nJobsInBunch*nWaitingBunchLimit:
                 limitPriority = True
                 # too many waiting
-                tmpLog.debug("  done : SKIP too many nWaiting={0}>{1}".format(nWaiting,nRunning*4))
+                msgBody = "SKIP too many nWaiting({0})>max(nRunning({1})x{2},{3}x{4})".format(nWaiting,nRunning,nWaitingLimit,
+                                                                                              nJobsInBunch,nWaitingBunchLimit)
+                tmpLog.debug("  done : "+msgBody)
+                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
                 return self.retThrottled
         # get jobs from prodDB
         limitPriorityValue = None

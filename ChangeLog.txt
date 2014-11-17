@@ -1,5 +1,9 @@
 Release Note
 
+* 11/17/2014
+  * changed JG to (un)set lockedTime
+  * changed AtlasProdJobThr to send logging messages 
+
 * 11/14/2014
   * changed AtlasAnalJB to check core matching
   * fixed reassignTask to not use pending as oldStatus
