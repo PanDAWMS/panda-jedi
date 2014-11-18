@@ -462,6 +462,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName = 'getDatasetMetaData'
         methodName = '{0} datasetName={1}'.format(methodName,datasetName)
         tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # get DQ2 API
             dq2=DQ2()
@@ -559,7 +560,7 @@ class AtlasDDMClient(DDMClientBase):
             else:
                 # register container
                 dq2.registerContainer(datasetName)
-        except DQContainerExistsException,DQDatasetExistsException: 
+        except (DQContainerExistsException,DQDatasetExistsException): 
             pass
         except:
             errtype,errvalue = sys.exc_info()[:2]

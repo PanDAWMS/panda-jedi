@@ -1203,7 +1203,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':status']      = taskSpec.status
                         varMap[':oldStatus']   = taskSpec.oldStatus
                         varMap[':errorDialog'] = taskSpec.errorDialog
-                    elif cloudName == None and prodSourceLabel in ['managed','test','rucio_test']:
+                    elif cloudName == None and prodSourceLabel in ['managed','test']:
                         # set assigning for TaskBrokerage
                         varMap[':status'] = 'assigning'
                         # set old update time to trigger TaskBrokerage immediately
@@ -1445,7 +1445,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if lockInterval != None:
                 sql += "AND (lockedTime IS NULL OR lockedTime<:timeLimit) "
             if lockTask:
-                sql += "FOR UPDATE NOWAIT"
+                sql += "AND lockedBy IS NULL FOR UPDATE NOWAIT"
             sqlLock  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlLock += "WHERE jediTaskID=:jediTaskID "
             varMap = {}
@@ -1494,7 +1494,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskSpec.jobParamsTemplate = jobParamsTemplate
             else:
                 taskSpec = None
-            tmpLog.debug('done')
+            if taskSpec == None:
+                tmpLog.debug('done with skip')
+            else:
+                tmpLog.debug('done with got')
             return True,taskSpec
         except:
             # roll back

@@ -1,5 +1,9 @@
 Release Note
 
+* 11/18/2014
+  * fixed AtlasDDM for DQDatasetExistsException
+  * change to avoid contention in insertFilesForDataset_JEDI
+
 * 11/17/2014
   * changed JG to (un)set lockedTime
   * changed AtlasProdJobThr to send logging messages 
