@@ -2158,7 +2158,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         failedRet = None
         # set max number of jobs if undefined
         if maxNumJobs == None:
-            maxNumJobs = 5000
             tmpLog.debug('set maxNumJobs={0} since undefined '.format(maxNumJobs))
         # time limit to avoid duplication
         timeLimit = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
@@ -2568,7 +2567,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # typical usage
                                 typicalNumFilesPerJob = typicalNumFilesMap[taskSpec.processingType]
                             # max number of files based on typical usage
-                            typicalMaxNumFiles = typicalNumFilesPerJob * maxNumJobs
                             maxNumFiles = nFiles
                             # set lower limit to avoid too fine slashing
                             lowerLimitOnMaxNumFiles = 100    
@@ -2662,7 +2660,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             returnMap[jediTaskID].append((taskSpec,cloudName,inputChunk))
                             iDsPerTask += 1
                             # reduce the number of jobs
-                            #maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
+                            if maxNumJobs != None:
+                                maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
                         else:
                             tmpLog.debug('escape due to toSkip for jediTaskID={0} datasetID={1}'.format(jediTaskID,primaryDatasetID)) 
                             break
@@ -2692,7 +2691,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if iTasks >= nTasks:
                     break
                 # already read enough files to generate jobs 
-                if maxNumJobs <= 0:
+                if maxNumJobs != None and maxNumJobs <= 0:
                     #break
                     pass
                 # memory limit exceeds
