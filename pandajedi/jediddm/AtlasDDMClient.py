@@ -793,18 +793,19 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # set dataset ownership
-    def setDatasetOwner(self,datasetName,userName):
+    def setDatasetOwner(self,datasetName,userName,backEnd=None):
         methodName = 'setDatasetOwner'
         methodName = '{0} datasetName={1} userName={2}'.format(methodName,datasetName,userName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.info('start')
         try:
-            # cleanup DN
-            userName = parse_dn(userName)
-            # get DQ2 API            
-            dq2=DQ2()
-            # set
-            dq2.setMetaDataAttribute(datasetName,'owner',userName)
+            if backEnd != 'rucio':
+                # cleanup DN
+                userName = parse_dn(userName)
+                # get DQ2 API            
+                dq2=DQ2()
+                # set
+                dq2.setMetaDataAttribute(datasetName,'owner',userName)
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)

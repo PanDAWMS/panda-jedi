@@ -75,7 +75,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,fileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,
-                                   excludePatt,xmlConfig,noWaitParent,parent_tid):
+                                   excludePatt,xmlConfig,noWaitParent,parent_tid,pid):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -85,7 +85,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   useScout,fileList,useFilesWithNewAttemptNr,
                                                   nFilesPerJob,nEventsPerRange,nChunksForScout,
                                                   includePatt,excludePatt,xmlConfig,
-                                                  noWaitParent,parent_tid)
+                                                  noWaitParent,parent_tid,pid)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -232,11 +232,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # update JEDI task status by ContentsFeeder
-    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False):
+    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False,pid=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,getTaskStatus)
+        retVal = proxy.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,getTaskStatus,pid)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

@@ -226,7 +226,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
-                                   xmlConfig,noWaitParent,parent_tid):
+                                   xmlConfig,noWaitParent,parent_tid,pid):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -243,7 +243,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('useScout={0} nChunksForScout={1}'.format(useScout,nChunksForScout))
         tmpLog.debug('includePatt={0} excludePatt={1}'.format(str(includePatt),str(excludePatt)))
         tmpLog.debug('xmlConfig={0} noWaitParent={1} parent_tid={2}'.format(type(xmlConfig),noWaitParent,parent_tid))
-        tmpLog.debug('len(fileMap)={0}'.format(len(fileMap)))
+        tmpLog.debug('len(fileMap)={0} pid={1}'.format(len(fileMap),pid))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -465,6 +465,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 splitFileSpec.firstEvent = totalEventNumber
                                 totalEventNumber += (splitFileSpec.endEvent-splitFileSpec.startEvent+1)
                             tmpFileSpecList.append(splitFileSpec)
+                        if len(tmpFileSpecList) >= maxFileRecords:
+                            break
                 # append
                 for fileSpec in tmpFileSpecList:
                     uniqueFileKey = '{0}.{1}.{2}.{3}'.format(fileSpec.lfn,fileSpec.startEvent,
@@ -477,7 +479,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if nMaxEvents != None and totalNumEventsF >= nMaxEvents:
                     break
                 # too long list
-                if len(uniqueFileKeyList) > maxFileRecords:
+                if len(uniqueFileKeyList) >= maxFileRecords:
                     diagMap['errMsg'] = "too many file records >{0}".format(maxFileRecords)
                     tmpLog.error(diagMap['errMsg'])
                     return failedRet
@@ -493,7 +495,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     pass
             tmpLog.debug('{0} files missing'.format(len(missingFileList)))
             # sql to check if task is locked
-            sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE ".format(jedi_config.db.schemaJEDI)
+            sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE NOWAIT ".format(jedi_config.db.schemaJEDI)
             # sql to check dataset status
             sqlDs  = "SELECT status FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDs += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
@@ -528,15 +530,27 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             # check task
-            varMap = {}
-            varMap[':jediTaskID'] = datasetSpec.jediTaskID
-            self.cur.execute(sqlTL+comment,varMap)
-            resTask = self.cur.fetchone()
+            try:
+                varMap = {}
+                varMap[':jediTaskID'] = datasetSpec.jediTaskID
+                self.cur.execute(sqlTL+comment,varMap)
+                resTask = self.cur.fetchone()
+            except:
+                errType,errValue = sys.exc_info()[:2]
+                if self.isNoWaitException(errValue):
+                    # resource busy and acquire with NOWAIT specified
+                    tmpLog.debug('skip locked jediTaskID={0}'.format(datasetSpec.jediTaskID))
+                    if not self._commit():
+                        raise RuntimeError, 'Commit error'
+                    return retVal
+                else:
+                    # failed with something else
+                    raise errType,errValue
             if resTask == None:
                 tmpLog.debug('task not found in Task table')
             else:
                 taskStatus,taskLockedBy = resTask
-                if taskLockedBy != None:
+                if taskLockedBy != pid:
                     # task is locked
                     tmpLog.debug('task is locked by {0}'.format(taskLockedBy))
                 elif not (taskStatus in JediTaskSpec.statusToUpdateContents() or \
@@ -1158,7 +1172,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update JEDI task status by ContentsFeeder
-    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False):
+    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False,pid=None):
         comment = ' /* JediDBProxy.updateTaskStatusByContFeeder_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -1187,9 +1201,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.debug('task is not found in Tasks table')
             else:
                 taskStatus,lockedBy,cloudName,prodSourceLabel = res
-                if lockedBy != None:
+                if lockedBy != pid:
                     # task is locked
-                    tmpLog('task is locked by {0}'.format(lockedBy))
+                    tmpLog.debug('task is locked by {0}'.format(lockedBy))
                 elif not taskStatus in JediTaskSpec.statusToUpdateContents():
                     # task status is irrelevant
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))

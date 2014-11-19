@@ -86,7 +86,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                 if userSetup:
                                     # set owner
                                     tmpLog.info('setting owner={0}'.format(taskSpec.userName))
-                                    tmpStat = ddmIF.setDatasetOwner(targetName,taskSpec.userName)
+                                    tmpStat = ddmIF.setDatasetOwner(targetName,taskSpec.userName,backEnd=ddmBackEnd)
                                     if not tmpStat:
                                         tmpLog.error('failed to set ownership {0} with {1}'.format(targetName,
                                                                                                    taskSpec.userName))

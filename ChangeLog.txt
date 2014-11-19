@@ -1,5 +1,10 @@
 Release Note
 
+* 11/19/2014
+  * skipping setOwner for rucio
+  * limitting nRecords with event-splitting in insertFiles
+  * using pid to lock in CF
+
 * 11/18/2014
   * fixed AtlasDDM for DQDatasetExistsException
   * change to avoid contention in insertFilesForDataset_JEDI

@@ -1,7 +1,9 @@
+import os
 import sys
 import time
 import uuid
 import math
+import socket
 import datetime
 
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
@@ -26,6 +28,7 @@ class ContentsFeeder (JediKnight):
     def __init__(self,commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels):
         self.vos = self.parseInit(vos)
         self.prodSourceLabels = self.parseInit(prodSourceLabels)
+        self.pid = '{0}-{1}-con'.format(socket.getfqdn().split('.')[0],os.getpid())
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
 
 
@@ -56,7 +59,8 @@ class ContentsFeeder (JediKnight):
                             nWorker = jedi_config.confeeder.nWorkers
                             for iWorker in range(nWorker):
                                 thr = ContentsFeederThread(dsList,threadPool,
-                                                           self.taskBufferIF,self.ddmIF)
+                                                           self.taskBufferIF,self.ddmIF,
+                                                           self.pid)
                                 thr.start()
                             # join
                             threadPool.join()
@@ -78,7 +82,7 @@ class ContentsFeeder (JediKnight):
 class ContentsFeederThread (WorkerThread):
 
     # constructor
-    def __init__(self,taskDsList,threadPool,taskbufferIF,ddmIF):
+    def __init__(self,taskDsList,threadPool,taskbufferIF,ddmIF,pid):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -86,6 +90,8 @@ class ContentsFeederThread (WorkerThread):
         self.taskBufferIF = taskbufferIF
         self.ddmIF = ddmIF
         self.msgType = 'contentsfeeder'
+        self.pid     = pid
+
 
 
     # main
@@ -109,7 +115,7 @@ class ContentsFeederThread (WorkerThread):
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(jediTaskID))
                     # get task
-                    tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID,False,True,None,10)
+                    tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID,False,True,self.pid,10)
                     if not tmpStat or taskSpec == None:
                         tmpLog.error('failed to get taskSpec for jediTaskID={0}'.format(jediTaskID))
                         continue
@@ -333,7 +339,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               excludePatt,
                                                                                                                               xmlConfig,
                                                                                                                               noWaitParent,
-                                                                                                                              taskSpec.parent_tid)
+                                                                                                                              taskSpec.parent_tid,
+                                                                                                                              self.pid)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))
@@ -343,6 +350,8 @@ class ContentsFeederThread (WorkerThread):
                                     elif retDB == None:
                                         # the dataset is locked by another or status is not applicable
                                         allUpdated = False
+                                        tmpLog.info('escape since task or dataset is locked')
+                                        break
                                     elif missingFileList != []:
                                         # files are missing
                                         tmpErrStr = '{0} files missing in {1}'.format(len(missingFileList),datasetSpec.datasetName)
@@ -375,7 +384,7 @@ class ContentsFeederThread (WorkerThread):
                                         taskOnHold = True
                                         break
                             tmpLog.info('end loop')
-                     # no mater input
+                    # no mater input
                     if not taskOnHold and not taskBroken and allUpdated and nFilesMaster == 0 and checkedMaster:
                         tmpErrStr = 'no master input files. input dataset is empty'
                         tmpLog.error(tmpErrStr)
@@ -391,7 +400,7 @@ class ContentsFeederThread (WorkerThread):
                         tmpMsg = 'set task.status={0}'.format(taskSpec.status)
                         tmpLog.info(tmpMsg)
                         tmpLog.sendMsg(tmpMsg,self.msgType)
-                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
+                        allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,pid=self.pid)
                     # change task status unless the task is running
                     if not runningTask:
                         if taskOnHold:
@@ -420,10 +429,11 @@ class ContentsFeederThread (WorkerThread):
                             tmpMsg = 'set task.status={0}'.format(taskSpec.status)
                             tmpLog.info(tmpMsg)
                             tmpLog.sendMsg(tmpMsg,self.msgType)
-                            allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec)
+                            allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,pid=self.pid)
                         elif allUpdated:
                             # all OK
-                            allRet,newTaskStatus = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,getTaskStatus=True)
+                            allRet,newTaskStatus = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,getTaskStatus=True,
+                                                                                                       pid=self.pid)
                             tmpMsg = 'set task.status={0}'.format(newTaskStatus)
                             tmpLog.info(tmpMsg)
                             tmpLog.sendMsg(tmpMsg,self.msgType)
