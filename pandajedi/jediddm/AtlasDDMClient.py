@@ -564,8 +564,9 @@ class AtlasDDMClient(DDMClientBase):
             pass
         except:
             errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
+            if not 'DataIdentifierAlreadyExists' in str(errvalue):
+                errCode = self.checkError(errtype)
+                return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
         return self.SC_SUCCEEDED,True
             
 
@@ -858,6 +859,12 @@ class AtlasDDMClient(DDMClientBase):
                 dq2 = DQ2(force_backend=backEnd)
             # set
             dq2.registerDatasetLocation(datasetName,location,lifetime=lifetime)
+            # get owner
+            if backEnd == 'rucio':
+                tmpStat,userInfo = self.finger(owner)
+                if tmpStat != self.SC_SUCCEEDED:
+                    raise RuntimError,'failed to get nickname for {0}'.format(owner)
+                owner = userInfo['nickname']
             dq2.setReplicaMetaDataAttribute(datasetName,location,'owner',owner)
         except:
             errtype,errvalue = sys.exc_info()[:2]
