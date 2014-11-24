@@ -144,7 +144,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 msgBody = "SKIP no running and enough nQueued({0})>{1}".format(nNotRun+nDefine,nQueueLimit)
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
-                return self.retThrottled
+                return self.retMergeUnThr
             elif nRunning != 0 and float(nNotRun)/float(nRunning) > threshold and (nNotRun+nDefine) > nQueueLimit:
                 limitPriority = True
                 # enough jobs in Panda
@@ -153,14 +153,14 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                                                                                                   nQueueLimit)
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
-                return self.retThrottled
+                return self.retMergeUnThr
             elif nDefine > nQueueLimit:
                 limitPriority = True
                 # brokerage is stuck
                 msgBody = "SKIP too many nDefined({0})>{1}".format(nDefine,nQueueLimit)
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
-                return self.retThrottled
+                return self.retMergeUnThr
             elif nWaiting > nRunning*nWaitingLimit and nWaiting > nJobsInBunch*nWaitingBunchLimit:
                 limitPriority = True
                 # too many waiting
@@ -168,7 +168,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                                                                                               nJobsInBunch,nWaitingBunchLimit)
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
-                return self.retThrottled
+                return self.retMergeUnThr
         # get jobs from prodDB
         limitPriorityValue = None
         if limitPriority:

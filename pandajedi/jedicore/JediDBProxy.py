@@ -2155,7 +2155,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,
                                    nTasks=50,nFiles=100,isPeeking=False,simTasks=None,
                                    minPriority=None,maxNumJobs=None,typicalNumFilesMap=None,
-                                   fullSimulation=False,simDatasets=None):
+                                   fullSimulation=False,simDatasets=None,
+                                   mergeUnThrottled=None):
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
         if simTasks != None:
@@ -2168,7 +2169,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start label={0} nTasks={1} nFiles={2} minPriority={3}'.format(prodSourceLabel,nTasks,
                                                                                     nFiles,minPriority))
         tmpLog.debug('maxNumJobs={0} typicalNumFilesMap={1}'.format(maxNumJobs,str(typicalNumFilesMap)))
-        tmpLog.debug('simTasks={0}'.format(str(simTasks)))
+        tmpLog.debug('simTasks={0} mergeUnThrottled={1}'.format(str(simTasks),str(mergeUnThrottled)))
         memStart = JediCoreUtils.getMemoryUsage()
         tmpLog.debug('memUsage start {0} MB pid={1}'.format(memStart,os.getpid()))
         # return value for failure
@@ -2218,10 +2219,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "AND tabT.lockedBy IS NULL "
                 sql += "AND tabT.modificationTime<:timeLimit "
                 sql += "AND nFilesToBeUsed > nFilesUsed AND type IN ("
-                for tmpType in JediDatasetSpec.getProcessTypes(): 
-                    mapKey = ':type_'+tmpType
-                    sql += '{0},'.format(mapKey)
-                    varMap[mapKey] = tmpType
+                if mergeUnThrottled == True:
+                    for tmpType in JediDatasetSpec.getMergeProcessTypes():
+                        mapKey = ':type_'+tmpType
+                        sql += '{0},'.format(mapKey)
+                        varMap[mapKey] = tmpType
+                else:
+                    for tmpType in JediDatasetSpec.getProcessTypes(): 
+                        mapKey = ':type_'+tmpType
+                        sql += '{0},'.format(mapKey)
+                        varMap[mapKey] = tmpType
                 sql  = sql[:-1]
                 sql += ') AND tabD.status=:dsStatus '
                 sql += 'AND masterID IS NULL '
@@ -2232,9 +2239,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += '(SELECT 1 FROM {0}.JEDI_Datasets '.format(jedi_config.db.schemaJEDI)
                 sql += 'WHERE {0}.JEDI_Datasets.jediTaskID=tabT.jediTaskID '.format(jedi_config.db.schemaJEDI)
                 sql += 'AND type IN ('
-                for tmpType in JediDatasetSpec.getProcessTypes():
-                    mapKey = ':type_'+tmpType
-                    sql += '{0},'.format(mapKey)
+                if mergeUnThrottled == True:
+                    for tmpType in JediDatasetSpec.getMergeProcessTypes():
+                        mapKey = ':type_'+tmpType
+                        sql += '{0},'.format(mapKey)
+                else:
+                    for tmpType in JediDatasetSpec.getProcessTypes():
+                        mapKey = ':type_'+tmpType
+                        sql += '{0},'.format(mapKey)
                 sql  = sql[:-1]
                 sql += ') AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3,:dsOKStatus4,:dsOKStatus5)) '
                 sql += "ORDER BY currentPriority DESC,jediTaskID "

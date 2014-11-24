@@ -109,10 +109,22 @@ class JobGenerator (JediKnight):
                                     raise RuntimeError,'crashed when checking throttle'
                                 if tmpSt != self.SC_SUCCEEDED:
                                     raise RuntimeError,'failed to check throttle'
-                                if thrFlag:
+                                mergeUnThrottled = None
+                                if thrFlag == True:
                                     tmpLog.debug('throttled')
                                     if self.withThrottle:
                                         continue
+                                elif thrFlag == False:
+                                    pass
+                                else:
+                                    # leveled flag
+                                    mergeUnThrottled = not throttle.mergeThrottled(thrFlag)
+                                    if not mergeUnThrottled:
+                                        tmpLog.debug('throttled including merge')
+                                        if self.withThrottle:
+                                            continue
+                                    else:
+                                        tmpLog.debug('only merge is unthrottled')
                                 tmpLog.debug('minPriority={0} maxNumJobs={1}'.format(throttle.minPriority,throttle.maxNumJobs))
                                 # get typical number of files
                                 typicalNumFilesMap = self.taskBufferIF.getTypicalNumInput_JEDI(vo,workQueue.queue_type,workQueue,
@@ -128,7 +140,8 @@ class JobGenerator (JediKnight):
                                                                                        nFiles=jedi_config.jobgen.nFiles,
                                                                                        minPriority=throttle.minPriority,
                                                                                        maxNumJobs=throttle.maxNumJobs,
-                                                                                       typicalNumFilesMap=typicalNumFilesMap, 
+                                                                                       typicalNumFilesMap=typicalNumFilesMap,
+                                                                                       mergeUnThrottled=mergeUnThrottled
                                                                                        )
                                 if tmpList == None:
                                     # failed
