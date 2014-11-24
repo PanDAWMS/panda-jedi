@@ -1,5 +1,8 @@
 Release Note
 
+* 11/24/2014
+  * added pauseTask and resumeTask
+
 * 11/19/2014
   * fixed AtlasDDM for analysis+rucio
   * skipping setOwner for rucio

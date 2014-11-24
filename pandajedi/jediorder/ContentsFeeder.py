@@ -211,6 +211,7 @@ class ContentsFeederThread (WorkerThread):
                                                                          getNumEvents=getNumEvents,
                                                                          skipDuplicate=skipDuplicate
                                                                          )
+                                        tmpLog.info('got {0} files in {1}'.format(len(tmpRet),tmpDatasetName))
                                         # remove lost files
                                         tmpLostFiles = ddmIF.findLostFiles(tmpDatasetName,tmpRet)
                                         if tmpLostFiles != {}:

@@ -675,6 +675,13 @@ class JediTaskSpec(object):
 
 
 
+    # return list of status to not pause
+    def statusNotToPause(cls):
+        return ['finished','failed','done','aborted','broken','paused']
+    statusNotToPause = classmethod(statusNotToPause)
+
+
+
     # return mapping of command and status
     def commandStatusMap(cls):
         return {'kill' : {'doing': 'aborting',
@@ -687,6 +694,10 @@ class JediTaskSpec(object):
                              'done' : 'rerefine'},
                 'reassign' : {'doing': 'toreassign',
                               'done' : 'reassigning'},
+                'pause' : {'doing': 'paused',
+                           'done' : 'dummy'},
+                'resume' : {'doing': 'dummy',
+                            'done' : 'dummy'},
                 }
     commandStatusMap = classmethod(commandStatusMap)
 

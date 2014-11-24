@@ -863,7 +863,7 @@ class AtlasDDMClient(DDMClientBase):
             if backEnd == 'rucio':
                 tmpStat,userInfo = self.finger(owner)
                 if tmpStat != self.SC_SUCCEEDED:
-                    raise RuntimError,'failed to get nickname for {0}'.format(owner)
+                    raise RuntimeError,'failed to get nickname for {0}'.format(owner)
                 owner = userInfo['nickname']
             dq2.setReplicaMetaDataAttribute(datasetName,location,'owner',owner)
         except:

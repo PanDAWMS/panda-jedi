@@ -2192,6 +2192,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':dsOKStatus2']     = 'done'
                 varMap[':dsOKStatus3']     = 'defined'
                 varMap[':dsOKStatus4']     = 'registered'
+                varMap[':dsOKStatus5']     = 'failed'
                 varMap[':timeLimit']       = timeLimit
                 sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.userName "
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
@@ -2235,7 +2236,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     mapKey = ':type_'+tmpType
                     sql += '{0},'.format(mapKey)
                 sql  = sql[:-1]
-                sql += ') AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3,:dsOKStatus4)) '
+                sql += ') AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3,:dsOKStatus4,:dsOKStatus5)) '
                 sql += "ORDER BY currentPriority DESC,jediTaskID "
             else:
                 varMap = {}
@@ -4594,6 +4595,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for incexec".format(jediTaskID,
                                                                                                                              commandStr,taskStatus))
                                     isOK = False
+                            elif commandStr == 'pause':
+                                if taskStatus in JediTaskSpec.statusNotToPause():
+                                    # task is in a status which rejects pause
+                                    tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for pause".format(jediTaskID,
+                                                                                                                           commandStr,taskStatus))
+                                    isOK = False
+                            elif commandStr == 'resume':
+                                if not taskStatus in ['paused']:
+                                    # task is in a status which rejects resume
+                                    tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for resume".format(jediTaskID,
+                                                                                                                            commandStr,taskStatus))
+                                    isOK = False
                             elif taskStatus in JediTaskSpec.statusToRejectExtChange():
                                 # task is in a status which rejects external changes
                                 tmpLog.error("jediTaskID={0} rejected command={1} (due to status={2})".format(jediTaskID,commandStr,taskStatus))
@@ -4609,11 +4622,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # update task status
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
-                        varMap[':status'] = newTaskStatus
+                        if newTaskStatus != 'dummy':
+                            varMap[':status'] = newTaskStatus
                         varMap[':errDiag'] = comComment
                         sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                        sqlTU += "SET status=:status,"
-                        if not taskStatus in ['pending']:
+                        if newTaskStatus != 'dummy':
+                            sqlTU += "SET status=:status,"
+                        else:
+                            sqlTU += "SET status=oldStatus,"
+                        if taskStatus in ['paused']:
+                            sqlTU += "oldStatus=NULL,"
+                        elif not taskStatus in ['pending']:
                             sqlTU += "oldStatus=status,"
                         sqlTU += "modificationTime=CURRENT_DATE,errorDialog=:errDiag,stateChangeTime=CURRENT_DATE "
                         sqlTU += "WHERE jediTaskID=:jediTaskID "
@@ -4629,16 +4648,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sqlUC+comment,varMap)
                     # append
                     if isOK:
-                        retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment,
-                                                  'oldStatus':taskStatus}
+                        if not commandStr in ['pause','resume']:
+                            retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment,
+                                                      'oldStatus':taskStatus}
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
             # find orphaned tasks to rescue
             for commandStr,taskStatusMap in commandStatusMap.iteritems():
-                self.conn.begin()
                 varMap = {}
                 varMap[':status'] = taskStatusMap['doing']
+                # skip dummy status
+                if varMap[':status'] == 'dummy':
+                    continue
+                self.conn.begin()
                 # FIXME
                 #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
                 varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
