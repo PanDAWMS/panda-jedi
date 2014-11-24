@@ -23,5 +23,10 @@ class JobThrottler (FactoryBase):
         self.minPriority = impl.minPriority
         self.maxNumJobs = impl.maxNumJobs
         return retVal
-                                                            
-            
+
+
+
+    # check throttle level
+    def mergeThrottled(self,vo,sourceLabel,thrLevel):
+        impl = self.getImpl(vo,sourceLabel)
+        return impl.mergeThrottled(thrLevel)

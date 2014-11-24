@@ -118,7 +118,7 @@ class JobGenerator (JediKnight):
                                     pass
                                 else:
                                     # leveled flag
-                                    mergeUnThrottled = not throttle.mergeThrottled(thrFlag)
+                                    mergeUnThrottled = not throttle.mergeThrottled(vo,workQueue.queue_type,thrFlag)
                                     if not mergeUnThrottled:
                                         tmpLog.debug('throttled including merge')
                                         if self.withThrottle:
