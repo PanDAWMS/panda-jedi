@@ -85,11 +85,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     tmpSt,tmpRet = AtlasBrokerUtils.getAnalSitesWithData(scanSiteList,
                                                                          self.siteMapper,
                                                                          self.ddmIF,datasetName)
-                    if tmpSt == self.SC_FAILED:
-                        tmpLog.error('failed to get the list of sites where data is available, since %s' % tmpRet)
+                    if tmpSt in [Interaction.JEDITemporaryError,Interaction.JEDITimeoutError]: 
+                        tmpLog.error('temporary failed to get the list of sites where data is available, since %s' % tmpRet)
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         return retTmpError
-                    if tmpSt == self.SC_FATAL:
+                    if tmpSt == Interaction.JEDIFatalError:
                         tmpLog.error('fatal error when getting the list of sites where data is available, since %s' % tmpRet)
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         return retFatal
