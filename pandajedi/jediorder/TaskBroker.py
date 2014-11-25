@@ -165,7 +165,7 @@ class TaskCheckerThread (WorkerThread):
                             tmpStat = Interaction.SC_FAILED
                     # check
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        tmpLog.info('brokerage with {0}'.format(impl.__class__.__name__))
+                        tmpLog.info('check with {0}'.format(impl.__class__.__name__))
                         try:
                             tmpStat,taskCloudMap = impl.doCheck(taskSpecList)
                         except:
@@ -243,7 +243,7 @@ class TaskBrokerThread (WorkerThread):
                         tmpStat = Interaction.SC_FAILED
                 # brokerage
                 if tmpStat == Interaction.SC_SUCCEEDED:
-                    tmpLog.info('brokerage with {0}'.format(impl.__class__.__name__))
+                    tmpLog.info('brokerage with {0} for {1} tasks '.format(impl.__class__.__name__,len(tmpListToAssign)))
                     try:
                         tmpStat = impl.doBrokerage(tmpListToAssign,self.vo,
                                                    self.prodSourceLabel,self.workQueue)

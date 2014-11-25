@@ -3073,6 +3073,66 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # unlock tasks
+    def unlockTasks_JEDI(self,vo,prodSourceLabel,waitTime):
+        comment = ' /* JediDBProxy.unlockTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to look for locked tasks
+            sqlTR  = "SELECT jediTaskID,lockedBy,lockedTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTR += "WHERE lockedBy IS NOT NULL AND lockedTime<:timeLimit "
+            if vo != None:
+                sqlTR += "AND vo=:vo "
+            if prodSourceLabel != None:
+                sqlTR += "AND prodSourceLabel=:prodSourceLabel " 
+            # sql to unlock
+            sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU += "SET lockedBy=NULL,lockedTime=NULL "
+            sqlTU += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NOT NULL AND lockedTime<:timeLimit "
+            if vo != None:
+                sqlTU += "AND vo=:vo "
+            if prodSourceLabel != None:
+                sqlTU += "AND prodSourceLabel=:prodSourceLabel " 
+            timeNow = datetime.datetime.utcnow()
+            # begin transaction
+            self.conn.begin()
+            self.cur.arraysize = 1000
+            # get locked task list
+            varMap = {}
+            varMap[':timeLimit'] = timeNow - datetime.timedelta(minutes=waitTime)
+            if vo != None:
+                varMap[':vo'] = vo
+            if prodSourceLabel != None:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+            self.cur.execute(sqlTR+comment,varMap)
+            taskList = self.cur.fetchall()
+            # unlock tasks
+            nTasks = 0
+            for jediTaskID,lockedBy,lockedTime in taskList:
+                varMap[':jediTaskID'] = jediTaskID
+                self.cur.execute(sqlTU+comment,varMap)
+                iTasks = self.cur.rowcount
+                if iTasks == 1:
+                    tmpLog.debug('unlocked jediTaskID={0} lockedBy={1} lockedTime={2}'.format(jediTaskID,lockedBy,
+                                                                                              lockedTime))
+                nTasks += iTasks
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done with {0} tasks'.format(nTasks))
+            return nTasks
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
     # get the size of input files which will be copied to the site
     def getMovingInputSize_JEDI(self,siteName):
         comment = ' /* JediDBProxy.getMovingInputSize_JEDI */'
@@ -4285,8 +4345,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get tasks to assign
             varMap = {}
             varMap[':status'] = 'assigning'
-            # FIXME
-            #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=3)
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=30)
             sqlSCF  = "SELECT jediTaskID "
             sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)

@@ -65,6 +65,15 @@ class WatchDog (JediKnight,FactoryBase):
                             tmpLog.error('failed to reactivate')
                         else:
                             tmpLog.info('reactivated {0} tasks'.format(tmpRet))
+                        # unlock tasks
+                        tmpLog.info('unlock tasks for vo={0} label={1}'.format(vo,prodSourceLabel)) 
+                        tmpRet = self.taskBufferIF.unlockTasks_JEDI(vo,prodSourceLabel,
+                                                                    jedi_config.watchdog.waitForLocked)
+                        if tmpRet == None:
+                            # failed
+                            tmpLog.error('failed to unlock')
+                        else:
+                            tmpLog.info('unlock {0} tasks'.format(tmpRet))
                         # vo/prodSourceLabel specific action
                         impl = self.getImpl(vo,prodSourceLabel)
                         if impl != None:

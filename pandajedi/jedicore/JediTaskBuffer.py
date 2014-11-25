@@ -487,6 +487,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # unlock tasks
+    def unlockTasks_JEDI(self,vo,prodSourceLabel,waitTime):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.unlockTasks_JEDI(vo,prodSourceLabel,waitTime)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # get the size of input files which will be copied to the site
     def getMovingInputSize_JEDI(self,siteName):
         # get DBproxy

@@ -225,6 +225,9 @@ waitForPending = 60
 # timeout for pending tasks in days
 timeoutForPending = 7
 
+# wait period for locked tasks in minutes
+waitForLocked = 60
+
 
 
 
