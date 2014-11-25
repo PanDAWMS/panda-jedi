@@ -1,5 +1,9 @@
 Release Note
 
+* 11/25/2014
+  * added maxAttemptES
+  * using merge scout attributes    
+
 * 11/24/2014
   * added pauseTask and resumeTask
   * unthrottling to generate merge jobs

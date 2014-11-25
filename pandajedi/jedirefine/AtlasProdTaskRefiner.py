@@ -40,6 +40,8 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                     if tmpSiteList == []:
                         raise RuntimeError,'cannot find online siteID associated to {0}'.format(storageToken)
                     datasetSpec.destination = tmpSiteList[0]
+            # set to register datasets
+            #self.taskSpec.setToRegisterDatasets()
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))

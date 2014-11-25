@@ -7,6 +7,8 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
 from TaskSetupperBase import TaskSetupperBase
 
+from pandaserver.dataservice import DataServiceUtils
+
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -68,7 +70,9 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                 if targetName == datasetSpec.datasetName:
                                     # dataset
                                     if datasetSpec.site in ['',None]:
-                                        if taskSpec.cloud != None:
+                                        if DataServiceUtils.getDestinationSE(datasetSpec.storageToken) != None:
+                                            location = DataServiceUtils.getDestinationSE(datasetSpec.storageToken)
+                                        elif taskSpec.cloud != None:
                                             # use T1 SE
                                             tmpT1Name = siteMapper.getCloud(taskSpec.cloud)['source']
                                             location = siteMapper.getDdmEndpoint(tmpT1Name,datasetSpec.storageToken)

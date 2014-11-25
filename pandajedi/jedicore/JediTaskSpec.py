@@ -19,7 +19,8 @@ class JediTaskSpec(object):
         'workQueue_ID','progress','failureRate','errorDialog',
         'reqID','oldStatus','cloud','site','countryGroup','parent_tid',
         'eventService','ticketID','ticketSystemType','stateChangeTime',
-        'superStatus','campaign'
+        'superStatus','campaign','mergeRamCount','mergeRamUnit',
+        'mergeWalltime','mergeWalltimeUnit'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
@@ -51,6 +52,7 @@ class JediTaskSpec(object):
         'nGBPerJob'          : 'NG',
         'noWaitParent'       : 'NW',
         'pfnList'            : 'PL',
+        'registerDatasets'   : 'RD',
         'respectLB'          : 'RL',
         'randomSeed'         : 'RS',
         'scoutSuccessRate'   : 'SS',
@@ -59,6 +61,7 @@ class JediTaskSpec(object):
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
         'waitInput'          : 'WI',
+        'maxAttemptES'       : 'XA',
         'nEventsPerMergeJob'   : 'ZE',
         'nFilesPerMergeJob'    : 'ZF',
         'nGBPerMergeJob'       : 'ZG',
@@ -77,6 +80,11 @@ class JediTaskSpec(object):
     enum_noScout   = '1'
     enum_useScout  = '2'
     enum_postScout = '3'
+
+
+    # enum for dataset registration
+    enum_toRegisterDS   = '1'
+    enum_registeredDS   = '2'
 
 
 
@@ -881,3 +889,35 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # check if datasets should be registered
+    def toRegisterDatasets(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['registerDatasets']+'=(\d+)',self.splitRule)
+            if tmpMatch != None and tmpMatch.group(1) == self.enum_toRegisterDS:
+                return True
+        return False
+
+
+
+    # datasets were registered
+    def registeredDatasets(self):
+        self.setSplitRule('registerDatasets',self.enum_registeredDS)
+
+
+
+    # set datasets to be registered
+    def setToRegisterDatasets(self):
+        self.setSplitRule('registerDatasets',self.enum_toRegisterDS)
+
+
+
+    # get the max number of attempts for ES
+    def getMaxAttemptES(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['maxAttemptES']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None    

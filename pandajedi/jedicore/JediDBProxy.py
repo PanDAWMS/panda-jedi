@@ -1872,7 +1872,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # generate output files for task, and instantiate template datasets if necessary
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,isUnMerging,
-                            isPrePro,xmlConfigJob,siteDsMap,middleName):
+                            isPrePro,xmlConfigJob,siteDsMap,middleName,registerDatasets):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -1881,13 +1881,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                             instantiateTmpl,
                                                                                             instantiatedSite))
         tmpLog.debug('isUnMerging={0} isPrePro={1} xmlConfigJob={2}'.format(isUnMerging,isPrePro,type(xmlConfigJob)))
-        tmpLog.debug('middleName={0}'.format(middleName))
+        tmpLog.debug('middleName={0} registerDatasets={1}'.format(middleName,registerDatasets))
         try:
             outMap = {}
             datasetToRegister = []
             # sql to get dataset
             sqlD  = "SELECT "
-            sqlD += "datasetID,datasetName,vo,masterID,status FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlD += "datasetID,datasetName,vo,masterID,status,type FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlD += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
             if provenanceID != None:
                 sqlD += "AND (provenanceID IS NULL OR provenanceID=:provenanceID) "
@@ -1949,8 +1949,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             tmpl_RelationMap = {}
             mstr_RelationMap = {}
-            for datasetID,datasetName,vo,masterID,datsetStatus in resList:
+            for datasetID,datasetName,vo,masterID,datsetStatus,datasetType in resList:
                 fileDatasetID = datasetID
+                if registerDatasets and datasetType in ['output','log'] and not fileDatasetID in datasetToRegister:
+                    datasetToRegister.append(fileDatasetID)
                 # instantiate template datasets
                 if instantiateTmpl:
                     doInstantiate = False
@@ -2024,7 +2026,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if masterID != None:
                             mstr_RelationMap[fileDatasetID] = masterID
                         # collect ID of dataset to be registered 
-                        datasetToRegister.append(fileDatasetID)
+                        if not fileDatasetID in datasetToRegister: 
+                            datasetToRegister.append(fileDatasetID)
                         # collect IDs for pre-merging
                         if isUnMerging:
                             if not siteDsMap.has_key(datasetID):
@@ -3692,12 +3695,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get scout job data
-    def getScoutJobData_JEDI(self,jediTaskID,useTransaction=False,scoutSuccessRate=None):
+    def getScoutJobData_JEDI(self,jediTaskID,useTransaction=False,scoutSuccessRate=None,
+                             mergeScout=False):
         comment = ' /* JediDBProxy.getScoutJobData_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
+        tmpLog.debug('start mergeScout={0}'.format(mergeScout))
         returnMap = {}
         # sql to get preset values
         sqlGPV  = "SELECT outDiskCount,walltime,ramCount,workDiskCount "
@@ -3708,10 +3712,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlSCF += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
         sqlSCF += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status "
         sqlSCF += "AND tabD.datasetID=tabF.datasetID "
-        sqlSCF += "AND tabF.type IN ("
-        for tmpType in JediDatasetSpec.getInputTypes():
-            mapKey = ':type_'+tmpType
-            sqlSCF += '{0},'.format(mapKey)
+        if not mergeScout:
+            sqlSCF += "AND tabF.type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sqlSCF += '{0},'.format(mapKey)
+        else:
+            sqlSCF += "AND tabD.type IN ("
+            for tmpType in JediDatasetSpec.getMergeProcessTypes():
+                mapKey = ':type_'+tmpType
+                sqlSCF += '{0},'.format(mapKey)
         sqlSCF  = sqlSCF[:-1]
         sqlSCF += ") AND tabD.masterID IS NULL " 
         sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount "
@@ -3760,9 +3770,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
         varMap[':status'] = 'finished'
-        for tmpType in JediDatasetSpec.getInputTypes():
-            mapKey = ':type_'+tmpType
-            varMap[mapKey] = tmpType
+        if not mergeScout:
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                varMap[mapKey] = tmpType
+        else:
+            for tmpType in JediDatasetSpec.getMergeProcessTypes():
+                mapKey = ':type_'+tmpType
+                varMap[mapKey] = tmpType
         self.cur.execute(sqlSCF+comment,varMap)
         resList = self.cur.fetchall()
         # scout scceeded or not
@@ -4114,7 +4129,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 sqlTSD += '{0}={1},'.format(scoutKey,tmpScoutKey)
                             sqlTSD = sqlTSD[:-1] 
                             sqlTSD += " WHERE jediTaskID=:jediTaskID "
+                            tmpLog.debug(sqlTSD+comment+str(varMap))
                             self.cur.execute(sqlTSD+comment,varMap)
+                        # set average merge job data
+                        if taskSpec.mergeOutput():
+                            mergeScoutSucceeded,mergeScoutData = self.getScoutJobData_JEDI(jediTaskID,mergeScout=True)
+                            if mergeScoutData != {}:
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                sqlTSD  = "UPDATE {0}.JEDI_Tasks SET ".format(jedi_config.db.schemaJEDI)
+                                for mergeScoutKey,mergeScoutVal in mergeScoutData.iteritems():
+                                    # only walltime and ramCount
+                                    if not mergeScoutKey.startswith('walltime') and not mergeScoutKey.startswith('ram'):
+                                        continue
+                                    tmpScoutKey = ':{0}'.format(mergeScoutKey)
+                                    varMap[tmpScoutKey] = mergeScoutVal
+                                    sqlTSD += 'merge{0}={1},'.format(mergeScoutKey,tmpScoutKey)
+                                sqlTSD = sqlTSD[:-1]
+                                sqlTSD += " WHERE jediTaskID=:jediTaskID "
+                                tmpLog.debug(sqlTSD+comment+str(varMap))
+                                self.cur.execute(sqlTSD+comment,varMap)
                         # get nFiles to be used
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID

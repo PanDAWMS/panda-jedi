@@ -361,6 +361,8 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.setErrDiag(tmpErrStr,True)
                             else:
                                 readyToSubmitJob = True
+                                if taskSpec.toRegisterDatasets():
+                                    taskSpec.registeredDatasets()
                         # lock task
                         if goForward:
                             tmpLog.info('lock task')
@@ -473,6 +475,8 @@ class JobGeneratorThread (WorkerThread):
         # special priorities 
         scoutPriority = 900
         mergePriority = 5000
+        # register datasets
+        registerDatasets = taskSpec.toRegisterDatasets()
         try:
             # load XML
             xmlConfig = None
@@ -648,7 +652,8 @@ class JobGeneratorThread (WorkerThread):
                                 specialHandling += EventServiceUtils.encodeFileInfo(tmpFileSpec.lfn,
                                                                                     tmpFileSpec.startEvent,
                                                                                     tmpFileSpec.endEvent,
-                                                                                    nEventsPerWorker)
+                                                                                    nEventsPerWorker,
+                                                                                    taskSpec.getMaxAttemptES())
                             # calcurate total master size
                             if tmpDatasetSpec.isMaster():
                                 totalMasterSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
@@ -750,7 +755,8 @@ class JobGeneratorThread (WorkerThread):
                                                                                                          False,
                                                                                                          xmlConfigJob,
                                                                                                          siteDsMap,
-                                                                                                         middleName)
+                                                                                                         middleName,
+                                                                                                         registerDatasets)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
