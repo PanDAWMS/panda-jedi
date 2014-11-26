@@ -1180,11 +1180,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to check status
-            sqlS  = "SELECT status,lockedBy,cloud,prodSourceLabel FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlS  = "SELECT status,lockedBy,cloud,prodSourceLabel,frozenTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlS += "WHERE jediTaskID=:jediTaskID FOR UPDATE "
             # sql to update task
             sqlU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlU += "SET status=:status,modificationTime=:updateTime,stateChangeTime=CURRENT_DATE,lockedBy=NULL,lockedTime=NULL"
+            sqlU += "SET status=:status,modificationTime=:updateTime,stateChangeTime=CURRENT_DATE,"
+            sqlU += "lockedBy=NULL,lockedTime=NULL,frozenTime=:frozenTime"
             if taskSpec != None:
                 sqlU += ",oldStatus=:oldStatus,errorDialog=:errorDialog"
             sqlU += " WHERE jediTaskID=:jediTaskID "
@@ -1200,7 +1201,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if res == None:
                 tmpLog.debug('task is not found in Tasks table')
             else:
-                taskStatus,lockedBy,cloudName,prodSourceLabel = res
+                taskStatus,lockedBy,cloudName,prodSourceLabel,frozenTime = res
                 if lockedBy != pid:
                     # task is locked
                     tmpLog.debug('task is locked by {0}'.format(lockedBy))
@@ -1209,22 +1210,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
                 else:
                     # update task
+                    timeNow = datetime.datetime.utcnow()
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
-                    varMap[':updateTime'] = datetime.datetime.utcnow()
+                    varMap[':updateTime'] = timeNow
                     if taskSpec != None:
                         # new task status is specified 
                         varMap[':status']      = taskSpec.status
                         varMap[':oldStatus']   = taskSpec.oldStatus
                         varMap[':errorDialog'] = taskSpec.errorDialog
+                        # set/unset frozen time
+                        if taskSpec.status == 'pending':
+                            if frozenTime == None:
+                                varMap[':frozenTime'] = timeNow
+                        else:
+                            if frozenTime != None:
+                                varMap[':frozenTime'] = None
                     elif cloudName == None and prodSourceLabel in ['managed','test']:
                         # set assigning for TaskBrokerage
                         varMap[':status'] = 'assigning'
+                        varMap[':frozenTime'] = None
                         # set old update time to trigger TaskBrokerage immediately
                         varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     else:
                         # skip task brokerage since cloud is preassigned
                         varMap[':status'] = 'ready'
+                        varMap[':frozenTime'] = None
                         # set old update time to trigger JG immediately
                         varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     tmpLog.debug(sqlU+comment+str(varMap))
@@ -1284,7 +1295,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             timeNow = datetime.datetime.utcnow()
             taskSpec.modificationTime = timeNow
             # sql to get old status
-            sqlS  = "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI) 
+            sqlS  = "SELECT status,frozenTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI) 
             sql = 'WHERE '
             varMap = {}
             for tmpKey,tmpVal in criteria.iteritems():
@@ -1303,10 +1314,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             # get old status
+            frozenTime = None
             self.cur.execute(sqlS+sql+comment,varMap)
             res = self.cur.fetchone()
-            if res != None and res[0] != taskSpec.status:
-                taskSpec.stateChangeTime = timeNow
+            if res != None:
+                statusInDB,frozenTime = res
+                if statusInDB != taskSpec.status:
+                    taskSpec.stateChangeTime = timeNow
+            # set/unset frozen time
+            if taskSpec.status == 'pending':
+                if frozenTime == None:
+                    taskSpec.frozenTime = timeNow
+            else:
+                if frozenTime != None:
+                    taskSpec.frozenTime = None
             # update task
             sqlU  = "UPDATE {0}.JEDI_Tasks SET {1} ".format(jedi_config.db.schemaJEDI,
                                                             taskSpec.bindUpdateChangesExpression())
@@ -5137,7 +5158,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':status'] = 'pending'
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=timeLimit)
-            sqlTL  = "SELECT jediTaskID,creationDate,errorDialog,parent_tid,splitRule,startTime "
+            sqlTL  = "SELECT jediTaskID,frozenTime,errorDialog,parent_tid,splitRule,startTime "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlTL += "AND tabT.status=:status AND tabT.modificationTime<:timeLimit AND tabT.oldStatus IS NOT NULL "
@@ -5157,7 +5178,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTO += "WHERE jediTaskID=:jediTaskID "
             # sql to keep pending
             sqlTK  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlTK += "SET modificationtime=CURRENT_DATE "
+            sqlTK += "SET modificationtime=CURRENT_DATE,frozenTime=CURRENT_DATE "
             sqlTK += "WHERE jediTaskID=:jediTaskID "
             # sql to update DEFT task status
             sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
@@ -5169,7 +5190,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resTL = self.cur.fetchall()
             # loop over all tasks
             nRow = 0
-            for jediTaskID,creationDate,errorDialog,parent_tid,splitRule,startTime in resTL:
+            for jediTaskID,frozenTime,errorDialog,parent_tid,splitRule,startTime in resTL:
                 timeoutFlag = False
                 keepFlag = False
                 varMap = {}
@@ -5187,15 +5208,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         sql = sqlTU
                 else:
                     # if timeout
-                    if timeoutDate != None and creationDate < timeoutDate and \
-                            (startTime == None or startTime < timeoutDate):
+                    if timeoutDate != None and frozenTime != None and frozenTime < timeoutDate:
                         timeoutFlag = True
                         varMap[':newStatus'] = 'aborting'
                         if errorDialog == None:
                             errorDialog = ''
                         else:
                             errorDialog += '. '
-                        errorDialog += 'timeout while in pending'
+                        errorDialog += 'timeout while in pending since {0}'.format(frozenTime.strftime('%Y/%m/%d %H:%M:%S'))
                         varMap[':errorDialog'] = errorDialog
                         sql = sqlTO
                     else:
