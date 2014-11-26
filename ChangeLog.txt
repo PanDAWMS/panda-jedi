@@ -1,6 +1,7 @@
 Release Note
 
 * 11/26/2014
+  * fixed setSplitRule for -
   * using frozenTime for pending
   * added getOldBuildFileSpec
   * checking attribute lengths before registering tasks

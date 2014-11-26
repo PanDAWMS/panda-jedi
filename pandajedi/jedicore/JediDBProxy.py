@@ -1223,9 +1223,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if taskSpec.status == 'pending':
                             if frozenTime == None:
                                 varMap[':frozenTime'] = timeNow
+                            else:
+                                varMap[':frozenTime'] = frozenTime
                         else:
-                            if frozenTime != None:
-                                varMap[':frozenTime'] = None
+                            varMap[':frozenTime'] = None
                     elif cloudName == None and prodSourceLabel in ['managed','test']:
                         # set assigning for TaskBrokerage
                         varMap[':status'] = 'assigning'

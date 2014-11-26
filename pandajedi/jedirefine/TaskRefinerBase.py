@@ -534,13 +534,13 @@ class TaskRefinerBase (object):
         if self.taskSpec.splitRule in [None,'']:
             self.taskSpec.splitRule = tmpStr
         else:
-            tmpMatch = re.search(valName+'=(\d+)',self.taskSpec.splitRule)
+            tmpMatch = re.search(valName+'=(-*\d+)',self.taskSpec.splitRule)
             if tmpMatch == None:
                 # append
                 self.taskSpec.splitRule += ',{0}'.format(tmpStr)
             else:
                 # replace
-                self.taskSpec.splitRule = re.sub(valName+'=(\d+)',
+                self.taskSpec.splitRule = re.sub(valName+'=(-*\d+)',
                                                  tmpStr,
                                                  self.taskSpec.splitRule)
         return    
