@@ -224,6 +224,8 @@ class JobGeneratorThread (WorkerThread):
         self.taskSetupper = taskSetupper
         self.msgType      = 'jobgenerator'
         self.pid          = pid
+        self.buildSpecMap = {}
+
 
 
     # main
@@ -243,6 +245,8 @@ class JobGeneratorThread (WorkerThread):
                     # loop over all inputs
                     for idxInputList,tmpInputItem in enumerate(inputList):
                         taskSpec,cloudName,inputChunk = tmpInputItem
+                        # reset map of buildSpec
+                        self.buildSpecMap = {}
                         # make logger
                         tmpLog = MsgWrapper(self.logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,
                                                                                                 inputChunk.masterIndexName),
@@ -826,8 +830,16 @@ class JobGeneratorThread (WorkerThread):
             datasetToRegister = []
             # get sites which share DDM endpoint
             associatedSites = DataServiceUtils.getSitesShareDDM(self.siteMapper,siteName) 
-            # get lib.tgz file
-            tmpStat,fileSpec,datasetSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID,siteName,associatedSites)
+            associatedSites.sort()
+            # key for map of buildSpec
+            buildSpecMapKey = (taskSpec.jediTaskID,tuple(associatedSites))
+            if buildSpecMapKey in self.buildSpecMap:
+                # reuse lib.tgz
+                reuseDatasetID,reuseFileID = self.buildSpecMap[buildSpecMapKey]
+                tmpStat,fileSpec,datasetSpec = self.taskBufferIF.getOldBuildFileSpec_JEDI(taskSpec.jediTaskID,reuseDatasetID,reuseFileID)
+            else:
+                # get lib.tgz file
+                tmpStat,fileSpec,datasetSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID,siteName,associatedSites)
             # failed
             if not tmpStat:
                 tmpLog.error('failed to get lib.tgz for jediTaskID={0} siteName={0}'.format(taskSpec.jediTaskID,siteName))
@@ -896,8 +908,9 @@ class JobGeneratorThread (WorkerThread):
                 jobSpec.specialHandling = specialHandling
             libDsFileNameBase = libDsName + '.$JEDIFILEID'
             # make lib.tgz
+            libTgzName = libDsFileNameBase + '.lib.tgz'
             fileSpec = FileSpec()
-            fileSpec.lfn        = libDsFileNameBase + '.lib.tgz'
+            fileSpec.lfn        = libTgzName
             fileSpec.type       = 'output'
             fileSpec.attemptNr  = 0
             fileSpec.jediTaskID = taskSpec.jediTaskID
@@ -930,6 +943,8 @@ class JobGeneratorThread (WorkerThread):
                 tmpFile.lfn = fileIdMap[tmpFile.lfn]['newLFN']
                 if not tmpFile.datasetID in datasetToRegister:
                     datasetToRegister.append(tmpFile.datasetID)
+            # append to map of buildSpec
+            self.buildSpecMap[buildSpecMapKey] = [fileIdMap[libTgzName]['datasetID'],fileIdMap[libTgzName]['fileID']]
             # parameter map
             paramMap = {}
             paramMap['OUT']  = fileSpec.lfn

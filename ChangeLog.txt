@@ -1,5 +1,9 @@
 Release Note
 
+* 11/26/2014
+  * added getOldBuildFileSpec
+  * checking attribute lengths before registering tasks
+
 * 11/25/2014
   * added unlockTasks
   * added maxAttemptES

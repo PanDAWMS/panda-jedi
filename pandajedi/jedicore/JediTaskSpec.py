@@ -30,6 +30,8 @@ class JediTaskSpec(object):
     _seqAttrMap = {}
     # limit length
     _limitLength = {'errorDialog' : 255}
+    # attribute length
+    _attrLength = {'workingGroup': 32}
     # tokens for split rule
     splitRuleToken = {
         'allowEmptyInput'    : 'AE',
@@ -921,3 +923,17 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
+
+
+
+    # check attribute length
+    def checkAttrLength(self):
+        for attrName,attrLength in self._attrLength.iteritems():
+            attrVal = getattr(self,attrName)
+            if attrVal == None:
+                continue
+            if len(attrVal) > attrLength:
+                setattr(self,attrName,None)
+                self.errorDialog = "{0} is too long (actual: {1}, maximum: {2})".format(attrName,len(attrVal),attrLength)
+                return False
+        return True

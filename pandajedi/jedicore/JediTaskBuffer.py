@@ -768,6 +768,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # get file spec of old lib.tgz
+    def getOldBuildFileSpec_JEDI(self,jediTaskID,datasetID,fileID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getOldBuildFileSpec_JEDI(jediTaskID,datasetID,fileID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # insert lib dataset and files
     def insertBuildFileSpec_JEDI(self,jobSpec,reusedDatasetID,simul):
         # get DBproxy

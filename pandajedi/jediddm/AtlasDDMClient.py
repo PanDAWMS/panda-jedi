@@ -234,13 +234,13 @@ class AtlasDDMClient(DDMClientBase):
             tmpStat,tmpOut = self.getFilesInDataset(datasetSpec.datasetName)
             if tmpStat != self.SC_SUCCEEDED:
                 tmpLog.error('faild to get file list with {0}'.format(tmpOut))
-                raise tmpStat,tmpOut
+                return tmpStat,tmpOut
             totalNumFiles = len(tmpOut)
             # get replica map
             tmpStat,tmpOut = self.listDatasetReplicas(datasetSpec.datasetName)
             if tmpStat != self.SC_SUCCEEDED:
                 tmpLog.error('faild to get dataset replicas with {0}'.format(tmpOut))
-                raise tmpStat,tmpOut
+                return tmpStat,tmpOut
             datasetReplicaMap = tmpOut
             # collect SE, LFC hosts, storage path, storage type
             lfcSeMap = {}

@@ -165,6 +165,12 @@ class TaskRefinerThread (WorkerThread):
                             errStr = 'failed to extract common parameters with {0}:{1}'.format(errtype.__name__,errvalue)
                             tmpLog.error(errStr)
                             tmpStat = Interaction.SC_FAILED
+                    # check attribute length
+                    if tmpStat == Interaction.SC_SUCCEEDED:
+                        tmpLog.info('checking attribute length')
+                        if not impl.taskSpec.checkAttrLength():
+                            tmpLog.error(impl.taskSpec.errorDialog)
+                            tmpStat = Interaction.SC_FAILED
                     # check parent
                     noWaitParent = False
                     if tmpStat == Interaction.SC_SUCCEEDED:

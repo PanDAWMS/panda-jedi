@@ -5250,7 +5250,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND type=:type "
-            sqlFR += "AND status IN (:status1,:status2,:status3) "
+            sqlFR += "AND status IN (:status1,:status2) "
             sqlFR += "ORDER BY creationDate DESC "
             # start transaction
             self.conn.begin()
@@ -5276,8 +5276,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':datasetID']  = datasetSpec.datasetID
                     varMap[':type']       = 'lib'
                     varMap[':status1']    = 'finished'
-                    varMap[':status2']    = 'defined'
-                    varMap[':status3']    = 'running'
+                    varMap[':status2']    = 'running'
                     self.cur.execute(sqlFR+comment,varMap)
                     resFileList = self.cur.fetchall()
                     for resFile in resFileList:
@@ -5292,6 +5291,59 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # no more lookup with other sites
                 if foundFlag:
                     break
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            if fileSpec != None:
+                tmpLog.debug("got lib.tgz={0}".format(fileSpec.lfn))
+            else:
+                tmpLog.debug("no lib.tgz")
+            return True,fileSpec,datasetSpec
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False,None 
+
+
+
+    # get file spec of old lib.tgz
+    def getOldBuildFileSpec_JEDI(self,jediTaskID,datasetID,fileID):
+        comment = ' /* JediDBProxy.getOldBuildFileSpec_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0} datasetID={1} fileID={2}>".format(jediTaskID,datasetID,fileID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get dataset
+            sqlRD  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
+            sqlRD += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # sql to read files
+            sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
+            sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
+            # start transaction
+            self.conn.begin()
+            # get dataset
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':datasetID']  = datasetID
+            self.cur.execute(sqlRD+comment,varMap)
+            tmpRes = self.cur.fetchone()
+            datasetSpec = JediDatasetSpec()
+            datasetSpec.pack(tmpRes)
+            # get file
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':datasetID']  = datasetID
+            varMap[':fileID']     = fileID
+            self.cur.execute(sqlFR+comment,varMap)
+            tmpRes = self.cur.fetchone()
+            fileSpec = JediFileSpec()
+            fileSpec.pack(tmpRes)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
