@@ -150,6 +150,7 @@ class ContentsFeederThread (WorkerThread):
                     # loop over all datasets
                     nFilesMaster = 0
                     checkedMaster = False
+                    setFrozenTime = True
                     if not taskBroken:
                         ddmIF = self.ddmIF.getInterface(taskSpec.vo) 
                         origNumFiles = None
@@ -383,6 +384,7 @@ class ContentsFeederThread (WorkerThread):
                                         tmpLog.info(tmpErrStr)
                                         taskSpec.setErrDiag(tmpErrStr)
                                         taskOnHold = True
+                                        setFrozenTime = False
                                         break
                             tmpLog.info('end loop')
                     # no mater input
@@ -430,7 +432,7 @@ class ContentsFeederThread (WorkerThread):
                             tmpMsg = 'set task.status={0}'.format(taskSpec.status)
                             tmpLog.info(tmpMsg)
                             tmpLog.sendMsg(tmpMsg,self.msgType)
-                            allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,pid=self.pid)
+                            allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,pid=self.pid,setFrozenTime=setFrozenTime)
                         elif allUpdated:
                             # all OK
                             allRet,newTaskStatus = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,getTaskStatus=True,

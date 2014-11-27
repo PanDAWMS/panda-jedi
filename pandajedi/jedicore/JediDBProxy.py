@@ -1172,7 +1172,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update JEDI task status by ContentsFeeder
-    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False,pid=None):
+    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False,pid=None,setFrozenTime=True):
         comment = ' /* JediDBProxy.updateTaskStatusByContFeeder_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -1220,7 +1220,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':oldStatus']   = taskSpec.oldStatus
                         varMap[':errorDialog'] = taskSpec.errorDialog
                         # set/unset frozen time
-                        if taskSpec.status == 'pending':
+                        if taskSpec.status == 'pending' and setFrozenTime:
                             if frozenTime == None:
                                 varMap[':frozenTime'] = timeNow
                             else:
@@ -1274,7 +1274,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update JEDI task
-    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None,updateDEFT=True,insertUnknown=None):
+    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None,updateDEFT=True,insertUnknown=None,setFrozenTime=True):
         comment = ' /* JediDBProxy.updateTask_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(taskSpec.jediTaskID)
@@ -1323,7 +1323,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if statusInDB != taskSpec.status:
                     taskSpec.stateChangeTime = timeNow
             # set/unset frozen time
-            if taskSpec.status == 'pending':
+            if taskSpec.status == 'pending' and setFrozenTime:
                 if frozenTime == None:
                     taskSpec.frozenTime = timeNow
             else:

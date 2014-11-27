@@ -189,7 +189,8 @@ class TaskRefinerThread (WorkerThread):
                                         impl.taskSpec.setOnHold()
                                         impl.taskSpec.setErrDiag(errStr)
                                         tmpLog.info(errStr)
-                                        self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
+                                        self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
+                                                                          setFrozenTime=False)
                                         continue
                                     else:
                                         # not wait for parent
@@ -217,14 +218,17 @@ class TaskRefinerThread (WorkerThread):
                                     and errtype == JediException.UnknownDatasetError:
                                 if impl.taskSpec.noWaitParent():
                                     tmpErrStr = 'pending until parent produces input'
+                                    setFrozenTime=False
                                 else:
                                     tmpErrStr = 'pending until input is staged'
+                                    setFrozenTime=True
                                 impl.taskSpec.status = taskStatus
                                 impl.taskSpec.setOnHold()
                                 impl.taskSpec.setErrDiag(tmpErrStr)
                                 tmpLog.info(tmpErrStr)
                                 self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
-                                                                  insertUnknown=impl.unknownDatasetList)
+                                                                  insertUnknown=impl.unknownDatasetList,
+                                                                  setFrozenTime=setFrozenTime)
                                 continue
                             else:
                                 errStr  = 'failed to refine task with {0}:{1}'.format(errtype.__name__,errvalue)

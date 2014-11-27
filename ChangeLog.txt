@@ -1,5 +1,8 @@
 Release Note
 
+* 11/27/2014
+  * set frozenTime for pending in Refiner
+
 * 11/26/2014
   * fixed setSplitRule for -
   * using frozenTime for pending

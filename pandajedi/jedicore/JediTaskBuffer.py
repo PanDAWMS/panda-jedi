@@ -206,11 +206,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # update JEDI task
-    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None,updateDEFT=False,insertUnknown=None):
+    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None,updateDEFT=False,insertUnknown=None,
+                        setFrozenTime=True):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.updateTask_JEDI(taskSpec,criteria,oldStatus,updateDEFT,insertUnknown)
+        retVal = proxy.updateTask_JEDI(taskSpec,criteria,oldStatus,updateDEFT,insertUnknown,
+                                       setFrozenTime)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -232,11 +234,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # update JEDI task status by ContentsFeeder
-    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False,pid=None):
+    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False,pid=None,
+                                          setFrozenTime=True):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,getTaskStatus,pid)
+        retVal = proxy.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,getTaskStatus,
+                                                         pid,setFrozenTime)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
