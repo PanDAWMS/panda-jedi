@@ -18,6 +18,9 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
     # extract common parameters
     def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule):
         processingTypes = taskParamMap['processingType'].split('-')
+        # set ddmBackEnd
+        if not 'ddmBackEnd' in taskParamMap:
+            taskParamMap['ddmBackEnd'] = 'rucio'
         # set sourceURL
         try:
             if taskParamMap.has_key('sourceURL'):

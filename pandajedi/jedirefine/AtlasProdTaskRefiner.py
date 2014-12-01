@@ -15,6 +15,16 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
         TaskRefinerBase.__init__(self,taskBufferIF,ddmIF)
 
 
+
+    # extract common parameters
+    def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule):
+        # set ddmBackEnd
+        if not 'ddmBackEnd' in taskParamMap:
+            taskParamMap['ddmBackEnd'] = 'rucio'
+        TaskRefinerBase.extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule)
+
+
+
     # main
     def doRefine(self,jediTaskID,taskParamMap):
         # make logger

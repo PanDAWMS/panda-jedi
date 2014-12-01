@@ -606,11 +606,11 @@ class JobGeneratorThread (WorkerThread):
                         if specialHandling == '':
                             specialHandling = 'ddm:{0},'.format(tmpDdmBackEnd)
                         else:
-                            specialHandling += 'ddm:{0},'.format(tmpDdmBackEnd)
+                            specialHandling += ',ddm:{0},'.format(tmpDdmBackEnd)
                     # set specialHandling for Event Service
                     if taskSpec.useEventService():
                         nEventsPerWorker = taskSpec.getNumEventsPerWorker()
-                        specialHandling = EventServiceUtils.getHeaderForES(esIndex)
+                        specialHandling += EventServiceUtils.getHeaderForES(esIndex)
                     # inputs
                     prodDBlock = None
                     setProdDBlock = False

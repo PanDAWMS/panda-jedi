@@ -1,5 +1,8 @@
 Release Note
 
+* 12/1/2014
+  * setting ddmBackEnd for ATLAS tasks
+
 * 11/27/2014
   * set frozenTime for pending in Refiner
 
