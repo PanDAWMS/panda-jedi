@@ -203,7 +203,7 @@ class MethodClass(object):
             memUsed = child_process.getMemUsage()
             if memUsed != None:
                 memStr= 'pid={0} memory={1}MB'.format(child_process.pid,memUsed)
-                if memUsed > 2*1024:
+                if memUsed > 1.5*1024:
                     largeMemory = True
                     memStr += ' exceeds memory limit'
                     dumpStdOut(self.className,memStr)

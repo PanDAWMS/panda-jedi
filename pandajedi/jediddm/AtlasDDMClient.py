@@ -51,6 +51,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName = 'getFilesInDataset'
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # get DQ2 API            
             dq2=DQ2()
@@ -104,6 +105,7 @@ class AtlasDDMClient(DDMClientBase):
                         errtype,errvalue = sys.exc_info()[:2]
                         errStr = '{0} AMI failed with {1} {2}'.format(methodName,errtype.__name__,errvalue)
                         tmpLog.warning(errStr)
+            tmpLog.debug('done')
             return self.SC_SUCCEEDED,fileMap
         except:
             errtype,errvalue = sys.exc_info()[:2]
@@ -117,12 +119,16 @@ class AtlasDDMClient(DDMClientBase):
     # list dataset replicas
     def listDatasetReplicas(self,datasetName):
         methodName = 'listDatasetReplicas'
+        methodName += ' <datasetName={0}>'.format(datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # get DQ2 API            
             dq2=DQ2()
             if not datasetName.endswith('/'):
                 # get file list
                 tmpRet = dq2.listDatasetReplicas(datasetName,old=False)
+                tmpLog.debug('got '+str(tmpRet))
                 return self.SC_SUCCEEDED,tmpRet
             else:
                 # list of attributes summed up
@@ -149,11 +155,14 @@ class AtlasDDMClient(DDMClientBase):
                                 # unknown
                                 retMap[tmpSite][-1][tmpAttr] = None
                 # return
+                tmpLog.debug('got '+str(retMap))
                 return self.SC_SUCCEEDED,retMap
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
-            return errCode,'%s : %s %s' % (methodName,errtype.__name__,errvalue)
+            errStr = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errStr)
+            return errCode,'{0} : {1}'.format(methodName,errStr)
 
 
 
@@ -185,7 +194,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName = 'getAvailableFiles'
         methodName += ' <datasetID={0}>'.format(datasetSpec.datasetID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.info('start datasetName={0}'.format(datasetSpec.datasetName))
+        tmpLog.debug('start datasetName={0}'.format(datasetSpec.datasetName))
         try:
             # list of NG endpoints
             ngEndPoints = []
@@ -393,7 +402,7 @@ class AtlasDDMClient(DDMClientBase):
             dumpStr= dumpStr[:-1]
             tmpLog.debug(dumpStr)
             # return
-            tmpLog.info('done')            
+            tmpLog.debug('done')            
             return self.SC_SUCCEEDED,returnMap
         except:
             errtype,errvalue = sys.exc_info()[:2]
@@ -492,6 +501,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName = 'checkDatasetConsistency'
         methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
         tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # get DQ2 API
             dq2=DQ2()
@@ -521,6 +531,9 @@ class AtlasDDMClient(DDMClientBase):
     # list dataset/container
     def listDatasets(self,datasetName,ignorePandaDS=True):
         methodName = 'listDatasets'
+        methodName += ' <datasetName={0}>'.format(datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # get DQ2 API            
             dq2=DQ2()
@@ -534,17 +547,23 @@ class AtlasDDMClient(DDMClientBase):
                         continue
                     tmpDsList.append(tmpDS)
                 dsList = tmpDsList
+            tmpLog.debug('got'+str(dsList))
             return self.SC_SUCCEEDED,dsList
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
-            return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
+            errStr = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errStr)
+            return errCode,'{0} : {1}'.format(methodName,errStr)
 
 
 
     # register new dataset/container
-    def registerNewDataset(self,datasetName,backEnd=None,location=None):
+    def registerNewDataset(self,datasetName,backEnd='rucio',location=None):
         methodName = 'registerNewDataset'
+        methodName += ' <datasetName={0}>'.format(datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # get DQ2 API
             if backEnd == None:
@@ -566,7 +585,10 @@ class AtlasDDMClient(DDMClientBase):
             errtype,errvalue = sys.exc_info()[:2]
             if not 'DataIdentifierAlreadyExists' in str(errvalue):
                 errCode = self.checkError(errtype)
-                return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
+                errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+                tmpLog.error(errMsg)
+                return errCode,'{0} : {1}'.format(methodName,errMsg)
+        tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
             
 
@@ -574,25 +596,31 @@ class AtlasDDMClient(DDMClientBase):
     # list datasets in container
     def listDatasetsInContainer(self,containerName):
         methodName = 'listDatasetsInContainer'
+        methodName += ' <containerName={0}>'.format(containerName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # get DQ2 API            
             dq2=DQ2()
             # get list
             dsList = dq2.listDatasetsInContainer(containerName)
+            tmpLog.debug('got'+str(dsList))
             return self.SC_SUCCEEDED,dsList
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
-            return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
 
         
 
     # expand Container
     def expandContainer(self,containerName):
         methodName = 'expandContainer'
-        methodName = '{0} contName={1}'.format(methodName,containerName)
+        methodName += ' <contName={0}>'.format(containerName)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.info('start')
+        tmpLog.debug('start')
         try:
             dsList = []
             # get real names
@@ -617,7 +645,7 @@ class AtlasDDMClient(DDMClientBase):
                         dsList.append(tmpStr)
             dsList.sort()        
             # return
-            tmpLog.info('got {0}'.format(str(dsList)))
+            tmpLog.debug('got {0}'.format(str(dsList)))
             return self.SC_SUCCEEDED,dsList
         except:
             errtype,errvalue = sys.exc_info()[:2]
@@ -629,8 +657,11 @@ class AtlasDDMClient(DDMClientBase):
         
 
     # add dataset to container
-    def addDatasetsToContainer(self,containerName,datasetNames,backEnd=None):
+    def addDatasetsToContainer(self,containerName,datasetNames,backEnd='rucio'):
         methodName = 'addDatasetsToContainer'
+        methodName += ' <contName={0}>'.format(containerName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
         try:
             # get DQ2 API
             if backEnd == None:
@@ -639,11 +670,14 @@ class AtlasDDMClient(DDMClientBase):
                 dq2 = DQ2(force_backend=backEnd)
             # add
             dq2.registerDatasetsInContainer(containerName,datasetNames)
+            tmpLog.debug('done')
             return self.SC_SUCCEEDED,True
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
-            return errCode,'{0} : {1} {2}'.format(methodName,errtype.__name__,errvalue)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error('failed with {0}'.format(errMsg))
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
 
 
 
@@ -651,7 +685,7 @@ class AtlasDDMClient(DDMClientBase):
     def getLatestDBRelease(self):
         methodName = 'getLatestDBRelease'
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.info('trying to get the latest version number of DBR')
+        tmpLog.debug('trying to get the latest version number of DBR')
         # get ddo datasets
         tmpStat,ddoDatasets = self.listDatasets('ddo.*')
         if tmpStat != self.SC_SUCCEEDED or ddoDatasets == {}:
@@ -733,7 +767,7 @@ class AtlasDDMClient(DDMClientBase):
         if latestDBR == '':
             tmpLog.error('failed to get the latest version of DBRelease dataset from DQ2')
             return self.SC_FAILED,None
-        tmpLog.info('use {0}'.format(latestDBR))
+        tmpLog.debug('use {0}'.format(latestDBR))
         return self.SC_SUCCEEDED,latestDBR
 
 
@@ -743,7 +777,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName = 'freezeDataset'
         methodName = '{0} datasetName={1}'.format(methodName,datasetName)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.info('start')
+        tmpLog.debug('start')
         isOK = True
         try:
             # get DQ2 API            
@@ -760,7 +794,7 @@ class AtlasDDMClient(DDMClientBase):
         except:
             isOK = False
         if isOK:
-            tmpLog.info('done')
+            tmpLog.debug('done')
             return self.SC_SUCCEEDED,True
         else:
             errtype,errvalue = sys.exc_info()[:2]
@@ -776,7 +810,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName = 'finger'
         methodName = '{0} userName={1}'.format(methodName,userName)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.info('start')
+        tmpLog.debug('start')
         try:
             # cleanup DN
             userName = parse_dn(userName)
@@ -788,19 +822,19 @@ class AtlasDDMClient(DDMClientBase):
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
             return errCode,'{0}:{1}'.format(methodName,errMsg)
-        tmpLog.info('done')
+        tmpLog.debug('done with '+str(tmpRet))
         return self.SC_SUCCEEDED,tmpRet
 
 
 
     # set dataset ownership
-    def setDatasetOwner(self,datasetName,userName,backEnd=None):
+    def setDatasetOwner(self,datasetName,userName,backEnd='rucio'):
         methodName = 'setDatasetOwner'
         methodName = '{0} datasetName={1} userName={2}'.format(methodName,datasetName,userName)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.info('start')
+        tmpLog.debug('start')
         try:
-            if backEnd != 'rucio':
+            if backEnd == 'dq2':
                 # cleanup DN
                 userName = parse_dn(userName)
                 # get DQ2 API            
@@ -813,7 +847,7 @@ class AtlasDDMClient(DDMClientBase):
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
             return errCode,'{0} : {1}'.format(methodName,errMsg)
-        tmpLog.info('done')
+        tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
 
 
@@ -824,7 +858,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName = '{0} datasetName={1} metadataName={2} metadaValue={3}'.format(methodName,datasetName,
                                                                                    metadataName,metadaValue)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.info('start')
+        tmpLog.debug('start')
         try:
             # get DQ2 API            
             dq2 = DQ2()
@@ -838,17 +872,17 @@ class AtlasDDMClient(DDMClientBase):
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
             return errCode,'{0} : {1}'.format(methodName,errMsg)
-        tmpLog.info('done')
+        tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
 
 
 
     # register location
-    def registerDatasetLocation(self,datasetName,location,lifetime=None,owner=None,backEnd=None):
+    def registerDatasetLocation(self,datasetName,location,lifetime=None,owner=None,backEnd='rucio'):
         methodName = 'registerDatasetLocation'
         methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.info('start')
+        tmpLog.debug('start')
         try:
             # cleanup DN
             owner = parse_dn(owner)
@@ -872,7 +906,7 @@ class AtlasDDMClient(DDMClientBase):
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
             return errCode,'{0} : {1}'.format(methodName,errMsg)
-        tmpLog.info('done')
+        tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
 
 
@@ -882,7 +916,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName = 'deleteDataset'
         methodName = '{0} datasetName={1}'.format(methodName,datasetName)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.info('start')
+        tmpLog.debug('start')
         isOK = True
         retStr = ''
         nFiles = -1
@@ -906,7 +940,7 @@ class AtlasDDMClient(DDMClientBase):
         except:
             isOK = False
         if isOK:
-            tmpLog.info('done')
+            tmpLog.debug('done')
             return self.SC_SUCCEEDED,retStr
         else:
             errtype,errvalue = sys.exc_info()[:2]
@@ -919,11 +953,11 @@ class AtlasDDMClient(DDMClientBase):
 
     # register subscription
     def registerDatasetSubscription(self,datasetName,location,activity=None,ignoreUnknown=False,
-                                    backEnd=None):
+                                    backEnd='rucio'):
         methodName = 'registerDatasetSubscription'
         methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.info('start')
+        tmpLog.debug('start')
         isOK = True
         try:
             # get DQ2 API
@@ -948,7 +982,7 @@ class AtlasDDMClient(DDMClientBase):
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
             return errCode,'{0} : {1}'.format(methodName,errMsg)
-        tmpLog.info('done')
+        tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
 
 
@@ -958,7 +992,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName = 'findLostFiles'
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.info('start')
+        tmpLog.debug('start')
         try:
             # get replicas
             tmpStat,tmpOut = self.listDatasetReplicas(datasetName)
@@ -975,7 +1009,7 @@ class AtlasDDMClient(DDMClientBase):
                     break
             # no lost files
             if hasCompReplica:
-                tmpLog.info('done with no lost files')
+                tmpLog.debug('done with no lost files')
                 return self.SC_SUCCEEDED,{}
             # get LFNs and scopes
             lfnMap = {}
@@ -1011,7 +1045,7 @@ class AtlasDDMClient(DDMClientBase):
                     if not tmpLFN in tmpRetMap:
                         newLfnMap[tmpGUID] = tmpLFN
                 lfnMap = newLfnMap
-            tmpLog.info('done with lost '+','.join(str(tmpLFN) for tmpLFN in lfnMap.values()))
+            tmpLog.debug('done with lost '+','.join(str(tmpLFN) for tmpLFN in lfnMap.values()))
             return self.SC_SUCCEEDED,lfnMap
         except:
             errtype,errvalue = sys.exc_info()[:2]

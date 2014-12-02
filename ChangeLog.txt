@@ -1,5 +1,8 @@
 Release Note
 
+* 12/2/2014
+  * added debug messages to AtlasDDM
+
 * 12/1/2014
   * setting ddmBackEnd for ATLAS tasks
 
