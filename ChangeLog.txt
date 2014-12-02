@@ -1,5 +1,9 @@
 Release Note
 
+* 12/3/2014
+  * using old=True for replica lookup
+  * using nEventsPerFile when rucio gives nevents=None
+
 * 12/2/2014
   * added debug messages to AtlasDDM
 

@@ -127,8 +127,10 @@ class AtlasDDMClient(DDMClientBase):
             dq2=DQ2()
             if not datasetName.endswith('/'):
                 # get file list
-                tmpRet = dq2.listDatasetReplicas(datasetName,old=False)
-                tmpLog.debug('got '+str(tmpRet))
+                tmpRet = dq2.listDatasetReplicas(datasetName,old=True)
+                tmpLog.debug('got old '+str(tmpRet))
+                tmpRet = self.convertOutListDatasetReplicas(tmpRet)
+                tmpLog.debug('got new '+str(tmpRet))
                 return self.SC_SUCCEEDED,tmpRet
             else:
                 # list of attributes summed up
@@ -137,7 +139,9 @@ class AtlasDDMClient(DDMClientBase):
                 # get constituent datasets
                 dsList = dq2.listDatasetsInContainer(datasetName)
                 for tmpName in dsList:
-                    tmpRet = dq2.listDatasetReplicas(tmpName,old=False)
+                    tmpLog.debug(tmpName)
+                    tmpRet = dq2.listDatasetReplicas(tmpName,old=True)
+                    tmpRet = self.convertOutListDatasetReplicas(tmpRet)
                     # loop over all sites
                     for tmpSite,tmpValMap in tmpRet.iteritems():
                         # add site
@@ -476,7 +480,8 @@ class AtlasDDMClient(DDMClientBase):
             # get DQ2 API
             dq2=DQ2()
             # get file list
-            tmpRet = dq2.getMetaDataAttribute(datasetName,dq2.listMetaDataAttributes())
+            #tmpRet = dq2.getMetaDataAttribute(datasetName,dq2.listMetaDataAttributes())
+            tmpRet = dq2.getMetaDataAttribute(datasetName,['state','owner'])
             # change dataset state to string
             if tmpRet['state'] in [DatasetState.CLOSED,DatasetState.FROZEN]:
                 tmpRet['state'] = 'closed'
@@ -547,7 +552,7 @@ class AtlasDDMClient(DDMClientBase):
                         continue
                     tmpDsList.append(tmpDS)
                 dsList = tmpDsList
-            tmpLog.debug('got'+str(dsList))
+            tmpLog.debug('got '+str(dsList))
             return self.SC_SUCCEEDED,dsList
         except:
             errtype,errvalue = sys.exc_info()[:2]
@@ -604,7 +609,7 @@ class AtlasDDMClient(DDMClientBase):
             dq2=DQ2()
             # get list
             dsList = dq2.listDatasetsInContainer(containerName)
-            tmpLog.debug('got'+str(dsList))
+            tmpLog.debug('got '+str(dsList))
             return self.SC_SUCCEEDED,dsList
         except:
             errtype,errvalue = sys.exc_info()[:2]
@@ -998,7 +1003,7 @@ class AtlasDDMClient(DDMClientBase):
             tmpStat,tmpOut = self.listDatasetReplicas(datasetName)
             if tmpStat != self.SC_SUCCEEDED:
                 tmpLog.error('faild to get dataset replicas with {0}'.format(tmpOut))
-                raise tmpStat,tmpOut
+                return tmpStat,tmpOut
             # check if complete replica is available
             hasCompReplica = False
             datasetReplicaMap = tmpOut
@@ -1038,7 +1043,7 @@ class AtlasDDMClient(DDMClientBase):
                 tmpStat,tmpRetMap = self.getSURLsFromLFC(lfnMap,lfcHost,seList,scopes=scopeMap)
                 if tmpStat != self.SC_SUCCEEDED:
                     tmpLog.error('faild to get SURLs with {0}'.format(tmpRetMap))
-                    raise tmpStat,tmpRetMap
+                    return tmpStat,tmpRetMap
                 # look for missing files
                 newLfnMap = {}
                 for tmpGUID,tmpLFN in lfnMap.iteritems():
@@ -1082,3 +1087,20 @@ class AtlasDDMClient(DDMClientBase):
                     retList.append(tmpSiteName)
         # return
         return retList
+
+
+
+    # convert output of listDatasetReplicas
+    def convertOutListDatasetReplicas(self,oldOut):
+        retMap = {}
+        try:
+            tmpVal = oldOut.values()[0]
+            # incomplete
+            for tmpEP in tmpVal[0]:
+                retMap[tmpEP] = [{'total':1, 'found':0}]
+            # complete
+            for tmpEP in tmpVal[1]:
+                retMap[tmpEP] = [{'total':1, 'found':1}]
+        except:
+            pass
+        return retMap

@@ -436,7 +436,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # mapping between sites and storage endpoints
                 siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(scanSiteList,self.siteMapper)
                 # disable file lookup for merge jobs
-                if inputChunk.isMerging:
+                if inputChunk.isMerging or not datasetSpec.isMaster():
                     checkCompleteness = False
                 else:
                     checkCompleteness = True
