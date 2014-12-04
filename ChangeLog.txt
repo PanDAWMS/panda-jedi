@@ -1,5 +1,10 @@
 Release Note
 
+* 12/4/2014
+  * changed AtlasProdJobBroker to send scouts to T1
+  * changed AtlasProdJobBroker to count # of jobs regardless of priorities
+  * fixed for ddo:
+
 * 12/3/2014
   * using old=True for replica lookup
   * using nEventsPerFile when rucio gives nevents=None

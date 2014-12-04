@@ -54,11 +54,15 @@ def getHospitalQueues(siteMapper):
 def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
     # get num of files
     try:
-        tmpFileMap = ddmIF.getFilesInDataset(datasetName)
+        if not datasetName.endswith('/'):
+            totalNumDatasets = 1
+        else:
+            tmpDsMap = ddmIF.listDatasetsInContainer(datasetName)
+            totalNumDatasets = len(tmpDsMap)
     except:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.ddmIF.getFilesInDataset failed with %s' % errvalue
-    totalNumFiles = len(tmpFileMap)
+    
     # get replicas
     try:
         replicaMap= {}
@@ -110,7 +114,7 @@ def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
                         ddmIF.checkDatasetConsistency(tmpSE,datasetName)
                     except:
                         pass
-                elif tmpStatistics['total'] == tmpStatistics['found'] and tmpStatistics['total'] >= totalNumFiles:
+                elif tmpStatistics['total'] == tmpStatistics['found'] and tmpStatistics['total'] >= totalNumDatasets:
                     tmpDatasetStatus = 'complete'
                 else:
                     tmpDatasetStatus = 'incomplete'

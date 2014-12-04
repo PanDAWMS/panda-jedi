@@ -7,6 +7,8 @@ from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediCoreUtils
 from JobBrokerBase import JobBrokerBase
 import AtlasBrokerUtils
+from pandaserver.dataservice import DataServiceUtils
+
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -104,16 +106,16 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for high priorities
-        if taskSpec.currentPriority >= 950 and useMP != 'only' and not sitePreAssigned:
+        if (taskSpec.currentPriority >= 950 or inputChunk.useScout()) and useMP != 'only' and not sitePreAssigned:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:            
                 if tmpSiteName in t1Sites:
                     newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpLog.debug('  skip {0} due to high prio which needs to run at {1} T1'.format(tmpSiteName,
-                                                                                                   cloudName))
+                    tmpLog.debug('  skip {0} due to highPrio/scouts which needs to run at {1} T1'.format(tmpSiteName,
+                                                                                                         cloudName))
             scanSiteList = newScanSiteList
-            tmpLog.debug('{0} candidates passed for high prio'.format(len(scanSiteList)))
+            tmpLog.debug('{0} candidates passed for highPrio/scouts'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -123,6 +125,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not sitePreAssigned:
             for datasetSpec in inputChunk.getDatasets():
                 datasetName = datasetSpec.datasetName
+                # ignore DBR
+                if DataServiceUtils.isDBR(datasetName):
+                    continue
                 if not self.dataSiteMap.has_key(datasetName):
                     # get the list of sites where data is available
                     tmpLog.debug('getting the list of sites where {0} is avalable'.format(datasetName))
@@ -475,8 +480,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # calculate weight
         tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
-                                                                                    taskSpec.prodSourceLabel,
-                                                                                    taskSpec.currentPriority)
+                                                                                    taskSpec.prodSourceLabel)
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

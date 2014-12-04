@@ -2649,7 +2649,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     maxFilesTobeRead = maxMasterFilesTobeRead
                                 else:
                                     # set very large number for secondary to read all files
-                                    maxFilesTobeRead = 1000000
+                                    maxFilesTobeRead = 10000
                                 tmpLog.debug('jediTaskID={2} trying to read {0} files from datasetID={1}'.format(maxFilesTobeRead,
                                                                                                                  datasetID,jediTaskID))
                                 if not taskSpec.useLoadXML():

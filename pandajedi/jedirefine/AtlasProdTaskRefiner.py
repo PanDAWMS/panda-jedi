@@ -34,7 +34,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             self.doBasicRefine(taskParamMap)
             # set nosplit+repeat for DBR
             for datasetSpec in self.inSecDatasetSpecList:
-                if datasetSpec.datasetName.startswith('ddo.'):
+                if DataServiceUtils.isDBR(datasetSpec.datasetName):
                     datasetSpec.attributes = 'repeat,nosplit'
             # append attempt number
             for tmpKey,tmpOutTemplateMapList in self.outputTemplateMap.iteritems():
