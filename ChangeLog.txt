@@ -1,5 +1,9 @@
 Release Note
 
+* 12/5/2014
+  * using t1Weight=0 when undefined
+  * increased threshold for fax overflow to 0.5 
+
 * 12/4/2014
   * changed AtlasProdJobBroker to send scouts to T1
   * changed AtlasProdJobBroker to count # of jobs regardless of priorities

@@ -880,7 +880,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['t1Weight']+'=(-*\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
-        return 1
+        return 0
 
 
 

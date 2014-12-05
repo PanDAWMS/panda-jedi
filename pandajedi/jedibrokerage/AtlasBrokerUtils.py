@@ -229,7 +229,7 @@ def getAnalSitesWithDataDisk(dataSiteMap,includeTape=False):
 
 
 # get sites which can remotely access source sites
-def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,threshold=0,
+def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,threshold=0.5,
                       cutoff=15,maxWeight=0.5):
     # loop over all sites
     retVal = {}
