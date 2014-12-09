@@ -1,5 +1,8 @@
 Release Note
 
+* 12/9/2014
+  * added some debug messages in insertFilesForDataset_JEDI
+
 * 12/5/2014
   * using t1Weight=0 when undefined
   * increased threshold for fax overflow to 0.5 

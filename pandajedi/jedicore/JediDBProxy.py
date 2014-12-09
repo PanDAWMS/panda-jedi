@@ -244,6 +244,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('includePatt={0} excludePatt={1}'.format(str(includePatt),str(excludePatt)))
         tmpLog.debug('xmlConfig={0} noWaitParent={1} parent_tid={2}'.format(type(xmlConfig),noWaitParent,parent_tid))
         tmpLog.debug('len(fileMap)={0} pid={1}'.format(len(fileMap),pid))
+        tmpLog.debug('datasetState={0}'.format(datasetState))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -776,6 +777,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         else:
                             varMap[':state' ] = datasetState
                         varMap[':stateUpdateTime'] = stateUpdateTime
+                        tmpLog.debug(sqlDU+comment+str(varMap))
                         self.cur.execute(sqlDU+comment,varMap)
                         # return number of activated pending inputs
                         diagMap['nActivatedPending'] = nActivatedPending    
