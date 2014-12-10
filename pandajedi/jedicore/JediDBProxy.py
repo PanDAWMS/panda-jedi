@@ -3012,7 +3012,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlTR += "AND prodSourceLabel=:prodSourceLabel " 
             # sql to get picked datasets
             sqlDP  = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-            sqlDP += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3,:type4) " 
+            sqlDP += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3,:type4,:type5) " 
             # sql to rollback files
             sqlF  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oStatus AND keepTrack=:keepTrack "
@@ -3053,6 +3053,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':type2'] = 'trn_log'
                 varMap[':type3'] = 'trn_output'
                 varMap[':type4'] = 'pseudo_input'
+                varMap[':type5'] = 'random_seed'
                 self.cur.execute(sqlDP+comment,varMap)
                 resDatasetList = self.cur.fetchall()
                 # loop over all input datasets
