@@ -6,6 +6,7 @@ from TaskRefinerBase import TaskRefinerBase
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandaserver.config import panda_config
 
+from pandaserver.dataservice import DataServiceUtils
 
 # brokerage for ATLAS analysis
 class AtlasAnalTaskRefiner (TaskRefinerBase):
@@ -95,7 +96,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                     datasetSpec.datasetName = self.ddmIF.getInterface(self.taskSpec.vo).getLatestDBRelease(useResultCache=3600)
                     datasetSpec.containerName = datasetSpec.datasetName
                 # set attributes to DBR
-                if datasetSpec.datasetName.startswith('ddo.'):
+                if DataServiceUtils.isDBR(datasetSpec.datasetName):
                     datasetSpec.attributes = 'repeat,nosplit'
             # destination
             if taskParamMap.has_key('destination'):

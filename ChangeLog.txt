@@ -2,6 +2,7 @@ Release Note
 
 * 12/10/2014
   * to rescue random_seed
+  * fixed ddo check in AtlasTR
 
 * 12/9/2014
   * added some debug messages in insertFilesForDataset_JEDI
