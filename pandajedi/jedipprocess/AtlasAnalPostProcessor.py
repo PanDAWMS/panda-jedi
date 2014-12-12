@@ -50,6 +50,28 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                     closedFlag = True
                 else:
                     closedFlag = False
+                # remove wrong files
+                if not closedFlag and datasetSpec.type in ['output','log']:
+                    # get successful files
+                    okFiles = self.taskBufferIF.getSuccessfulFiles_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID)
+                    if okFiles == None:
+                        tmpLog.warning('failed to get successful files for {0}'.format(datasetSpec.datasetName))
+                        return self.SC_FAILED
+                    # get files in dataset
+                    ddmFiles = ddmIF.getFilesInDataset(datasetSpec.datasetName,skipDuplicate=False)
+                    tmpLog.info('datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM'.format(datasetSpec.datasetID,
+                                                                                                      datasetSpec.datasetName,
+                                                                                                      len(okFiles),len(ddmFiles)))
+                    # check all files
+                    toDelete = []
+                    for tmpGUID,attMap in ddmFiles.iteritems():
+                        if attMap['lfn'] not in okFiles:
+                            did = {'scope':attMap['scope'], 'name':attMap['lfn']}
+                            toDelete.append(did)
+                            tmpLog.info('delete {0} from {1}'.format(attMap['lfn'],datasetSpec.datasetName))
+                    # delete
+                    if toDelete != []:
+                        ddmIF.deleteFilesFromDataset(datasetSpec.datasetName,toDelete)
                 # freeze datasets
                 if not closedFlag and not (datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']):
                     tmpLog.info('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))

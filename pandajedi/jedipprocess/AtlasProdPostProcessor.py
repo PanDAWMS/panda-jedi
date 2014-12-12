@@ -21,6 +21,33 @@ class AtlasProdPostProcessor (PostProcessorBase):
         # loop over all datasets
         for datasetSpec in taskSpec.datasetSpecList:
             try:
+                # remove wrong files
+                if datasetSpec.type in ['output','log']:
+                    # get successful files
+                    okFiles = self.taskBufferIF.getSuccessfulFiles_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID)
+                    if okFiles == None:
+                        tmpLog.warning('failed to get successful files for {0}'.format(datasetSpec.datasetName))
+                        return self.SC_FAILED
+                    # get files in dataset
+                    ddmFiles = ddmIF.getFilesInDataset(datasetSpec.datasetName,skipDuplicate=False)
+                    tmpLog.info('datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM'.format(datasetSpec.datasetID,
+                                                                                                      datasetSpec.datasetName,
+                                                                                                      len(okFiles),len(ddmFiles)))
+                    # check all files
+                    toDelete = []
+                    for tmpGUID,attMap in ddmFiles.iteritems():
+                        if attMap['lfn'] not in okFiles:
+                            did = {'scope':attMap['scope'], 'name':attMap['lfn']}
+                            toDelete.append(did)
+                            tmpLog.info('delete {0} from {1}'.format(attMap['lfn'],datasetSpec.datasetName))
+                    # delete
+                    if toDelete != []:
+                        ddmIF.deleteFilesFromDataset(datasetSpec.datasetName,toDelete)
+            except:
+                errtype,errvalue = sys.exc_info()[:2]
+                tmpLog.warning('failed to remove wrong files with {0}:{1}'.format(errtype.__name__,errvalue))
+                return self.SC_FAILED
+            try:
                 # freeze output and log datasets
                 if datasetSpec.type in ['output','log','trn_log']:
                     tmpLog.info('freezing datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))

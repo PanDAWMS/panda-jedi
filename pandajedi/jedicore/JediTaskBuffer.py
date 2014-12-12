@@ -994,3 +994,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get successful files
+    def getSuccessfulFiles_JEDI(self,jediTaskID,datasetID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getSuccessfulFiles_JEDI(jediTaskID,datasetID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

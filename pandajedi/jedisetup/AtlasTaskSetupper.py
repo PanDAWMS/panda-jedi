@@ -96,10 +96,15 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                                                                                    taskSpec.userName))
                                         return retFatal
                                     # register location
-                                    if targetName == datasetSpec.datasetName and not datasetSpec.site in ['',None]: 
-                                        tmpLog.info('registring location={0}'.format(location))
+                                    if targetName == datasetSpec.datasetName and not datasetSpec.site in ['',None]:
+                                        # set lifetime
+                                        if targetName.startswith('panda') or targetName.startswith('user'): 
+                                            lifetime = '15 days'
+                                        else:
+                                            lifetime = None
+                                        tmpLog.info('registring location={0} lifetime={1}'.format(location,lifetime))
                                         tmpStat = ddmIF.registerDatasetLocation(targetName,location,owner=taskSpec.userName,
-                                                                                backEnd=ddmBackEnd)
+                                                                                lifetime=lifetime,backEnd=ddmBackEnd)
                                         if not tmpStat:
                                             tmpLog.error('failed to register location {0} with {2} for {1}'.format(location,
                                                                                                                    targetName,

@@ -6789,3 +6789,41 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False
 
 
+
+    # get successful files
+    def getSuccessfulFiles_JEDI(self,jediTaskID,datasetID):
+        comment = ' /* JediDBProxy.getSuccessfulFiles_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0} datasetID={1}>".format(jediTaskID,datasetID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get files
+            sqlF  = "SELECT lfn FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
+            # begin transaction
+            self.conn.begin()
+            # lock
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':datasetID'] = datasetID
+            varMap[':status'] = 'finished'
+            self.cur.execute(sqlF+comment,varMap)
+            res = self.cur.fetchall()
+            lfnList = []
+            for lfn, in res:
+                lfnList.append(lfn)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return    
+            tmpLog.debug('got {0} files'.format(len(lfnList)))
+            return lfnList
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+

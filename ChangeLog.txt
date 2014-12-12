@@ -1,5 +1,8 @@
 Release Note
 
+* 12/12/2014
+  * added junk file cleaner in AtlasPP
+
 * 12/10/2014
   * to rescue random_seed
   * fixed ddo check in AtlasTR
