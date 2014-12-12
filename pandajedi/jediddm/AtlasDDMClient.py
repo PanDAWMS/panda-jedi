@@ -23,7 +23,7 @@ from dq2.common import parse_dn
 from dq2.info.client.infoClient import infoClient
 
 from rucio.client import Client as RucioClient
-from rucio.common.exception import UnsupportedOperation
+from rucio.common.exception import UnsupportedOperation,DataIdentifierNotFound
 
 try:
     from pyAMI.client import AMIClient
@@ -1150,3 +1150,33 @@ class AtlasDDMClient(DDMClientBase):
         if dsn.startswith('user') or dsn.startswith('group'):
             scope = ".".join(dsn.split('.')[0:2])
         return scope,dsn
+
+
+
+    # open dataset
+    def openDataset(self,datasetName):
+        methodName  = 'openDataset'
+        methodName += ' <datasetName={0}>'.format(datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        isOK = True
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
+            # open dataset
+            try:
+                client.set_status(scope,dsn,open=True)
+            except (UnsupportedOperation,DataIdentifierNotFound):
+                pass
+        except:
+            isOK = False
+        if not isOK:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
+        tmpLog.debug('done')
+        return self.SC_SUCCEEDED,True

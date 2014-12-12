@@ -2,6 +2,7 @@ Release Note
 
 * 12/12/2014
   * added junk file cleaner in AtlasPP
+  * improved AtlasTS to open output/log datasets
 
 * 12/10/2014
   * to rescue random_seed

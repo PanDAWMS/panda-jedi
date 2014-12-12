@@ -17,6 +17,6 @@ class GenTaskSetupper (TaskSetupperBase):
 
 
     # main to setup task
-    def doSetup(self,taskSpec,datasetToRegister):
+    def doSetup(self,taskSpec,datasetToRegister,pandaJobs):
         return self.SC_SUCCEEDED
             

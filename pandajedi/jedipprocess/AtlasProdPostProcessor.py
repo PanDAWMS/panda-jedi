@@ -22,7 +22,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
         for datasetSpec in taskSpec.datasetSpecList:
             try:
                 # remove wrong files
-                if datasetSpec.type in ['output','log']:
+                if datasetSpec.type in ['output']:
                     # get successful files
                     okFiles = self.taskBufferIF.getSuccessfulFiles_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID)
                     if okFiles == None:

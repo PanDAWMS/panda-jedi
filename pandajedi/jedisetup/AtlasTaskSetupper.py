@@ -24,7 +24,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
 
 
     # main to setup task
-    def doSetup(self,taskSpec,datasetToRegister):
+    def doSetup(self,taskSpec,datasetToRegister,pandaJobs):
         # make logger
         tmpLog = MsgWrapper(logger,"<jediTaskID={0}>".format(taskSpec.jediTaskID))
         tmpLog.info('start label={0} taskType={1}'.format(taskSpec.prodSourceLabel,taskSpec.taskType))
@@ -34,13 +34,14 @@ class AtlasTaskSetupper (TaskSetupperBase):
         retTmpError = self.SC_FAILED
         retOK       = self.SC_SUCCEEDED
         try:
+            # get DDM I/F
+            ddmIF = self.ddmIF.getInterface(taskSpec.vo)
+            # register datasets
             if datasetToRegister != []:
                 # prod vs anal
                 userSetup = False
                 if taskSpec.prodSourceLabel in ['user']:
                     userSetup = True
-                # get DDM I/F
-                ddmIF = self.ddmIF.getInterface(taskSpec.vo)
                 # get site mapper
                 siteMapper = self.taskBufferIF.getSiteMapper()
                 # loop over all datasets
@@ -134,6 +135,19 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     datasetSpec.status = 'registered'
                     self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'jediTaskID':taskSpec.jediTaskID,
                                                                       'datasetID':datasetID})
+            # open datasets
+            if taskSpec.prodSourceLabel in ['managed','test']:
+                # get the list of output/log datasets
+                outDatasetList = []
+                for tmpPandaJob in pandaJobs:
+                    for tmpFileSpec in tmpPandaJob.Files:
+                        if tmpFileSpec.type in ['output','log']:
+                            if not tmpFileSpec.destinationDBlock in outDatasetList:
+                                outDatasetList.append(tmpFileSpec.destinationDBlock)
+                # open datasets
+                for outDataset in outDatasetList:
+                    tmpLog.info('open {0}'.format(outDataset))
+                    ddmIF.openDataset(outDataset)
             # return
             tmpLog.info('done')        
             return retOK

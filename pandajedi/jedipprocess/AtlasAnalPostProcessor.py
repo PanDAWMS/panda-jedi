@@ -51,7 +51,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 else:
                     closedFlag = False
                 # remove wrong files
-                if not closedFlag and datasetSpec.type in ['output','log']:
+                if not closedFlag and datasetSpec.type in ['output']:
                     # get successful files
                     okFiles = self.taskBufferIF.getSuccessfulFiles_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID)
                     if okFiles == None:

@@ -357,7 +357,7 @@ class JobGeneratorThread (WorkerThread):
                         if goForward:
                             tmpLog.info('run setupper with {0}'.format(self.taskSetupper.getClassName(taskSpec.vo,
                                                                                                       taskSpec.prodSourceLabel)))
-                            tmpStat = self.taskSetupper.doSetup(taskSpec,datasetToRegister)
+                            tmpStat = self.taskSetupper.doSetup(taskSpec,datasetToRegister,pandaJobs)
                             if tmpStat != Interaction.SC_SUCCEEDED:
                                 tmpErrStr = 'failed to setup task'
                                 tmpLog.error(tmpErrStr)
