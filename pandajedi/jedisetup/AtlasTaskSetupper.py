@@ -63,6 +63,11 @@ class AtlasTaskSetupper (TaskSetupperBase):
                         if targetName == None:
                             continue
                         if not targetName in avDatasetList:
+                            # set lifetime
+                            if targetName.startswith('panda') or targetName.startswith('user'): 
+                                lifetime = 14
+                            else:
+                                lifetime = None
                             # check dataset/container in DDM
                             tmpList = ddmIF.listDatasets(targetName)
                             if tmpList == []:
@@ -80,10 +85,12 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                     else:
                                         location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
                                 # register dataset/container
-                                tmpLog.info('registering {0} with location={1} backend={2}'.format(targetName,
-                                                                                                   location,
-                                                                                                   ddmBackEnd))
-                                tmpStat = ddmIF.registerNewDataset(targetName,backEnd=ddmBackEnd,location=location)
+                                tmpLog.info('registering {0} with location={1} backend={2} lifetime={3}'.format(targetName,
+                                                                                                                location,
+                                                                                                                ddmBackEnd,
+                                                                                                                lifetime))
+                                tmpStat = ddmIF.registerNewDataset(targetName,backEnd=ddmBackEnd,location=location,
+                                                                   lifetime=lifetime)
                                 if not tmpStat:
                                     tmpLog.error('failed to register {0}'.format(targetName))
                                     return retFatal
@@ -98,14 +105,10 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                         return retFatal
                                     # register location
                                     if targetName == datasetSpec.datasetName and not datasetSpec.site in ['',None]:
-                                        # set lifetime
-                                        if targetName.startswith('panda') or targetName.startswith('user'): 
-                                            lifetime = '15 days'
-                                        else:
-                                            lifetime = None
-                                        tmpLog.info('registring location={0} lifetime={1}'.format(location,lifetime))
+                                        tmpLog.info('registring location={0} lifetime={1} days'.format(location,lifetime))
                                         tmpStat = ddmIF.registerDatasetLocation(targetName,location,owner=taskSpec.userName,
-                                                                                lifetime=lifetime,backEnd=ddmBackEnd)
+                                                                                lifetime="{0} days".format(lifetime),
+                                                                                backEnd=ddmBackEnd)
                                         if not tmpStat:
                                             tmpLog.error('failed to register location {0} with {2} for {1}'.format(location,
                                                                                                                    targetName,

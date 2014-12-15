@@ -265,7 +265,7 @@ class JediDatasetSpec(object):
 
     # check if it is pseudo
     def isPseudo(self):
-        if self.datasetName == 'pseudo_dataset' \
+        if self.datasetName in ['pseudo_dataset','seq_number'] \
                 or self.type in ['pp_input']:
             return True
         else:
@@ -276,6 +276,15 @@ class JediDatasetSpec(object):
     # check if it is a many-time dataset which is treated as long-standing at T2s
     def isManyTime(self):
         if self.attributes != None and 'manytime' in self.attributes:
+            return True
+        else:
+            return False
+
+
+
+    # check if it is seq number
+    def isSeqNumber(self):
+        if self.datasetName in ['seq_number']:
             return True
         else:
             return False

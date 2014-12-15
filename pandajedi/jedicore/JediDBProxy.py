@@ -350,7 +350,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # increment boundaryID
                     tmpBoundaryID += 1
             # truncate if nessesary
-            offsetVal = datasetSpec.getOffset()
+            if datasetSpec.isSeqNumber():
+                offsetVal = 0
+            else:
+                offsetVal = datasetSpec.getOffset()
             if offsetVal > 0:
                 lfnList = lfnList[offsetVal:]
             tmpLog.debug('offset={0}'.format(offsetVal))

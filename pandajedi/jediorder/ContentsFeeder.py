@@ -221,7 +221,23 @@ class ContentsFeederThread (WorkerThread):
                                                 tmpLog.info('removed {0}'.format(tmpLostLFN))
                                                 del tmpRet[tmpListGUID]
                                     else:
-                                        if not taskSpec.useListPFN():
+                                        if datasetSpec.isSeqNumber():
+                                            # make dummy files for seq_number
+                                            if origNumFiles != None:
+                                                nPFN = origNumFiles
+                                            else:
+                                                nPFN = 10000
+                                            tmpRet = {}
+                                            # get offset
+                                            tmpOffset = datasetSpec.getOffset()
+                                            tmpOffset += 1
+                                            for iPFN in range(nPFN):
+                                                tmpRet[str(uuid.uuid4())] = {'lfn':iPFN+tmpOffset,
+                                                                             'scope':None,
+                                                                             'filesize':0,
+                                                                             'checksum':None,
+                                                                             }
+                                        elif not taskSpec.useListPFN():
                                             # dummy file list for pseudo dataset
                                             tmpRet = {str(uuid.uuid4()):{'lfn':'pseudo_lfn',
                                                                          'scope':None,

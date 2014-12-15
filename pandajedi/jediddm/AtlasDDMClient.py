@@ -567,11 +567,11 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # register new dataset/container
-    def registerNewDataset(self,datasetName,backEnd='rucio',location=None):
+    def registerNewDataset(self,datasetName,backEnd='rucio',location=None,lifetime=None):
         methodName = 'registerNewDataset'
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
+        tmpLog.debug('start location={0} lifetime={1}'.format(location,lifetime))
         try:
             # get DQ2 API
             if backEnd == None:
@@ -584,6 +584,13 @@ class AtlasDDMClient(DDMClientBase):
                     dq2.registerNewDataset(datasetName)
                 else:
                     dq2.registerNewDataset(datasetName,rse=location)
+                # set lifetime
+                if lifetime != None:
+                    # get rucio API
+                    client = RucioClient()
+                    # get scope and name
+                    scope,dsn = self.extract_scope(datasetName)
+                    client.set_metadata(scope,dsn,key='lifetime',value=lifetime*86400)
             else:
                 # register container
                 dq2.registerContainer(datasetName)

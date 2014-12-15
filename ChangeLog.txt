@@ -1,6 +1,11 @@
 Release Note
 
 * 12/12/2014
+  * setting lifetime to panda/user datasets using rucio api
+  * introduced seq_number
+  * added support for offset of seq_number
+
+* 12/12/2014
   * added junk file cleaner in AtlasPP
   * improved AtlasTS to open output/log datasets
 
