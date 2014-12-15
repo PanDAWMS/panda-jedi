@@ -1,6 +1,7 @@
 Release Note
 
 * 12/12/2014
+  * fixed getTasksToExecCommand_JEDI for recovery from pending
   * added reqID to JobSpec
   * setting lifetime to panda/user datasets using rucio api
   * introduced seq_number

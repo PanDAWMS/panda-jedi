@@ -4706,7 +4706,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # check task status
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
-                        sqlTC =  "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                        sqlTC =  "SELECT status,oldStatus FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
                         sqlTC += "WHERE jediTaskID=:jediTaskID FOR UPDATE "
                         self.cur.execute(sqlTC+comment,varMap)
                         resTC = self.cur.fetchone()
@@ -4714,7 +4714,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpLog.error("jediTaskID={0} is not found in JEDI_Tasks".format(jediTaskID))
                             isOK = False
                         else:
-                            taskStatus = resTC[0]
+                            taskStatus,taskOldStatus = resTC
                             if commandStr == 'retry':
                                 if not taskStatus in JediTaskSpec.statusToRetry():
                                     # task is in a status which rejects retry
@@ -4783,6 +4783,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if not commandStr in ['pause','resume']:
                             retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment,
                                                       'oldStatus':taskStatus}
+                            # use old status if pending
+                            if taskStatus == 'pending':
+                                retTaskIDs[jediTaskID]['oldStatus'] = taskOldStatus
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
