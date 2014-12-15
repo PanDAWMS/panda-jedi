@@ -564,6 +564,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.jediTaskID       = taskSpec.jediTaskID
                     jobSpec.taskID           = taskSpec.jediTaskID
                     jobSpec.jobsetID         = taskSpec.reqID
+                    jobSpec.reqID            = taskSpec.reqID
                     jobSpec.workingGroup     = taskSpec.workingGroup
                     jobSpec.countryGroup     = taskSpec.countryGroup
                     jobSpec.computingSite    = siteName
@@ -870,6 +871,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.processingType   = taskSpec.processingType
             jobSpec.jediTaskID       = taskSpec.jediTaskID
             jobSpec.jobsetID         = taskSpec.reqID
+            jobSpec.reqID            = taskSpec.reqID
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.countryGroup     = taskSpec.countryGroup
             jobSpec.computingSite    = siteName
@@ -990,6 +992,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.processingType   = taskSpec.processingType
             jobSpec.jediTaskID       = taskSpec.jediTaskID
             jobSpec.jobsetID         = taskSpec.reqID
+            jobSpec.reqID            = taskSpec.reqID
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.countryGroup     = taskSpec.countryGroup
             jobSpec.computingSite    = siteName
