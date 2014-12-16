@@ -116,6 +116,8 @@ class TaskCommandoThread (WorkerThread):
                     tmpLog.info('start for {0}'.format(commandStr))
                     tmpStat = Interaction.SC_SUCCEEDED
                     if commandStr in ['kill','finish','reassign']:
+                        tmpMsg = 'executing {0}'.format(commandStr)
+                        tmpLog.sendMsg(tmpMsg,self.msgType)
                         # get active PandaIDs to be killed
                         pandaIDs = self.taskBufferIF.getPandaIDsWithTask_JEDI(jediTaskID,True)
                         if pandaIDs == None:
@@ -125,7 +127,9 @@ class TaskCommandoThread (WorkerThread):
                         if tmpStat == Interaction.SC_SUCCEEDED:
                             if pandaIDs == []:
                                 # done since no active jobs
-                                tmpLog.info('completed the command')
+                                tmpMsg = 'completed cleaning jobs'
+                                tmpLog.sendMsg(tmpMsg,self.msgType)
+                                tmpLog.info(tmpMsg)
                                 tmpTaskSpec = JediTaskSpec()
                                 tmpTaskSpec.jediTaskID = jediTaskID
                                 updateTaskStatus = True
@@ -139,19 +143,30 @@ class TaskCommandoThread (WorkerThread):
                                         tmpTaskSpec.cloud = tmpItems[1]
                                     else:
                                         tmpTaskSpec.site = tmpItems[1]
+                                    tmpMsg = 'set {0}={1}'.format(tmpItems[0],tmpItems[1])
+                                    tmpLog.sendMsg(tmpMsg,self.msgType)
+                                    tmpLog.info(tmpMsg)
                                     # back to oldStatus if necessary 
                                     if tmpItems[2] == 'y':
                                         tmpTaskSpec.status = oldStatus
                                         tmpTaskSpec.forceUpdate('oldStatus')
                                         updateTaskStatus = False
+                                tmpTaskSpec.forceUpdate('errorDialog')
                                 if updateTaskStatus:
                                     tmpTaskSpec.status = JediTaskSpec.commandStatusMap()[commandStr]['done']
+                                tmpMsg = 'set task.status={0}'.format(tmpTaskSpec.status)
+                                tmpLog.sendMsg(tmpMsg,self.msgType)
+                                tmpLog.info(tmpMsg)
                                 tmpRet = self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':jediTaskID})
                             else:
-                                tmpLog.info('sending kill command')
+                                tmpMsg = "trying to kill jobs"
+                                tmpLog.info(tmpMsg)
+                                tmpLog.sendMsg(tmpMsg,self.msgType)
                                 tmpRet = self.taskBufferIF.killJobs(pandaIDs,commentStr,'50',True)
                             tmpLog.info('done with {0}'.format(str(tmpRet)))
                     elif commandStr in ['retry','incexec']:
+                        tmpMsg = 'executing {0}'.format(commandStr)
+                        tmpLog.sendMsg(tmpMsg,self.msgType)
                         # change task params for incexec
                         if commandStr == 'incexec':
                             try:

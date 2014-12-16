@@ -4738,6 +4738,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             isOK = False
                         else:
                             taskStatus,taskOldStatus = resTC
+                            tmpLog.debug("jediTaskID={0} in status:{1} oldStatud:{2}".format(jediTaskID,taskStatus,taskOldStatus))
                             if commandStr == 'retry':
                                 if not taskStatus in JediTaskSpec.statusToRetry():
                                     # task is in a status which rejects retry
@@ -4791,6 +4792,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             sqlTU += "oldStatus=status,"
                         sqlTU += "modificationTime=CURRENT_DATE,errorDialog=:errDiag,stateChangeTime=CURRENT_DATE "
                         sqlTU += "WHERE jediTaskID=:jediTaskID "
+                        tmpLog.debug(sqlTU+comment+str(varMap))
                         self.cur.execute(sqlTU+comment,varMap)
                     # update command table
                     varMap = {}

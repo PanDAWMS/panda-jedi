@@ -536,13 +536,13 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec = JobSpec()
                     jobSpec.jobDefinitionID  = 0
                     jobSpec.jobExecutionID   = 0
-                    jobSpec.attemptNr        = 1
+                    jobSpec.attemptNr        = self.getLargestAttemptNr(inSubChunk)
                     if taskSpec.disableAutoRetry():
                         # disable server/pilot retry
                         jobSpec.maxAttempt   = -1
                     elif taskSpec.useEventService():
                         # set max attempt for event service
-                        jobSpec.maxAttempt   = 3
+                        jobSpec.maxAttempt   = jobSpec.attemptNr + 3
                     else:
                         jobSpec.maxAttempt   = jobSpec.attemptNr
                     jobSpec.jobName          = taskSpec.taskName
@@ -1338,6 +1338,16 @@ class JobGeneratorThread (WorkerThread):
             newPandaJob.addFile(newFileSpec)
         return newPandaJob
 
+
+    # get the largest attempt number
+    def getLargestAttemptNr(self,inSubChunk):
+        largestAttemptNr = 0
+        for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
+            if tmpDatasetSpec.isMaster():
+                for tmpFileSpec in tmpFileSpecList:
+                    if tmpFileSpec.attemptNr != None and tmpFileSpec.attemptNr > largestAttemptNr:
+                        largestAttemptNr = tmpFileSpec.attemptNr
+        return largestAttemptNr+1
 
 
 
