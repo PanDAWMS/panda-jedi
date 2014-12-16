@@ -6277,22 +6277,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             sqlIN = "INSERT INTO {0}.JEDI_Job_Retry_History ".format(jedi_config.db.schemaJEDI) 
             if relationType == None:
-                sqlIN += "(jediTaskID,oldPandaID,newPandaID) "
-                sqlIN += "VALUES(:jediTaskID,:oldPandaID,:newPandaID) "
+                sqlIN += "(jediTaskID,oldPandaID,newPandaID,originPandaID) "
+                sqlIN += "VALUES(:jediTaskID,:oldPandaID,:newPandaID,:originPandaID) "
             else:
-                sqlIN += "(jediTaskID,oldPandaID,newPandaID,relationType) "
-                sqlIN += "VALUES(:jediTaskID,:oldPandaID,:newPandaID,:relationType) "
+                sqlIN += "(jediTaskID,oldPandaID,newPandaID,originPandaID,relationType) "
+                sqlIN += "VALUES(:jediTaskID,:oldPandaID,:newPandaID,:originPandaID,:relationType) "
             # start transaction
             self.conn.begin()
             for newPandaID,oldPandaIDs in oldNewPandaIDs.iteritems():
                 for oldPandaID in oldPandaIDs:
-                    varMap = {}
-                    varMap[':jediTaskID'] = jediTaskID
-                    varMap[':oldPandaID'] = oldPandaID
-                    varMap[':newPandaID'] = newPandaID
-                    if relationType != None:
-                        varMap[':relationType'] = relationType
-                    self.cur.execute(sqlIN+comment,varMap)
+                    # get origin
+                    originIDs = self.getOriginPandaIDsJEDI(oldPandaID,jediTaskID,self.cur)
+                    for originID in originIDs:
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':oldPandaID'] = oldPandaID
+                        varMap[':newPandaID'] = newPandaID
+                        varMap[':originPandaID'] = originID
+                        if relationType != None:
+                            varMap[':relationType'] = relationType
+                        self.cur.execute(sqlIN+comment,varMap)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

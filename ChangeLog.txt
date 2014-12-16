@@ -1,6 +1,7 @@
 Release Note
 
 * 12/16/2014
+  * changed for originpandaid
   * added more debug messages for reassignTask
   * setting job.attemptNr=max(file.attemptNr)
   * checking mutable before preparing tasks

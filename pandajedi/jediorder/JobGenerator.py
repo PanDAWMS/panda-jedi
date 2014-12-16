@@ -542,7 +542,10 @@ class JobGeneratorThread (WorkerThread):
                         jobSpec.maxAttempt   = -1
                     elif taskSpec.useEventService():
                         # set max attempt for event service
-                        jobSpec.maxAttempt   = jobSpec.attemptNr + 3
+                        if taskSpec.getMaxAttemptES() == None:
+                            jobSpec.maxAttempt = jobSpec.attemptNr + 3
+                        else:
+                            jobSpec.maxAttempt = jobSpec.attemptNr + taskSpec.getMaxAttemptES()
                     else:
                         jobSpec.maxAttempt   = jobSpec.attemptNr
                     jobSpec.jobName          = taskSpec.taskName
