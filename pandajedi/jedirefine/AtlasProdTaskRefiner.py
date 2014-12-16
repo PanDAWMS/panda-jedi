@@ -36,6 +36,11 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             for datasetSpec in self.inSecDatasetSpecList:
                 if DataServiceUtils.isDBR(datasetSpec.datasetName):
                     datasetSpec.attributes = 'repeat,nosplit'
+            # enable consistency check
+            if not self.taskSpec.parent_tid in [None,self.taskSpec.jediTaskID]:
+                for datasetSpec in self.inMasterDatasetSpec:
+                    if datasetSpec.isMaster() and datasetSpec.type == 'input':
+                        datasetSpec.enableCheckConsistency()
             # append attempt number
             for tmpKey,tmpOutTemplateMapList in self.outputTemplateMap.iteritems():
                 for tmpOutTemplateMap in tmpOutTemplateMapList:

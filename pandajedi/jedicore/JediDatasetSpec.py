@@ -263,6 +263,15 @@ class JediDatasetSpec(object):
 
 
 
+    # set consistency is checked
+    def enableCheckConsistency(self):
+        if self.attributes in [None,'']:
+            self.attributes = 'cc'
+        elif not 'cc' in self.attributes.split(','):
+            self.attributes += ',cc'
+
+
+
     # check if it is pseudo
     def isPseudo(self):
         if self.datasetName in ['pseudo_dataset','seq_number'] \

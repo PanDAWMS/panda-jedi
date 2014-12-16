@@ -160,6 +160,9 @@ class TaskRefinerThread (WorkerThread):
                             impl.oldTaskStatus = taskStatus
                             # extarct common parameters
                             impl.extractCommon(jediTaskID,taskParamMap,self.workQueueMapper,splitRule)
+                            # set parent tid
+                            if not parent_tid in [None,jediTaskID]:
+                                impl.taskSpec.parent_tid = parent_tid
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             errStr = 'failed to extract common parameters with {0}:{1}'.format(errtype.__name__,errvalue)

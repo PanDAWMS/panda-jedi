@@ -272,13 +272,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlPPC  = "SELECT lfn FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
                 sqlPPC += "WHERE tabD.jediTaskID=tabC.jediTaskID AND tabD.datasetID=tabC.datasetID "
                 sqlPPC += "AND tabD.jediTaskID=:jediTaskID AND tabD.type IN (:type1,:type2) "
-                sqlPPC += "AND tabD.datasetName=:datasetName AND tabC.status=:fileStatus "
+                sqlPPC += "AND tabD.datasetName IN (:dsName,:didName) AND tabC.status=:fileStatus "
                 varMap = {}
                 varMap[':type1'] = 'output'
                 varMap[':type2'] = 'log'
                 varMap[':jediTaskID']  = parent_tid
                 varMap[':fileStatus']  = 'finished'
-                varMap[':datasetName'] = datasetSpec.datasetName
+                varMap[':didName'] = datasetSpec.datasetName
+                varMap[':dsName'] = datasetSpec.datasetName.split(':')[-1]
                 # begin transaction
                 self.conn.begin()
                 self.cur.execute(sqlPPC+comment,varMap)
@@ -4117,6 +4118,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlRD += '{0},'.format(mapKey)
             sqlRD  = sqlRD[:-1]
             sqlRD += ') '
+            # sql to check if there is mutable dataset
+            sqlMTC  = "SELECT COUNT(*) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlMTC += "WHERE jediTaskID=:jediTaskID AND state=:state AND type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sqlMTC += '{0},'.format(mapKey)
+            sqlMTC  = sqlMTC[:-1]
+            sqlMTC += ') '
             # sql to update input dataset status
             sqlDIU  = "UPDATE {0}.JEDI_Datasets SET status=:status,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlDIU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
@@ -4303,6 +4312,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     # partially succeeded
                                     varMap[':status'] = 'finished'
                             varMapList.append(varMap)
+                        # check just in case if there is mutable dataset 
+                        if not mutableFlag:
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':state']  = 'mutable'
+                            for tmpType in JediDatasetSpec.getInputTypes():
+                                mapKey = ':type_'+tmpType
+                                varMap[mapKey] = tmpType
+                            self.cur.execute(sqlMTC+comment,varMap)
+                            resMTC = self.cur.fetchone()
+                            numMutable, = resMTC
+                            tmpLog.debug('jediTaskID={0} has {1} mutable datasetes'.format(jediTaskID,numMutable))
+                            if numMutable > 0:
+                                mutableFlag = True
                         if mutableFlag:
                             # go to defined to trigger CF
                             newTaskStatus = 'defined'

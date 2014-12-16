@@ -1,6 +1,10 @@
 Release Note
 
-* 12/12/2014
+* 12/16/2014
+  * checking mutable before preparing tasks
+  * enabled consistency check for chained prod tasks
+
+* 12/15/2014
   * fixed getTasksToExecCommand_JEDI for recovery from pending
   * added reqID to JobSpec
   * setting lifetime to panda/user datasets using rucio api
