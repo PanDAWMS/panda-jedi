@@ -2,6 +2,7 @@ Release Note
 
 * 12/17/2014
   * added unlockSingleTask_JEDI
+  * fixed getAvailableFiles for checkCompleteness
 
 * 12/16/2014
   * changed for originpandaid

@@ -201,7 +201,8 @@ class AtlasDDMClient(DDMClientBase):
         methodName = 'getAvailableFiles'
         methodName += ' <datasetID={0}>'.format(datasetSpec.datasetID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start datasetName={0}'.format(datasetSpec.datasetName))
+        tmpLog.debug('start datasetName={0} checkCompleteness={1}'.format(datasetSpec.datasetName,
+                                                                          checkCompleteness))
         try:
             # list of NG endpoints
             ngEndPoints = []
@@ -277,11 +278,12 @@ class AtlasDDMClient(DDMClientBase):
                     if (datasetReplicaMap.has_key(tmpEndPoint) and datasetReplicaMap[tmpEndPoint][-1]['found'] != None \
                             and datasetReplicaMap[tmpEndPoint][-1]['total'] == datasetReplicaMap[tmpEndPoint][-1]['found'] \
                             and datasetReplicaMap[tmpEndPoint][-1]['total'] >= totalNumFiles) \
-                            or not checkCompleteness:
+                            or (not checkCompleteness and datasetReplicaMap.has_key(tmpEndPoint)) \
+                            or DataServiceUtils.isCachedFile(datasetSpec.datasetName,tmpSiteSpec):
                         completeReplicaMap[tmpEndPoint] = storageType
                         siteHasCompleteReplica = True
-                    # no LFC scan for many-time datasets
-                    if datasetSpec.isManyTime():
+                    # no LFC scan for many-time datasets or disabled completeness check
+                    if datasetSpec.isManyTime() or (not checkCompleteness and not datasetReplicaMap.has_key(tmpEndPoint)):
                         continue
                     # get LFC
                     lfc = TiersOfATLAS.getLocalCatalog(tmpEndPoint)
