@@ -1,5 +1,8 @@
 Release Note
 
+* 12/17/2014
+  * added unlockSingleTask_JEDI
+
 * 12/16/2014
   * changed for originpandaid
   * added more debug messages for reassignTask

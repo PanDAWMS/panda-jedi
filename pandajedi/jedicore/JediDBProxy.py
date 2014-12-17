@@ -244,7 +244,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('includePatt={0} excludePatt={1}'.format(str(includePatt),str(excludePatt)))
         tmpLog.debug('xmlConfig={0} noWaitParent={1} parent_tid={2}'.format(type(xmlConfig),noWaitParent,parent_tid))
         tmpLog.debug('len(fileMap)={0} pid={1}'.format(len(fileMap),pid))
-        tmpLog.debug('datasetState={0}'.format(datasetState))
+        tmpLog.debug('datasetState={0} dataset.state={1}'.format(datasetState,datasetSpec.state))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -559,7 +559,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # task is locked
                     tmpLog.debug('task is locked by {0}'.format(taskLockedBy))
                 elif not (taskStatus in JediTaskSpec.statusToUpdateContents() or \
-                              (taskStatus == 'running' and datasetState == 'mutable')):
+                              (taskStatus == 'running' and (datasetState == 'mutable' or datasetSpec.state == 'mutable'))):
                     # task status is irrelevant
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
                 else:
@@ -6860,5 +6860,39 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+
+    # unlock a single task
+    def unlockSingleTask_JEDI(self,jediTaskID,pid):
+        comment = ' /* JediDBProxy.unlockSingleTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0} pid={1}>'.format(jediTaskID,pid)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to unlock
+            sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU += "SET lockedBy=NULL,lockedTime=NULL "
+            sqlTU += "WHERE jediTaskID=:jediTaskID AND lockedBy=:pid "
+            # begin transaction
+            self.conn.begin()
+            # unlock
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':pid'] = pid
+            self.cur.execute(sqlTU+comment,varMap)
+            nRow = self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done with {0}'.format(nRow))
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
 
 

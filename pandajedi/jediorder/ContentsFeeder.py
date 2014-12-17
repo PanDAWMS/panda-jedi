@@ -456,6 +456,10 @@ class ContentsFeederThread (WorkerThread):
                             tmpMsg = 'set task.status={0}'.format(newTaskStatus)
                             tmpLog.info(tmpMsg)
                             tmpLog.sendMsg(tmpMsg,self.msgType)
+                    else:
+                        # just unlock
+                        retUnlock = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID,self.pid)
+                        tmpLog.info('unlock task with {0}'.format(retUnlock))
                     tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
