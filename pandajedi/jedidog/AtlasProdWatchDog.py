@@ -29,6 +29,8 @@ class AtlasProdWatchDog (WatchDogBase):
             self.doActionForPriorityBoost(tmpLog)
             # action for reassign
             self.doActionForReassgin(tmpLog)
+            # action for throttled
+            #self.doActionForThrottled(tmpLog)
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('failed with {0} {1}'.format(errtype,errvalue))
@@ -137,3 +139,14 @@ class AtlasProdWatchDog (WatchDogBase):
                 taskSpec.oldStatus = None
                 self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
                 tmpLog.debug('finished to reassign')
+
+
+
+    # action for throttled tasks
+    def doActionForThrottled(self,gTmpLog):
+        # release tasks 
+        nTasks = self.taskBufferIF.releaseThrottledTasks_JEDI(self.vo,self.prodSourceLabel)
+        gTmpLog.debug('released {0} tasks'.format(nTasks))
+        nTasks = self.taskBufferIF.throttleTasks_JEDI(self.vo,self.prodSourceLabel,
+                                                      jedi_config.watchdog.waitForThrottled)
+        gTmpLog.debug('throttled {0} tasks'.format(nTasks))

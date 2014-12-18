@@ -228,6 +228,9 @@ timeoutForPending = 7
 # wait period for locked tasks in minutes
 waitForLocked = 60
 
+# wait period for throttled tasks in minutes
+waitForThrottled = 10
+
 
 
 

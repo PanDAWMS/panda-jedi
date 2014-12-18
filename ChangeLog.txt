@@ -1,5 +1,10 @@
 Release Note
 
+* 12/18/2014
+  * added num_records to dataset attributes
+  * removed lifetime setting for user datasets
+  * added machinery to throttle tasks
+
 * 12/17/2014
   * added unlockSingleTask_JEDI
   * fixed getAvailableFiles for checkCompleteness

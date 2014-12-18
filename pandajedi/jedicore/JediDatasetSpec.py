@@ -33,6 +33,7 @@ class JediDatasetSpec(object):
         'offset':       'of',
         'nFilesPerJob': 'np',
         'objectStore' : 'os',
+        'num_records' : 'nr',
         }
 
 
@@ -422,6 +423,24 @@ class JediDatasetSpec(object):
 
 
 
+    # set number of records
+    def setNumRecords(self,n):
+        self.setDatasetAttribute('{0}={1}'.format(self.attrToken['num_records'],n))
+
+
+
+    # get number of records
+    def getNumRecords(self):
+        if self.attributes != None:
+            for item in self.attributes.split(','):
+                tmpMatch = re.search(self.attrToken['num_records']+'=(\d+)',item)
+                if tmpMatch != None:
+                    num_records = int(tmpMatch.group(1))
+                    return num_records
+        return None
+
+
+
     # set object store
     def setObjectStore(self,objectStore):
         self.setDatasetAttribute('{0}={1}'.format(self.attrToken['objectStore'],objectStore))
@@ -451,6 +470,9 @@ class JediDatasetSpec(object):
             if tmpMatch != None:
                 num = int(tmpMatch.group(1))
                 return num
+        # use continuous numbers for seq_number
+        if self.isSeqNumber():
+            return 1
         return None
 
 

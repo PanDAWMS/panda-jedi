@@ -1020,3 +1020,29 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get JEDI tasks to be throttled
+    def throttleTasks_JEDI(self,vo,prodSourceLabel,waitTime):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.throttleTasks_JEDI(vo,prodSourceLabel,waitTime)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # release throttled tasks
+    def releaseThrottledTasks_JEDI(self,vo,prodSourceLabel):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.releaseThrottledTasks_JEDI(vo,prodSourceLabel)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

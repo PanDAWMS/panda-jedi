@@ -223,7 +223,9 @@ class ContentsFeederThread (WorkerThread):
                                     else:
                                         if datasetSpec.isSeqNumber():
                                             # make dummy files for seq_number
-                                            if origNumFiles != None:
+                                            if datasetSpec.getNumRecords() != None:
+                                                nPFN = datasetSpec.getNumRecords()
+                                            elif origNumFiles != None:
                                                 nPFN = origNumFiles
                                             else:
                                                 nPFN = 10000

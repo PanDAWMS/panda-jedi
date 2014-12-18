@@ -6896,3 +6896,158 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False
 
 
+
+    # get JEDI tasks to be throttled
+    def throttleTasks_JEDI(self,vo,prodSourceLabel,waitTime):
+        comment = ' /* JediDBProxy.throttleTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start waitTime={0}min'.format(waitTime))
+        # return value for failure
+        failedRet = None
+        try:
+            # sql
+            varMap = {}
+            varMap[':taskStatus'] = 'running'
+            varMap[':fileStat1']  = 'ready'
+            varMap[':fileStat2']  = 'running'
+            varMap[':numThrottled'] = 0
+            sqlRT  = "SELECT tabT.jediTaskID,tabT.numThrottled,MAX(tabC.attemptNr) "
+            sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,".format(jedi_config.db.schemaJEDI)
+            sqlRT += "{0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
+            sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlRT += "AND tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID=tabC.jediTaskID "
+            sqlRT += "AND tabD.datasetID=tabC.datasetID "
+            sqlRT += "AND tabT.status IN (:taskStatus) "
+            sqlRT += "AND tabT.numThrottled IS NOT NULL "
+            sqlRT += "AND tabD.type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sqlRT += '{0},'.format(mapKey)
+                varMap[mapKey] = tmpType
+            sqlRT  = sqlRD[:-1]
+            sqlRT += ") AND tabD.masterID IS NULL "
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+                sqlRT += "AND tabT.vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
+            sqlRT += "tabC.status IN (:fileStat1,:fileStat2) "
+            sqlRT += "AND lockedBy IS NULL "
+            # begin transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            # get tasks
+            tmpLog.debug(sqlRT+comment+str(varMap))
+            self.cur.execute(sqlRT+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # sql to throttle tasks
+            sqlTH  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTH += "SET throttledTime=:releaseTime,modificationTime=CURRENT_DATE,"
+            sqlTH += "oldStatus=status,status=:newStatus,errorDialog=:errorDialog,"
+            sqlTH += "numThrottled=:numThrottled "
+            sqlTH += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
+            sqlTH += "AND lockedBy IS NULL "
+            attemptInterval = 5
+            for jediTaskID,numThrottled,largestAttemptNr in resList:
+                # check threshold
+                if largestAttemptNr/attemptInterval <= numThrottled:
+                    continue
+                # begin transaction
+                self.conn.begin()
+                # check task
+                try:
+                    numThrottled += 1
+                    throttledTime = datetime.datetime.utcnow()
+                    releaseTime   = throttledTime + \
+                        datetime.timedelta(minutes=waitTime*numThrottled*numThrottled)
+                    errorDialog  = 'throttled due to many attempts {0}>{1}x{2} '.format(largestAttemptNr,
+                                                                                        numThrottled,
+                                                                                        attemptInterval)
+                    errorDialog += 'from {0} '.format(throttledTime.strftime('%Y/%m/%d %H:%M:%S'))
+                    errorDialog += 'till {0}'.format(releaseTime.strftime('%Y/%m/%d %H:%M:%S'))
+                    varMap = {}
+                    varMap[':jediTaskID']   = jediTaskID
+                    varMap[':newStatus']    = 'throttled'
+                    varMap[':oldStatus']    = 'running'
+                    varMap[':releaseTime']  = releaseTime
+                    varMap[':numThrottled'] = numThrottled
+                    varMap[':errorDialog']  = errorDialog
+                    tmpLog.debug(sqlTH+comment+str(varMap))
+                    self.cur.execute(sqlTH+comment,varMap)
+                    tmpLog.debug(errorDialog)
+                except:
+                    tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            return retTasks
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return failedRet
+
+
+
+    # release throttled tasks
+    def releaseThrottledTasks_JEDI(self,vo,prodSourceLabel):
+        comment = ' /* JediDBProxy.releaseThrottledTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1}>".format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get tasks
+            varMap = {}
+            varMap[':status'] = 'throttled'
+            sqlTL  = "SELECT jediTaskID "
+            sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlTL += "AND tabT.status=:status AND tabT.throttledTime<CURRENT_DATE AND tabT.lockedBy IS NULL "
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+                sqlTL += "AND vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                sqlTL += "AND prodSourceLabel=:prodSourceLabel "
+            # sql to update tasks    
+            sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU += "SET status=oldStatus,oldStatus=NULL,errorDialog=NULL,modificationtime=CURRENT_DATE "
+            sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus AND lockedBy IS NULL "
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sqlTL+comment,varMap)
+            resTL = self.cur.fetchall()
+            # loop over all tasks
+            nRow = 0
+            for jediTaskID, in resTL:
+                timeoutFlag = False
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':oldStatus'] = 'throttled'
+                self.cur.execute(sqlTU+comment,varMap)
+                iRow = self.cur.rowcount
+                tmpLog.debug('released jediTaskID={0} with {1}'.format(jediTaskID,iRow))
+                nRow += iRow
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("updated {0} rows".format(nRow))
+            return nRow
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
