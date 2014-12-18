@@ -4758,7 +4758,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                                            commandStr,taskStatus))
                                     isOK = False
                             elif commandStr == 'resume':
-                                if not taskStatus in ['paused']:
+                                if not taskStatus in ['paused','throttled']:
                                     # task is in a status which rejects resume
                                     tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for resume".format(jediTaskID,
                                                                                                                             commandStr,taskStatus))
@@ -6904,15 +6904,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start waitTime={0}min'.format(waitTime))
-        # return value for failure
-        failedRet = None
         try:
             # sql
             varMap = {}
             varMap[':taskStatus'] = 'running'
             varMap[':fileStat1']  = 'ready'
             varMap[':fileStat2']  = 'running'
-            varMap[':numThrottled'] = 0
             sqlRT  = "SELECT tabT.jediTaskID,tabT.numThrottled,MAX(tabC.attemptNr) "
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,".format(jedi_config.db.schemaJEDI)
             sqlRT += "{0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
@@ -6926,7 +6923,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 mapKey = ':type_'+tmpType
                 sqlRT += '{0},'.format(mapKey)
                 varMap[mapKey] = tmpType
-            sqlRT  = sqlRD[:-1]
+            sqlRT  = sqlRT[:-1]
             sqlRT += ") AND tabD.masterID IS NULL "
             if not vo in [None,'any']:
                 varMap[':vo'] = vo
@@ -6934,8 +6931,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not prodSourceLabel in [None,'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
-            sqlRT += "tabC.status IN (:fileStat1,:fileStat2) "
-            sqlRT += "AND lockedBy IS NULL "
+            sqlRT += "AND tabC.status IN (:fileStat1,:fileStat2) "
+            sqlRT += "AND tabT.lockedBy IS NULL "
+            sqlRT += "GROUP BY tabT.jediTaskID,tabT.numThrottled "
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
@@ -6954,6 +6952,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTH += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
             sqlTH += "AND lockedBy IS NULL "
             attemptInterval = 5
+            nTasks = 0
             for jediTaskID,numThrottled,largestAttemptNr in resList:
                 # check threshold
                 if largestAttemptNr/attemptInterval <= numThrottled:
@@ -6981,19 +6980,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug(sqlTH+comment+str(varMap))
                     self.cur.execute(sqlTH+comment,varMap)
                     tmpLog.debug(errorDialog)
+                    nTasks += 1
                 except:
                     tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
             tmpLog.debug('done')
-            return retTasks
+            return nTasks
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return failedRet
+            return None
 
 
 
@@ -7024,6 +7024,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus AND lockedBy IS NULL "
             # start transaction
             self.conn.begin()
+            tmpLog.debug(sqlTL+comment+str(varMap))
             self.cur.execute(sqlTL+comment,varMap)
             resTL = self.cur.fetchall()
             # loop over all tasks

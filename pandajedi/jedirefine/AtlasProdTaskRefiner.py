@@ -55,6 +55,8 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                     if tmpSiteList == []:
                         raise RuntimeError,'cannot find online siteID associated to {0}'.format(storageToken)
                     datasetSpec.destination = tmpSiteList[0]
+            # set numThrottled to use the task throttling mechanism
+            self.taskSpec.numThrottled = 0
             # set to register datasets
             #self.taskSpec.setToRegisterDatasets()
         except:

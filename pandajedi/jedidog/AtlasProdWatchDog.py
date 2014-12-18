@@ -3,6 +3,7 @@ import sys
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from WatchDogBase import WatchDogBase
+from pandajedi.jediconfig import jedi_config
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -30,7 +31,7 @@ class AtlasProdWatchDog (WatchDogBase):
             # action for reassign
             self.doActionForReassgin(tmpLog)
             # action for throttled
-            #self.doActionForThrottled(tmpLog)
+            self.doActionForThrottled(tmpLog)
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('failed with {0} {1}'.format(errtype,errvalue))
