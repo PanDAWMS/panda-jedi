@@ -4,6 +4,9 @@ import sys
 import lfc
 import socket
 import random
+import datetime
+import json
+import urllib2
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
@@ -46,6 +49,13 @@ class AtlasDDMClient(DDMClientBase):
         DDMClientBase.__init__(self,con)
         # the list of fatal error
         self.fatalErrors = [DQUnknownDatasetException]
+        # list of blacklisted endpoints
+        self.blackListEndPoints = []
+        # time of last update for blacklist
+        self.lastUpdateBL = None
+        # how frequently update DN/token map
+        self.timeIntervalBL = datetime.timedelta(seconds=60*10)
+
 
 
 
@@ -1189,3 +1199,43 @@ class AtlasDDMClient(DDMClientBase):
             return errCode,'{0} : {1}'.format(methodName,errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
+
+
+
+    # update backlist
+    def updateBlackList(self):
+        methodName  = 'updateBlackList'
+        tmpLog = MsgWrapper(logger,methodName)
+        # check freashness
+        timeNow = datetime.datetime.utcnow()
+        if self.lastUpdateBL != None and timeNow-self.lastUpdateBL < self.timeIntervalBL:
+            return
+        self.lastUpdateBL = timeNow
+        # get json
+        try:
+            tmpLog.debug('start')
+            res = urllib2.urlopen('http://atlas-agis-api.cern.ch/request/ddmendpointstatus/query/list/?json&fstate=OFF&activity=w')
+            jsonStr = res.read()
+            self.blackListEndPoints = json.loads(jsonStr).keys()
+            tmpLog.debug('{0} endpoints blacklisted'.format(len(self.blackListEndPoints)))
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errStr = 'failed to update BL with {0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errStr)
+        return
+
+
+
+    # check if the endpoint is backlisted
+    def isBlackListedEP(self,endPoint):
+        methodName  = 'isBlackListedEP'
+        methodName += ' <endPoint={0}>'.format(endPoint)
+        tmpLog = MsgWrapper(logger,methodName)
+        try:
+            # update BNL
+            self.updateBlackList()
+            if endPoint in self.blackListEndPoints:
+                return self.SC_SUCCEEDED,True
+        except:
+            pass
+        return self.SC_SUCCEEDED,False

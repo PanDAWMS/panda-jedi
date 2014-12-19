@@ -355,6 +355,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 tmpLog.debug('  skip {0} due to disk shortage in SE = {1} < {2}GB'.format(tmpSiteName,tmpSiteSpec.space,
                                                                                           diskThreshold))
                 continue
+            # check if blacklisted
+            if self.ddmIF.isBlackListedEP(tmpSiteSpec.ddm):
+                tmpLog.debug('  skip {0} since {1} is blacklisted in DDM'.format(tmpSiteName,tmpSiteSpec.ddm))
+                continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
         tmpLog.debug('{0} candidates passed SE space check'.format(len(scanSiteList)))

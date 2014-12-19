@@ -1,5 +1,8 @@
 Release Note
 
+* 12/19/2014
+  * changed AtlasBrokerage to task BL into account
+
 * 12/18/2014
   * added num_records to dataset attributes
   * removed lifetime setting for user datasets

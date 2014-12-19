@@ -176,11 +176,13 @@ class TaskRefinerThread (WorkerThread):
                             tmpStat = Interaction.SC_FAILED
                     # check parent
                     noWaitParent = False
+                    parentState = None
                     if tmpStat == Interaction.SC_SUCCEEDED:
                         if not parent_tid in [None,jediTaskID]:
                             tmpLog.info('check parent task')
                             try:
                                 tmpStat = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
+                                parentState = tmpStat
                                 if tmpStat == 'completed':
                                     # parent is done
                                     tmpStat = Interaction.SC_SUCCEEDED
@@ -217,9 +219,9 @@ class TaskRefinerThread (WorkerThread):
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             # wait unknown input if noWaitParent or waitInput
-                            if (impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput()) \
-                                    and errtype == JediException.UnknownDatasetError:
-                                if impl.taskSpec.noWaitParent():
+                            if ((impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput()) \
+                                    and errtype == JediException.UnknownDatasetError) or parentState == 'running':
+                                if impl.taskSpec.noWaitParent() or parentState == 'running':
                                     tmpErrStr = 'pending until parent produces input'
                                     setFrozenTime=False
                                 else:
