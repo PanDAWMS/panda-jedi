@@ -6724,7 +6724,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 inputReady = False
                 for datasetID,datasetName in dsList:
                     # set dataset status to mutable
-                    if datasetName in parentDatasets:
+                    if datasetName in parentDatasets or datasetName.split(':')[-1] in parentDatasets:
                         varMap = {}
                         varMap[':jediTaskID'] = cJediTaskID
                         varMap[':datasetID'] = datasetID
