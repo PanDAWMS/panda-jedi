@@ -1,5 +1,8 @@
 Release Note
 
+* 12/23/2014
+  * fixed CF for noInput+seqNum
+
 * 12/19/2014
   * changed AtlasBrokerage to task BL into account
 

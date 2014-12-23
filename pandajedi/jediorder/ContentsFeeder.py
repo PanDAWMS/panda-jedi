@@ -281,7 +281,7 @@ class ContentsFeederThread (WorkerThread):
                                     nEventsPerJob   = None
                                     nEventsPerRange = None
                                     if (datasetSpec.isMaster() and taskParamMap.has_key('nEventsPerFile')) or \
-                                            (datasetSpec.isPseudo() and taskParamMap.has_key('nEvents')):
+                                            (datasetSpec.isPseudo() and taskParamMap.has_key('nEvents') and not datasetSpec.isSeqNumber()):
                                         if taskParamMap.has_key('nEventsPerFile'):
                                             nEventsPerFile = taskParamMap['nEventsPerFile']
                                         elif datasetSpec.isPseudo() and taskParamMap.has_key('nEvents'):
