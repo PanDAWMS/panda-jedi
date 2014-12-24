@@ -1,5 +1,8 @@
 Release Note
 
+* 12/24/2014
+  * fixed CF to take nEventsPerJob and nFilesPerFile for seq_number
+
 * 12/23/2014
   * fixed CF for noInput+seqNum
 

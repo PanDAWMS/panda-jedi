@@ -2658,7 +2658,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     maxFilesTobeRead = 10000
                                 tmpLog.debug('jediTaskID={2} trying to read {0} files from datasetID={1}'.format(maxFilesTobeRead,
                                                                                                                  datasetID,jediTaskID))
-                                if not taskSpec.useLoadXML():
+                                if datasetSpec.isSeqNumber():
+                                    orderBy = 'fileID'
+                                elif not taskSpec.useLoadXML():
                                     orderBy = 'lfn'
                                 else:
                                     orderBy = 'boundaryID'

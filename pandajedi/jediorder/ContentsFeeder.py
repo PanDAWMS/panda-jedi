@@ -227,6 +227,8 @@ class ContentsFeederThread (WorkerThread):
                                                 nPFN = datasetSpec.getNumRecords()
                                             elif origNumFiles != None:
                                                 nPFN = origNumFiles
+                                                if taskParamMap.has_key('nEventsPerJob') and taskParamMap.has_key('nEventsPerFile'):
+                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] / taskParamMap['nEventsPerJob']
                                             else:
                                                 nPFN = 10000
                                             tmpRet = {}
