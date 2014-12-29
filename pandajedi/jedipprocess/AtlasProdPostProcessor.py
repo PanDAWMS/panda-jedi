@@ -29,7 +29,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                         tmpLog.warning('failed to get successful files for {0}'.format(datasetSpec.datasetName))
                         return self.SC_FAILED
                     # get files in dataset
-                    ddmFiles = ddmIF.getFilesInDataset(datasetSpec.datasetName,skipDuplicate=False)
+                    ddmFiles = ddmIF.getFilesInDataset(datasetSpec.datasetName,skipDuplicate=False,ignoreUnknown=True)
                     tmpLog.info('datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM'.format(datasetSpec.datasetID,
                                                                                                       datasetSpec.datasetName,
                                                                                                       len(okFiles),len(ddmFiles)))

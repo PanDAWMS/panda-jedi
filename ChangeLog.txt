@@ -1,5 +1,8 @@
 Release Note
 
+* 12/29/2014
+  * fixed getFiles for UnknownDataset
+
 * 12/24/2014
   * fixed CF to take nEventsPerJob and nFilesPerFile for seq_number
 

@@ -60,7 +60,7 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # get files in dataset
-    def getFilesInDataset(self,datasetName,getNumEvents=False,skipDuplicate=True):
+    def getFilesInDataset(self,datasetName,getNumEvents=False,skipDuplicate=True,ignoreUnknown=False):
         methodName = 'getFilesInDataset'
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
@@ -125,6 +125,8 @@ class AtlasDDMClient(DDMClientBase):
             errCode = self.checkError(errtype)
             errStr = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errStr)
+            if ignoreUnknown and errtype == DQUnknownDatasetException:
+                return self.SC_SUCCEEDED,{}
             return errCode,'{0} : {1}'.format(methodName,errStr)
 
 
