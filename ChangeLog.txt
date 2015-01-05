@@ -1,5 +1,8 @@
 Release Note
 
+* 1/5/2015
+  * fixed sufficient file check in CF for multiple input streams
+
 * 12/29/2014
   * fixed getFiles for UnknownDataset
 
