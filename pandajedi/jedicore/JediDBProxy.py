@@ -277,7 +277,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                    'isRunningTask':False}
         failedRet = False,0,None,diagMap
         # max number of file records per dataset
-        maxFileRecords = 100000
+        maxFileRecords = 200000
         # mutable
         if noWaitParent and datasetState == 'mutable':
             isMutableDataset = True
