@@ -49,7 +49,9 @@ class JobGenerator (JediKnight):
         self.cloudList = cloudList
         self.withThrottle = withThrottle
         self.execJobs = execJobs
+        self.paramsToGetTasks = None
         
+
 
     # main
     def start(self):
@@ -131,13 +133,18 @@ class JobGenerator (JediKnight):
                                                                                                useResultCache=600)
                                 if typicalNumFilesMap == None:
                                     raise RuntimeError,'failed to get typical number of files'
+                                # get params
+                                tmpParamsToGetTasks = self.getParamsToGetTasks(vo,prodSourceLabel,workQueue.queue_name,cloudName)
+                                nTasksToGetTasks = tmpParamsToGetTasks['nTasks']
+                                nFilesToGetTasks = tmpParamsToGetTasks['nFiles']
+                                tmpLog.debug('nTasks={0} nFiles={1} to get tasks'.format(nTasksToGetTasks,nFilesToGetTasks))
                                 # get the list of input 
                                 tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,vo,
                                                                                        workQueue,
                                                                                        workQueue.queue_type,
                                                                                        cloudName,
-                                                                                       nTasks=jedi_config.jobgen.nTasks,
-                                                                                       nFiles=jedi_config.jobgen.nFiles,
+                                                                                       nTasks=nTasksToGetTasks,
+                                                                                       nFiles=nFilesToGetTasks,
                                                                                        minPriority=throttle.minPriority,
                                                                                        maxNumJobs=throttle.maxNumJobs,
                                                                                        typicalNumFilesMap=typicalNumFilesMap,
@@ -203,7 +210,85 @@ class JobGenerator (JediKnight):
                 time.sleep(sleepPeriod)
             # randomize cycle
             self.randomSleep()
-        
+
+
+
+    # get parameters to get tasks
+    def getParamsToGetTasks(self,vo,prodSourceLabel,queueName,cloudName):
+        paramsList = ['nFiles','nTasks']
+        # get group specified params
+        if self.paramsToGetTasks == None:
+            self.paramsToGetTasks = {}
+            # loop over all params
+            for paramName in paramsList:
+                self.paramsToGetTasks[paramName] = {}
+                configParamName = paramName + 'PerGroup'
+                # check if param is defined in config
+                if hasattr(jedi_config.jobgen,configParamName):
+                    for item in jedi_config.jobgen.nFilesPerGroup.split(','):
+                        # decompose config params
+                        try:
+                            tmpVOs,tmpProdSourceLabels,tmpQueueNames,tmpCloudNames,nXYZ = item.split(':')
+                            # loop over all VOs
+                            for tmpVO in tmpVOs.split('|'):
+                                if tmpVO == '':
+                                    tmpVO = 'any'
+                                self.paramsToGetTasks[paramName][tmpVO] = {}
+                                # loop over all labels
+                                for tmpProdSourceLabel in tmpProdSourceLabels.split('|'):
+                                    if tmpProdSourceLabel == '':
+                                        tmpProdSourceLabel = 'any'
+                                    self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel] = {}
+                                    # loop over all queues
+                                    for tmpQueueName in tmpQueueNames.split('|'):
+                                        if tmpQueueName == '':
+                                            tmpQueueName = 'any'
+                                        self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel][tmpQueueName] = {}
+                                        for tmpCloudName in tmpCloudNames.split('|'):
+                                            if tmpCloudName == '':
+                                                tmpCloudName = 'any'
+                                            # add
+                                            self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel][tmpQueueName][tmpCloudName] = long(nXYZ)
+                        except:
+                            pass
+        # make return
+        retMap = {}
+        for paramName in paramsList:
+            # set default
+            retMap[paramName] = getattr(jedi_config.jobgen,paramName)
+            if paramName in self.paramsToGetTasks:
+                # check VO
+                if vo in self.paramsToGetTasks[paramName]:
+                    tmpVO = vo
+                elif 'any' in self.paramsToGetTasks[paramName]:
+                    tmpVO = 'any'
+                else:
+                    continue
+                # check label
+                if prodSourceLabel in self.paramsToGetTasks[paramName][tmpVO]:
+                    tmpProdSourceLabel = prodSourceLabel
+                elif 'any' in self.paramsToGetTasks[paramName][tmpVO]:
+                    tmpProdSourceLabel = 'any'
+                else:
+                    continue
+                # check queue
+                if queueName in self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel]:
+                    tmpQueueName = queueName
+                elif 'any' in self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel]:
+                    tmpQueueName = 'any'
+                else:
+                    continue
+                # check cloud
+                if cloudName in self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel][tmpQueueName]:
+                    tmpCloudName = cloudName
+                else:
+                    tmpCloudName = 'any'
+                # set
+                retMap[paramName] = self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel][tmpQueueName][tmpCloudName]
+        # return
+        return retMap
+                
+
 
 
 # thread for real worker
