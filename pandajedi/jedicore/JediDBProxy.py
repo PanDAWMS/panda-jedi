@@ -186,6 +186,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 raise RuntimeError, 'Commit error'
             resList = self.cur.fetchall()
             returnMap = {}
+            taskDatasetMap = {}
             nDS = 0
             for res in resList:
                 datasetSpec = JediDatasetSpec()
@@ -194,8 +195,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     returnMap[datasetSpec.jediTaskID] = []
                 returnMap[datasetSpec.jediTaskID].append(datasetSpec)
                 nDS += 1
+                if not datasetSpec.jediTaskID in taskDatasetMap:
+                    taskDatasetMap[datasetSpec.jediTaskID] = []
+                taskDatasetMap[datasetSpec.jediTaskID].append(datasetSpec.datasetID)
             jediTaskIDs = returnMap.keys()
             jediTaskIDs.sort()
+            # get seq_number
+            sqlSEQ  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
+            sqlSEQ += 'FROM {0}.JEDI_Datasets '.format(jedi_config.db.schemaJEDI)
+            sqlSEQ += 'WHERE jediTaskID=:jediTaskID AND datasetName=:datasetName '
+            for jediTaskID in jediTaskIDs:
+                varMap = {}
+                varMap[':jediTaskID']  = jediTaskID
+                varMap[':datasetName'] = 'seq_number'
+                self.conn.begin()
+                self.cur.execute(sqlSEQ+comment,varMap)
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+                resSeqList = self.cur.fetchall()
+                for resSeq in resSeqList:
+                    datasetSpec = JediDatasetSpec()
+                    datasetSpec.pack(resSeq)
+                    # append if missing
+                    if not datasetSpec.datasetID in taskDatasetMap[datasetSpec.jediTaskID]:
+                        taskDatasetMap[datasetSpec.jediTaskID].append(datasetSpec.datasetID)
+                        returnMap[datasetSpec.jediTaskID].append(datasetSpec)
             returnList  = []
             for jediTaskID in jediTaskIDs:
                 returnList.append((jediTaskID,returnMap[jediTaskID]))
@@ -559,7 +584,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # task is locked
                     tmpLog.debug('task is locked by {0}'.format(taskLockedBy))
                 elif not (taskStatus in JediTaskSpec.statusToUpdateContents() or \
-                              (taskStatus == 'running' and (datasetState == 'mutable' or datasetSpec.state == 'mutable'))):
+                              (taskStatus == 'running' and \
+                                   (datasetState == 'mutable' or datasetSpec.state == 'mutable' or datasetSpec.isSeqNumber()))):
                     # task status is irrelevant
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
                 else:
@@ -598,7 +624,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if resDs == None:
                         tmpLog.debug('dataset not found in Datasets table')
                     elif not (resDs[0] in JediDatasetSpec.statusToUpdateContents() or \
-                                  (taskStatus == 'running' and datasetState == 'mutable')):
+                                  (taskStatus == 'running' and \
+                                       (datasetState == 'mutable' or datasetSpec.state == 'mutable' or datasetSpec.isSeqNumber()))):
                         tmpLog.debug('ds.status={0} is not for contents update'.format(resDs[0]))
                         # count existing files
                         if resDs[0] == 'ready':

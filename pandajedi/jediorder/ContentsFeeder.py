@@ -229,8 +229,23 @@ class ContentsFeederThread (WorkerThread):
                                                 nPFN = origNumFiles
                                                 if taskParamMap.has_key('nEventsPerJob') and taskParamMap.has_key('nEventsPerFile'):
                                                     nPFN = nPFN * taskParamMap['nEventsPerFile'] / taskParamMap['nEventsPerJob']
+                                            elif 'nEvents' in taskParamMap and 'nEventsPerJob' in taskParamMap:
+                                                nPFN = taskParamMap['nEvents'] / taskParamMap['nEventsPerJob']
+                                            elif 'nEvents' in taskParamMap and 'nEventsPerFile' in taskParamMap \
+                                                    and 'nFilesPerJob' in taskParamMap:
+                                                nPFN = taskParamMap['nEvents'] / taskParamMap['nEventsPerFile'] / taskParamMap['nFilesPerJob']
                                             else:
-                                                nPFN = 10000
+                                                # the default number of records for seq_number
+                                                seqDefNumRecords = 10000
+                                                # get nFiles of the master
+                                                tmpMasterAtt = self.taskBufferIF.getDatasetAttributes_JEDI(datasetSpec.jediTaskID,
+                                                                                                           datasetSpec.masterID,
+                                                                                                           ['nFiles'])
+                                                # use nFiles of the master as the number of records if it is larger than the default
+                                                if tmpMasterAtt['nFiles'] > seqDefNumRecords:
+                                                    nPFN = tmpMasterAtt['nFiles']
+                                                else:
+                                                    nPFN = seqDefNumRecords
                                             tmpRet = {}
                                             # get offset
                                             tmpOffset = datasetSpec.getOffset()

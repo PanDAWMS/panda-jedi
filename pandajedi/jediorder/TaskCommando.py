@@ -151,7 +151,8 @@ class TaskCommandoThread (WorkerThread):
                                         tmpTaskSpec.status = oldStatus
                                         tmpTaskSpec.forceUpdate('oldStatus')
                                         updateTaskStatus = False
-                                tmpTaskSpec.forceUpdate('errorDialog')
+                                if commandStr == 'reassign':
+                                    tmpTaskSpec.forceUpdate('errorDialog')
                                 if updateTaskStatus:
                                     tmpTaskSpec.status = JediTaskSpec.commandStatusMap()[commandStr]['done']
                                 tmpMsg = 'set task.status={0}'.format(tmpTaskSpec.status)
