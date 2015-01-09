@@ -1,6 +1,7 @@
 Release Note
 
 * 1/9/2015
+  * fixed TaskBroker not to read all files
   * introduced nFilesPerGroup
   * increased the max file limit in datasets to 200k
   * changed CF to automatically set num_records for seq_number

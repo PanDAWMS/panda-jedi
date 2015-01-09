@@ -48,14 +48,15 @@ class TaskBroker (JediKnight,FactoryBase):
                     for prodSourceLabel in self.prodSourceLabels:
                         # loop over all work queues
                         for workQueue in workQueueMapper.getQueueListWithVoType(vo,prodSourceLabel):
-                            tmpLog.debug('vo={0} label={1} queue={2}'.format(vo,prodSourceLabel,workQueue.queue_name))
+                            msgLabel = 'vo={0} label={1} queue={2}: '.format(vo,prodSourceLabel,workQueue.queue_name)
+                            tmpLog.debug(msgLabel+'start')
                             # get the list of tasks to check
                             tmpList = self.taskBufferIF.getTasksToCheckAssignment_JEDI(vo,prodSourceLabel,workQueue)
                             if tmpList == None:
                                 # failed
-                                tmpLog.error('failed to get the list of tasks to check')
+                                tmpLog.error(msgLabel+'failed to get the list of tasks to check')
                             else:
-                                tmpLog.debug('got {0} tasks to check'.format(len(tmpList)))
+                                tmpLog.debug(msgLabel+'got {0} tasks to check'.format(len(tmpList)))
                                 # put to a locked list
                                 taskList = ListWithLock(tmpList)
                                 # make thread pool
@@ -74,9 +75,9 @@ class TaskBroker (JediKnight,FactoryBase):
                             tmpList = self.taskBufferIF.getTasksToAssign_JEDI(vo,prodSourceLabel,workQueue)
                             if tmpList == None:
                                 # failed
-                                tmpLog.error('failed to get the list of tasks to assign')
+                                tmpLog.error(msgLabel+'failed to get the list of tasks to assign')
                             else:
-                                tmpLog.debug('got {0} tasks to assign'.format(len(tmpList)))
+                                tmpLog.debug(msgLabel+'got {0} tasks to assign'.format(len(tmpList)))
                                 # put to a locked list
                                 taskList = ListWithLock(tmpList)
                                 # make thread pool
@@ -92,6 +93,7 @@ class TaskBroker (JediKnight,FactoryBase):
                                     thr.start()
                                 # join
                                 threadPool.join()
+                            tmpLog.debug(msgLabel+'done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
@@ -221,7 +223,9 @@ class TaskBrokerThread (WorkerThread):
                 # get TaskSpecs
                 tmpListToAssign = []
                 for tmpTaskItem in taskList:
-                    tmpListItem = self.taskBufferIF.getTasksToBeProcessed_JEDI(None,None,None,None,None,simTasks=[tmpTaskItem])
+                    tmpListItem = self.taskBufferIF.getTasksToBeProcessed_JEDI(None,None,None,None,None,
+                                                                               simTasks=[tmpTaskItem],
+                                                                               readMinFiles=True)
                     if tmpListItem == None:
                         # failed
                         tmpLog.error('failed to get the input chunks for jediTaskID={0}'.format(tmpTaskItem))

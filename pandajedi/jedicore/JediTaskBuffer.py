@@ -305,7 +305,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                    nTasks=50,nFiles=100,simTasks=None,minPriority=None,
                                    maxNumJobs=None,typicalNumFilesMap=None,
                                    fullSimulation=False,simDatasets=None,
-                                   mergeUnThrottled=None):
+                                   mergeUnThrottled=None,readMinFiles=False):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -316,7 +316,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   typicalNumFilesMap=typicalNumFilesMap,
                                                   fullSimulation=fullSimulation,
                                                   simDatasets=simDatasets,
-                                                  mergeUnThrottled=mergeUnThrottled)
+                                                  mergeUnThrottled=mergeUnThrottled,
+                                                  readMinFiles=readMinFiles)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

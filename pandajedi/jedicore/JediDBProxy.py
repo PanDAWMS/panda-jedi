@@ -2214,7 +2214,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nTasks=50,nFiles=100,isPeeking=False,simTasks=None,
                                    minPriority=None,maxNumJobs=None,typicalNumFilesMap=None,
                                    fullSimulation=False,simDatasets=None,
-                                   mergeUnThrottled=None):
+                                   mergeUnThrottled=None,readMinFiles=False):
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
         if simTasks != None:
@@ -2683,6 +2683,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 else:
                                     # set very large number for secondary to read all files
                                     maxFilesTobeRead = 10000
+                                # minimum read
+                                if readMinFiles:
+                                    maxFilesForMinRead = 10
+                                    if maxFilesTobeRead > maxFilesForMinRead:
+                                        maxFilesTobeRead = maxFilesForMinRead
                                 tmpLog.debug('jediTaskID={2} trying to read {0} files from datasetID={1}'.format(maxFilesTobeRead,
                                                                                                                  datasetID,jediTaskID))
                                 if datasetSpec.isSeqNumber():
