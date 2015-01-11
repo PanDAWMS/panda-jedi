@@ -3994,7 +3994,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if preOutDiskCount != None and preOutDiskCount > returnMap['outDiskCount']:
                 returnMap['outDiskCount'] = preOutDiskCount
         if walltimeList != []:
-            median = float(max(walltimeList)) / float(max(inFSizeList)) * 1.5
+            maxWallTime = max(walltimeList)
+            # cut off of 60min
+            if maxWallTime < 60 * 60:
+                maxWallTime = 0
+            median = float(maxWallTime) / float(max(inFSizeList)) * 1.5
             median = math.ceil(median)
             returnMap['walltime']     = long(median)
             returnMap['walltimeUnit'] = 'kSI2kseconds'

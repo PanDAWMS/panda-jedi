@@ -1,5 +1,8 @@
 Release Note
 
+* 1/11/2015
+  * introduced cutoff for walltime calculation using scout jobs
+
 * 1/9/2015
   * fixed TaskBroker not to read all files
   * introduced nFilesPerGroup
