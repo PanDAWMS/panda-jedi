@@ -1,5 +1,8 @@
 Release Note
 
+* 1/12/2015
+  * fixed slow lookup table in insertFiles 
+
 * 1/11/2015
   * introduced cutoff for walltime calculation using scout jobs
 

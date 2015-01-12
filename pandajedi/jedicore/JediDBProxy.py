@@ -392,12 +392,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nRemEvents = nEventsPerJob
             totalEventNumber = firstEventNumber
             foundFileList = []
-            uniqueLfnList = []
+            uniqueLfnList = {}
             totalNumEventsF = 0
             for tmpIdx,tmpLFN in enumerate(lfnList):
                 # collect unique LFN list    
                 if not tmpLFN in uniqueLfnList:
-                    uniqueLfnList.append(tmpLFN)
+                    uniqueLfnList[tmpLFN] = None
                 # check if enough files
                 if nMaxFiles != None and len(uniqueLfnList) > nMaxFiles:
                     break
@@ -666,7 +666,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 nLost += 1
                         # insert files
                         existingFileList = existingFiles.keys()
-                        uniqueLfnList = []
+                        uniqueLfnList = {}
                         totalNumEventsF = 0
                         totalNumEventsE = 0
                         escapeNextFile = False 
@@ -678,7 +678,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # the limit is reached at the previous file
                                 if escapeNextFile:
                                     break
-                                uniqueLfnList.append(fileSpec.lfn)
+                                uniqueLfnList[fileSpec.lfn] = None
                                 # maximum number of files to be processed
                                 if nMaxFiles != None and len(uniqueLfnList) > nMaxFiles:
                                     break
