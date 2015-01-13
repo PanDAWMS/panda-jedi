@@ -129,7 +129,10 @@ class AtlasProdWatchDog (WatchDogBase):
             # succeeded
             if isOK:    
                 # activate task
-                taskSpec.status = taskSpec.oldStatus
+                if taskSpec.oldStatus == 'assigning':
+                    taskSpec.status = 'ready'
+                else:
+                    taskSpec.status = taskSpec.oldStatus
                 taskSpec.oldStatus = None
                 self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
                 tmpLog.debug('finished to reassign')
