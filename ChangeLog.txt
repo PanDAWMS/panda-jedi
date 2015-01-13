@@ -2,6 +2,7 @@ Release Note
 
 * 1/13/2015
   * fixed insertFiles to use master status for status of mutable secondary
+  * removed origin setting from reassignTasks
 
 * 1/12/2015
   * fixed slow lookup table in insertFiles 

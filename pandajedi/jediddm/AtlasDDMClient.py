@@ -1234,7 +1234,7 @@ class AtlasDDMClient(DDMClientBase):
         methodName += ' <endPoint={0}>'.format(endPoint)
         tmpLog = MsgWrapper(logger,methodName)
         try:
-            # update BNL
+            # update BL
             self.updateBlackList()
             if endPoint in self.blackListEndPoints:
                 return self.SC_SUCCEEDED,True

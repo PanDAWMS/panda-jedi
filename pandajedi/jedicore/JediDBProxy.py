@@ -6613,7 +6613,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get tasks to reassign
             varMap = {}
             varMap[':status'] = 'reassigning'
-            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=30)
             sqlSCF  = "SELECT {0} ".format(JediTaskSpec.columnNames('tabT'))
             sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlSCF += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "

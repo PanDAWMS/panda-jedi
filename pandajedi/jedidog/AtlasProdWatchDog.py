@@ -116,13 +116,6 @@ class AtlasProdWatchDog (WatchDogBase):
                 tmpLog.debug('dataset={0}'.format(datasetSpec.datasetName))
                 # get location
                 location = siteMapper.getDdmEndpoint(t1Site.sitename,datasetSpec.storageToken)
-                # set origin metadata
-                tmpLog.debug('setting metadata origin={0}'.format(location))
-                tmpStat = ddmIF.setDatasetMetadata(datasetSpec.datasetName,'origin',location)
-                if tmpStat != True:
-                    tmpLog.error("failed to set origin")
-                    isOK = False
-                    break
                 # make subscription
                 tmpLog.debug('registering subscription to {0} with backend={1}'.format(location,
                                                                                        ddmBackEnd))
