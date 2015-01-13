@@ -1,6 +1,7 @@
 Release Note
 
 * 1/13/2015
+  * fixed getFileList for did
   * fixed insertFiles to use master status for status of mutable secondary
   * removed origin setting from reassignTasks
   * fixed reassignTasks to work during the task is being assigned
