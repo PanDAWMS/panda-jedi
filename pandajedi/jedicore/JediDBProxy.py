@@ -542,6 +542,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:status ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
+            # sql to get master status
+            sqlMS  = "SELECT status FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlMS += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update dataset
             sqlDU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDU += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,"
@@ -625,7 +628,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug('dataset not found in Datasets table')
                     elif not (resDs[0] in JediDatasetSpec.statusToUpdateContents() or \
                                   (taskStatus == 'running' and \
-                                       (datasetState == 'mutable' or datasetSpec.state == 'mutable' or datasetSpec.isSeqNumber()))):
+                                       (datasetState == 'mutable' or datasetSpec.state == 'mutable') or \
+                                       (taskStatus in ['running','defined'] and datasetSpec.isSeqNumber()))):
                         tmpLog.debug('ds.status={0} is not for contents update'.format(resDs[0]))
                         # count existing files
                         if resDs[0] == 'ready':
@@ -763,6 +767,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if varMap['status'] in ['lost','missing']:
                                 nLost += 1
                             self.cur.execute(sqlFU+comment,varMap)
+                        # get master status
+                        masterStatus = None
+                        if not datasetSpec.isMaster():
+                            varMap = {}
+                            varMap[':jediTaskID'] = datasetSpec.jediTaskID
+                            varMap[':datasetID'] = datasetSpec.masterID
+                            self.cur.execute(sqlMS+comment,varMap)
+                            resMS = self.cur.fetchone()
+                            masterStatus, = resMS
+                        tmpLog.debug('masterStatus={0}'.format(masterStatus))
                         # updata dataset
                         varMap = {}
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
@@ -797,9 +811,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     diagMap['nChunksForScout'] = nChunksForScout-tmpQ
                                     if tmpR > 0:
                                         diagMap['nChunksForScout'] -= 1
-                        if missingFileList != [] or (isMutableDataset and nActivatedPending == 0):    
-                            # don't change status when some files are missing or no pending inputs are activated
-                            varMap[':status' ] = datasetSpec.status
+                        if missingFileList != [] or (isMutableDataset and nActivatedPending == 0):
+                            if datasetSpec.isMaster() or masterStatus == None:
+                                # don't change status when some files are missing or no pending inputs are activated
+                                varMap[':status'] = datasetSpec.status
+                            else:
+                                # use master status
+                                tmpLog.debug('using masterStatus={0}'.format(masterStatus))
+                                varMap[':status'] = masterStatus
                         else:
                             varMap[':status' ] = 'ready'
                         # no more inputs are required even if parent is still running
