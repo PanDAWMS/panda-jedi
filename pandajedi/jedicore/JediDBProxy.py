@@ -2700,8 +2700,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 if tmpDatasetSpec.isMaster():
                                     maxFilesTobeRead = maxMasterFilesTobeRead
                                 else:
-                                    # set very large number for secondary to read all files
-                                    maxFilesTobeRead = 10000
+                                    # for secondaries
+                                    if taskSpec.useLoadXML():
+                                        maxFilesTobeRead = 10000
+                                    elif tmpDatasetSpec.getNumFilesPerJob() != None:
+                                        maxFilesTobeRead = maxMasterFilesTobeRead * tmpDatasetSpec.getNumFilesPerJob()
+                                    else:
+                                        maxFilesTobeRead = int(maxMasterFilesTobeRead * tmpDatasetSpec.getRatioToMaster())
                                 # minimum read
                                 if readMinFiles:
                                     maxFilesForMinRead = 10

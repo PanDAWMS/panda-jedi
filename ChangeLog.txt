@@ -1,5 +1,8 @@
 Release Note
 
+* 1/14/2015
+  * changed getTobeProcessed to use accurate estimation when reading secondary files
+
 * 1/13/2015
   * fixed getFileList for did
   * fixed insertFiles to use master status for status of mutable secondary
