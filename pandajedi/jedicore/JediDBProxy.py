@@ -731,8 +731,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             else:
                                 if isEventSplit:
                                     # enough events are pending
-                                    if nEventsToUseEventSplit >= sizePendingEventChunk:
-                                        toActivateFID = pendingFID[:nFilesToUseEventSplit]
+                                    if nEventsToUseEventSplit >= sizePendingEventChunk and nFilesToUseEventSplit > 0:
+                                        toActivateFID = pendingFID[:(int(nPending/nFilesToUseEventSplit)*nFilesToUseEventSplit)]
                                 else:
                                     # enough files are pending
                                     if nPending >= sizePendingFileChunk and sizePendingFileChunk > 0:

@@ -2,6 +2,7 @@ Release Note
 
 * 1/14/2015
   * changed getTobeProcessed to use accurate estimation when reading secondary files
+  * changed insertFiles to release more files for event-split while the parent is running
 
 * 1/13/2015
   * fixed getFileList for did
