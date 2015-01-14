@@ -822,10 +822,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         else:
                             varMap[':status' ] = 'ready'
                         # no more inputs are required even if parent is still running
-                        if isMutableDataset and nMaxFiles != None and varMap[':nFilesTobeUsed'] >= nMaxFiles:
-                            varMap[':state' ] = 'open'
+                        numReqFileRecords = nMaxFiles
+                        try:
+                            numReqFileRecords = numReqFileRecords * nEventsPerFile / nEventsPerJob
+                        except:
+                            pass
+                        tmpLog.debug("the number of requested file records : {0}".format(numReqFileRecords))
+                        if isMutableDataset and numReqFileRecords != None and varMap[':nFilesTobeUsed'] >= numReqFileRecords:
+                            varMap[':state'] = 'open'
                         else:
-                            varMap[':state' ] = datasetState
+                            varMap[':state'] = datasetState
                         varMap[':stateUpdateTime'] = stateUpdateTime
                         tmpLog.debug(sqlDU+comment+str(varMap))
                         self.cur.execute(sqlDU+comment,varMap)
