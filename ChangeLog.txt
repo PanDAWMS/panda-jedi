@@ -2,6 +2,7 @@ Release Note
 
 * 1/15/2015
   * added reuseSecOnDemand
+  * changed TR to treat JEDITemporaryError as a temporary error
 
 * 1/14/2015
   * changed getTobeProcessed to use accurate estimation when reading secondary files

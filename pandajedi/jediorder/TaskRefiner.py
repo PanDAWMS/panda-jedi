@@ -220,10 +220,14 @@ class TaskRefinerThread (WorkerThread):
                             errtype,errvalue = sys.exc_info()[:2]
                             # wait unknown input if noWaitParent or waitInput
                             if ((impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput()) \
-                                    and errtype == JediException.UnknownDatasetError) or parentState == 'running':
+                                    and errtype == JediException.UnknownDatasetError) or parentState == 'running' \
+                                    or errtype == Interaction.JEDITemporaryError:
                                 if impl.taskSpec.noWaitParent() or parentState == 'running':
                                     tmpErrStr = 'pending until parent produces input'
                                     setFrozenTime=False
+                                elif errtype == Interaction.JEDITemporaryError:
+                                    tmpErrStr = 'pending due to DDM problem. {0}'.format(errvalue)
+                                    setFrozenTime=True
                                 else:
                                     tmpErrStr = 'pending until input is staged'
                                     setFrozenTime=True
