@@ -1,5 +1,8 @@
 Release Note
 
+* 1/15/2015
+  * added reuseSecOnDemand
+
 * 1/14/2015
   * changed getTobeProcessed to use accurate estimation when reading secondary files
   * changed insertFiles to release more files for event-split while the parent is running

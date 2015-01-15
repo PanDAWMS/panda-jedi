@@ -176,6 +176,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noWaitParent'])
         if 'respectLB' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['respectLB'])
+        if taskParamMap.has_key('reuseSecOnDemand'):
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['reuseSecOnDemand'])
         if 'ddmBackEnd' in taskParamMap:
             self.taskSpec.setDdmBackEnd(taskParamMap['ddmBackEnd'])
         # return

@@ -2696,18 +2696,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             for datasetID in datasetIDs:
                                 # get DatasetSpec
                                 tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
-                                # read files to make FileSpec
-                                varMap = {}
-                                varMap[':datasetID']  = datasetID
-                                varMap[':jediTaskID'] = jediTaskID
-                                if not fullSimulation:
-                                    varMap[':status'] = 'ready'
                                 # the number of files to be read
                                 if tmpDatasetSpec.isMaster():
                                     maxFilesTobeRead = maxMasterFilesTobeRead
                                 else:
                                     # for secondaries
-                                    if taskSpec.useLoadXML():
+                                    if taskSpec.useLoadXML() or tmpDatasetSpec.isNoSplit():
                                         maxFilesTobeRead = 10000
                                     elif tmpDatasetSpec.getNumFilesPerJob() != None:
                                         maxFilesTobeRead = maxMasterFilesTobeRead * tmpDatasetSpec.getNumFilesPerJob()
@@ -2720,35 +2714,58 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         maxFilesTobeRead = maxFilesForMinRead
                                 tmpLog.debug('jediTaskID={2} trying to read {0} files from datasetID={1}'.format(maxFilesTobeRead,
                                                                                                                  datasetID,jediTaskID))
-                                if datasetSpec.isSeqNumber():
+                                if tmpDatasetSpec.isSeqNumber():
+                                    orderBy = 'fileID'
+                                elif not tmpDatasetSpec.isMaster() and taskSpec.reuseSecOnDemand():
                                     orderBy = 'fileID'
                                 elif not taskSpec.useLoadXML():
                                     orderBy = 'lfn'
                                 else:
                                     orderBy = 'boundaryID'
-                                self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead)+comment,varMap)
-                                resFileList = self.cur.fetchall()
+                                # read files to make FileSpec
                                 iFiles = 0
-                                for resFile in resFileList:
-                                    # make FileSpec
-                                    tmpFileSpec = JediFileSpec()
-                                    tmpFileSpec.pack(resFile)
-                                    # update file status
-                                    if simTasks == None and tmpDatasetSpec.toKeepTrack():
-                                        varMap = {}
-                                        varMap[':jediTaskID'] = tmpFileSpec.jediTaskID
-                                        varMap[':datasetID']  = tmpFileSpec.datasetID
-                                        varMap[':fileID']     = tmpFileSpec.fileID
-                                        varMap[':nStatus']    = 'picked'
-                                        varMap[':oStatus']    = 'ready'
-                                        self.cur.execute(sqlFU+comment,varMap)
-                                        nFileRow = self.cur.rowcount
-                                        if nFileRow != 1:
-                                            tmpLog.debug('skip fileID={0} already used by another'.format(tmpFileSpec.fileID))
-                                            continue
-                                    # add to InputChunk
-                                    tmpDatasetSpec.addFile(tmpFileSpec)
-                                    iFiles += 1
+                                for iDup in range(3): # avoid infinite loop just in case
+                                    varMap = {}
+                                    varMap[':datasetID']  = datasetID
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    if not fullSimulation:
+                                        varMap[':status'] = 'ready'
+                                    self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead-iFiles)+comment,varMap)
+                                    resFileList = self.cur.fetchall()
+                                    for resFile in resFileList:
+                                        # make FileSpec
+                                        tmpFileSpec = JediFileSpec()
+                                        tmpFileSpec.pack(resFile)
+                                        # update file status
+                                        if simTasks == None and tmpDatasetSpec.toKeepTrack():
+                                            varMap = {}
+                                            varMap[':jediTaskID'] = tmpFileSpec.jediTaskID
+                                            varMap[':datasetID']  = tmpFileSpec.datasetID
+                                            varMap[':fileID']     = tmpFileSpec.fileID
+                                            varMap[':nStatus']    = 'picked'
+                                            varMap[':oStatus']    = 'ready'
+                                            self.cur.execute(sqlFU+comment,varMap)
+                                            nFileRow = self.cur.rowcount
+                                            if nFileRow != 1:
+                                                tmpLog.debug('skip fileID={0} already used by another'.format(tmpFileSpec.fileID))
+                                                continue
+                                        # add to InputChunk
+                                        tmpDatasetSpec.addFile(tmpFileSpec)
+                                        iFiles += 1
+                                    # no reuse
+                                    if not taskSpec.reuseSecOnDemand() or tmpDatasetSpec.isMaster() or taskSpec.useLoadXML() or \
+                                            tmpDatasetSpec.isSeqNumber() or tmpDatasetSpec.isNoSplit() or tmpDatasetSpec.toMerge():
+                                        break
+                                    # enough files were read
+                                    if iFiles == maxFilesTobeRead:
+                                        break
+                                    # duplicate files for reuse
+                                    tmpLog.debug('try to duplicate files for datasetID={0} since only {1}/{2} files were read'.format(tmpDatasetSpec.datasetID,
+                                                                                                                                      iFiles,maxFilesTobeRead))
+                                    nNewRec = self.duplicateFilesForReuse_JEDI(tmpDatasetSpec)
+                                    tmpLog.debug('{0} files were duplicated'.format(nNewRec))
+                                    if nNewRec == 0:
+                                        break
                                 if iFiles == 0:
                                     # no input files
                                     tmpLog.debug('jediTaskID={0} datasetID={1} has no files to be processed'.format(jediTaskID,datasetID))
@@ -7118,5 +7135,74 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+
+    # duplicate files for reuse
+    def duplicateFilesForReuse_JEDI(self,datasetSpec):
+        comment = ' /* JediDBProxy.duplecateFilesForReuse_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskId={0} datasetID={1}>".format(datasetSpec.jediTaskID,
+                                                               datasetSpec.datasetID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get unique files
+            sqlCT  = "SELECT * FROM ("
+            sqlCT += "SELECT MIN(fileID) minFileID "
+            sqlCT += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCT += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            sqlCT += "GROUP BY lfn,startEvent,endEvent) "
+            sqlCT += "ORDER BY minFileID "
+            # sql to read file spec
+            sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
+            sqlFR += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
+            # sql for insert
+            sqlFI  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
+            sqlFI += JediFileSpec.bindValuesExpression()
+            # sql to update dataset record
+            sqlDU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDU += "SET nFiles=nFiles+:iFiles,nFilesTobeUsed=nFilesTobeUsed+:iFiles "
+            sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # read unique files
+            varMap = {}
+            varMap[':jediTaskID'] = datasetSpec.jediTaskID
+            varMap[':datasetID'] = datasetSpec.datasetID
+            self.cur.execute(sqlCT+comment,varMap)
+            resCT = self.cur.fetchall()
+            iFile = 0
+            for fileID, in resCT:
+                # read file
+                varMap = {}
+                varMap[':jediTaskID'] = datasetSpec.jediTaskID
+                varMap[':datasetID'] = datasetSpec.datasetID
+                varMap[':fileID'] = fileID
+                self.cur.execute(sqlFR+comment,varMap)
+                resFR = self.cur.fetchone()
+                fileSpec = JediFileSpec()
+                fileSpec.pack(resFR)
+                # reset attributes
+                fileSpec.status = 'ready'
+                fileSpec.PandaID = None
+                fileSpec.attemptNr    = 0
+                fileSpec.failedAttempt = 0
+                # insert
+                varMap = fileSpec.valuesMap(useSeq=True)
+                self.cur.execute(sqlFI+comment,varMap)
+                iFile += 1
+            # update dataset
+            if iFile > 0:
+                varMap = {}
+                varMap[':jediTaskID'] = datasetSpec.jediTaskID
+                varMap[':datasetID'] = datasetSpec.datasetID
+                varMap[':iFiles'] = iFile
+                self.cur.execute(sqlDU+comment,varMap)
+            tmpLog.debug('inserted {0} files'.format(iFile))
+            return iFile
+        except:
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return 0
 
 

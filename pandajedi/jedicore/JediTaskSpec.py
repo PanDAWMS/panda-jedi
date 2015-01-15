@@ -56,6 +56,7 @@ class JediTaskSpec(object):
         'pfnList'            : 'PL',
         'registerDatasets'   : 'RD',
         'respectLB'          : 'RL',
+        'reuseSecOnDemand'   : 'RO',
         'randomSeed'         : 'RS',
         'scoutSuccessRate'   : 'SS',
         't1Weight'           : 'TW',
@@ -359,6 +360,16 @@ class JediTaskSpec(object):
     def useBuild(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['useBuild']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # reuse secondary on demand
+    def reuseSecOnDemand(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['reuseSecOnDemand']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False
