@@ -4053,7 +4053,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if preWalltime != None and preWalltime > returnMap['walltime']:
                 returnMap['walltime'] = preWalltime
         if memSizeList != []:
-            median = numpy.median(memSizeList)
+            median = max(memSizeList)
             median /= 1024
             returnMap['ramCount'] = long(median)
             returnMap['ramUnit']  = 'MB'

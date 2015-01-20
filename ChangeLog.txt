@@ -1,6 +1,7 @@
 Release Note
 
 * 1/20/2015
+  * using max when calculating memory requirements based on scouts
   * fixed getTobeProcessed for secondary with nFilesTobeUsed=nFilesUsed
 
 * 1/15/2015
