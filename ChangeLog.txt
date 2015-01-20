@@ -1,5 +1,8 @@
 Release Note
 
+* 1/20/2015
+  * fixed getTobeProcessed for secondary with nFilesTobeUsed=nFilesUsed
+
 * 1/15/2015
   * added reuseSecOnDemand
   * changed TR to treat JEDITemporaryError as a temporary error

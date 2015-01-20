@@ -2593,7 +2593,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             # sql to get seconday dataset list
                             sqlDS  = "SELECT datasetID FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
                             if not fullSimulation:
-                                sqlDS += "AND nFilesToBeUsed > nFilesUsed AND type IN ("
+                                sqlDS += "AND nFilesToBeUsed >= nFilesUsed AND type IN ("
                             else:
                                 sqlDS += "AND type IN ("
                             varMap = {}
