@@ -7140,7 +7140,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # duplicate files for reuse
     def duplicateFilesForReuse_JEDI(self,datasetSpec):
-        comment = ' /* JediDBProxy.duplecateFilesForReuse_JEDI */'
+        comment = ' /* JediDBProxy.duplicateFilesForReuse_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += " <jediTaskId={0} datasetID={1}>".format(datasetSpec.jediTaskID,
                                                                datasetSpec.datasetID)
@@ -7148,19 +7148,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get unique files
-            sqlCT  = "SELECT * FROM ("
-            sqlCT += "SELECT MIN(fileID) minFileID "
+            sqlCT  = "SELECT MIN(fileID) minFileID "
             sqlCT += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlCT += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
-            sqlCT += "GROUP BY lfn,startEvent,endEvent) "
-            sqlCT += "ORDER BY minFileID "
+            sqlCT += "GROUP BY lfn,startEvent,endEvent "
             # sql to read file spec
-            sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
+            defaultVales = {}
+            defaultVales['status'] = 'ready'
+            defaultVales['PandaID'] = None
+            defaultVales['attemptNr']    = 0
+            defaultVales['failedAttempt'] = 0
+            sqlFR  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
+            sqlFR += "SELECT {0} FROM ( ".format(JediFileSpec.columnNames(useSeq=True,defaultVales=defaultVales))
+            sqlFR += "SELECT {0} ".format(JediFileSpec.columnNames(defaultVales=defaultVales,skipDefaultAttr=True))
             sqlFR += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
-            sqlFR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
-            # sql for insert
-            sqlFI  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
-            sqlFI += JediFileSpec.bindValuesExpression()
+            sqlFR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID IN ( "
+            sqlFR += "SELECT MIN(fileID) minFileID "
+            sqlFR += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            sqlFR += "GROUP BY lfn,startEvent,endEvent) "
+            sqlFR += "ORDER BY fileID) "
             # sql to update dataset record
             sqlDU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDU += "SET nFiles=nFiles+:iFiles,nFilesTobeUsed=nFilesTobeUsed+:iFiles "
@@ -7172,26 +7179,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlCT+comment,varMap)
             resCT = self.cur.fetchall()
             iFile = 0
-            for fileID, in resCT:
-                # read file
-                varMap = {}
-                varMap[':jediTaskID'] = datasetSpec.jediTaskID
-                varMap[':datasetID'] = datasetSpec.datasetID
-                varMap[':fileID'] = fileID
-                self.cur.execute(sqlFR+comment,varMap)
-                resFR = self.cur.fetchone()
-                fileSpec = JediFileSpec()
-                fileSpec.pack(resFR)
-                # reset attributes
-                fileSpec.status = 'ready'
-                fileSpec.PandaID = None
-                fileSpec.attemptNr    = 0
-                fileSpec.failedAttempt = 0
-                # insert
-                varMap = fileSpec.valuesMap(useSeq=True)
-                self.cur.execute(sqlFI+comment,varMap)
-                iFile += 1
+            # insert files
+            varMap = {}
+            varMap[':jediTaskID'] = datasetSpec.jediTaskID
+            varMap[':datasetID'] = datasetSpec.datasetID
+            self.cur.execute(sqlFR+comment,varMap)
             # update dataset
+            iFile = len(resCT)
             if iFile > 0:
                 varMap = {}
                 varMap[':jediTaskID'] = datasetSpec.jediTaskID

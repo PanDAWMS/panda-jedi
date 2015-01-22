@@ -496,14 +496,17 @@ class AtlasProdJobBroker (JobBrokerBase):
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',cloudName,taskSpec.workQueue_ID)
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',cloudName,taskSpec.workQueue_ID)
             weight = float(nRunning + 1) / float(nActivated + nAssigned + 1) / float(nAssigned + 1)
+            weightStr = 'nRun={0} nAct={1} nAss={2} tSize={3} '.format(nRunning,nActivated,nAssigned,totalSize)
             # normalize weights by taking data availability into account
             if totalSize != 0:
                 weight = weight * float(normalizeFactors[tmpSiteName]+totalSize) / float(totalSize)
+                weightStr += 'norm={0} '.format(normalizeFactors[tmpSiteName])
             # make candidate
             siteCandidateSpec = SiteCandidate(tmpSiteName)
             # T1 weight
             if tmpSiteName in t1Sites:
                 weight *= t1Weight
+                weightStr += 't1W={0} '.format(t1Weight)
             # set weight
             siteCandidateSpec.weight = weight
             # set available files
@@ -515,7 +518,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
             # append        
             inputChunk.addSiteCandidate(siteCandidateSpec)
-            tmpLog.debug('  use {0} with weight={1}'.format(tmpSiteName,weight))
+            tmpLog.debug('  use {0} with weight={1} {2}'.format(tmpSiteName,weight,weightStr))
         # return
         tmpLog.debug('done')        
         return self.SC_SUCCEEDED,inputChunk

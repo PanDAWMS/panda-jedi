@@ -3,6 +3,8 @@ file specification for JEDI
 
 """
 
+import types
+
 from taskbuffer.FileSpec import FileSpec as JobFileSpec
 
 
@@ -80,11 +82,27 @@ class JediFileSpec(object):
 
 
     # return column names for INSERT
-    def columnNames(cls):
+    def columnNames(cls,useSeq=False,defaultVales=None,skipDefaultAttr=False):
+        if defaultVales == None:
+            defaultVales = {}
         ret = ""
         for attr in cls._attributes:
+            if skipDefaultAttr and (attr in cls._seqAttrMap or attr in defaultVales):
+                continue
             if ret != "":
                 ret += ','
+            if useSeq and cls._seqAttrMap.has_key(attr):
+                ret += "%s" % cls._seqAttrMap[attr]
+                continue
+            if attr in defaultVales:
+                arg = defaultVales[attr]
+                if arg == None:
+                    ret += "NULL"
+                elif isinstance(arg,types.StringType):
+                    ret += "'{0}'".format(arg)
+                else:
+                    ret += "{0}".format(arg)
+                continue
             ret += attr
         return ret
     columnNames = classmethod(columnNames)
