@@ -143,10 +143,17 @@ class ContentsFeederThread (WorkerThread):
                         xmlConfig = None
                     # check no wait
                     noWaitParent = False
+                    parentOutDatasets = set()
                     if taskSpec.noWaitParent() and not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
                         tmpStat = self.taskBufferIF.checkParentTask_JEDI(taskSpec.parent_tid)
                         if tmpStat == 'running':
                             noWaitParent = True
+                            # get output datasets from parent task
+                            tmpParentStat,tmpParentOutDatasets = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.parent_tid,
+                                                                                                                  ['output','log'])
+                            # collect dataset names
+                            for tmpParentOutDataset in tmpParentOutDatasets:
+                                parentOutDatasets.add(tmpParentOutDataset.datasetName)
                     # loop over all datasets
                     nFilesMaster = 0
                     checkedMaster = False
@@ -169,7 +176,10 @@ class ContentsFeederThread (WorkerThread):
                                     # dummy metadata for pseudo dataset
                                     tmpMetadata = {'state':'closed'}
                                 # set mutable when parent is running and the dataset is open
-                                if noWaitParent and tmpMetadata['state'] == 'open':
+                                if noWaitParent and \
+                                        (tmpMetadata['state'] == 'open' \
+                                             or datasetSpec.datasetName in parentOutDatasets \
+                                             or datasetSpec.datasetName.split(':')[-1] in parentOutDatasets):
                                     # dummy metadata when parent is running
                                     tmpMetadata = {'state':'mutable'}
                                 gotMetadata = True
