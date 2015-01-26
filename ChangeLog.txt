@@ -1,5 +1,8 @@
 Release Note
 
+* 1/26/2015
+  * changed InputChunk to recalculate weight once the site is chosen
+
 * 1/24/2015
   * fixed CF so that retried child is not done before the parent re-opens output
 

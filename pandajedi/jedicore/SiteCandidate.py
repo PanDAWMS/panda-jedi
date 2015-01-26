@@ -16,6 +16,12 @@ class SiteCandidate(object):
         self.remoteProtocol = None
         # remote source if any
         self.remoteSource = None
+        # number of running job
+        self.nRunningJobs = None
+        # number of queued jobs
+        self.nQueuedJobs = None
+        # number of assigned jobs
+        self.nAssignedJobs = None
 
 
 

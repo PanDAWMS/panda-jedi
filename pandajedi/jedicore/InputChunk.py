@@ -104,7 +104,8 @@ class InputChunk:
 
 
     # get one site candidate randomly
-    def getOneSiteCandidate(self):
+    def getOneSiteCandidate(self,nSubChunks=0):
+        retSiteCandidate = None
         # get total weight
         totalWeight = 0
         weightList  = []
@@ -116,9 +117,25 @@ class InputChunk:
         for siteCandidate in siteCandidateList:
             rNumber -= siteCandidate.weight
             if rNumber <= 0:
-                return siteCandidate
+                retSiteCandidate = siteCandidate
+                break
         # return something as a protection against precision of float
-        return random.choice(siteCandidateList)
+        if retSiteCandidate == None:
+            retSiteCandidate = random.choice(siteCandidateList)
+        # modify weight
+        try:
+            if retSiteCandidate.nQueuedJobs != None and retSiteCandidate.nAssignedJobs != None:
+                oldNumQueued = retSiteCandidate.nQueuedJobs
+                retSiteCandidate.nQueuedJobs += nSubChunks
+                newNumQueued = retSiteCandidate.nQueuedJobs
+                oldNumAssigned = retSiteCandidate.nAssignedJobs
+                retSiteCandidate.nAssignedJobs += nSubChunks
+                newNumAssigned = retSiteCandidate.nAssignedJobs
+                siteCandidate.weight = siteCandidate.weight * float(oldNumQueued+1) * float(oldNumAssigned+1) \
+                    / float(newNumQueued+1) / float(newNumAssigned+1)
+        except:
+            pass
+        return retSiteCandidate
 
 
 

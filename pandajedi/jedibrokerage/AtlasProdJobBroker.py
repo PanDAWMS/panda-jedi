@@ -507,8 +507,11 @@ class AtlasProdJobBroker (JobBrokerBase):
             if tmpSiteName in t1Sites:
                 weight *= t1Weight
                 weightStr += 't1W={0} '.format(t1Weight)
-            # set weight
+            # set weight and params
             siteCandidateSpec.weight = weight
+            siteCandidateSpec.nRunningJobs = nRunning
+            siteCandidateSpec.nQueuedJobs = nActivated + nAssigned
+            siteCandidateSpec.nAssignedJobs = nAssigned
             # set available files
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():
                 if availableFiles.has_key(tmpSiteName):

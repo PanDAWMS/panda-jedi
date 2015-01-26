@@ -98,7 +98,7 @@ class JobSplitter:
                     # reset
                     subChunks = []
                 # new candidate
-                siteCandidate = inputChunk.getOneSiteCandidate()
+                siteCandidate = inputChunk.getOneSiteCandidate(nSubChunks)
                 siteName = siteCandidate.siteName
                 siteSpec = siteMapper.getSite(siteName)
                 # get maxSize if it is set in taskSpec
@@ -114,6 +114,7 @@ class JobSplitter:
                 else:
                     coreCount = 1
                 tmpLog.debug('chosen {0}'.format(siteName))
+                tmpLog.debug('new weight {0}'.format(siteCandidate.weight))
                 tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2}'.format(maxSize,maxWalltime,coreCount))
             # get sub chunk
             subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
