@@ -494,8 +494,10 @@ class AtlasProdJobBroker (JobBrokerBase):
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',cloudName,taskSpec.workQueue_ID)
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',cloudName,taskSpec.workQueue_ID)
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',cloudName,taskSpec.workQueue_ID)
-            weight = float(nRunning + 1) / float(nActivated + nAssigned + 1) / float(nAssigned + 1)
-            weightStr = 'nRun={0} nAct={1} nAss={2} tSize={3} '.format(nRunning,nActivated,nAssigned,totalSize)
+            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting',cloudName,taskSpec.workQueue_ID)
+            weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + 1) / float(nAssigned + 1)
+            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} tSize={4} '.format(nRunning,nActivated,nAssigned,
+                                                                                  nStarting,totalSize)
             # normalize weights by taking data availability into account
             if totalSize != 0:
                 weight = weight * float(normalizeFactors[tmpSiteName]+totalSize) / float(totalSize)
@@ -509,7 +511,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning
-            siteCandidateSpec.nQueuedJobs = nActivated + nAssigned
+            siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
             siteCandidateSpec.nAssignedJobs = nAssigned
             # set available files
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():

@@ -494,7 +494,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',  None,None)
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',  None,None)
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,None)
-            weight = float(nRunning + 1) / float(nActivated + nAssigned + 1)
+            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting', None,None)
+            weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + 1)
             nThrottled = 0
             if remoteSourceList.has_key(tmpSiteName):
                 nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,None)
@@ -511,13 +512,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 preSiteCandidateSpec = siteCandidateSpec
             # set weight
             siteCandidateSpec.weight = weight
-            tmpLog.debug('  site={0} nRun={1} nDef={2} nAct={3} nTr={4} dataW={5} W={6}'.format(tmpSiteName,
-                                                                                                nRunning,
-                                                                                                nAssigned,
-                                                                                                nActivated,
-                                                                                                nThrottled,
-                                                                                                tmpDataWeight,
-                                                                                                weight))
+            tmpLog.debug('  site={0} nRun={1} nDef={2} nAct={3} nStart={4} nTr={5} dataW={6} W={7}'.format(tmpSiteName,
+                                                                                                           nRunning,
+                                                                                                           nAssigned,
+                                                                                                           nActivated,
+                                                                                                           nStarting,
+                                                                                                           nThrottled,
+                                                                                                           tmpDataWeight,
+                                                                                                           weight))
             # append
             if tmpSiteName in sitesUsedByTask:
                 candidateSpecList.append(siteCandidateSpec)
