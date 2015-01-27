@@ -241,7 +241,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # release check is disabled or release is available
                 if tmpSiteSpec.releases == ['ANY'] or \
-                   tmpSiteSpec.cloud in ['ND'] or \
                    tmpSiteName in ['CERN-RELEASE']:
                     newScanSiteList.append(tmpSiteName)
                 elif tmpSiteName in siteListWithSW:

@@ -1,5 +1,8 @@
 Release Note
 
+* 1/27/2015
+  * removed ND-specific handling for release check in AtlasJobBrokerages
+
 * 1/26/2015
   * changed InputChunk to recalculate weight once the site is chosen
 

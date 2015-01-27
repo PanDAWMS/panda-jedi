@@ -258,8 +258,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # release check is disabled or release is available
-                if tmpSiteSpec.releases == ['ANY'] or \
-                   tmpSiteSpec.cloud in ['ND']:
+                if tmpSiteSpec.releases == ['ANY']:
                     newScanSiteList.append(tmpSiteName)
                 elif tmpSiteName in siteListWithSW:
                     newScanSiteList.append(tmpSiteName)
