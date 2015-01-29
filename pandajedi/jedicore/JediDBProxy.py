@@ -4693,7 +4693,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':prodSourceLabel'] = prodSourceLabel
             if priority != None:
                 varMap[':priority'] = priority
-            sql  = "SELECT tabT.cloud,ROUND(SUM((nFiles-nFilesFinished-nFilesFailed)*walltime)/24/3600) "
+            sql  = "SELECT tabT.jediTaskID,tabT.cloud,tabD.datasetID,nFiles-nFilesFinished-nFilesFailed,walltime "
             sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sql += "AND tabT.jediTaskID=tabD.jediTaskID AND masterID IS NULL "
@@ -4709,7 +4709,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sql += '{0},'.format(tmpKey)
                 sql  = sql[:-1]    
                 sql += ") "
-            sql += "AND tabT.status IN (:status1,:status2,:status3,:status4,:status5) "
+            sql += "AND tabT.status IN (:status1,:status2,:status3,:status4) "
             sql += "AND tabD.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ':type_'+tmpType
@@ -4720,10 +4720,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status1'] = 'ready'
             varMap[':status2'] = 'scouting'
             varMap[':status3'] = 'running'
-            varMap[':status4'] = 'merging'
-            varMap[':status5'] = 'pending'
+            varMap[':status4'] = 'pending'
             sql += "AND tabT.cloud IS NOT NULL "
-            sql += "GROUP BY tabT.cloud "
             # begin transaction
             self.conn.begin()
             # set cloud
@@ -4732,9 +4730,34 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
+            # loop over all tasks
             retMap = {}
-            for cloudName,rwValue in resList:
-                retMap[cloudName] = rwValue
+            sqlF  = "SELECT fsize,startEvent,endEvent,nEvents "
+            sqlF += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND rownum<=1"
+            for jediTaskID,cloud,datasetID,nRem,walltime in resList:
+                # get effective size
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':datasetID'] = datasetID
+                # begin transaction
+                self.conn.begin()
+                # get file
+                self.cur.execute(sqlF+comment,varMap)
+                resFile = self.cur.fetchone()
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+                if resFile != None:
+                    # calculate RW using effective size
+                    fsize,startEvent,endEvent,nEvents = resFile
+                    effectiveFsize = JediCoreUtils.getEffectiveFileSize(fsize,startEvent,endEvent,nEvents)
+                    tmpRW = nRem * effectiveFsize * walltime
+                    if not cloud in retMap:
+                        retMap[cloud] = 0
+                    retMap[cloud] += tmpRW    
+            for cloudName,rwValue in retMap.iteritems():
+                retMap[cloudName] = int(rwValue/24/3600)
             tmpLog.debug('RW={0}'.format(str(retMap)))
             # return    
             tmpLog.debug('done')

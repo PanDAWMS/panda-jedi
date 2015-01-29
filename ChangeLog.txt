@@ -1,5 +1,8 @@
 Release Note
 
+* 1/29/2015
+  * fixed RW calculation to take effective size into account
+
 * 1/27/2015
   * removed ND-specific handling for release check in AtlasJobBrokerages
   * fixed AtlasJobBrokerages to take nStarting into account
