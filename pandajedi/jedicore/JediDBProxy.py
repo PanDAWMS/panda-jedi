@@ -5359,7 +5359,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         else:
                             errorDialog += '. '
                         errorDialog += 'timeout while in pending since {0}'.format(frozenTime.strftime('%Y/%m/%d %H:%M:%S'))
-                        varMap[':errorDialog'] = errorDialog
+                        varMap[':errorDialog'] = errorDialog[:JediTaskSpec._limitLength['errorDialog']]
                         sql = sqlTO
                     else:
                         sql = sqlTU
