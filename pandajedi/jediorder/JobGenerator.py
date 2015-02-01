@@ -921,7 +921,9 @@ class JobGeneratorThread (WorkerThread):
             associatedSites = DataServiceUtils.getSitesShareDDM(self.siteMapper,siteName) 
             associatedSites.sort()
             # key for map of buildSpec
-            buildSpecMapKey = (taskSpec.jediTaskID,tuple(associatedSites))
+            secondKey = [siteName] + associatedSites
+            secondKey.sort()
+            buildSpecMapKey = (taskSpec.jediTaskID,tuple(secondKey))
             if buildSpecMapKey in self.buildSpecMap:
                 # reuse lib.tgz
                 reuseDatasetID,reuseFileID = self.buildSpecMap[buildSpecMapKey]

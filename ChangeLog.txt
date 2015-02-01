@@ -1,5 +1,8 @@
 Release Note
 
+* 2/1/2015
+  * fixed reuse of libTgz
+
 * 1/30/2015
   * fixed reactivatePending to limit length of errorDialog
 
