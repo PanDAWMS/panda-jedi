@@ -26,7 +26,7 @@ from dq2.common import parse_dn
 from dq2.info.client.infoClient import infoClient
 
 from rucio.client import Client as RucioClient
-from rucio.common.exception import UnsupportedOperation,DataIdentifierNotFound
+from rucio.common.exception import UnsupportedOperation,DataIdentifierNotFound,DataIdentifierAlreadyExists
 
 try:
     from pyAMI.client import AMIClient
@@ -581,34 +581,29 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # register new dataset/container
-    def registerNewDataset(self,datasetName,backEnd='rucio',location=None,lifetime=None):
+    def registerNewDataset(self,datasetName,backEnd='rucio',location=None,lifetime=None,metaData=None):
         methodName = 'registerNewDataset'
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start location={0} lifetime={1}'.format(location,lifetime))
         try:
-            # get DQ2 API
-            if backEnd == None:
-                dq2 = DQ2()
-            else:
-                dq2 = DQ2(force_backend=backEnd)
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
+            # lifetime
+            if lifetime != None:
+                lifetime=lifetime*86400
+            # register
             if not datasetName.endswith('/'):
                 # register dataset
-                if location == None or backEnd == None:
-                    dq2.registerNewDataset(datasetName)
-                else:
-                    dq2.registerNewDataset(datasetName,rse=location)
-                # set lifetime
-                if lifetime != None:
-                    # get rucio API
-                    client = RucioClient()
-                    # get scope and name
-                    scope,dsn = self.extract_scope(datasetName)
-                    client.set_metadata(scope,dsn,key='lifetime',value=lifetime*86400)
+                client.add_dataset(scope,dsn,meta=metaData,lifetime=lifetime,rse=location)
             else:
                 # register container
-                dq2.registerContainer(datasetName)
-        except (DQContainerExistsException,DQDatasetExistsException): 
+                client.add_container(scope=scope,name=dsn[:-1])
+        except (DQContainerExistsException,
+                DQDatasetExistsException,
+                DataIdentifierAlreadyExists): 
             pass
         except:
             errtype,errvalue = sys.exc_info()[:2]

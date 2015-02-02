@@ -1,5 +1,8 @@
 Release Note
 
+* 2/2/2015
+  * changed AtlasDDM to use Rucio API for dataset registration
+
 * 2/1/2015
   * fixed reuse of libTgz
 
