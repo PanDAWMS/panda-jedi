@@ -1,5 +1,8 @@
 Release Note
 
+* 2/2/2015
+  * changed AtlasDDM to use Rucio API for dataset registration
+
 * 1/30/2015
   * fixed reactivatePending to limit length of errorDialog
 

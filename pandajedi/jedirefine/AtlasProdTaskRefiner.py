@@ -58,7 +58,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             # set numThrottled to use the task throttling mechanism
             self.taskSpec.numThrottled = 0
             # set to register datasets
-            #self.taskSpec.setToRegisterDatasets()
+            self.taskSpec.setToRegisterDatasets()
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))
