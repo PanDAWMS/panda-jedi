@@ -20,7 +20,8 @@ class JediTaskSpec(object):
         'reqID','oldStatus','cloud','site','countryGroup','parent_tid',
         'eventService','ticketID','ticketSystemType','stateChangeTime',
         'superStatus','campaign','mergeRamCount','mergeRamUnit',
-        'mergeWalltime','mergeWalltimeUnit','throttledTime','numThrottled'
+        'mergeWalltime','mergeWalltimeUnit','throttledTime','numThrottled',
+        'mergeCoreCount'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()

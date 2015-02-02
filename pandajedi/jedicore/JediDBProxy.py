@@ -276,6 +276,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                    'nActivatedPending':0,
                    'isRunningTask':False}
         failedRet = False,0,None,diagMap
+        regStart = datetime.datetime.utcnow()
         # max number of file records per dataset
         maxFileRecords = 200000
         # mutable
@@ -845,12 +846,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('inserted {0} rows with {1} activated and {2} pending'.format(nInsert,
                                                                                        nActivatedPending,
                                                                                        nPending-nActivatedPending))
+            regTime = datetime.datetime.utcnow() - regStart
+            tmpLog.debug('took %s.%03d sec' % (regTime.seconds,regTime.microseconds/1000))
             return retVal
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
+            regTime = datetime.datetime.utcnow() - regStart
+            tmpLog.debug('took %s.%03d sec' % (regTime.seconds,regTime.microseconds/1000))
             return failedRet
 
 
@@ -3874,7 +3879,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start mergeScout={0}'.format(mergeScout))
         returnMap = {}
         # sql to get preset values
-        sqlGPV  = "SELECT outDiskCount,walltime,ramCount,workDiskCount "
+        if not mergeScout:
+            sqlGPV  = "SELECT outDiskCount,walltime,ramCount,workDiskCount "
+        else:
+            sqlGPV  = "SELECT outDiskCount,mergeWalltime,mergeRamCount,workDiskCount "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data

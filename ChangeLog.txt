@@ -1,6 +1,7 @@
 Release Note
 
 * 2/2/2015
+  * added mergeCoreCount
   * changed AtlasDDM to use Rucio API for dataset registration
 
 * 2/1/2015
