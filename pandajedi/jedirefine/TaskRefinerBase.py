@@ -109,12 +109,10 @@ class TaskRefinerBase (object):
         else:
             taskSpec.ramCount = 0
         # for merge
-        """
         if 'mergeRamCount' in taskParamMap:
             taskSpec.mergeRamCount = taskParamMap['mergeRamCount']
         if 'mergeCoreCount' in taskParamMap:
             taskSpec.mergeCoreCount = taskParamMap['mergeCoreCount']
-        """    
         # scout
         if not taskParamMap.has_key('skipScout') and not taskSpec.isPostScout():
             taskSpec.setUseScout(True)

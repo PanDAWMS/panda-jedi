@@ -1,5 +1,8 @@
 Release Note
 
+* 2/3/2015
+  * removed slow lookup in insertFiles
+
 * 2/2/2015
   * added mergeCoreCount
   * changed AtlasDDM to use Rucio API for dataset registration

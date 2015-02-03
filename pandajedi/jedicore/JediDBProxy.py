@@ -670,7 +670,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             elif status in ['lost','missing']:
                                 nLost += 1
                         # insert files
-                        existingFileList = existingFiles.keys()
                         uniqueLfnList = {}
                         totalNumEventsF = 0
                         totalNumEventsE = 0
@@ -701,7 +700,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 if nMaxEvents != None and totalNumEventsE > nMaxEvents:
                                     break
                             # avoid duplication
-                            if uniqueFileKey in existingFileList:
+                            if uniqueFileKey in existingFiles:
                                 continue
                             # go pending if no wait
                             if isMutableDataset:
