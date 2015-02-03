@@ -466,24 +466,22 @@ class JobGeneratorThread (WorkerThread):
                                 firstSubmission = True
                             else:
                                 firstSubmission = False
-                            # submit
-                            fqans = taskSpec.makeFQANs()
-                            tmpLog.info('submit jobs with FQAN={0}'.format(','.join(str(fqan) for fqan in fqans)))
-                            resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,
-                                                                    fqans=fqans,toPending=True)
-                            pandaIDs = []
-                            oldNewPandaIDs = {}
-                            for idxItem,items in enumerate(resSubmit):
-                                if items[0] != 'NULL':
-                                    pandaIDs.append(items[0])
-                                    if len(oldPandaIDs) > idxItem and oldPandaIDs[idxItem] != []:
-                                        oldNewPandaIDs[items[0]] = oldPandaIDs[idxItem]
-                            # record retry history
+                            # type of relation
                             if inputChunk.isMerging:
                                 relationType = 'merge'
                             else:
                                 relationType = 'retry'
-                            self.taskBufferIF.recordRetryHistory_JEDI(taskSpec.jediTaskID,oldNewPandaIDs,relationType)
+                            # submit
+                            fqans = taskSpec.makeFQANs()
+                            tmpLog.info('submit jobs with FQAN={0}'.format(','.join(str(fqan) for fqan in fqans)))
+                            resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,
+                                                                    fqans=fqans,toPending=True,
+                                                                    oldPandaIDs=oldPandaIDs,
+                                                                    relationType=relationType)
+                            pandaIDs = []
+                            for idxItem,items in enumerate(resSubmit):
+                                if items[0] != 'NULL':
+                                    pandaIDs.append(items[0])
                             # check if submission was successful
                             if len(pandaIDs) == len(pandaJobs):
                                 tmpMsg = 'successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs))
@@ -633,7 +631,7 @@ class JobGeneratorThread (WorkerThread):
                             jobSpec.maxAttempt = jobSpec.attemptNr + taskSpec.getMaxAttemptES()
                     else:
                         jobSpec.maxAttempt   = jobSpec.attemptNr
-                    jobSpec.jobName          = taskSpec.taskName
+                    jobSpec.jobName          = taskSpec.taskName + '.$ORIGINPANDAID'
                     if inputChunk.isMerging:
                         # use merge trf
                         jobSpec.transformation = taskParamMap['mergeSpec']['transPath']
