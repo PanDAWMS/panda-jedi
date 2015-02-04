@@ -294,6 +294,7 @@ class InputChunk:
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             if not self.masterDataset.datasetID in outSizeMap:
                 outSizeMap[self.masterDataset.datasetID] = 0
+            boundaryIDs = set()
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 # check start event to keep continuity
                 if maxNumEvents != None and tmpFileSpec.startEvent != None:
@@ -339,6 +340,8 @@ class InputChunk:
                 # boundaryID
                 if splitWithBoundaryID:
                     boundaryID = tmpFileSpec.boundaryID
+                    if not boundaryID in boundaryIDs:
+                        boundaryIDs.add(boundaryID)
                 # LB
                 if respectLB:
                     lumiBlockNr = tmpFileSpec.lumiBlockNr
@@ -379,7 +382,8 @@ class InputChunk:
                         datasetUsage['used'] = 0
                     for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
                         # check boundaryID
-                        if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
+                        if splitWithBoundaryID and boundaryID != None and \
+                                not (boundaryID == tmpFileSpec.boundaryID or tmpFileSpec.boundaryID in boundaryIDs):
                             break
                         if not inputFileMap.has_key(datasetSpec.datasetID):
                             inputFileMap[datasetSpec.datasetID] = []

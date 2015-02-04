@@ -1,5 +1,8 @@
 Release Note
 
+* 2/4/2015
+  * fixed InputChunk for nFilesPerMergeJob
+
 * 2/3/2015
   * removed slow lookup in insertFiles
   * adding originPandaID to jobName
