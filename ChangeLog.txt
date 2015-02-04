@@ -1,6 +1,7 @@
 Release Note
 
 * 2/4/2015
+  * using long to get LB info
   * fixed InputChunk for nFilesPerMergeJob
 
 * 2/3/2015

@@ -218,9 +218,14 @@ class ContentsFeederThread (WorkerThread):
                                             tmpDatasetName = datasetSpec.containerName
                                         else:
                                             tmpDatasetName = datasetSpec.datasetName
+                                        # use long format for LB
+                                        longFormat = False
+                                        if taskSpec.respectLumiblock():
+                                            longFormat = True
                                         tmpRet = ddmIF.getFilesInDataset(tmpDatasetName,
                                                                          getNumEvents=getNumEvents,
-                                                                         skipDuplicate=skipDuplicate
+                                                                         skipDuplicate=skipDuplicate,
+                                                                         longFormat=longFormat
                                                                          )
                                         tmpLog.info('got {0} files in {1}'.format(len(tmpRet),tmpDatasetName))
                                         # remove lost files

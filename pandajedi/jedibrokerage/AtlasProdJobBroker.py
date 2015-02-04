@@ -35,14 +35,17 @@ class AtlasProdJobBroker (JobBrokerBase):
         retTmpError = self.SC_FAILED,inputChunk
         # get sites in the cloud
         sitePreAssigned = False
+        siteListPreAssigned = False
         if not taskSpec.site in ['',None]:
             sitePreAssigned = True
             scanSiteList = [taskSpec.site]
             tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
         elif inputChunk.getPreassignedSite() != None:
-            sitePreAssigned = True
-            scanSiteList = [inputChunk.getPreassignedSite()]
-            tmpLog.debug('site={0} is pre-assigned in masterDS'.format(inputChunk.getPreassignedSite()))
+            siteListPreAssigned = True
+            scanSiteList = DataServiceUtils.getSitesShareDDM(self.siteMapper,inputChunk.getPreassignedSite())
+            scanSiteList.append(inputChunk.getPreassignedSite())
+            tmpLog.debug('use {0} since they share DDM endpoints with site={1} which is pre-assigned in masterDS'.format(str(scanSiteList),
+                                                                                                                         inputChunk.getPreassignedSite()))
         else:
             scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
             tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
@@ -57,11 +60,15 @@ class AtlasProdJobBroker (JobBrokerBase):
         # hospital sites
         if self.hospitalQueueMap.has_key(cloudName):
             t1Sites += self.hospitalQueueMap[cloudName]
-        # MP    
-        if taskSpec.coreCount != None and taskSpec.coreCount > 1:
+        if inputChunk.isMerging and taskSpec.mergeCoreCount != None:
+            taskCoreCount = taskSpec.mergeCoreCount
+        else:
+            taskCoreCount = taskSpec.coreCount
+        # MP
+        if taskCoreCount != None and taskCoreCount > 1:
             # use MCORE only
             useMP = 'only'
-        elif taskSpec.coreCount == 0:
+        elif taskCoreCount == 0:
             # use MCORE and normal 
             useMP = 'any'
         else:
@@ -106,7 +113,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for high priorities
-        if (taskSpec.currentPriority >= 950 or inputChunk.useScout()) and useMP != 'only' and not sitePreAssigned:
+        if (taskSpec.currentPriority >= 950 or inputChunk.useScout()) and useMP != 'only' \
+                and not sitePreAssigned and not siteListPreAssigned:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:            
                 if tmpSiteName in t1Sites:
@@ -122,7 +130,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for data availability
-        if not sitePreAssigned:
+        if not sitePreAssigned and not siteListPreAssigned:
             for datasetSpec in inputChunk.getDatasets():
                 datasetName = datasetSpec.datasetName
                 # ignore DBR
@@ -215,7 +223,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         newScanSiteList.append(tmpSiteName)
                 else:
                     tmpLog.debug('  skip %s due to core mismatch site:%s != task:%s' % \
-                                 (tmpSiteName,tmpSiteSpec.coreCount,taskSpec.coreCount))
+                                 (tmpSiteName,tmpSiteSpec.coreCount,taskCoreCount))
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
             if scanSiteList == []:

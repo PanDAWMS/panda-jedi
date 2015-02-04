@@ -60,7 +60,7 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # get files in dataset
-    def getFilesInDataset(self,datasetName,getNumEvents=False,skipDuplicate=True,ignoreUnknown=False):
+    def getFilesInDataset(self,datasetName,getNumEvents=False,skipDuplicate=True,ignoreUnknown=False,longFormat=False):
         methodName = 'getFilesInDataset'
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
@@ -69,7 +69,7 @@ class AtlasDDMClient(DDMClientBase):
             # get DQ2 API            
             dq2=DQ2()
             # get file list
-            tmpRet = dq2.listFilesInDataset(datasetName)
+            tmpRet = dq2.listFilesInDataset(datasetName,long=longFormat)
             if tmpRet == ():
                 fileMap = {}
             else:
