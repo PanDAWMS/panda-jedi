@@ -60,7 +60,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                 # delete transient datasets
                 if datasetSpec.type in ['trn_output']:
                     tmpLog.info('deleting datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
-                    retStr = ddmIF.deleteDataset(datasetSpec.datasetName,emptyOnly,ignoreUnknown=True)
+                    retStr = ddmIF.deleteDataset(datasetSpec.datasetName,False,ignoreUnknown=True)
                     tmpLog.info(retStr)
             except:
                 errtype,errvalue = sys.exc_info()[:2]
