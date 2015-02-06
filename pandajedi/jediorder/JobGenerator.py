@@ -167,7 +167,9 @@ class JobGenerator (JediKnight):
                                                                      self.taskBufferIF,self.ddmIF,
                                                                      siteMapper,self.execJobs,
                                                                      taskSetupper,
-                                                                     self.pid)
+                                                                     self.pid,
+                                                                     workQueue,
+                                                                     cloudName)
                                             globalThreadPool.add(thr)
                                             thr.start()
                                         # join
@@ -296,7 +298,7 @@ class JobGeneratorThread (WorkerThread):
 
     # constructor
     def __init__(self,inputList,threadPool,taskbufferIF,ddmIF,siteMapper,
-                 execJobs,taskSetupper,pid):
+                 execJobs,taskSetupper,pid,workQueue,cloud):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -310,6 +312,8 @@ class JobGeneratorThread (WorkerThread):
         self.msgType      = 'jobgenerator'
         self.pid          = pid
         self.buildSpecMap = {}
+        self.workQueue    = workQueue
+        self.cloud        = cloud
 
 
 
@@ -324,6 +328,13 @@ class JobGeneratorThread (WorkerThread):
                 if len(taskInputList) == 0:
                     self.logger.debug('{0} terminating after generating {1} jobs since no more inputs '.format(self.__class__.__name__,
                                                                                                                self.numGenJobs))
+                    if self.numGenJobs > 0:
+                        tmpMsg = ": submitted {0} jobs".format(self.numGenJobs)
+                        tmpLog = MsgWrapper(self.logger,monToken='<{0}:{1} cloud={2} queue={3}>'.format(self.workQueue.VO,
+                                                                                                        self.workQueue.queue_type,
+                                                                                                        self.cloud,
+                                                                                                        self.workQueue.queue_name))
+                        tmpLog.sendMsg(tmpMsg,self.msgType)
                     return
                 # loop over all tasks
                 for tmpJediTaskID,inputList in taskInputList:

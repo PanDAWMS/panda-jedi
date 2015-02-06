@@ -1,5 +1,8 @@
 Release Note
 
+* 2/6/2015
+  * added submitting messages to JG
+
 * 2/5/2015
   * fixed typo in AtlasPPP 
 
