@@ -80,7 +80,7 @@ class MsgWrapper:
 
 
     # send message to logger
-    def sendMsg(self,message,msgType,msgLevel='info'):
+    def sendMsg(self,message,msgType,msgLevel='info',escapeChar=False):
         try:
             # get logger
             tmpPandaLogger = PandaLogger()
@@ -89,6 +89,10 @@ class MsgWrapper:
             tmpPandaLogger.setParams({'Type':msgType})
             # get logger
             tmpLogger = tmpPandaLogger.getHttpLogger(jedi_config.master.loggername)
+            # escape special characters
+            if escapeChar:
+                message = message.replace('<','&lt;')
+                message = message.replace('>','&gt;')
             # add message
             message = self.monToken + ' ' + message
             if msgLevel=='error':

@@ -676,7 +676,10 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.maxDiskUnit      = 'MB'
                     jobSpec.minRamCount      = taskSpec.ramCount
                     jobSpec.minRamUnit       = taskSpec.ramUnit
-                    jobSpec.coreCount        = taskSpec.coreCount
+                    if inputChunk.isMerging and taskSpec.mergeCoreCount != None:
+                        jobSpec.coreCount    = taskSpec.mergeCoreCount
+                    else:
+                        jobSpec.coreCount    = taskSpec.coreCount
                     jobSpec.ipConnectivity   = 'yes'
                     jobSpec.metadata         = ''
                     if inputChunk.isMerging:

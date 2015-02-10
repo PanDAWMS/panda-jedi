@@ -153,6 +153,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     # append
                     self.dataSiteMap[datasetName] = tmpRet
                     tmpLog.debug('map of data availability : {0}'.format(str(tmpRet)))
+                """
                 # check if T1 has the data
                 if self.dataSiteMap[datasetName].has_key(cloudName):
                     cloudHasData = True
@@ -191,6 +192,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         tmpLog.error('no candidates')
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         return retTmpError
+                """        
         ######################################
         # selection for fairshare
         newScanSiteList = []

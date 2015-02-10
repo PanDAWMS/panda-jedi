@@ -143,7 +143,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 # pilot is not running or DDM has a problem
                 msgBody = "SKIP no running and enough nQueued({0})>{1}".format(nNotRun+nDefine,nQueueLimit)
                 tmpLog.debug(msgHeader+" "+msgBody)
-                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
+                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
             elif nRunning != 0 and float(nNotRun)/float(nRunning) > threshold and (nNotRun+nDefine) > nQueueLimit:
                 limitPriority = True
@@ -152,7 +152,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                                                                                                   threshold,nNotRun+nDefine,
                                                                                                   nQueueLimit)
                 tmpLog.debug(msgHeader+" "+msgBody)
-                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
+                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
             elif nDefine > nQueueLimit:
                 limitPriority = True
@@ -167,7 +167,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 msgBody = "SKIP too many nWaiting({0})>max(nRunning({1})x{2},{3}x{4})".format(nWaiting,nRunning,nWaitingLimit,
                                                                                               nJobsInBunch,nWaitingBunchLimit)
                 tmpLog.debug(msgHeader+" "+msgBody)
-                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
+                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
         # get jobs from prodDB
         limitPriorityValue = None
