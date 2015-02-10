@@ -501,10 +501,10 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.debug('final {0} candidates'.format(len(scanSiteList)))
         weightMap = {}
         for tmpSiteName in scanSiteList:
-            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',cloudName,taskSpec.workQueue_ID)
-            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',cloudName,taskSpec.workQueue_ID)
-            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',cloudName,taskSpec.workQueue_ID)
-            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting',cloudName,taskSpec.workQueue_ID)
+            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
+            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',None,taskSpec.workQueue_ID)
+            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,taskSpec.workQueue_ID)
+            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting',None,taskSpec.workQueue_ID)
             weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + 1) / float(nAssigned + 1)
             weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} tSize={4} '.format(nRunning,nActivated,nAssigned,
                                                                                   nStarting,totalSize)

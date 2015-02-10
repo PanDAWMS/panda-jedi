@@ -4,6 +4,7 @@ Release Note
   * modified MW to escape <>
   * removed data locality check from AtlasPJB
   * fixed JG to set correct coreCount for pmerge
+  * changed AtlasPJB to count jobs in all clouds
 
 * 2/6/2015
   * added submitting messages to JG
