@@ -2772,9 +2772,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         break
                                 if iFiles == 0:
                                     # no input files
-                                    tmpLog.debug('jediTaskID={0} datasetID={1} has no files to be processed'.format(jediTaskID,datasetID))
-                                    toSkip = True
-                                    break
+                                    if not readMinFiles or not tmpDatasetSpec.isPseudo():
+                                        tmpLog.debug('jediTaskID={0} datasetID={1} has no files to be processed'.format(jediTaskID,datasetID))
+                                        toSkip = True
+                                        break
                                 elif simTasks == None and tmpDatasetSpec.toKeepTrack():
                                     # update nFilesUsed in DatasetSpec
                                     nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles
