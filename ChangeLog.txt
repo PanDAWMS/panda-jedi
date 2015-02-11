@@ -1,5 +1,10 @@
 Release Note
 
+* 2/11/2015
+  * changed AtlasPJB to include nDefined in nQueued
+  * added bulkSendMsg to MsgWrapper
+  * changed AtlasAJB to send brokerage logs
+
 * 2/10/2015
   * modified MW to escape <>
   * removed data locality check from AtlasPJB

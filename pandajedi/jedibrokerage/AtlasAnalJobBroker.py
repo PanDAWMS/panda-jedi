@@ -1,6 +1,7 @@
 import re
 import sys
 import random
+import datetime
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
@@ -23,10 +24,21 @@ class AtlasAnalJobBroker (JobBrokerBase):
         self.dataSiteMap = {}
 
 
+        
+    # wrapper for return
+    def sendLogMessage(self,tmpLog):
+        # send info to logger
+        tmpLog.bulkSendMsg('analy_brokerage')
+        tmpLog.debug('sent')
+
+
+
     # main
     def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap):
         # make logger
-        tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID))
+        tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),
+                            monToken='<jediTaskID={0} {1}>'.format(taskSpec.jediTaskID,
+                                                                   datetime.datetime.utcnow().isoformat('/')))
         tmpLog.debug('start')
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
@@ -88,10 +100,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     if tmpSt in [Interaction.JEDITemporaryError,Interaction.JEDITimeoutError]: 
                         tmpLog.error('temporary failed to get the list of sites where data is available, since %s' % tmpRet)
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        # send info to logger
+                        self.sendLogMessage(tmpLog)
                         return retTmpError
                     if tmpSt == Interaction.JEDIFatalError:
                         tmpLog.error('fatal error when getting the list of sites where data is available, since %s' % tmpRet)
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        # send info to logger
+                        self.sendLogMessage(tmpLog)
                         return retFatal
                     # append
                     self.dataSiteMap[datasetName] = tmpRet
@@ -103,12 +119,16 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if self.dataSiteMap[datasetName] == {}:
                     tmpLog.error('{0} is unavaiable at any site'.format(datasetName))
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    # send info to logger
+                    self.sendLogMessage(tmpLog)
                     return retFatal
                 # check if the data is available on disk
                 if AtlasBrokerUtils.getAnalSitesWithDataDisk(self.dataSiteMap[datasetName]) == []:
                     tmpLog.debug('{0} is avaiable only on tape'.format(datasetName))
                     tapeOnlyDatasets.append(datasetName)
                     #taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    # send info to logger
+                    #self.sendLogMessage(tmpLog)
                     #return retFatal
             # get the list of sites where data is available    
             scanSiteList = None     
@@ -173,6 +193,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
                 return retFatal
         ######################################
         # selection for status
@@ -197,6 +219,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
         if scanSiteList == []:
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            # send info to logger
+            self.sendLogMessage(tmpLog)
             return retTmpError
         ######################################
         # selection for MP
@@ -216,6 +240,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
         # selection for release
@@ -273,6 +299,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
         # selection for memory
@@ -299,6 +327,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
         # selection for scratch disk
@@ -340,6 +370,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
         if scanSiteList == []:
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            # send info to logger
+            self.sendLogMessage(tmpLog)
             return retTmpError
         ######################################
         # selection for available space in SE
@@ -364,6 +396,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
         if scanSiteList == []:
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            # send info to logger
+            self.sendLogMessage(tmpLog)
             return retTmpError
         ######################################
         # selection for walltime
@@ -390,6 +424,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
         # selection for nPilot
@@ -409,6 +445,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
         if scanSiteList == []:
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            # send info to logger
+            self.sendLogMessage(tmpLog)
             return retTmpError
         ######################################
         # check inclusion and exclusion
@@ -453,6 +491,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
         if scanSiteList == []:
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            # send info to logger
+            self.sendLogMessage(tmpLog)
             return retTmpError
         ######################################
         # sites already used by task
@@ -460,6 +500,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
         if not tmpSt:
             tmpLog.error('failed to get sites which already used by task')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            # send info to logger
+            self.sendLogMessage(tmpLog)
             return retTmpError
         ######################################
         # calculate weight
@@ -476,12 +518,16 @@ class AtlasAnalJobBroker (JobBrokerBase):
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            # send info to logger
+            self.sendLogMessage(tmpLog)
             return retTmpError
         # check for preassigned
         if sitePreAssigned and not taskSpec.site in scanSiteList:
             tmpLog.debug("preassigned site {0} didn't pass all tests".format(taskSpec.site))
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            # send info to logger
+            self.sendLogMessage(tmpLog)
             return retFatal
         ######################################
         # final procedure
@@ -577,6 +623,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed to get available files with %s %s' % (errtype.__name__,errvalue))
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
                 return retTmpError
         # append candidates
         newScanSiteList = []
@@ -645,7 +693,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
         if scanSiteList == []:
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            # send info to logger
+            self.sendLogMessage(tmpLog)
             return retTmpError
+        # send info to logger
+        self.sendLogMessage(tmpLog)
         # return
         tmpLog.debug('done')        
         return self.SC_SUCCEEDED,inputChunk

@@ -1,4 +1,5 @@
 import re
+import time
 import datetime
 from pandajedi.jediconfig import jedi_config
 from pandaserver.userinterface import Client
@@ -105,5 +106,36 @@ class MsgWrapper:
                 tmpLogger.debug(message)                
             # release HTTP handler
             tmpPandaLogger.release()
+        except:
+            pass
+
+
+
+    # bulk send messages to logger
+    def bulkSendMsg(self,msgType,msgLevel='info'):
+        try:
+            nChunk = 20
+            for iMsg,message in enumerate(self.msgBuffer):
+                # get logger
+                tmpPandaLogger = PandaLogger()
+                # lock HTTP handler
+                tmpPandaLogger.lock()
+                tmpPandaLogger.setParams({'Type':msgType})
+                # get logger
+                tmpLogger = tmpPandaLogger.getHttpLogger(jedi_config.master.loggername)
+                # add message
+                message = self.monToken + ' ' + message
+                if msgLevel=='error':
+                    tmpLogger.error(message)
+                elif msgLevel=='warning':
+                    tmpLogger.warning(message)
+                elif msgLevel=='info':
+                    tmpLogger.info(message)
+                else:
+                    tmpLogger.debug(message)                
+                # release HTTP handler
+                tmpPandaLogger.release()
+                if (iMsg+1) % nChunk == 0:
+                    time.sleep(1)
         except:
             pass

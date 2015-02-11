@@ -145,12 +145,12 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
-            elif nRunning != 0 and float(nNotRun)/float(nRunning) > threshold and (nNotRun+nDefine) > nQueueLimit:
+            elif nRunning != 0 and float(nNotRun+nDefine)/float(nRunning) > threshold and (nNotRun+nDefine) > nQueueLimit:
                 limitPriority = True
                 # enough jobs in Panda
-                msgBody = "SKIP nQueued({0})/nRunning({1})>{2} & nQueued+Defined({3})>{4}".format(nNotRun,nRunning,
-                                                                                                  threshold,nNotRun+nDefine,
-                                                                                                  nQueueLimit)
+                msgBody = "SKIP nQueued({0})/nRunning({1})>{2} & nQueued({3})>{4}".format(nNotRun+nDefine,nRunning,
+                                                                                          threshold,nNotRun+nDefine,
+                                                                                          nQueueLimit)
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
@@ -159,7 +159,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 # brokerage is stuck
                 msgBody = "SKIP too many nDefined({0})>{1}".format(nDefine,nQueueLimit)
                 tmpLog.debug(msgHeader+" "+msgBody)
-                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
+                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
             elif nWaiting > nRunning*nWaitingLimit and nWaiting > nJobsInBunch*nWaitingBunchLimit:
                 limitPriority = True
