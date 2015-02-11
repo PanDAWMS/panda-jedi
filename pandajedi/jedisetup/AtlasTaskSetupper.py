@@ -96,23 +96,11 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                     return retFatal
                                 # procedures for user 
                                 if userSetup:
-                                    # set owner
-                                    tmpLog.info('setting owner={0}'.format(taskSpec.userName))
-                                    tmpStat = ddmIF.setDatasetOwner(targetName,taskSpec.userName,backEnd=ddmBackEnd)
-                                    if not tmpStat:
-                                        tmpLog.error('failed to set ownership {0} with {1}'.format(targetName,
-                                                                                                   taskSpec.userName))
-                                        return retFatal
                                     # register location
-                                    if lifetime != None:
-                                        strLifetime = "{0} days".format(lifetime)
-                                    else:
-                                        strLifetime = None
                                     if targetName == datasetSpec.datasetName and not datasetSpec.site in ['',None]:
-                                        tmpLog.info('registring location={0} lifetime={1}'.format(location,strLifetime))
+                                        tmpLog.info('registring location={0} lifetime={1} days'.format(location,lifetime))
                                         tmpStat = ddmIF.registerDatasetLocation(targetName,location,owner=taskSpec.userName,
-                                                                                lifetime=strLifetime,
-                                                                                backEnd=ddmBackEnd)
+                                                                                lifetime=lifetime,backEnd=ddmBackEnd)
                                         if not tmpStat:
                                             tmpLog.error('failed to register location {0} with {2} for {1}'.format(location,
                                                                                                                    targetName,

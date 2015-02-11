@@ -4,6 +4,8 @@ Release Note
   * changed AtlasPJB to include nDefined in nQueued
   * added bulkSendMsg to MsgWrapper
   * changed AtlasAJB to send brokerage logs
+  * removed setReplicaMetaDataAttribute from AtlasTS
+  * added soft finish
 
 * 2/10/2015
   * modified MW to escape <>

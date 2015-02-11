@@ -134,6 +134,7 @@ class TaskCommandoThread (WorkerThread):
                                 tmpTaskSpec.jediTaskID = jediTaskID
                                 updateTaskStatus = True
                                 if commandStr != 'reassign':
+                                    # reset oldStatus
                                     # keep oldStatus for task reassignment since it is reset when actually reassigned
                                     tmpTaskSpec.forceUpdate('oldStatus')
                                 else:
@@ -160,10 +161,15 @@ class TaskCommandoThread (WorkerThread):
                                 tmpLog.info(tmpMsg)
                                 tmpRet = self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':jediTaskID})
                             else:
-                                tmpMsg = "trying to kill jobs"
-                                tmpLog.info(tmpMsg)
-                                tmpLog.sendMsg(tmpMsg,self.msgType)
-                                tmpRet = self.taskBufferIF.killJobs(pandaIDs,commentStr,'50',True)
+                                if 'soft finish' in commentStr:
+                                    tmpMsg = "wating {0} jobs for soft finish".format(len(pandaIDs))
+                                    tmpLog.info(tmpMsg)
+                                    tmpRet = True
+                                else:
+                                    tmpMsg = "trying to kill {0} jobs".format(len(pandaIDs))
+                                    tmpLog.info(tmpMsg)
+                                    tmpLog.sendMsg(tmpMsg,self.msgType)
+                                    tmpRet = self.taskBufferIF.killJobs(pandaIDs,commentStr,'50',True)
                             tmpLog.info('done with {0}'.format(str(tmpRet)))
                     elif commandStr in ['retry','incexec']:
                         tmpMsg = 'executing {0}'.format(commandStr)

@@ -26,7 +26,8 @@ from dq2.common import parse_dn
 from dq2.info.client.infoClient import infoClient
 
 from rucio.client import Client as RucioClient
-from rucio.common.exception import UnsupportedOperation,DataIdentifierNotFound,DataIdentifierAlreadyExists
+from rucio.common.exception import UnsupportedOperation,DataIdentifierNotFound,DataIdentifierAlreadyExists,\
+    DuplicateRule
 
 try:
     from pyAMI.client import AMIClient
@@ -908,22 +909,34 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
+            # get rucio API
+            client = RucioClient()
             # cleanup DN
             owner = parse_dn(owner)
-            # get DQ2 API
-            if backEnd == None:
-                dq2 = DQ2()
-            else:
-                dq2 = DQ2(force_backend=backEnd)
-            # set
-            dq2.registerDatasetLocation(datasetName,location,lifetime=lifetime)
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
+            # lifetime
+            if lifetime != None:
+                lifetime = lifetime * 86400
+            elif 'SCRATCHDISK' in location:
+                lifetime = 14 * 86400
             # get owner
-            if backEnd == 'rucio':
+            if owner != None:
                 tmpStat,userInfo = self.finger(owner)
                 if tmpStat != self.SC_SUCCEEDED:
                     raise RuntimeError,'failed to get nickname for {0}'.format(owner)
                 owner = userInfo['nickname']
-            dq2.setReplicaMetaDataAttribute(datasetName,location,'owner',owner)
+            else:
+                owner = client.account
+            # add rule
+            dids = []
+            did = {'scope': scope, 'name': dsn}
+            dids.append(did)
+            client.add_replication_rule(dids=dids,copies=1,rse_expression=location,lifetime=lifetime,
+                                        grouping='DATASET',account=owner,locked=False,notify='N',
+                                        ignore_availability=True)
+        except DuplicateRule:
+            pass
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
