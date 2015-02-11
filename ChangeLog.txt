@@ -6,6 +6,7 @@ Release Note
   * changed AtlasAJB to send brokerage logs
   * removed setReplicaMetaDataAttribute from AtlasTS
   * added soft finish
+  * fixed insertFiles to take largeness of nEventsPerFile into account
 
 * 2/10/2015
   * modified MW to escape <>

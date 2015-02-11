@@ -824,7 +824,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # no more inputs are required even if parent is still running
                         numReqFileRecords = nMaxFiles
                         try:
-                            numReqFileRecords = numReqFileRecords * nEventsPerFile / nEventsPerJob
+                            if nEventsPerFile > nEventsPerJob:
+                                numReqFileRecords = numReqFileRecords * nEventsPerFile / nEventsPerJob
                         except:
                             pass
                         tmpLog.debug("the number of requested file records : {0}".format(numReqFileRecords))
