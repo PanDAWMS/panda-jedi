@@ -5336,6 +5336,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
             sqlTT += "SET status=:status,timeStamp=CURRENT_DATE "
             sqlTT += "WHERE taskID=:jediTaskID "
+            # sql to check the number of finished files
+            sqlND  = "SELECT SUM(nFilesFinished) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlND += "WHERE jediTaskID=:jediTaskID AND type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sqlND += '{0},'.format(mapKey)
+            sqlND  = sqlND[:-1]
+            sqlND += ") AND masterID IS NULL "
             # start transaction
             self.conn.begin()
             self.cur.execute(sqlTL+comment,varMap)
@@ -5362,7 +5370,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # if timeout
                     if timeoutDate != None and frozenTime != None and frozenTime < timeoutDate:
                         timeoutFlag = True
-                        varMap[':newStatus'] = 'aborting'
+                        # check the number of finished files
+                        for tmpType in JediDatasetSpec.getInputTypes():
+                            mapKey = ':type_'+tmpType
+                            varMap[mapKey] = tmpType
+                        self.cur.execute(sqlND+comment,varMap)
+                        tmpND = self.cur.fetchone()
+                        if tmpND != None and tmpND[0] > 0:
+                            abortingFlag = False
+                        else:
+                            abortingFlag = True
+                        # go to aborting if no finished
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        if abortingFlag:
+                            varMap[':newStatus'] = 'aborting'
+                        else:
+                            varMap[':newStatus'] = 'finishing'
                         if errorDialog == None:
                             errorDialog = ''
                         else:
@@ -5381,7 +5405,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('jediTaskID={0} reactivated'.format(jediTaskID))
                 nRow += self.cur.rowcount
                 # update DEFT for timeout
-                if timeoutFlag:
+                if timeoutFlag and abortingFlag:
                     deftStatus = 'aborted'
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID

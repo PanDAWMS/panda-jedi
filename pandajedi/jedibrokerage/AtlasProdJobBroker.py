@@ -60,6 +60,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         # hospital sites
         if self.hospitalQueueMap.has_key(cloudName):
             t1Sites += self.hospitalQueueMap[cloudName]
+        # sites sharing SE with T1
+        sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper,self.siteMapper.getCloud(cloudName)['source'])
+        # core count
         if inputChunk.isMerging and taskSpec.mergeCoreCount != None:
             taskCoreCount = taskSpec.mergeCoreCount
         else:
@@ -113,15 +116,15 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for high priorities
-        if (taskSpec.currentPriority >= 950 or inputChunk.useScout()) and useMP != 'only' \
+        if (taskSpec.currentPriority >= 950 or inputChunk.useScout()) \
                 and not sitePreAssigned and not siteListPreAssigned:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:            
-                if tmpSiteName in t1Sites:
+                if tmpSiteName in t1Sites+sitesShareSeT1:
                     newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpLog.debug('  skip {0} due to highPrio/scouts which needs to run at {1} T1'.format(tmpSiteName,
-                                                                                                         cloudName))
+                    tmpLog.debug('  skip {0} due to highPrio/scouts which needs to run at sites associated with {1} T1 SE'.format(tmpSiteName,
+                                                                                                                                  cloudName))
             scanSiteList = newScanSiteList
             tmpLog.debug('{0} candidates passed for highPrio/scouts'.format(len(scanSiteList)))
             if scanSiteList == []:
