@@ -136,17 +136,18 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                                                                                               nNotRun+nDefine,
                                                                                               nDefine,
                                                                                               nRunning))
-        # check when high prio tasks are not waiting
-        if not highPrioQueued:
-            if nRunning == 0 and (nNotRun+nDefine) > nQueueLimit:
-                limitPriority = True
+        # check
+        if nRunning == 0 and (nNotRun+nDefine) > nQueueLimit:
+            limitPriority = True
+            if not highPrioQueued:
                 # pilot is not running or DDM has a problem
                 msgBody = "SKIP no running and enough nQueued({0})>{1}".format(nNotRun+nDefine,nQueueLimit)
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
-            elif nRunning != 0 and float(nNotRun+nDefine)/float(nRunning) > threshold and (nNotRun+nDefine) > nQueueLimit:
-                limitPriority = True
+        elif nRunning != 0 and float(nNotRun+nDefine)/float(nRunning) > threshold and (nNotRun+nDefine) > nQueueLimit:
+            limitPriority = True
+            if not highPrioQueued:
                 # enough jobs in Panda
                 msgBody = "SKIP nQueued({0})/nRunning({1})>{2} & nQueued({3})>{4}".format(nNotRun+nDefine,nRunning,
                                                                                           threshold,nNotRun+nDefine,
@@ -154,15 +155,17 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
-            elif nDefine > nQueueLimit:
-                limitPriority = True
+        elif nDefine > nQueueLimit:
+            limitPriority = True
+            if not highPrioQueued:
                 # brokerage is stuck
                 msgBody = "SKIP too many nDefined({0})>{1}".format(nDefine,nQueueLimit)
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
-            elif nWaiting > nRunning*nWaitingLimit and nWaiting > nJobsInBunch*nWaitingBunchLimit:
-                limitPriority = True
+        elif nWaiting > nRunning*nWaitingLimit and nWaiting > nJobsInBunch*nWaitingBunchLimit:
+            limitPriority = True
+            if not highPrioQueued:
                 # too many waiting
                 msgBody = "SKIP too many nWaiting({0})>max(nRunning({1})x{2},{3}x{4})".format(nWaiting,nRunning,nWaitingLimit,
                                                                                               nJobsInBunch,nWaitingBunchLimit)
@@ -172,7 +175,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         # get jobs from prodDB
         limitPriorityValue = None
         if limitPriority:
-            limitPriorityValue = highestPrioInPandaDB
+            limitPriorityValue = highestPrioWaiting
             self.setMinPriority(limitPriorityValue)
         msgBody = "PASS - priority limit={0}".format(limitPriorityValue)
         tmpLog.debug(msgHeader+" "+msgBody)

@@ -13,9 +13,11 @@ wqMap = tbIF.getWorkQueueMap()
 
 tmpSt,jobStat = tbIF.getJobStatWithWorkQueuePerCloud_JEDI(vo,prodSourceLabel)
 
-from pandajedi.jedithrottle.JobThrottler import JobThrottler
+from pandajedi.jediorder.JobThrottler import JobThrottler
+
 
 jt = JobThrottler(vo,prodSourceLabel)
-jt.initialize(tbIF)
+jt.initializeMods(tbIF)
 
-print jt.toBeThrottled(vo,'US',wqMap.getQueueWithID(3),jobStat)
+workQueue = wqMap.getQueueWithID(1)
+print jt.toBeThrottled(vo,workQueue.queue_type,'ND',workQueue,jobStat)

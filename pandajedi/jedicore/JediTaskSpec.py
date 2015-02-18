@@ -38,6 +38,7 @@ class JediTaskSpec(object):
         'allowEmptyInput'    : 'AE',
         'addNthFieldToLFN'   : 'AN',
         'ddmBackEnd'         : 'DE',
+        'disableReassign'    : 'DI',
         'disableAutoRetry'   : 'DR',
         'nEsConsumers'       : 'EC',
         'nEventsPerWorker'   : 'ES',
@@ -478,6 +479,16 @@ class JediTaskSpec(object):
     def disableAutoRetry(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['disableAutoRetry']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # disable reassign
+    def disableReassign(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['disableReassign']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

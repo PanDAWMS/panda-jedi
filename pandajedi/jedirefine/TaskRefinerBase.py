@@ -185,6 +185,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['reuseSecOnDemand'])
         if 'ddmBackEnd' in taskParamMap:
             self.taskSpec.setDdmBackEnd(taskParamMap['ddmBackEnd'])
+        if 'disableReassign' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['disableReassign'])
         # return
         return
     

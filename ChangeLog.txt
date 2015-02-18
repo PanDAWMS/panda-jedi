@@ -1,5 +1,9 @@
 Release Note
 
+* 2/18/2015
+  * added disableReassign
+  * fixed AtlasPJT when high prio tasks are waiting
+
 * 2/13/2015
   * changed AtlasPJB to send scouts to sites associated to T1 SE
   * changed reacivatePendingTasks to finish tasks when they have some finished files 

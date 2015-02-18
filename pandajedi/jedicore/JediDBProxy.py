@@ -3385,7 +3385,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # select
                 if table == '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA):
                     varMap[':jobStatus1'] = 'activated'
-                    varMap[':jobStatus2'] = 'dummy'
+                    varMap[':jobStatus2'] = 'starting'
                 else:
                     varMap[':jobStatus1'] = 'defined'
                     varMap[':jobStatus2'] = 'assigned'

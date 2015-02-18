@@ -364,15 +364,22 @@ class AtlasProdJobBroker (JobBrokerBase):
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                # check at the site
-                if tmpSiteSpec.maxtime != 0 and minWalltime > tmpSiteSpec.maxtime:
+                # check max walltime at the site
+                siteMaxTime = tmpSiteSpec.maxtime
+                if not siteMaxTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
+                    siteMaxTime *= tmpSiteSpec.coreCount
+                if siteMaxTime != 0 and minWalltime > siteMaxTime:
                     tmpLog.debug('  skip {0} due to short site walltime={1}(site upper limit) < {2}'.format(tmpSiteName,
-                                                                                                            tmpSiteSpec.maxtime,
+                                                                                                            siteMaxTime,
                                                                                                             minWalltime))
                     continue
-                if tmpSiteSpec.mintime != 0 and minWalltime < tmpSiteSpec.mintime:
+                # check min walltime at the site
+                siteMinTime = tmpSiteSpec.mintime
+                if not siteMinTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
+                    siteMinTime *= tmpSiteSpec.coreCount
+                if siteMinTime != 0 and minWalltime < siteMinTime:
                     tmpLog.debug('  skip {0} due to short job walltime={1}(site lower limit) > {2}'.format(tmpSiteName,
-                                                                                                           tmpSiteSpec.mintime,
+                                                                                                           siteMinTime,
                                                                                                            minWalltime))
                     continue
                 newScanSiteList.append(tmpSiteName)
