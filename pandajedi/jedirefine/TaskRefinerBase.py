@@ -187,6 +187,8 @@ class TaskRefinerBase (object):
             self.taskSpec.setDdmBackEnd(taskParamMap['ddmBackEnd'])
         if 'disableReassign' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['disableReassign'])
+        if 'allowPartialFinish' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['allowPartialFinish'])
         # return
         return
     

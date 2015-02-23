@@ -778,6 +778,9 @@ class JobGeneratorThread (WorkerThread):
                     specialHandling = specialHandling[:-1]
                     if specialHandling != '':
                         jobSpec.specialHandling = specialHandling
+                    # allow partial finish
+                    if taskSpec.allowPartialFinish():
+                        jobSpec.setToAcceptPartialFinish()
                     # set lumi block number
                     if lumiBlockNr != None:
                         jobSpec.setLumiBlockNr(lumiBlockNr)

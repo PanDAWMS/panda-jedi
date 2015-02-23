@@ -37,6 +37,7 @@ class JediTaskSpec(object):
     splitRuleToken = {
         'allowEmptyInput'    : 'AE',
         'addNthFieldToLFN'   : 'AN',
+        'allowPartialFinish' : 'AP',
         'ddmBackEnd'         : 'DE',
         'disableReassign'    : 'DI',
         'disableAutoRetry'   : 'DR',
@@ -911,6 +912,16 @@ class JediTaskSpec(object):
     def respectLumiblock(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['respectLB']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # allow partial finish
+    def allowPartialFinish(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['allowPartialFinish']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

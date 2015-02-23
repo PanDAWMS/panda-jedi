@@ -1,5 +1,10 @@
 Release Note
 
+* 2/23/2015
+  * added noThrottle
+  * added partialFinish
+  * using AVG for throttle
+
 * 2/18/2015
   * added disableReassign
   * fixed AtlasPJT when high prio tasks are waiting
