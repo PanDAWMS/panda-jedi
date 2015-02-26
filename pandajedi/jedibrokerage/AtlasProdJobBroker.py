@@ -340,12 +340,15 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # free space - inputs - outputs(250MB*nJobs) must be >= 200GB
                 outSizePerJob = 0.250
                 diskThreshold = 200
-                tmpSpaceSize = tmpSiteSpec.space - movingInputSize - nRemJobs * outSizePerJob
-                if tmpSiteSpec.space != 0 and tmpSpaceSize < diskThreshold:
-                    tmpLog.debug('  skip {0} due to disk shortage in SE = {1}-{2}-{3}x{4} < {5}'.format(tmpSiteName,tmpSiteSpec.space,
-                                                                                                        movingInputSize,outSizePerJob,
-                                                                                                        nRemJobs,diskThreshold))
-                    continue
+                tmpSiteSpaceMap = self.ddmIF.getRseUsage(tmpSiteSpec.ddm)
+                if tmpSiteSpaceMap != {}:
+                    tmpSiteFreeSpace = tmpSiteSpaceMap['free']
+                    tmpSpaceSize = tmpSiteFreeSpace - movingInputSize - nRemJobs * outSizePerJob
+                    if tmpSiteSpec.space != 0 and tmpSpaceSize < diskThreshold:
+                        tmpLog.debug('  skip {0} due to disk shortage in SE = {1}-{2}-{3}x{4} < {5}'.format(tmpSiteName,tmpSiteFreeSpace,
+                                                                                                            movingInputSize,outSizePerJob,
+                                                                                                            nRemJobs,diskThreshold))
+                        continue
                 # check if blacklisted
                 if self.ddmIF.isBlackListedEP(tmpSiteSpec.ddm):
                     tmpLog.debug('  skip {0} since {1} is blacklisted in DDM'.format(tmpSiteName,tmpSiteSpec.ddm))

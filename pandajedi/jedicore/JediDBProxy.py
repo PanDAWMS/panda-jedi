@@ -4172,6 +4172,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if vo != None:
                     sqlEA += "AND tabT.vo=:vo "
                 sqlEA += "AND tabT.lockedBy IS NULL "
+                sqlEA += "AND tabD.masterID IS NULL "
                 sqlEA += 'AND tabD.type IN ('
                 for tmpType in JediDatasetSpec.getInputTypes():
                     mapKey = ':type_'+tmpType
@@ -4180,7 +4181,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlEA  = sqlEA[:-1]
                 sqlEA += ') '
                 sqlEA += 'GROUP BY tabT.jediTaskID) '
-                sqlEA += 'WHERE totToBeUsed>0 AND totFinished*{0}>=totToBeUsed '.format(minSuccessScouts)
+                sqlEA += 'WHERE totToBeUsed>0 AND totFinished*{0}>=totToBeUsed*{1} '.format(10,minSuccessScouts)
                 sqlEA += 'AND rownum<={0}'.format(nTasks)
                 # get tasks
                 tmpLog.debug(sqlEA+comment+str(varMap))
@@ -4190,7 +4191,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 for jediTaskID,totFinished,totToBeUsed in resList:
                     if not jediTaskID in jediTaskIDstatusMap:
                         jediTaskIDstatusMap[jediTaskID] = varMap['taskstatus']
-                        tmpLog.debug('got jediTaskID={0} for early avalanche'.format(jediTaskID))
+                        tmpLog.debug('got jediTaskID={0} {1}/{2} for early avalanche'.format(jediTaskID,
+                                                                                             totFinished,
+                                                                                             totToBeUsed))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -6697,7 +6700,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get tasks to reassign
             varMap = {}
             varMap[':status'] = 'reassigning'
-            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=30)
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
             sqlSCF  = "SELECT {0} ".format(JediTaskSpec.columnNames('tabT'))
             sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlSCF += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -7096,7 +7099,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nTasks = 0
             for jediTaskID,numThrottled,largestAttemptNr in resList:
                 # check threshold
-                if largestAttemptNr/attemptInterval <= numThrottled:
+                if int(largestAttemptNr/attemptInterval) <= numThrottled:
                     continue
                 # begin transaction
                 self.conn.begin()

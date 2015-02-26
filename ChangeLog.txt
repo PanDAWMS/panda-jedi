@@ -1,5 +1,10 @@
 Release Note
 
+* 2/26/2015
+  * changed AtlasPJB to check free disksize with rucio
+  * fixed truncation error when throttling tasks
+  * fixed prepareTasks for early avalanche
+
 * 2/23/2015
   * added noThrottle
   * added partialFinish

@@ -1249,3 +1249,45 @@ class AtlasDDMClient(DDMClientBase):
         except:
             pass
         return self.SC_SUCCEEDED,False
+
+
+
+    # get disk usage at RSE
+    def getRseUsage(self,rse,src='srm'):
+        methodName  = 'getRseUsage'
+        methodName += ' <rse={0}>'.format(rse)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        retMap = {}
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get info
+            itr = client.get_rse_usage(rse)
+            # look for srm
+            for item in itr:
+                if item['source'] == src:
+                    try:
+                        total = item['total']/1024/1024/1024
+                    except:
+                        total = None
+                    try:
+                        used = item['used']/1024/1024/1024
+                    except:
+                        used = None
+                    try:
+                        free = item['free']/1024/1024/1024
+                    except:
+                        free = None
+                    retMap = {'total':total,
+                              'used':used,
+                              'free':free}
+                    break
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,{}
+        tmpLog.debug('done {0}'.format(str(retMap)))
+        return self.SC_SUCCEEDED,retMap
