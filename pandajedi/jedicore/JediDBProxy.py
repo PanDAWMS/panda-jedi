@@ -7109,9 +7109,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     throttledTime = datetime.datetime.utcnow()
                     releaseTime   = throttledTime + \
                         datetime.timedelta(minutes=waitTime*numThrottled*numThrottled)
-                    errorDialog  = 'throttled due to many attempts {0}>{1}x{2} '.format(largestAttemptNr,
-                                                                                        numThrottled,
-                                                                                        attemptInterval)
+                    errorDialog  = 'throttled due to many attempts {0}>={1}x{2} '.format(largestAttemptNr,
+                                                                                         numThrottled,
+                                                                                         attemptInterval)
                     errorDialog += 'from {0} '.format(throttledTime.strftime('%Y/%m/%d %H:%M:%S'))
                     errorDialog += 'till {0}'.format(releaseTime.strftime('%Y/%m/%d %H:%M:%S'))
                     varMap = {}

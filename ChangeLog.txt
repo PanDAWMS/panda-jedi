@@ -1,5 +1,9 @@
 Release Note
 
+* 3/3/2015
+  * changed AtlasPJB to send logging info to the logger
+  * changed AtlasPJB to assign highPrio/scouts to home+foreign T1
+
 * 2/26/2015
   * changed AtlasPJB to check free disksize with rucio
   * fixed truncation error when throttling tasks
