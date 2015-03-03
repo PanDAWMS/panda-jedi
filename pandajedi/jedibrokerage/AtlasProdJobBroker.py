@@ -149,7 +149,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         t1WeightForHighPrio = 1
         if (taskSpec.currentPriority > 900 or inputChunk.useScout()) \
                 and not sitePreAssigned and not siteListPreAssigned:
-            t1WeightForHighPri = 100
+            t1WeightForHighPrio = 100
             newScanSiteList = []
             for tmpSiteName in scanSiteList:            
                 if tmpSiteName in t1Sites+sitesShareSeT1+allT1Sites:
@@ -477,7 +477,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             t1Weight = 1
-        t1Weight = max(t1Weight,t1WeightForHighPri)
+        t1Weight = max(t1Weight,t1WeightForHighPrio)
         tmpLog.debug('T1 weight {0}'.format(t1Weight))
         tmpLog.debug('{0} candidates passed T1 weight check'.format(len(scanSiteList)))
         if scanSiteList == []:
