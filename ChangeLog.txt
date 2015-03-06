@@ -1,5 +1,8 @@
 Release Note
 
+* 3/6/2015
+  * introduced manyAssigned in AtlasPJB
+
 * 3/3/2015
   * changed AtlasPJB to send logging info to the logger
   * changed AtlasPJB to assign highPrio/scouts to home+foreign T1

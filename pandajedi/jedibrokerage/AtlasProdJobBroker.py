@@ -568,9 +568,12 @@ class AtlasProdJobBroker (JobBrokerBase):
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',None,taskSpec.workQueue_ID)
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,taskSpec.workQueue_ID)
             nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting',None,taskSpec.workQueue_ID)
-            weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + 1) / float(nAssigned + 1)
-            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} tSize={4} '.format(nRunning,nActivated,nAssigned,
-                                                                                  nStarting,totalSize)
+            manyAssigned = float(nAssigned + 1) / float(nActivated + 1)
+            manyAssigned = min(2.0,manyAssigned)
+            manyAssigned = max(1.0,manyAssigned)
+            weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + 1) / manyAssigned
+            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} tSize={4} manyAss={5} '.format(nRunning,nActivated,nAssigned,
+                                                                                             nStarting,totalSize,manyAssigned)
             # normalize weights by taking data availability into account
             if totalSize != 0:
                 weight = weight * float(normalizeFactors[tmpSiteName]+totalSize) / float(totalSize)
