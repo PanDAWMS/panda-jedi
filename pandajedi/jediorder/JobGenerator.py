@@ -101,6 +101,14 @@ class JobGenerator (JediKnight):
                                                                                                          workQueue.queue_type,
                                                                                                          self.pid)
                                 tmpLog.debug('start {0}'.format(cycleStr))
+                                # check if to lock
+                                if self.toLockProcess(vo,prodSourceLabel,workQueue.queue_name,cloudName):
+                                    tmpLog.debug('check if to lock')
+                                    # lock
+                                    flagLocked = self.taskBufferIF.lockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
+                                    if not flagLocked:
+                                        tmpLog.debug('skip since locked by another process')    
+                                        continue
                                 # throttle
                                 tmpLog.debug('check throttle with {0}'.format(throttle.getClassName(vo,workQueue.queue_type)))
                                 try:
@@ -115,6 +123,7 @@ class JobGenerator (JediKnight):
                                 if thrFlag == True:
                                     tmpLog.debug('throttled')
                                     if self.withThrottle:
+                                        self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
                                         continue
                                 elif thrFlag == False:
                                     pass
@@ -124,6 +133,7 @@ class JobGenerator (JediKnight):
                                     if not mergeUnThrottled:
                                         tmpLog.debug('throttled including merge')
                                         if self.withThrottle:
+                                            self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
                                             continue
                                     else:
                                         tmpLog.debug('only merge is unthrottled')
@@ -177,10 +187,21 @@ class JobGenerator (JediKnight):
                                         threadPool.join(60*10)
                                         # dump
                                         tmpLog.debug('dump one-time pool : {0}'.format(threadPool.dump()))
+                                # unlock
+                                self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
                                                                          errtype.__name__,errvalue))
+            # unlock just in case
+            try:
+                for vo in self.vos:
+                    for prodSourceLabel in self.prodSourceLabels:
+                        for cloudName in self.cloudList:
+                            for workQueue in workQueueList:
+                                self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
+            except:
+                pass 
             try:
                 # clean up global thread pool
                 globalThreadPool.clean()
@@ -289,6 +310,28 @@ class JobGenerator (JediKnight):
                 retMap[paramName] = self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel][tmpQueueName][tmpCloudName]
         # return
         return retMap
+
+
+
+    # check if lock process
+    def toLockProcess(self,vo,prodSourceLabel,queueName,cloudName):
+        try:
+            # check if param is defined in config
+            if hasattr(jedi_config.jobgen,'lockProcess'):
+                for item in jedi_config.jobgen.lockProcess.split(','):
+                    tmpVo,tmpProdSourceLabel,tmpQueueName,tmpCloudName = item.split(':')
+                    if not tmpVo in ['','any',None] and not vo in tmpVo.split('|'):
+                        continue
+                    if not tmpProdSourceLabel in ['','any',None] and not prodSourceLabel in tmpProdSourceLabel.split('|'):
+                        continue
+                    if not tmpQueueName in ['','any',None] and not queueName in tmpQueueName.split('|'):
+                        continue
+                    if not tmpCloudName in ['','any',None] and not cloudName in tmpCloudName.split('|'):
+                        continue
+                    return True
+        except:
+            pass
+        return False
                 
 
 

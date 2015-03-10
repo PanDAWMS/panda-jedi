@@ -1,6 +1,7 @@
 Release Note
 
 * 3/10/2015
+  * added lockProcess
   * changed queue lengh to 450*4
   * changed chunk size per site to 25
 

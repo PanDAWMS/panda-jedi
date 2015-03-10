@@ -7259,3 +7259,115 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return 0
 
 
+
+    # lock process
+    def lockProcess_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid):
+        comment = ' /* JediDBProxy.lockProcess_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1} cloud={2} queue={3} pid={4}>".format(vo,prodSourceLabel,
+                                                                               cloud,workqueue_id,pid)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = False
+            # use non-null for cloud
+            if cloud == None:
+                cloud = "NULL"
+            # sql to check
+            sqlCT  = "SELECT lockedBy "
+            sqlCT += "FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlCT += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud AND workqueue_id=:workqueue_id "
+            sqlCT += "AND lockedTime>:timeLimit "
+            sqlCT += "FOR UPDATE"
+            # sql to delete
+            sqlCD  = "DELETE FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlCD += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud AND workqueue_id=:workqueue_id "
+            # sql to insert
+            sqlFR  = "INSERT INTO {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlFR += "(vo,prodSourceLabel,cloud,workqueue_id,lockedBy,lockedTime) "
+            sqlFR += "VALUES(:vo,:prodSourceLabel,:cloud,:workqueue_id,:lockedBy,CURRENT_DATE) "
+            # start transaction
+            self.conn.begin()
+            # check
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':cloud'] = cloud
+            varMap[':workqueue_id'] = workqueue_id
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
+            self.cur.execute(sqlCT+comment,varMap)
+            resCT = self.cur.fetchone()
+            if resCT != None:
+                tmpLog.debug('skipped locked by {0}'.format(resCT[0]))
+            else:
+                # delete
+                varMap = {}
+                varMap[':vo'] = vo
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                varMap[':cloud'] = cloud
+                varMap[':workqueue_id'] = workqueue_id
+                self.cur.execute(sqlCD+comment,varMap)
+                # insert
+                varMap = {}
+                varMap[':vo'] = vo
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                varMap[':cloud'] = cloud
+                varMap[':workqueue_id'] = workqueue_id
+                varMap[':lockedBy'] = pid
+                self.cur.execute(sqlFR+comment,varMap)
+                tmpLog.debug('successfully locked')
+                retVal = True
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return retVal
+
+
+
+    # unlock process
+    def unlockProcess_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid):
+        comment = ' /* JediDBProxy.unlockProcess_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1} cloud={2} queue={3} pid={4}>".format(vo,prodSourceLabel,
+                                                                               cloud,workqueue_id,pid)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = False
+            # use non-null for cloud
+            if cloud == None:
+                cloud = "NULL"
+            # sql to delete
+            sqlCD  = "DELETE FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlCD += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud "
+            sqlCD += "AND workqueue_id=:workqueue_id AND lockedBy=:lockedBy "
+            # start transaction
+            self.conn.begin()
+            # check
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':cloud'] = cloud
+            varMap[':workqueue_id'] = workqueue_id
+            varMap[':lockedBy'] = pid
+            self.cur.execute(sqlCD+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            retVal = True
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return retVal
+
+
