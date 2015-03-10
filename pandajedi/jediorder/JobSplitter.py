@@ -85,7 +85,7 @@ class JobSplitter:
         returnList = []
         subChunks  = []
         iSubChunks = 0
-        nSubChunks = 50
+        nSubChunks = 25
         while True:
             # change site
             if iSubChunks % nSubChunks == 0:

@@ -21,8 +21,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nBunch = 4
         threshold = 2.0
         thresholdForSite = threshold - 1.0
-        nJobsInBunchMax = 500
-        nJobsInBunchMin = 300
+        nJobsInBunchMax = 550
+        nJobsInBunchMin = 450
         nJobsInBunchMaxES = 1000
         nWaitingLimit = 4
         nWaitingBunchLimit = 2

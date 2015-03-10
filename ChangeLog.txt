@@ -1,5 +1,9 @@
 Release Note
 
+* 3/10/2015
+  * changed queue lengh to 450*4
+  * changed chunk size per site to 25
+
 * 3/6/2015
   * introduced manyAssigned in AtlasPJB
 

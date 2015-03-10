@@ -310,9 +310,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.conn.begin()
                 self.cur.execute(sqlPPC+comment,varMap)
                 tmpPPC = self.cur.fetchall()
-                producedFileList = []
+                producedFileList = set()
                 for tmpLFN, in tmpPPC:
-                    producedFileList.append(tmpLFN)
+                    producedFileList.add(tmpLFN)
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
