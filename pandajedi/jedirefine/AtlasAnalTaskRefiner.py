@@ -98,6 +98,13 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 # set attributes to DBR
                 if DataServiceUtils.isDBR(datasetSpec.datasetName):
                     datasetSpec.attributes = 'repeat,nosplit'
+            # check invalid characters
+            for datasetSpec in self.outDatasetSpecList:
+                if not DataServiceUtils.checkInvalidCharacters(datasetSpec.datasetName):
+                    errStr = "invalid characters in {0}".format(datasetSpec.datasetName)
+                    tmpLog.error(errStr)
+                    self.taskSpec.setErrDiag(errStr,None)
+                    return self.SC_FATAL
             # destination
             if taskParamMap.has_key('destination'):
                 for datasetSpec in self.outDatasetSpecList:

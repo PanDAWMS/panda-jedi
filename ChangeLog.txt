@@ -1,7 +1,8 @@
-Release Note
+Release Notes
 
 * 3/11/2015
-  * added cap in  AtlasPJB
+  * added cap in AtlasPJB
+  * added invalid character check in dataset name
 
 * 3/10/2015
   * added lockProcess
