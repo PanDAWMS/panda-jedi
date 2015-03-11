@@ -487,6 +487,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # selection for nPilot
+        nPilotMap = {}
         if not sitePreAssigned:
             nWNmap = self.taskBufferIF.getCurrentSiteData()
             newScanSiteList = []
@@ -499,6 +500,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
                     continue
                 newScanSiteList.append(tmpSiteName)
+                nPilotMap[tmpSiteName] = nPilot
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
             if scanSiteList == []:
@@ -561,29 +563,37 @@ class AtlasProdJobBroker (JobBrokerBase):
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             self.sendLogMessage(tmpLog)
             return retTmpError
-        tmpLog.debug('final {0} candidates'.format(len(scanSiteList)))
+        tmpLog.debug('calculate weight and check cap for {0} candidates'.format(len(scanSiteList)))
         weightMap = {}
+        newScanSiteList = []
         for tmpSiteName in scanSiteList:
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
+            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'definied',None,taskSpec.workQueue_ID)
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',None,taskSpec.workQueue_ID)
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,taskSpec.workQueue_ID)
             nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting',None,taskSpec.workQueue_ID)
+            if tmpSiteName in nPilotMap:
+                nPilot = nPilotMap[tmpSiteName]
+            else:
+                nPilot = 0
             manyAssigned = float(nAssigned + 1) / float(nActivated + 1)
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
-            weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + 1) / manyAssigned
-            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} tSize={4} manyAss={5} '.format(nRunning,nActivated,nAssigned,
-                                                                                             nStarting,totalSize,manyAssigned)
+            weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 1) / manyAssigned
+            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} tSize={5} manyAss={6} nPilot={7} '.format(nRunning,nActivated,nAssigned,
+                                                                                                                  nStarting,nDefined,
+                                                                                                                  totalSize,manyAssigned,
+                                                                                                                  nPilot)
             # normalize weights by taking data availability into account
             if totalSize != 0:
                 weight = weight * float(normalizeFactors[tmpSiteName]+totalSize) / float(totalSize)
                 weightStr += 'norm={0} '.format(normalizeFactors[tmpSiteName])
-            # make candidate
-            siteCandidateSpec = SiteCandidate(tmpSiteName)
             # T1 weight
             if tmpSiteName in t1Sites+sitesShareSeT1:
                 weight *= t1Weight
                 weightStr += 't1W={0} '.format(t1Weight)
+            # make candidate
+            siteCandidateSpec = SiteCandidate(tmpSiteName)
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning
@@ -596,9 +606,64 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
                     siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
                     siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
-            # append        
-            inputChunk.addSiteCandidate(siteCandidateSpec)
-            tmpLog.debug('  use {0} with weight={1} {2}'.format(tmpSiteName,weight,weightStr))
+            # check cap with nRunning
+            cutOffValue = 20
+            cutOffFactor = 2 
+            nRunningCap = max(cutOffValue,cutOffFactor*nRunning)
+            nRunningCap = max(nRunningCap,nPilot)
+            okMsg = '  use {0} with weight={1} {2}'.format(tmpSiteName,weight,weightStr)
+            if (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
+                ngMsg = '  skip {0} due to nDefined+nActivated+nAssigned+nStarting={1} '.format(tmpSiteName,
+                                                                                                nDefined+nActivated+nAssigned+nStarting)
+                ngMsg += '> max({0},{1}*nRunning={1}*{2},nPilot={3})'.format(cutOffValue,
+                                                                             cutOffFactor,                                  
+                                                                             nRunning,                                      
+                                                                             nPilot)
+                # add weight
+                if not weight in weightMap:
+                    weightMap[weight] = []
+                weightMap[weight].append((siteCandidateSpec,okMsg,ngMsg))
+                # use hightest 3 weights
+                weightRank = 3
+                weightList = weightMap.keys()
+                if weightList > weightRank:
+                    weightList.sort()
+                    weightList.reverse()
+                    newWeightMap = {}
+                    for tmpWeight in weightList[:weightRank]:
+                        newWeightMap[tmpWeight] = weightMap[tmpWeight]
+                    # dump NG message
+                    for tmpWeight in weightList[weightRank:]:
+                        for tmpSiteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMap[weight]:
+                            tmpLog.debug(tmpNgMsg)
+                    weightMap = newWeightMap
+            else:
+                # append        
+                newScanSiteList.append(tmpSiteName)
+                inputChunk.addSiteCandidate(siteCandidateSpec)
+                tmpLog.debug(okMsg)
+        scanSiteList = newScanSiteList
+        newScanSiteList = []
+        if scanSiteList == []:
+            tmpLog.debug('use second candidates since no sites pass cap check')
+        for tmpWeight,weightList in weightMap.iteritems():
+            for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightList:
+                if scanSiteList == []:
+                    tmpLog.debug(tmpOkMsg)
+                    newScanSiteList.append(siteCandidateSpec.siteName)
+                    inputChunk.addSiteCandidate(siteCandidateSpec)
+                else:
+                    tmpLog.debug(tmpNgMsg)
+        # second candidates
+        if scanSiteList == []:
+            scanSiteList = newScanSiteList
+        # final check
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            self.sendLogMessage(tmpLog)
+            return retTmpError
+        tmpLog.debug('final {0} candidates'.format(len(scanSiteList)))
         # return
         self.sendLogMessage(tmpLog)
         tmpLog.debug('done')        

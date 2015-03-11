@@ -131,8 +131,7 @@ class InputChunk:
                 oldNumAssigned = retSiteCandidate.nAssignedJobs
                 retSiteCandidate.nAssignedJobs += nSubChunks
                 newNumAssigned = retSiteCandidate.nAssignedJobs
-                siteCandidate.weight = siteCandidate.weight * float(oldNumQueued+1) * float(oldNumAssigned+1) \
-                    / float(newNumQueued+1) / float(newNumAssigned+1)
+                siteCandidate.weight = siteCandidate.weight * float(oldNumQueued+1) / float(newNumQueued+1)
         except:
             pass
         return retSiteCandidate

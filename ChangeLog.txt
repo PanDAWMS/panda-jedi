@@ -1,5 +1,8 @@
 Release Note
 
+* 3/11/2015
+  * added cap in  AtlasPJB
+
 * 3/10/2015
   * added lockProcess
   * changed queue lengh to 450*4
