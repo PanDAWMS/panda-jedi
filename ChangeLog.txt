@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/12/2015
+  * changed not to update contents when task is pending
+
 * 3/11/2015
   * added cap in AtlasPJB
   * added invalid character check in dataset name

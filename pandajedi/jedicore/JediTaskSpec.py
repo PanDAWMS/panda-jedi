@@ -659,7 +659,7 @@ class JediTaskSpec(object):
 
     # return list of status to update contents
     def statusToUpdateContents(cls):
-        return ['defined','pending']
+        return ['defined']
     statusToUpdateContents = classmethod(statusToUpdateContents)
 
 

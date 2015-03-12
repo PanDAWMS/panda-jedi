@@ -814,6 +814,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if missingFileList != [] or (isMutableDataset and nActivatedPending == 0):
                             if datasetSpec.isMaster() or masterStatus == None:
                                 # don't change status when some files are missing or no pending inputs are activated
+                                tmpLog.debug('using datasetSpec.status={0}'.format(datasetSpec.status))
                                 varMap[':status'] = datasetSpec.status
                             else:
                                 # use master status
