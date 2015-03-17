@@ -282,7 +282,7 @@ def getNumJobs(jobStatMap,computingSite,jobStatus,cloud=None,workQueue_ID=None):
 
 
 # get mapping between sites and storage endpoints 
-def getSiteStorageEndpointMap(siteList,siteMapper):
+def getSiteStorageEndpointMap(siteList,siteMapper,ignoreCC=False):
     # get T1s
     t1Map = {}
     for tmpCloudName in siteMapper.getCloudList():
@@ -302,7 +302,7 @@ def getSiteStorageEndpointMap(siteList,siteMapper):
             if tmpEP != '' and not tmpEP in retMap[siteName]:
                 retMap[siteName].append(tmpEP)
         # use cloudconfig.tier1SE for T1       
-        if t1Map.has_key(siteName):
+        if not ignoreCC and t1Map.has_key(siteName):
             tmpCloudName = t1Map[siteName]
             # get cloud
             tmpCloudSpec = siteMapper.getCloud(tmpCloudName)

@@ -728,11 +728,11 @@ class JobGeneratorThread (WorkerThread):
                     if inputChunk.isMerging:
                         # give higher priority to merge jobs
                         jobSpec.assignedPriority = mergePriority
-                    elif inputChunk.useScout() and taskSpec.taskPriority < scoutPriority:
+                    elif inputChunk.useScout() and taskSpec.currentPriority < scoutPriority:
                         # give higher priority to scouts
                         jobSpec.assignedPriority = scoutPriority
                     else:
-                        jobSpec.assignedPriority = taskSpec.taskPriority
+                        jobSpec.assignedPriority = taskSpec.currentPriority
                     jobSpec.currentPriority  = jobSpec.assignedPriority
                     jobSpec.lockedby         = 'jedi'
                     jobSpec.workQueue_ID     = taskSpec.workQueue_ID

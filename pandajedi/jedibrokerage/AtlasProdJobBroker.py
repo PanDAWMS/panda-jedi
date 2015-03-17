@@ -515,7 +515,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         for datasetSpec in inputChunk.getDatasets():
             try:
                 # mapping between sites and storage endpoints
-                siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(scanSiteList,self.siteMapper)
+                siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(scanSiteList,self.siteMapper,
+                                                                           ignoreCC=True)
                 # disable file lookup for merge jobs
                 if inputChunk.isMerging or not datasetSpec.isMaster():
                     checkCompleteness = False
