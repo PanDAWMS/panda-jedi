@@ -42,11 +42,6 @@ class AtlasTaskSetupper (TaskSetupperBase):
                 userSetup = False
                 if taskSpec.prodSourceLabel in ['user']:
                     userSetup = True
-                # get merged dataset types from child task
-                mergedDatasetTypes = {}
-                if taskSpec.prodSourceLabel in ['managed','test']:
-                    #mergedDatasetTypes = self.getMergedDatasetTypes(taskSpec)
-                    tmpLog.info('merged dataset types : {0}'.format(str(mergedDatasetTypes)))
                 # get site mapper
                 siteMapper = self.taskBufferIF.getSiteMapper()
                 # loop over all datasets
@@ -89,23 +84,13 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                             location = siteMapper.getDdmEndpoint(tmpT1Name,datasetSpec.storageToken)
                                     else:
                                         location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
-                                # set transient
-                                metaData = None
-                                if 'merge' in mergedDatasetTypes:
-                                    try:
-                                        tmpDsType = targetName.split('.')[4]
-                                        if tmpDsType != '' and tmpDsType in mergedDatasetTypes.keys():
-                                            metaData = {'transient': True}
-                                    except:
-                                        pass
                                 # register dataset/container
-                                tmpLog.info('registering {0} with location={1} backend={2} lifetime={3} meta={4}'.format(targetName,
-                                                                                                                         location,
-                                                                                                                         ddmBackEnd,
-                                                                                                                         lifetime,
-                                                                                                                         str(metaData)))
+                                tmpLog.info('registering {0} with location={1} backend={2} lifetime={3}'.format(targetName,
+                                                                                                                location,
+                                                                                                                ddmBackEnd,
+                                                                                                                lifetime))
                                 tmpStat = ddmIF.registerNewDataset(targetName,backEnd=ddmBackEnd,location=location,
-                                                                   lifetime=lifetime,metaData=metaData)
+                                                                   lifetime=lifetime)
                                 if not tmpStat:
                                     tmpLog.error('failed to register {0}'.format(targetName))
                                     return retFatal
@@ -166,36 +151,3 @@ class AtlasTaskSetupper (TaskSetupperBase):
             tmpLog.error('doSetup failed with {0}:{1}'.format(errtype.__name__,errvalue))
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retFatal
-
-
-
-    # get merged dataset types
-    def getMergedDatasetTypes(self,taskSpec):
-        # get datasets from child task
-        retList = self.taskBufferIF.getTasksWithCriteria_JEDI(taskSpec.vo,taskSpec.prodSourceLabel,
-                                                             ['registered','defined','ready','running','paused',
-                                                              'scouting','scouted','pending','assigning'],
-                                                             {'parent_tid':taskSpec.parent_tid},
-                                                             {'type':['output','log']},
-                                                             ['jediTaskID','processingType'],
-                                                             ['datasetName'])
-        retDict = {}
-        for retTaskItem,retDsItem in retList:
-            try:
-                # skip no child
-                if retDsItem['jediTaskID'] in [None,taskSpec.jediTaskID]:
-                    continue
-                # add processingType
-                if not retTaskItem['processingType'] in retDict:
-                    retDict[retTaskItem['processingType']] = {}
-                tmpDsName = retDsItem['datasetName']
-                tmpDataType = tmpDsName.split('.')[4]
-                # skip empty
-                if tmpDataType == '':
-                    continue
-                # add type
-                retDict[retTaskItem['processingType']][tmpDataType] = retDsItem['jediTaskID']
-            except:
-                pass
-        # return
-        return retDict

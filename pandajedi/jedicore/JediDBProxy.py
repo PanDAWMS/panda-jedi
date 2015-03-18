@@ -1609,7 +1609,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get JEDI task and datasets with ID and lock it
-    def getTaskDatasetsWithID_JEDI(self,jediTaskID,pid):
+    def getTaskDatasetsWithID_JEDI(self,jediTaskID,pid,lockTask=True):
         comment = ' /* JediDBProxy.getTaskDatasetsWithID_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -1621,7 +1621,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql
             sql  = "SELECT {0} ".format(JediTaskSpec.columnNames())
             sql += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL ".format(jedi_config.db.schemaJEDI)
-            sql += "FOR UPDATE NOWAIT"
+            if lockTask:
+                sql += "FOR UPDATE NOWAIT"
             sqlLK  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlLK += "WHERE jediTaskID=:jediTaskID "
             sqlDS  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
@@ -1643,9 +1644,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskSpec = JediTaskSpec()
                     taskSpec.pack(res)
                     # lock task
-                    varMap = {}
-                    varMap[':jediTaskID'] = jediTaskID
-                    self.cur.execute(sqlLK+comment,varMap)
+                    if lockTask:
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        self.cur.execute(sqlLK+comment,varMap)
                     # read datasets
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
@@ -7370,5 +7372,3 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return retVal
-
-

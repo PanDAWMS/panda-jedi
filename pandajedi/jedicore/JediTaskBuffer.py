@@ -262,11 +262,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get JEDI task and tasks with ID and lock it
-    def getTaskDatasetsWithID_JEDI(self,jediTaskID,pid):
+    def getTaskDatasetsWithID_JEDI(self,jediTaskID,pid,lockTask=True):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTaskDatasetsWithID_JEDI(jediTaskID,pid)
+        retVal = proxy.getTaskDatasetsWithID_JEDI(jediTaskID,pid,lockTask)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

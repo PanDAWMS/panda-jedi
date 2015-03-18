@@ -885,11 +885,13 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # get DQ2 API            
-            dq2 = DQ2()
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
             # set
-            dq2.setMetaDataAttribute(datasetName,metadataName,metadaValue)
-        except DQUnknownDatasetException:
+            client.set_metadata(scope,dsn,metadataName,metadaValue)
+        except (UnsupportedOperation,DataIdentifierNotFound):
             pass
         except:
             errtype,errvalue = sys.exc_info()[:2]
