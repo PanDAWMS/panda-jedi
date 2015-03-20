@@ -143,6 +143,8 @@ class AtlasTaskSetupper (TaskSetupperBase):
                 for outDataset in outDatasetList:
                     tmpLog.info('open {0}'.format(outDataset))
                     ddmIF.openDataset(outDataset)
+                    # unset lifetime
+                    #ddmIF.setDatasetMetadata(outDataset,'lifetime',None)
             # return
             tmpLog.info('done')        
             return retOK

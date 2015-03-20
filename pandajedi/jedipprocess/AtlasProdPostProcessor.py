@@ -79,40 +79,25 @@ class AtlasProdPostProcessor (PostProcessorBase):
     def doFinalProcedure(self,taskSpec,tmpLog):
         tmpLog.info('final procedure for status={0} processingType={1}'.format(taskSpec.status,
                                                                                taskSpec.processingType))
-        if taskSpec.status == 'done' and taskSpec.processingType in ['merge']:
+        if taskSpec.status in ['done','finished'] and taskSpec.processingType in ['merge']:
             # get parent task
             if not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
-                # check if chain is completed
-                if self.chainCompleted(taskSpec.jediTaskID,tmpLog):
-                    tmpLog.info('chain completed')
-                    ddmIF = self.ddmIF.getInterface(taskSpec.vo)
-                    # get parent
-                    tmpStat,parentTaskSpec = self.taskBufferIF.getTaskDatasetsWithID_JEDI(taskSpec.parent_tid,None,False)
-                    if tmpStat and parentTaskSpec != None:
-                        # set transient to parent datasets
-                        metaData = {'transient':True}
-                        for datasetSpec in parentTaskSpec.datasetSpecList:
-                            if datasetSpec.type in ['log','output']:
+                ddmIF = self.ddmIF.getInterface(taskSpec.vo)
+                # get parent
+                tmpStat,parentTaskSpec = self.taskBufferIF.getTaskDatasetsWithID_JEDI(taskSpec.parent_tid,None,False)
+                if tmpStat and parentTaskSpec != None:
+                    # set lifetime to parent datasets if they are transient
+                    metaData = {'lifetime':30*24*60*60}
+                    for datasetSpec in parentTaskSpec.datasetSpecList:
+                        if datasetSpec.type in ['log','output']:
+                            tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
+                            """
+                            if tmpMetadata['transient'] == True:
                                 tmpLog.info('set metadata={0} to jediTaskID={1}:datasetID={2}:Name={3}'.format(str(metaData),
                                                                                                                taskSpec.parent_tid,
                                                                                                                datasetSpec.datasetID,
                                                                                                                datasetSpec.datasetName))
                                 for metadataName,metadaValue in metaData.iteritems():
                                     ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
+                            """        
         return self.SC_SUCCEEDED
-
-
-
-    # check if chain is completed
-    def chainCompleted(self,jediTaskID,tmpLog):
-        # get task
-        tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID,False)
-        if tmpStat == True and taskSpec != None and taskSpec.status == 'done':
-            if taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
-                # no parent
-                return True
-            # check parent
-            return self.chainCompleted(taskSpec.parent_tid,tmpLog)
-        # not done
-        tmpLog.info('chain is incomplete since jediTaskID={0} is in {1}'.format(jediTaskID,taskSpec.status))
-        return False

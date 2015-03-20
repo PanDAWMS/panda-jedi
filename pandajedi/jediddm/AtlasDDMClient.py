@@ -495,18 +495,17 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # get DQ2 API
-            dq2=DQ2()
-            # get file list
-            #tmpRet = dq2.getMetaDataAttribute(datasetName,dq2.listMetaDataAttributes())
-            tmpRet = dq2.getMetaDataAttribute(datasetName,['state','owner'])
-            # change dataset state to string
-            if tmpRet['state'] in [DatasetState.CLOSED,DatasetState.FROZEN]:
-                tmpRet['state'] = 'closed'
-            elif tmpRet['state'] == DatasetState.OPEN:
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
+            # get
+            tmpRet = client.get_metadata(scope,dsn)
+            # set state
+            if tmpRet['is_open'] == True:
                 tmpRet['state'] = 'open'
             else:
-                tmpRet['state'] = 'unknown'                
+                tmpRet['state'] = 'closed'
             tmpLog.debug(str(tmpRet))    
             return self.SC_SUCCEEDED,tmpRet
         except:
@@ -574,6 +573,10 @@ class AtlasDDMClient(DDMClientBase):
             return self.SC_SUCCEEDED,dsList
         except:
             errtype,errvalue = sys.exc_info()[:2]
+            if 'DQContainerUnknownException' in str(errvalue):
+                dsList = []
+                tmpLog.debug('got '+str(dsList))
+                return self.SC_SUCCEEDED,dsList
             errCode = self.checkError(errtype)
             errStr = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errStr)

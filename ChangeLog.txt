@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/19/2015
+  * changed AtlasTR to set transient metadata
+
 * 3/18/2015
   * changed AtlasPP to set transient metadata
 
