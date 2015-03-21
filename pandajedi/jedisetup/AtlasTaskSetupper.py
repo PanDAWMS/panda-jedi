@@ -28,7 +28,6 @@ class AtlasTaskSetupper (TaskSetupperBase):
         # make logger
         tmpLog = MsgWrapper(logger,"<jediTaskID={0}>".format(taskSpec.jediTaskID))
         tmpLog.info('start label={0} taskType={1}'.format(taskSpec.prodSourceLabel,taskSpec.taskType))
-        tmpLog.info('datasetToRegister={0}'.format(str(datasetToRegister)))
         # returns
         retFatal    = self.SC_FATAL
         retTmpError = self.SC_FAILED
@@ -37,11 +36,19 @@ class AtlasTaskSetupper (TaskSetupperBase):
             # get DDM I/F
             ddmIF = self.ddmIF.getInterface(taskSpec.vo)
             # register datasets
-            if datasetToRegister != []:
+            if datasetToRegister != [] or taskSpec.prodSourceLabel in ['user']:
                 # prod vs anal
                 userSetup = False
                 if taskSpec.prodSourceLabel in ['user']:
                     userSetup = True
+                    # collect datasetID to register datasets/containers just in case
+                    for tmpPandaJob in pandaJobs:
+                        if not tmpPandaJob.produceUnMerge():
+                            for tmpFileSpec in tmpPandaJob.Files:
+                                if tmpFileSpec.type in ['output','log']:
+                                    if not tmpFileSpec.datasetID in datasetToRegister:
+                                        datasetToRegister.append(tmpFileSpec.datasetID)
+                tmpLog.info('datasetToRegister={0}'.format(str(datasetToRegister)))
                 # get site mapper
                 siteMapper = self.taskBufferIF.getSiteMapper()
                 # loop over all datasets

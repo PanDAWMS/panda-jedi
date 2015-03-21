@@ -162,11 +162,13 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     # skip since local data is available
                     if tmpSiteName in tmpSiteList:
                         continue
+                    # negative weight for remote access
+                    wRemote = 50.0
                     # sum weight
                     if not dataWeight.has_key(tmpSiteName):
-                        dataWeight[tmpSiteName] = tmpWeightSrcMap['weight']
+                        dataWeight[tmpSiteName] = float(tmpWeightSrcMap['weight'])/wRemote
                     else:
-                        dataWeight[tmpSiteName] += tmpWeightSrcMap['weight']
+                        dataWeight[tmpSiteName] += float(tmpWeightSrcMap['weight'])/wRemote
                     # make remote source list
                     if not remoteSourceList.has_key(tmpSiteName):
                         remoteSourceList[tmpSiteName] = {}
@@ -245,7 +247,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for release
-        if not taskSpec.transHome in [None,'AnalysisTransforms']:
+        if taskSpec.transHome != None:
             if taskSpec.transHome.startswith('ROOT'):
                 # hack until x86_64-slc6-gcc47-opt is published in installedsw
                 if taskSpec.architecture == 'x86_64-slc6-gcc47-opt':
@@ -264,22 +266,22 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # remove AnalysisTransforms-
                 transHome = re.sub('^[^-]+-*','',taskSpec.transHome)
                 transHome = re.sub('_','-',transHome)
-                if re.search('rel_\d+(\n|$)',taskSpec.transHome) == None:
+                if re.search('rel_\d+(\n|$)',taskSpec.transHome) == None and taskSpec.transHome != 'AnalysisTransforms':
                     # cache is checked 
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
                                                                              caches=transHome,
                                                                              cmtConfig=taskSpec.architecture)
-                elif transHome == '':
+                elif transHome == '' and taskSpec.transUses != None:
+                    # remove Atlas-
+                    transUses = taskSpec.transUses.split('-')[-1]
                     # release is checked 
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
-                                                                             releases=taskSpec.transUses,
+                                                                             releases=transUses,
                                                                              cmtConfig=taskSpec.architecture)
                 else:
                     # nightlies
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
                                                                              releases='CVMFS')
-                    #                                                         releases='nightlies',
-                    #                                                         cmtConfig=taskSpec.architecture)
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -290,12 +292,13 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     newScanSiteList.append(tmpSiteName)
                 else:
                     # release is unavailable
-                    tmpLog.debug('  skip %s due to missing rel/cache %s:%s' % \
-                                 (tmpSiteName,taskSpec.transHome,taskSpec.architecture))
+                    tmpLog.debug('  skip %s due to missing rel/cache %s:%s:%s' % \
+                                 (tmpSiteName,taskSpec.transUses,taskSpec.transHome,taskSpec.architecture))
             scanSiteList = newScanSiteList        
-            tmpLog.debug('{0} candidates passed for SW {1}:{2}'.format(len(scanSiteList),
-                                                                       taskSpec.transHome,
-                                                                       taskSpec.architecture))
+            tmpLog.debug('{0} candidates passed for SW {1}:{2}:{3}'.format(len(scanSiteList),
+                                                                           taskSpec.transUses,
+                                                                           taskSpec.transHome,
+                                                                           taskSpec.architecture))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

@@ -20,7 +20,8 @@ from dq2.clientapi.DQ2 import \
     DQDatasetExistsException, \
     DQSubscriptionExistsException, \
     DQFrozenDatasetException
-from dq2.container.exceptions import DQContainerExistsException
+from dq2.container.exceptions import DQContainerExistsException,\
+    DQContainerAlreadyHasDataset
 import dq2.filecatalog
 from dq2.common import parse_dn
 from dq2.info.client.infoClient import infoClient
@@ -698,14 +699,16 @@ class AtlasDDMClient(DDMClientBase):
                 dq2 = DQ2(force_backend=backEnd)
             # add
             dq2.registerDatasetsInContainer(containerName,datasetNames)
-            tmpLog.debug('done')
-            return self.SC_SUCCEEDED,True
+        except DQContainerAlreadyHasDataset:
+            pass
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error('failed with {0}'.format(errMsg))
             return errCode,'{0} : {1}'.format(methodName,errMsg)
+        tmpLog.debug('done')
+        return self.SC_SUCCEEDED,True
 
 
 

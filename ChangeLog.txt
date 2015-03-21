@@ -1,5 +1,9 @@
 Release Notes
 
+* 3/20/2015
+  * changed AtlasAJB for release check
+  * changed AtlasTS to always register user datasets
+
 * 3/19/2015
   * changed AtlasTR to set transient metadata
 
