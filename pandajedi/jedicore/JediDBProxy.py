@@ -3967,6 +3967,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             scoutSucceeded = False
         else:
             scoutSucceeded = True
+        # upper limit
+        limitWallTime = 999999999
         # loop over all files    
         outSizeList  = []
         walltimeList = []
@@ -4064,6 +4066,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # use preset value if larger
             if preWalltime != None and preWalltime > returnMap['walltime']:
                 returnMap['walltime'] = preWalltime
+            # upper limit
+            if returnMap['walltime'] > limitWallTime:
+                returnMap['walltime'] = limitWallTime
         if memSizeList != []:
             median = max(memSizeList)
             median /= 1024

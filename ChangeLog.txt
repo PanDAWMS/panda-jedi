@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/23/2015
+  * set the upper limit on wallTime from scout job data
+
 * 3/20/2015
   * changed AtlasAJB for release check
   * changed AtlasTS to always register user datasets
