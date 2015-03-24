@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/24/2015
+  * changed latestDBR to use DBR with one or more replicas
+
 * 3/23/2015
   * set the upper limit on wallTime from scout job data
 
