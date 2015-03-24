@@ -19,3 +19,9 @@ class JobBroker (FactoryBase):
     def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap):
         return self.getImpl(taskSpec.vo,taskSpec.prodSourceLabel).doBrokerage(taskSpec,cloudName,
                                                                               inputChunk,taskParamMap)
+
+
+    # set live counter
+    def setLiveCounter(self,vo,sourceLabel,liveCounter):
+        self.getImpl(vo,sourceLabel).setLiveCounter(liveCounter)
+        

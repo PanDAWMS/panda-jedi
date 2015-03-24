@@ -1,6 +1,7 @@
 Release Notes
 
 * 3/24/2015
+  * changed JG to serizlize threads
   * changed latestDBR to use DBR with one or more replicas
 
 * 3/23/2015
@@ -885,3 +886,5 @@ Release Notes
 
 * 5/10/2013
   * first version
+
+ LocalWords:  serizlize

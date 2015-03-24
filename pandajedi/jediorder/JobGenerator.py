@@ -9,7 +9,7 @@ import socket
 import random
 import datetime
 
-from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
+from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread,MapWithLock
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
@@ -102,7 +102,8 @@ class JobGenerator (JediKnight):
                                                                                                          self.pid)
                                 tmpLog.debug('start {0}'.format(cycleStr))
                                 # check if to lock
-                                if self.toLockProcess(vo,prodSourceLabel,workQueue.queue_name,cloudName):
+                                lockFlag = self.toLockProcess(vo,prodSourceLabel,workQueue.queue_name,cloudName)
+                                if lockFlag:
                                     tmpLog.debug('check if to lock')
                                     # lock
                                     flagLocked = self.taskBufferIF.lockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
@@ -170,6 +171,11 @@ class JobGenerator (JediKnight):
                                         inputList = ListWithLock(tmpList)
                                         # make thread pool
                                         threadPool = ThreadPool() 
+                                        # make lock if nessesary
+                                        if lockFlag:
+                                            liveCounter = MapWithLock()
+                                        else:
+                                            liveCounter = None
                                         # make workers
                                         nWorker = jedi_config.jobgen.nWorkers
                                         for iWorker in range(nWorker):
@@ -179,7 +185,8 @@ class JobGenerator (JediKnight):
                                                                      taskSetupper,
                                                                      self.pid,
                                                                      workQueue,
-                                                                     cloudName)
+                                                                     cloudName,
+                                                                     liveCounter)
                                             globalThreadPool.add(thr)
                                             thr.start()
                                         # join
@@ -341,7 +348,7 @@ class JobGeneratorThread (WorkerThread):
 
     # constructor
     def __init__(self,inputList,threadPool,taskbufferIF,ddmIF,siteMapper,
-                 execJobs,taskSetupper,pid,workQueue,cloud):
+                 execJobs,taskSetupper,pid,workQueue,cloud,liveCounter):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -357,6 +364,7 @@ class JobGeneratorThread (WorkerThread):
         self.buildSpecMap = {}
         self.workQueue    = workQueue
         self.cloud        = cloud
+        self.liveCounter  = liveCounter
 
 
 
@@ -408,6 +416,8 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.status = 'tobroken'
                                 taskSpec.setErrDiag(tmpErrStr)                        
                                 goForward = False
+                            # set live counter
+                            jobBroker.setLiveCounter(taskSpec.vo,taskSpec.prodSourceLabel,self.liveCounter)
                         # read task params if nessesary
                         if taskSpec.useLimitedSites():
                             tmpStat,taskParamMap = self.readTaskParams(taskSpec,taskParamMap,tmpLog)
@@ -419,6 +429,10 @@ class JobGeneratorThread (WorkerThread):
                                 goForward = False
                         # run brokerage
                         if goForward:
+                            if self.liveCounter != None:
+                                tmpLog.info('trying to lock counter')
+                                self.liveCounter.acquire() 
+                                tmpLog.info('locked counter')
                             tmpLog.info('run brokerage with {0}'.format(jobBroker.getClassName(taskSpec.vo,
                                                                                                taskSpec.prodSourceLabel)))
                             try:
@@ -447,6 +461,10 @@ class JobGeneratorThread (WorkerThread):
                                 if len(subChunks[-1]['subChunks']) > 1 and inputChunk.masterDataset != None \
                                         and inputChunk.readBlock == True:
                                     subChunks[-1]['subChunks'] = subChunks[-1]['subChunks'][:-1]
+                                # update counter
+                                if self.liveCounter != None:
+                                    for tmpSubChunk in subChunks:
+                                        self.liveCounter.add(tmpSubChunk['siteName'],len(tmpSubChunk['subChunks']))
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
                                 tmpLog.error('splitter crashed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -457,6 +475,10 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.setOnHold()
                                 taskSpec.setErrDiag(tmpErrStr)                                
                                 goForward = False
+                        # release lock
+                        if self.liveCounter != None:
+                            tmpLog.info('release counter')
+                            self.liveCounter.release() 
                         # lock task
                         if goForward:
                             tmpLog.info('lock task')

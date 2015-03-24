@@ -42,6 +42,43 @@ class ListWithLock:
 
 
 
+# map with lock
+class MapWithLock:
+    def __init__(self,dataMap=None):
+        self.lock = threading.Lock()
+        if dataMap == None:
+            dataMap = {}
+        self.dataMap  = dataMap
+
+    def __getitem__(self,item):
+        ret = self.dataMap.__getitem__(item)
+        return ret
+
+    def __setitem__(self,item,value):
+        self.dataMap.__setitem__(item,value)
+
+    def __contains__(self,item):
+        ret = self.dataMap.__contains__(item)
+        return ret
+
+    def acquire(self):
+        self.lock.acquire()
+
+    def release(self):
+        self.lock.release()
+
+    def add(self,item,value):
+        if not item in self.dataMap:
+            self.dataMap[item] = 0
+        self.dataMap[item] += value
+
+    def get(self,item):
+        if not item in self.dataMap:
+            return 0
+        return self.dataMap[item]
+
+
+
 # thread pool
 class ThreadPool:
     def __init__(self):

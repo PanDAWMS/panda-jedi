@@ -14,5 +14,17 @@ class JobBrokerBase (object):
         self.siteMapper = self.taskBufferIF.getSiteMapper()
 
 
+    
+    def setLiveCounter(self,liveCounter):
+        self.liveCounter = liveCounter
+
+
+
+    def getLiveCount(self,siteName):
+        if self.liveCounter == None:
+            return 0
+        return self.liveCounter.get(siteName)
+
+
 
 Interaction.installSC(JobBrokerBase)                        
