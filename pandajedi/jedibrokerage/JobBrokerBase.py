@@ -6,6 +6,7 @@ class JobBrokerBase (object):
     def __init__(self,ddmIF,taskBufferIF):
         self.ddmIF = ddmIF
         self.taskBufferIF = taskBufferIF
+        self.liveCounter = None
         self.refresh()
 
 

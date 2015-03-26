@@ -372,6 +372,7 @@ class JobGeneratorThread (WorkerThread):
     def runImpl(self):
         while True:
             try:
+                lastJediTaskID = None
                 # get a part of list
                 nInput = 1
                 taskInputList = self.inputList.get(nInput)
@@ -389,6 +390,7 @@ class JobGeneratorThread (WorkerThread):
                     return
                 # loop over all tasks
                 for tmpJediTaskID,inputList in taskInputList:
+                    lastJediTaskID = tmpJediTaskID
                     # loop over all inputs
                     for idxInputList,tmpInputItem in enumerate(inputList):
                         taskSpec,cloudName,inputChunk = tmpInputItem
@@ -604,7 +606,8 @@ class JobGeneratorThread (WorkerThread):
                         tmpLog.info('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
-                logger.error('%s.runImpl() failed with %s %s' % (self.__class__.__name__,errtype.__name__,errvalue))
+                logger.error('%s.runImpl() failed with %s %s lastJediTaskID=%s' % (self.__class__.__name__,errtype.__name__,errvalue,
+                                                                                   lastJediTaskID))
 
 
 

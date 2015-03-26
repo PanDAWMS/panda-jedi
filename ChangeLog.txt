@@ -2,6 +2,7 @@ Release Notes
 
 * 3/26/2015
   * changed insertFiles to fill nEvents for input
+  * changed AtlasPJB to add criteria=+-tag
 
 * 3/24/2015
   * changed JG to serizlize threads

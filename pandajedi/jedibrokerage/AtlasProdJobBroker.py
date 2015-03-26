@@ -64,13 +64,15 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not taskSpec.site in ['',None]:
             sitePreAssigned = True
             scanSiteList = [taskSpec.site]
-            tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
+            tmpLog.debug('site={0} is pre-assigned criteria=+preassign'.format(taskSpec.site))
         elif inputChunk.getPreassignedSite() != None:
             siteListPreAssigned = True
             scanSiteList = DataServiceUtils.getSitesShareDDM(self.siteMapper,inputChunk.getPreassignedSite())
             scanSiteList.append(inputChunk.getPreassignedSite())
-            tmpLog.debug('use {0} since they share DDM endpoints with site={1} which is pre-assigned in masterDS'.format(str(scanSiteList),
-                                                                                                                         inputChunk.getPreassignedSite()))
+            tmpMsg = 'use site={0} since they share DDM endpoints with orinal_site={1} which is pre-assigned in masterDS '.format(str(scanSiteList),
+                                                                                                                                  inputChunk.getPreassignedSite())
+            tmpMsg += 'criteria=+premerge'
+            tmpLog.debug(tmpMsg)
         else:
             scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
             tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
@@ -118,7 +120,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if not skipFlag:    
                     newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpLog.debug('  skip %s due to status=%s' % (tmpSiteName,tmpSiteSpec.status))
+                    tmpLog.debug('  skip site=%s due to status=%s criteria=-status' % (tmpSiteName,tmpSiteSpec.status))
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
             if scanSiteList == []:
@@ -136,7 +138,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if tmpSiteSpec.validatedreleases == ['True']:
                     newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpLog.debug('  skip %s due to validatedreleases != True' % tmpSiteName)
+                    tmpLog.debug('  skip site=%s due to validatedreleases <> True criteria=-validated' % tmpSiteName)
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed for reprocessing'.format(len(scanSiteList)))
             if scanSiteList == []:
@@ -155,8 +157,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if tmpSiteName in t1Sites+sitesShareSeT1+allT1Sites:
                     newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpLog.debug('  skip {0} due to highPrio/scouts which needs to run at T1 or sites associated with {1} T1 SE'.format(tmpSiteName,
-                                                                                                                                        cloudName))
+                    tmpMsg = '  skip site={0} due to highPrio/scouts which needs to run at T1 or sites associated with {1} T1 SE '.format(tmpSiteName,
+                                                                                                                                          cloudName)
+                    tmpMsg += 'criteria=-scoutprio'
+                    tmpLog.debug(tmpMsg)
             scanSiteList = newScanSiteList
             tmpLog.debug('{0} candidates passed for highPrio/scouts'.format(len(scanSiteList)))
             if scanSiteList == []:
@@ -238,7 +242,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check at the site
             if AtlasBrokerUtils.hasZeroShare(tmpSiteSpec,taskSpec,tmpLog):
-                tmpLog.debug('  skip {0} due to zero share'.format(tmpSiteName))
+                tmpLog.debug('  skip site={0} due to zero share criteria=-zeroshare'.format(tmpSiteName))
                 continue
             newScanSiteList.append(tmpSiteName)                
         scanSiteList = newScanSiteList        
@@ -263,7 +267,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         (useMP =='unuse' and tmpSiteSpec.coreCount in [0,1,None]):
                         newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpLog.debug('  skip %s due to core mismatch site:%s != task:%s' % \
+                    tmpLog.debug('  skip site=%s due to core mismatch site:%s <> task:%s criteria=-cpucore' % \
                                  (tmpSiteName,tmpSiteSpec.coreCount,taskCoreCount))
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
@@ -297,7 +301,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     newScanSiteList.append(tmpSiteName)
                 else:
                     # release is unavailable
-                    tmpLog.debug('  skip %s due to missing rel/cache %s:%s' % \
+                    tmpLog.debug('  skip site=%s due to missing cache=%s:%s criteria=-cache' % \
                                  (tmpSiteName,taskSpec.transHome,taskSpec.architecture))
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed for ATLAS release {1}:{2}'.format(len(scanSiteList),
@@ -317,19 +321,23 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
                 if tmpSiteSpec.maxmemory != 0 and minRamCount != 0 and minRamCount > tmpSiteSpec.maxmemory:
-                    tmpLog.debug('  skip {0} due to site RAM shortage={1}(site upper limit) < {2}'.format(tmpSiteName,
-                                                                                                          tmpSiteSpec.maxmemory,
-                                                                                                          minRamCount))
+                    tmpMsg = '  skip site={0} due to site RAM shortage {1}(site upper limit) less than {2} '.format(tmpSiteName,
+                                                                                                                    tmpSiteSpec.maxmemory,
+                                                                                                                    minRamCount)
+                    tmpMsg += 'criteria=-lowmemory'
+                    tmpLog.debug(tmpMsg)
                     continue
                 if tmpSiteSpec.minmemory != 0 and minRamCount != 0 and minRamCount < tmpSiteSpec.minmemory:
-                    tmpLog.debug('  skip {0} due to job RAM shortage={1}(site lower limit) > {2}'.format(tmpSiteName,
-                                                                                                         tmpSiteSpec.minmemory,
-                                                                                                         minRamCount))
+                    tmpMsg = '  skip site={0} due to job RAM shortage {1}(site lower limit) greater than {2} '.format(tmpSiteName,
+                                                                                                                      tmpSiteSpec.minmemory,
+                                                                                                                      minRamCount)
+                    tmpMsg += 'criteria=-highmemory'
+                    tmpLog.debug(tmpMsg)
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList        
-            tmpLog.debug('{0} candidates passed memory check ={1}{2}'.format(len(scanSiteList),
-                                                                             minRamCount,taskSpec.ramUnit))
+            tmpLog.debug('{0} candidates passed memory check {1}({2})'.format(len(scanSiteList),
+                                                                              minRamCount,taskSpec.ramUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -345,9 +353,11 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check at the site
             if tmpSiteSpec.maxwdir != 0 and minDiskCount > tmpSiteSpec.maxwdir:
-                tmpLog.debug('  skip {0} due to small scratch disk={1} < {2}'.format(tmpSiteName,
-                                                                                     tmpSiteSpec.maxwdir,
-                                                                                     minDiskCount))
+                tmpMsg = '  skip site={0} due to small scratch disk {1} less than {2} '.format(tmpSiteName,
+                                                                                               tmpSiteSpec.maxwdir,
+                                                                                               minDiskCount)
+                tmpMsg += 'criteria=-disk'
+                tmpLog.debug(tmpMsg)
                 continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
@@ -392,7 +402,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         continue
                 # check if blacklisted
                 if self.ddmIF.isBlackListedEP(tmpSiteSpec.ddm):
-                    tmpLog.debug('  skip {0} since {1} is blacklisted in DDM'.format(tmpSiteName,tmpSiteSpec.ddm))
+                    tmpLog.debug('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm))
                     continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
@@ -414,22 +424,26 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if not siteMaxTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
                     siteMaxTime *= tmpSiteSpec.coreCount
                 if siteMaxTime != 0 and minWalltime > siteMaxTime:
-                    tmpLog.debug('  skip {0} due to short site walltime={1}(site upper limit) < {2}'.format(tmpSiteName,
-                                                                                                            siteMaxTime,
-                                                                                                            minWalltime))
+                    tmpMsg = '  skip site={0} due to short site walltime {1}(site upper limit) less than {2} '.format(tmpSiteName,
+                                                                                                                      siteMaxTime,
+                                                                                                                      minWalltime)
+                    tmpMsg += 'criteria=-shortwalltime'
+                    tmpLog.debug(tmpMsg)
                     continue
                 # check min walltime at the site
                 siteMinTime = tmpSiteSpec.mintime
                 if not siteMinTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
                     siteMinTime *= tmpSiteSpec.coreCount
                 if siteMinTime != 0 and minWalltime < siteMinTime:
-                    tmpLog.debug('  skip {0} due to short job walltime={1}(site lower limit) > {2}'.format(tmpSiteName,
-                                                                                                           siteMinTime,
-                                                                                                           minWalltime))
+                    tmpMsg = '  skip site {0} due to short job walltime {1}(site lower limit) greater than {2} '.format(tmpSiteName,
+                                                                                                                        siteMinTime,
+                                                                                                                        minWalltime)
+                    tmpMsg += 'criteria=-longwalltime'
+                    tmpLog.debug(tmpMsg)
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList        
-            tmpLog.debug('{0} candidates passed walltime check ={1}({2})'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
+            tmpLog.debug('{0} candidates passed walltime check {1}({2})'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -451,8 +465,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             nTraJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'transferring',cloud=cloudName)
             nRunJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running',cloud=cloudName)
             if max(maxTransferring,2*nRunJobs) < nTraJobs and not tmpSiteSpec.cloud in ['ND']:
-                tmpLog.debug('  skip %s due to too many transferring %s > max(%s,2x%s)' % \
-                             (tmpSiteName,nTraJobs,def_maxTransferring,nRunJobs))
+                tmpLog.debug('  skip site=%s due to too many transferring=%s greater than max(%s,2x%s) criteria=-transferring' % \
+                                 (tmpSiteName,nTraJobs,def_maxTransferring,nRunJobs))
                 continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList        
@@ -472,7 +486,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 if not tmpSiteName in t1Sites:
-                    tmpLog.debug('  skip {0} due to negative T1 weight'.format(tmpSiteName))
+                    tmpLog.debug('  skip site={0} due to negative T1 weight criteria=-t1weight'.format(tmpSiteName))
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
@@ -497,7 +511,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if nWNmap.has_key(tmpSiteName):
                     nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
                 if nPilot == 0 and not 'test' in taskSpec.prodSourceLabel:
-                    tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
+                    tmpLog.debug('  skip site=%s due to no pilot criteria=-nopilot' % tmpSiteName)
                     continue
                 newScanSiteList.append(tmpSiteName)
                 nPilotMap[tmpSiteName] = nPilot
@@ -612,14 +626,15 @@ class AtlasProdJobBroker (JobBrokerBase):
             cutOffFactor = 2 
             nRunningCap = max(cutOffValue,cutOffFactor*nRunning)
             nRunningCap = max(nRunningCap,nPilot)
-            okMsg = '  use {0} with weight={1} {2}'.format(tmpSiteName,weight,weightStr)
+            okMsg = '  use site={0} with weight={1} {2} criteria=+use'.format(tmpSiteName,weight,weightStr)
             if (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
-                ngMsg = '  skip {0} due to nDefined+nActivated+nAssigned+nStarting={1} '.format(tmpSiteName,
-                                                                                                nDefined+nActivated+nAssigned+nStarting)
-                ngMsg += '> max({0},{1}*nRunning={1}*{2},nPilot={3})'.format(cutOffValue,
-                                                                             cutOffFactor,                                  
-                                                                             nRunning,                                      
-                                                                             nPilot)
+                ngMsg = '  skip site={0} due to nDefined+nActivated+nAssigned+nStarting={1} '.format(tmpSiteName,
+                                                                                                     nDefined+nActivated+nAssigned+nStarting)
+                ngMsg += 'greater than max({0},{1}*nRunning={1}*{2},nPilot={3}) '.format(cutOffValue,
+                                                                                         cutOffFactor,                                  
+                                                                                         nRunning,                                      
+                                                                                         nPilot)
+                ngMsg += 'criteria=-cap'
                 # add weight
                 if not weight in weightMap:
                     weightMap[weight] = []
