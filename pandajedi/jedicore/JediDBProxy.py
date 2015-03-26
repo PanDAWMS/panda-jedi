@@ -417,10 +417,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.attemptNr    = 0
                 fileSpec.failedAttempt = 0
                 fileSpec.maxAttempt = maxAttempt
-                if fileVal.has_key('nevents') and not fileVal['nevents'] in ['None',None]:
-                    fileSpec.nEvents = fileVal['nevents']
-                else:
+                if nEventsPerFile != None:
                     fileSpec.nEvents = nEventsPerFile
+                elif fileVal.has_key('events') and not fileVal['events'] in ['None',None]:
+                    try:
+                        fileSpec.nEvents = long(fileVal['events'])
+                    except:
+                        fileSpec.nEvents = None
                 if fileVal.has_key('lumiblocknr'):
                     try:
                         fileSpec.lumiBlockNr = long(fileVal['lumiblocknr'])
@@ -531,7 +534,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDs  = "SELECT status FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDs += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to get existing files
-            sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent,boundaryID FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent,boundaryID,nEvents FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlCh += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to count existing files
             sqlCo  = "SELECT count(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
@@ -549,7 +552,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to update dataset
             sqlDU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDU += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,"
-            sqlDU += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed "
+            sqlDU += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed,nEvents=:nEvents "
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             nInsert  = 0
             nReady   = 0
@@ -560,6 +563,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nActivatedPending = 0
             nEventsToUseEventSplit = 0
             nFilesToUseEventSplit = 0
+            nEventsInsert = 0
+            nEventsLost   = 0
+            nEventsExist  = 0
             retVal = None,missingFileList,None,diagMap
             # begin transaction
             self.conn.begin()
@@ -649,9 +655,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlCh+comment,varMap)
                         tmpRes = self.cur.fetchall()
                         existingFiles = {}
-                        for fileID,lfn,status,startEvent,endEvent,boundaryID in tmpRes:
+                        for fileID,lfn,status,startEvent,endEvent,boundaryID,nEventsInDS in tmpRes:
                             uniqueFileKey = '{0}.{1}.{2}.{3}'.format(lfn,startEvent,endEvent,boundaryID)
                             existingFiles[uniqueFileKey] = {'fileID':fileID,'status':status}
+                            if startEvent != None and endEvent != None:
+                                existingFiles[uniqueFileKey]['nevents'] = endEvent-startEvent+1
+                            elif nEventsInDS != None:
+                                existingFiles[uniqueFileKey]['nevents'] = nEventsInDS
+                            else:
+                                existingFiles[uniqueFileKey]['nevents'] = None
+                            lostFlag = False
                             if status == 'ready':
                                 nReady += 1
                             elif status == 'pending':
@@ -669,6 +682,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 nUsed += 1
                             elif status in ['lost','missing']:
                                 nLost += 1
+                                lostFlag = True
+                            if existingFiles[uniqueFileKey]['nevents'] != None:
+                                if lostFlag:
+                                    nEventsLost += existingFiles[uniqueFileKey]['nevents']
+                                else:
+                                    nEventsExist += existingFiles[uniqueFileKey]['nevents']
                         # insert files
                         uniqueLfnList = {}
                         totalNumEventsF = 0
@@ -711,6 +730,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
                             self.cur.execute(sqlIn+comment,varMap)
                             nInsert += 1
+                            if fileSpec.startEvent != None and fileSpec.endEvent != None:
+                                nEventsInsert += (fileSpec.endEvent-fileSpec.startEvent+1)
+                            elif fileSpec.nEvents != None:
+                                nEventsInsert += fileSpec.nEvents
                             if isMutableDataset:
                                 fileID = long(varMap[':newFileID'].getvalue())
                                 pendingFID.append(fileID)
@@ -756,16 +779,25 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':datasetID'] = datasetSpec.datasetID
                             varMap[':fileID'] = fileVarMap['fileID']
                             if not uniqueFileKey in uniqueFileKeyList:
+                                if fileVarMap['status'] == 'lost':
+                                    continue
                                 varMap['status'] = 'lost'
                             elif fileVarMap['status'] in ['lost','missing'] and \
                                      fileSpecMap[uniqueFileKey].status != fileVarMap['status']:
                                 varMap['status'] = fileSpecMap[uniqueFileKey].status
+                                nLost -= 1
+                                if fileVarMap['nevents'] != None:
+                                    nEventsLost -= fileVarMap['nevents']
                             else:
                                 continue
                             if varMap['status'] == 'ready':
                                 nReady += 1
+                                if fileVarMap['nevents'] != None:
+                                    nEventsExist += fileVarMap['nevents']
                             if varMap['status'] in ['lost','missing']:
                                 nLost += 1
+                                if fileVarMap['nevents'] != None:
+                                    nEventsLost += fileVarMap['nevents']
                             self.cur.execute(sqlFU+comment,varMap)
                         # get master status
                         masterStatus = None
@@ -782,6 +814,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
                         varMap[':datasetID'] = datasetSpec.datasetID
                         varMap[':nFiles'] = nInsert + len(existingFiles) - nLost
+                        varMap[':nEvents'] = nEventsInsert + nEventsExist - nEventsLost
                         if xmlConfig != None:
                             # disable scout for --loadXML
                             varMap[':nFilesTobeUsed'] = nReady + nUsed - nLost
@@ -5334,7 +5367,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to update tasks    
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=oldStatus,oldStatus=NULL,errorDialog=NULL,modificationtime=CURRENT_DATE "
-            sqlTU += "WHERE jediTaskID=:jediTaskID "
+            sqlTU += "WHERE jediTaskID=:jediTaskID AND oldStatus IS NOT NULL "
             # sql to timeout tasks    
             sqlTO  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTO += "SET status=:newStatus,errorDialog=:errorDialog,modificationtime=CURRENT_DATE,stateChangeTime=CURRENT_DATE "

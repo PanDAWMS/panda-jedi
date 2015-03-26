@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/26/2015
+  * changed insertFiles to fill nEvents for input
+
 * 3/24/2015
   * changed JG to serizlize threads
   * changed latestDBR to use DBR with one or more replicas
