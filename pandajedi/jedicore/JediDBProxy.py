@@ -554,6 +554,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDU += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,"
             sqlDU += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed,nEvents=:nEvents "
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # sql to propagate number of input events to DEFT
+            sqlCE  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlCE += "SET total_input_events=("
+            sqlCE += "SELECT SUM(nEvents) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlCE += "WHERE jediTaskID=:jediTaskID AND type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sqlCE += '{0},'.format(mapKey)
+            sqlCE  = sqlCE[:-1]
+            sqlCE += ") AND masterID IS NULL) "
+            sqlCE += "WHERE taskID=:jediTaskID "
             nInsert  = 0
             nReady   = 0
             nPending = 0
@@ -870,6 +881,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':stateUpdateTime'] = stateUpdateTime
                         tmpLog.debug(sqlDU+comment+str(varMap))
                         self.cur.execute(sqlDU+comment,varMap)
+                        # propagate number of input events to DEFT
+                        if datasetSpec.isMaster():
+                            varMap = {}
+                            varMap[':jediTaskID'] = datasetSpec.jediTaskID
+                            for tmpType in JediDatasetSpec.getInputTypes():
+                                mapKey = ':type_'+tmpType
+                                varMap[mapKey] = tmpType
+                            tmpLog.debug(sqlCE+comment+str(varMap))
+                            self.cur.execute(sqlCE+comment,varMap)
                         # return number of activated pending inputs
                         diagMap['nActivatedPending'] = nActivatedPending    
                         # set return value
