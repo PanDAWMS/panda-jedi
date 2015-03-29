@@ -1,5 +1,13 @@
 Release Notes
 
+* 3/29/2015
+  * changed AtlasTS to set metadata to prod datasets
+  * modified to prepareTasks
+  * fixed insertFiles for nLost
+
+* 3/27/2015
+  * changed to propagate number of input events to DEFT
+
 * 3/26/2015
   * changed insertFiles to fill nEvents for input
   * changed AtlasPJB to add criteria=+-tag

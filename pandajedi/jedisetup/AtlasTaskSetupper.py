@@ -91,13 +91,22 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                             location = siteMapper.getDdmEndpoint(tmpT1Name,datasetSpec.storageToken)
                                     else:
                                         location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
+                                # set metadata
+                                if taskSpec.prodSourceLabel in ['managed','test'] and targetName == datasetSpec.datasetName:
+                                    metaData = {}
+                                    metaData['task_id'] = taskSpec.jediTaskID
+                                    if not taskSpec.campaign in [None,'']:
+                                        metaData['campaign'] = taskSpec.campaign 
+                                else:
+                                    metaData = None
                                 # register dataset/container
-                                tmpLog.info('registering {0} with location={1} backend={2} lifetime={3}'.format(targetName,
-                                                                                                                location,
-                                                                                                                ddmBackEnd,
-                                                                                                                lifetime))
+                                tmpLog.info('registering {0} with location={1} backend={2} lifetime={3} meta={4}'.format(targetName,
+                                                                                                                         location,
+                                                                                                                         ddmBackEnd,
+                                                                                                                         lifetime,
+                                                                                                                         str(metaData)))
                                 tmpStat = ddmIF.registerNewDataset(targetName,backEnd=ddmBackEnd,location=location,
-                                                                   lifetime=lifetime)
+                                                                   lifetime=lifetime,metaData=metaData)
                                 if not tmpStat:
                                     tmpLog.error('failed to register {0}'.format(targetName))
                                     return retFatal
@@ -151,7 +160,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     tmpLog.info('open {0}'.format(outDataset))
                     ddmIF.openDataset(outDataset)
                     # unset lifetime
-                    #ddmIF.setDatasetMetadata(outDataset,'lifetime',None)
+                    ddmIF.setDatasetMetadata(outDataset,'lifetime',None)
             # return
             tmpLog.info('done')        
             return retOK

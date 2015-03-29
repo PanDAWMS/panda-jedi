@@ -699,6 +699,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     nEventsLost += existingFiles[uniqueFileKey]['nevents']
                                 else:
                                     nEventsExist += existingFiles[uniqueFileKey]['nevents']
+                        tmpLog.debug('inDB nReady={0} nPending={1} nUsed={2} nLost={3}'.format(nReady,nPending,nUsed,nLost))
                         # insert files
                         uniqueLfnList = {}
                         totalNumEventsF = 0
@@ -792,24 +793,28 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if not uniqueFileKey in uniqueFileKeyList:
                                 if fileVarMap['status'] == 'lost':
                                     continue
+                                if fileVarMap['status'] != 'ready':
+                                    continue
                                 varMap['status'] = 'lost'
                             elif fileVarMap['status'] in ['lost','missing'] and \
                                      fileSpecMap[uniqueFileKey].status != fileVarMap['status']:
                                 varMap['status'] = fileSpecMap[uniqueFileKey].status
-                                nLost -= 1
                                 if fileVarMap['nevents'] != None:
-                                    nEventsLost -= fileVarMap['nevents']
+                                    nEventsExist += fileVarMap['nevents']
                             else:
                                 continue
                             if varMap['status'] == 'ready':
+                                nLost -= 1
                                 nReady += 1
                                 if fileVarMap['nevents'] != None:
                                     nEventsExist += fileVarMap['nevents']
                             if varMap['status'] in ['lost','missing']:
                                 nLost += 1
+                                nReady -= 1
                                 if fileVarMap['nevents'] != None:
-                                    nEventsLost += fileVarMap['nevents']
+                                    nEventsExist -= fileVarMap['nevents']
                             self.cur.execute(sqlFU+comment,varMap)
+                        tmpLog.debug('changed nReady={0} nLost={1}'.format(nReady,nLost))
                         # get master status
                         masterStatus = None
                         if not datasetSpec.isMaster():
@@ -825,10 +830,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
                         varMap[':datasetID'] = datasetSpec.datasetID
                         varMap[':nFiles'] = nInsert + len(existingFiles) - nLost
-                        varMap[':nEvents'] = nEventsInsert + nEventsExist - nEventsLost
+                        varMap[':nEvents'] = nEventsInsert + nEventsExist
                         if xmlConfig != None:
                             # disable scout for --loadXML
-                            varMap[':nFilesTobeUsed'] = nReady + nUsed - nLost
+                            varMap[':nFilesTobeUsed'] = nReady + nUsed
                         elif taskStatus == 'defined' and useScout and not isEventSplit and nChunksForScout != None and nReady > sizePendingFileChunk:
                             # set a fewer number for scout for file level splitting
                             varMap[':nFilesTobeUsed'] = sizePendingFileChunk
@@ -836,7 +841,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             # set a fewer number for scout for event level splitting
                             varMap[':nFilesTobeUsed'] = nFilesToUseEventSplit
                         else:
-                            varMap[':nFilesTobeUsed'] = nReady + nUsed - nLost
+                            varMap[':nFilesTobeUsed'] = nReady + nUsed
                         if useScout:
                             if not isEventSplit:
                                 # file level splitting
@@ -4190,7 +4195,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[mapKey] = tmpType
                 sql  = sql[:-1]
                 sql += ') AND NOT status IN (:dsEndStatus1,:dsEndStatus2,:dsEndStatus3) AND ('
-                sql += 'nFilesToBeUsed<>nFilesUsed '
+                sql += 'nFilesToBeUsed>nFilesFinished+nFilesFailed '
                 sql += 'OR (nFilesUsed=0 AND nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>0) '
                 sql += 'OR nFilesUsed>nFilesFinished+nFilesFailed) '
                 sql += ') AND rownum<={0}'.format(nTasks)
