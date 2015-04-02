@@ -4122,7 +4122,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap['walltime']     = long(median)
             returnMap['walltimeUnit'] = 'kSI2kseconds'
             # use preset value if larger
-            if preWalltime != None and preWalltime > returnMap['walltime']:
+            if preWalltime != None and (preWalltime > returnMap['walltime'] or preWalltime < 0):
                 returnMap['walltime'] = preWalltime
             # upper limit
             if returnMap['walltime'] > limitWallTime:

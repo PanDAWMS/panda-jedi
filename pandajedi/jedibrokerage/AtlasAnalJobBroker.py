@@ -405,7 +405,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         ######################################
         # selection for walltime
         minWalltime = taskSpec.walltime
-        if not minWalltime in [0,None]:
+        if not minWalltime in [0,None] and minWalltime > 0:
             minWalltime *= tmpEffAtomSize
             newScanSiteList = []
             for tmpSiteName in scanSiteList:

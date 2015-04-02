@@ -248,6 +248,9 @@ class InputChunk:
         minOutSize = 2500 * 1024 * 1024
         # set default max number of events
         maxNumEvents = None
+        # ignore negative walltime gradient
+        if walltimeGradient < 0:
+            walltimeGradient = 0
         # overwrite parameters when nFiles/EventsPerJob is used
         if nFilesPerJob != None:
             maxNumFiles  = nFilesPerJob

@@ -889,7 +889,11 @@ class JobGeneratorThread (WorkerThread):
                         instantiateTmpl = False
                     # multiply maxDiskCount and maxCpuCount by total master size
                     try:
-                        jobSpec.maxCpuCount *= totalMasterSize
+                        if jobSpec.maxCpuCount > 0:
+                            jobSpec.maxCpuCount *= totalMasterSize
+                        else:
+                            # negative cpu count to suppress looping job detection
+                            jobSpec.maxCpuCount *= -1
                     except:
                         pass
                     try:

@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/2/2015
+  * introduced negative walltime to disable lopping job detection
+
 * 3/29/2015
   * changed AtlasTS to set metadata to prod datasets
   * modified to prepareTasks
