@@ -1882,7 +1882,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # set old update time to trigger JG immediately
                     varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     self.cur.execute(sqlSC+comment,varMap)
-                    tmpLog.debug("changed status to {0} for jediTaskID={1}".format(varMap[':newStatus'],jediTaskID))
+                    nRows = self.cur.rowcount
+                    tmpLog.debug("changed status to {0} for jediTaskID={1} with {2}".format(varMap[':newStatus'],
+                                                                                            jediTaskID,nRows))
                 else:
                     # lock task
                     varMap = {}
@@ -4133,7 +4135,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap['ramCount'] = long(median)
             returnMap['ramUnit']  = 'MB'
             # use preset value if larger
-            if preRamCount != None and preRamCount > returnMap['ramCount']:
+            if preRamCount != None: # FIXME when setting ramCount is enabled again # and preRamCount > returnMap['ramCount']:
                 returnMap['ramCount'] = preRamCount
         if workSizeList != []:   
             median = max(workSizeList)
@@ -4338,6 +4340,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     resRT = self.cur.fetchone()
                     # locked by another
                     if resRT == None:
+                        tmpLog.debug('skip jediTaskID={0} since status has changed'.format(jediTaskID))
                         toSkip = True
                         if not self._commit():
                             raise RuntimeError, 'Commit error'
@@ -4498,6 +4501,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':state']  = 'mutable'
                             varMap[':status'] = 'toupdate'
                             self.cur.execute(sqlMUT+comment,varMap)
+                            nRow = self.cur.rowcount
+                            tmpLog.debug('jediTaskID={0} updated {1} mutable datasetes'.format(jediTaskID,nRow))
                         else:
                             # update input datasets
                             for varMap in varMapList:
