@@ -760,6 +760,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # restart contents update
+    def restartTasksForContentsUpdate_JEDI(self,vo,prodSourceLabel,timeLimit=30):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.restartTasksForContentsUpdate_JEDI(vo,prodSourceLabel,timeLimit=timeLimit)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # get file spec of lib.tgz
     def getBuildFileSpec_JEDI(self,jediTaskID,siteName,associatedSites):
         # get DBproxy

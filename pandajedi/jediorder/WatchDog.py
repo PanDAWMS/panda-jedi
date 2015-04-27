@@ -74,6 +74,14 @@ class WatchDog (JediKnight,FactoryBase):
                             tmpLog.error('failed to unlock')
                         else:
                             tmpLog.info('unlock {0} tasks'.format(tmpRet))
+                        # restart contents update
+                        tmpLog.info('restart contents update for vo={0} label={1}'.format(vo,prodSourceLabel)) 
+                        tmpRet = self.taskBufferIF.restartTasksForContentsUpdate_JEDI(vo,prodSourceLabel)
+                        if tmpRet == None:
+                            # failed
+                            tmpLog.error('failed to kick')
+                        else:
+                            tmpLog.info('kicked {0} tasks'.format(tmpRet))
                         # vo/prodSourceLabel specific action
                         impl = self.getImpl(vo,prodSourceLabel)
                         if impl != None:

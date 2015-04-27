@@ -5501,6 +5501,70 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # restart contents update
+    def restartTasksForContentsUpdate_JEDI(self,vo,prodSourceLabel,timeLimit):
+        comment = ' /* JediDBProxy.restartTasksForContentsUpdate_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1} limit={2}min>".format(vo,prodSourceLabel,timeLimit)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get stalled tasks
+            varMap = {}
+            varMap[':taskStatus'] = 'defined'
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=timeLimit)
+            varMap[':dsType'] = 'input'
+            varMap[':dsState'] = 'mutable'
+            varMap[':dsStatus'] = 'ready'
+            sqlTL  = "SELECT tabT.jediTaskID "
+            sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
+            sqlTL += "AND tabT.status=:taskStatus AND tabT.modificationTime<:timeLimit "
+            sqlTL += "AND tabD.type=:dsType AND tabD.state=:dsState AND tabD.status=:dsStatus "
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+                sqlTL += "AND tabT.vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                sqlTL += "AND tabT.prodSourceLabel=:prodSourceLabel "
+            # sql to update datasets    
+            sqlTU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlTU += "SET status=:newStatus "
+            sqlTU += "WHERE jediTaskID=:jediTaskID AND type=:type AND state=:state AND status=:oldStatus "
+            # start transaction
+            self.conn.begin()
+            # get jediTaskIDs
+            self.cur.execute(sqlTL+comment,varMap)
+            resTL = self.cur.fetchall()
+            # loop over all tasks
+            nTasks = 0
+            for jediTaskID, in resTL:
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':type'] ='input'
+                varMap[':state'] = 'mutable'
+                varMap[':oldStatus'] = 'ready'
+                varMap[':newStatus'] = 'toupdate'
+                self.cur.execute(sqlTU+comment,varMap)
+                nRow = self.cur.rowcount
+                tmpLog.debug('jediTaskID={0} toupdate {1} datasets'.format(jediTaskID,nRow))
+                if nRow > 0:
+                    nTasks += 1
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done")
+            return nTasks
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
     # get file spec of lib.tgz
     def getBuildFileSpec_JEDI(self,jediTaskID,siteName,associatedSites):
         comment = ' /* JediDBProxy.getBuildFileSpec_JEDI */'

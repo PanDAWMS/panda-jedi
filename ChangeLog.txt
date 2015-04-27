@@ -1,8 +1,12 @@
 Release Notes
 
+* 4/27/2015
+  * added restartTasksForContentsUpdate
+
 * 4/26/2015
   * diabled to set ramCount using scouts
   * added debug messages to getTasksToBeFinished and prepareTasksToBeFinished
+
 * 4/2/2015
   * introduced negative walltime to disable lopping job detection
 
