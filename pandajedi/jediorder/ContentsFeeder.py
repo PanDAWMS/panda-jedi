@@ -326,6 +326,7 @@ class ContentsFeederThread (WorkerThread):
                                             nEventsPerRange = taskParamMap['nEventsPerRange']
                                     # max attempts
                                     maxAttempt = None
+                                    maxFailure = None
                                     if datasetSpec.isMaster() or datasetSpec.toKeepTrack():
                                         # max attempts 
                                         if taskSpec.disableAutoRetry():
@@ -336,6 +337,9 @@ class ContentsFeederThread (WorkerThread):
                                         else:
                                             # use default value
                                             maxAttempt = 3
+                                        # max failure
+                                        if 'maxFailure' in taskParamMap:
+                                            maxFailure = taskParamMap['maxFailure']
                                     # first event number
                                     firstEventNumber = None
                                     if datasetSpec.isMaster():
@@ -393,7 +397,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               xmlConfig,
                                                                                                                               noWaitParent,
                                                                                                                               taskSpec.parent_tid,
-                                                                                                                              self.pid)
+                                                                                                                              self.pid,
+                                                                                                                              maxFailure)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))

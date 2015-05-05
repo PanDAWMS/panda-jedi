@@ -57,6 +57,12 @@ class AtlasDDMClient(DDMClientBase):
         self.lastUpdateBL = None
         # how frequently update DN/token map
         self.timeIntervalBL = datetime.timedelta(seconds=60*10)
+        # dict of endpoints
+        self.endPointDict = {}
+        # time of last update for endpoint dict
+        self.lastUpdateEP = None
+        # how frequently update endpoint dict
+        self.timeIntervalEP = datetime.timedelta(seconds=60*10)
 
 
 
@@ -144,9 +150,7 @@ class AtlasDDMClient(DDMClientBase):
             dq2=DQ2()
             if not datasetName.endswith('/'):
                 # get file list
-                tmpRet = dq2.listDatasetReplicas(datasetName,old=True)
-                tmpLog.debug('got old '+str(tmpRet))
-                tmpRet = self.convertOutListDatasetReplicas(tmpRet)
+                tmpRet = self.convertOutListDatasetReplicas(datasetName)
                 tmpLog.debug('got new '+str(tmpRet))
                 return self.SC_SUCCEEDED,tmpRet
             else:
@@ -157,8 +161,7 @@ class AtlasDDMClient(DDMClientBase):
                 dsList = dq2.listDatasetsInContainer(datasetName)
                 for tmpName in dsList:
                     tmpLog.debug(tmpName)
-                    tmpRet = dq2.listDatasetReplicas(tmpName,old=True)
-                    tmpRet = self.convertOutListDatasetReplicas(tmpRet)
+                    tmpRet = self.convertOutListDatasetReplicas(tmpName)
                     # loop over all sites
                     for tmpSite,tmpValMap in tmpRet.iteritems():
                         # add site
@@ -196,6 +199,15 @@ class AtlasDDMClient(DDMClientBase):
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             return errCode,'%s : %s %s' % (methodName,errtype.__name__,errvalue)
+
+
+
+    # get site alternateName
+    def getSiteAlternateName(self,seName):
+        self.updateEndPointDict()
+        if seName in self.endPointDict:
+            return [self.endPointDict[seName]['site']]
+        return None
 
 
 
@@ -255,7 +267,7 @@ class AtlasDDMClient(DDMClientBase):
                         # already checked
                         continue
                     # get alternate name
-                    altName = TiersOfATLAS.getSiteProperty(endPoint,'alternateName')
+                    altName = self.getSiteAlternateName(endPoint)
                     if altName != None and altName != ['']:
                         for assEndPoint in TiersOfATLAS.resolveGOC({altName[0]:None})[altName[0]]:
                             if not assEndPoint in siteAllEndPointsMap[siteName] and \
@@ -1073,11 +1085,12 @@ class AtlasDDMClient(DDMClientBase):
                     lfcSeMap[lfc] = []
                 # get SE
                 seStr = TiersOfATLAS.getSiteProperty(tmpEndPoint, 'srm')
-                tmpMatch = re.search('://([^:/]+):*\d*/',seStr)
-                if tmpMatch != None:
-                    se = tmpMatch.group(1)
-                    if not se in lfcSeMap[lfc]:
-                        lfcSeMap[lfc].append(se)
+                if seStr != None:
+                    tmpMatch = re.search('://([^:/]+):*\d*/',seStr)
+                    if tmpMatch != None:
+                        se = tmpMatch.group(1)
+                        if not se in lfcSeMap[lfc]:
+                            lfcSeMap[lfc].append(se)
             # get SURLs
             for lfcHost,seList in lfcSeMap.iteritems():
                 tmpStat,tmpRetMap = self.getSURLsFromLFC(lfnMap,lfcHost,seList,scopes=scopeMap)
@@ -1105,7 +1118,7 @@ class AtlasDDMClient(DDMClientBase):
     def getSitesWithEndPoint(self,endPoint,siteMapper,siteType):
         retList = []
         # get alternate name                                                                                                          
-        altNameList = TiersOfATLAS.getSiteProperty(endPoint,'alternateName')
+        altNameList = self.getSiteAlternateName(endPoint)
         if altNameList != None and altNameList != [''] and len(altNameList) > 0:
             altName = altNameList[0]
             # loop over all sites
@@ -1117,7 +1130,7 @@ class AtlasDDMClient(DDMClientBase):
                 if tmpSiteSpec.status == 'offline':
                     continue
                 # end point
-                tmpAltNameList = TiersOfATLAS.getSiteProperty(tmpSiteSpec.ddm,'alternateName')
+                tmpAltNameList = self.getSiteAlternateName(tmpSiteSpec.ddm)
                 if tmpAltNameList == None or tmpAltNameList == [''] or len(tmpAltNameList) == 0:
                     continue
                 if altName != tmpAltNameList[0]:
@@ -1131,18 +1144,18 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # convert output of listDatasetReplicas
-    def convertOutListDatasetReplicas(self,oldOut):
+    def convertOutListDatasetReplicas(self,datasetName):
         retMap = {}
-        try:
-            tmpVal = oldOut.values()[0]
-            # incomplete
-            for tmpEP in tmpVal[0]:
-                retMap[tmpEP] = [{'total':1, 'found':0}]
-            # complete
-            for tmpEP in tmpVal[1]:
-                retMap[tmpEP] = [{'total':1, 'found':1}]
-        except:
-            pass
+        # get rucio API
+        client = RucioClient()
+        # get scope and name
+        scope,dsn = self.extract_scope(datasetName)
+        itr = client.list_dataset_replicas(scope,dsn)
+        for item in itr:
+            rse = item["rse"]
+            retMap[rse] = [{'total':item["length"],
+                            'found':item["available_length"],
+                            'immutable':1}]
         return retMap
 
 
@@ -1299,3 +1312,34 @@ class AtlasDDMClient(DDMClientBase):
             return errCode,{}
         tmpLog.debug('done {0}'.format(str(retMap)))
         return self.SC_SUCCEEDED,retMap
+
+
+
+    # update endpoint dict
+    def updateEndPointDict(self):
+        methodName  = 'updateEndPointDict'
+        tmpLog = MsgWrapper(logger,methodName)
+        # check freashness
+        timeNow = datetime.datetime.utcnow()
+        if self.lastUpdateEP != None and timeNow-self.lastUpdateEP < self.timeIntervalEP:
+            return
+        self.lastUpdateEP = timeNow
+        # get json
+        try:
+            tmpLog.debug('start')
+            jsonStr = ''
+            res = urllib2.urlopen('http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&state=ACTIVE')
+            jsonStr = res.read()
+            tmpList= json.loads(jsonStr)
+            endPointDict = {}
+            for tmpItem in tmpList:
+                endPointDict[tmpItem['name']] = tmpItem
+            self.endPointDict = endPointDict
+            tmpLog.debug('got {0} endpoints '.format(len(self.endPointDict)))
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errStr = 'failed to update EP with {0} {1} jsonStr={2}'.format(errtype.__name__,
+                                                                           errvalue,
+                                                                           jsonStr)
+            tmpLog.error(errStr)
+        return

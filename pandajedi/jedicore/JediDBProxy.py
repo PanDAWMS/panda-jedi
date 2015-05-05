@@ -251,15 +251,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
-                                   xmlConfig,noWaitParent,parent_tid,pid):
+                                   xmlConfig,noWaitParent,parent_tid,pid,maxFailure):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
                                                            datasetSpec.datasetID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start nEventsPerFile={0} nEventsPerJob={1} maxAttempt={2} '.format(nEventsPerFile,
-                                                                                         nEventsPerJob,
-                                                                                         maxAttempt))
+        tmpLog.debug('start nEventsPerFile={0} nEventsPerJob={1} maxAttempt={2} maxFailure={3}'.format(nEventsPerFile,
+                                                                                                       nEventsPerJob,
+                                                                                                       maxAttempt,
+                                                                                                       maxFailure))
         tmpLog.debug('firstEventNumber={0} nMaxFiles={1} nMaxEvents={2}'.format(firstEventNumber,
                                                                                 nMaxFiles,nMaxEvents))
         tmpLog.debug('useFilesWithNewAttemptNr={0} nFilesPerJob={1} nEventsPerRange={2}'.format(useFilesWithNewAttemptNr,
@@ -417,6 +418,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.attemptNr    = 0
                 fileSpec.failedAttempt = 0
                 fileSpec.maxAttempt = maxAttempt
+                fileSpec.maxFailure = maxFailure
                 if nEventsPerFile != None:
                     fileSpec.nEvents = nEventsPerFile
                 elif fileVal.has_key('events') and not fileVal['events'] in ['None',None]:
@@ -2512,6 +2514,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID "
             if not fullSimulation:
                 sqlFR += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
+                sqlFR += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
             sqlFR += "ORDER BY {0}) "
             sqlFR += "WHERE rownum <= {1}"
             # sql to update file status

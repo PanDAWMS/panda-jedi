@@ -1,5 +1,9 @@
 Release Notes
 
+* 5/5/2015
+  * introduced maxFailure
+  * using list_dataset_replicas of rucio API
+
 * 4/27/2015
   * added restartTasksForContentsUpdate
 
