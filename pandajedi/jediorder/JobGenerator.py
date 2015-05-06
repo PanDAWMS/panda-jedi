@@ -84,10 +84,6 @@ class JobGenerator (JediKnight):
                 for vo in self.vos:
                     # loop over all sourceLabels
                     for prodSourceLabel in self.prodSourceLabels:
-                        # get job statistics
-                        tmpSt,jobStat = self.taskBufferIF.getJobStatWithWorkQueuePerCloud_JEDI(vo,prodSourceLabel)
-                        if not tmpSt:
-                            raise RuntimeError,'failed to get job statistics'
                         # loop over all clouds
                         random.shuffle(self.cloudList)
                         for cloudName in self.cloudList:
@@ -110,6 +106,10 @@ class JobGenerator (JediKnight):
                                     if not flagLocked:
                                         tmpLog.debug('skip since locked by another process')    
                                         continue
+                                # get job statistics
+                                tmpSt,jobStat = self.taskBufferIF.getJobStatWithWorkQueuePerCloud_JEDI(vo,prodSourceLabel,cloudName)
+                                if not tmpSt:
+                                    raise RuntimeError,'failed to get job statistics'
                                 # throttle
                                 tmpLog.debug('check throttle with {0}'.format(throttle.getClassName(vo,workQueue.queue_type)))
                                 try:
@@ -400,7 +400,8 @@ class JobGeneratorThread (WorkerThread):
                         tmpLog = MsgWrapper(self.logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,
                                                                                                 inputChunk.masterIndexName),
                                             monToken='<jediTaskID={0}>'.format(taskSpec.jediTaskID))
-                        tmpLog.info('start with VO={0} cloud={1}'.format(taskSpec.vo,cloudName))
+                        tmpLog.info('start with VO={0} cloud={1} queue={2}'.format(taskSpec.vo,cloudName,
+                                                                                   self.workQueue.queue_name))
                         tmpLog.sendMsg('start to generate jobs',self.msgType)
                         readyToSubmitJob = False
                         jobsSubmitted = False
@@ -562,7 +563,10 @@ class JobGeneratorThread (WorkerThread):
                                     pandaIDs.append(items[0])
                             # check if submission was successful
                             if len(pandaIDs) == len(pandaJobs):
-                                tmpMsg = 'successfully submitted {0}/{1}'.format(len(pandaIDs),len(pandaJobs))
+                                tmpMsg = 'successfully submitted {0}/{1} for VO={2} cloud={3} queue={4}'.format(len(pandaIDs),
+                                                                                                                len(pandaJobs),
+                                                                                                                taskSpec.vo,cloudName,
+                                                                                                                self.workQueue.queue_name)
                                 tmpLog.info(tmpMsg)
                                 tmpLog.sendMsg(tmpMsg,self.msgType)
                                 if self.execJobs:

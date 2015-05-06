@@ -353,11 +353,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get job statistics with work queue per cloud
-    def getJobStatWithWorkQueuePerCloud_JEDI(self,vo,prodSourceLabel):
+    def getJobStatWithWorkQueuePerCloud_JEDI(self,vo,prodSourceLabel,cloud=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getJobStatisticsWithWorkQueue_JEDI(vo,prodSourceLabel)
+        retVal = proxy.getJobStatisticsWithWorkQueue_JEDI(vo,prodSourceLabel,cloud=cloud)
         # release proxy
         self.proxyPool.putProxy(proxy)
         if retVal[0] == False:

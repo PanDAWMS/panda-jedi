@@ -44,28 +44,13 @@ class PostProcessorBase (object):
 
     # basic post procedure
     def doBasicPostProcess(self,taskSpec,tmpLog):
-        # count nFiles
-        nFiles = 0
-        nFilesFinished = 0
-        for datasetSpec in taskSpec.datasetSpecList:
-            if datasetSpec.isMasterInput():
-                nFiles += datasetSpec.nFiles
-                nFilesFinished += datasetSpec.nFilesFinished
         # update task status
         taskSpec.lockedBy = None
-        if taskSpec.status == 'tobroken':
-            taskSpec.status = 'broken'
-        elif taskSpec.status == 'toabort':
-            taskSpec.status = 'aborted'
-        elif nFiles == nFilesFinished:
-            taskSpec.status = 'done'
-        elif nFilesFinished == 0:
-            taskSpec.status = 'failed'
+        taskSpec.status = self.getFinalTaskStatus(taskSpec)
+        if taskSpec.status == 'failed':
             # set dialog for preprocess
             if taskSpec.usePrePro() and not taskSpec.checkPreProcessed():
                 taskSpec.setErrDiag('Preprocessing step failed',True)
-        else:
-            taskSpec.status = 'finished'
         tmpLog.sendMsg('set task.status={0}'.format(taskSpec.status),self.msgType)
         # update dataset
         for datasetSpec in taskSpec.datasetSpecList:
@@ -150,6 +135,29 @@ class PostProcessorBase (object):
     # return email sender
     def senderAddress(self):
         return panda_config.emailSender
+
+
+
+    # get final task status
+    def getFinalTaskStatus(self,taskSpec):
+        # count nFiles
+        nFiles = 0
+        nFilesFinished = 0
+        for datasetSpec in taskSpec.datasetSpecList:
+            if datasetSpec.isMasterInput():
+                nFiles += datasetSpec.nFiles
+                nFilesFinished += datasetSpec.nFilesFinished
+        if taskSpec.status == 'tobroken':
+            status = 'broken'
+        elif taskSpec.status == 'toabort':
+            status = 'aborted'
+        elif nFiles == nFilesFinished:
+            status = 'done'
+        elif nFilesFinished == 0:
+            status = 'failed'
+        else:
+            status = 'finished'
+        return status
 
 
 

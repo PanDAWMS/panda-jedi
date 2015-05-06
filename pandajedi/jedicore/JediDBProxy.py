@@ -1930,14 +1930,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get job statistics with work queue
-    def getJobStatisticsWithWorkQueue_JEDI(self,vo,prodSourceLabel,minPriority=None):
+    def getJobStatisticsWithWorkQueue_JEDI(self,vo,prodSourceLabel,minPriority=None,cloud=None):
         comment = ' /* DBProxy.getJobStatisticsWithWorkQueue_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        methodName += ' <vo={0} label={1} cloud={2}>'.format(vo,prodSourceLabel,cloud)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start minPriority={0}'.format(minPriority))
         sql0 = "SELECT computingSite,cloud,jobStatus,workQueue_ID,COUNT(*) FROM %s "
-        sql0 += "WHERE vo=:vo and prodSourceLabel=:prodSourceLabel "
+        sql0 += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel "
+        if cloud != None:
+            sql0 += "AND cloud=:cloud "
         tmpPrioMap = {}
         if minPriority != None:
             sql0 += "AND currentPriority>=:minPriority "
@@ -1955,6 +1957,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         varMap = {}
         varMap[':vo'] = vo
         varMap[':prodSourceLabel'] = prodSourceLabel
+        if cloud != None:
+            varMap[':cloud'] = cloud
         for tmpPrio in tmpPrioMap.keys():
             varMap[tmpPrio] = tmpPrioMap[tmpPrio]
         returnMap = {}
@@ -2348,7 +2352,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':dsOKStatus4']     = 'registered'
                 varMap[':dsOKStatus5']     = 'failed'
                 varMap[':timeLimit']       = timeLimit
-                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.userName "
+                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.userName,nFiles,nEvents "
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
                 sql += "AND tabT.vo=:vo AND workQueue_ID IN ("
@@ -2406,9 +2410,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 varMap = {}
                 if not fullSimulation:
-                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.userName "
+                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.userName,nFiles,nEvents "
                 else:
-                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed,tabD.type,tabT.status,tabT.userName "
+                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed,tabD.type,tabT.status,tabT.userName,nFiles,nEvents "
                 sql += "FROM {0}.JEDI_Tasks tabT,{1}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI,
                                                                                  jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ("
@@ -2454,7 +2458,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             jediTaskIDList = []
             taskAvalancheMap = {}
             userTaskMap = {}
-            for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,taskStatus,userName in resList:
+            for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,taskStatus,userName,tmpNumInputFiles,tmpNumInputEvents in resList:
                 tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3}'.format(jediTaskID,datasetID,
                                                                                             tmpNumFiles,datasetType))
                 # just return the max priority
@@ -2465,7 +2469,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # make task-dataset mapping
                 if not taskDatasetMap.has_key(jediTaskID):
                     taskDatasetMap[jediTaskID] = []
-                taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType))
+                taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents))
                 # make user-task mapping
                 if not userName in userTaskMap:
                     userTaskMap[userName] = []
@@ -2650,7 +2654,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not toSkip:
                     iDsPerTask = 0
                     nDsPerTask = 10
-                    for datasetID,tmpNumFiles,datasetType in taskDatasetMap[jediTaskID]:
+                    for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents in taskDatasetMap[jediTaskID]:
                         primaryDatasetID = datasetID
                         datasetIDs = [datasetID]
                         taskSpec = copy.copy(origTaskSpec)
@@ -2746,15 +2750,28 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if taskSpec.getNumFilesPerJob() != None:
                                 # the number of files is specified
                                 typicalNumFilesPerJob = taskSpec.getNumFilesPerJob()
+                            elif taskSpec.getNumEventsPerJob() != None:
+                                typicalNumFilesPerJob = 1
+                                try:
+                                    if taskSpec.getNumEventsPerJob() > (tmpNumInputEvents/tmpNumInputFiles):
+                                        typicalNumFilesPerJob = taskSpec.getNumEventsPerJob() * tmpNumInputFiles / tmpNumInputEvents
+                                except:
+                                    pass
+                                if typicalNumFilesPerJob < 1:
+                                    typicalNumFilesPerJob = 1
                             elif typicalNumFilesMap != None and typicalNumFilesMap.has_key(taskSpec.processingType) \
                                     and typicalNumFilesMap[taskSpec.processingType] > 0:
                                 # typical usage
                                 typicalNumFilesPerJob = typicalNumFilesMap[taskSpec.processingType]
+                            tmpLog.debug('jediTaskID={0} typicalNumFilesPerJob={1}'.format(jediTaskID,typicalNumFilesPerJob))
                             # max number of files based on typical usage
-                            maxNumFiles = nFiles
+                            if maxNumJobs != None:
+                                maxNumFiles = min(nFiles,typicalNumFilesPerJob*maxNumJobs+10)
+                            else:
+                                maxNumFiles = nFiles
                             # set lower limit to avoid too fine slashing
                             lowerLimitOnMaxNumFiles = 100    
-                            if maxNumFiles < lowerLimitOnMaxNumFiles:
+                            if maxNumFiles < lowerLimitOnMaxNumFiles and maxNumJobs == None:
                                 maxNumFiles = lowerLimitOnMaxNumFiles
                             # read files
                             readBlock = False
@@ -2856,7 +2873,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     self.cur.execute(sqlDU+comment,varMap)
                                     newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
                                     newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
-                                tmpLog.debug('datasetID={0} has {1} files to be processed'.format(datasetID,iFiles))
+                                tmpLog.debug('jediTaskID={2} datasetID={0} has {1} files to be processed'.format(datasetID,iFiles,
+                                                                                                                 jediTaskID))
                                 # set flag if it is a block read
                                 if tmpDatasetSpec.isMaster():
                                     if readBlock:
