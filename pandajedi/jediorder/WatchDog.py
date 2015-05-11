@@ -79,6 +79,15 @@ class WatchDog (JediKnight,FactoryBase):
                         tmpRet = self.taskBufferIF.restartTasksForContentsUpdate_JEDI(vo,prodSourceLabel)
                         if tmpRet == None:
                             # failed
+                            tmpLog.error('failed to restart')
+                        else:
+                            tmpLog.info('restarted {0} tasks'.format(tmpRet))
+                        # kick exhausted tasks
+                        tmpLog.info('kick exhausted tasks for vo={0} label={1}'.format(vo,prodSourceLabel)) 
+                        tmpRet = self.taskBufferIF.kickExhaustedTasks_JEDI(vo,prodSourceLabel,
+                                                                           jedi_config.watchdog.waitForExhausted)
+                        if tmpRet == None:
+                            # failed
                             tmpLog.error('failed to kick')
                         else:
                             tmpLog.info('kicked {0} tasks'.format(tmpRet))

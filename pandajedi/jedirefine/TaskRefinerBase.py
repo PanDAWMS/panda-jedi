@@ -189,6 +189,10 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['disableReassign'])
         if 'allowPartialFinish' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['allowPartialFinish'])
+        if 'useExhausted' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['useExhausted'])
+        if 'useRealNumEvents' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['useRealNumEvents'])
         # return
         return
     

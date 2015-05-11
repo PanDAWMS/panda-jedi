@@ -75,7 +75,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,fileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,
-                                   excludePatt,xmlConfig,noWaitParent,parent_tid,pid,maxFailure):
+                                   excludePatt,xmlConfig,noWaitParent,parent_tid,pid,maxFailure,
+                                   useRealNumEvents):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -85,7 +86,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   useScout,fileList,useFilesWithNewAttemptNr,
                                                   nFilesPerJob,nEventsPerRange,nChunksForScout,
                                                   includePatt,excludePatt,xmlConfig,
-                                                  noWaitParent,parent_tid,pid,maxFailure)
+                                                  noWaitParent,parent_tid,pid,maxFailure,
+                                                  useRealNumEvents)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -766,6 +768,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.restartTasksForContentsUpdate_JEDI(vo,prodSourceLabel,timeLimit=timeLimit)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # kick exhausted tasks
+    def kickExhaustedTasks_JEDI(self,vo,prodSourceLabel,timeLimit):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.kickExhaustedTasks_JEDI(vo,prodSourceLabel,timeLimit)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

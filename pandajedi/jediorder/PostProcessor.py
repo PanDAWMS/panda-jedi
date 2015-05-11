@@ -57,12 +57,6 @@ class PostProcessor (JediKnight,FactoryBase):
                             tmpLog.error('failed to prepare tasks')
                         # get tasks to be finished
                         tmpLog.info('getting tasks to be finished') 
-                        criteria = {}
-                        criteria['status'] = 'prepared'
-                        if vo != None:
-                            criteria['vo'] = vo
-                        if prodSourceLabel != None:
-                            criteria['prodSourceLabel'] = prodSourceLabel
                         tmpList = self.taskBufferIF.getTasksToBeFinished_JEDI(vo,prodSourceLabel,self.pid,
                                                                               jedi_config.postprocessor.nTasks)
                         if tmpList == None: 

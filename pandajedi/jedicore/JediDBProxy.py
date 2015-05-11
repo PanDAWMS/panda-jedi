@@ -251,7 +251,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
-                                   xmlConfig,noWaitParent,parent_tid,pid,maxFailure):
+                                   xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -266,7 +266,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('useFilesWithNewAttemptNr={0} nFilesPerJob={1} nEventsPerRange={2}'.format(useFilesWithNewAttemptNr,
                                                                                                 nFilesPerJob,
                                                                                                 nEventsPerRange))
-        tmpLog.debug('useScout={0} nChunksForScout={1}'.format(useScout,nChunksForScout))
+        tmpLog.debug('useScout={0} nChunksForScout={1} userRealEventNumber={2}'.format(useScout,nChunksForScout,
+                                                                                       useRealNumEvents))
         tmpLog.debug('includePatt={0} excludePatt={1}'.format(str(includePatt),str(excludePatt)))
         tmpLog.debug('xmlConfig={0} noWaitParent={1} parent_tid={2}'.format(type(xmlConfig),noWaitParent,parent_tid))
         tmpLog.debug('len(fileMap)={0} pid={1}'.format(len(fileMap),pid))
@@ -470,7 +471,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpFileSpecList.append(copiedFileSpec)
                 elif nEventsPerJob == None or nEventsPerJob <= 0 or \
                        fileSpec.nEvents == None or fileSpec.nEvents <= 0 or \
-                       nEventsPerFile == None or nEventsPerFile <= 0: 
+                       ((nEventsPerFile == None or nEventsPerFile <= 0) and not useRealNumEvents): 
                     if firstEventNumber != None and nEventsPerFile != None:
                         fileSpec.firstEvent = totalEventNumber
                         totalEventNumber += fileSpec.nEvents
@@ -487,7 +488,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             nRemEvents -= (splitFileSpec.nEvents - tmpStartEvent)
                             if nRemEvents == 0:
                                 nRemEvents = nEventsPerJob
-                            if firstEventNumber != None and nEventsPerFile != None:
+                            if firstEventNumber != None and (nEventsPerFile != None or useRealNumEvents):
                                 splitFileSpec.firstEvent = totalEventNumber
                                 totalEventNumber += (splitFileSpec.endEvent-splitFileSpec.startEvent+1)
                             tmpFileSpecList.append(splitFileSpec)
@@ -497,7 +498,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             splitFileSpec.endEvent   = tmpStartEvent + nRemEvents -1
                             tmpStartEvent += nRemEvents
                             nRemEvents = nEventsPerJob
-                            if firstEventNumber != None and nEventsPerFile != None:
+                            if firstEventNumber != None and (nEventsPerFile != None or useRealNumEvents):
                                 splitFileSpec.firstEvent = totalEventNumber
                                 totalEventNumber += (splitFileSpec.endEvent-splitFileSpec.startEvent+1)
                             tmpFileSpecList.append(splitFileSpec)
@@ -1819,10 +1820,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status2'] = 'scouted'
             varMap[':status3'] = 'tobroken'
             varMap[':status4'] = 'toabort'
+            varMap[':status5'] = 'passed'
             sqlRT  = "SELECT tabT.jediTaskID,tabT.status "
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
-            sqlRT += "AND tabT.status IN (:status1,:status2,:status3,:status4) "
+            sqlRT += "AND tabT.status IN (:status1,:status2,:status3,:status4,:status5) "
             if not vo in [None,'any']:
                 varMap[':vo'] = vo
                 sqlRT += "AND tabT.vo=:vo "
@@ -5586,6 +5588,66 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # kick exhausted tasks
+    def kickExhaustedTasks_JEDI(self,vo,prodSourceLabel,timeLimit):
+        comment = ' /* JediDBProxy.kickExhaustedTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1} limit={2}h>".format(vo,prodSourceLabel,timeLimit)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get stalled tasks
+            varMap = {}
+            varMap[':taskStatus'] = 'exhausted'
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=timeLimit)
+            sqlTL  = "SELECT tabT.jediTaskID "
+            sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlTL += "AND tabT.status=:taskStatus AND tabT.modificationTime<:timeLimit "
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+                sqlTL += "AND tabT.vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                sqlTL += "AND tabT.prodSourceLabel=:prodSourceLabel "
+            # sql to timeout tasks    
+            sqlTO  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTO += "SET status=:newStatus,modificationtime=CURRENT_DATE,stateChangeTime=CURRENT_DATE "
+            sqlTO += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
+            # start transaction
+            self.conn.begin()
+            # get jediTaskIDs
+            self.cur.execute(sqlTL+comment,varMap)
+            resTL = self.cur.fetchall()
+            # loop over all tasks
+            nTasks = 0
+            for jediTaskID, in resTL:
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':oldStatus'] = 'exhausted'
+                varMap[':newStatus'] = 'finishing'
+                self.cur.execute(sqlTU+comment,varMap)
+                nRow = self.cur.rowcount
+                tmpLog.debug('jediTaskID={0} to {1} with {2}'.format(jediTaskID,
+                                                                     varMap[':newStatus'],
+                                                                     nRow))
+                if nRow > 0:
+                    nTasks += 1
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done")
+            return nTasks
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
     # get file spec of lib.tgz
     def getBuildFileSpec_JEDI(self,jediTaskID,siteName,associatedSites):
         comment = ' /* JediDBProxy.getBuildFileSpec_JEDI */'
@@ -6185,15 +6247,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('unknown command={0}'.format(commStr))
             return False,None
         try:
-            # sql to retry files
-            sqlRF  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
-            sqlRF += "SET maxAttempt=maxAttempt+:maxAttempt "
-            sqlRF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
-            sqlRF += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt<=attemptNr "
+            # sql to retry files without maxFailure 
+            sqlRFO  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlRFO += "SET maxAttempt=maxAttempt+:maxAttempt "
+            sqlRFO += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
+            sqlRFO += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt<=attemptNr AND maxFailure IS NULL "
+            # sql to retry files with maxFailure
+            sqlRFF  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlRFF += "SET maxAttempt=maxAttempt+:maxAttempt,maxFailure=maxFailure+:maxAttempt "
+            sqlRFF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
+            sqlRFF += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxFailure IS NOT NULL AND (maxAttempt<=attemptNr OR maxFailure<=failedAttempt) "
             # sql to count unprocessd files
             sqlCU  = "SELECT COUNT(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlCU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlCU += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt>attemptNr "
+            sqlCU += "AND (maxFailure IS NULL OR maxFailure>failedAttempt) "
             # sql to retry/incexecute datasets
             sqlRD  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlRD += "SET status=:status,nFilesUsed=nFilesUsed-:nDiff-:nRun,nFilesFailed=nFilesFailed-:nDiff "
@@ -6308,15 +6376,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':keepTrack']  = 1
                             self.cur.execute(sqlCU+comment,varMap)
                             nUnp, = self.cur.fetchone()
-                            # update files
+                            # update files 
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':datasetID']  = datasetID
                             varMap[':status']     = 'ready'
                             varMap[':maxAttempt'] = maxAttempt
                             varMap[':keepTrack']  = 1
-                            self.cur.execute(sqlRF+comment,varMap)
-                            nDiff = self.cur.rowcount
+                            nDiff = 0
+                            self.cur.execute(sqlRFO+comment,varMap)
+                            nDiff += self.cur.rowcount
+                            self.cur.execute(sqlRFF+comment,varMap)
+                            nDiff += self.cur.rowcount
                             # reset running files
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
@@ -6359,8 +6430,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':status']     = 'ready'
                             varMap[':maxAttempt'] = maxAttempt
                             varMap[':keepTrack']  = 1
-                            self.cur.execute(sqlRF+comment,varMap)
-                            nDiff = self.cur.rowcount
+                            nDiff = 0
+                            self.cur.execute(sqlRFO+comment,varMap)
+                            nDiff += self.cur.rowcount
+                            self.cur.execute(sqlRFF+comment,varMap)
+                            nDiff += self.cur.rowcount
                             # reset running files
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID

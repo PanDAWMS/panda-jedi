@@ -161,5 +161,21 @@ class PostProcessorBase (object):
 
 
 
+    # pre-check
+    def doPreCheck(self,taskSpec,tmpLog):
+        # send task to exhausted
+        if taskSpec.useExhausted() and not taskSpec.status in ['passed'] \
+                and self.getFinalTaskStatus(taskSpec) in ['finished']:
+            taskSpec.status = 'exhausted'
+            taskSpec.lockedBy = None
+            taskSpec.lockedTime = None
+            # update task
+            tmpLog.info('set task.status={0}'.format(taskSpec.status))
+            self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
+            return True
+        return False
+
+
+
     
 Interaction.installSC(PostProcessorBase)

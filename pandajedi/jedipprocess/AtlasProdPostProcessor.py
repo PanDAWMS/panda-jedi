@@ -16,6 +16,15 @@ class AtlasProdPostProcessor (PostProcessorBase):
 
     # main
     def doPostProcess(self,taskSpec,tmpLog):
+        # pre-check
+        try:
+            tmpStat = self.doPreCheck(taskSpec,tmpLog)
+            if tmpStat:
+                return self.SC_SUCCEEDED
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error('doPreCheck failed with {0}:{1}'.format(errtype.__name__,errvalue))
+            return self.SC_FATAL
         # get DDM I/F
         ddmIF = self.ddmIF.getInterface(taskSpec.vo)
         # loop over all datasets

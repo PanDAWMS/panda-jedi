@@ -231,6 +231,9 @@ waitForLocked = 60
 # wait period for throttled tasks in minutes
 waitForThrottled = 120
 
+# wait period for exhausted tasks in hours
+waitForExhausted = 48
+
 
 
 

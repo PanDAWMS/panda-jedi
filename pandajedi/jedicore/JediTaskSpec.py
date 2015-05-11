@@ -64,8 +64,10 @@ class JediTaskSpec(object):
         'scoutSuccessRate'   : 'SS',
         't1Weight'           : 'TW',
         'useBuild'           : 'UB',
+        'useRealNumEvents'   : 'UE',
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
+        'useExhausted'       : 'UX',
         'waitInput'          : 'WI',
         'maxAttemptES'       : 'XA',
         'nEventsPerMergeJob'   : 'ZE',
@@ -676,14 +678,15 @@ class JediTaskSpec(object):
 
     # return list of status to reject external changes
     def statusToRejectExtChange(cls):
-        return ['finished','done','prepared','broken','tobroken','aborted','toabort','aborting','failed','finishing']
+        return ['finished','done','prepared','broken','tobroken','aborted','toabort','aborting','failed',
+                'finishing','passed']
     statusToRejectExtChange = classmethod(statusToRejectExtChange)
 
 
 
     # return list of status for retry
     def statusToRetry(cls):
-        return ['finished','failed','aborted']
+        return ['finished','failed','aborted','exhausted']
     statusToRetry = classmethod(statusToRetry)
 
 
@@ -697,7 +700,8 @@ class JediTaskSpec(object):
 
     # return list of status for reassign
     def statusToReassign(cls):
-        return ['registered','defined','ready','running','scouting','scouted','pending','assigning']
+        return ['registered','defined','ready','running','scouting','scouted','pending',
+                'assigning','exhausted']
     statusToReassign = classmethod(statusToReassign)
 
 
@@ -721,7 +725,7 @@ class JediTaskSpec(object):
         return {'kill' : {'doing': 'aborting',
                           'done' : 'toabort'},
                 'finish' : {'doing': 'finishing',
-                            'done' : 'prepared'},
+                            'done' : 'passed'},
                 'retry' : {'doing': 'toretry',
                            'done' : 'ready'},
                 'incexec' : {'doing': 'toincexec',
@@ -825,6 +829,26 @@ class JediTaskSpec(object):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['useScout']+'=(\d+)',self.splitRule)
             if tmpMatch != None and tmpMatch.group(1) == self.enum_useScout:
+                return True
+        return False
+
+
+
+    # use exhausted
+    def useExhausted(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useExhausted']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # use real number of events
+    def useRealNumEvents(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useRealNumEvents']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
                 return True
         return False
 
