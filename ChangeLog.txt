@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/12/2015
+  * changed getJobsToBeProcessed for merge jobs to ignore maxJobs
+
 * 5/11/2015
   * added useRealNumEvents
   * added exhausted

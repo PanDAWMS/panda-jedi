@@ -26,7 +26,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nJobsInBunchMaxES = 1000
         nWaitingLimit = 4
         nWaitingBunchLimit = 2
-        nParallel = 8
+        nParallel = 2
         # make logger
         tmpLog = MsgWrapper(logger)
         workQueueIDs = workQueue.getIDs()

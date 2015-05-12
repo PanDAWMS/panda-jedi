@@ -251,7 +251,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
-                                   xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents):
+                                   xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents,
+                                   respectLB):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -272,6 +273,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('xmlConfig={0} noWaitParent={1} parent_tid={2}'.format(type(xmlConfig),noWaitParent,parent_tid))
         tmpLog.debug('len(fileMap)={0} pid={1}'.format(len(fileMap),pid))
         tmpLog.debug('datasetState={0} dataset.state={1}'.format(datasetState,datasetSpec.state))
+        tmpLog.debug('respectLB={0}'.format(respectLB))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -397,6 +399,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             foundFileList = []
             uniqueLfnList = {}
             totalNumEventsF = 0
+            lumiBlockNr = None
             for tmpIdx,tmpLFN in enumerate(lfnList):
                 # collect unique LFN list    
                 if not tmpLFN in uniqueLfnList:
@@ -480,6 +483,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 else:
                     # event-level splitting
                     tmpStartEvent = 0
+                    # LB boundaries
+                    if respectLB:
+                        if lumiBlockNr == None or lumiBlockNr != fileSpec.lumiBlockNr:
+                            lumiBlockNr = fileSpec.lumiBlockNr
+                            nRemEvents = nEventsPerJob
+                    # make file specs
                     while nRemEvents > 0:
                         splitFileSpec = copy.copy(fileSpec)
                         if tmpStartEvent + nRemEvents >= splitFileSpec.nEvents:
@@ -2546,6 +2555,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             lockedByAnother = []
             memoryExceed = False
             for tmpIdxTask,jediTaskID in enumerate(jediTaskIDList):
+                # only process merging if enough jobs are already generated
+                if maxNumJobs != None and maxNumJobs <= 0:
+                    containMergeing = False
+                    for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents in taskDatasetMap[jediTaskID]:
+                        if datasetType in JediDatasetSpec.getMergeProcessTypes():
+                            containMergeing = True
+                            break
+                    if not containMergeing:
+                        tmpLog.debug('skipping jediTaskID={0} {1}/{2}/{3}'.format(jediTaskID,tmpIdxTask,
+                                                                                  len(jediTaskIDList),iTasks))
+                        continue
                 tmpLog.debug('getting jediTaskID={0} {1}/{2}/{3}'.format(jediTaskID,tmpIdxTask,
                                                                          len(jediTaskIDList),iTasks))
                 # locked by another
@@ -2665,6 +2685,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # merging
                         if datasetType in JediDatasetSpec.getMergeProcessTypes():
                             inputChunk.isMerging = True
+                        else:
+                            # only process merging if enough jobs are already generated
+                            if maxNumJobs != None and maxNumJobs <= 0:
+                                tmpLog.debug('skip jediTaskID={0} datasetID={1} due to non-merge + enough jobs'.format(jediTaskID,
+                                                                                                                       primaryDatasetID)) 
+                                continue
                         # read secondary dataset IDs
                         if not toSkip:
                             # sql to get seconday dataset list
@@ -2767,7 +2793,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 typicalNumFilesPerJob = typicalNumFilesMap[taskSpec.processingType]
                             tmpLog.debug('jediTaskID={0} typicalNumFilesPerJob={1}'.format(jediTaskID,typicalNumFilesPerJob))
                             # max number of files based on typical usage
-                            if maxNumJobs != None:
+                            if maxNumJobs != None and not inputChunk.isMerging:
                                 maxNumFiles = min(nFiles,typicalNumFilesPerJob*maxNumJobs+10)
                             else:
                                 maxNumFiles = nFiles
@@ -2894,13 +2920,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             returnMap[jediTaskID].append((taskSpec,cloudName,inputChunk))
                             iDsPerTask += 1
                             # reduce the number of jobs
-                            if maxNumJobs != None:
+                            if maxNumJobs != None and not inputChunk.isMerging:
                                 maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
                         else:
                             tmpLog.debug('escape due to toSkip for jediTaskID={0} datasetID={1}'.format(jediTaskID,primaryDatasetID)) 
                             break
                         if iDsPerTask > nDsPerTask:
                             break
+                        if maxNumJobs != None and maxNumJobs <= 0:
+                            pass
                         # memory check
                         try:
                             memLimit = 1*1024
@@ -2926,7 +2954,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     break
                 # already read enough files to generate jobs 
                 if maxNumJobs != None and maxNumJobs <= 0:
-                    #break
                     pass
                 # memory limit exceeds
                 if memoryExceed:
@@ -7172,6 +7199,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlPD  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlPD += "SET lockedTime=CURRENT_DATE,modificationTime=CURRENT_DATE "
             sqlPD += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy "
+            # sql to check lock
+            sqlCL  = "SELECT lockedBy,lockedTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCL += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
             # lock
@@ -7180,15 +7210,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':lockedBy'] = pid
             self.cur.execute(sqlPD+comment,varMap)
             nRow = self.cur.rowcount
+            # check lock
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            self.cur.execute(sqlCL+comment,varMap)
+            resCL = self.cur.fetchone()
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             if nRow == 1:
                 retVal = True
+                tmpLog.debug('done with {0}'.format(retVal))
             else:
                 retVal = False
+                tmpLockedBy,tmpLockedTime
+                tmpLog.debug('done with {0} locked by another {1} at {2}'.format(retVal,tmpLockedBy,tmpLockedTime))
             # return    
-            tmpLog.debug('done with {0}'.format(retVal))
             return retVal
         except:
             # roll back

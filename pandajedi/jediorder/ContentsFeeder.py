@@ -309,10 +309,14 @@ class ContentsFeederThread (WorkerThread):
                                     taskSpec.setErrDiag('failed to get files for {0}'.format(datasetSpec.datasetName))
                                     allUpdated = False
                                 else:
-                                    # use real number of events
+                                    # parameters for master input
+                                    respectLB = False
                                     useRealNumEvents = False
-                                    if datasetSpec.isMaster() and taskSpec.useRealNumEvents():
-                                        useRealNumEvents = True
+                                    if datasetSpec.isMaster():
+                                        # respect LB boundaries
+                                        respectLB = taskSpec.respectLumiblock()
+                                        # use real number of events
+                                        useRealNumEvents = taskSpec.useRealNumEvents()
                                     # the number of events per file
                                     nEventsPerFile  = None
                                     nEventsPerJob   = None
@@ -403,7 +407,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               taskSpec.parent_tid,
                                                                                                                               self.pid,
                                                                                                                               maxFailure,
-                                                                                                                              useRealNumEvents)
+                                                                                                                              useRealNumEvents,
+                                                                                                                              respectLB)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))
