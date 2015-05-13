@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/13/2015
+  * changed getAtom to take nEventsPerJob into account
+
 * 5/12/2015
   * changed getJobsToBeProcessed for merge jobs to ignore maxJobs
 

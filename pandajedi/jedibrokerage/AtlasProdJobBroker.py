@@ -361,7 +361,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
-        tmpLog.debug('{0} candidates passed scratch disk check'.format(len(scanSiteList)))
+        tmpLog.debug('{0} candidates passed scratch disk check minDiskCount>{1}MB'.format(len(scanSiteList),
+                                                                                          minDiskCount))
         if scanSiteList == []:
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

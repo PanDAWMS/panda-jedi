@@ -32,6 +32,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         workQueueIDs = workQueue.getIDs()
         msgHeader = '{0}:{1} cloud={2} queue={3}:'.format(vo,prodSourceLabel,cloudName,workQueue.queue_name)
         tmpLog.debug(msgHeader+' start workQueueID={0}'.format(str(workQueueIDs)))
+        # change threashold
+        if workQueue.queue_name in ['mcore']:
+            threshold = 5.0
         # check cloud status
         if not self.siteMapper.checkCloud(cloudName):
             msgBody = "SKIP cloud={0} undefined".format(cloudName)

@@ -152,8 +152,12 @@ class InputChunk:
     def getMaxAtomSize(self,effectiveSize=False):
         # number of files per job if defined
         nFilesPerJob = self.taskSpec.getNumFilesPerJob()
+        nEventsPerJob = None
         if nFilesPerJob == None:
-            nFilesPerJob = 1
+            # number of events per job
+            nEventsPerJob = self.taskSpec.getNumEventsPerJob()
+            if nEventsPerJob == None:
+                nFilesPerJob = 1
         # grouping with boundaryID
         useBoundary = self.taskSpec.useGroupWithBoundaryID()    
         # LB
@@ -162,6 +166,7 @@ class InputChunk:
         while True:
             # get one subchunk
             subChunk = self.getSubChunk(None,nFilesPerJob=nFilesPerJob,
+                                        nEventsPerJob=nEventsPerJob,
                                         useBoundary=useBoundary,
                                         respectLB=respectLB)
             if subChunk == None:
