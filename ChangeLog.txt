@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/18/2015
+  * unset maxSize in InputChunk when nFilesPerJob or nEventsPerJob is set
+
 * 5/13/2015
   * changed getAtom to take nEventsPerJob into account
 

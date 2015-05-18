@@ -246,7 +246,7 @@ class InputChunk:
             # 20 files at most by default
             maxNumFiles = 20
         # set default max size    
-        if maxSize == None:     
+        if maxSize == None and nFilesPerJob == None and nEventsPerJob == None:
             # 20 GB at most by default
             maxSize = 20 * 1024 * 1024 * 1024
         # set default output size 2G + 500MB (safety merging)
