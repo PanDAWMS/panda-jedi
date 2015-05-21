@@ -62,8 +62,14 @@ class AtlasProdJobBroker (JobBrokerBase):
         sitePreAssigned = False
         siteListPreAssigned = False
         if not taskSpec.site in ['',None]:
-            sitePreAssigned = True
-            scanSiteList = [taskSpec.site]
+            if ',' in taskSpec.site:
+                # site list
+                siteListPreAssigned = True
+                scanSiteList = taskSpec.site.split(',')
+            else:
+                # site
+                sitePreAssigned = True
+                scanSiteList = [taskSpec.site]
             tmpLog.debug('site={0} is pre-assigned criteria=+preassign'.format(taskSpec.site))
         elif inputChunk.getPreassignedSite() != None:
             siteListPreAssigned = True
@@ -532,18 +538,21 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # mapping between sites and storage endpoints
                 siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(scanSiteList,self.siteMapper,
                                                                            ignoreCC=True)
-                # disable file lookup for merge jobs
-                if inputChunk.isMerging or not datasetSpec.isMaster():
+                # disable file lookup for merge jobs or secondary datasets
+                checkCompleteness = True
+                useCompleteOnly = False
+                if inputChunk.isMerging:
                     checkCompleteness = False
-                else:
-                    checkCompleteness = True
+                if not datasetSpec.isMaster():
+                    useCompleteOnly = True
                 # get available files per site/endpoint
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
                                                             siteStorageEP,
                                                             self.siteMapper,
                                                             ngGroup=[1],
                                                             checkCompleteness=checkCompleteness,
-                                                            storageToken=datasetSpec.storageToken)
+                                                            storageToken=datasetSpec.storageToken,
+                                                            useCompleteOnly=useCompleteOnly)
                 if tmpAvFileMap == None:
                     raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap

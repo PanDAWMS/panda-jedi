@@ -222,7 +222,7 @@ class AtlasDDMClient(DDMClientBase):
                         
     # get available files
     def getAvailableFiles(self,datasetSpec,siteEndPointMap,siteMapper,ngGroup=[],checkLFC=False,
-                          checkCompleteness=True,storageToken=None):
+                          checkCompleteness=True,storageToken=None,useCompleteOnly=False):
         # make logger
         methodName = 'getAvailableFiles'
         methodName += ' <datasetID={0}>'.format(datasetSpec.datasetID)
@@ -309,7 +309,8 @@ class AtlasDDMClient(DDMClientBase):
                         completeReplicaMap[tmpEndPoint] = storageType
                         siteHasCompleteReplica = True
                     # no LFC scan for many-time datasets or disabled completeness check
-                    if datasetSpec.isManyTime() or (not checkCompleteness and not datasetReplicaMap.has_key(tmpEndPoint)):
+                    if datasetSpec.isManyTime() or (not checkCompleteness and not datasetReplicaMap.has_key(tmpEndPoint)) \
+                            or useCompleteOnly:
                         continue
                     # get LFC
                     lfc = TiersOfATLAS.getLocalCatalog(tmpEndPoint)
