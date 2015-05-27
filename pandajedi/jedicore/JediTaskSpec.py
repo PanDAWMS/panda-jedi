@@ -46,6 +46,7 @@ class JediTaskSpec(object):
         'firstEvent'         : 'FT',
         'groupBoundaryID'    : 'GB',
         'instantiateTmplSite': 'IA',
+        'ipConnectivity'     : 'IP',
         'instantiateTmpl'    : 'IT',
         'useLocalIO'         : 'LI',
         'limitedSites'       : 'LS',
@@ -89,10 +90,13 @@ class JediTaskSpec(object):
     enum_useScout  = '2'
     enum_postScout = '3'
 
-
     # enum for dataset registration
     enum_toRegisterDS   = '1'
     enum_registeredDS   = '2'
+
+    # enum for IP connectivity
+    enum_ipConnectivity = {'1' : 'full',
+                           '2' : 'http'}
 
 
 
@@ -995,3 +999,22 @@ class JediTaskSpec(object):
                 self.errorDialog = "{0} is too long (actual: {1}, maximum: {2})".format(attrName,len(attrVal),attrLength)
                 return False
         return True
+
+
+
+    # set IP connectivity
+    def setIpConnectivity(self,value):
+        if value in self.enum_ipConnectivity.values():
+            for tmpKey,tmpVal in self.enum_ipConnectivity.iteritems():
+                self.setSplitRule('ipConnectivity',tmpKey)
+                break
+
+
+
+    # get IP connectivity
+    def getIpConnectivity(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['ipConnectivity']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return self.enum_ipConnectivity[int(tmpMatch.group(1))]
+        return None

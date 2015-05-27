@@ -1,5 +1,9 @@
 Release Notes
 
+* 5/27/2015
+  * added ipConnectivity
+  * set amount in getTaskParamsWithID_JEDI
+
 * 5/20/2015
   * changed to allow a list of sites in task.site
   * added useCompleteOny to getAvailableFiles

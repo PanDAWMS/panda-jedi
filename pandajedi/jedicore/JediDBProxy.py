@@ -3742,13 +3742,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.arraysize = 100
             self.cur.execute(sql+comment,varMap)
             retStr = ''
+            totalSize = 0
             for tmpItem, in self.cur:
-                retStr = tmpItem.read()
+                retStr = tmpItem.read(amount=1000000)
+                totalSize += tmpItem.size()
                 break
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            tmpLog.debug('end')            
+            tmpLog.debug('read {0}/{1} bytes'.format(len(retStr),totalSize))
             return retStr
         except:
             # roll back
