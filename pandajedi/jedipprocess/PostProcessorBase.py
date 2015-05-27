@@ -151,7 +151,7 @@ class PostProcessorBase (object):
             status = 'broken'
         elif taskSpec.status == 'toabort':
             status = 'aborted'
-        elif nFiles == nFilesFinished:
+        elif nFiles == nFilesFinished and nFiles > 0:
             status = 'done'
         elif nFilesFinished == 0:
             status = 'failed'

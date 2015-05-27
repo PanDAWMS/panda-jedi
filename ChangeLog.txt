@@ -1,6 +1,7 @@
 Release Notes
 
 * 5/27/2015
+  * changed PP to set failed when nFiles=0 is finished
   * added ipConnectivity
   * set amount in getTaskParamsWithID_JEDI
 
