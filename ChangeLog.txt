@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/3/2015
+  * changed AtlasJobBrokers to take throttled jobs into account
+
 * 5/27/2015
   * changed PP to set failed when nFiles=0 is finished
   * added ipConnectivity

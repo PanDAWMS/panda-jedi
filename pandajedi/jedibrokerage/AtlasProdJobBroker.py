@@ -387,6 +387,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # the number of jobs which will produce outputs
                 nRemJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'assigned') + \
                            AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'activated') + \
+                           AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'throttled') + \
                            AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running')
                 # the size of input files which will be copied to the site
                 movingInputSize = self.taskBufferIF.getMovingInputSize_JEDI(tmpSiteName)
@@ -595,7 +596,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
             nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'definied',None,taskSpec.workQueue_ID) + self.getLiveCount(tmpSiteName)
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',None,taskSpec.workQueue_ID)
-            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,taskSpec.workQueue_ID)
+            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,taskSpec.workQueue_ID) + \
+                         AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,taskSpec.workQueue_ID)
             nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting',None,taskSpec.workQueue_ID)
             if tmpSiteName in nPilotMap:
                 nPilot = nPilotMap[tmpSiteName]
