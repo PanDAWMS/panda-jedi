@@ -175,8 +175,8 @@ class ContentsFeederThread (WorkerThread):
                                 else:
                                     # dummy metadata for pseudo dataset
                                     tmpMetadata = {'state':'closed'}
-                                # set mutable when parent is running and the dataset is open
-                                if noWaitParent and \
+                                # set mutable when and the dataset is open and parent is running or task is configured to run until the dataset is closed 
+                                if (noWaitParent or taskSpec.runUntilClosed()) and \
                                         (tmpMetadata['state'] == 'open' \
                                              or datasetSpec.datasetName in parentOutDatasets \
                                              or datasetSpec.datasetName.split(':')[-1] in parentOutDatasets):

@@ -22,6 +22,19 @@ def getEffectiveFileSize(fsize,startEvent,endEvent,nEvents):
 
 
 
+# get effective number of events                                                                                                                          
+def getEffectiveNumEvents(startEvent,endEvent,nEvents):
+    if endEvent != None and startEvent != None:
+        evtCounts = endEvent-startEvent+1
+        if evtCounts > 0:
+            return evtCounts
+        return 1
+    if nEvents != None and nEvents > 0:
+        return nEvents
+    return 1
+
+
+
 # get memory usage
 def getMemoryUsage():
     try:

@@ -195,6 +195,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['useRealNumEvents'])
         if 'ipConnectivity' in taskParamMap:
             self.taskSpec.setIpConnectivity(taskParamMap['ipConnectivity'])
+        if 'runUntilClosed' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['runUntilClosed'])
         # return
         return
     

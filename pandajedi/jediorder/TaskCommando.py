@@ -169,7 +169,12 @@ class TaskCommandoThread (WorkerThread):
                                     tmpMsg = "trying to kill {0} jobs".format(len(pandaIDs))
                                     tmpLog.info(tmpMsg)
                                     tmpLog.sendMsg(tmpMsg,self.msgType)
-                                    tmpRet = self.taskBufferIF.killJobs(pandaIDs,commentStr,'50',True)
+                                    if commandStr in ['reassign','finish']:
+                                        # force kill
+                                        tmpRet = self.taskBufferIF.killJobs(pandaIDs,commentStr,'52',True)
+                                    else:
+                                        # normal kill
+                                        tmpRet = self.taskBufferIF.killJobs(pandaIDs,commentStr,'50',True)
                             tmpLog.info('done with {0}'.format(str(tmpRet)))
                     elif commandStr in ['retry','incexec']:
                         tmpMsg = 'executing {0}'.format(commandStr)

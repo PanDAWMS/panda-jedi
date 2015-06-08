@@ -422,7 +422,10 @@ class AtlasProdJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # selection for walltime
-        minWalltime = taskSpec.walltime * inputChunk.getMaxAtomSize(effectiveSize=True)
+        if not taskSpec.useHS06():
+            minWalltime = taskSpec.walltime * inputChunk.getMaxAtomSize(effectiveSize=True)
+        else:
+            minWalltime = taskSpec.walltime * inputChunk.getMaxAtomSize(getNumEvents=True)
         if not minWalltime in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
@@ -431,6 +434,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 siteMaxTime = tmpSiteSpec.maxtime
                 if not siteMaxTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
                     siteMaxTime *= tmpSiteSpec.coreCount
+                if taskSpec.useHS06():
+                    if not siteMaxTime in [None,0] and not tmpSiteSpec.corepower in [None,0]:
+                        siteMaxTime *= tmpSiteSpec.corepower
                 if siteMaxTime != 0 and minWalltime > siteMaxTime:
                     tmpMsg = '  skip site={0} due to short site walltime {1}(site upper limit) less than {2} '.format(tmpSiteName,
                                                                                                                       siteMaxTime,
@@ -442,6 +448,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 siteMinTime = tmpSiteSpec.mintime
                 if not siteMinTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
                     siteMinTime *= tmpSiteSpec.coreCount
+                if taskSpec.useHS06():
+                    if not siteMinTime in [None,0] and not tmpSiteSpec.corepower in [None,0]:
+                        siteMinTime *= tmpSiteSpec.corepower
                 if siteMinTime != 0 and minWalltime < siteMinTime:
                     tmpMsg = '  skip site {0} due to short job walltime {1}(site lower limit) greater than {2} '.format(tmpSiteName,
                                                                                                                         siteMinTime,
@@ -452,6 +461,63 @@ class AtlasProdJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed walltime check {1}({2})'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+        ######################################
+        # selection for network connectivity
+        if not sitePreAssigned:
+            ipConnectivity = taskSpec.getIpConnectivity()
+            if ipConnectivity != None:
+                newScanSiteList = []
+                for tmpSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                    # check at the site
+                    if tmpSiteSpec.wnconnectivity == 'full':
+                        pass
+                    elif tmpSiteSpec.wnconnectivity == 'http' and ipConnectivity == 'http':
+                        pass
+                    else:
+                        tmpMsg = '  skip site={0} due to insufficient connectivity (site={1}) for task={2} '.format(tmpSiteName,
+                                                                                                                    tmpSiteSpec.wnconnectivity,
+                                                                                                                    ipConnectivity)
+                        tmpMsg += 'criteria=-network'
+                        tmpLog.debug(tmpMsg)
+                        continue
+                    newScanSiteList.append(tmpSiteName)
+                scanSiteList = newScanSiteList
+                tmpLog.debug('{0} candidates passed network check ({1})'.format(len(scanSiteList),
+                                                                                ipConnectivity))
+                if scanSiteList == []:
+                    tmpLog.error('no candidates')
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    self.sendLogMessage(tmpLog)
+                    return retTmpError
+        ######################################
+        # selection for event service
+        if not sitePreAssigned:
+            jobseed = taskSpec.useEventService()
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # event service
+                if taskSpec.useEventService():
+                    if tmpSiteSpec.getJobSeed() == 'std':
+                        tmpMsg = '  skip site={0} since EventService is not allowed '.format(tmpSiteName)
+                        tmpMsg += 'criteria=-es'
+                        tmpLog.debug(tmpMsg)
+                        continue
+                else:
+                    if tmpSiteSpec.getJobSeed() == 'es':
+                        tmpMsg = '  skip site={0} since only EventService is allowed '.format(tmpSiteName)
+                        tmpMsg += 'criteria=-nones'
+                        tmpLog.debug(tmpMsg)
+                        continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList
+            tmpLog.debug('{0} candidates passed EventService check'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

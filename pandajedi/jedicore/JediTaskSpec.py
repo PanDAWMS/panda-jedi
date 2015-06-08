@@ -58,6 +58,7 @@ class JediTaskSpec(object):
         'nGBPerJob'          : 'NG',
         'noWaitParent'       : 'NW',
         'pfnList'            : 'PL',
+        'runUntilClosed'     : 'RC',
         'registerDatasets'   : 'RD',
         'respectLB'          : 'RL',
         'reuseSecOnDemand'   : 'RO',
@@ -1006,8 +1007,9 @@ class JediTaskSpec(object):
     def setIpConnectivity(self,value):
         if value in self.enum_ipConnectivity.values():
             for tmpKey,tmpVal in self.enum_ipConnectivity.iteritems():
-                self.setSplitRule('ipConnectivity',tmpKey)
-                break
+                if value == tmpVal:
+                    self.setSplitRule('ipConnectivity',tmpKey)
+                    break
 
 
 
@@ -1016,5 +1018,21 @@ class JediTaskSpec(object):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['ipConnectivity']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
-                return self.enum_ipConnectivity[int(tmpMatch.group(1))]
+                return self.enum_ipConnectivity[tmpMatch.group(1)]
         return None
+
+
+
+    # use HS06 for walltime estimation
+    def useHS06(self):
+        return self.walltimeUnit == 'HS06'
+
+
+
+    # run until input is closed
+    def runUntilClosed(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['runUntilClosed']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False

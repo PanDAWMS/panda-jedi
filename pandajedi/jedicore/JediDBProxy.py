@@ -3987,12 +3987,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # get scout job data
     def getScoutJobData_JEDI(self,jediTaskID,useTransaction=False,scoutSuccessRate=None,
-                             mergeScout=False):
+                             mergeScout=False,useHS06=False):
         comment = ' /* JediDBProxy.getScoutJobData_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start mergeScout={0}'.format(mergeScout))
+        tmpLog.debug('start mergeScout={0} useHS06={1}'.format(mergeScout,useHS06))
         returnMap = {}
         # sql to get preset values
         if not mergeScout:
@@ -4018,11 +4018,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlSCF += '{0},'.format(mapKey)
         sqlSCF  = sqlSCF[:-1]
         sqlSCF += ") AND tabD.masterID IS NULL " 
-        sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount "
+        sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,startTime,endTime,computingSite "
         sqlSCD += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCD += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus "
         sqlSCD += "UNION "
-        sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount "
+        sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,startTime,endTime,computingSite "
         sqlSCD += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCD += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND modificationTime>(CURRENT_DATE-14) "
         # get size of lib
@@ -4030,6 +4030,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlLIB += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
         sqlLIB += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status AND "
         sqlLIB += "tabD.type=:type AND tabF.type=:type "
+        # get core power
+        sqlCore  = "SELECT corepower FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
+        sqlCore += "WHERE siteID=:site "
         if useTransaction:
             # begin transaction
             self.conn.begin()
@@ -4089,12 +4092,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         finishedJobs = []
         inFSizeList  = []
         inFSizeMap   = {}
+        inEventsMap  = {}
+        corePowerMap = {}
         for pandaID,fsize,startEvent,endEvent,nEvents in resList:
             if not inFSizeMap.has_key(pandaID):
                 inFSizeMap[pandaID] = 0
             # get effective file size
             effectiveFsize = JediCoreUtils.getEffectiveFileSize(fsize,startEvent,endEvent,nEvents)
             inFSizeMap[pandaID] += effectiveFsize
+            # events
+            if not pandaID in inEventsMap:
+                inEventsMap[pandaID] = 0
+            inEventsMap[pandaID] += JediCoreUtils.getEffectiveNumEvents(startEvent,endEvent,nEvents)
         # loop over all jobs
         for pandaID,totalFSize in inFSizeMap.iteritems():
             # get job data
@@ -4104,7 +4113,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlSCD+comment,varMap)
             resData = self.cur.fetchone()
             if resData != None:
-                jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,defCoreCount = resData
+                jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,\
+                    defCoreCount,startTime,endTime,computingSite = resData
+                # get core power
+                corePower = 1
+                if useHS06:
+                    if not computingSite in corePowerMap:
+                        varMap = {}
+                        varMap[':site'] = computingSite
+                        self.cur.execute(sqlCore+comment,varMap)
+                        resCore = self.cur.fetchone()
+                        if resCore != None:
+                            corePower, = resCore
+                        corePowerMap[computingSite] = corePower
+                    corePower = corePowerMap[computingSite]
                 finishedJobs.append(pandaID)
                 inFSizeList.append(totalFSize)
                 # core count
@@ -4131,7 +4153,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     pass
                 # execution time
                 try:
-                    tmpVal = cpuConsumptionTime
+                    if useHS06:
+                        tmpDelta = endTime - startTime
+                        tmpVal = tmpDelta.seconds + tmpDelta.days * 24 * 3600
+                        # cut off of 60min 
+                        if tmpVal < 60 * 60:
+                            tmpVal = 0
+                        tmpVal *= coreCount
+                        tmpVal *= corePower
+                        if pandaID in inEventsMap:
+                            tmpVal /= float(inEventsMap[pandaID])
+                    else:
+                        tmpVal = cpuConsumptionTime
                     walltimeList.append(tmpVal)
                 except:
                     pass
@@ -4167,14 +4200,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if preOutDiskCount != None and preOutDiskCount > returnMap['outDiskCount']:
                 returnMap['outDiskCount'] = preOutDiskCount
         if walltimeList != []:
-            maxWallTime = max(walltimeList)
-            # cut off of 60min
-            if maxWallTime < 60 * 60:
-                maxWallTime = 0
-            median = float(maxWallTime) / float(max(inFSizeList)) * 1.5
-            median = math.ceil(median)
-            returnMap['walltime']     = long(median)
-            returnMap['walltimeUnit'] = 'kSI2kseconds'
+            if useHS06:
+                tmpVal = max(walltimeList) * 1.5
+                tmpVal = math.ceil(tmpVal)
+                returnMap['walltime'] = long(tmpVal)
+            else:    
+                maxWallTime = max(walltimeList)
+                # cut off of 60min
+                if maxWallTime < 60 * 60:
+                    maxWallTime = 0
+                median = float(maxWallTime) / float(max(inFSizeList)) * 1.5
+                median = math.ceil(median)
+                returnMap['walltime']     = long(median)
+                returnMap['walltimeUnit'] = 'kSI2kseconds'
             # use preset value if larger
             if preWalltime != None and (preWalltime > returnMap['walltime'] or preWalltime < 0):
                 returnMap['walltime'] = preWalltime
@@ -4432,7 +4470,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if taskSpec.status == 'scouting':
                         # set average job data
                         scoutSucceeded,scoutData = self.getScoutJobData_JEDI(jediTaskID,
-                                                                             scoutSuccessRate=taskSpec.getScoutSuccessRate())
+                                                                             scoutSuccessRate=taskSpec.getScoutSuccessRate(),
+                                                                             useHS06=taskSpec.useHS06())
                         # sql to update task data
                         if scoutData != {}:
                             varMap = {}
@@ -4448,7 +4487,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.cur.execute(sqlTSD+comment,varMap)
                         # set average merge job data
                         if taskSpec.mergeOutput():
-                            mergeScoutSucceeded,mergeScoutData = self.getScoutJobData_JEDI(jediTaskID,mergeScout=True)
+                            mergeScoutSucceeded,mergeScoutData = self.getScoutJobData_JEDI(jediTaskID,mergeScout=True,
+                                                                                           useHS06=taskSpec.useHS06())
                             if mergeScoutData != {}:
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
@@ -7056,6 +7096,71 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             if useCommit:
                 self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
+
+
+
+    # kick child tasks
+    def kickChildTasks_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.kickChildTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        retTasks = []
+        try:
+            # sql to get child tasks
+            sqlGT  = "SELECT jediTaskID,status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlGT += "WHERE parent_tid=:jediTaskID AND parent_tid<>jediTaskID "
+            # sql to change modification time to the time just before pending tasks are reactivated
+            timeLimitT = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+            sqlCT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCT += "SET modificationTime=CURRENT_DATE-1 "
+            sqlCT += "WHERE jediTaskID=:jediTaskID AND modificationTime>:timeLimit "
+            sqlCT += "AND status=:status AND lockedBy IS NULL "
+            # sql to change state check time
+            timeLimitD = datetime.datetime.utcnow() - datetime.timedelta(minutes=60-5)
+            sqlCC  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlCC += "SET stateCheckTime=CURRENT_DATE-1 "
+            sqlCC += "WHERE jediTaskID=:jediTaskID AND state=:dsState AND stateCheckTime>:timeLimit "
+            # begin transaction
+            self.conn.begin()
+            # get tasks
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            self.cur.execute(sqlGT+comment,varMap)
+            resList = self.cur.fetchall()
+            for cJediTaskID,cTaskStatus in resList:
+                # no more changes
+                if cTaskStatus in JediTaskSpec.statusToRejectExtChange():
+                    continue
+                # change modification time for pending task
+                varMap = {}
+                varMap[':jediTaskID'] = cJediTaskID
+                varMap[':status'] = 'pending'
+                varMap[':timeLimit'] = timeLimitT
+                self.cur.execute(sqlCT+comment,varMap)
+                nRow = self.cur.rowcount
+                tmpLog.debug('kicked jediTaskID={0} with {1}'.format(cJediTaskID,nRow))
+                # change state check time for mutable datasets
+                varMap = {}
+                varMap[':jediTaskID'] = cJediTaskID
+                varMap[':dsState'] = 'mutable'
+                varMap[':timeLimit'] = timeLimitD
+                self.cur.execute(sqlCC+comment,varMap)
+                nRow = self.cur.rowcount
+                tmpLog.debug('kicked {0} mutable datasets for jediTaskID={1}'.format(nRow,cJediTaskID))
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return    
+            tmpLog.debug('done')
+            return True
+        except:
+            # roll back
+            self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
             return False

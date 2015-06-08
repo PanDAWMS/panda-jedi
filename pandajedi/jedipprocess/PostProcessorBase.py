@@ -80,9 +80,11 @@ class PostProcessorBase (object):
         # update task
         self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
                                           updateDEFT=True)    
-        # kill child tasks
+        # kill or kick child tasks
         if taskSpec.status in ['failed','broken','aborted']:
             self.taskBufferIF.killChildTasks_JEDI(taskSpec.jediTaskID,taskSpec.status)
+        else:
+            self.taskBufferIF.kickChildTasks_JEDI(taskSpec.jediTaskID)
         tmpLog.info('doBasicPostProcess done with taskStatus={0}'.format(taskSpec.status))
         return
 
@@ -171,7 +173,10 @@ class PostProcessorBase (object):
             taskSpec.lockedTime = None
             # update task
             tmpLog.info('set task.status={0}'.format(taskSpec.status))
-            self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
+            self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
+                                              updateDEFT=True)
+            # kick child tasks
+            self.taskBufferIF.kickChildTasks_JEDI(taskSpec.jediTaskID)
             return True
         return False
 

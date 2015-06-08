@@ -1013,6 +1013,20 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # kick child tasks
+    def kickChildTasks_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.kickChildTasks_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+
     # lock task
     def lockTask_JEDI(self,jediTaskID,pid):
         # get DBproxy

@@ -113,9 +113,12 @@ class JobSplitter:
                     coreCount = siteSpec.coreCount
                 else:
                     coreCount = 1
+                # core power
+                corePower = siteSpec.corepower
                 tmpLog.debug('chosen {0}'.format(siteName))
                 tmpLog.debug('new weight {0}'.format(siteCandidate.weight))
-                tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2}'.format(maxSize,maxWalltime,coreCount))
+                tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2} corePower={3}'.format(maxSize,maxWalltime,
+                                                                                              coreCount,corePower))
             # get sub chunk
             subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
                                               maxNumFiles=maxNumFiles,
@@ -130,6 +133,7 @@ class JobSplitter:
                                               maxOutSize=maxOutSize,
                                               coreCount=coreCount,
                                               respectLB=respectLB,
+                                              corePower=corePower, 
                                               tmpLog=tmpLog)
             if subChunk == None:
                 break

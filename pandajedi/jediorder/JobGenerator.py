@@ -791,6 +791,7 @@ class JobGeneratorThread (WorkerThread):
                     prodDBlock = None
                     setProdDBlock = False
                     totalMasterSize = 0
+                    totalMasterEvents = 0
                     totalFileSize = 0
                     lumiBlockNr = None
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
@@ -838,6 +839,7 @@ class JobGeneratorThread (WorkerThread):
                             if tmpDatasetSpec.isMaster():
                                 totalMasterSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
                                                                                       tmpFileSpec.endEvent,tmpFileSpec.nEvents)
+                                totalMasterEvents += tmpFileSpec.getEffectiveNumEvents()
                             # total file size
                             if tmpInFileSpec.status != 'cached':
                                 totalFileSize += tmpFileSpec.fsize
@@ -894,7 +896,15 @@ class JobGeneratorThread (WorkerThread):
                     # multiply maxDiskCount and maxCpuCount by total master size
                     try:
                         if jobSpec.maxCpuCount > 0:
-                            jobSpec.maxCpuCount *= totalMasterSize
+                            if not taskSpec.useHS06():
+                                jobSpec.maxCpuCount *= totalMasterSize
+                            else:
+                                jobSpec.maxCpuCount *= totalMasterEvents
+                                if siteSpec.coreCount > 0:
+                                    jobSpec.maxCpuCount /= float(siteSpec.coreCount)
+                                if not siteSpec.corepower in [0,None]:
+                                    jobSpec.maxCpuCount /= siteSpec.corepower
+                            jobSpec.maxCpuCount = long(jobSpec.maxCpuCount)
                         else:
                             # negative cpu count to suppress looping job detection
                             jobSpec.maxCpuCount *= -1
@@ -1364,14 +1374,17 @@ class JobGeneratorThread (WorkerThread):
                     # compact format
                     compactLFNs = []
                     # remove attempt numbers
+                    fullLFNList = ''
                     for tmpLFN in listLFN:
+                        # keep full LFNs
+                        fullLFNList += '%s,' % tmpLFN
                         compactLFNs.append(re.sub('\.\d+$','',tmpLFN))
+                    fullLFNList = fullLFNList[:-1]
                     # find head and tail to convert file.1.pool,file.2.pool,file.4.pool to file.[1,2,4].pool
                     tmpHead = ''
                     tmpTail = ''
                     tmpLFN0 = compactLFNs[0]
                     tmpLFN1 = compactLFNs[1]
-                    fullLFNList = ''
                     for i in range(len(tmpLFN0)):
                         match = re.search('^(%s)' % tmpLFN0[:i],tmpLFN1)
                         if match:
@@ -1385,15 +1398,12 @@ class JobGeneratorThread (WorkerThread):
                     # create compact paramter
                     compactPar = '%s[' % tmpHead
                     for tmpLFN in compactLFNs:
-                        # keep full LFNs
-                        fullLFNList += '%s,' % tmpLFN
                         # extract number
                         tmpLFN = re.sub('^%s' % tmpHead,'',tmpLFN)
                         tmpLFN = re.sub('%s$' % tmpTail,'',tmpLFN)
                         compactPar += '%s,' % tmpLFN
                     compactPar = compactPar[:-1]
                     compactPar += ']%s' % tmpTail
-                    fullLFNList = fullLFNList[:-1]
                     # check contents in []
                     conMatch = re.search('\[([^\]]+)\]',compactPar)
                     if conMatch != None and re.search('^[\d,]+$',conMatch.group(1)) != None:

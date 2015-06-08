@@ -149,7 +149,7 @@ class InputChunk:
 
 
     # get maximum size of atomic subchunk
-    def getMaxAtomSize(self,effectiveSize=False):
+    def getMaxAtomSize(self,effectiveSize=False,getNumEvents=False):
         # number of files per job if defined
         nFilesPerJob = self.taskSpec.getNumFilesPerJob()
         nEventsPerJob = None
@@ -174,12 +174,14 @@ class InputChunk:
             # get size
             tmpAtomSize = 0
             for tmpDatasetSpec,tmpFileSpecList in subChunk:
-                if effectiveSize and not tmpDatasetSpec.isMaster():
+                if (effectiveSize or getNumEvents) and not tmpDatasetSpec.isMaster():
                     continue
                 for tmpFileSpec in tmpFileSpecList:
                     if effectiveSize:
                         tmpAtomSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
                                                                           tmpFileSpec.endEvent,tmpFileSpec.nEvents)
+                    elif getNumEvents:
+                        tmpAtomSize += tmpFileSpec.getEffectiveNumEvents()
                     else:
                         tmpAtomSize += tmpFileSpec.fsize
             if maxAtomSize < tmpAtomSize:
@@ -237,6 +239,7 @@ class InputChunk:
                     maxOutSize=None,
                     coreCount=1,
                     respectLB=False,
+                    corePower=None,
                     tmpLog=None):
         # check if there are unused files/events
         if not self.checkUnused():
@@ -324,6 +327,8 @@ class InputChunk:
                 # get effective file size
                 effectiveFsize = JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
                                                                     tmpFileSpec.endEvent,tmpFileSpec.nEvents)
+                # get num of events
+                effectiveNumEvents = tmpFileSpec.getEffectiveNumEvents()
                 # sum
                 inputNumFiles += 1
                 fileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
@@ -336,7 +341,13 @@ class InputChunk:
                     fileSize += sizeIntercepts
                 firstMaster = False
                 # walltime
-                expWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
+                if self.taskSpec.useHS06():
+                    tmpExpWalltime = walltimeGradient * effectiveNumEvents / float(coreCount)
+                    if not corePower in [None,0]:
+                        tmpExpWalltime /= corePower
+                    expWalltime += long(tmpExpWalltime)
+                else:
+                    expWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
                 # the number of events
                 if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
                     inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
@@ -455,6 +466,8 @@ class InputChunk:
                 # get effective file size
                 effectiveFsize = JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
                                                                     tmpFileSpec.endEvent,tmpFileSpec.nEvents)
+                # get num of events
+                effectiveNumEvents = tmpFileSpec.getEffectiveNumEvents()
                 newInputNumFiles += 1
                 newNumMaster += 1
                 newFileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
@@ -462,7 +475,13 @@ class InputChunk:
                 if sizeGradientsPerInSize != None:
                     newFileSize += long(effectiveFsize * sizeGradientsPerInSize)
                     newOutSizeMap[self.masterDataset.datasetID] += long(effectiveFsize * sizeGradientsPerInSize)
-                newExpWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
+                if self.taskSpec.useHS06():
+                    tmpExpWalltime = walltimeGradient * effectiveNumEvents / float(coreCount)
+                    if not corePower in [None,0]:
+                        tmpExpWalltime /= corePower
+                    newExpWalltime += long(tmpExpWalltime)
+                else:
+                    newExpWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.datasetID in newOutSizeMap:
