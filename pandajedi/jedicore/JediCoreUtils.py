@@ -60,3 +60,26 @@ def getMemoryUsage():
 # check process
 def checkProcess(pid):
     return os.path.exists('/proc/{0}/status'.format(pid))
+
+
+
+# offset for walltime
+wallTimeOffset = 10*60
+
+# add offset to walltime
+def addOffsetToWalltime(oldWalltime):
+    if oldWalltime > 0:
+        # add offset of 10min
+        oldWalltime += wallTimeOffset
+    return oldWalltime
+
+
+# reduce offset from walltime
+def reduceOffsetFromWalltime(oldWalltime):
+    if oldWalltime > 0:
+        # add offset of 10min
+        oldWalltime -= wallTimeOffset
+        if oldWalltime < 0:
+            oldWalltime = 0
+    return oldWalltime
+

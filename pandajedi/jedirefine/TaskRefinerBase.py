@@ -96,6 +96,8 @@ class TaskRefinerBase (object):
             taskSpec.walltime = taskParamMap['walltime']
         else:
             taskSpec.walltime = 0
+        if taskParamMap.has_key('walltimeUnit'):
+            taskSpec.walltimeUnit = taskParamMap['walltimeUnit']
         if taskParamMap.has_key('outDiskCount'):
             taskSpec.outDiskCount = taskParamMap['outDiskCount']
         else:

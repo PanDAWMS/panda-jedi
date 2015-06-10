@@ -432,29 +432,43 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check max walltime at the site
                 siteMaxTime = tmpSiteSpec.maxtime
+                tmpSiteStr = '{0}'.format(siteMaxTime)
+                if taskSpec.useHS06():
+                    oldSiteMaxTime = siteMaxTime
+                    siteMaxTime = JediCoreUtils.reduceOffsetFromWalltime(siteMaxTime)
+                    tmpSiteStr = '({0}-{1})'.format(oldSiteMaxTime,oldSiteMaxTime-siteMaxTime)
                 if not siteMaxTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
                     siteMaxTime *= tmpSiteSpec.coreCount
+                    tmpSiteStr += '*{0}'.format(tmpSiteSpec.coreCount)
                 if taskSpec.useHS06():
                     if not siteMaxTime in [None,0] and not tmpSiteSpec.corepower in [None,0]:
                         siteMaxTime *= tmpSiteSpec.corepower
+                        tmpSiteStr += '*{0}'.format(tmpSiteSpec.corepower)
                 if siteMaxTime != 0 and minWalltime > siteMaxTime:
-                    tmpMsg = '  skip site={0} due to short site walltime {1}(site upper limit) less than {2} '.format(tmpSiteName,
-                                                                                                                      siteMaxTime,
-                                                                                                                      minWalltime)
+                    tmpMsg = '  skip site={0} due to short site walltime {1} (site upper limit) less than {2} '.format(tmpSiteName,
+                                                                                                                       tmpSiteStr,
+                                                                                                                       minWalltime)
                     tmpMsg += 'criteria=-shortwalltime'
                     tmpLog.debug(tmpMsg)
                     continue
                 # check min walltime at the site
                 siteMinTime = tmpSiteSpec.mintime
+                tmpSiteStr = '{0}'.format(siteMinTime)
+                if taskSpec.useHS06():
+                    oldSiteMinTime = siteMinTime
+                    siteMinTime = JediCoreUtils.reduceOffsetFromWalltime(siteMinTime)
+                    tmpSiteStr = '({0}-{1})'.format(oldSiteMinTime,oldSiteMinTime-siteMinTime)
                 if not siteMinTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
                     siteMinTime *= tmpSiteSpec.coreCount
+                    tmpSiteStr += '*{0}'.format(tmpSiteSpec.coreCount)
                 if taskSpec.useHS06():
                     if not siteMinTime in [None,0] and not tmpSiteSpec.corepower in [None,0]:
                         siteMinTime *= tmpSiteSpec.corepower
+                        tmpSiteStr += '*{0}'.format(tmpSiteSpec.corepower)
                 if siteMinTime != 0 and minWalltime < siteMinTime:
-                    tmpMsg = '  skip site {0} due to short job walltime {1}(site lower limit) greater than {2} '.format(tmpSiteName,
-                                                                                                                        siteMinTime,
-                                                                                                                        minWalltime)
+                    tmpMsg = '  skip site {0} due to short job walltime {1} (site lower limit) greater than {2} '.format(tmpSiteName,
+                                                                                                                         tmpSiteStr,
+                                                                                                                         minWalltime)
                     tmpMsg += 'criteria=-longwalltime'
                     tmpLog.debug(tmpMsg)
                     continue

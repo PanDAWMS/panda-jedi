@@ -904,6 +904,7 @@ class JobGeneratorThread (WorkerThread):
                                     jobSpec.maxCpuCount /= float(siteSpec.coreCount)
                                 if not siteSpec.corepower in [0,None]:
                                     jobSpec.maxCpuCount /= siteSpec.corepower
+                                jobSpec.maxCpuCount = JediCoreUtils.addOffsetToWalltime(jobSpec.maxCpuCount)
                             jobSpec.maxCpuCount = long(jobSpec.maxCpuCount)
                         else:
                             # negative cpu count to suppress looping job detection

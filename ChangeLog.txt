@@ -1,6 +1,7 @@
 Release Notes
 
 * 6/10/2015
+  * adding offset in walltime estimation with HS06
   * kick ready tasks when some datasets have toupdate
   * set ready to toupdate datasets when nUnprocessed>0
 
