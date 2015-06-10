@@ -122,12 +122,15 @@ class TaskRefinerThread (WorkerThread):
                     errStr = ''
                     # read task parameters
                     try:
+                        taskParam = None
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                         taskParamMap = RefinerUtils.decodeJSON(taskParam)
                     except:
                         errtype,errvalue = sys.exc_info()[:2]
                         errStr = 'conversion to map from json failed with {0}:{1}'.format(errtype.__name__,errvalue)
+                        tmpLog.error(taskParam)
                         tmpLog.error(errStr)
+                        continue
                         tmpStat = Interaction.SC_FAILED
                     # get impl
                     if tmpStat == Interaction.SC_SUCCEEDED:

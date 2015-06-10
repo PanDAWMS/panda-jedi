@@ -1,5 +1,9 @@
 Release Notes
 
+* 6/10/2015
+  * kick ready tasks when some datasets have toupdate
+  * set ready to toupdate datasets when nUnprocessed>0
+
 * 6/8/2015
   * using force kill for finish/reassignTasks
   * changed PP to kick child tasks when parents are done

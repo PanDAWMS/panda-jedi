@@ -543,7 +543,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to check if task is locked
             sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE NOWAIT ".format(jedi_config.db.schemaJEDI)
             # sql to check dataset status
-            sqlDs  = "SELECT status FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDs  = "SELECT status,nFilesToBeUsed-nFilesUsed FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDs += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to get existing files
             sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent,boundaryID,nEvents FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
@@ -583,9 +583,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nUsed    = 0
             nLost    = 0
             pendingFID = []
+            oldDsStatus = None
+            newDsStatus = None
             nActivatedPending = 0
             nEventsToUseEventSplit = 0
             nFilesToUseEventSplit = 0
+            nFilesUnprocessed = 0
             nEventsInsert = 0
             nEventsLost   = 0
             nEventsExist  = 0
@@ -661,6 +664,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                        (datasetState == 'mutable' or datasetSpec.state == 'mutable') or \
                                        (taskStatus in ['running','defined'] and datasetSpec.isSeqNumber()))):
                         tmpLog.debug('ds.status={0} is not for contents update'.format(resDs[0]))
+                        oldDsStatus = resDs[0]
+                        nFilesUnprocessed = resDs[1]
                         # count existing files
                         if resDs[0] == 'ready':
                             varMap = {}
@@ -670,7 +675,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             resCo = self.cur.fetchone()
                             numUniqueLfn = resCo[0]
                             retVal = True,missingFileList,numUniqueLfn,diagMap
-                    else:    
+                    else:
+                        oldDsStatus = resDs[0]
+                        nFilesUnprocessed = resDs[1]
                         # get existing file list
                         varMap = {}
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
@@ -872,7 +879,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     diagMap['nChunksForScout'] = nChunksForScout-tmpQ
                                     if tmpR > 0:
                                         diagMap['nChunksForScout'] -= 1
-                        if missingFileList != [] or (isMutableDataset and nActivatedPending == 0):
+                        if missingFileList != [] or (isMutableDataset and nActivatedPending == 0 and nFilesUnprocessed in [0,None]):
                             if datasetSpec.isMaster() or masterStatus == None:
                                 # don't change status when some files are missing or no pending inputs are activated
                                 tmpLog.debug('using datasetSpec.status={0}'.format(datasetSpec.status))
@@ -882,7 +889,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 tmpLog.debug('using masterStatus={0}'.format(masterStatus))
                                 varMap[':status'] = masterStatus
                         else:
-                            varMap[':status' ] = 'ready'
+                            varMap[':status'] = 'ready'
                         # no more inputs are required even if parent is still running
                         numReqFileRecords = nMaxFiles
                         try:
@@ -896,6 +903,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         else:
                             varMap[':state'] = datasetState
                         varMap[':stateUpdateTime'] = stateUpdateTime
+                        newDsStatus = varMap[':status'] 
                         tmpLog.debug(sqlDU+comment+str(varMap))
                         self.cur.execute(sqlDU+comment,varMap)
                         # propagate number of input events to DEFT
@@ -908,15 +916,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpLog.debug(sqlCE+comment+str(varMap))
                             self.cur.execute(sqlCE+comment,varMap)
                         # return number of activated pending inputs
-                        diagMap['nActivatedPending'] = nActivatedPending    
+                        diagMap['nActivatedPending'] = nActivatedPending
+                        if not nFilesUnprocessed in [0,None]:
+                            diagMap['nActivatedPending'] += nFilesUnprocessed
                         # set return value
                         retVal = True,missingFileList,numUniqueLfn,diagMap
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            tmpLog.debug('inserted {0} rows with {1} activated and {2} pending'.format(nInsert,
-                                                                                       nActivatedPending,
-                                                                                       nPending-nActivatedPending))
+            tmpLog.debug('inserted {0} rows with {1} activated, {2} pending, {3} ready, {4} unprocessed, status={5}->{6}'.format(nInsert,
+                                                                                                                                 nActivatedPending,
+                                                                                                                                 nPending-nActivatedPending,
+                                                                                                                                 nReady,
+                                                                                                                                 nFilesUnprocessed,
+                                                                                                                                 oldDsStatus,
+                                                                                                                                 newDsStatus))
             regTime = datetime.datetime.utcnow() - regStart
             tmpLog.debug('took %s.%03d sec' % (regTime.seconds,regTime.microseconds/1000))
             return retVal
@@ -5601,18 +5615,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # sql to get stalled tasks
+            # sql to get stalled tasks in defined
             varMap = {}
-            varMap[':taskStatus'] = 'defined'
+            varMap[':taskStatus1'] = 'defined'
+            varMap[':taskStatus2'] = 'ready'
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=timeLimit)
             varMap[':dsType'] = 'input'
             varMap[':dsState'] = 'mutable'
-            varMap[':dsStatus'] = 'ready'
-            sqlTL  = "SELECT tabT.jediTaskID "
+            varMap[':dsStatus1'] = 'ready'
+            varMap[':dsStatus2'] = 'toupdate'
+            sqlTL  = "SELECT distinct tabT.jediTaskID,tabT.status "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
-            sqlTL += "AND tabT.status=:taskStatus AND tabT.modificationTime<:timeLimit "
-            sqlTL += "AND tabD.type=:dsType AND tabD.state=:dsState AND tabD.status=:dsStatus "
+            sqlTL += "AND ((tabT.status=:taskStatus1 AND tabD.status=:dsStatus1) OR (tabT.status=:taskStatus2 AND tabD.status=:dsStatus2)) "
+            sqlTL += "AND tabD.type=:dsType AND tabD.state=:dsState AND tabT.modificationTime<:timeLimit "
             if not vo in [None,'any']:
                 varMap[':vo'] = vo
                 sqlTL += "AND tabT.vo=:vo "
@@ -5623,6 +5639,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=:newStatus "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND type=:type AND state=:state AND status=:oldStatus "
+            # sql to update task
+            sqlTD  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTD += "SET status=:newStatus,modificationtime=CURRENT_DATE "
+            sqlTD += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
             # start transaction
             self.conn.begin()
             # get jediTaskIDs
@@ -5630,18 +5650,36 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resTL = self.cur.fetchall()
             # loop over all tasks
             nTasks = 0
-            for jediTaskID, in resTL:
-                varMap = {}
-                varMap[':jediTaskID'] = jediTaskID
-                varMap[':type'] ='input'
-                varMap[':state'] = 'mutable'
-                varMap[':oldStatus'] = 'ready'
-                varMap[':newStatus'] = 'toupdate'
-                self.cur.execute(sqlTU+comment,varMap)
-                nRow = self.cur.rowcount
-                tmpLog.debug('jediTaskID={0} toupdate {1} datasets'.format(jediTaskID,nRow))
-                if nRow > 0:
-                    nTasks += 1
+            for jediTaskID,taskStatus in resTL:
+                if taskStatus == 'defined':
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':type'] ='input'
+                    varMap[':state'] = 'mutable'
+                    varMap[':oldStatus'] = 'ready'
+                    varMap[':newStatus'] = 'toupdate'
+                    self.cur.execute(sqlTU+comment,varMap)
+                    nRow = self.cur.rowcount
+                    tmpLog.debug('jediTaskID={0} toupdate {1} datasets'.format(jediTaskID,nRow))
+                    if nRow > 0:
+                        nTasks += 1
+                        # update task
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':oldStatus'] = 'defined'
+                        varMap[':newStatus'] = 'defined'
+                        self.cur.execute(sqlTD+comment,varMap)
+                else:
+                    # update task
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':oldStatus'] = 'ready'
+                    varMap[':newStatus'] = 'defined'
+                    self.cur.execute(sqlTD+comment,varMap)
+                    nRow = self.cur.rowcount
+                    if nRow > 0:
+                        tmpLog.debug('jediTaskID={0} back to defined'.format(jediTaskID,nRow))
+                        nTasks += 1
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
