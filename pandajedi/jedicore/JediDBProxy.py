@@ -252,7 +252,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
                                    xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents,
-                                   respectLB):
+                                   respectLB,tgtNumEventsPerJob):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -273,7 +273,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('xmlConfig={0} noWaitParent={1} parent_tid={2}'.format(type(xmlConfig),noWaitParent,parent_tid))
         tmpLog.debug('len(fileMap)={0} pid={1}'.format(len(fileMap),pid))
         tmpLog.debug('datasetState={0} dataset.state={1}'.format(datasetState,datasetSpec.state))
-        tmpLog.debug('respectLB={0}'.format(respectLB))
+        tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1}'.format(respectLB,tgtNumEventsPerJob))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -472,7 +472,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if fileItem.has_key('keepTrack'):
                             copiedFileSpec.keepTrack = fileItem['keepTrack']
                         tmpFileSpecList.append(copiedFileSpec)
-                elif nEventsPerJob == None or nEventsPerJob <= 0 or \
+                elif ((nEventsPerJob == None or nEventsPerJob <= 0) and \
+                          (tgtNumEventsPerJob == None or tgtNumEventsPerJob <= 0)) or \
                        fileSpec.nEvents == None or fileSpec.nEvents <= 0 or \
                        ((nEventsPerFile == None or nEventsPerFile <= 0) and not useRealNumEvents): 
                     if firstEventNumber != None and nEventsPerFile != None:
@@ -483,6 +484,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 else:
                     # event-level splitting
                     tmpStartEvent = 0
+                    # change nEventsPerJob if target number is specified
+                    if tgtNumEventsPerJob != None and tgtNumEventsPerJob > 0:
+                        # calcurate to how many chunks the file is split
+                        tmpItem = divmod(fileSpec.nEvents,tgtNumEventsPerJob)
+                        nSubChunk = tmpItem[0]
+                        if tmpItem[1] > 0:
+                            nSubChunk += 1
+                        if nSubChunk <= 0:
+                            nSubChunk = 1
+                        # get nEventsPerJob
+                        tmpItem= divmod(fileSpec.nEvents,nSubChunk)
+                        nEventsPerJob = tmpItem[0]
+                        if tmpItem[1] > 0:
+                            nEventsPerJob += 1
+                        if nEventsPerJob <= 0:
+                            nEventsPerJob = 1
+                        nRemEvents = nEventsPerJob
                     # LB boundaries
                     if respectLB:
                         if lumiBlockNr == None or lumiBlockNr != fileSpec.lumiBlockNr:

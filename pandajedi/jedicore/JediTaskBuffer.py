@@ -76,7 +76,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                    nMaxFiles,nMaxEvents,useScout,fileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,
                                    excludePatt,xmlConfig,noWaitParent,parent_tid,pid,maxFailure,
-                                   useRealNumEvents,respectLB):
+                                   useRealNumEvents,respectLB,tgtNumEventsPerJob):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -87,7 +87,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   nFilesPerJob,nEventsPerRange,nChunksForScout,
                                                   includePatt,excludePatt,xmlConfig,
                                                   noWaitParent,parent_tid,pid,maxFailure,
-                                                  useRealNumEvents,respectLB)
+                                                  useRealNumEvents,respectLB,
+                                                  tgtNumEventsPerJob)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

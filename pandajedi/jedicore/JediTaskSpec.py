@@ -309,7 +309,7 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
-        
+
 
 
     # get offset for random seed

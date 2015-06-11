@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/11/2015
+  * added tgtNumEventsPerJob
+
 * 6/10/2015
   * adding offset in walltime estimation with HS06
   * kick ready tasks when some datasets have toupdate

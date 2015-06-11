@@ -157,7 +157,11 @@ class TaskRefinerBase (object):
         taskSpec.workQueue_ID = workQueue.queue_id
         self.taskSpec = taskSpec
         # set split rule    
-        self.setSplitRule(taskParamMap,'nFilesPerJob',     JediTaskSpec.splitRuleToken['nFilesPerJob'])
+        if 'tgtNumEventsPerJob' in taskParamMap:
+            # enforce nFilesPerJob=1 when target number of events per job is specified
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['nFilesPerJob'])
+        else:
+            self.setSplitRule(taskParamMap,'nFilesPerJob', JediTaskSpec.splitRuleToken['nFilesPerJob'])
         self.setSplitRule(taskParamMap,'nEventsPerJob',    JediTaskSpec.splitRuleToken['nEventsPerJob'])
         self.setSplitRule(taskParamMap,'nGBPerJob',        JediTaskSpec.splitRuleToken['nGBPerJob'])
         self.setSplitRule(taskParamMap,'nMaxFilesPerJob',  JediTaskSpec.splitRuleToken['nMaxFilesPerJob'])
