@@ -2,6 +2,7 @@ Release Notes
 
 * 6/11/2015
   * added tgtNumEventsPerJob
+  * improved performance of file lookup
 
 * 6/10/2015
   * adding offset in walltime estimation with HS06

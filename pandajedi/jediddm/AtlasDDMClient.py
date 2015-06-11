@@ -494,7 +494,7 @@ class AtlasDDMClient(DDMClientBase):
         # collect LFNs
         retLFNs = {}
         for guid,lfn in files.iteritems():
-            if guid in pfnMap.keys():
+            if guid in pfnMap:
                 retLFNs[lfn] = pfnMap[guid]
         # return
         return self.SC_SUCCEEDED,retLFNs

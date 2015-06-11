@@ -822,12 +822,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             nActivatedPending += 1
                             nReady += 1
                         # lost or recovered files
+                        uniqueFileKeySet = set(uniqueFileKeyList)    
                         for uniqueFileKey,fileVarMap in existingFiles.iteritems():
                             varMap = {}
                             varMap[':jediTaskID'] = datasetSpec.jediTaskID
                             varMap[':datasetID'] = datasetSpec.datasetID
                             varMap[':fileID'] = fileVarMap['fileID']
-                            if not uniqueFileKey in uniqueFileKeyList:
+                            if not uniqueFileKey in uniqueFileKeySet:
                                 if fileVarMap['status'] == 'lost':
                                     continue
                                 if fileVarMap['status'] != 'ready':
