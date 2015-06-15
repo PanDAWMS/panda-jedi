@@ -1,6 +1,7 @@
 Release Notes
 
 * 6/15/2015
+  * extened workQueue to allow site as a param
   * using always closed state for containers
 
 * 6/11/2015

@@ -11,7 +11,8 @@ class WorkQueue(object):
     _attributes = ('queue_id','queue_name','queue_type','VO','queue_share','queue_order',
                    'criteria','variables','partitionID','stretchable','status')
     # parameters for selection criteria
-    _paramsForSelection = ('prodSourceLabel','workingGroup','processingType','coreCount')
+    _paramsForSelection = ('prodSourceLabel','workingGroup','processingType','coreCount',
+                           'site')
     
     # constructor
     def __init__(self):
@@ -112,6 +113,9 @@ class WorkQueue(object):
             tmpEvalStr = re.sub('(?P<var>[^ \(]+)\s+LIKE\s+(?P<pat>[^ \(]+)',
                                 "re.search(\g<pat>,\g<var>,re.I) != None",
                                 tmpEvalStr,re.I)
+            # NULL
+            tmpEvalStr = re.sub(' IS NULL','==None',tmpEvalStr)
+            tmpEvalStr = re.sub(' IS NOT NULL',"!=None",tmpEvalStr)
             # fomat cases
             for tmpParam in self._paramsForSelection:
                 tmpEvalStr = re.sub(tmpParam,tmpParam,tmpEvalStr,re.I)            

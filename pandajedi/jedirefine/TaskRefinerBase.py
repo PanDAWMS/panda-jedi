@@ -147,7 +147,8 @@ class TaskRefinerBase (object):
                                                                  taskSpec.prodSourceLabel,
                                                                  processingType=taskSpec.processingType,
                                                                  workingGroup=taskSpec.workingGroup,
-                                                                 coreCount=taskSpec.coreCount)
+                                                                 coreCount=taskSpec.coreCount,
+                                                                 site=taskSpec.site)
         if workQueue == None:
             errStr  = 'workqueue is undefined for vo={0} labal={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
             errStr += 'processingType={0} workingGroup={1} coreCount={2} '.format(taskSpec.processingType,
