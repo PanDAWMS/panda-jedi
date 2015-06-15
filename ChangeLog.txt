@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/15/2015
+  * using always closed state for containers
+
 * 6/11/2015
   * added tgtNumEventsPerJob
   * improved performance of file lookup

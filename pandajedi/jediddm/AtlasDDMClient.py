@@ -516,7 +516,7 @@ class AtlasDDMClient(DDMClientBase):
             # get
             tmpRet = client.get_metadata(scope,dsn)
             # set state
-            if tmpRet['is_open'] == True:
+            if tmpRet['is_open'] == True and tmpRet['did_type'] != 'CONTAINER':
                 tmpRet['state'] = 'open'
             else:
                 tmpRet['state'] = 'closed'
