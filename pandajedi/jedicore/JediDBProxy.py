@@ -4230,7 +4230,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap['outDiskCount'] = long(median)
             returnMap['outDiskUnit']  = 'kB'
             # use preset value if larger
-            if preOutDiskCount != None and preOutDiskCount > returnMap['outDiskCount']:
+            if preOutDiskCount != None and \
+                    (preOutDiskCount > returnMap['outDiskCount'] or preOutDiskCount < 0):
                 returnMap['outDiskCount'] = preOutDiskCount
         if walltimeList != []:
             if useHS06:
@@ -5094,6 +5095,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # update task status
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
+                        varMap[':taskStatus'] = taskStatus
                         if newTaskStatus != 'dummy':
                             varMap[':status'] = newTaskStatus
                         varMap[':errDiag'] = comComment
@@ -5107,26 +5109,31 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         elif not taskStatus in ['pending']:
                             sqlTU += "oldStatus=status,"
                         sqlTU += "modificationTime=CURRENT_DATE,errorDialog=:errDiag,stateChangeTime=CURRENT_DATE "
-                        sqlTU += "WHERE jediTaskID=:jediTaskID "
+                        sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:taskStatus "
                         tmpLog.debug(sqlTU+comment+str(varMap))
                         self.cur.execute(sqlTU+comment,varMap)
+                        nRow = self.cur.rowcount
+                        if nRow != 1:
+                            tmpLog.debug('skip updated jediTaskID={0}'.format(jediTaskID))
+                            toSkip = True
                     # update command table
-                    varMap = {}
-                    varMap[':comm_task'] = jediTaskID
-                    if isOK:
-                        varMap[':comm_cmd']  = commandStr+'ing'
-                    else:
-                        varMap[':comm_cmd']  = commandStr+' failed'
-                    sqlUC = "UPDATE {0}.PRODSYS_COMM SET comm_cmd=:comm_cmd WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
-                    self.cur.execute(sqlUC+comment,varMap)
-                    # append
-                    if isOK:
-                        if not commandStr in ['pause','resume']:
-                            retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment,
-                                                      'oldStatus':taskStatus}
-                            # use old status if pending
-                            if taskStatus == 'pending':
-                                retTaskIDs[jediTaskID]['oldStatus'] = taskOldStatus
+                    if not toSkip:
+                        varMap = {}
+                        varMap[':comm_task'] = jediTaskID
+                        if isOK:
+                            varMap[':comm_cmd']  = commandStr+'ing'
+                        else:
+                            varMap[':comm_cmd']  = commandStr+' failed'
+                        sqlUC = "UPDATE {0}.PRODSYS_COMM SET comm_cmd=:comm_cmd WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
+                        self.cur.execute(sqlUC+comment,varMap)
+                        # append
+                        if isOK:
+                            if not commandStr in ['pause','resume']:
+                                retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment,
+                                                          'oldStatus':taskStatus}
+                                # use old status if pending
+                                if taskStatus == 'pending':
+                                    retTaskIDs[jediTaskID]['oldStatus'] = taskOldStatus
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'

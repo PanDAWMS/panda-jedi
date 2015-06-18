@@ -652,7 +652,7 @@ class JediTaskSpec(object):
     # get the size of outDisk in bytes
     def getOutDiskSize(self):
         tmpSize = self.outDiskCount
-        if tmpSize == None:
+        if tmpSize == None or tmpSize < 0:
             return 0
         if self.outDiskUnit == 'GB':
             tmpSize = tmpSize * 1024 * 1024 * 1024

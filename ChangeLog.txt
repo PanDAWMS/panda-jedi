@@ -1,5 +1,10 @@
 Release Notes
 
+* 6/18/2015
+  * changed to allow to set workDiskUnit
+  * added a special role to outDiskCount=-1
+  * fixed getTasksToExecCommand_JEDI for concurrent updates
+
 * 6/15/2015
   * extened workQueue to allow site as a param
   * using always closed state for containers

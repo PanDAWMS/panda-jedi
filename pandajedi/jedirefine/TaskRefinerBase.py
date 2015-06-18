@@ -106,6 +106,8 @@ class TaskRefinerBase (object):
             taskSpec.workDiskCount = taskParamMap['workDiskCount']
         else:
             taskSpec.workDiskCount = 0
+        if taskParamMap.has_key('workDiskUnit'):
+            taskSpec.workDiskUnit = taskParamMap['workDiskUnit']
         if taskParamMap.has_key('ramCount'):
             taskSpec.ramCount = taskParamMap['ramCount']
         else:
