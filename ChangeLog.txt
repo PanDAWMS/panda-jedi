@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/19/2015
+  * fixed resolveGOC in AtlasDDMClient
+
 * 6/18/2015
   * changed to allow to set workDiskUnit
   * added a special role to outDiskCount=-1

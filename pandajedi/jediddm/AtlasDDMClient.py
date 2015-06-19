@@ -211,6 +211,17 @@ class AtlasDDMClient(DDMClientBase):
 
 
 
+    # get associated endpoints
+    def getAssociatedEndpoints(self,altName):
+        self.updateEndPointDict()
+        epList = []
+        for seName,seVal in self.endPointDict.iteritems():
+            if seVal['site'] == altName:
+                epList.append(seName)
+        return epList
+
+
+
     # check if endpoint is NG
     def checkNGEndPoint(self,endPoint,ngList):
         for ngPatt in ngList:
@@ -269,7 +280,7 @@ class AtlasDDMClient(DDMClientBase):
                     # get alternate name
                     altName = self.getSiteAlternateName(endPoint)
                     if altName != None and altName != ['']:
-                        for assEndPoint in TiersOfATLAS.resolveGOC({altName[0]:None})[altName[0]]:
+                        for assEndPoint in self.getAssociatedEndpoints(altName[0]):
                             if not assEndPoint in siteAllEndPointsMap[siteName] and \
                                    not self.checkNGEndPoint(assEndPoint,ngEndPoints):
                                 siteAllEndPointsMap[siteName].append(assEndPoint)
