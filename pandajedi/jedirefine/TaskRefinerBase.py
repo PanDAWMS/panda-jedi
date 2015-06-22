@@ -112,6 +112,21 @@ class TaskRefinerBase (object):
             taskSpec.ramCount = taskParamMap['ramCount']
         else:
             taskSpec.ramCount = 0
+        # HS06 stuff
+        if 'cpuTimeUnit' in taskParamMap:
+            taskSpec.cpuTimeUnit = taskParamMap['cpuTimeUnit']
+        if 'cpuTime' in taskParamMap:
+            taskSpec.cpuTime = taskParamMap['cpuTime']
+        if 'cpuEfficiency' in taskParamMap:
+            taskSpec.cpuEfficiency = taskParamMap['cpuEfficiency']
+        else:
+            # 90% of cpu efficiency by default
+            taskSpec.cpuEfficiency = 90
+        if 'baseWalltime' in taskParamMap:
+            taskSpec.baseWalltime = taskParamMap['baseWalltime']
+        else:
+            # 10min of offset by default
+            taskSpec.baseWalltime = 10*60
         # for merge
         if 'mergeRamCount' in taskParamMap:
             taskSpec.mergeRamCount = taskParamMap['mergeRamCount']

@@ -893,24 +893,32 @@ class JobGeneratorThread (WorkerThread):
                             instantiatedSite = siteName
                     else:
                         instantiateTmpl = False
-                    # multiply maxDiskCount and maxCpuCount by total master size
+                    # multiply maxCpuCount by total master size
                     try:
                         if jobSpec.maxCpuCount > 0:
-                            if not taskSpec.useHS06():
-                                jobSpec.maxCpuCount *= totalMasterSize
-                            else:
-                                jobSpec.maxCpuCount *= totalMasterEvents
-                                if siteSpec.coreCount > 0:
-                                    jobSpec.maxCpuCount /= float(siteSpec.coreCount)
-                                if not siteSpec.corepower in [0,None]:
-                                    jobSpec.maxCpuCount /= siteSpec.corepower
-                                jobSpec.maxCpuCount = JediCoreUtils.addOffsetToWalltime(jobSpec.maxCpuCount)
+                            jobSpec.maxCpuCount *= totalMasterSize
                             jobSpec.maxCpuCount = long(jobSpec.maxCpuCount)
                         else:
                             # negative cpu count to suppress looping job detection
                             jobSpec.maxCpuCount *= -1
                     except:
                         pass
+                    # maxWalltime
+                    try:
+                        if taskSpec.cpuTime != None:
+                            jobSpec.maxWalltime = taskSpec.cpuTime
+                            if jobSpec.maxWalltime != None and jobSpec.maxWalltime > 0:
+                                jobSpec.maxWalltime *= totalMasterEvents
+                                if siteSpec.coreCount > 0:
+                                    jobSpec.maxWalltime /= float(siteSpec.coreCount)
+                                if not siteSpec.corepower in [0,None]:
+                                    jobSpec.maxWalltime /= siteSpec.corepower
+                            if taskSpec.baseWalltime != None:
+                                jobSpec.maxWalltime += taskSpec.baseWalltime
+                            jobSpec.maxWalltime = long(jobSpec.maxWalltime)
+                    except:
+                        pass
+                    # multiply maxDiskCount by total master size
                     try:
                         jobSpec.maxDiskCount *= totalMasterSize
                     except:

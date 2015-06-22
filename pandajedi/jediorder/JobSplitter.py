@@ -30,7 +30,10 @@ class JobSplitter:
             # set fsize intercepts using taskSpec                
             sizeIntercepts = taskSpec.getWorkDiskSize()
             # walltime
-            walltimeGradient = taskSpec.walltime
+            if not taskSpec.useHS06():
+                walltimeGradient = taskSpec.walltime
+            else:
+                walltimeGradient = taskSpec.cpuTime
             # number of events per job if defined
             nEventsPerJob = taskSpec.getNumEventsPerJob()
             # number of files per job if defined

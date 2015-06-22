@@ -339,12 +339,14 @@ class InputChunk:
                 # sum offset only for the first master
                 if firstMaster:
                     fileSize += sizeIntercepts
-                firstMaster = False
                 # walltime
                 if self.taskSpec.useHS06():
+                    if firstMaster:
+                        expWalltime += self.taskSpec.baseWalltime
                     tmpExpWalltime = walltimeGradient * effectiveNumEvents / float(coreCount)
                     if not corePower in [None,0]:
                         tmpExpWalltime /= corePower
+                    tmpExpWalltime /= float(self.taskSpec.cpuEfficiency)/100.0
                     expWalltime += long(tmpExpWalltime)
                 else:
                     expWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
@@ -363,6 +365,7 @@ class InputChunk:
                 # LB
                 if respectLB:
                     lumiBlockNr = tmpFileSpec.lumiBlockNr
+                firstMaster = False
             # get files from secondaries
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.datasetID in outSizeMap:
@@ -479,6 +482,7 @@ class InputChunk:
                     tmpExpWalltime = walltimeGradient * effectiveNumEvents / float(coreCount)
                     if not corePower in [None,0]:
                         tmpExpWalltime /= corePower
+                    tmpExpWalltime /= float(self.taskSpec.cpuEfficiency)/100.0
                     newExpWalltime += long(tmpExpWalltime)
                 else:
                     newExpWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))

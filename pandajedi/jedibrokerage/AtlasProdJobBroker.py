@@ -425,7 +425,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not taskSpec.useHS06():
             minWalltime = taskSpec.walltime * inputChunk.getMaxAtomSize(effectiveSize=True)
         else:
-            minWalltime = taskSpec.walltime * inputChunk.getMaxAtomSize(getNumEvents=True)
+            minWalltime = taskSpec.cpuTime * inputChunk.getMaxAtomSize(getNumEvents=True)
         if not minWalltime in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
@@ -435,8 +435,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteStr = '{0}'.format(siteMaxTime)
                 if taskSpec.useHS06():
                     oldSiteMaxTime = siteMaxTime
-                    siteMaxTime = JediCoreUtils.reduceOffsetFromWalltime(siteMaxTime)
-                    tmpSiteStr = '({0}-{1})'.format(oldSiteMaxTime,oldSiteMaxTime-siteMaxTime)
+                    siteMaxTime -= taskSpec.baseWalltime
+                    tmpSiteStr = '({0}-{1})'.format(oldSiteMaxTime,taskSpec.baseWalltime)
                 if not siteMaxTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
                     siteMaxTime *= tmpSiteSpec.coreCount
                     tmpSiteStr += '*{0}'.format(tmpSiteSpec.coreCount)
@@ -444,6 +444,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                     if not siteMaxTime in [None,0] and not tmpSiteSpec.corepower in [None,0]:
                         siteMaxTime *= tmpSiteSpec.corepower
                         tmpSiteStr += '*{0}'.format(tmpSiteSpec.corepower)
+                    siteMaxTime *= float(taskSpec.cpuEfficiency) / 100.0
+                    siteMaxTime = long(siteMaxTime)
+                    tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
                 if siteMaxTime != 0 and minWalltime > siteMaxTime:
                     tmpMsg = '  skip site={0} due to short site walltime {1} (site upper limit) less than {2} '.format(tmpSiteName,
                                                                                                                        tmpSiteStr,
@@ -456,8 +459,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteStr = '{0}'.format(siteMinTime)
                 if taskSpec.useHS06():
                     oldSiteMinTime = siteMinTime
-                    siteMinTime = JediCoreUtils.reduceOffsetFromWalltime(siteMinTime)
-                    tmpSiteStr = '({0}-{1})'.format(oldSiteMinTime,oldSiteMinTime-siteMinTime)
+                    siteMinTime -= taskSpec.baseWalltime
+                    tmpSiteStr = '({0}-{1})'.format(oldSiteMinTime,taskSpec.baseWalltime)
                 if not siteMinTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
                     siteMinTime *= tmpSiteSpec.coreCount
                     tmpSiteStr += '*{0}'.format(tmpSiteSpec.coreCount)
@@ -465,6 +468,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                     if not siteMinTime in [None,0] and not tmpSiteSpec.corepower in [None,0]:
                         siteMinTime *= tmpSiteSpec.corepower
                         tmpSiteStr += '*{0}'.format(tmpSiteSpec.corepower)
+                    siteMinTime *= float(taskSpec.cpuEfficiency) / 100.0
+                    siteMinTime = long(siteMinTime)
+                    tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
                 if siteMinTime != 0 and minWalltime < siteMinTime:
                     tmpMsg = '  skip site {0} due to short job walltime {1} (site lower limit) greater than {2} '.format(tmpSiteName,
                                                                                                                          tmpSiteStr,

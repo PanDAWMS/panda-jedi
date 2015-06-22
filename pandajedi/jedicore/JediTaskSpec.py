@@ -21,7 +21,8 @@ class JediTaskSpec(object):
         'eventService','ticketID','ticketSystemType','stateChangeTime',
         'superStatus','campaign','mergeRamCount','mergeRamUnit',
         'mergeWalltime','mergeWalltimeUnit','throttledTime','numThrottled',
-        'mergeCoreCount'
+        'mergeCoreCount','goal','assessmentTime','cpuTime','cpuTimeUnit',
+        'cpuEfficiency','baseWalltime'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
@@ -1025,7 +1026,7 @@ class JediTaskSpec(object):
 
     # use HS06 for walltime estimation
     def useHS06(self):
-        return self.walltimeUnit == 'HS06'
+        return self.cpuTimeUnit == 'HS06sPerEvent'
 
 
 

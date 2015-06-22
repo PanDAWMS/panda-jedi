@@ -4020,18 +4020,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # get scout job data
     def getScoutJobData_JEDI(self,jediTaskID,useTransaction=False,scoutSuccessRate=None,
-                             mergeScout=False,useHS06=False):
+                             mergeScout=False):
         comment = ' /* JediDBProxy.getScoutJobData_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start mergeScout={0} useHS06={1}'.format(mergeScout,useHS06))
+        tmpLog.debug('start mergeScout={0}'.format(mergeScout))
         returnMap = {}
         # sql to get preset values
         if not mergeScout:
-            sqlGPV  = "SELECT outDiskCount,walltime,ramCount,workDiskCount "
+            sqlGPV  = "SELECT outDiskCount,walltime,ramCount,workDiskCount,cpuTime "
         else:
-            sqlGPV  = "SELECT outDiskCount,mergeWalltime,mergeRamCount,workDiskCount "
+            sqlGPV  = "SELECT outDiskCount,mergeWalltime,mergeRamCount,workDiskCount,cpuTime "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data
@@ -4076,12 +4076,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.cur.execute(sqlGPV+comment,varMap)
         resGPV = self.cur.fetchone()
         if resGPV != None:
-            preOutDiskCount,preWalltime,preRamCount,preWorkDiskCount = resGPV
+            preOutDiskCount,preWalltime,preRamCount,preWorkDiskCount,preCpuTime = resGPV
         else:
             preOutDiskCount = 0
             preWalltime = 0
             preRamCount = 0
             preWorkDiskCount = 0
+            preCpuTime = 0
         # get the size of lib 
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
@@ -4122,6 +4123,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         walltimeList = []
         memSizeList  = []
         workSizeList = []
+        cpuTimeList  = []
         finishedJobs = []
         inFSizeList  = []
         inFSizeMap   = {}
@@ -4149,17 +4151,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,\
                     defCoreCount,startTime,endTime,computingSite = resData
                 # get core power
-                corePower = 1
-                if useHS06:
-                    if not computingSite in corePowerMap:
-                        varMap = {}
-                        varMap[':site'] = computingSite
-                        self.cur.execute(sqlCore+comment,varMap)
-                        resCore = self.cur.fetchone()
-                        if resCore != None:
-                            corePower, = resCore
-                        corePowerMap[computingSite] = corePower
-                    corePower = corePowerMap[computingSite]
+                if not computingSite in corePowerMap:
+                    varMap = {}
+                    varMap[':site'] = computingSite
+                    self.cur.execute(sqlCore+comment,varMap)
+                    resCore = self.cur.fetchone()
+                    if resCore != None:
+                        corePower, = resCore
+                    corePowerMap[computingSite] = corePower
+                corePower = corePowerMap[computingSite]
+                if corePower in [0,None]:
+                    corePower = 10
                 finishedJobs.append(pandaID)
                 inFSizeList.append(totalFSize)
                 # core count
@@ -4186,19 +4188,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     pass
                 # execution time
                 try:
-                    if useHS06:
-                        tmpDelta = endTime - startTime
-                        tmpVal = tmpDelta.seconds + tmpDelta.days * 24 * 3600
-                        # cut off of 60min 
-                        if tmpVal < 60 * 60:
-                            tmpVal = 0
-                        tmpVal *= coreCount
-                        tmpVal *= corePower
-                        if pandaID in inEventsMap:
-                            tmpVal /= float(inEventsMap[pandaID])
-                    else:
-                        tmpVal = cpuConsumptionTime
+                    tmpVal = cpuConsumptionTime
                     walltimeList.append(tmpVal)
+                except:
+                    pass
+                # CPU time
+                try:
+                    tmpVal = float(cpuConsumptionTime)
+                    tmpVal *= corePower
+                    if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
+                        tmpVal /= float(inEventsMap[pandaID])
+                    cpuTimeList.append(tmpVal)    
                 except:
                     pass
                 # VM size
@@ -4234,25 +4234,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     (preOutDiskCount > returnMap['outDiskCount'] or preOutDiskCount < 0):
                 returnMap['outDiskCount'] = preOutDiskCount
         if walltimeList != []:
-            if useHS06:
-                tmpVal = max(walltimeList) * 1.5
-                tmpVal = math.ceil(tmpVal)
-                returnMap['walltime'] = long(tmpVal)
-            else:    
-                maxWallTime = max(walltimeList)
-                # cut off of 60min
-                if maxWallTime < 60 * 60:
-                    maxWallTime = 0
-                median = float(maxWallTime) / float(max(inFSizeList)) * 1.5
-                median = math.ceil(median)
-                returnMap['walltime']     = long(median)
-                returnMap['walltimeUnit'] = 'kSI2kseconds'
+            maxWallTime = max(walltimeList)
+            # cut off of 60min
+            if maxWallTime < 60 * 60:
+                maxWallTime = 0
+            median = float(maxWallTime) / float(max(inFSizeList)) * 1.5
+            median = math.ceil(median)
+            returnMap['walltime']     = long(median)
+            returnMap['walltimeUnit'] = 'kSI2kseconds'
             # use preset value if larger
             if preWalltime != None and (preWalltime > returnMap['walltime'] or preWalltime < 0):
                 returnMap['walltime'] = preWalltime
             # upper limit
             if returnMap['walltime'] > limitWallTime:
                 returnMap['walltime'] = limitWallTime
+        if cpuTimeList != []:
+            maxCpuTime = math.ceil(max(cpuTimeList))
+            returnMap['cpuTime'] = long(maxCpuTime)
+            # use preset value if larger
+            if preCpuTime != None and (preCpuTime > returnMap['cpuTime'] or preCpuTime < 0):
+                returnMap['cpuTime'] = preCpuTime
         if memSizeList != []:
             median = max(memSizeList)
             median /= 1024
@@ -4504,8 +4505,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if taskSpec.status == 'scouting':
                         # set average job data
                         scoutSucceeded,scoutData = self.getScoutJobData_JEDI(jediTaskID,
-                                                                             scoutSuccessRate=taskSpec.getScoutSuccessRate(),
-                                                                             useHS06=taskSpec.useHS06())
+                                                                             scoutSuccessRate=taskSpec.getScoutSuccessRate())
                         # sql to update task data
                         if scoutData != {}:
                             varMap = {}
@@ -4521,8 +4521,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.cur.execute(sqlTSD+comment,varMap)
                         # set average merge job data
                         if taskSpec.mergeOutput():
-                            mergeScoutSucceeded,mergeScoutData = self.getScoutJobData_JEDI(jediTaskID,mergeScout=True,
-                                                                                           useHS06=taskSpec.useHS06())
+                            mergeScoutSucceeded,mergeScoutData = self.getScoutJobData_JEDI(jediTaskID,mergeScout=True)
                             if mergeScoutData != {}:
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
