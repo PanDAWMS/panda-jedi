@@ -7,6 +7,7 @@ import types
 import numpy
 import random
 import datetime
+import traceback
 import cx_Oracle
 
 from pandajedi.jediconfig import jedi_config
@@ -77,10 +78,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # dump error message
-    def dumpErrorMessage(self,tmpLog):
+    def dumpErrorMessage(self,tmpLog,methodName=None):
         # error
         errtype,errvalue = sys.exc_info()[:2]
-        tmpLog.error(": %s %s" % (errtype.__name__,errvalue))
+        if methodName != None:
+            errStr = methodName
+        else:
+            errStr = ''
+        errStr += ": %s %s" % (errtype.__name__,errvalue)
+        errStr.strip()
+        errStr += traceback.format_exc()
+        tmpLog.error(errStr)
 
 
 
@@ -5146,7 +5154,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.conn.begin()
                 # FIXME
                 #varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=1)
-                varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+                varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
                 sqlOrpS  = "SELECT jediTaskID,errorDialog,oldStatus "
                 sqlOrpS += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sqlOrpS += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -5236,6 +5244,53 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sqlP += "AND modificationTime>(CURRENT_DATE-30) "
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
+            # start transaction
+            self.conn.begin()
+            self.cur.arraysize = 1000000
+            self.cur.execute(sqlP+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            for pandaID, in resList:
+                if not pandaID in retPandaIDs:
+                    retPandaIDs.append(pandaID)
+            # return
+            tmpLog.debug("return {0} PandaIDs".format(len(retPandaIDs)))
+            return retPandaIDs
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
+    # get the list of queued PandaIDs for a task
+    def getQueuedPandaIDsWithTask_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.getQueuedPandaIDsWithTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        retPandaIDs = []
+        try:
+            # sql to get PandaIDs
+            tables = ['{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA),
+                      '{0}.jobsWaiting4'.format(jedi_config.db.schemaPANDA),
+                      '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA)]
+            sqlP = ''
+            for tableName in tables:
+                if sqlP != "":
+                    sqlP += "UNION ALL "
+                sqlP += "SELECT PandaID FROM {0} WHERE jediTaskID=:jediTaskID ".format(tableName)    
+                sqlP += "AND jobStatus NOT IN (:st1,:st2,:st3) "
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':st1'] = 'running'
+            varMap[':st2'] = 'holding'
+            varMap[':st3'] = 'transferring'
             # start transaction
             self.conn.begin()
             self.cur.arraysize = 1000000
@@ -5758,7 +5813,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':jediTaskID'] = jediTaskID
                 varMap[':oldStatus'] = 'exhausted'
                 varMap[':newStatus'] = 'finishing'
-                self.cur.execute(sqlTU+comment,varMap)
+                self.cur.execute(sqlTO+comment,varMap)
                 nRow = self.cur.rowcount
                 tmpLog.debug('jediTaskID={0} to {1} with {2}'.format(jediTaskID,
                                                                      varMap[':newStatus'],

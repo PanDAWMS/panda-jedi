@@ -698,6 +698,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # get the list of queued PandaIDs for a task
+    def getQueuedPandaIDsWithTask_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # get jediTaskID/datasetID/FileID with dataset and file names
     def getIDsWithFileDataset_JEDI(self,datasetName,fileName,fileType):
         # get DBproxy
