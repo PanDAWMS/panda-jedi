@@ -1364,6 +1364,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if taskSpec != None:
                 sqlU += ",oldStatus=:oldStatus,errorDialog=:errorDialog"
             sqlU += " WHERE jediTaskID=:jediTaskID "
+            # sql to unlock task
+            sqlL  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlL += "SET lockedBy=NULL,lockedTime=NULL "
+            sqlL += "WHERE jediTaskID=:jediTaskID AND AND status=:status "
+            if pid != None: 
+                sqlL += "AND lockedBy=:pid "
             # begin transaction
             self.conn.begin()
             # check status
@@ -1383,6 +1389,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 elif not taskStatus in JediTaskSpec.statusToUpdateContents():
                     # task status is irrelevant
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
+                    # unlock
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':status']     = taskStatus
+                    if pid != None:
+                        varMap[':pid'] = pid
+                    self.cur.execute(sqlL+comment,varMap)
+                    tmpLog.debug('unlocked')
                 else:
                     # update task
                     timeNow = datetime.datetime.utcnow()
@@ -5556,10 +5570,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # reactivate pending tasks
-    def reactivatePendingTasks_JEDI(self,vo,prodSourceLabel,timeLimit,timeoutLimit=None):
+    def reactivatePendingTasks_JEDI(self,vo,prodSourceLabel,timeLimit,timeoutLimit=None,minPriority=None):
         comment = ' /* JediDBProxy.reactivatePendingTasks_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} limit={2}min timeout={3}days>".format(vo,prodSourceLabel,timeLimit,timeoutLimit)
+        methodName += " <vo={0} label={1} limit={2}min timeout={3}days minPrio={4}>".format(vo,prodSourceLabel,timeLimit,
+                                                                                            timeoutLimit,minPriority)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -5580,6 +5595,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not prodSourceLabel in [None,'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlTL += "AND prodSourceLabel=:prodSourceLabel "
+            if minPriority != None:
+                varMap[':minPriority'] = minPriority
+                sqlTL += "AND currentPriority>:minPriority "
             # sql to update tasks    
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=oldStatus,oldStatus=NULL,errorDialog=NULL,modificationtime=CURRENT_DATE "
@@ -7233,16 +7251,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlGT  = "SELECT jediTaskID,status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlGT += "WHERE parent_tid=:jediTaskID AND parent_tid<>jediTaskID "
             # sql to change modification time to the time just before pending tasks are reactivated
-            timeLimitT = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+            timeLimitT = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
             sqlCT  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlCT += "SET modificationTime=CURRENT_DATE-1 "
-            sqlCT += "WHERE jediTaskID=:jediTaskID AND modificationTime>:timeLimit "
+            sqlCT += "WHERE jediTaskID=:jediTaskID AND modificationTime<:timeLimit "
             sqlCT += "AND status=:status AND lockedBy IS NULL "
             # sql to change state check time
-            timeLimitD = datetime.datetime.utcnow() - datetime.timedelta(minutes=60-5)
+            timeLimitD = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
             sqlCC  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlCC += "SET stateCheckTime=CURRENT_DATE-1 "
-            sqlCC += "WHERE jediTaskID=:jediTaskID AND state=:dsState AND stateCheckTime>:timeLimit "
+            sqlCC += "WHERE jediTaskID=:jediTaskID AND state=:dsState AND stateCheckTime<:timeLimit "
             # begin transaction
             self.conn.begin()
             # get tasks
@@ -7263,13 +7281,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow = self.cur.rowcount
                 tmpLog.debug('kicked jediTaskID={0} with {1}'.format(cJediTaskID,nRow))
                 # change state check time for mutable datasets
-                varMap = {}
-                varMap[':jediTaskID'] = cJediTaskID
-                varMap[':dsState'] = 'mutable'
-                varMap[':timeLimit'] = timeLimitD
-                self.cur.execute(sqlCC+comment,varMap)
-                nRow = self.cur.rowcount
-                tmpLog.debug('kicked {0} mutable datasets for jediTaskID={1}'.format(nRow,cJediTaskID))
+                if not cTaskStatus in ['pending']:
+                    varMap = {}
+                    varMap[':jediTaskID'] = cJediTaskID
+                    varMap[':dsState'] = 'mutable'
+                    varMap[':timeLimit'] = timeLimitD
+                    self.cur.execute(sqlCC+comment,varMap)
+                    nRow = self.cur.rowcount
+                    tmpLog.debug('kicked {0} mutable datasets for jediTaskID={1}'.format(nRow,cJediTaskID))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

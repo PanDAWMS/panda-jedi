@@ -32,6 +32,11 @@ class AtlasProdWatchDog (WatchDogBase):
             self.doActionForReassgin(tmpLog)
             # action for throttled
             self.doActionForThrottled(tmpLog)
+            # action for high prio pending
+            for minPriority,timeoutVal in [(950,10),
+                                           (900,30),
+                                           ]:
+                self.doActionForHighPrioPending(tmpLog,minPriority,timeoutVal)
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('failed with {0} {1}'.format(errtype,errvalue))
@@ -147,3 +152,16 @@ class AtlasProdWatchDog (WatchDogBase):
         nTasks = self.taskBufferIF.throttleTasks_JEDI(self.vo,self.prodSourceLabel,
                                                       jedi_config.watchdog.waitForThrottled)
         gTmpLog.debug('throttled {0} tasks'.format(nTasks))
+
+
+
+    # action for high priority pending tasks
+    def doActionForHighPrioPending(self,gTmpLog,minPriority,timeoutVal):
+        tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(self.vo,self.prodSourceLabel,
+                                                               timeoutVal,jedi_config.watchdog.timeoutForPending,
+                                                               minPriority=minPriority)
+        if tmpRet == None:
+            # failed                                                                                                             
+            gTmpLog.error('failed to reactivate high priority (>{0}) tasks'.format(minPriority))
+        else:
+            gTmpLog.info('reactivated high priority (>{0}) {1} tasks'.format(minPriority,tmpRet))

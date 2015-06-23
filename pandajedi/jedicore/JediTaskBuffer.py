@@ -764,11 +764,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # reactivate pending tasks
-    def reactivatePendingTasks_JEDI(self,vo,prodSourceLabel,timeLimit,timeoutLimit=None):
+    def reactivatePendingTasks_JEDI(self,vo,prodSourceLabel,timeLimit,timeoutLimit=None,minPriority=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.reactivatePendingTasks_JEDI(vo,prodSourceLabel,timeLimit,timeoutLimit)
+        retVal = proxy.reactivatePendingTasks_JEDI(vo,prodSourceLabel,timeLimit,timeoutLimit,minPriority)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

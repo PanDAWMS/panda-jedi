@@ -1,6 +1,7 @@
 Release Notes
 
 * 6/23/2015
+  * added reactivateTasks for high prio tasks
   * reduced delay for reassignTask
   * added traceback to dumpErrorMessage
 
