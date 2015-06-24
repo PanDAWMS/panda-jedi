@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/24/2015
+  * changed tgtNumEventsPerJob to ignore file boundaries
+
 * 6/23/2015
   * added reactivateTasks for high prio tasks
   * reduced delay for reassignTask

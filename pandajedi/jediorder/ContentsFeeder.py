@@ -335,6 +335,8 @@ class ContentsFeederThread (WorkerThread):
                                             nEventsPerRange = taskParamMap['nEventsPerRange']
                                         if 'tgtNumEventsPerJob' in taskParamMap:
                                             tgtNumEventsPerJob = taskParamMap['tgtNumEventsPerJob']
+                                            # reset nEventsPerJob
+                                            nEventsPerJob = None
                                     # max attempts
                                     maxAttempt = None
                                     maxFailure = None
