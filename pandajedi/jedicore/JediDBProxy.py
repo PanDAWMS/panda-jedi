@@ -3704,12 +3704,25 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # copy task parameters
                         varMap = {}
                         varMap[':taskid'] = jediTaskID
-                        sqlCopy  = "INSERT INTO {0}.JEDI_TaskParams (jediTaskID,taskParams) ".format(jedi_config.db.schemaJEDI)
-                        sqlCopy += "SELECT taskid,jedi_task_parameters FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                        sqlPaste  = "INSERT INTO {0}.JEDI_TaskParams (jediTaskID,taskParams) ".format(jedi_config.db.schemaJEDI)
+                        sqlPaste += "VALUES(:taskid,:taskParams) "
+                        sqlCopy  = "SELECT jedi_task_parameters FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
                         sqlCopy += "WHERE taskid=:taskid "
                         try:
+                            # decomposed to SELECT and INSERT since sometimes oracle truncated params
                             tmpLog.debug(sqlCopy+comment+str(varMap))
                             self.cur.execute(sqlCopy+comment,varMap)
+                            retStr = ''
+                            totalSize = 0
+                            for tmpItem, in self.cur:
+                                retStr = tmpItem.read(amount=1000000)
+                                totalSize += tmpItem.size()
+                                break
+                            varMap = {}
+                            varMap[':taskid'] = jediTaskID
+                            varMap[':taskParams'] = retStr
+                            self.cur.execute(sqlPaste+comment,varMap)
+                            tmpLog.debug("inserted taskParams for jediTaskID={0} {1}/{2}".format(jediTaskID,len(retStr),totalSize))
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error("failed to insert param for jediTaskID={0} with {1} {2}".format(jediTaskID,errtype,errvalue))

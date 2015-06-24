@@ -1,6 +1,7 @@
 Release Notes
 
 * 6/24/2015
+  * decomposed INSERT+SELECT to copy task params from DEFT
   * changed tgtNumEventsPerJob to ignore file boundaries
 
 * 6/23/2015
