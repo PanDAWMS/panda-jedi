@@ -64,6 +64,7 @@ class JediTaskSpec(object):
         'respectLB'          : 'RL',
         'reuseSecOnDemand'   : 'RO',
         'randomSeed'         : 'RS',
+        'stayOutputOnSite'   : 'SO',
         'scoutSuccessRate'   : 'SS',
         't1Weight'           : 'TW',
         'useBuild'           : 'UB',
@@ -1034,6 +1035,16 @@ class JediTaskSpec(object):
     def runUntilClosed(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['runUntilClosed']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # stay output on site
+    def stayOutputOnSite(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['stayOutputOnSite']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

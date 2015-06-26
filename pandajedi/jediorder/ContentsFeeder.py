@@ -453,7 +453,8 @@ class ContentsFeederThread (WorkerThread):
                                     # no activated pending input for noWait
                                     if noWaitParent and diagMap['nActivatedPending'] == 0 and not (useScout and nChunksForScout == 0) \
                                             and tmpMetadata['state'] != 'closed' and datasetSpec.isMaster():
-                                        tmpErrStr = 'insufficient inputs are ready'
+                                        tmpErrStr = 'insufficient inputs are ready. '
+                                        tmpErrStr += diagMap['errMsg']
                                         tmpLog.info(tmpErrStr)
                                         taskSpec.setErrDiag(tmpErrStr)
                                         taskOnHold = True

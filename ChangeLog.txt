@@ -1,5 +1,10 @@
 Release Notes
 
+* 6/26/2015
+  * added more message for input file shortage
+  * fixed maxWalltime for CPU efficiency
+  * added stayOutputOnSite
+
 * 6/24/2015
   * decomposed INSERT+SELECT to copy task params from DEFT
   * changed tgtNumEventsPerJob to ignore file boundaries

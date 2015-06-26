@@ -657,26 +657,35 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         diagMap['isRunningTask'] = True
                     # size of pending input chunk to be activated
                     sizePendingEventChunk = None
+                    strSizePendingEventChunk = ''
                     if taskStatus == 'defined' and useScout:
                         # number of files for scout
                         sizePendingFileChunk = nChunksForScout
+                        strSizePendingFileChunk = '{0}'.format(sizePendingFileChunk)
                         # number of files per job is specified
                         if not nFilesPerJob in [None,0]:
                             sizePendingFileChunk *= nFilesPerJob
+                            strSizePendingFileChunk = '{0}*'.format(nFilesPerJob) + strSizePendingFileChunk
+                        strSizePendingFileChunk += ' files required for scout'
                         # number of events for scout
                         if isEventSplit:
                             sizePendingEventChunk = nChunksForScout * nEventsPerJob
+                            strSizePendingEventChunk = '{0}*{1} events required for scout'.format(nEventsPerJob,nChunksForScout)
                     else:
                         # the number of chunks in one bunch
                         nChunkInBunch = 20
                         # number of files to be activated
                         sizePendingFileChunk = nChunkInBunch
+                        strSizePendingFileChunk = '{0}'.format(sizePendingFileChunk)
                         # number of files per job is specified
                         if not nFilesPerJob in [None,0]:
                             sizePendingFileChunk *= nFilesPerJob
+                            strSizePendingFileChunk = '{0}*'.format(nFilesPerJob) + strSizePendingFileChunk
+                        strSizePendingFileChunk += ' files required'
                         # number of events to be activated
                         if isEventSplit:
                             sizePendingEventChunk = nChunkInBunch * nEventsPerJob
+                            strSizePendingEventChunk = '{0}*{1} events required'.format(nEventsPerJob,nChunkInBunch)
                     # check dataset status
                     varMap = {}
                     varMap[':jediTaskID'] = datasetSpec.jediTaskID
@@ -813,10 +822,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     # enough events are pending
                                     if nEventsToUseEventSplit >= sizePendingEventChunk and nFilesToUseEventSplit > 0:
                                         toActivateFID = pendingFID[:(int(nPending/nFilesToUseEventSplit)*nFilesToUseEventSplit)]
+                                    else:
+                                        diagMap['errMsg'] = '{0} events ({1} files) available, {2}'.format(nEventsToUseEventSplit,
+                                                                                                           nPending,
+                                                                                                           strSizePendingEventChunk)
                                 else:
                                     # enough files are pending
                                     if nPending >= sizePendingFileChunk and sizePendingFileChunk > 0:
                                         toActivateFID = pendingFID[:(int(nPending/sizePendingFileChunk)*sizePendingFileChunk)]
+                                    else:
+                                        diagMap['errMsg'] = '{0} files available, {1}'.format(nPending,strSizePendingFileChunk)
                         else:
                             nReady += nInsert
                             toActivateFID = pendingFID

@@ -913,6 +913,8 @@ class JobGeneratorThread (WorkerThread):
                                     jobSpec.maxWalltime /= float(siteSpec.coreCount)
                                 if not siteSpec.corepower in [0,None]:
                                     jobSpec.maxWalltime /= siteSpec.corepower
+                            if taskSpec.cpuEfficiency != None:
+                                jobSpec.maxWalltime /= (float(taskSpec.cpuEfficiency) / 100.0)
                             if taskSpec.baseWalltime != None:
                                 jobSpec.maxWalltime += taskSpec.baseWalltime
                             jobSpec.maxWalltime = long(jobSpec.maxWalltime)
@@ -985,6 +987,10 @@ class JobGeneratorThread (WorkerThread):
                         tmpDatasetSpec = outDsMap[tmpFileSpec.datasetID]
                         tmpOutFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec,
                                                                           useEventService=taskSpec.useEventService())
+                        # stay output on site
+                        if taskSpec.stayOutputOnSite():
+                            tmpOutFileSpec.destinationSE = siteName
+                            tmpOutFileSpec.destinationDBlockToke = 'dst:{0}'.format(siteSpec.ddm)
                         jobSpec.addFile(tmpOutFileSpec)
                         # use the first dataset as destinationDBlock
                         if destinationDBlock == None:
