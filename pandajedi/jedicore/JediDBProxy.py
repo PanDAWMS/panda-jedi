@@ -4299,7 +4299,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if returnMap['walltime'] > limitWallTime:
                 returnMap['walltime'] = limitWallTime
         if cpuTimeList != []:
-            maxCpuTime = math.ceil(max(cpuTimeList))
+            maxCpuTime = math.ceil(max(cpuTimeList)*1.5)
             returnMap['cpuTime'] = long(maxCpuTime)
             # use preset value if larger
             if preCpuTime != None and (preCpuTime > returnMap['cpuTime'] or preCpuTime < 0):

@@ -1,6 +1,7 @@
 Release Notes
 
 * 6/26/2015
+  * added 50% of safety mergin to cpuTime
   * added more message for input file shortage
   * fixed maxWalltime for CPU efficiency
   * added stayOutputOnSite
