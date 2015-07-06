@@ -3721,18 +3721,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':taskid'] = jediTaskID
                         sqlPaste  = "INSERT INTO {0}.JEDI_TaskParams (jediTaskID,taskParams) ".format(jedi_config.db.schemaJEDI)
                         sqlPaste += "VALUES(:taskid,:taskParams) "
+                        sqlSize  = "SELECT LENGTH(jedi_task_parameters) FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                        sqlSize += "WHERE taskid=:taskid "
                         sqlCopy  = "SELECT jedi_task_parameters FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
                         sqlCopy += "WHERE taskid=:taskid "
                         try:
+                            # get size
+                            self.cur.execute(sqlSize+comment,varMap)
+                            totalSize, = self.cur.fetchone()
                             # decomposed to SELECT and INSERT since sometimes oracle truncated params
                             tmpLog.debug(sqlCopy+comment+str(varMap))
                             self.cur.execute(sqlCopy+comment,varMap)
                             retStr = ''
-                            totalSize = 0
                             for tmpItem, in self.cur:
                                 retStr = tmpItem.read(amount=1000000)
-                                totalSize += tmpItem.size()
                                 break
+                            # check size
+                            if len(retStr) != totalSize:
+                                raise RuntimeError, 'taskParams was truncated {0}/{1} bytes'.format(len(retStr),totalSize)
                             varMap = {}
                             varMap[':taskid'] = jediTaskID
                             varMap[':taskParams'] = retStr
@@ -3741,6 +3747,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error("failed to insert param for jediTaskID={0} with {1} {2}".format(jediTaskID,errtype,errvalue))
+                            isOK = False
                     # update
                     if isOK:       
                         deftStatus = 'registered'
@@ -3760,8 +3767,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if isOK:
                         retTaskIDs.append((jediTaskID,None,'registered',parent_tid))
                 # commit
-                if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                if isOK:
+                    if not self._commit():
+                        raise RuntimeError, 'Commit error'
+                else:
+                    # roll back
+                    self._rollback()
             # find orphaned tasks to rescue
             self.conn.begin()
             varMap = {}
