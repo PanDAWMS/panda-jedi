@@ -91,6 +91,17 @@ class WatchDog (JediKnight,FactoryBase):
                             tmpLog.error('failed to kick')
                         else:
                             tmpLog.info('kicked {0} tasks'.format(tmpRet))
+                        # finish tasks when goal is reached
+                        tmpLog.info('finish achieved tasks for vo={0} label={1}'.format(vo,prodSourceLabel)) 
+                        tmpRet = self.taskBufferIF.getAchievedTasks_JEDI(vo,prodSourceLabel,
+                                                                         jedi_config.watchdog.waitForAchieved)
+                        if tmpRet == None:
+                            # failed
+                            tmpLog.error('failed to finish')
+                        else:
+                            for jediTaskID in tmpRet:
+                                self.taskBufferIF.sendCommandTaskPanda(jediTaskID,'JEDI',True,'finish',comQualifier='soft')
+                            tmpLog.info('finished {0} tasks'.format(tmpRet))
                         # vo/prodSourceLabel specific action
                         impl = self.getImpl(vo,prodSourceLabel)
                         if impl != None:

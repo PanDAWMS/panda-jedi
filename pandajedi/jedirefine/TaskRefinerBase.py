@@ -156,6 +156,12 @@ class TaskRefinerBase (object):
             taskSpec.eventService = 1
         else:
             taskSpec.eventService = 0
+        # goal
+        if 'goal' in taskParamMap:
+            try:
+                taskSpec.goal = int(taskParamMap['goal'])
+            except:
+                pass
         # campaign
         if taskParamMap.has_key('campaign'):
             taskSpec.campaign = taskParamMap['campaign']

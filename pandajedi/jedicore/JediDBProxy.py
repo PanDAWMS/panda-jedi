@@ -7919,3 +7919,156 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return retVal
+
+
+
+    # get JEDI tasks to be assessed
+    def getAchievedTasks_JEDI(self,vo,prodSourceLabel,timeLimit,nTasks):
+        comment = ' /* JediDBProxy.getAchievedTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        # return value for failure
+        failedRet = None
+        try:
+            # sql
+            varMap = {}
+            varMap[':status1'] = 'running'
+            varMap[':status2'] = 'pending'
+            sqlRT  = "SELECT tabT.jediTaskID,tabT.status,tabT.goal "
+            sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlRT += "AND tabT.status IN (:status1,:status2) "
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+                sqlRT += "AND tabT.vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
+            sqlRT += "AND goal IS NOT NULL "
+            sqlRT += "AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) "
+            sqlRT += "AND rownum<{0} ".format(nTasks)
+            sqlLK  = "UPDATE {0}.JEDI_Tasks SET assessmentTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlLK += "WHERE jediTaskID=:jediTaskID AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) AND status=:status "
+            sqlDS  = "SELECT datasetID,type,nEvents "
+            sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDS += "WHERE jediTaskID=:jediTaskID AND ((type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sqlDS += '{0},'.format(mapKey)
+            sqlDS  = sqlDS[:-1]
+            sqlDS += ") AND masterID IS NULL) OR (type=:type1)) "
+            sqlFC  = "SELECT COUNT(*) "
+            sqlFC += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFC += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status AND failedAttempt=:failedAttempt "
+            # begin transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            # get tasks
+            timeToCheck = datetime.datetime.utcnow() - datetime.timedelta(minutes=timeLimit)
+            varMap[':timeLimit'] = timeToCheck
+            tmpLog.debug(sqlRT+comment+str(varMap))
+            self.cur.execute(sqlRT+comment,varMap)
+            resList = self.cur.fetchall()
+            retTasks = []
+            taskStatList = []
+            for jediTaskID,taskStatus,taskGoal in resList:
+                taskStatList.append((jediTaskID,taskStatus,taskGoal))
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # get tasks and datasets    
+            for jediTaskID,taskStatus,taskGoal in taskStatList:
+                # begin transaction
+                self.conn.begin()
+                # lock task
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':timeLimit'] = timeToCheck
+                varMap[':status'] = taskStatus
+                self.cur.execute(sqlLK+comment,varMap)
+                nRow = self.cur.rowcount
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+                if nRow == 1:
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    for tmpType in JediDatasetSpec.getInputTypes():
+                        mapKey = ':type_'+tmpType
+                        varMap[mapKey] = tmpType
+                    varMap[':type1'] = 'output'
+                    # begin transaction
+                    self.conn.begin()
+                    # check datasets
+                    self.cur.execute(sqlDS+comment,varMap)
+                    resDS = self.cur.fetchall()
+                    totalInputEvents = 0
+                    totalOutputEvents = 0
+                    firstOutput = True
+                    # loop over all datasets
+                    taskToFinish = True
+                    for datasetID,datasetType,nEvents in resDS:
+                        # counts events
+                        if datasetType in JediDatasetSpec.getInputTypes():
+                            # input
+                            try:
+                                totalInputEvents += nEvents
+                            except:
+                                pass
+                            # check if there are unused files
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID'] = datasetID
+                            varMap[':status'] = 'ready'
+                            varMap[':failedAttempt'] = 0
+                            self.cur.execute(sqlFC+comment,varMap)
+                            nUnUsed, = self.cur.fetchone()
+                            if nUnUsed != 0:
+                                tmpLog.debug('skip jediTaskID={0} datasetID={1} has {2} unused files'.format(jediTaskID,
+                                                                                                             datasetID,
+                                                                                                             nUnUsed))
+                                taskToFinish = False
+                                break
+                        else:
+                            # only one output
+                            if firstOutput:
+                                # output
+                                try:
+                                    totalOutputEvents += nEvents
+                                except:
+                                    pass
+                            firstOutput = False    
+                    # commit
+                    if not self._commit():
+                        raise RuntimeError, 'Commit error'
+                    # check number of events
+                    if taskToFinish:
+                        if totalInputEvents == 0:
+                            # input has 0 events
+                            tmpLog.debug('skip jediTaskID={0} input has 0 events'.format(jediTaskID))
+                            taskToFinish = False
+                        elif float(totalOutputEvents)/float(totalInputEvents)*100.0 < taskGoal:
+                            # goal is not yet reached
+                            tmpLog.debug('skip jediTaskID={0} goal is not yet reached {1}%>{2}/{3}'.format(jediTaskID,
+                                                                                                           taskGoal,
+                                                                                                           totalOutputEvents,
+                                                                                                           totalInputEvents))
+                            taskToFinish = False
+                        else:
+                            tmpLog.debug('to finsh jediTaskID={0} goal is reached {1}%<={2}/{3}'.format(jediTaskID,
+                                                                                                        taskGoal,
+                                                                                                        totalOutputEvents,
+                                                                                                        totalInputEvents))
+                    # append
+                    if taskToFinish:
+                        retTasks.append(jediTaskID)
+            tmpLog.debug('got {0} tasks'.format(len(retTasks)))
+            return retTasks
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return failedRet

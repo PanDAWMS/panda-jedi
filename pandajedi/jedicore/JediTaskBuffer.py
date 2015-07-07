@@ -1129,3 +1129,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get JEDI tasks to be assessed
+    def getAchievedTasks_JEDI(self,vo,prodSourceLabel,timeLimit=60,nTasks=50):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getAchievedTasks_JEDI(vo,prodSourceLabel,timeLimit,nTasks)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

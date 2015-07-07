@@ -234,6 +234,9 @@ waitForThrottled = 120
 # wait period for exhausted tasks in hours
 waitForExhausted = 48
 
+# wait period to check achievement of tasks in minutes
+waitForAchieved = 60
+
 
 
 
