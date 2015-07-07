@@ -2,6 +2,7 @@ Release Notes
 
 * 7/7/2015
   * added goal
+  * added transient flag to datasets
 
 * 7/6/2015
   * added size check in taskParam copy from DEFT

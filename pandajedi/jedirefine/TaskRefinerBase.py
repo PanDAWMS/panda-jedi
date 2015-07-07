@@ -297,6 +297,8 @@ class TaskRefinerBase (object):
                     datasetSpec.setNumFilesPerJob(tmpItem['nFilesPerJob'])
                 if tmpItem.has_key('num_records'):
                     datasetSpec.setNumRecords(tmpItem['num_records'])
+                if 'transient' in tmpItem:
+                    datasetSpec.setTransient(tmpItem['transient'])
                 datasetSpec.vo = self.taskSpec.vo
                 datasetSpec.nFiles = 0
                 datasetSpec.nFilesUsed = 0
