@@ -4287,8 +4287,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if outSizeList != []:
             median = max(outSizeList) 
             median /= 1024
-            # upper limit 2MB output per 1MB input
-            upperLimit = 2 * 1024
+            # upper limit 10MB output per 1MB input
+            upperLimit = 10 * 1024
             if median > upperLimit:
                 median = upperLimit
             returnMap['outDiskCount'] = long(median)
