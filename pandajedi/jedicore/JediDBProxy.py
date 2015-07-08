@@ -8086,18 +8086,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             # input has 0 events
                             tmpLog.debug('skip jediTaskID={0} input has 0 events'.format(jediTaskID))
                             taskToFinish = False
-                        elif float(totalOutputEvents)/float(totalInputEvents)*100.0 < taskGoal:
+                        elif float(totalOutputEvents)/float(totalInputEvents)*1000.0 < taskGoal:
                             # goal is not yet reached
-                            tmpLog.debug('skip jediTaskID={0} goal is not yet reached {1}%>{2}/{3}'.format(jediTaskID,
-                                                                                                           taskGoal,
-                                                                                                           totalOutputEvents,
-                                                                                                           totalInputEvents))
+                            tmpLog.debug('skip jediTaskID={0} goal is not yet reached {1}.{2}%>{3}/{4}'.format(jediTaskID,
+                                                                                                               taskGoal/10,
+                                                                                                               taskGoal%10,
+                                                                                                               totalOutputEvents,
+                                                                                                               totalInputEvents))
                             taskToFinish = False
                         else:
-                            tmpLog.debug('to finsh jediTaskID={0} goal is reached {1}%<={2}/{3}'.format(jediTaskID,
-                                                                                                        taskGoal,
-                                                                                                        totalOutputEvents,
-                                                                                                        totalInputEvents))
+                            tmpLog.debug('to finsh jediTaskID={0} goal is reached {1}.{2}%<={3}/{4}'.format(jediTaskID,
+                                                                                                            taskGoal/10,
+                                                                                                            taskGoal%10,
+                                                                                                            totalOutputEvents,
+                                                                                                            totalInputEvents))
                     # append
                     if taskToFinish:
                         retTasks.append(jediTaskID)

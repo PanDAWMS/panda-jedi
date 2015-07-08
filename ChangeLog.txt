@@ -1,6 +1,8 @@
 Release Notes
 
 * 7/8/2015
+  * setting amiFlag
+  * changed goal to have the first decimal place
   * changed child tasks not to go done when parents are not done
   * fixed reactivatePendingTasks to timeout child tasks correctly
   * increased upper limit of outdiskcount to 10MB
