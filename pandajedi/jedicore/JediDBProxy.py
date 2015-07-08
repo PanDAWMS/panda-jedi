@@ -7077,6 +7077,40 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # get task status 
+    def getTaskStatus_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.getTaskStatus_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = None
+            sql = "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI) 
+            sql += "WHERE jediTaskID=:jediTaskID "
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sql+comment,varMap)
+            resTK = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            if resTK != None:
+                retVal, = resTK
+            # return
+            tmpLog.debug("done with {0}".format(retVal))
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return retVal
+
+
+
     # get lib.tgz for waiting jobs
     def getLibForWaitingRunJob_JEDI(self,vo,prodSourceLabel,checkInterval):
         comment = ' /* JediDBProxy.getLibForWaitingRunJob_JEDI */'

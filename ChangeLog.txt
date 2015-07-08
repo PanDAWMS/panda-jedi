@@ -1,6 +1,7 @@
 Release Notes
 
 * 7/8/2015
+  * changed child tasks not to go done when parents are not done
   * fixed reactivatePendingTasks to timeout child tasks correctly
   * increased upper limit of outdiskcount to 10MB
 

@@ -154,7 +154,12 @@ class PostProcessorBase (object):
         elif taskSpec.status == 'toabort':
             status = 'aborted'
         elif nFiles == nFilesFinished and nFiles > 0:
-            status = 'done'
+            # check parent status
+            if not taskSpec.parent_tid in [None,taskSpec.jediTaskID] and \
+                    self.taskBufferIF.getTaskStatus_JEDI(taskSpec.parent_tid) != 'done':
+                status = 'finished'
+            else:
+                status = 'done'
         elif nFilesFinished == 0:
             status = 'failed'
         else:

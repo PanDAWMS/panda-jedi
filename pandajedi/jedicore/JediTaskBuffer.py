@@ -988,6 +988,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # get task status 
+    def getTaskStatus_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getTaskStatus_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # get lib.tgz for waiting jobs
     def getLibForWaitingRunJob_JEDI(self,vo,prodSourceLabel,checkInterval):
         # get DBproxy
