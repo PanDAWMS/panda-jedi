@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/8/2015
+  * fixed reactivatePendingTasks to timeout child tasks correctly
+
 * 7/7/2015
   * added goal
   * added transient flag to datasets

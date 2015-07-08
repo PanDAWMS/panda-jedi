@@ -78,7 +78,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # dump error message
-    def dumpErrorMessage(self,tmpLog,methodName=None):
+    def dumpErrorMessage(self,tmpLog,methodName=None,msgType=None):
         # error
         errtype,errvalue = sys.exc_info()[:2]
         if methodName != None:
@@ -88,7 +88,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         errStr += ": %s %s" % (errtype.__name__,errvalue)
         errStr.strip()
         errStr += traceback.format_exc()
-        tmpLog.error(errStr)
+        if msgType == 'debug':
+            tmpLog.debug(errStr)
+        else:
+            tmpLog.error(errStr)
 
 
 
@@ -1382,7 +1385,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to unlock task
             sqlL  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlL += "SET lockedBy=NULL,lockedTime=NULL "
-            sqlL += "WHERE jediTaskID=:jediTaskID AND AND status=:status "
+            sqlL += "WHERE jediTaskID=:jediTaskID AND status=:status "
             if pid != None: 
                 sqlL += "AND lockedBy=:pid "
             # begin transaction
@@ -5673,19 +5676,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 # check parent
+                parentRunning = False
                 if not parent_tid in [None,jediTaskID]:
                     tmpStat = self.checkParentTask_JEDI(parent_tid,useCommit=False)
                     # if parent is running
-                    if tmpStat == 'running' and not JediTaskSpec.noWaitParentSL(splitRule):
-                        # keep pending 
-                        sql = sqlTK
-                        keepFlag = True
-                    else:
-                        # back to previous status
-                        sql = sqlTU
-                else:
+                    if tmpStat == 'running':
+                        parentRunning = True
+                        if not JediTaskSpec.noWaitParentSL(splitRule):
+                            # keep pending 
+                            sql = sqlTK
+                            keepFlag = True
+                if not keepFlag:
                     # if timeout
-                    if timeoutDate != None and frozenTime != None and frozenTime < timeoutDate:
+                    if not parentRunning and timeoutDate != None and frozenTime != None and frozenTime < timeoutDate:
                         timeoutFlag = True
                         # check the number of finished files
                         for tmpType in JediDatasetSpec.getInputTypes():
@@ -7875,7 +7878,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog)
+            self.dumpErrorMessage(tmpLog,msgType='debug')
             return retVal
 
 
