@@ -100,7 +100,7 @@ class WatchDog (JediKnight,FactoryBase):
                             tmpLog.error('failed to finish')
                         else:
                             for jediTaskID in tmpRet:
-                                self.taskBufferIF.sendCommandTaskPanda(jediTaskID,'JEDI',True,'finish',comQualifier='soft')
+                                self.taskBufferIF.sendCommandTaskPanda(jediTaskID,'JEDI. Goal reached',True,'finish',comQualifier='soft')
                             tmpLog.info('finished {0} tasks'.format(tmpRet))
                         # vo/prodSourceLabel specific action
                         impl = self.getImpl(vo,prodSourceLabel)

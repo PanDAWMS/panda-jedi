@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/9/2015
+  * added message to errorDialog when goal is reached
+
 * 7/8/2015
   * fixed retryTask to reset picked files
   * setting amiFlag
