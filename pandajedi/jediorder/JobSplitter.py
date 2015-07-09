@@ -94,6 +94,10 @@ class JobSplitter:
             if iSubChunks % nSubChunks == 0:
                 # append to return map
                 if subChunks != []:
+                    # get site names for parallel execution
+                    if taskSpec.getNumSitesPerJob() > 1 and not inputChunk.isMerging:
+                        siteName = inputChunk.getParallelSites(taskSpec.getNumSitesPerJob(),
+                                                               nSubChunks,[siteName])
                     returnList.append({'siteName':siteName,
                                        'subChunks':subChunks,
                                        'siteCandidate':siteCandidate,
@@ -145,6 +149,10 @@ class JobSplitter:
             iSubChunks += 1
         # append to return map if remain
         if subChunks != []:
+            # get site names for parallel execution
+            if taskSpec.getNumSitesPerJob() > 1 and not inputChunk.isMerging:
+                siteName = inputChunk.getParallelSites(taskSpec.getNumSitesPerJob(),
+                                                       nSubChunks,[siteName])
             returnList.append({'siteName':siteName,
                                'subChunks':subChunks,
                                'siteCandidate':siteCandidate,

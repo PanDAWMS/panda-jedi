@@ -2109,18 +2109,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # generate output files for task, and instantiate template datasets if necessary
-    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,isUnMerging,
-                            isPrePro,xmlConfigJob,siteDsMap,middleName,registerDatasets):
+    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSites,isUnMerging,
+                            isPrePro,xmlConfigJob,siteDsMap,middleName,registerDatasets,parallelOutMap):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start with simul={0} instantiateTmpl={1} instantiatedSite={2}'.format(simul,
+        tmpLog.debug('start with simul={0} instantiateTmpl={1} instantiatedSites={2}'.format(simul,
                                                                                             instantiateTmpl,
-                                                                                            instantiatedSite))
+                                                                                            instantiatedSites))
         tmpLog.debug('isUnMerging={0} isPrePro={1} xmlConfigJob={2}'.format(isUnMerging,isPrePro,type(xmlConfigJob)))
         tmpLog.debug('middleName={0} registerDatasets={1}'.format(middleName,registerDatasets))
         try:
+            if instantiatedSites == None:
+                instantiatedSites = ''
+            if siteDsMap == None:
+                siteDsMap = {}
+            if parallelOutMap == None:
+                parallelOutMap = {}
             outMap = {}
             datasetToRegister = []
             # sql to get dataset
@@ -2188,92 +2194,97 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpl_RelationMap = {}
             mstr_RelationMap = {}
             for datasetID,datasetName,vo,masterID,datsetStatus,datasetType in resList:
-                fileDatasetID = datasetID
-                if registerDatasets and datasetType in ['output','log'] and not fileDatasetID in datasetToRegister:
-                    datasetToRegister.append(fileDatasetID)
-                # instantiate template datasets
-                if instantiateTmpl:
-                    doInstantiate = False
-                    if isUnMerging:
-                        # instantiate new datasets in each submission for merging 
-                        if siteDsMap.has_key(datasetID) and siteDsMap[datasetID].has_key(instantiatedSite):
-                            fileDatasetID = siteDsMap[datasetID][instantiatedSite]
-                            tmpLog.debug('found concrete premerged datasetID={0}'.format(fileDatasetID))
-                        else:
-                            doInstantiate = True
-                    else:
-                        # check if concrete dataset is already there
-                        varMap = {}
-                        varMap[':jediTaskID'] = jediTaskID
-                        varMap[':type1']    = re.sub('^tmpl_','',tmpl_VarMap[':type1'])
-                        varMap[':type2']    = re.sub('^tmpl_','',tmpl_VarMap[':type2'])
-                        varMap[':templateID'] = datasetID
-                        varMap[':closedState'] = 'closed'
-                        if provenanceID != None:
-                            varMap[':provenanceID'] = provenanceID
-                        if instantiatedSite != None:
-                            sqlDT = sqlD + "AND site=:site "
-                            varMap[':site'] = instantiatedSite
-                        else:
-                            sqlDT = sqlD
-                        sqlDT += "AND (state IS NULL OR state<>:closedState) "
-                        sqlDT += "AND templateID=:templateID "    
-                        self.cur.execute(sqlDT+comment,varMap)
-                        resDT = self.cur.fetchone()
-                        if resDT != None:
-                            fileDatasetID = resDT[0]
-                            # collect ID of dataset to be registered 
-                            if resDT[-1] == 'defined':
-                                datasetToRegister.append(fileDatasetID)
-                            tmpLog.debug('found concrete datasetID={0}'.format(fileDatasetID))
-                        else:
-                            doInstantiate = True
-                    if doInstantiate:
-                        # read dataset template
-                        varMap = {}
-                        varMap[':jediTaskID'] = jediTaskID
-                        varMap[':datasetID']  = datasetID
-                        self.cur.execute(sqlT1+comment,varMap)
-                        resT1 = self.cur.fetchone()
-                        cDatasetSpec = JediDatasetSpec()
-                        cDatasetSpec.pack(resT1)
-                        # instantiate template dataset
-                        cDatasetSpec.type             = re.sub('^tmpl_','',cDatasetSpec.type)
-                        cDatasetSpec.templateID       = datasetID
-                        cDatasetSpec.creationTime     = timeNow
-                        cDatasetSpec.modificationTime = timeNow
-                        varMap = cDatasetSpec.valuesMap(useSeq=True)
-                        varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
-                        self.cur.execute(sqlT2+comment,varMap)
-                        fileDatasetID = long(varMap[':newDatasetID'].getvalue())
-                        if instantiatedSite != None:
-                            # set concreate name
-                            cDatasetSpec.site = instantiatedSite
-                            cDatasetSpec.datasetName = re.sub('/*$','.{0}'.format(fileDatasetID),datasetName)
-                            # set destination
-                            if cDatasetSpec.destination in [None,'']:
-                                cDatasetSpec.destination = cDatasetSpec.site
-                            varMap = {}
-                            varMap[':datasetName'] = cDatasetSpec.datasetName
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID'] = fileDatasetID
-                            varMap[':site'] = cDatasetSpec.site
-                            varMap[':destination'] = cDatasetSpec.destination
-                            self.cur.execute(sqlCN+comment,varMap)
-                        tmpLog.debug('instantiated {0} datasetID={1}'.format(cDatasetSpec.datasetName,fileDatasetID))
-                        if masterID != None:
-                            mstr_RelationMap[fileDatasetID] = masterID
-                        # collect ID of dataset to be registered 
-                        if not fileDatasetID in datasetToRegister: 
-                            datasetToRegister.append(fileDatasetID)
-                        # collect IDs for pre-merging
+                fileDatasetIDs = []
+                for instantiatedSite in instantiatedSites.split(','):
+                    fileDatasetID = datasetID
+                    if registerDatasets and datasetType in ['output','log'] and not fileDatasetID in datasetToRegister:
+                        datasetToRegister.append(fileDatasetID)
+                    # instantiate template datasets
+                    if instantiateTmpl:
+                        doInstantiate = False
                         if isUnMerging:
-                            if not siteDsMap.has_key(datasetID):
-                                siteDsMap[datasetID] = {}
-                            if not siteDsMap[datasetID].has_key(instantiatedSite):
-                                siteDsMap[datasetID][instantiatedSite] = fileDatasetID
-                    # keep relation between template and concrete    
-                    tmpl_RelationMap[datasetID] = fileDatasetID
+                            # instantiate new datasets in each submission for premerged 
+                            if siteDsMap.has_key(datasetID) and siteDsMap[datasetID].has_key(instantiatedSite):
+                                fileDatasetID = siteDsMap[datasetID][instantiatedSite]
+                                tmpLog.debug('found concrete premerged datasetID={0}'.format(fileDatasetID))
+                            else:
+                                doInstantiate = True
+                        else:
+                            # check if concrete dataset is already there
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':type1']    = re.sub('^tmpl_','',tmpl_VarMap[':type1'])
+                            varMap[':type2']    = re.sub('^tmpl_','',tmpl_VarMap[':type2'])
+                            varMap[':templateID'] = datasetID
+                            varMap[':closedState'] = 'closed'
+                            if provenanceID != None:
+                                varMap[':provenanceID'] = provenanceID
+                            if instantiatedSite != None:
+                                sqlDT = sqlD + "AND site=:site "
+                                varMap[':site'] = instantiatedSite
+                            else:
+                                sqlDT = sqlD
+                            sqlDT += "AND (state IS NULL OR state<>:closedState) "
+                            sqlDT += "AND templateID=:templateID "    
+                            self.cur.execute(sqlDT+comment,varMap)
+                            resDT = self.cur.fetchone()
+                            if resDT != None:
+                                fileDatasetID = resDT[0]
+                                # collect ID of dataset to be registered 
+                                if resDT[-1] == 'defined':
+                                    datasetToRegister.append(fileDatasetID)
+                                tmpLog.debug('found concrete datasetID={0}'.format(fileDatasetID))
+                            else:
+                                doInstantiate = True
+                        if doInstantiate:
+                            # read dataset template
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
+                            self.cur.execute(sqlT1+comment,varMap)
+                            resT1 = self.cur.fetchone()
+                            cDatasetSpec = JediDatasetSpec()
+                            cDatasetSpec.pack(resT1)
+                            # instantiate template dataset
+                            cDatasetSpec.type             = re.sub('^tmpl_','',cDatasetSpec.type)
+                            cDatasetSpec.templateID       = datasetID
+                            cDatasetSpec.creationTime     = timeNow
+                            cDatasetSpec.modificationTime = timeNow
+                            varMap = cDatasetSpec.valuesMap(useSeq=True)
+                            varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+                            self.cur.execute(sqlT2+comment,varMap)
+                            fileDatasetID = long(varMap[':newDatasetID'].getvalue())
+                            if instantiatedSite != None:
+                                # set concreate name
+                                cDatasetSpec.site = instantiatedSite
+                                cDatasetSpec.datasetName = re.sub('/*$','.{0}'.format(fileDatasetID),datasetName)
+                                # set destination
+                                if cDatasetSpec.destination in [None,'']:
+                                    cDatasetSpec.destination = cDatasetSpec.site
+                                varMap = {}
+                                varMap[':datasetName'] = cDatasetSpec.datasetName
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID'] = fileDatasetID
+                                varMap[':site'] = cDatasetSpec.site
+                                varMap[':destination'] = cDatasetSpec.destination
+                                self.cur.execute(sqlCN+comment,varMap)
+                            tmpLog.debug('instantiated {0} datasetID={1}'.format(cDatasetSpec.datasetName,fileDatasetID))
+                            if masterID != None:
+                                mstr_RelationMap[fileDatasetID] = (masterID,instantiatedSite)
+                            # collect ID of dataset to be registered 
+                            if not fileDatasetID in datasetToRegister: 
+                                datasetToRegister.append(fileDatasetID)
+                            # collect IDs for pre-merging
+                            if isUnMerging:
+                                if not siteDsMap.has_key(datasetID):
+                                    siteDsMap[datasetID] = {}
+                                if not siteDsMap[datasetID].has_key(instantiatedSite):
+                                    siteDsMap[datasetID][instantiatedSite] = fileDatasetID
+                        # keep relation between template and concrete    
+                        if not datasetID in tmpl_RelationMap:
+                            tmpl_RelationMap[datasetID] = {}
+                        tmpl_RelationMap[datasetID][instantiatedSite] = fileDatasetID
+                    fileDatasetIDs.append(fileDatasetID)
                 # get output templates
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
@@ -2298,46 +2309,55 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             fileNameTemplateList.append((newFileNameTemplate,newStreamName))
                     # loop over all filename templates
                     for fileNameTemplate,streamName in fileNameTemplateList:
-                        fileSpec = JediFileSpec()
-                        fileSpec.jediTaskID   = jediTaskID
-                        fileSpec.datasetID    = fileDatasetID
-                        nameTemplate = fileNameTemplate.replace('${SN}','{SN:06d}')
-                        nameTemplate = nameTemplate.replace('${SN/P}','{SN:06d}')
-                        nameTemplate = nameTemplate.replace('${SN','{SN')
-                        nameTemplate = nameTemplate.replace('${MIDDLENAME}',middleName)
-                        fileSpec.lfn          = nameTemplate.format(SN=serialNr)
-                        fileSpec.status       = 'defined'
-                        fileSpec.creationDate = timeNow
-                        fileSpec.type         = outType
-                        fileSpec.keepTrack    = 1
-                        if maxSerialNr == None or maxSerialNr < serialNr:
-                            maxSerialNr = serialNr
-                        # scope
-                        if vo in jedi_config.ddm.voWithScope.split(','):
-                            fileSpec.scope = self.extractScope(datasetName)
-                        if not simul:    
-                            # insert
-                            varMap = fileSpec.valuesMap(useSeq=True)
-                            varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
-                            self.cur.execute(sqlI+comment,varMap)
-                            fileSpec.fileID = long(varMap[':newFileID'].getvalue())
-                            # increment SN
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':outTempID']  = outTempID
-                            self.cur.execute(sqlU+comment,varMap)
-                            nRow = self.cur.rowcount
-                            if nRow != 1:
-                                raise RuntimeError, 'Failed to increment SN for outTempID={0}'.format(outTempID)
-                        # append
-                        outMap[streamName] = fileSpec
+                        firstFileID = None
+                        for fileDatasetID in fileDatasetIDs:
+                            fileSpec = JediFileSpec()
+                            fileSpec.jediTaskID   = jediTaskID
+                            fileSpec.datasetID = fileDatasetID
+                            nameTemplate = fileNameTemplate.replace('${SN}','{SN:06d}')
+                            nameTemplate = nameTemplate.replace('${SN/P}','{SN:06d}')
+                            nameTemplate = nameTemplate.replace('${SN','{SN')
+                            nameTemplate = nameTemplate.replace('${MIDDLENAME}',middleName)
+                            fileSpec.lfn          = nameTemplate.format(SN=serialNr)
+                            fileSpec.status       = 'defined'
+                            fileSpec.creationDate = timeNow
+                            fileSpec.type         = outType
+                            fileSpec.keepTrack    = 1
+                            if maxSerialNr == None or maxSerialNr < serialNr:
+                                maxSerialNr = serialNr
+                            # scope
+                            if vo in jedi_config.ddm.voWithScope.split(','):
+                                fileSpec.scope = self.extractScope(datasetName)
+                            if not simul:    
+                                # insert
+                                varMap = fileSpec.valuesMap(useSeq=True)
+                                varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
+                                self.cur.execute(sqlI+comment,varMap)
+                                fileSpec.fileID = long(varMap[':newFileID'].getvalue())
+                                # increment SN
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':outTempID']  = outTempID
+                                self.cur.execute(sqlU+comment,varMap)
+                                nRow = self.cur.rowcount
+                                if nRow != 1:
+                                    raise RuntimeError, 'Failed to increment SN for outTempID={0}'.format(outTempID)
+                            else:
+                                # set dummy for simulation
+                                fileSpec.fileID = fileSpec.datasetID
+                            # append
+                            if firstFileID == None:
+                                outMap[streamName] = fileSpec
+                                firstFileID = fileSpec.fileID
+                                parallelOutMap[firstFileID] = []
+                            parallelOutMap[firstFileID].append(fileSpec)
             # set masterID to concrete datasets 
-            for fileDatasetID,masterID in mstr_RelationMap.iteritems():
+            for fileDatasetID,(masterID,instantiatedSite) in mstr_RelationMap.iteritems():
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 varMap[':datasetID']  = fileDatasetID
-                if tmpl_RelationMap.has_key(masterID):
-                    varMap[':masterID'] = tmpl_RelationMap[masterID]
+                if masterID in tmpl_RelationMap and instantiatedSite in tmpl_RelationMap[masterID]:
+                    varMap[':masterID'] = tmpl_RelationMap[masterID][instantiatedSite]
                 else:
                     varMap[':masterID'] = masterID
                 self.cur.execute(sqlMC+comment,varMap)
@@ -2345,13 +2365,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('done')
-            return outMap,maxSerialNr,datasetToRegister,siteDsMap
+            return outMap,maxSerialNr,datasetToRegister,siteDsMap,parallelOutMap
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return None,None,None,siteDsMap
+            return None,None,None,siteDsMap,parallelOutMap
 
 
     # insert output file templates

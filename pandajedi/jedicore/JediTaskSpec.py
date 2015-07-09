@@ -57,6 +57,7 @@ class JediTaskSpec(object):
         'nEventsPerJob'      : 'NE',
         'nFilesPerJob'       : 'NF',
         'nGBPerJob'          : 'NG',
+        'nSitesPerJob'       : 'NS',
         'noWaitParent'       : 'NW',
         'pfnList'            : 'PL',
         'runUntilClosed'     : 'RC',
@@ -68,6 +69,7 @@ class JediTaskSpec(object):
         'scoutSuccessRate'   : 'SS',
         't1Weight'           : 'TW',
         'useBuild'           : 'UB',
+        'useJobCloning'      : 'UC',
         'useRealNumEvents'   : 'UE',
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
@@ -284,6 +286,16 @@ class JediTaskSpec(object):
 
 
 
+    # get the number of sites per job
+    def getNumSitesPerJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['nSitesPerJob']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return 1
+
+
+
     # get the number of files per job if defined
     def getNumFilesPerJob(self):
         if self.splitRule != None:
@@ -375,6 +387,26 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # use sjob cloning
+    def useJobCloning(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useJobCloning']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # get job cloning type
+    def getJobCloningType(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useJobCloning']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return tmpMatch.group(1)
+        return ''
 
 
 

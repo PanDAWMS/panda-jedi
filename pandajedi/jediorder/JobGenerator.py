@@ -8,6 +8,7 @@ import urllib
 import socket
 import random
 import datetime
+import traceback
 
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread,MapWithLock
 from pandajedi.jedicore import Interaction
@@ -493,13 +494,14 @@ class JobGeneratorThread (WorkerThread):
                         if goForward:
                             tmpLog.info('run job generator')
                             try:
-                                tmpStat,pandaJobs,datasetToRegister,oldPandaIDs = self.doGenerate(taskSpec,cloudName,subChunks,
-                                                                                                  inputChunk,tmpLog,
-                                                                                                  taskParamMap=taskParamMap)
+                                tmpStat,pandaJobs,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap = self.doGenerate(taskSpec,cloudName,subChunks,
+                                                                                                                          inputChunk,tmpLog,
+                                                                                                                          taskParamMap=taskParamMap)
                                 # increase event service consumers
                                 if tmpStat == Interaction.SC_SUCCEEDED:
-                                    if taskSpec.useEventService():
-                                        pandaJobs = self.increaseEventServiceConsumers(pandaJobs,taskSpec.getNumEventServiceConsumer())
+                                    if taskSpec.useEventService() and not inputChunk.isMerging:
+                                        pandaJobs = self.increaseEventServiceConsumers(pandaJobs,taskSpec.getNumEventServiceConsumer(),
+                                                                                       taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap)
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
                                 tmpLog.error('generator crashed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -635,7 +637,7 @@ class JobGeneratorThread (WorkerThread):
     # generate jobs
     def doGenerate(self,taskSpec,cloudName,inSubChunkList,inputChunk,tmpLog,simul=False,taskParamMap=None):
         # return for failure
-        failedRet = Interaction.SC_FAILED,None,None,None
+        failedRet = Interaction.SC_FAILED,None,None,None,None,None
         # read task parameters
         if taskSpec.useBuild() or taskSpec.usePrePro() or inputChunk.isMerging or \
                 taskSpec.useLoadXML() or taskSpec.useListPFN():
@@ -660,11 +662,12 @@ class JobGeneratorThread (WorkerThread):
             oldPandaIDs = []
             siteDsMap = {}
             esIndex = 0
+            parallelOutMap = {}
             for tmpInChunk in inSubChunkList:
                 siteName      = tmpInChunk['siteName']
                 inSubChunks   = tmpInChunk['subChunks']
                 siteCandidate = tmpInChunk['siteCandidate']
-                siteSpec      = self.siteMapper.getSite(siteName) 
+                siteSpec      = self.siteMapper.getSite(siteName.split(',')[0]) 
                 buildFileSpec = None
                 # make preprocessing job
                 if taskSpec.usePrePro():
@@ -706,7 +709,7 @@ class JobGeneratorThread (WorkerThread):
                     if taskSpec.disableAutoRetry():
                         # disable server/pilot retry
                         jobSpec.maxAttempt   = -1
-                    elif taskSpec.useEventService():
+                    elif taskSpec.useEventService() and not inputChunk.isMerging:
                         # set max attempt for event service
                         if taskSpec.getMaxAttemptES() == None:
                             jobSpec.maxAttempt = jobSpec.attemptNr + 3
@@ -784,8 +787,7 @@ class JobGeneratorThread (WorkerThread):
                         else:
                             specialHandling += ',ddm:{0},'.format(tmpDdmBackEnd)
                     # set specialHandling for Event Service
-                    if taskSpec.useEventService():
-                        nEventsPerWorker = taskSpec.getNumEventsPerWorker()
+                    if taskSpec.useEventService() and not inputChunk.isMerging:
                         specialHandling += EventServiceUtils.getHeaderForES(esIndex)
                     # inputs
                     prodDBlock = None
@@ -794,6 +796,7 @@ class JobGeneratorThread (WorkerThread):
                     totalMasterEvents = 0
                     totalFileSize = 0
                     lumiBlockNr = None
+                    setSpecialHandlingForJC = False
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
                         # get boundaryID if grouping is done with boundaryID
                         if useBoundary != None and boundaryID == None:
@@ -828,13 +831,21 @@ class JobGeneratorThread (WorkerThread):
                             # collect old PandaIDs
                             if tmpFileSpec.PandaID != None and not tmpFileSpec.PandaID in subOldPandaIDs:
                                 subOldPandaIDs.append(tmpFileSpec.PandaID)
-                            # set specialHandling for Event Service
-                            if taskSpec.useEventService() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.isPseudo():
-                                specialHandling += EventServiceUtils.encodeFileInfo(tmpFileSpec.lfn,
-                                                                                    tmpFileSpec.startEvent,
-                                                                                    tmpFileSpec.endEvent,
-                                                                                    nEventsPerWorker,
-                                                                                    taskSpec.getMaxAttemptES())
+                            # set specialHandling for normal Event Service
+                            if taskSpec.useEventService() and not inputChunk.isMerging \
+                                    and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.isPseudo():
+                                if not taskSpec.useJobCloning() or not setSpecialHandlingForJC:
+                                    if taskSpec.useJobCloning():
+                                        # single event range for job cloning
+                                        nEventsPerWorker = tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1
+                                        setSpecialHandlingForJC = True
+                                    else:
+                                        nEventsPerWorker = taskSpec.getNumEventsPerWorker()
+                                    specialHandling += EventServiceUtils.encodeFileInfo(tmpFileSpec.lfn,
+                                                                                        tmpFileSpec.startEvent,
+                                                                                        tmpFileSpec.endEvent,
+                                                                                        nEventsPerWorker,
+                                                                                        taskSpec.getMaxAttemptES())
                             # calcurate total master size
                             if tmpDatasetSpec.isMaster():
                                 totalMasterSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
@@ -850,6 +861,10 @@ class JobGeneratorThread (WorkerThread):
                         if taskSpec.mergeOutput() and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.toMerge():
                             isUnMerging = True
                     specialHandling = specialHandling[:-1]
+                    # using job cloning
+                    if setSpecialHandlingForJC:
+                        specialHandling = EventServiceUtils.setHeaderForJobCloning(specialHandling,taskSpec.getJobCloningType())
+                    # set specialHandling
                     if specialHandling != '':
                         jobSpec.specialHandling = specialHandling
                     # allow partial finish
@@ -954,17 +969,18 @@ class JobGeneratorThread (WorkerThread):
                             tmpLog.error('failed to get XML config for N={0}'.format(boundaryID))
                             return failedRet
                     # outputs
-                    outSubChunk,serialNr,tmpToRegister,siteDsMap = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
-                                                                                                         provenanceID,
-                                                                                                         simul,
-                                                                                                         instantiateTmpl,
-                                                                                                         instantiatedSite,
-                                                                                                         isUnMerging,
-                                                                                                         False,
-                                                                                                         xmlConfigJob,
-                                                                                                         siteDsMap,
-                                                                                                         middleName,
-                                                                                                         registerDatasets)
+                    outSubChunk,serialNr,tmpToRegister,siteDsMap,parallelOutMap = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
+                                                                                                                        provenanceID,
+                                                                                                                        simul,
+                                                                                                                        instantiateTmpl,
+                                                                                                                        instantiatedSite,
+                                                                                                                        isUnMerging,
+                                                                                                                        False,
+                                                                                                                        xmlConfigJob,
+                                                                                                                        siteDsMap,
+                                                                                                                        middleName,
+                                                                                                                        registerDatasets,
+                                                                                                                        parallelOutMap)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
@@ -997,6 +1013,17 @@ class JobGeneratorThread (WorkerThread):
                             destinationDBlock = tmpDatasetSpec.datasetName
                     if destinationDBlock != None:
                         jobSpec.destinationDBlock = destinationDBlock
+                    # get datasetSpec for parallel jobs
+                    for tmpFileSpecList in parallelOutMap.values():
+                        for tmpFileSpec in tmpFileSpecList:
+                            if not tmpFileSpec.datasetID in outDsMap:
+                                tmpStat,tmpDataset = self.taskBufferIF.getDatasetWithID_JEDI(taskSpec.jediTaskID,
+                                                                                             tmpFileSpec.datasetID)
+                                # not found
+                                if not tmpStat:
+                                    tmpLog.error('failed to get DS with datasetID={0}'.format(tmpFileSpec.datasetID))
+                                    return failedRet
+                                outDsMap[tmpFileSpec.datasetID] = tmpDataset
                     # lib.tgz
                     paramList = []    
                     if buildFileSpec != None:
@@ -1014,18 +1041,17 @@ class JobGeneratorThread (WorkerThread):
                                                                    serialNr,paramList,jobSpec,simul,
                                                                    taskParamMap,inputChunk.isMerging,
                                                                    jobSpec.Files)
-                    # addd
+                    # add
                     jobSpecList.append(jobSpec)
                     oldPandaIDs.append(subOldPandaIDs)
                     # incremet index of event service job
-                    if taskSpec.useEventService():
+                    if taskSpec.useEventService() and not inputChunk.isMerging:
                         esIndex += 1
             # return
-            return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs
+            return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap
         except:
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('{0}.doGenerate() failed with {1}:{2}'.format(self.__class__.__name__,
-                                                                       errtype.__name__,errvalue))
+            tmpLog.error('{0}.doGenerate() failed with {1}'.format(self.__class__.__name__,
+                                                                   traceback.format_exc()))
             return failedRet
 
 
@@ -1217,13 +1243,13 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.destinationSE    = siteName
             jobSpec.metadata         = ''
             # get log file
-            outSubChunk,serialNr,datasetToRegister,siteDsMap = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
-                                                                                                     None,
-                                                                                                     simul,
-                                                                                                     True,
-                                                                                                     siteName,
-                                                                                                     False,
-                                                                                                     True)
+            outSubChunk,serialNr,datasetToRegister,siteDsMap,parallelOutMap = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
+                                                                                                                    None,
+                                                                                                                    simul,
+                                                                                                                    True,
+                                                                                                                    siteName,
+                                                                                                                    False,
+                                                                                                                    True)
             if outSubChunk == None:
                 # failed
                 tmpLog.error('doGeneratePrePro failed to get OutputFiles')
@@ -1524,28 +1550,57 @@ class JobGeneratorThread (WorkerThread):
 
 
     # increase event service consumers
-    def increaseEventServiceConsumers(self,pandaJobs,nConsumers):
+    def increaseEventServiceConsumers(self,pandaJobs,nConsumers,nSitesPerJob,parallelOutMap,outDsMap):
         newPandaJobs = []
         for pandaJob in pandaJobs:
             for iConsumers in range (nConsumers):
-                newPandaJob = self.clonePandaJob(pandaJob)
+                newPandaJob = self.clonePandaJob(pandaJob,iConsumers,parallelOutMap,outDsMap)
                 newPandaJobs.append(newPandaJob)
+        if nSitesPerJob > 1:
+            newPandaJobs = self.sortParallelJobsBySite(newPandaJobs)
         # return
         return newPandaJobs
                     
 
 
     # close panda job with new specialHandling
-    def clonePandaJob(self,pandaJob):
+    def clonePandaJob(self,pandaJob,index,parallelOutMap,outDsMap):
         newPandaJob = copy.copy(pandaJob)
+        sites = newPandaJob.computingSite.split(',')
+        nSites = len(sites)
         newPandaJob.Files = []
         for fileSpec in pandaJob.Files:
-            newFileSpec = copy.copy(fileSpec)
-            # append PandaID as suffix for log files
-            if newFileSpec.type == 'log':
-                newFileSpec.lfn += '.$PANDAID'
+            if nSites == 1 or not fileSpec.type in ['log','output'] or \
+                    (fileSpec.fileID in parallelOutMap and len(parallelOutMap[fileSpec.fileID]) == 1):
+                newFileSpec = copy.copy(fileSpec)
+                # append PandaID as suffix for log files of normal ES consumers
+                if newFileSpec.type == 'log':
+                    newFileSpec.lfn += '.$PANDAID'
+            else:
+                newFileSpec = parallelOutMap[fileSpec.fileID][index % nSites]
+                datasetSpec = outDsMap[newFileSpec.datasetID]
+                newFileSpec = newFileSpec.convertToJobFileSpec(datasetSpec,useEventService=True)
             newPandaJob.addFile(newFileSpec)
+        # set site for parallel jobs
+        if nSites > 1:
+            newPandaJob.computingSite = sites[index % nSites]
         return newPandaJob
+
+
+
+    # sort parallel jobs by site 
+    def sortParallelJobsBySite(self,pandaJobs):
+        tmpMap = {}
+        for pandaJob in pandaJobs:
+            if not pandaJob.computingSite in tmpMap:
+                tmpMap[pandaJob.computingSite] = []
+            tmpMap[pandaJob.computingSite].append(pandaJob)
+        newPandaJobs = []
+        for computingSite in tmpMap.keys():
+            newPandaJobs += tmpMap[computingSite]
+        # return
+        return newPandaJobs
+
 
 
     # get the largest attempt number

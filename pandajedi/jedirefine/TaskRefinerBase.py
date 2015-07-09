@@ -11,6 +11,7 @@ from pandajedi.jedicore import JediException
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediFileSpec import JediFileSpec
+from pandaserver.taskbuffer import EventServiceUtils
 
 
 
@@ -200,6 +201,7 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'scoutSuccessRate', JediTaskSpec.splitRuleToken['scoutSuccessRate'])
         self.setSplitRule(taskParamMap,'t1Weight',         JediTaskSpec.splitRuleToken['t1Weight'])
         self.setSplitRule(taskParamMap,'maxAttemptES',     JediTaskSpec.splitRuleToken['maxAttemptES'])
+        self.setSplitRule(taskParamMap,'nSitesPerJob',     JediTaskSpec.splitRuleToken['nSitesPerJob'])
         self.setSplitRule(taskParamMap,'nEventsPerMergeJob',   JediTaskSpec.splitRuleToken['nEventsPerMergeJob'])
         self.setSplitRule(taskParamMap,'nFilesPerMergeJob',    JediTaskSpec.splitRuleToken['nFilesPerMergeJob'])
         self.setSplitRule(taskParamMap,'nGBPerMergeJob',       JediTaskSpec.splitRuleToken['nGBPerMergeJob'])
@@ -231,6 +233,9 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['runUntilClosed'])
         if 'stayOutputOnSite' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['stayOutputOnSite'])
+        if 'useJobCloning' in taskParamMap:
+            scValue = EventServiceUtils.getJobCloningValue(taskParamMap['useJobCloning'])
+            self.setSplitRule(None,scValue,JediTaskSpec.splitRuleToken['useJobCloning'])
         # return
         return
     
