@@ -423,15 +423,20 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for walltime
         if not taskSpec.useHS06():
-            minWalltime = taskSpec.walltime * inputChunk.getMaxAtomSize(effectiveSize=True)
+            tmpMaxAtomSize = inputChunk.getMaxAtomSize(effectiveSize=True)
+            minWalltime = taskSpec.walltime * tmpMaxAtomSize
+            strMinWalltime = 'walltime*inputSize={0}*{1}'.format(taskSpec.walltime,tmpMaxAtomSize)
         else:
-            minWalltime = taskSpec.cpuTime * inputChunk.getMaxAtomSize(getNumEvents=True)
+            tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
+            minWalltime = taskSpec.cpuTime * tmpMaxAtomSize
+            strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.cpuTime,tmpMaxAtomSize)
         if not minWalltime in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check max walltime at the site
                 siteMaxTime = tmpSiteSpec.maxtime
+                origSiteMaxTime = siteMaxTime
                 tmpSiteStr = '{0}'.format(siteMaxTime)
                 if taskSpec.useHS06():
                     oldSiteMaxTime = siteMaxTime
@@ -447,15 +452,16 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteMaxTime *= float(taskSpec.cpuEfficiency) / 100.0
                     siteMaxTime = long(siteMaxTime)
                     tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
-                if siteMaxTime != 0 and minWalltime > siteMaxTime:
+                if origSiteMaxTime != 0 and minWalltime > siteMaxTime:
                     tmpMsg = '  skip site={0} due to short site walltime {1} (site upper limit) less than {2} '.format(tmpSiteName,
                                                                                                                        tmpSiteStr,
-                                                                                                                       minWalltime)
+                                                                                                                       strMinWalltime)
                     tmpMsg += 'criteria=-shortwalltime'
                     tmpLog.debug(tmpMsg)
                     continue
                 # check min walltime at the site
                 siteMinTime = tmpSiteSpec.mintime
+                origSiteMinTime = siteMinTime
                 tmpSiteStr = '{0}'.format(siteMinTime)
                 if taskSpec.useHS06():
                     oldSiteMinTime = siteMinTime
@@ -471,16 +477,19 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteMinTime *= float(taskSpec.cpuEfficiency) / 100.0
                     siteMinTime = long(siteMinTime)
                     tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
-                if siteMinTime != 0 and minWalltime < siteMinTime:
+                if origSiteMinTime != 0 and minWalltime < siteMinTime:
                     tmpMsg = '  skip site {0} due to short job walltime {1} (site lower limit) greater than {2} '.format(tmpSiteName,
                                                                                                                          tmpSiteStr,
-                                                                                                                         minWalltime)
+                                                                                                                         strMinWalltime)
                     tmpMsg += 'criteria=-longwalltime'
                     tmpLog.debug(tmpMsg)
                     continue
                 newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList        
-            tmpLog.debug('{0} candidates passed walltime check {1}({2})'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
+            scanSiteList = newScanSiteList
+            if not taskSpec.useHS06():
+                tmpLog.debug('{0} candidates passed walltime check {1}({2})'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
+            else:
+                tmpLog.debug('{0} candidates passed walltime check {1}({2}*nEventsPerJob)'.format(len(scanSiteList),strMinWalltime,taskSpec.cpuTimeUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

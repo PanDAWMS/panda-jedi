@@ -2,6 +2,7 @@ Release Notes
 
 * 7/10/2015
   * changed cpuTime for scouts to always update the value
+  * changed walltime messages more informative
 
 * 7/9/2015
   * added job cloning
