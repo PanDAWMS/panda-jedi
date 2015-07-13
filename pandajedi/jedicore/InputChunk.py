@@ -462,6 +462,7 @@ class InputChunk:
             newNumMaster      = numMaster
             terminateFlag     = False
             newOutSizeMap     = copy.copy(outSizeMap)
+            newBoundaryIDs    = set()
             if not self.masterDataset.datasetID in newOutSizeMap:
                 newOutSizeMap[self.masterDataset.datasetID] = 0
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
@@ -508,6 +509,9 @@ class InputChunk:
                     newExpWalltime += long(tmpExpWalltime)
                 else:
                     newExpWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
+                # boundaryID
+                if splitWithBoundaryID:
+                    newBoundaryIDs.add(tmpFileSpec.boundaryID)
             # check secondaries
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.datasetID in newOutSizeMap:
@@ -521,7 +525,8 @@ class InputChunk:
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
                     for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
                         # check boundaryID
-                        if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID:
+                        if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID \
+                                and not tmpFileSpec.boundaryID in boundaryIDs and not tmpFileSpec.boundaryID in newBoundaryIDs:
                             break
                         newFileSize += tmpFileSpec.fsize
                         if sizeGradientsPerInSize != None:
