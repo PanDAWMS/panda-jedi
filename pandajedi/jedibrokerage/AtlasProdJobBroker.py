@@ -436,7 +436,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 siteMaxTime = tmpSiteSpec.maxtime
                 origSiteMaxTime = siteMaxTime
-                print tmpSiteName,siteMaxTime
                 # sending scouts to only sites where walltime is more than 1day
                 if inputChunk.useScout():
                     if siteMaxTime != 0 and siteMaxTime < 24*60*60:
