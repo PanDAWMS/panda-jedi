@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/14/2015
+  * sending scouts to sites where walltime is more than 24h
+
 * 7/13/2015
   * fixed getSubChunk to correctly take secondary files into account
 
