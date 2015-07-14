@@ -439,8 +439,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # sending scouts to only sites where walltime is more than 1day
                 if inputChunk.useScout():
                     if siteMaxTime != 0 and siteMaxTime < 24*60*60:
-                        tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient for scouts '.format(tmpSiteName,
-                                                                                                                               tmpSiteStr)
+                        tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient for scouts (1 day at least) '.format(tmpSiteName,
+                                                                                                                                                siteMaxTime)
                         tmpMsg += 'criteria=-scoutwalltime'
                         tmpLog.debug(tmpMsg)
                         continue
