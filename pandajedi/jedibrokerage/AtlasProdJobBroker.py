@@ -175,6 +175,30 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
+        # selection to avoid slow sites
+        if (taskSpec.currentPriority > 900 or inputChunk.useScout() or \
+                inputChunk.isMerging or taskSpec.mergeOutput()) \
+                and not sitePreAssigned:
+            newScanSiteList = []
+            tmpMsgList = []
+            for tmpSiteName in scanSiteList:
+                if tmpSiteName in ['BNL_CLOUD','BNL_CLOUD_MCORE','ATLAS_OPP_OSG','RRC-KI-T1_MCORE','RRC-KI-T1']:
+                    tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid slow sites '.format(tmpSiteName)
+                    tmpMsg += 'criteria=-slow'
+                    tmpMsgList.append(tmpMsg)
+                else:
+                    newScanSiteList.append(tmpSiteName)
+            if newScanSiteList != []:
+                scanSiteList = newScanSiteList
+                for tmpMsg in tmpMsgList:
+                    tmpLog.debug(tmpMsg)
+            tmpLog.debug('{0} candidates passed for slowness'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+        ######################################
         # selection for data availability
         if not sitePreAssigned and not siteListPreAssigned:
             for datasetSpec in inputChunk.getDatasets():
