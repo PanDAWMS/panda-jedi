@@ -746,7 +746,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.maxCpuUnit       = taskSpec.walltimeUnit
                     jobSpec.maxDiskCount     = taskSpec.getOutDiskSize()
                     jobSpec.maxDiskUnit      = 'MB'
-                    jobSpec.minRamCount      = max(taskSpec.ramCount, self.getLargestMinRamCount(inSubChunk))
+                    jobSpec.minRamCount      = max(taskSpec.ramCount, self.getLargestRamCount(inSubChunk))
                     jobSpec.minRamUnit       = taskSpec.ramUnit #TODO: Do I need to take care of RAM Units as well?
                     if inputChunk.isMerging and taskSpec.mergeCoreCount != None:
                         jobSpec.coreCount    = taskSpec.mergeCoreCount
@@ -1533,16 +1533,16 @@ class JobGeneratorThread (WorkerThread):
                         largestAttemptNr = tmpFileSpec.attemptNr
         return largestAttemptNr+1
 
-    #TODO: Review this with Tadashi. I'm not sure at all if this is necessary
-    # get the largest attempt number
-    def getLargestMinRamCount(self,inSubChunk):
-        largestMinRamCount = 0
+
+    # get the largest ramCount
+    def getLargestRamCount(self,inSubChunk):
+        largestRamCount = 0
         for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
             if tmpDatasetSpec.isMaster():
                 for tmpFileSpec in tmpFileSpecList:
-                    if tmpFileSpec.minRamCount != None and tmpFileSpec.minRamCount > largestMinRamCount:
-                        largestMinRamCount = tmpFileSpec.minRamCount
-        return largestMinRamCount
+                    if tmpFileSpec.ramCount != None and tmpFileSpec.ramCount > largestRamCount:
+                        largestRamCount = tmpFileSpec.ramCount
+        return largestRamCount
 
 
 ########## launch 

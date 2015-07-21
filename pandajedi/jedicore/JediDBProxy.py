@@ -2462,6 +2462,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # no tasks
             if resList == [] and isPeeking:
                 return 0
+            
+            #sql to read memory requirements of files in dataset
+            sqlRM = """SELECT ramCount FROM {0}.JEDI_Dataset_Contents 
+                       WHERE jediTaskID=:jediTaskID and datasetID=:datasetID
+                       GROUP BY ramCount""".format(jedi_config.db.schemaJEDI)
+            
             # make return
             returnMap = {}
             taskDatasetMap = {}
@@ -2472,6 +2478,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,taskStatus,userName,tmpNumInputFiles,tmpNumInputEvents in resList:
                 tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3}'.format(jediTaskID,datasetID,
                                                                                             tmpNumFiles,datasetType))
+                
+                #See if there are different memory requirements that need to be mapped to different chuncks
+                varMap = {'jediTaskID': jediTaskID, 'datasetID': datasetID}
+                self.conn.begin()
+                self.cur.arraysize = 1000000
+                # select
+                tmpLog.debug(sql+comment+str(varMap))
+                self.cur.execute(sql+comment, varMap)
+                memReqs = self.cur.fetchall()
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+                
                 # just return the max priority
                 if isPeeking:
                     return currentPriority
@@ -2480,7 +2499,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # make task-dataset mapping
                 if not taskDatasetMap.has_key(jediTaskID):
                     taskDatasetMap[jediTaskID] = []
-                taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents))
+                for memReq in memReqs: 
+                    taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents, memReq))
                 # make user-task mapping
                 if not userName in userTaskMap:
                     userTaskMap[userName] = []
@@ -2558,7 +2578,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # only process merging if enough jobs are already generated
                 if maxNumJobs != None and maxNumJobs <= 0:
                     containMergeing = False
-                    for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents in taskDatasetMap[jediTaskID]:
+                    for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents, memReq in taskDatasetMap[jediTaskID]:
                         if datasetType in JediDatasetSpec.getMergeProcessTypes():
                             containMergeing = True
                             break
@@ -2676,7 +2696,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not toSkip:
                     iDsPerTask = 0
                     nDsPerTask = 10
-                    for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents in taskDatasetMap[jediTaskID]:
+                    for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents,memReq in taskDatasetMap[jediTaskID]:
                         primaryDatasetID = datasetID
                         datasetIDs = [datasetID]
                         taskSpec = copy.copy(origTaskSpec)
