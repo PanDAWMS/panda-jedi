@@ -2550,11 +2550,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not fullSimulation:
                 sqlFR += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
                 sqlFR += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
+                sqlFR += "AND ramCount=:ramCount "
             sqlFR += "ORDER BY {0}) "
             sqlFR += "WHERE rownum <= {1}"
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
-            sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
+            sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus"
             # sql to update file usage info in dataset
             sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
@@ -2864,6 +2865,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     varMap = {}
                                     varMap[':datasetID']  = datasetID
                                     varMap[':jediTaskID'] = jediTaskID
+                                    varMap[':ramCount'] = memReq
                                     if not fullSimulation:
                                         varMap[':status'] = 'ready'
                                     self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead-iFiles)+comment,varMap)
