@@ -22,6 +22,19 @@ def getEffectiveFileSize(fsize,startEvent,endEvent,nEvents):
 
 
 
+# get effective number of events                                                                                                                          
+def getEffectiveNumEvents(startEvent,endEvent,nEvents):
+    if endEvent != None and startEvent != None:
+        evtCounts = endEvent-startEvent+1
+        if evtCounts > 0:
+            return evtCounts
+        return 1
+    if nEvents != None and nEvents > 0:
+        return nEvents
+    return 1
+
+
+
 # get memory usage
 def getMemoryUsage():
     try:
@@ -47,3 +60,26 @@ def getMemoryUsage():
 # check process
 def checkProcess(pid):
     return os.path.exists('/proc/{0}/status'.format(pid))
+
+
+
+# offset for walltime
+wallTimeOffset = 10*60
+
+# add offset to walltime
+def addOffsetToWalltime(oldWalltime):
+    if oldWalltime > 0:
+        # add offset of 10min
+        oldWalltime += wallTimeOffset
+    return oldWalltime
+
+
+# reduce offset from walltime
+def reduceOffsetFromWalltime(oldWalltime):
+    if oldWalltime > 0:
+        # add offset of 10min
+        oldWalltime -= wallTimeOffset
+        if oldWalltime < 0:
+            oldWalltime = 0
+    return oldWalltime
+

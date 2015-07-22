@@ -97,6 +97,8 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                     metaData['task_id'] = taskSpec.jediTaskID
                                     if not taskSpec.campaign in [None,'']:
                                         metaData['campaign'] = taskSpec.campaign 
+                                    if datasetSpec.getTransient() != None:
+                                        metaData['transient'] = datasetSpec.getTransient()
                                 else:
                                     metaData = None
                                 # register dataset/container

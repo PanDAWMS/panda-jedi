@@ -34,6 +34,7 @@ class JediDatasetSpec(object):
         'nFilesPerJob': 'np',
         'objectStore' : 'os',
         'num_records' : 'nr',
+        'transient'   : 'tr',
         }
 
 
@@ -482,3 +483,28 @@ class JediDatasetSpec(object):
         if self.type.startswith('trn_'):
             return True
         return False
+
+
+
+    # set transient
+    def setTransient(self,val):
+        if val == True:
+            val = 1
+        else:
+            val = 0
+        self.setDatasetAttribute('{0}={1}'.format(self.attrToken['transient'],val))
+
+
+
+    # get transient
+    def getTransient(self):
+        if self.attributes != None:
+            for item in self.attributes.split(','):
+                tmpMatch = re.search(self.attrToken['transient']+'=(\d+)',item)
+                if tmpMatch != None:
+                    val = int(tmpMatch.group(1))
+                    if val == 1:
+                        return True
+                    else:
+                        return False
+        return None

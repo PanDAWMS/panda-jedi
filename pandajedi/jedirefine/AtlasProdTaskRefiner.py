@@ -66,7 +66,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             self.taskSpec.setToRegisterDatasets()
             # set transient to parent datasets
             if self.taskSpec.processingType in ['merge'] and not self.taskSpec.parent_tid in [None,self.taskSpec.jediTaskID]:
-                # get parent                                                                                                                              
+                # get parent
                 tmpStat,parentTaskSpec = self.taskBufferIF.getTaskDatasetsWithID_JEDI(self.taskSpec.parent_tid,None,False)
                 if tmpStat and parentTaskSpec != None:
                     # set transient to parent datasets

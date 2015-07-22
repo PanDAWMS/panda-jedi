@@ -52,6 +52,9 @@ class PostProcessorBase (object):
             if taskSpec.usePrePro() and not taskSpec.checkPreProcessed():
                 taskSpec.setErrDiag('Preprocessing step failed',True)
         tmpLog.sendMsg('set task.status={0}'.format(taskSpec.status),self.msgType)
+        # AMI flag
+        if taskSpec.status in ['done','finished']:
+            taskSpec.amiFlag = 'READY'
         # update dataset
         for datasetSpec in taskSpec.datasetSpecList:
             if taskSpec.status in ['failed','broken','aborted']:
@@ -80,9 +83,11 @@ class PostProcessorBase (object):
         # update task
         self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
                                           updateDEFT=True)    
-        # kill child tasks
+        # kill or kick child tasks
         if taskSpec.status in ['failed','broken','aborted']:
             self.taskBufferIF.killChildTasks_JEDI(taskSpec.jediTaskID,taskSpec.status)
+        else:
+            self.taskBufferIF.kickChildTasks_JEDI(taskSpec.jediTaskID)
         tmpLog.info('doBasicPostProcess done with taskStatus={0}'.format(taskSpec.status))
         return
 
@@ -152,7 +157,12 @@ class PostProcessorBase (object):
         elif taskSpec.status == 'toabort':
             status = 'aborted'
         elif nFiles == nFilesFinished and nFiles > 0:
-            status = 'done'
+            # check parent status
+            if not taskSpec.parent_tid in [None,taskSpec.jediTaskID] and \
+                    self.taskBufferIF.getTaskStatus_JEDI(taskSpec.parent_tid) != 'done':
+                status = 'finished'
+            else:
+                status = 'done'
         elif nFilesFinished == 0:
             status = 'failed'
         else:
@@ -171,7 +181,10 @@ class PostProcessorBase (object):
             taskSpec.lockedTime = None
             # update task
             tmpLog.info('set task.status={0}'.format(taskSpec.status))
-            self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
+            self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
+                                              updateDEFT=True)
+            # kick child tasks
+            self.taskBufferIF.kickChildTasks_JEDI(taskSpec.jediTaskID)
             return True
         return False
 

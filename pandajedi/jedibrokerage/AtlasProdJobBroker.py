@@ -175,6 +175,30 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
+        # selection to avoid slow sites
+        if (taskSpec.currentPriority > 900 or inputChunk.useScout() or \
+                inputChunk.isMerging or taskSpec.mergeOutput()) \
+                and not sitePreAssigned:
+            newScanSiteList = []
+            tmpMsgList = []
+            for tmpSiteName in scanSiteList:
+                if tmpSiteName in ['BNL_CLOUD','BNL_CLOUD_MCORE','ATLAS_OPP_OSG','RRC-KI-T1_MCORE','RRC-KI-T1']:
+                    tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid slow sites '.format(tmpSiteName)
+                    tmpMsg += 'criteria=-slow'
+                    tmpMsgList.append(tmpMsg)
+                else:
+                    newScanSiteList.append(tmpSiteName)
+            if newScanSiteList != []:
+                scanSiteList = newScanSiteList
+                for tmpMsg in tmpMsgList:
+                    tmpLog.debug(tmpMsg)
+            tmpLog.debug('{0} candidates passed for slowness'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+        ######################################
         # selection for data availability
         if not sitePreAssigned and not siteListPreAssigned:
             for datasetSpec in inputChunk.getDatasets():
@@ -387,6 +411,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # the number of jobs which will produce outputs
                 nRemJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'assigned') + \
                            AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'activated') + \
+                           AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'throttled') + \
                            AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running')
                 # the size of input files which will be copied to the site
                 movingInputSize = self.taskBufferIF.getMovingInputSize_JEDI(tmpSiteName)
@@ -421,36 +446,139 @@ class AtlasProdJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # selection for walltime
-        minWalltime = taskSpec.walltime * inputChunk.getMaxAtomSize(effectiveSize=True)
-        if not minWalltime in [0,None]:
+        if not taskSpec.useHS06():
+            tmpMaxAtomSize = inputChunk.getMaxAtomSize(effectiveSize=True)
+            minWalltime = taskSpec.walltime * tmpMaxAtomSize
+            strMinWalltime = 'walltime*inputSize={0}*{1}'.format(taskSpec.walltime,tmpMaxAtomSize)
+        else:
+            tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
+            minWalltime = taskSpec.cpuTime * tmpMaxAtomSize
+            strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.cpuTime,tmpMaxAtomSize)
+        if not minWalltime in [0,None] or inputChunk.useScout():
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                # check max walltime at the site
                 siteMaxTime = tmpSiteSpec.maxtime
+                origSiteMaxTime = siteMaxTime
+                # sending scouts to only sites where walltime is more than 1day
+                if inputChunk.useScout():
+                    if siteMaxTime != 0 and siteMaxTime < 24*60*60:
+                        tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient for scouts (1 day at least) '.format(tmpSiteName,
+                                                                                                                                                siteMaxTime)
+                        tmpMsg += 'criteria=-scoutwalltime'
+                        tmpLog.debug(tmpMsg)
+                        continue
+                # check max walltime at the site
+                tmpSiteStr = '{0}'.format(siteMaxTime)
+                if taskSpec.useHS06():
+                    oldSiteMaxTime = siteMaxTime
+                    siteMaxTime -= taskSpec.baseWalltime
+                    tmpSiteStr = '({0}-{1})'.format(oldSiteMaxTime,taskSpec.baseWalltime)
                 if not siteMaxTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
                     siteMaxTime *= tmpSiteSpec.coreCount
-                if siteMaxTime != 0 and minWalltime > siteMaxTime:
-                    tmpMsg = '  skip site={0} due to short site walltime {1}(site upper limit) less than {2} '.format(tmpSiteName,
-                                                                                                                      siteMaxTime,
-                                                                                                                      minWalltime)
+                    tmpSiteStr += '*{0}'.format(tmpSiteSpec.coreCount)
+                if taskSpec.useHS06():
+                    if not siteMaxTime in [None,0] and not tmpSiteSpec.corepower in [None,0]:
+                        siteMaxTime *= tmpSiteSpec.corepower
+                        tmpSiteStr += '*{0}'.format(tmpSiteSpec.corepower)
+                    siteMaxTime *= float(taskSpec.cpuEfficiency) / 100.0
+                    siteMaxTime = long(siteMaxTime)
+                    tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
+                if origSiteMaxTime != 0 and minWalltime > siteMaxTime:
+                    tmpMsg = '  skip site={0} due to short site walltime {1} (site upper limit) less than {2} '.format(tmpSiteName,
+                                                                                                                       tmpSiteStr,
+                                                                                                                       strMinWalltime)
                     tmpMsg += 'criteria=-shortwalltime'
                     tmpLog.debug(tmpMsg)
                     continue
                 # check min walltime at the site
                 siteMinTime = tmpSiteSpec.mintime
+                origSiteMinTime = siteMinTime
+                tmpSiteStr = '{0}'.format(siteMinTime)
+                if taskSpec.useHS06():
+                    oldSiteMinTime = siteMinTime
+                    siteMinTime -= taskSpec.baseWalltime
+                    tmpSiteStr = '({0}-{1})'.format(oldSiteMinTime,taskSpec.baseWalltime)
                 if not siteMinTime in [None,0] and not tmpSiteSpec.coreCount in [None,0]:
                     siteMinTime *= tmpSiteSpec.coreCount
-                if siteMinTime != 0 and minWalltime < siteMinTime:
-                    tmpMsg = '  skip site {0} due to short job walltime {1}(site lower limit) greater than {2} '.format(tmpSiteName,
-                                                                                                                        siteMinTime,
-                                                                                                                        minWalltime)
+                    tmpSiteStr += '*{0}'.format(tmpSiteSpec.coreCount)
+                if taskSpec.useHS06():
+                    if not siteMinTime in [None,0] and not tmpSiteSpec.corepower in [None,0]:
+                        siteMinTime *= tmpSiteSpec.corepower
+                        tmpSiteStr += '*{0}'.format(tmpSiteSpec.corepower)
+                    siteMinTime *= float(taskSpec.cpuEfficiency) / 100.0
+                    siteMinTime = long(siteMinTime)
+                    tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
+                if origSiteMinTime != 0 and minWalltime < siteMinTime:
+                    tmpMsg = '  skip site {0} due to short job walltime {1} (site lower limit) greater than {2} '.format(tmpSiteName,
+                                                                                                                         tmpSiteStr,
+                                                                                                                         strMinWalltime)
                     tmpMsg += 'criteria=-longwalltime'
                     tmpLog.debug(tmpMsg)
                     continue
                 newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList        
-            tmpLog.debug('{0} candidates passed walltime check {1}({2})'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
+            scanSiteList = newScanSiteList
+            if not taskSpec.useHS06():
+                tmpLog.debug('{0} candidates passed walltime check {1}({2})'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
+            else:
+                tmpLog.debug('{0} candidates passed walltime check {1}({2}*nEventsPerJob)'.format(len(scanSiteList),strMinWalltime,taskSpec.cpuTimeUnit))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+        ######################################
+        # selection for network connectivity
+        if not sitePreAssigned:
+            ipConnectivity = taskSpec.getIpConnectivity()
+            if ipConnectivity != None:
+                newScanSiteList = []
+                for tmpSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                    # check at the site
+                    if tmpSiteSpec.wnconnectivity == 'full':
+                        pass
+                    elif tmpSiteSpec.wnconnectivity == 'http' and ipConnectivity == 'http':
+                        pass
+                    else:
+                        tmpMsg = '  skip site={0} due to insufficient connectivity (site={1}) for task={2} '.format(tmpSiteName,
+                                                                                                                    tmpSiteSpec.wnconnectivity,
+                                                                                                                    ipConnectivity)
+                        tmpMsg += 'criteria=-network'
+                        tmpLog.debug(tmpMsg)
+                        continue
+                    newScanSiteList.append(tmpSiteName)
+                scanSiteList = newScanSiteList
+                tmpLog.debug('{0} candidates passed network check ({1})'.format(len(scanSiteList),
+                                                                                ipConnectivity))
+                if scanSiteList == []:
+                    tmpLog.error('no candidates')
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    self.sendLogMessage(tmpLog)
+                    return retTmpError
+        ######################################
+        # selection for event service
+        if not sitePreAssigned:
+            jobseed = taskSpec.useEventService()
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # event service
+                if taskSpec.useEventService():
+                    if tmpSiteSpec.getJobSeed() == 'std':
+                        tmpMsg = '  skip site={0} since EventService is not allowed '.format(tmpSiteName)
+                        tmpMsg += 'criteria=-es'
+                        tmpLog.debug(tmpMsg)
+                        continue
+                else:
+                    if tmpSiteSpec.getJobSeed() == 'es':
+                        tmpMsg = '  skip site={0} since only EventService is allowed '.format(tmpSiteName)
+                        tmpMsg += 'criteria=-nones'
+                        tmpLog.debug(tmpMsg)
+                        continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList
+            tmpLog.debug('{0} candidates passed EventService check'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -595,7 +723,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
             nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'definied',None,taskSpec.workQueue_ID) + self.getLiveCount(tmpSiteName)
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',None,taskSpec.workQueue_ID)
-            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,taskSpec.workQueue_ID)
+            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,taskSpec.workQueue_ID) + \
+                         AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,taskSpec.workQueue_ID)
             nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting',None,taskSpec.workQueue_ID)
             if tmpSiteName in nPilotMap:
                 nPilot = nPilotMap[tmpSiteName]

@@ -21,7 +21,8 @@ class JediTaskSpec(object):
         'eventService','ticketID','ticketSystemType','stateChangeTime',
         'superStatus','campaign','mergeRamCount','mergeRamUnit',
         'mergeWalltime','mergeWalltimeUnit','throttledTime','numThrottled',
-        'mergeCoreCount'
+        'mergeCoreCount','goal','assessmentTime','cpuTime','cpuTimeUnit',
+        'cpuEfficiency','baseWalltime','amiFlag'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
@@ -56,15 +57,19 @@ class JediTaskSpec(object):
         'nEventsPerJob'      : 'NE',
         'nFilesPerJob'       : 'NF',
         'nGBPerJob'          : 'NG',
+        'nSitesPerJob'       : 'NS',
         'noWaitParent'       : 'NW',
         'pfnList'            : 'PL',
+        'runUntilClosed'     : 'RC',
         'registerDatasets'   : 'RD',
         'respectLB'          : 'RL',
         'reuseSecOnDemand'   : 'RO',
         'randomSeed'         : 'RS',
+        'stayOutputOnSite'   : 'SO',
         'scoutSuccessRate'   : 'SS',
         't1Weight'           : 'TW',
         'useBuild'           : 'UB',
+        'useJobCloning'      : 'UC',
         'useRealNumEvents'   : 'UE',
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
@@ -281,6 +286,16 @@ class JediTaskSpec(object):
 
 
 
+    # get the number of sites per job
+    def getNumSitesPerJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['nSitesPerJob']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return 1
+
+
+
     # get the number of files per job if defined
     def getNumFilesPerJob(self):
         if self.splitRule != None:
@@ -308,7 +323,7 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
-        
+
 
 
     # get offset for random seed
@@ -372,6 +387,26 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # use sjob cloning
+    def useJobCloning(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useJobCloning']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # get job cloning type
+    def getJobCloningType(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useJobCloning']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return tmpMatch.group(1)
+        return ''
 
 
 
@@ -651,7 +686,7 @@ class JediTaskSpec(object):
     # get the size of outDisk in bytes
     def getOutDiskSize(self):
         tmpSize = self.outDiskCount
-        if tmpSize == None:
+        if tmpSize == None or tmpSize < 0:
             return 0
         if self.outDiskUnit == 'GB':
             tmpSize = tmpSize * 1024 * 1024 * 1024
@@ -1006,8 +1041,9 @@ class JediTaskSpec(object):
     def setIpConnectivity(self,value):
         if value in self.enum_ipConnectivity.values():
             for tmpKey,tmpVal in self.enum_ipConnectivity.iteritems():
-                self.setSplitRule('ipConnectivity',tmpKey)
-                break
+                if value == tmpVal:
+                    self.setSplitRule('ipConnectivity',tmpKey)
+                    break
 
 
 
@@ -1016,5 +1052,31 @@ class JediTaskSpec(object):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['ipConnectivity']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
-                return self.enum_ipConnectivity[int(tmpMatch.group(1))]
+                return self.enum_ipConnectivity[tmpMatch.group(1)]
         return None
+
+
+
+    # use HS06 for walltime estimation
+    def useHS06(self):
+        return self.cpuTimeUnit == 'HS06sPerEvent'
+
+
+
+    # run until input is closed
+    def runUntilClosed(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['runUntilClosed']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # stay output on site
+    def stayOutputOnSite(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['stayOutputOnSite']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False

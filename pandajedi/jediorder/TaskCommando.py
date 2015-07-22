@@ -118,59 +118,77 @@ class TaskCommandoThread (WorkerThread):
                     if commandStr in ['kill','finish','reassign']:
                         tmpMsg = 'executing {0}'.format(commandStr)
                         tmpLog.sendMsg(tmpMsg,self.msgType)
-                        # get active PandaIDs to be killed
-                        pandaIDs = self.taskBufferIF.getPandaIDsWithTask_JEDI(jediTaskID,True)
-                        if pandaIDs == None:
-                            tmpLog.error('failed to get PandaIDs for jediTaskID={0}'.format(jediTaskID))
-                            tmpStat = Interaction.SC_FAILED
-                        # kill jobs or update task
-                        if tmpStat == Interaction.SC_SUCCEEDED:
-                            if pandaIDs == []:
-                                # done since no active jobs
-                                tmpMsg = 'completed cleaning jobs'
-                                tmpLog.sendMsg(tmpMsg,self.msgType)
-                                tmpLog.info(tmpMsg)
-                                tmpTaskSpec = JediTaskSpec()
-                                tmpTaskSpec.jediTaskID = jediTaskID
-                                updateTaskStatus = True
-                                if commandStr != 'reassign':
-                                    # reset oldStatus
-                                    # keep oldStatus for task reassignment since it is reset when actually reassigned
-                                    tmpTaskSpec.forceUpdate('oldStatus')
-                                else:
-                                    # extract cloud or site
-                                    tmpItems = commentStr.split(':')
-                                    if tmpItems[0] == 'cloud':
-                                        tmpTaskSpec.cloud = tmpItems[1]
-                                    else:
-                                        tmpTaskSpec.site = tmpItems[1]
-                                    tmpMsg = 'set {0}={1}'.format(tmpItems[0],tmpItems[1])
-                                    tmpLog.sendMsg(tmpMsg,self.msgType)
-                                    tmpLog.info(tmpMsg)
-                                    # back to oldStatus if necessary 
-                                    if tmpItems[2] == 'y':
-                                        tmpTaskSpec.status = oldStatus
-                                        tmpTaskSpec.forceUpdate('oldStatus')
-                                        updateTaskStatus = False
-                                if commandStr == 'reassign':
-                                    tmpTaskSpec.forceUpdate('errorDialog')
-                                if updateTaskStatus:
-                                    tmpTaskSpec.status = JediTaskSpec.commandStatusMap()[commandStr]['done']
-                                tmpMsg = 'set task.status={0}'.format(tmpTaskSpec.status)
-                                tmpLog.sendMsg(tmpMsg,self.msgType)
-                                tmpLog.info(tmpMsg)
-                                tmpRet = self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':jediTaskID})
+                        # loop twice to see immediate result
+                        for iLoop in range(2):
+                            # get active PandaIDs to be killed
+                            if commandStr == 'reassign' and 'soft reassign' in commentStr:
+                                pandaIDs = self.taskBufferIF.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
                             else:
-                                if 'soft finish' in commentStr:
-                                    tmpMsg = "wating {0} jobs for soft finish".format(len(pandaIDs))
-                                    tmpLog.info(tmpMsg)
-                                    tmpRet = True
-                                else:
-                                    tmpMsg = "trying to kill {0} jobs".format(len(pandaIDs))
-                                    tmpLog.info(tmpMsg)
+                                pandaIDs = self.taskBufferIF.getPandaIDsWithTask_JEDI(jediTaskID,True)
+                            if pandaIDs == None:
+                                tmpLog.error('failed to get PandaIDs for jediTaskID={0}'.format(jediTaskID))
+                                tmpStat = Interaction.SC_FAILED
+                            # kill jobs or update task
+                            if tmpStat == Interaction.SC_SUCCEEDED:
+                                if pandaIDs == []:
+                                    # done since no active jobs
+                                    tmpMsg = 'completed cleaning jobs'
                                     tmpLog.sendMsg(tmpMsg,self.msgType)
-                                    tmpRet = self.taskBufferIF.killJobs(pandaIDs,commentStr,'50',True)
-                            tmpLog.info('done with {0}'.format(str(tmpRet)))
+                                    tmpLog.info(tmpMsg)
+                                    tmpTaskSpec = JediTaskSpec()
+                                    tmpTaskSpec.jediTaskID = jediTaskID
+                                    updateTaskStatus = True
+                                    if commandStr != 'reassign':
+                                        # reset oldStatus
+                                        # keep oldStatus for task reassignment since it is reset when actually reassigned
+                                        tmpTaskSpec.forceUpdate('oldStatus')
+                                    else:
+                                        # extract cloud or site
+                                        tmpItems = commentStr.split(':')
+                                        if tmpItems[0] == 'cloud':
+                                            tmpTaskSpec.cloud = tmpItems[1]
+                                        else:
+                                            tmpTaskSpec.site = tmpItems[1]
+                                        tmpMsg = 'set {0}={1}'.format(tmpItems[0],tmpItems[1])
+                                        tmpLog.sendMsg(tmpMsg,self.msgType)
+                                        tmpLog.info(tmpMsg)
+                                        # back to oldStatus if necessary 
+                                        if tmpItems[2] == 'y':
+                                            tmpTaskSpec.status = oldStatus
+                                            tmpTaskSpec.forceUpdate('oldStatus')
+                                            updateTaskStatus = False
+                                    if commandStr == 'reassign':
+                                        tmpTaskSpec.forceUpdate('errorDialog')
+                                    if updateTaskStatus:
+                                        tmpTaskSpec.status = JediTaskSpec.commandStatusMap()[commandStr]['done']
+                                    tmpMsg = 'set task.status={0}'.format(tmpTaskSpec.status)
+                                    tmpLog.sendMsg(tmpMsg,self.msgType)
+                                    tmpLog.info(tmpMsg)
+                                    tmpRet = self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':jediTaskID})
+                                    tmpLog.info('done with {0}'.format(str(tmpRet)))
+                                    break
+                                else:
+                                    # kill only in the first loop
+                                    if iLoop > 0:
+                                        break
+                                    # wait or kill jobs 
+                                    if 'soft finish' in commentStr:
+                                        tmpMsg = "wating {0} jobs for soft finish".format(len(pandaIDs))
+                                        tmpLog.info(tmpMsg)
+                                        tmpRet = True
+                                        tmpLog.info('done with {0}'.format(str(tmpRet)))
+                                        break
+                                    else:
+                                        tmpMsg = "trying to kill {0} jobs".format(len(pandaIDs))
+                                        tmpLog.info(tmpMsg)
+                                        tmpLog.sendMsg(tmpMsg,self.msgType)
+                                        if commandStr in ['reassign','finish']:
+                                            # force kill
+                                            tmpRet = self.taskBufferIF.killJobs(pandaIDs,commentStr,'52',True)
+                                        else:
+                                            # normal kill
+                                            tmpRet = self.taskBufferIF.killJobs(pandaIDs,commentStr,'50',True)
+                                        tmpLog.info('done with {0}'.format(str(tmpRet)))
                     elif commandStr in ['retry','incexec']:
                         tmpMsg = 'executing {0}'.format(commandStr)
                         tmpLog.sendMsg(tmpMsg,self.msgType)

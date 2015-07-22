@@ -11,6 +11,7 @@ from pandajedi.jedicore import JediException
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediFileSpec import JediFileSpec
+from pandaserver.taskbuffer import EventServiceUtils
 
 
 
@@ -96,6 +97,8 @@ class TaskRefinerBase (object):
             taskSpec.walltime = taskParamMap['walltime']
         else:
             taskSpec.walltime = 0
+        if taskParamMap.has_key('walltimeUnit'):
+            taskSpec.walltimeUnit = taskParamMap['walltimeUnit']
         if taskParamMap.has_key('outDiskCount'):
             taskSpec.outDiskCount = taskParamMap['outDiskCount']
         else:
@@ -104,10 +107,27 @@ class TaskRefinerBase (object):
             taskSpec.workDiskCount = taskParamMap['workDiskCount']
         else:
             taskSpec.workDiskCount = 0
+        if taskParamMap.has_key('workDiskUnit'):
+            taskSpec.workDiskUnit = taskParamMap['workDiskUnit']
         if taskParamMap.has_key('ramCount'):
             taskSpec.ramCount = taskParamMap['ramCount']
         else:
             taskSpec.ramCount = 0
+        # HS06 stuff
+        if 'cpuTimeUnit' in taskParamMap:
+            taskSpec.cpuTimeUnit = taskParamMap['cpuTimeUnit']
+        if 'cpuTime' in taskParamMap:
+            taskSpec.cpuTime = taskParamMap['cpuTime']
+        if 'cpuEfficiency' in taskParamMap:
+            taskSpec.cpuEfficiency = taskParamMap['cpuEfficiency']
+        else:
+            # 90% of cpu efficiency by default
+            taskSpec.cpuEfficiency = 90
+        if 'baseWalltime' in taskParamMap:
+            taskSpec.baseWalltime = taskParamMap['baseWalltime']
+        else:
+            # 10min of offset by default
+            taskSpec.baseWalltime = 10*60
         # for merge
         if 'mergeRamCount' in taskParamMap:
             taskSpec.mergeRamCount = taskParamMap['mergeRamCount']
@@ -137,6 +157,14 @@ class TaskRefinerBase (object):
             taskSpec.eventService = 1
         else:
             taskSpec.eventService = 0
+        # goal
+        if 'goal' in taskParamMap:
+            try:
+                taskSpec.goal = int(float(taskParamMap['goal'])*10)
+                if taskSpec.goal >= 1000:
+                    taskSpec.goal = None
+            except:
+                pass
         # campaign
         if taskParamMap.has_key('campaign'):
             taskSpec.campaign = taskParamMap['campaign']
@@ -145,7 +173,8 @@ class TaskRefinerBase (object):
                                                                  taskSpec.prodSourceLabel,
                                                                  processingType=taskSpec.processingType,
                                                                  workingGroup=taskSpec.workingGroup,
-                                                                 coreCount=taskSpec.coreCount)
+                                                                 coreCount=taskSpec.coreCount,
+                                                                 site=taskSpec.site)
         if workQueue == None:
             errStr  = 'workqueue is undefined for vo={0} labal={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
             errStr += 'processingType={0} workingGroup={1} coreCount={2} '.format(taskSpec.processingType,
@@ -155,6 +184,10 @@ class TaskRefinerBase (object):
         taskSpec.workQueue_ID = workQueue.queue_id
         self.taskSpec = taskSpec
         # set split rule    
+        if 'tgtNumEventsPerJob' in taskParamMap:
+            # set nEventsPerJob not respect file boundaries when nFilesPerJob is not used
+            if not 'nFilesPerJob' in taskParamMap:
+                self.setSplitRule(None,taskParamMap['tgtNumEventsPerJob'],JediTaskSpec.splitRuleToken['nEventsPerJob'])
         self.setSplitRule(taskParamMap,'nFilesPerJob',     JediTaskSpec.splitRuleToken['nFilesPerJob'])
         self.setSplitRule(taskParamMap,'nEventsPerJob',    JediTaskSpec.splitRuleToken['nEventsPerJob'])
         self.setSplitRule(taskParamMap,'nGBPerJob',        JediTaskSpec.splitRuleToken['nGBPerJob'])
@@ -168,6 +201,7 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'scoutSuccessRate', JediTaskSpec.splitRuleToken['scoutSuccessRate'])
         self.setSplitRule(taskParamMap,'t1Weight',         JediTaskSpec.splitRuleToken['t1Weight'])
         self.setSplitRule(taskParamMap,'maxAttemptES',     JediTaskSpec.splitRuleToken['maxAttemptES'])
+        self.setSplitRule(taskParamMap,'nSitesPerJob',     JediTaskSpec.splitRuleToken['nSitesPerJob'])
         self.setSplitRule(taskParamMap,'nEventsPerMergeJob',   JediTaskSpec.splitRuleToken['nEventsPerMergeJob'])
         self.setSplitRule(taskParamMap,'nFilesPerMergeJob',    JediTaskSpec.splitRuleToken['nFilesPerMergeJob'])
         self.setSplitRule(taskParamMap,'nGBPerMergeJob',       JediTaskSpec.splitRuleToken['nGBPerMergeJob'])
@@ -195,6 +229,13 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['useRealNumEvents'])
         if 'ipConnectivity' in taskParamMap:
             self.taskSpec.setIpConnectivity(taskParamMap['ipConnectivity'])
+        if 'runUntilClosed' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['runUntilClosed'])
+        if 'stayOutputOnSite' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['stayOutputOnSite'])
+        if 'useJobCloning' in taskParamMap:
+            scValue = EventServiceUtils.getJobCloningValue(taskParamMap['useJobCloning'])
+            self.setSplitRule(None,scValue,JediTaskSpec.splitRuleToken['useJobCloning'])
         # return
         return
     
@@ -263,6 +304,8 @@ class TaskRefinerBase (object):
                     datasetSpec.setNumFilesPerJob(tmpItem['nFilesPerJob'])
                 if tmpItem.has_key('num_records'):
                     datasetSpec.setNumRecords(tmpItem['num_records'])
+                if 'transient' in tmpItem:
+                    datasetSpec.setTransient(tmpItem['transient'])
                 datasetSpec.vo = self.taskSpec.vo
                 datasetSpec.nFiles = 0
                 datasetSpec.nFilesUsed = 0

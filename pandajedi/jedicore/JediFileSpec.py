@@ -204,6 +204,17 @@ class JediFileSpec(object):
         if self.startEvent == None:
             return False
         return True
-        
 
+
+
+    # get effective number of events
+    def getEffectiveNumEvents(self):
+        if self.endEvent != None and self.startEvent != None:
+            evtCounts = self.endEvent-self.startEvent+1
+            if evtCounts > 0:
+                return evtCounts
+            return 1
+        if self.nEvents != None and self.nEvents > 0:
+            return self.nEvents
+        return 1
                        

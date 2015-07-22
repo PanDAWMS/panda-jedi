@@ -76,7 +76,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                    nMaxFiles,nMaxEvents,useScout,fileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,
                                    excludePatt,xmlConfig,noWaitParent,parent_tid,pid,maxFailure,
-                                   useRealNumEvents,respectLB):
+                                   useRealNumEvents,respectLB,tgtNumEventsPerJob):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -87,7 +87,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   nFilesPerJob,nEventsPerRange,nChunksForScout,
                                                   includePatt,excludePatt,xmlConfig,
                                                   noWaitParent,parent_tid,pid,maxFailure,
-                                                  useRealNumEvents,respectLB)
+                                                  useRealNumEvents,respectLB,
+                                                  tgtNumEventsPerJob)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -389,13 +390,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     # generate output files for task
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None,
                             isUnMerging=False,isPrePro=False,xmlConfigJob=None,siteDsMap=None,middleName='',
-                            registerDatasets=False):
+                            registerDatasets=False,parallelOutMap=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,
                                            isUnMerging,isPrePro,xmlConfigJob,siteDsMap,middleName,
-                                           registerDatasets)
+                                           registerDatasets,parallelOutMap)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -697,6 +698,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # get the list of queued PandaIDs for a task
+    def getQueuedPandaIDsWithTask_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # get jediTaskID/datasetID/FileID with dataset and file names
     def getIDsWithFileDataset_JEDI(self,datasetName,fileName,fileType):
         # get DBproxy
@@ -750,11 +764,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # reactivate pending tasks
-    def reactivatePendingTasks_JEDI(self,vo,prodSourceLabel,timeLimit,timeoutLimit=None):
+    def reactivatePendingTasks_JEDI(self,vo,prodSourceLabel,timeLimit,timeoutLimit=None,minPriority=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.reactivatePendingTasks_JEDI(vo,prodSourceLabel,timeLimit,timeoutLimit)
+        retVal = proxy.reactivatePendingTasks_JEDI(vo,prodSourceLabel,timeLimit,timeoutLimit,minPriority)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -974,6 +988,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # get task status 
+    def getTaskStatus_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getTaskStatus_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # get lib.tgz for waiting jobs
     def getLibForWaitingRunJob_JEDI(self,vo,prodSourceLabel,checkInterval):
         # get DBproxy
@@ -1010,6 +1037,20 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # kick child tasks
+    def kickChildTasks_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.kickChildTasks_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
 
 
 
@@ -1097,6 +1138,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.unlockProcess_JEDI(vo,prodSourceLabel,cloud,workqueue_id,pid)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get JEDI tasks to be assessed
+    def getAchievedTasks_JEDI(self,vo,prodSourceLabel,timeLimit=60,nTasks=50):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getAchievedTasks_JEDI(vo,prodSourceLabel,timeLimit,nTasks)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

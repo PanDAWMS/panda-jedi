@@ -175,8 +175,8 @@ class ContentsFeederThread (WorkerThread):
                                 else:
                                     # dummy metadata for pseudo dataset
                                     tmpMetadata = {'state':'closed'}
-                                # set mutable when parent is running and the dataset is open
-                                if noWaitParent and \
+                                # set mutable when and the dataset is open and parent is running or task is configured to run until the dataset is closed 
+                                if (noWaitParent or taskSpec.runUntilClosed()) and \
                                         (tmpMetadata['state'] == 'open' \
                                              or datasetSpec.datasetName in parentOutDatasets \
                                              or datasetSpec.datasetName.split(':')[-1] in parentOutDatasets):
@@ -321,6 +321,7 @@ class ContentsFeederThread (WorkerThread):
                                     nEventsPerFile  = None
                                     nEventsPerJob   = None
                                     nEventsPerRange = None
+                                    tgtNumEventsPerJob = None
                                     if (datasetSpec.isMaster() and (taskParamMap.has_key('nEventsPerFile') or useRealNumEvents)) or \
                                             (datasetSpec.isPseudo() and taskParamMap.has_key('nEvents') and not datasetSpec.isSeqNumber()):
                                         if taskParamMap.has_key('nEventsPerFile'):
@@ -332,6 +333,10 @@ class ContentsFeederThread (WorkerThread):
                                             nEventsPerJob = taskParamMap['nEventsPerJob']
                                         elif taskParamMap.has_key('nEventsPerRange'):
                                             nEventsPerRange = taskParamMap['nEventsPerRange']
+                                        if 'tgtNumEventsPerJob' in taskParamMap:
+                                            tgtNumEventsPerJob = taskParamMap['tgtNumEventsPerJob']
+                                            # reset nEventsPerJob
+                                            nEventsPerJob = None
                                     # max attempts
                                     maxAttempt = None
                                     maxFailure = None
@@ -408,7 +413,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               self.pid,
                                                                                                                               maxFailure,
                                                                                                                               useRealNumEvents,
-                                                                                                                              respectLB)
+                                                                                                                              respectLB,
+                                                                                                                              tgtNumEventsPerJob)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))
@@ -447,7 +453,8 @@ class ContentsFeederThread (WorkerThread):
                                     # no activated pending input for noWait
                                     if noWaitParent and diagMap['nActivatedPending'] == 0 and not (useScout and nChunksForScout == 0) \
                                             and tmpMetadata['state'] != 'closed' and datasetSpec.isMaster():
-                                        tmpErrStr = 'insufficient inputs are ready'
+                                        tmpErrStr = 'insufficient inputs are ready. '
+                                        tmpErrStr += diagMap['errMsg']
                                         tmpLog.info(tmpErrStr)
                                         taskSpec.setErrDiag(tmpErrStr)
                                         taskOnHold = True
