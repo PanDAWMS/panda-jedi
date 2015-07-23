@@ -2795,7 +2795,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         datasetIDs = [datasetID]
                         taskSpec = copy.copy(origTaskSpec)
                         # make InputChunk
-                        inputChunk = InputChunk(taskSpec)
+                        inputChunk = InputChunk(taskSpec, ramCount=memReq)
                         # merging
                         if datasetType in JediDatasetSpec.getMergeProcessTypes():
                             inputChunk.isMerging = True

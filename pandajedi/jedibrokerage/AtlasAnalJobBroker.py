@@ -307,7 +307,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for memory
-        minRamCount  = taskSpec.ramCount
+        minRamCount  = max(taskSpec.ramCount, inputChunk.ramCount)
         if not minRamCount in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
