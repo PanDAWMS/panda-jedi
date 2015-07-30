@@ -1,7 +1,10 @@
 Release Notes
 
+* 7/30/2015
+  * changed AtlasPJB to avoid inactive sites for job.prio>=900
+
 * 7/16/2015
-  * changed AtlasPJB to avoid slow sites for job.prio>900
+  * changed AtlasPJB to avoid slow sites for job.prio>=900
 
 * 7/14/2015
   * sending scouts to sites where walltime is more than 24h

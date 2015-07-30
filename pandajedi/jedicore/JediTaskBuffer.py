@@ -1155,3 +1155,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get inactive sites
+    def getInactiveSites_JEDI(self,flag,timeLimit):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getInactiveSites_JEDI(flag,timeLimit)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

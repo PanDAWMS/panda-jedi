@@ -155,7 +155,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for high priorities
         t1WeightForHighPrio = 1
-        if (taskSpec.currentPriority > 900 or inputChunk.useScout()) \
+        if (taskSpec.currentPriority >= 900 or inputChunk.useScout()) \
                 and not sitePreAssigned and not siteListPreAssigned:
             t1WeightForHighPrio = 100
             newScanSiteList = []
@@ -175,10 +175,13 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
-        # selection to avoid slow sites
-        if (taskSpec.currentPriority > 900 or inputChunk.useScout() or \
+        # selection to avoid slow or inactive sites
+        if (taskSpec.currentPriority >= 900 or inputChunk.useScout() or \
                 inputChunk.isMerging or taskSpec.mergeOutput()) \
                 and not sitePreAssigned:
+            # get inactive sites
+            inactiveTimeLimit = 2
+            inactiveSites = self.taskBufferIF.getInactiveSites_JEDI('production',inactiveTimeLimit)
             newScanSiteList = []
             tmpMsgList = []
             for tmpSiteName in scanSiteList:
@@ -186,13 +189,18 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid slow sites '.format(tmpSiteName)
                     tmpMsg += 'criteria=-slow'
                     tmpMsgList.append(tmpMsg)
+                elif tmpSiteName in inactiveSites:
+                    tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid inactive sites (laststart is older than {1}h '.format(tmpSiteName,
+                                                                                                                                                inactiveTimeLimit)
+                    tmpMsg += 'criteria=-inactive'
+                    tmpMsgList.append(tmpMsg)
                 else:
                     newScanSiteList.append(tmpSiteName)
             if newScanSiteList != []:
                 scanSiteList = newScanSiteList
                 for tmpMsg in tmpMsgList:
                     tmpLog.debug(tmpMsg)
-            tmpLog.debug('{0} candidates passed for slowness'.format(len(scanSiteList)))
+            tmpLog.debug('{0} candidates passed for slowness/inactive check'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
