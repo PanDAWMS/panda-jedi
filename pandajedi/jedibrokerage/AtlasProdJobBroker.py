@@ -185,12 +185,13 @@ class AtlasProdJobBroker (JobBrokerBase):
             newScanSiteList = []
             tmpMsgList = []
             for tmpSiteName in scanSiteList:
-                nActivatedAll = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'activated')
+                nToGetAll = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'activated') + \
+                    AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'starting')
                 if tmpSiteName in ['BNL_CLOUD','BNL_CLOUD_MCORE','ATLAS_OPP_OSG','RRC-KI-T1_MCORE','RRC-KI-T1']:
                     tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid slow sites '.format(tmpSiteName)
                     tmpMsg += 'criteria=-slow'
                     tmpMsgList.append(tmpMsg)
-                elif tmpSiteName in inactiveSites and nActivatedAll > 0:
+                elif tmpSiteName in inactiveSites and nToGetAll > 0:
                     tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid inactive sites (laststart is older than {1}h) '.format(tmpSiteName,
                                                                                                                                                  inactiveTimeLimit)
                     tmpMsg += 'criteria=-inactive'
