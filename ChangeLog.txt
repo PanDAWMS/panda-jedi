@@ -1,6 +1,9 @@
 Release Notes
 
 * 7/30/2015
+  * fixed AtlasPJB to check inactive sites with nActivated>0
+
+* 7/30/2015
   * changed AtlasPJB to avoid inactive sites for job.prio>=900
 
 * 7/16/2015
