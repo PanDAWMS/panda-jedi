@@ -144,7 +144,7 @@ class PostProcessorBase (object):
 
 
     # get final task status
-    def getFinalTaskStatus(self,taskSpec):
+    def getFinalTaskStatus(self,taskSpec,checkParent=True):
         # count nFiles
         nFiles = 0
         nFilesFinished = 0
@@ -158,7 +158,7 @@ class PostProcessorBase (object):
             status = 'aborted'
         elif nFiles == nFilesFinished and nFiles > 0:
             # check parent status
-            if not taskSpec.parent_tid in [None,taskSpec.jediTaskID] and \
+            if checkParent and not taskSpec.parent_tid in [None,taskSpec.jediTaskID] and \
                     self.taskBufferIF.getTaskStatus_JEDI(taskSpec.parent_tid) != 'done':
                 status = 'finished'
             else:
@@ -175,7 +175,8 @@ class PostProcessorBase (object):
     def doPreCheck(self,taskSpec,tmpLog):
         # send task to exhausted
         if taskSpec.useExhausted() and not taskSpec.status in ['passed'] \
-                and self.getFinalTaskStatus(taskSpec) in ['finished']:
+                and self.getFinalTaskStatus(taskSpec) in ['finished'] \
+                and not self.getFinalTaskStatus(taskSpec,checkParent=False) in ['done']:
             taskSpec.status = 'exhausted'
             taskSpec.lockedBy = None
             taskSpec.lockedTime = None
