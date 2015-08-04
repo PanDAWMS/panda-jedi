@@ -452,9 +452,18 @@ class AtlasDDMClient(DDMClientBase):
                                 # loop over possible endpoint clouds associated to the site
                                 for tmpCheckCloud in cloudLocCheckSrc[siteName]:
                                     # use only cloud matching to the endpoint
-                                    if tmpCheckCloud == self.getCloudForEndPoint(tmpEndPoint) \
-                                            and tmpCheckCloud in cloudLocCheckDst:
-                                        for dstSiteName in cloudLocCheckDst[tmpCheckCloud]:
+                                    if tmpCheckCloud == self.getCloudForEndPoint(tmpEndPoint):
+                                        dstSiteNameList = set()
+                                        # sites using cloud locality check
+                                        if tmpCheckCloud in cloudLocCheckDst:
+                                            dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst[tmpCheckCloud])
+                                        # catchall
+                                        if 'ANY' in cloudLocCheckDst:
+                                            dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst['ANY'])
+                                        # skip if no sites
+                                        if len(dstSiteNameList) == 0:
+                                            continue
+                                        for dstSiteName in dstSiteNameList:
                                             if not dstSiteName in checkedDst:
                                                 returnMap[dstSiteName][storageType] += datasetSpec.Files
                                                 checkedDst.add(dstSiteName)
@@ -481,10 +490,19 @@ class AtlasDDMClient(DDMClientBase):
                                 if siteName in cloudLocCheckSrc:
                                     # loop over possible endpoint clouds associated to the site
                                     for tmpCheckCloud in cloudLocCheckSrc[siteName]:
-                                    # use only cloud matching to the endpoint
-                                        if tmpCheckCloud == self.getCloudForEndPoint(tmpEndPoint) \
-                                                and tmpCheckCloud in cloudLocCheckDst:
-                                            for dstSiteName in cloudLocCheckDst[tmpCheckCloud]:
+                                        # use only cloud matching to the endpoint
+                                        if tmpCheckCloud == self.getCloudForEndPoint(tmpEndPoint):
+                                            dstSiteNameList = set()
+                                            # sites using cloud locality check
+                                            if tmpCheckCloud in cloudLocCheckDst:
+                                                dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst[tmpCheckCloud])
+                                            # catchall
+                                            if 'ANY' in cloudLocCheckDst:
+                                                dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst['ANY'])
+                                            # skip if no sites
+                                            if len(dstSiteNameList) == 0:
+                                                continue
+                                            for dstSiteName in dstSiteNameList:
                                                 if not dstSiteName in checkedDst:
                                                     returnMap[dstSiteName][storageType] += tmpFileSpecList
                                                     checkedDst.add(dstSiteName)

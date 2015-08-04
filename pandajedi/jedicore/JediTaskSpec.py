@@ -44,6 +44,7 @@ class JediTaskSpec(object):
         'disableAutoRetry'   : 'DR',
         'nEsConsumers'       : 'EC',
         'nEventsPerWorker'   : 'ES',
+        'failGoalUnreached'  : 'FG',
         'firstEvent'         : 'FT',
         'groupBoundaryID'    : 'GB',
         'instantiateTmplSite': 'IA',
@@ -1077,6 +1078,16 @@ class JediTaskSpec(object):
     def stayOutputOnSite(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['stayOutputOnSite']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # fail when goal unreached
+    def failGoalUnreached(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['failGoalUnreached']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

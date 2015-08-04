@@ -145,13 +145,26 @@ class PostProcessorBase (object):
 
     # get final task status
     def getFinalTaskStatus(self,taskSpec,checkParent=True):
-        # count nFiles
+        # count nFiles and nEvents
         nFiles = 0
         nFilesFinished = 0
+        totalInputEvents = 0
+        totalOutputEvents = 0
+        firstOutput = True
         for datasetSpec in taskSpec.datasetSpecList:
             if datasetSpec.isMasterInput():
                 nFiles += datasetSpec.nFiles
                 nFilesFinished += datasetSpec.nFilesFinished
+                try:
+                    totalInputEvents += datasetSpec.nEvents
+                except:
+                    pass
+            elif firstOutput and datasetSpec.type == 'output':
+                firstOutput = False
+                try:
+                    totalOutputEvents += datasetSpec.nEvents
+                except:
+                    pass
         if taskSpec.status == 'tobroken':
             status = 'broken'
         elif taskSpec.status == 'toabort':
@@ -167,6 +180,15 @@ class PostProcessorBase (object):
             status = 'failed'
         else:
             status = 'finished'
+        # check if goal is reached
+        if taskSpec.failGoalUnreached() and status == 'finished' and taskSpec.goal != None and \
+                (not taskSpec.useExhausted() or (taskSpec.useExhausted() and taskSpec.status in ['passed'])):
+            if totalInputEvents != 0:
+                if float(totalOutputEvents)/float(totalInputEvents)*1000.0 < taskSpec.goal:
+                    status = 'failed'
+            elif nFiles != 0:
+                if float(nFilesFinished)/float(nFiles)*1000.0 < taskSpec.goal:
+                    status = 'failed'
         return status
 
 
