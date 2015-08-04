@@ -1,5 +1,8 @@
 Release Notes
 
+* 8/4/2015
+  * changed locCheck to cloudLocCheck
+
 * 8/3/2015
   * changed PP so that child tasks immediately go to finished w/o exhausted when all inputs are successful
   * added cloud locality check

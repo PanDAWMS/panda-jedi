@@ -744,14 +744,14 @@ class AtlasProdJobBroker (JobBrokerBase):
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
             weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 1) / manyAssigned
-            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} tSize={5} manyAss={6} nPilot={7} '.format(nRunning,nActivated,nAssigned,
-                                                                                                                  nStarting,nDefined,
-                                                                                                                  totalSize,manyAssigned,
-                                                                                                                  nPilot)
+            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} totalSize={5} manyAss={6} nPilot={7} '.format(nRunning,nActivated,nAssigned,
+                                                                                                                      nStarting,nDefined,
+                                                                                                                      totalSize,manyAssigned,
+                                                                                                                      nPilot)
             # normalize weights by taking data availability into account
             if totalSize != 0:
                 weight = weight * float(normalizeFactors[tmpSiteName]+totalSize) / float(totalSize)
-                weightStr += 'norm={0} '.format(normalizeFactors[tmpSiteName])
+                weightStr += 'availableSize={0} '.format(normalizeFactors[tmpSiteName])
             # T1 weight
             if tmpSiteName in t1Sites+sitesShareSeT1:
                 weight *= t1Weight

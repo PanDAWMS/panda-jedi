@@ -318,13 +318,11 @@ class AtlasDDMClient(DDMClientBase):
                 tmpSiteSpec = siteMapper.getSite(siteName)
                 siteHasCompleteReplica = False
                 # cloud locality check 
-                tmpCloudLocalityCheck = tmpSiteSpec.getValueFromCatchall('locCheck')
-                if tmpCloudLocalityCheck != None:
-                    tmpCheckClouds = tmpCloudLocalityCheck.split('|')
-                    for tmpCheckCloud in tmpCheckClouds:
-                        if not tmpCheckCloud in cloudLocCheckDst:
-                            cloudLocCheckDst[tmpCheckCloud] = set()
-                        cloudLocCheckDst[tmpCheckCloud].add(siteName) 
+                if tmpSiteSpec.hasValueInCatchall('cloudLocCheck'):
+                    tmpCheckCloud = tmpSiteSpec.cloud
+                    if not tmpCheckCloud in cloudLocCheckDst:
+                        cloudLocCheckDst[tmpCheckCloud] = set()
+                    cloudLocCheckDst[tmpCheckCloud].add(siteName) 
                 # loop over all endpoints
                 for tmpEndPoint in allEndPointList:
                     # cloud locality check
@@ -447,6 +445,7 @@ class AtlasDDMClient(DDMClientBase):
                         if completeReplicaMap.has_key(tmpEndPoint):
                             storageType = completeReplicaMap[tmpEndPoint]
                             returnMap[siteName][storageType] += datasetSpec.Files
+                            checkedDst.add(siteName)
                             # add for cloud locality check
                             if siteName in cloudLocCheckSrc:
                                 # loop over possible endpoint clouds associated to the site
@@ -457,9 +456,6 @@ class AtlasDDMClient(DDMClientBase):
                                         # sites using cloud locality check
                                         if tmpCheckCloud in cloudLocCheckDst:
                                             dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst[tmpCheckCloud])
-                                        # catchall
-                                        if 'ANY' in cloudLocCheckDst:
-                                            dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst['ANY'])
                                         # skip if no sites
                                         if len(dstSiteNameList) == 0:
                                             continue
@@ -470,7 +466,6 @@ class AtlasDDMClient(DDMClientBase):
             # loop over all available LFNs
             avaLFNs = surlMap.keys()
             avaLFNs.sort()
-            checkedDst = set()
             for tmpLFN in avaLFNs:
                 tmpFileSpecList = lfnFileSpecMap[tmpLFN]
                 tmpFileSpec = tmpFileSpecList[0]
@@ -486,6 +481,7 @@ class AtlasDDMClient(DDMClientBase):
                                 tmpEndPoint = tmpSiteDict['endPoint']
                                 if not tmpFileSpec in returnMap[siteName][storageType]:
                                     returnMap[siteName][storageType] += tmpFileSpecList
+                                checkedDst.add(siteName)
                                 # add for cloud locality check
                                 if siteName in cloudLocCheckSrc:
                                     # loop over possible endpoint clouds associated to the site
@@ -496,16 +492,13 @@ class AtlasDDMClient(DDMClientBase):
                                             # sites using cloud locality check
                                             if tmpCheckCloud in cloudLocCheckDst:
                                                 dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst[tmpCheckCloud])
-                                            # catchall
-                                            if 'ANY' in cloudLocCheckDst:
-                                                dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst['ANY'])
                                             # skip if no sites
                                             if len(dstSiteNameList) == 0:
                                                 continue
                                             for dstSiteName in dstSiteNameList:
                                                 if not dstSiteName in checkedDst:
-                                                    returnMap[dstSiteName][storageType] += tmpFileSpecList
-                                                    checkedDst.add(dstSiteName)
+                                                    if not tmpFileSpec in returnMap[dstSiteName][storageType]:
+                                                        returnMap[dstSiteName][storageType] += tmpFileSpecList
                             break
             # dump
             dumpStr = ''
