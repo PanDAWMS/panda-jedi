@@ -464,18 +464,24 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
             minWalltime = taskSpec.cpuTime * tmpMaxAtomSize
             strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.cpuTime,tmpMaxAtomSize)
-        if not minWalltime in [0,None] or inputChunk.useScout():
+        if minWalltime != None or inputChunk.useScout():
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 siteMaxTime = tmpSiteSpec.maxtime
                 origSiteMaxTime = siteMaxTime
-                # sending scouts to only sites where walltime is more than 1day
-                if inputChunk.useScout():
-                    if siteMaxTime != 0 and siteMaxTime < 24*60*60:
-                        tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient for scouts (1 day at least) '.format(tmpSiteName,
-                                                                                                                                                siteMaxTime)
-                        tmpMsg += 'criteria=-scoutwalltime'
+                # sending scouts or wallime-undefined jobs to only sites where walltime is more than 1 day
+                if inputChunk.useScout() or (taskSpec.walltime in [0,None] and taskSpec.cpuTime in [0,None]):
+                    minTimeForZeroWalltime = 24*60*60
+                    if siteMaxTime != 0 and siteMaxTime < minTimeForZeroWalltime:
+                        tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient '.format(tmpSiteName,
+                                                                                                                    siteMaxTime)
+                        if inputChunk.useScout():
+                            tmpMsg += 'for scouts ({0} at least) '.format(minTimeForZeroWalltime)
+                            tmpMsg += 'criteria=-scoutwalltime'
+                        else:
+                            tmpMsg += 'for zero walltime ({0} at least) '.format(minTimeForZeroWalltime)
+                            tmpMsg += 'criteria=-zerowalltime'
                         tmpLog.debug(tmpMsg)
                         continue
                 # check max walltime at the site

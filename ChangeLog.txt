@@ -1,5 +1,8 @@
 Release Notes
 
+* 8/5/2015
+  * changed PJB for zero-walltime to avoid short queues
+
 * 8/4/2015
   * changed locCheck to cloudLocCheck
 
