@@ -1,5 +1,8 @@
 Release Notes
 
+* 8/6/2015
+  * added a mechanism so that a single task can generate both ES and normal jobs
+
 * 8/5/2015
   * changed PJB for zero-walltime to avoid short queues
 

@@ -575,7 +575,6 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for event service
         if not sitePreAssigned:
-            jobseed = taskSpec.useEventService()
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)

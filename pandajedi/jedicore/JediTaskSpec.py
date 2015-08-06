@@ -66,6 +66,7 @@ class JediTaskSpec(object):
         'respectLB'          : 'RL',
         'reuseSecOnDemand'   : 'RO',
         'randomSeed'         : 'RS',
+        'switchEStoNormal'   : 'SE',
         'stayOutputOnSite'   : 'SO',
         'scoutSuccessRate'   : 'SS',
         't1Weight'           : 'TW',
@@ -490,8 +491,11 @@ class JediTaskSpec(object):
 
 
     # use Event Service
-    def useEventService(self):
+    def useEventService(self,siteSpec=None):
         if self.eventService == 1:
+            # check site if ES is disabled
+            if self.switchEStoNormal() and siteSpec != None and siteSpec.getJobSeed() in ['all']:
+                return False
             return True
         return False
 
@@ -1088,6 +1092,16 @@ class JediTaskSpec(object):
     def failGoalUnreached(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['failGoalUnreached']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # switch ES to normal when jobs land at normal sites
+    def switchEStoNormal(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['switchEStoNormal']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

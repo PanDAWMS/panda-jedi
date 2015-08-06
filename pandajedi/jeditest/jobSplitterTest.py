@@ -66,12 +66,6 @@ for dummyID,tmpList in tmpListList:
             tmpStat,taskParamMap = gen.readTaskParams(taskSpec,taskParamMap,tmpLog)
 
         tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,taskParamMap)
-
         tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
-
         tmpStat,pandaJobs,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog,True)
-        if taskSpec.useEventService():
-            pandaJobs = gen.increaseEventServiceConsumers(pandaJobs,taskSpec.getNumEventServiceConsumer(),
-                                                          taskSpec.getNumSitesPerJob(),
-                                                          parallelOutMap,outDsMap)
 
