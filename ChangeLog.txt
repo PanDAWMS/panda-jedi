@@ -1,5 +1,8 @@
 Release Notes
 
+* 8/11/2015
+  * removed RRC-KI-T1 from slow site list
+
 * 8/6/2015
   * added a mechanism so that a single task can generate both ES and normal jobs
 
