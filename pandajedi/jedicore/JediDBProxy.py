@@ -2577,8 +2577,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.conn.begin()
                 self.cur.arraysize = 1000000
                 # select
-                tmpLog.debug(sql+comment+str(varMap))
-                self.cur.execute(sql+comment, varMap)
+                tmpLog.debug(sqlRM+comment+str(varMap))
+                self.cur.execute(sqlRM+comment, varMap)
                 memReqs = self.cur.fetchall()
                 # commit
                 if not self._commit():
