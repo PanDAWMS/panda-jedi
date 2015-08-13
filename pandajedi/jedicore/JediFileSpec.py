@@ -16,7 +16,7 @@ class JediFileSpec(object):
                    'startEvent','endEvent','firstEvent','boundaryID','PandaID',
                    'failedAttempt','lumiBlockNr','outPandaID','maxFailure', 'ramCount')
     # attributes which have 0 by default
-    _zeroAttrs = ('fsize','attemptNr','failedAttempt')
+    _zeroAttrs = ('fsize','attemptNr','failedAttempt','ramCount')
     # mapping between sequence and attr
     _seqAttrMap = {'fileID':'ATLAS_PANDA.JEDI_DATASET_CONT_FILEID_SEQ.nextval'}
 
