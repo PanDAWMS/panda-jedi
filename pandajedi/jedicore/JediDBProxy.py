@@ -434,7 +434,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.failedAttempt = 0
                 fileSpec.maxAttempt = maxAttempt
                 fileSpec.maxFailure = maxFailure
-                fileSpec.maxFailure = ramCount
+                fileSpec.ramCount = ramCount
                 if nEventsPerFile != None:
                     fileSpec.nEvents = nEventsPerFile
                 elif fileVal.has_key('events') and not fileVal['events'] in ['None',None]:
