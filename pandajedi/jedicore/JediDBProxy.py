@@ -263,7 +263,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
                                    xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents,
-                                   respectLB,tgtNumEventsPerJob):
+                                   respectLB,tgtNumEventsPerJob,ramCount):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -284,7 +284,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('xmlConfig={0} noWaitParent={1} parent_tid={2}'.format(type(xmlConfig),noWaitParent,parent_tid))
         tmpLog.debug('len(fileMap)={0} pid={1}'.format(len(fileMap),pid))
         tmpLog.debug('datasetState={0} dataset.state={1}'.format(datasetState,datasetSpec.state))
-        tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1}'.format(respectLB,tgtNumEventsPerJob))
+        tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1} ramCount={2}'.format(respectLB,tgtNumEventsPerJob,ramCount))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -434,6 +434,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.failedAttempt = 0
                 fileSpec.maxAttempt = maxAttempt
                 fileSpec.maxFailure = maxFailure
+                fileSpec.maxFailure = ramCount
                 if nEventsPerFile != None:
                     fileSpec.nEvents = nEventsPerFile
                 elif fileVal.has_key('events') and not fileVal['events'] in ['None',None]:
@@ -2579,7 +2580,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # select
                 tmpLog.debug(sqlRM+comment+str(varMap))
                 self.cur.execute(sqlRM+comment, varMap)
-                memReqs = self.cur.fetchall()
+                memReqs = self.cur.fetchall()[0]
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
@@ -2643,7 +2644,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not fullSimulation:
                 sqlFR += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
                 sqlFR += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
-                sqlFR += "AND ramCount=:ramCount "
+                sqlFR += "AND ramCount %s"
             sqlFR += "ORDER BY {0}) "
             sqlFR += "WHERE rownum <= {1}"
             # sql to update file status

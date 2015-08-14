@@ -388,6 +388,10 @@ class ContentsFeederThread (WorkerThread):
                                     useFilesWithNewAttemptNr = False
                                     if not datasetSpec.isPseudo() and fileList != [] and taskParamMap.has_key('useInFilesWithNewAttemptNr'):
                                         useFilesWithNewAttemptNr = True
+                                    #ramCount
+                                    ramCount = 0
+                                    if taskParamMap.has_key('ramCount'):
+                                        ramCount = taskParamMap['ramCount']
                                     # feed files to the contents table
                                     tmpLog.info('update contents')
                                     retDB,missingFileList,nFilesUnique,diagMap = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
@@ -414,7 +418,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               maxFailure,
                                                                                                                               useRealNumEvents,
                                                                                                                               respectLB,
-                                                                                                                              tgtNumEventsPerJob)
+                                                                                                                              tgtNumEventsPerJob,
+                                                                                                                              ramCount)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))
