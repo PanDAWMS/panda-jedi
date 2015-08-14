@@ -2644,7 +2644,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not fullSimulation:
                 sqlFR += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
                 sqlFR += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
-                sqlFR += "AND ramCount=:ramCount"
+                sqlFR += "AND ramCount=:ramCount "
             sqlFR += "ORDER BY {0}) "
             sqlFR += "WHERE rownum <= {1}"
             # sql to update file status
