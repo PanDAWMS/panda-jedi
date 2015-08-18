@@ -2955,7 +2955,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     orderBy = 'boundaryID'
                                 # read files to make FileSpec
                                 iFiles = 0
-                                for iDup in range(3): # avoid infinite loop just in case
+                                for iDup in range(100): # avoid infinite loop just in case
                                     varMap = {}
                                     varMap[':datasetID']  = datasetID
                                     varMap[':jediTaskID'] = jediTaskID

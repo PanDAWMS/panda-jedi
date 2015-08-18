@@ -1,5 +1,8 @@
 Release Notes
 
+* 8/18/2015
+  * increased the limit on how many times dataset is duplicated in a single cycle
+
 * 8/11/2015
   * removed RRC-KI-T1 from slow site list
 
