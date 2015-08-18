@@ -236,6 +236,10 @@ class TaskRefinerBase (object):
         if 'useJobCloning' in taskParamMap:
             scValue = EventServiceUtils.getJobCloningValue(taskParamMap['useJobCloning'])
             self.setSplitRule(None,scValue,JediTaskSpec.splitRuleToken['useJobCloning'])
+        if 'failWhenGoalUnreached' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['failGoalUnreached'])
+        if 'switchEStoNormal' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['switchEStoNormal'])
         # return
         return
     
@@ -455,7 +459,15 @@ class TaskRefinerBase (object):
                 # hidden parameter
                 if tmpItem.has_key('hidden') and tmpItem['hidden'] == True:
                     continue
+                # add tags for ES-only parameters
+                esOnly = False
+                if 'es_only' in tmpItem and tmpItem['es_only'] == True:
+                    esOnly = True
+                if esOnly:
+                    jobParameters += '<PANDA_ES_ONLY>'
                 jobParameters += '{0}'.format(tmpItem['value'])
+                if esOnly:
+                    jobParameters += '</PANDA_ES_ONLY>'
                 # padding
                 if tmpItem.has_key('padding') and tmpItem['padding'] == False:
                     pass
