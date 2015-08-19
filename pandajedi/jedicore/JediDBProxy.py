@@ -3043,7 +3043,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
                         else:
                             tmpLog.debug('escape due to toSkip for jediTaskID={0} datasetID={1}'.format(jediTaskID,primaryDatasetID)) 
-                            break
+                            continue
                         if iDsPerTask > nDsPerTask:
                             break
                         if maxNumJobs != None and maxNumJobs <= 0:
