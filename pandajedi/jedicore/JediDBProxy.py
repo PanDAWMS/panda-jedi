@@ -2582,6 +2582,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.debug(sqlRM+comment+str(varMap))
                 self.cur.execute(sqlRM+comment, varMap)
                 memReqs = self.cur.fetchall()[0]
+                tmpLog.debug("memory requirements for files in task %s are: %s"%(jediTaskID, memReqs)
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
