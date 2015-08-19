@@ -2560,6 +2560,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             #sql to read memory requirements of files in dataset
             sqlRM = """SELECT ramCount FROM {0}.JEDI_Dataset_Contents 
                        WHERE jediTaskID=:jediTaskID and datasetID=:datasetID
+                       AND type in ('input', 'pseudo_input')
                        GROUP BY ramCount""".format(jedi_config.db.schemaJEDI)
             
             # make return
