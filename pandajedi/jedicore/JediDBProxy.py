@@ -2581,7 +2581,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # select
                 tmpLog.debug(sqlRM+comment+str(varMap))
                 self.cur.execute(sqlRM+comment, varMap)
-                memReqs = self.cur.fetchall()[0]
+                memReqs = map (lambda req: req[0], self.cur.fetchall()) #Unpack resultset
                 tmpLog.debug("memory requirements for files in task %s are: %s"%(jediTaskID, memReqs))
                              
                 # commit
