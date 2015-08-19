@@ -497,11 +497,6 @@ class JobGeneratorThread (WorkerThread):
                                 tmpStat,pandaJobs,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap = self.doGenerate(taskSpec,cloudName,subChunks,
                                                                                                                           inputChunk,tmpLog,
                                                                                                                           taskParamMap=taskParamMap)
-                                # increase event service consumers
-                                if tmpStat == Interaction.SC_SUCCEEDED:
-                                    if taskSpec.useEventService() and not inputChunk.isMerging:
-                                        pandaJobs = self.increaseEventServiceConsumers(pandaJobs,taskSpec.getNumEventServiceConsumer(),
-                                                                                       taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap)
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
                                 tmpLog.error('generator crashed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -700,6 +695,7 @@ class JobGeneratorThread (WorkerThread):
                         if not tmpToRegisterItem in datasetToRegister:
                             datasetToRegister.append(tmpToRegisterItem)
                 # make normal jobs
+                tmpJobSpecList = []
                 for inSubChunk in inSubChunks:
                     subOldPandaIDs = []
                     jobSpec = JobSpec()
@@ -709,7 +705,7 @@ class JobGeneratorThread (WorkerThread):
                     if taskSpec.disableAutoRetry():
                         # disable server/pilot retry
                         jobSpec.maxAttempt   = -1
-                    elif taskSpec.useEventService() and not inputChunk.isMerging:
+                    elif taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
                         # set max attempt for event service
                         if taskSpec.getMaxAttemptES() == None:
                             jobSpec.maxAttempt = jobSpec.attemptNr + 3
@@ -787,7 +783,7 @@ class JobGeneratorThread (WorkerThread):
                         else:
                             specialHandling += ',ddm:{0},'.format(tmpDdmBackEnd)
                     # set specialHandling for Event Service
-                    if taskSpec.useEventService() and not inputChunk.isMerging:
+                    if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
                         specialHandling += EventServiceUtils.getHeaderForES(esIndex)
                     # inputs
                     prodDBlock = None
@@ -832,7 +828,7 @@ class JobGeneratorThread (WorkerThread):
                             if tmpFileSpec.PandaID != None and not tmpFileSpec.PandaID in subOldPandaIDs:
                                 subOldPandaIDs.append(tmpFileSpec.PandaID)
                             # set specialHandling for normal Event Service
-                            if taskSpec.useEventService() and not inputChunk.isMerging \
+                            if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging \
                                     and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.isPseudo():
                                 if not taskSpec.useJobCloning() or not setSpecialHandlingForJC:
                                     if taskSpec.useJobCloning():
@@ -1002,7 +998,7 @@ class JobGeneratorThread (WorkerThread):
                         # convert to job's FileSpec     
                         tmpDatasetSpec = outDsMap[tmpFileSpec.datasetID]
                         tmpOutFileSpec = tmpFileSpec.convertToJobFileSpec(tmpDatasetSpec,
-                                                                          useEventService=taskSpec.useEventService())
+                                                                          useEventService=taskSpec.useEventService(siteSpec))
                         # stay output on site
                         if taskSpec.stayOutputOnSite():
                             tmpOutFileSpec.destinationSE = siteName
@@ -1040,13 +1036,23 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
                                                                    serialNr,paramList,jobSpec,simul,
                                                                    taskParamMap,inputChunk.isMerging,
-                                                                   jobSpec.Files)
+                                                                   jobSpec.Files,
+                                                                   taskSpec.useEventService(siteSpec))
                     # add
-                    jobSpecList.append(jobSpec)
+                    tmpJobSpecList.append(jobSpec)
                     oldPandaIDs.append(subOldPandaIDs)
                     # incremet index of event service job
-                    if taskSpec.useEventService() and not inputChunk.isMerging:
+                    if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
                         esIndex += 1
+                # increase event service consumers
+                if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
+                    tmpJobSpecList = self.increaseEventServiceConsumers(tmpJobSpecList,taskSpec.getNumEventServiceConsumer(),
+                                                                        taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap)
+                # add to all list
+                jobSpecList += tmpJobSpecList
+                # sort
+                if taskSpec.useEventService() and taskSpec.getNumSitesPerJob():
+                    jobSpecList = self.sortParallelJobsBySite(jobSpecList)
             # return
             return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap
         except:
@@ -1294,7 +1300,7 @@ class JobGeneratorThread (WorkerThread):
 
     # make job parameters
     def makeJobParameters(self,taskSpec,inSubChunk,outSubChunk,serialNr,paramList,jobSpec,simul,
-                          taskParamMap,isMerging,jobFileList):
+                          taskParamMap,isMerging,jobFileList,useEventService):
         if not isMerging:
             parTemplate = taskSpec.jobParamsTemplate
         else:
@@ -1529,6 +1535,13 @@ class JobGeneratorThread (WorkerThread):
                 parTemplate = parTemplate.replace(mergedFileName,jobFileSpec.lfn)
         # remove duplicated panda.um
         parTemplate = parTemplate.replace('panda.um.panda.um.','panda.um.')
+        # remove ES parameters if necessary
+        if useEventService:
+            parTemplate = parTemplate.replace('<PANDA_ES_ONLY>','')
+            parTemplate = parTemplate.replace('</PANDA_ES_ONLY>','')
+        else:
+            parTemplate = re.sub('<PANDA_ES_ONLY>(.*)</PANDA_ES_ONLY>','',parTemplate)
+            parTemplate = re.sub('<PANDA_ESMERGE.*>(.*)</PANDA_ESMERGE.*>','',parTemplate)
         # return
         return parTemplate
 
@@ -1556,8 +1569,6 @@ class JobGeneratorThread (WorkerThread):
             for iConsumers in range (nConsumers):
                 newPandaJob = self.clonePandaJob(pandaJob,iConsumers,parallelOutMap,outDsMap)
                 newPandaJobs.append(newPandaJob)
-        if nSitesPerJob > 1:
-            newPandaJobs = self.sortParallelJobsBySite(newPandaJobs)
         # return
         return newPandaJobs
                     

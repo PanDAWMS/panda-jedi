@@ -155,7 +155,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for high priorities
         t1WeightForHighPrio = 1
-        if (taskSpec.currentPriority > 900 or inputChunk.useScout()) \
+        if (taskSpec.currentPriority >= 900 or inputChunk.useScout()) \
                 and not sitePreAssigned and not siteListPreAssigned:
             t1WeightForHighPrio = 100
             newScanSiteList = []
@@ -175,16 +175,26 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
-        # selection to avoid slow sites
-        if (taskSpec.currentPriority > 900 or inputChunk.useScout() or \
+        # selection to avoid slow or inactive sites
+        if (taskSpec.currentPriority >= 900 or inputChunk.useScout() or \
                 inputChunk.isMerging or taskSpec.mergeOutput()) \
                 and not sitePreAssigned:
+            # get inactive sites
+            inactiveTimeLimit = 2
+            inactiveSites = self.taskBufferIF.getInactiveSites_JEDI('production',inactiveTimeLimit)
             newScanSiteList = []
             tmpMsgList = []
             for tmpSiteName in scanSiteList:
-                if tmpSiteName in ['BNL_CLOUD','BNL_CLOUD_MCORE','ATLAS_OPP_OSG','RRC-KI-T1_MCORE','RRC-KI-T1']:
+                nToGetAll = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'activated') + \
+                    AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'starting')
+                if tmpSiteName in ['BNL_CLOUD','BNL_CLOUD_MCORE','ATLAS_OPP_OSG']:
                     tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid slow sites '.format(tmpSiteName)
                     tmpMsg += 'criteria=-slow'
+                    tmpMsgList.append(tmpMsg)
+                elif tmpSiteName in inactiveSites and nToGetAll > 0:
+                    tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid inactive sites (laststart is older than {1}h) '.format(tmpSiteName,
+                                                                                                                                                 inactiveTimeLimit)
+                    tmpMsg += 'criteria=-inactive'
                     tmpMsgList.append(tmpMsg)
                 else:
                     newScanSiteList.append(tmpSiteName)
@@ -192,7 +202,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 scanSiteList = newScanSiteList
                 for tmpMsg in tmpMsgList:
                     tmpLog.debug(tmpMsg)
-            tmpLog.debug('{0} candidates passed for slowness'.format(len(scanSiteList)))
+            tmpLog.debug('{0} candidates passed for slowness/inactive check'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -454,18 +464,24 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
             minWalltime = taskSpec.cpuTime * tmpMaxAtomSize
             strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.cpuTime,tmpMaxAtomSize)
-        if not minWalltime in [0,None] or inputChunk.useScout():
+        if minWalltime != None or inputChunk.useScout():
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 siteMaxTime = tmpSiteSpec.maxtime
                 origSiteMaxTime = siteMaxTime
-                # sending scouts to only sites where walltime is more than 1day
-                if inputChunk.useScout():
-                    if siteMaxTime != 0 and siteMaxTime < 24*60*60:
-                        tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient for scouts (1 day at least) '.format(tmpSiteName,
-                                                                                                                                                siteMaxTime)
-                        tmpMsg += 'criteria=-scoutwalltime'
+                # sending scouts or wallime-undefined jobs to only sites where walltime is more than 1 day
+                if inputChunk.useScout() or (taskSpec.walltime in [0,None] and taskSpec.cpuTime in [0,None]):
+                    minTimeForZeroWalltime = 24*60*60
+                    if siteMaxTime != 0 and siteMaxTime < minTimeForZeroWalltime:
+                        tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient '.format(tmpSiteName,
+                                                                                                                    siteMaxTime)
+                        if inputChunk.useScout():
+                            tmpMsg += 'for scouts ({0} at least) '.format(minTimeForZeroWalltime)
+                            tmpMsg += 'criteria=-scoutwalltime'
+                        else:
+                            tmpMsg += 'for zero walltime ({0} at least) '.format(minTimeForZeroWalltime)
+                            tmpMsg += 'criteria=-zerowalltime'
                         tmpLog.debug(tmpMsg)
                         continue
                 # check max walltime at the site
@@ -559,7 +575,6 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for event service
         if not sitePreAssigned:
-            jobseed = taskSpec.useEventService()
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -734,14 +749,14 @@ class AtlasProdJobBroker (JobBrokerBase):
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
             weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 1) / manyAssigned
-            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} tSize={5} manyAss={6} nPilot={7} '.format(nRunning,nActivated,nAssigned,
-                                                                                                                  nStarting,nDefined,
-                                                                                                                  totalSize,manyAssigned,
-                                                                                                                  nPilot)
+            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} totalSize={5} manyAss={6} nPilot={7} '.format(nRunning,nActivated,nAssigned,
+                                                                                                                      nStarting,nDefined,
+                                                                                                                      totalSize,manyAssigned,
+                                                                                                                      nPilot)
             # normalize weights by taking data availability into account
             if totalSize != 0:
                 weight = weight * float(normalizeFactors[tmpSiteName]+totalSize) / float(totalSize)
-                weightStr += 'norm={0} '.format(normalizeFactors[tmpSiteName])
+                weightStr += 'availableSize={0} '.format(normalizeFactors[tmpSiteName])
             # T1 weight
             if tmpSiteName in t1Sites+sitesShareSeT1:
                 weight *= t1Weight

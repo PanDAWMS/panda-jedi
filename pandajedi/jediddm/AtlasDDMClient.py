@@ -7,6 +7,7 @@ import random
 import datetime
 import json
 import urllib2
+import traceback
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
@@ -222,6 +223,15 @@ class AtlasDDMClient(DDMClientBase):
 
 
 
+    # get cloud for an endpoint
+    def getCloudForEndPoint(self,endPoint):
+        self.updateEndPointDict()
+        if endPoint in self.endPointDict:
+            return self.endPointDict[endPoint]['cloud']
+        return None
+
+
+
     # check if endpoint is NG
     def checkNGEndPoint(self,endPoint,ngList):
         for ngPatt in ngList:
@@ -300,12 +310,26 @@ class AtlasDDMClient(DDMClientBase):
             lfcSeMap = {}
             storagePathMap = {}
             completeReplicaMap = {}
+            cloudLocCheckDst = {}
+            cloudLocCheckSrc = {}
             for siteName,allEndPointList in siteAllEndPointsMap.iteritems():
                 tmpLfcSeMap = {}
                 tmpStoragePathMap = {}
                 tmpSiteSpec = siteMapper.getSite(siteName)
                 siteHasCompleteReplica = False
+                # cloud locality check 
+                if tmpSiteSpec.hasValueInCatchall('cloudLocCheck'):
+                    tmpCheckCloud = tmpSiteSpec.cloud
+                    if not tmpCheckCloud in cloudLocCheckDst:
+                        cloudLocCheckDst[tmpCheckCloud] = set()
+                    cloudLocCheckDst[tmpCheckCloud].add(siteName) 
+                # loop over all endpoints
                 for tmpEndPoint in allEndPointList:
+                    # cloud locality check
+                    tmpCheckCloud = self.getCloudForEndPoint(tmpEndPoint)
+                    if not siteName in cloudLocCheckSrc:
+                        cloudLocCheckSrc[siteName] = set()
+                    cloudLocCheckSrc[siteName].add(tmpCheckCloud)
                     # storage type
                     if TiersOfATLAS.isTapeSite(tmpEndPoint):
                         storageType = 'localtape'
@@ -356,14 +380,14 @@ class AtlasDDMClient(DDMClientBase):
                     tmpSePath = tmpMatch.group(1)
                     if not tmpSePath in tmpStoragePathMap:
                         tmpStoragePathMap[tmpSePath] = []
-                    tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType})
+                    tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType,'endPoint':tmpEndPoint})
                     # add compact path
                     tmpSePathBack = tmpSePath
                     tmpSePath = re.sub('(:\d+)*/srm/[^\?]+\?SFN=','',tmpSePath)
                     if tmpSePathBack != tmpSePath:
                         if not tmpSePath in tmpStoragePathMap:
                             tmpStoragePathMap[tmpSePath] = []
-                        tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType})
+                        tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType,'endPoint':tmpEndPoint})
                 # add to map to trigger LFC scan if complete replica is missing at the site
                 if DataServiceUtils.isCachedFile(datasetSpec.datasetName,tmpSiteSpec):
                     pass
@@ -403,6 +427,7 @@ class AtlasDDMClient(DDMClientBase):
                         surlMap[lfn] += surls
             # make return
             returnMap = {}
+            checkedDst = set()
             for siteName,allEndPointList in siteAllEndPointsMap.iteritems():
                 # set default return values
                 if not returnMap.has_key(siteName):
@@ -420,6 +445,24 @@ class AtlasDDMClient(DDMClientBase):
                         if completeReplicaMap.has_key(tmpEndPoint):
                             storageType = completeReplicaMap[tmpEndPoint]
                             returnMap[siteName][storageType] += datasetSpec.Files
+                            checkedDst.add(siteName)
+                            # add for cloud locality check
+                            if siteName in cloudLocCheckSrc:
+                                # loop over possible endpoint clouds associated to the site
+                                for tmpCheckCloud in cloudLocCheckSrc[siteName]:
+                                    # use only cloud matching to the endpoint
+                                    if tmpCheckCloud == self.getCloudForEndPoint(tmpEndPoint):
+                                        dstSiteNameList = set()
+                                        # sites using cloud locality check
+                                        if tmpCheckCloud in cloudLocCheckDst:
+                                            dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst[tmpCheckCloud])
+                                        # skip if no sites
+                                        if len(dstSiteNameList) == 0:
+                                            continue
+                                        for dstSiteName in dstSiteNameList:
+                                            if not dstSiteName in checkedDst:
+                                                returnMap[dstSiteName][storageType] += datasetSpec.Files
+                                                checkedDst.add(dstSiteName)
             # loop over all available LFNs
             avaLFNs = surlMap.keys()
             avaLFNs.sort()
@@ -435,8 +478,27 @@ class AtlasDDMClient(DDMClientBase):
                             for tmpSiteDict in storagePathMap[tmpSePath]:
                                 siteName = tmpSiteDict['siteName']
                                 storageType = tmpSiteDict['storageType']
+                                tmpEndPoint = tmpSiteDict['endPoint']
                                 if not tmpFileSpec in returnMap[siteName][storageType]:
                                     returnMap[siteName][storageType] += tmpFileSpecList
+                                checkedDst.add(siteName)
+                                # add for cloud locality check
+                                if siteName in cloudLocCheckSrc:
+                                    # loop over possible endpoint clouds associated to the site
+                                    for tmpCheckCloud in cloudLocCheckSrc[siteName]:
+                                        # use only cloud matching to the endpoint
+                                        if tmpCheckCloud == self.getCloudForEndPoint(tmpEndPoint):
+                                            dstSiteNameList = set()
+                                            # sites using cloud locality check
+                                            if tmpCheckCloud in cloudLocCheckDst:
+                                                dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst[tmpCheckCloud])
+                                            # skip if no sites
+                                            if len(dstSiteNameList) == 0:
+                                                continue
+                                            for dstSiteName in dstSiteNameList:
+                                                if not dstSiteName in checkedDst:
+                                                    if not tmpFileSpec in returnMap[dstSiteName][storageType]:
+                                                        returnMap[dstSiteName][storageType] += tmpFileSpecList
                             break
             # dump
             dumpStr = ''
@@ -453,7 +515,8 @@ class AtlasDDMClient(DDMClientBase):
             return self.SC_SUCCEEDED,returnMap
         except:
             errtype,errvalue = sys.exc_info()[:2]
-            errMsg = 'failed with {0} {1}'.format(errtype.__name__,errvalue)
+            errMsg = 'failed with {0} {1} '.format(errtype.__name__,errvalue)
+            errMsg += traceback.format_exc()
             tmpLog.error(errMsg)
             return self.SC_FAILED,'{0}.{1} {2}'.format(self.__class__.__name__,methodName,errMsg)
         

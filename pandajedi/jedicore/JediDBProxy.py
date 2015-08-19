@@ -2956,7 +2956,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     orderBy = 'boundaryID'
                                 # read files to make FileSpec
                                 iFiles = 0
-                                for iDup in range(3): # avoid infinite loop just in case
+                                for iDup in range(100): # avoid infinite loop just in case
                                     varMap = {}
                                     varMap[':datasetID']  = datasetID
                                     varMap[':jediTaskID'] = jediTaskID
@@ -4357,8 +4357,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if returnMap['walltime'] > limitWallTime:
                 returnMap['walltime'] = limitWallTime
         if cpuTimeList != []:
-            maxCpuTime = math.ceil(max(cpuTimeList)*1.5)
-            returnMap['cpuTime'] = long(maxCpuTime)
+            maxCpuTime = max(1,long(math.ceil(max(cpuTimeList)*1.5)))
+            returnMap['cpuTime'] = maxCpuTime
         if memSizeList != []:
             median = max(memSizeList)
             median /= 1024
@@ -8153,3 +8153,40 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return failedRet
+
+
+
+    # get inactive sites
+    def getInactiveSites_JEDI(self,flag,timeLimit):
+        comment = ' /* JediDBProxy.getInactiveSites_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <flag={0} timeLimit={1}>'.format(flag,timeLimit)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = set()
+            # sql 
+            sqlCD  = "SELECT site FROM {0}.SiteData ".format(jedi_config.db.schemaMETA)
+            sqlCD += "WHERE flag=:flag AND hours=:hours AND laststart<:laststart "
+            # start transaction
+            self.conn.begin()
+            # check
+            varMap = {}
+            varMap[':flag'] = flag
+            varMap[':hours'] = 3
+            varMap[':laststart'] = datetime.datetime.utcnow() - datetime.timedelta(hours=timeLimit)
+            self.cur.execute(sqlCD+comment,varMap)
+            resCD = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            for tmpSiteID, in resCD:
+                retVal.add(tmpSiteID)
+            tmpLog.debug('done')
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return retVal

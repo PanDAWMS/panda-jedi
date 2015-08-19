@@ -144,21 +144,34 @@ class PostProcessorBase (object):
 
 
     # get final task status
-    def getFinalTaskStatus(self,taskSpec):
-        # count nFiles
+    def getFinalTaskStatus(self,taskSpec,checkParent=True):
+        # count nFiles and nEvents
         nFiles = 0
         nFilesFinished = 0
+        totalInputEvents = 0
+        totalOutputEvents = 0
+        firstOutput = True
         for datasetSpec in taskSpec.datasetSpecList:
             if datasetSpec.isMasterInput():
                 nFiles += datasetSpec.nFiles
                 nFilesFinished += datasetSpec.nFilesFinished
+                try:
+                    totalInputEvents += datasetSpec.nEvents
+                except:
+                    pass
+            elif firstOutput and datasetSpec.type == 'output':
+                firstOutput = False
+                try:
+                    totalOutputEvents += datasetSpec.nEvents
+                except:
+                    pass
         if taskSpec.status == 'tobroken':
             status = 'broken'
         elif taskSpec.status == 'toabort':
             status = 'aborted'
         elif nFiles == nFilesFinished and nFiles > 0:
             # check parent status
-            if not taskSpec.parent_tid in [None,taskSpec.jediTaskID] and \
+            if checkParent and not taskSpec.parent_tid in [None,taskSpec.jediTaskID] and \
                     self.taskBufferIF.getTaskStatus_JEDI(taskSpec.parent_tid) != 'done':
                 status = 'finished'
             else:
@@ -167,6 +180,15 @@ class PostProcessorBase (object):
             status = 'failed'
         else:
             status = 'finished'
+        # check if goal is reached
+        if taskSpec.failGoalUnreached() and status == 'finished' and taskSpec.goal != None and \
+                (not taskSpec.useExhausted() or (taskSpec.useExhausted() and taskSpec.status in ['passed'])):
+            if totalInputEvents != 0:
+                if float(totalOutputEvents)/float(totalInputEvents)*1000.0 < taskSpec.goal:
+                    status = 'failed'
+            elif nFiles != 0:
+                if float(nFilesFinished)/float(nFiles)*1000.0 < taskSpec.goal:
+                    status = 'failed'
         return status
 
 
@@ -175,7 +197,8 @@ class PostProcessorBase (object):
     def doPreCheck(self,taskSpec,tmpLog):
         # send task to exhausted
         if taskSpec.useExhausted() and not taskSpec.status in ['passed'] \
-                and self.getFinalTaskStatus(taskSpec) in ['finished']:
+                and self.getFinalTaskStatus(taskSpec) in ['finished'] \
+                and not self.getFinalTaskStatus(taskSpec,checkParent=False) in ['done']:
             taskSpec.status = 'exhausted'
             taskSpec.lockedBy = None
             taskSpec.lockedTime = None
