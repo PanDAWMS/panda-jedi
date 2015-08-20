@@ -2561,19 +2561,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             taskStatusMap = {}
             jediTaskIDList = []
             taskAvalancheMap = {}
+            taskPrioMap = {}
             userTaskMap = {}
             for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,taskStatus,userName,tmpNumInputFiles,tmpNumInputEvents in resList:
-                tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3}'.format(jediTaskID,datasetID,
-                                                                                            tmpNumFiles,datasetType))
+                tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3} prio={4}'.format(jediTaskID,datasetID,
+                                                                                                     tmpNumFiles,datasetType,
+                                                                                                     currentPriority))
                 # just return the max priority
                 if isPeeking:
                     return currentPriority
                 # make task-status mapping
                 taskStatusMap[jediTaskID] = taskStatus
+                # make task-prio mapping
+                taskPrioMap[jediTaskID] = currentPriority
                 # make task-dataset mapping
                 if not taskDatasetMap.has_key(jediTaskID):
                     taskDatasetMap[jediTaskID] = []
                 taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents))
+                # use single username if WQ has a share
+                if workQueue.queue_share != None:
+                    userName = ''
                 # make user-task mapping
                 if not userName in userTaskMap:
                     userTaskMap[userName] = []
@@ -2581,8 +2588,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     userTaskMap[userName].append(jediTaskID)
             tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
             # make list
-            for userName in userTaskMap.keys():
-                userTaskMap[userName].sort()
             userNameList = userTaskMap.keys()
             random.shuffle(userNameList)
             tmpLog.debug('{0} users ready'.format(len(userNameList)))
@@ -2648,7 +2653,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             lockedByAnother = []
             memoryExceed = False
             for tmpIdxTask,jediTaskID in enumerate(jediTaskIDList):
-                # only process merging if enough jobs are already generated
+                # process only merging if enough jobs are already generated
                 if maxNumJobs != None and maxNumJobs <= 0:
                     containMergeing = False
                     for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents in taskDatasetMap[jediTaskID]:
@@ -2656,11 +2661,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             containMergeing = True
                             break
                     if not containMergeing:
-                        tmpLog.debug('skipping jediTaskID={0} {1}/{2}/{3}'.format(jediTaskID,tmpIdxTask,
-                                                                                  len(jediTaskIDList),iTasks))
+                        tmpLog.debug('skipping jediTaskID={0} {1}/{2}/{3} prio={4}'.format(jediTaskID,tmpIdxTask,
+                                                                                           len(jediTaskIDList),iTasks,
+                                                                                           taskPrioMap[jediTaskID]))
                         continue
-                tmpLog.debug('getting jediTaskID={0} {1}/{2}/{3}'.format(jediTaskID,tmpIdxTask,
-                                                                         len(jediTaskIDList),iTasks))
+                tmpLog.debug('getting jediTaskID={0} {1}/{2}/{3} prio={4}'.format(jediTaskID,tmpIdxTask,
+                                                                                  len(jediTaskIDList),iTasks,
+                                                                                  taskPrioMap[jediTaskID]))
                 # locked by another
                 if jediTaskID in lockedByAnother:
                     tmpLog.debug('skip locked by another jediTaskID={0}'.format(jediTaskID))
