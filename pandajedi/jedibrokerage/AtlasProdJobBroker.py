@@ -176,7 +176,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection to avoid slow or inactive sites
-        if (taskSpec.currentPriority >= 900 or inputChunk.useScout() or \
+        if (taskSpec.currentPriority >= 800 or inputChunk.useScout() or \
                 inputChunk.isMerging or taskSpec.mergeOutput()) \
                 and not sitePreAssigned:
             # get inactive sites

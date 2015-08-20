@@ -1,5 +1,8 @@
 Release Notes
 
+* 8/20/2015
+  * changed the limit to avoid inactive sites to prio=800
+
 * 8/18/2015
   * increased the limit on how many times dataset is duplicated in a single cycle
 
