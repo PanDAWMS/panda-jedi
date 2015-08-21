@@ -2579,7 +2579,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskDatasetMap[jediTaskID] = []
                 taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents))
                 # use single username if WQ has a share
-                if workQueue.queue_share != None:
+                if workQueue != None and workQueue.queue_share != None:
                     userName = ''
                 # make user-task mapping
                 if not userName in userTaskMap:
@@ -4368,7 +4368,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # prepare tasks to be finished
-    def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None,pid='lock'):
+    def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None,pid='lock',noBroken=False):
         comment = ' /* JediDBProxy.prepareTasksToBeFinished_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
@@ -4418,7 +4418,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap = {}
                 sql  = "SELECT tabT.jediTaskID,tabT.status "
                 sql += "FROM {0}.JEDI_Tasks tabT ".format(jedi_config.db.schemaJEDI)
-                sql += "WHERE "
+                sql += "WHERE jediTaskID IN ("
                 for tmpTaskIdx,tmpTaskID in enumerate(simTasks):
                     tmpKey = ':jediTaskID{0}'.format(tmpTaskIdx)
                     varMap[tmpKey] = tmpTaskID
@@ -4644,7 +4644,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':nFilesToBeUsed'] = nReadyFiles
                             self.cur.execute(sqlFUU+comment,varMap)
                         # new task status
-                        if scoutSucceeded:
+                        if scoutSucceeded or noBroken:
                             newTaskStatus = 'scouted'
                             taskSpec.setPostScout()
                         else:

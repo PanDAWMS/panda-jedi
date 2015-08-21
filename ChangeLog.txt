@@ -1,5 +1,8 @@
 Release Notes
 
+* 8/21/2015
+  * changed prepareTasksToBeFinished so that scouting can be kicked
+
 * 8/20/2015
   * fixed getTasksToBeProcessed to respect priorities of prod tasks
   * changed the limit to avoid inactive sites to prio=800
