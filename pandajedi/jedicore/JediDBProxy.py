@@ -2561,8 +2561,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             taskStatusMap = {}
             jediTaskIDList = []
             taskAvalancheMap = {}
+            taskUserPrioMap = {}
             taskPrioMap = {}
-            userTaskMap = {}
             for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,taskStatus,userName,tmpNumInputFiles,tmpNumInputEvents in resList:
                 tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3} prio={4}'.format(jediTaskID,datasetID,
                                                                                                      tmpNumFiles,datasetType,
@@ -2572,8 +2572,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     return currentPriority
                 # make task-status mapping
                 taskStatusMap[jediTaskID] = taskStatus
-                # make task-prio mapping
-                taskPrioMap[jediTaskID] = currentPriority
                 # make task-dataset mapping
                 if not taskDatasetMap.has_key(jediTaskID):
                     taskDatasetMap[jediTaskID] = []
@@ -2581,11 +2579,27 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # use single username if WQ has a share
                 if workQueue != None and workQueue.queue_share != None:
                     userName = ''
-                # make user-task mapping
-                if not userName in userTaskMap:
-                    userTaskMap[userName] = []
-                if not jediTaskID in userTaskMap[userName]:
-                    userTaskMap[userName].append(jediTaskID)
+                # increase priority so that scouts do not wait behind the bulk
+                if taskStatus in ['ready','scouting']:
+                    currentPriority += 1
+                # make task-prio mapping
+                taskPrioMap[jediTaskID] = currentPriority
+                if not userName in taskUserPrioMap:
+                    taskUserPrioMap[userName] = {}
+                if not currentPriority in taskUserPrioMap[userName]:
+                    taskUserPrioMap[userName][currentPriority] = []
+                taskUserPrioMap[userName][currentPriority].append(jediTaskID)
+            # make user-task mapping
+            userTaskMap = {}
+            for userName in taskUserPrioMap.keys():
+                # use high priority tasks first
+                priorityList = taskUserPrioMap[userName].keys()
+                priorityList.sort()
+                priorityList.reverse()
+                for currentPriority in priorityList:
+                    if not userName in userTaskMap:
+                        userTaskMap[userName] = []
+                    userTaskMap[userName] += taskUserPrioMap[userName][currentPriority]
             tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
             # make list
             userNameList = userTaskMap.keys()

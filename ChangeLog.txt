@@ -2,6 +2,7 @@ Release Notes
 
 * 8/21/2015
   * changed prepareTasksToBeFinished so that scouting can be kicked
+  * increasing taskprio by 1 for ready/scout so that scouts don't wait behind the bulk
 
 * 8/20/2015
   * fixed getTasksToBeProcessed to respect priorities of prod tasks
