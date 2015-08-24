@@ -1,5 +1,8 @@
 Release Notes
 
+* 8/24/2015
+  * modified retryChildTask not to reactivate children if they were aborted/broken
+
 * 8/21/2015
   * changed prepareTasksToBeFinished so that scouting can be kicked
   * increasing taskprio by 1 for ready/scout so that scouts don't wait behind the bulk

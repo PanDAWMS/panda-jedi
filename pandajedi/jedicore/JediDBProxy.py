@@ -2588,7 +2588,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskUserPrioMap[userName] = {}
                 if not currentPriority in taskUserPrioMap[userName]:
                     taskUserPrioMap[userName][currentPriority] = []
-                taskUserPrioMap[userName][currentPriority].append(jediTaskID)
+                if not jediTaskID in taskUserPrioMap[userName][currentPriority]:
+                    taskUserPrioMap[userName][currentPriority].append(jediTaskID)
             # make user-task mapping
             userTaskMap = {}
             for userName in taskUserPrioMap.keys():
@@ -7474,6 +7475,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlGT+comment,varMap)
             resList = self.cur.fetchall()
             for cJediTaskID,cTaskStatus in resList:
+                # not to retry if child task is aborted/broken
+                if cTaskStatus in ['aborted','toabort','aborting','broken','tobroken']:
+                    tmpLog.debug('not to retry child jediTaskID={0} in {1}'.format(cJediTaskID,cTaskStatus))
+                    continue
                 # get input datasets of child task
                 varMap = {}
                 varMap[':jediTaskID'] = cJediTaskID
