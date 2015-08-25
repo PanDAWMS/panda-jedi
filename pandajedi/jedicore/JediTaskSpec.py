@@ -693,13 +693,22 @@ class JediTaskSpec(object):
         tmpSize = self.outDiskCount
         if tmpSize == None or tmpSize < 0:
             return 0
-        if self.outDiskUnit == 'GB':
-            tmpSize = tmpSize * 1024 * 1024 * 1024
-        elif self.outDiskUnit == 'MB':
-            tmpSize = tmpSize * 1024 * 1024
-        elif self.outDiskUnit == 'kB':
-            tmpSize = tmpSize * 1024
+        if self.outDiskUnit != None:
+            if self.outDiskUnit.startswith('GB'):
+                tmpSize = tmpSize * 1024 * 1024 * 1024
+            elif self.outDiskUnit.startswith('MB'):
+                tmpSize = tmpSize * 1024 * 1024
+            elif self.outDiskUnit.startswith('kB'):
+                tmpSize = tmpSize * 1024
         return tmpSize
+
+
+
+    # output scales with the number of events
+    def outputScaleWithEvents(self):
+        if self.outDiskUnit != None and self.outDiskUnit.endswith('PerEvent'):
+            return True
+        return False
 
 
 

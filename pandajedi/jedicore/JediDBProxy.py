@@ -4135,9 +4135,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         returnMap = {}
         # sql to get preset values
         if not mergeScout:
-            sqlGPV  = "SELECT outDiskCount,walltime,ramCount,workDiskCount,cpuTime "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,workDiskCount,cpuTime "
         else:
-            sqlGPV  = "SELECT outDiskCount,mergeWalltime,mergeRamCount,workDiskCount,cpuTime "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,workDiskCount,cpuTime "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data
@@ -4182,13 +4182,29 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.cur.execute(sqlGPV+comment,varMap)
         resGPV = self.cur.fetchone()
         if resGPV != None:
-            preOutDiskCount,preWalltime,preRamCount,preWorkDiskCount,preCpuTime = resGPV
+            preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preWorkDiskCount,preCpuTime = resGPV
+            # get preOutDiskCount in kB
+            if not preOutDiskCount in [0,None]:
+                if preOutDiskUnit != None:
+                    if preOutDiskUnit.startswith('GB'):
+                        preOutDiskCount = preOutDiskCount * 1024 * 1024
+                    elif preOutDiskUnit.startswith('MB'):
+                        preOutDiskCount = preOutDiskCount * 1024
+                    elif preOutDiskUnit.startswith('kB'):
+                        pass
+                    else:
+                        preOutDiskCount = preOutDiskCount / 1024
         else:
             preOutDiskCount = 0
+            preOutDiskUnit = None
             preWalltime = 0
             preRamCount = 0
             preWorkDiskCount = 0
             preCpuTime = 0
+        if preOutDiskUnit != None and preOutDiskUnit.endswith('PerEvent'):
+            preOutputScaleWithEvents = True
+        else:
+            preOutputScaleWithEvents = False
         # get the size of lib 
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
@@ -4288,7 +4304,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     pass
                 # output size
                 try:
-                    tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
+                    try:
+                        # add size of intermediate files
+                        if jobMetrics != None:
+                            tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
+                            outputFileBytes += long(tmpMatch.group(1))
+                    except:
+                        pass
+                    if preOutputScaleWithEvents:
+                        # scale with events
+                        tmpVal = long(math.ceil(float(outputFileBytes) / inEventsMap[pandaID]))
+                    else:
+                        # scale with input size
+                        tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
                     outSizeList.append(tmpVal)
                 except:
                     pass
@@ -4313,14 +4341,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     memSizeList.append(long(tmpMatch.group(1)))
                 except:
                     pass
-                # workdir size
-                tmpWorkSize = 0
-                try:
-                    tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
-                    tmpWorkSize = long(tmpMatch.group(1))
-                except:
-                    pass
                 # use lib size as workdir size
+                tmpWorkSize = 0
                 if tmpWorkSize == None or (libSize != None and libSize > tmpWorkSize):
                     tmpWorkSize = libSize
                 if tmpWorkSize != None:
@@ -4334,7 +4356,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if median > upperLimit:
                 median = upperLimit
             returnMap['outDiskCount'] = long(median)
-            returnMap['outDiskUnit']  = 'kB'
+            if preOutputScaleWithEvents:
+                returnMap['outDiskUnit']  = 'kBPerEvent'
+            else:
+                returnMap['outDiskUnit']  = 'kB'
             # use preset value if larger
             if preOutDiskCount != None and \
                     (preOutDiskCount > returnMap['outDiskCount'] or preOutDiskCount < 0):

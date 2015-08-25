@@ -1,5 +1,10 @@
 Release Notes
 
+* 8/25/2015
+  * changed task.outDiskCount to include size of intermediate files
+  * changed task.outDiskCount to scale with events when outDiskUnit has PerEvent
+  * changed AtlasPJB so that merge jobs avoid SHORT
+
 * 8/24/2015
   * modified retryChildTask not to reactivate children if they were aborted/broken
 

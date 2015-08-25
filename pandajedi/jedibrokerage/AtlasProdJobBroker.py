@@ -385,8 +385,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for scratch disk
-        minDiskCount = taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(effectiveSize=True) \
-            + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
+        if taskSpec.outputScaleWithEvents():
+            minDiskCount = taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(getNumEvents=True)
+        else:
+            minDiskCount = taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(effectiveSize=True)
+        minDiskCount = minDiskCount + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
         minDiskCount = minDiskCount / 1024 / 1024
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
@@ -470,8 +473,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 siteMaxTime = tmpSiteSpec.maxtime
                 origSiteMaxTime = siteMaxTime
-                # sending scouts or wallime-undefined jobs to only sites where walltime is more than 1 day
-                if inputChunk.useScout() or (taskSpec.walltime in [0,None] and taskSpec.cpuTime in [0,None]):
+                # sending scouts merge or wallime-undefined jobs to only sites where walltime is more than 1 day
+                if inputChunk.useScout() or inputChunk.isMerging or (taskSpec.walltime in [0,None] and taskSpec.cpuTime in [0,None]):
                     minTimeForZeroWalltime = 24*60*60
                     if siteMaxTime != 0 and siteMaxTime < minTimeForZeroWalltime:
                         tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient '.format(tmpSiteName,

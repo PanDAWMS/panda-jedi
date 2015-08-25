@@ -934,9 +934,12 @@ class JobGeneratorThread (WorkerThread):
                             jobSpec.maxWalltime = long(jobSpec.maxWalltime)
                     except:
                         pass
-                    # multiply maxDiskCount by total master size
+                    # multiply maxDiskCount by total master size or # of events
                     try:
-                        jobSpec.maxDiskCount *= totalMasterSize
+                        if taskSpec.outputScaleWithEvents():
+                            jobSpec.maxDiskCount *= totalMasterSize
+                        else:
+                            jobSpec.maxDiskCount *= totalMasterEvents
                     except:
                         pass
                     # add offset to maxDiskCount
