@@ -2638,7 +2638,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                        GROUP BY ramCount""".format(jedi_config.db.schemaJEDI)
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
-            sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus"
+            sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
             # sql to update file usage info in dataset
             sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
