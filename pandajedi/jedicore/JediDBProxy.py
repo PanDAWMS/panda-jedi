@@ -2970,7 +2970,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         varMap[':jediTaskID'] = jediTaskID
                                         if not fullSimulation:
                                             varMap[':status'] = 'ready'
-                                            varMap[':ramCount'] = inputChunk.memReq
+                                            varMap[':ramCount'] = inputChunk.ramCount
                                         self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead-iFiles)+comment,varMap)
                                         resFileList = self.cur.fetchall()
                                         for resFile in resFileList:
