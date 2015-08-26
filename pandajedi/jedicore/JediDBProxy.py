@@ -2796,9 +2796,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug("memory requirements for files in task %s dataset %s are: %s"%(jediTaskID, datasetID, memReqs))
 
                         # make InputChunks by ram count
-                        inputChunks = {}
+                        inputChunks = []
                         for memReq in memReqs:
-                            inputChunks[memReq] = InputChunk(taskSpec, ramCount=memReq)
+                            inputChunks.append(InputChunk(taskSpec, ramCount=memReq))
                         # merging
                         if datasetType in JediDatasetSpec.getMergeProcessTypes():
                             for inputChunk in inputChunks:
