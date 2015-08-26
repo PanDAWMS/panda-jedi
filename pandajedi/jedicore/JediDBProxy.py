@@ -2952,9 +2952,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # reading with a fix size of block
                                 readBlock = True
                                 maxMasterFilesTobeRead = maxNumFiles
-
+                            
+                            iFiles={}
                             for inputChunk in inputChunks:
                                 for datasetID in datasetIDs:
+                                    iFiles.setdefault(datasetID, 0)
                                     # get DatasetSpec
                                     tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
                                     # the number of files to be read
@@ -2984,7 +2986,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     else:
                                         orderBy = 'boundaryID'
                                     # read files to make FileSpec
-                                    iFiles = 0
+                                    iFiles_tmp = 0
                                     for iDup in range(3): # avoid infinite loop just in case
                                         varMap = {}
                                         varMap[':datasetID']  = datasetID
@@ -2992,7 +2994,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         if not fullSimulation:
                                             varMap[':status'] = 'ready'
                                             varMap[':ramCount'] = inputChunk.ramCount
-                                        self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead-iFiles)+comment,varMap)
+                                        self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
                                         resFileList = self.cur.fetchall()
                                         for resFile in resFileList:
                                             # make FileSpec
@@ -3013,13 +3015,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                     continue
                                             # add to InputChunk
                                             tmpDatasetSpec.addFile(tmpFileSpec)
-                                            iFiles += 1
+                                            iFiles[datasetID] += 1
+                                            iFiles_tmp += 1
                                         # no reuse
                                         if not taskSpec.reuseSecOnDemand() or tmpDatasetSpec.isMaster() or taskSpec.useLoadXML() or \
                                                 tmpDatasetSpec.isSeqNumber() or tmpDatasetSpec.isNoSplit() or tmpDatasetSpec.toMerge():
                                             break
                                         # enough files were read
-                                        if iFiles == maxFilesTobeRead:
+                                        if iFiles[datasetID] == maxFilesTobeRead:
                                             break
                                         # duplicate files for reuse
                                         tmpLog.debug('try to duplicate files for datasetID={0} since only {1}/{2} files were read'.format(tmpDatasetSpec.datasetID,
@@ -3028,7 +3031,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         tmpLog.debug('{0} files were duplicated'.format(nNewRec))
                                         if nNewRec == 0:
                                             break
-                                    if iFiles == 0:
+                                    if iFiles[datasetID] == 0:
                                         # no input files
                                         if not readMinFiles or not tmpDatasetSpec.isPseudo():
                                             tmpLog.debug('jediTaskID={0} datasetID={1} has no files to be processed'.format(jediTaskID,datasetID))
@@ -3036,7 +3039,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                             break
                                     elif simTasks == None and tmpDatasetSpec.toKeepTrack():
                                         # update nFilesUsed in DatasetSpec
-                                        nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles
+                                        nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles[datasetID]
                                         tmpDatasetSpec.nFilesUsed = nFilesUsed
                                         varMap = {}
                                         varMap[':jediTaskID'] = jediTaskID
@@ -3047,7 +3050,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         self.cur.execute(sqlDU+comment,varMap)
                                         newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
                                         newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
-                                    tmpLog.debug('jediTaskID={2} datasetID={0} has {1} files to be processed'.format(datasetID,iFiles,
+                                    tmpLog.debug('jediTaskID={2} datasetID={0} has {1} files to be processed'.format(datasetID,iFiles[datasetID],
                                                                                                                      jediTaskID))
                                     # set flag if it is a block read
                                     if tmpDatasetSpec.isMaster():
