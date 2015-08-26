@@ -756,9 +756,12 @@ class JobGeneratorThread (WorkerThread):
                     if inputChunk.isMerging:
                         # give higher priority to merge jobs
                         jobSpec.assignedPriority = mergePriority
-                    elif inputChunk.useScout() and taskSpec.currentPriority < scoutPriority:
-                        # give higher priority to scouts
-                        jobSpec.assignedPriority = scoutPriority
+                    elif inputChunk.useScout():
+                        # give higher priority to scouts max(scoutPriority,taskPrio+1)
+                        if taskSpec.currentPriority < scoutPriority:
+                            jobSpec.assignedPriority = scoutPriority
+                        else:
+                            jobSpec.assignedPriority = taskSpec.currentPriority + 1
                     else:
                         jobSpec.assignedPriority = taskSpec.currentPriority
                     jobSpec.currentPriority  = jobSpec.assignedPriority
@@ -931,9 +934,12 @@ class JobGeneratorThread (WorkerThread):
                             jobSpec.maxWalltime = long(jobSpec.maxWalltime)
                     except:
                         pass
-                    # multiply maxDiskCount by total master size
+                    # multiply maxDiskCount by total master size or # of events
                     try:
-                        jobSpec.maxDiskCount *= totalMasterSize
+                        if taskSpec.outputScaleWithEvents():
+                            jobSpec.maxDiskCount *= totalMasterSize
+                        else:
+                            jobSpec.maxDiskCount *= totalMasterEvents
                     except:
                         pass
                     # add offset to maxDiskCount

@@ -2563,11 +2563,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             taskStatusMap = {}
             jediTaskIDList = []
             taskAvalancheMap = {}
-            userTaskMap = {}
+            taskUserPrioMap = {}
+            taskPrioMap = {}
             for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,taskStatus,userName,tmpNumInputFiles,tmpNumInputEvents in resList:
-                tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3}'.format(jediTaskID,datasetID,
-                                                                                            tmpNumFiles,datasetType))
-                                
+                tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3} prio={4}'.format(jediTaskID,datasetID,
+                                                                                                     tmpNumFiles,datasetType,
+                                                                                                     currentPriority))
                 # just return the max priority
                 if isPeeking:
                     return currentPriority
@@ -2578,15 +2579,33 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskDatasetMap[jediTaskID] = []
                  
                 taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents))
-                # make user-task mapping
-                if not userName in userTaskMap:
-                    userTaskMap[userName] = []
-                if not jediTaskID in userTaskMap[userName]:
-                    userTaskMap[userName].append(jediTaskID)
+                # use single username if WQ has a share
+                if workQueue != None and workQueue.queue_share != None:
+                    userName = ''
+                # increase priority so that scouts do not wait behind the bulk
+                if taskStatus in ['ready','scouting']:
+                    currentPriority += 1
+                # make task-prio mapping
+                taskPrioMap[jediTaskID] = currentPriority
+                if not userName in taskUserPrioMap:
+                    taskUserPrioMap[userName] = {}
+                if not currentPriority in taskUserPrioMap[userName]:
+                    taskUserPrioMap[userName][currentPriority] = []
+                if not jediTaskID in taskUserPrioMap[userName][currentPriority]:
+                    taskUserPrioMap[userName][currentPriority].append(jediTaskID)
+            # make user-task mapping
+            userTaskMap = {}
+            for userName in taskUserPrioMap.keys():
+                # use high priority tasks first
+                priorityList = taskUserPrioMap[userName].keys()
+                priorityList.sort()
+                priorityList.reverse()
+                for currentPriority in priorityList:
+                    if not userName in userTaskMap:
+                        userTaskMap[userName] = []
+                    userTaskMap[userName] += taskUserPrioMap[userName][currentPriority]
             tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
             # make list
-            for userName in userTaskMap.keys():
-                userTaskMap[userName].sort()
             userNameList = userTaskMap.keys()
             random.shuffle(userNameList)
             tmpLog.debug('{0} users ready'.format(len(userNameList)))
@@ -2659,7 +2678,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             lockedByAnother = []
             memoryExceed = False
             for tmpIdxTask,jediTaskID in enumerate(jediTaskIDList):
-                # only process merging if enough jobs are already generated
+                # process only merging if enough jobs are already generated
                 if maxNumJobs != None and maxNumJobs <= 0:
                     containMergeing = False
                     for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents in taskDatasetMap[jediTaskID]:
@@ -2667,11 +2686,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             containMergeing = True
                             break
                     if not containMergeing:
-                        tmpLog.debug('skipping jediTaskID={0} {1}/{2}/{3}'.format(jediTaskID,tmpIdxTask,
-                                                                                  len(jediTaskIDList),iTasks))
+                        tmpLog.debug('skipping jediTaskID={0} {1}/{2}/{3} prio={4}'.format(jediTaskID,tmpIdxTask,
+                                                                                           len(jediTaskIDList),iTasks,
+                                                                                           taskPrioMap[jediTaskID]))
                         continue
-                tmpLog.debug('getting jediTaskID={0} {1}/{2}/{3}'.format(jediTaskID,tmpIdxTask,
-                                                                         len(jediTaskIDList),iTasks))
+                tmpLog.debug('getting jediTaskID={0} {1}/{2}/{3} prio={4}'.format(jediTaskID,tmpIdxTask,
+                                                                                  len(jediTaskIDList),iTasks,
+                                                                                  taskPrioMap[jediTaskID]))
                 # locked by another
                 if jediTaskID in lockedByAnother:
                     tmpLog.debug('skip locked by another jediTaskID={0}'.format(jediTaskID))
@@ -4145,9 +4166,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         returnMap = {}
         # sql to get preset values
         if not mergeScout:
-            sqlGPV  = "SELECT outDiskCount,walltime,ramCount,workDiskCount,cpuTime "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,workDiskCount,cpuTime "
         else:
-            sqlGPV  = "SELECT outDiskCount,mergeWalltime,mergeRamCount,workDiskCount,cpuTime "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,workDiskCount,cpuTime "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data
@@ -4192,13 +4213,29 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.cur.execute(sqlGPV+comment,varMap)
         resGPV = self.cur.fetchone()
         if resGPV != None:
-            preOutDiskCount,preWalltime,preRamCount,preWorkDiskCount,preCpuTime = resGPV
+            preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preWorkDiskCount,preCpuTime = resGPV
+            # get preOutDiskCount in kB
+            if not preOutDiskCount in [0,None]:
+                if preOutDiskUnit != None:
+                    if preOutDiskUnit.startswith('GB'):
+                        preOutDiskCount = preOutDiskCount * 1024 * 1024
+                    elif preOutDiskUnit.startswith('MB'):
+                        preOutDiskCount = preOutDiskCount * 1024
+                    elif preOutDiskUnit.startswith('kB'):
+                        pass
+                    else:
+                        preOutDiskCount = preOutDiskCount / 1024
         else:
             preOutDiskCount = 0
+            preOutDiskUnit = None
             preWalltime = 0
             preRamCount = 0
             preWorkDiskCount = 0
             preCpuTime = 0
+        if preOutDiskUnit != None and preOutDiskUnit.endswith('PerEvent'):
+            preOutputScaleWithEvents = True
+        else:
+            preOutputScaleWithEvents = False
         # get the size of lib 
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
@@ -4298,7 +4335,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     pass
                 # output size
                 try:
-                    tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
+                    try:
+                        # add size of intermediate files
+                        if jobMetrics != None:
+                            tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
+                            outputFileBytes += long(tmpMatch.group(1))
+                    except:
+                        pass
+                    if preOutputScaleWithEvents:
+                        # scale with events
+                        tmpVal = long(math.ceil(float(outputFileBytes) / inEventsMap[pandaID]))
+                    else:
+                        # scale with input size
+                        tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
                     outSizeList.append(tmpVal)
                 except:
                     pass
@@ -4323,14 +4372,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     memSizeList.append(long(tmpMatch.group(1)))
                 except:
                     pass
-                # workdir size
-                tmpWorkSize = 0
-                try:
-                    tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
-                    tmpWorkSize = long(tmpMatch.group(1))
-                except:
-                    pass
                 # use lib size as workdir size
+                tmpWorkSize = 0
                 if tmpWorkSize == None or (libSize != None and libSize > tmpWorkSize):
                     tmpWorkSize = libSize
                 if tmpWorkSize != None:
@@ -4344,7 +4387,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if median > upperLimit:
                 median = upperLimit
             returnMap['outDiskCount'] = long(median)
-            returnMap['outDiskUnit']  = 'kB'
+            if preOutputScaleWithEvents:
+                returnMap['outDiskUnit']  = 'kBPerEvent'
+            else:
+                returnMap['outDiskUnit']  = 'kB'
             # use preset value if larger
             if preOutDiskCount != None and \
                     (preOutDiskCount > returnMap['outDiskCount'] or preOutDiskCount < 0):
@@ -4393,7 +4439,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # prepare tasks to be finished
-    def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None,pid='lock'):
+    def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None,pid='lock',noBroken=False):
         comment = ' /* JediDBProxy.prepareTasksToBeFinished_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
@@ -4443,7 +4489,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap = {}
                 sql  = "SELECT tabT.jediTaskID,tabT.status "
                 sql += "FROM {0}.JEDI_Tasks tabT ".format(jedi_config.db.schemaJEDI)
-                sql += "WHERE "
+                sql += "WHERE jediTaskID IN ("
                 for tmpTaskIdx,tmpTaskID in enumerate(simTasks):
                     tmpKey = ':jediTaskID{0}'.format(tmpTaskIdx)
                     varMap[tmpKey] = tmpTaskID
@@ -4669,7 +4715,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':nFilesToBeUsed'] = nReadyFiles
                             self.cur.execute(sqlFUU+comment,varMap)
                         # new task status
-                        if scoutSucceeded:
+                        if scoutSucceeded or noBroken:
                             newTaskStatus = 'scouted'
                             taskSpec.setPostScout()
                         else:
@@ -7485,6 +7531,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlGT+comment,varMap)
             resList = self.cur.fetchall()
             for cJediTaskID,cTaskStatus in resList:
+                # not to retry if child task is aborted/broken
+                if cTaskStatus in ['aborted','toabort','aborting','broken','tobroken']:
+                    tmpLog.debug('not to retry child jediTaskID={0} in {1}'.format(cJediTaskID,cTaskStatus))
+                    continue
                 # get input datasets of child task
                 varMap = {}
                 varMap[':jediTaskID'] = cJediTaskID

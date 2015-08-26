@@ -355,8 +355,12 @@ class InputChunk:
                 effectiveNumEvents = tmpFileSpec.getEffectiveNumEvents()
                 # sum
                 inputNumFiles += 1
-                fileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
-                outSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveFsize)
+                if self.taskSpec.outputScaleWithEvents():
+                    fileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveNumEvents)
+                    outSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveNumEvents)
+                else:
+                    fileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
+                    outSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveFsize)
                 if sizeGradientsPerInSize != None:
                     fileSize += long(effectiveFsize * sizeGradientsPerInSize)
                     outSizeMap[self.masterDataset.datasetID] += long(effectiveFsize * sizeGradientsPerInSize)
@@ -498,8 +502,12 @@ class InputChunk:
                 effectiveNumEvents = tmpFileSpec.getEffectiveNumEvents()
                 newInputNumFiles += 1
                 newNumMaster += 1
-                newFileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
-                newOutSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveFsize)
+                if self.taskSpec.outputScaleWithEvents():
+                    newFileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveNumEvents)
+                    newOutSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveNumEvents)
+                else:
+                    newFileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
+                    newOutSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveFsize)
                 if sizeGradientsPerInSize != None:
                     newFileSize += long(effectiveFsize * sizeGradientsPerInSize)
                     newOutSizeMap[self.masterDataset.datasetID] += long(effectiveFsize * sizeGradientsPerInSize)
