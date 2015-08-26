@@ -2915,7 +2915,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 typicalNumFilesPerJob = typicalNumFilesMap[taskSpec.processingType]
                             tmpLog.debug('jediTaskID={0} typicalNumFilesPerJob={1}'.format(jediTaskID,typicalNumFilesPerJob))
                             # max number of files based on typical usage
-                            if maxNumJobs != None and not inputChunk[0].isMerging and not inputChunk[0].useScout():
+                            if maxNumJobs != None and not inputChunks[0].isMerging and not inputChunks[0].useScout():
                                 maxNumFiles = min(nFiles,typicalNumFilesPerJob*maxNumJobs+10)
                             else:
                                 maxNumFiles = nFiles
