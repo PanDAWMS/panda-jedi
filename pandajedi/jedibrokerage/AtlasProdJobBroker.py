@@ -113,6 +113,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             # not use MCORE
             useMP = 'unuse'
+        # get workQueue
+        workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithID(taskSpec.workQueue_ID)
         ######################################
         # selection for status
         if not sitePreAssigned:
@@ -277,21 +279,22 @@ class AtlasProdJobBroker (JobBrokerBase):
                 """        
         ######################################
         # selection for fairshare
-        newScanSiteList = []
-        for tmpSiteName in scanSiteList:
-            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            # check at the site
-            if AtlasBrokerUtils.hasZeroShare(tmpSiteSpec,taskSpec,tmpLog):
-                tmpLog.debug('  skip site={0} due to zero share criteria=-zeroshare'.format(tmpSiteName))
-                continue
-            newScanSiteList.append(tmpSiteName)                
-        scanSiteList = newScanSiteList        
-        tmpLog.debug('{0} candidates passed zero share check'.format(len(scanSiteList)))
-        if scanSiteList == []:
-            tmpLog.error('no candidates')
-            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            self.sendLogMessage(tmpLog)
-            return retTmpError
+        if not (workQueue.queue_type in ['managed'] and workQueue.queue_name in ['test','validation']):
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # check at the site
+                if AtlasBrokerUtils.hasZeroShare(tmpSiteSpec,taskSpec,tmpLog):
+                    tmpLog.debug('  skip site={0} due to zero share criteria=-zeroshare'.format(tmpSiteName))
+                    continue
+                newScanSiteList.append(tmpSiteName)                
+            scanSiteList = newScanSiteList        
+            tmpLog.debug('{0} candidates passed zero share check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
         ######################################
         # selection for I/O intensive tasks
         # FIXME
