@@ -3035,7 +3035,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         # no input files
                                         if not readMinFiles or not tmpDatasetSpec.isPseudo():
                                             tmpLog.debug('jediTaskID={0} datasetID={1} has no files to be processed'.format(jediTaskID,datasetID))
-                                            toSkip = True
+                                            #toSkip = True
                                             break
                                     elif simTasks == None and tmpDatasetSpec.toKeepTrack():
                                         # update nFilesUsed in DatasetSpec
@@ -3066,11 +3066,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if not jediTaskID in returnMap:
                                 returnMap[jediTaskID] = []
                                 iTasks += 1
-                            returnMap[jediTaskID].append((taskSpec,cloudName,inputChunk))
-                            iDsPerTask += 1
-                            # reduce the number of jobs
-                            if maxNumJobs != None and not inputChunk.isMerging:
-                                maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
+                            for inputChunk in inputChunks:
+                                returnMap[jediTaskID].append((taskSpec,cloudName,inputChunk))
+                                iDsPerTask += 1
+                                # reduce the number of jobs
+                                if maxNumJobs != None and not inputChunk.isMerging:
+                                    maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
                         else:
                             tmpLog.debug('escape due to toSkip for jediTaskID={0} datasetID={1}'.format(jediTaskID,primaryDatasetID)) 
                             break
