@@ -7,17 +7,15 @@ import JediCoreUtils
 # class for input
 class InputChunk:
     
-    def __repr__(self):
-        rep = ""
-        for attr in dir(self):
-            rep+="{0} = {1}\n".format(attr, getattr(self, attr))
-        return rep
- 
     def __str__(self):
-        rep = ""
-        for attr in dir(self):
-            rep+="{0} = {1}\n".format(attr, getattr(self, attr))
-        return rep
+        sb = []
+        for key in self.__dict__:
+            sb.append("{key}='{value}'".format(key=key, value=self.__dict__[key]))
+    
+        return ', '.join(sb)
+    
+    def __repr__(self):
+        return self.__str__() 
 
     # constructor
     def __init__(self,taskSpec,masterDataset=None,secondaryDatasetList=[], ramCount=0):
