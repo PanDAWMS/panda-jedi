@@ -3112,6 +3112,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # change map to list
             returnList  = []
             for tmpJediTaskID,tmpTaskDsList in returnMap.iteritems():
+                for ds in tmpTaskDsList:
+                    tmpLog.debug("returning taskID %s, datasetID %s nFiles %d nFilesToBeUsed %d nFilesUsed %d',"%(tmpJediTaskID, ds, ds.nFiles, ds.nFilesToBeUsed, ds.nFilesUsed))
+                    for fi in ds.Files:
+                        tmpLog.debug("returning taskID %s, datasetID %s file %s"%(tmpJediTaskID, ds, fi))
                 returnList.append((tmpJediTaskID,tmpTaskDsList))
             tmpLog.debug('memUsage end {0} MB pid={1}'.format(JediCoreUtils.getMemoryUsage(),os.getpid()))
             return returnList
