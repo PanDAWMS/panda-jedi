@@ -6,6 +6,15 @@ import JediCoreUtils
 
 # class for input
 class InputChunk:
+    
+    def __repr__(self):
+        rep = ""
+        for attr in dir(self):
+            rep+="{0} = {1}\n".format(attr, getattr(self, attr))
+        return rep
+ 
+    def __str__(self):
+        return self.__repr__()
 
     # constructor
     def __init__(self,taskSpec,masterDataset=None,secondaryDatasetList=[], ramCount=0):
