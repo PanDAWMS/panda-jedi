@@ -14,7 +14,10 @@ class InputChunk:
         return rep
  
     def __str__(self):
-        return self.__repr__()
+        rep = ""
+        for attr in dir(self):
+            rep+="{0} = {1}\n".format(attr, getattr(self, attr))
+        return rep
 
     # constructor
     def __init__(self,taskSpec,masterDataset=None,secondaryDatasetList=[], ramCount=0):
