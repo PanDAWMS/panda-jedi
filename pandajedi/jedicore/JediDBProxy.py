@@ -3038,7 +3038,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                             break
                                     elif simTasks == None and tmpDatasetSpec.toKeepTrack():
                                         # update nFilesUsed in DatasetSpec
-                                        nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles[datasetID]
+                                        nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles_tmp
                                         tmpDatasetSpec.nFilesUsed = nFilesUsed
                                         varMap = {}
                                         varMap[':jediTaskID'] = jediTaskID
