@@ -2872,23 +2872,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':datasetID']  = datasetID
                                 try:
-                                    # select
-                                    self.cur.execute(sqlRD+comment,varMap)
-                                    resRD = self.cur.fetchone()
-                                    datasetSpec = JediDatasetSpec()
-                                    datasetSpec.pack(resRD)
-                                    # change stream name for merging
-                                    if datasetSpec.type in JediDatasetSpec.getMergeProcessTypes():
-                                        # change OUTPUT to IN
-                                        datasetSpec.streamName = re.sub('^OUTPUT','TRN_OUTPUT',datasetSpec.streamName)
-                                        # change LOG to INLOG
-                                        datasetSpec.streamName = re.sub('^LOG','TRN_LOG',datasetSpec.streamName)
-                                    # add to InputChunk
-                                    if datasetSpec.isMaster():
-                                        for inputChunk in inputChunks:
+                                    for inputChunk in inputChunks:
+                                        # select
+                                        self.cur.execute(sqlRD+comment,varMap)
+                                        resRD = self.cur.fetchone()
+                                        datasetSpec = JediDatasetSpec()
+                                        datasetSpec.pack(resRD)
+                                        # change stream name for merging
+                                        if datasetSpec.type in JediDatasetSpec.getMergeProcessTypes():
+                                            # change OUTPUT to IN
+                                            datasetSpec.streamName = re.sub('^OUTPUT','TRN_OUTPUT',datasetSpec.streamName)
+                                            # change LOG to INLOG
+                                            datasetSpec.streamName = re.sub('^LOG','TRN_LOG',datasetSpec.streamName)
+                                        # add to InputChunk
+                                        if datasetSpec.isMaster():
                                             inputChunk.addMasterDS(datasetSpec)
-                                    else:
-                                        for inputChunk in inputChunks:
+                                        else:
                                             inputChunk.addSecondaryDS(datasetSpec)
                                 except:
                                     errType,errValue = sys.exc_info()[:2]
