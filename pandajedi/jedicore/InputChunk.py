@@ -3,6 +3,8 @@ import random
 
 import JediCoreUtils
 
+from pandacommon.pandalogger.PandaLogger import PandaLogger
+logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 # class for input
 class InputChunk:
