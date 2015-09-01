@@ -263,7 +263,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
                                    xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents,
-                                   respectLB,tgtNumEventsPerJob):
+                                   respectLB,tgtNumEventsPerJob,skipFilesUsedBy):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -284,7 +284,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('xmlConfig={0} noWaitParent={1} parent_tid={2}'.format(type(xmlConfig),noWaitParent,parent_tid))
         tmpLog.debug('len(fileMap)={0} pid={1}'.format(len(fileMap),pid))
         tmpLog.debug('datasetState={0} dataset.state={1}'.format(datasetState,datasetSpec.state))
-        tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1}'.format(respectLB,tgtNumEventsPerJob))
+        tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1} skipFilesUsedBy={2}'.format(respectLB,tgtNumEventsPerJob,
+                                                                                       skipFilesUsedBy))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -339,6 +340,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         tmpLog.debug('{0} skipped since was not properly produced by the parent according to JEDI table'.format(fileVal['lfn']))
                 fileMap = newFileMap
+            # get files used by another task
+            usedFilesToSkip = set()
+            if skipFilesUsedBy != None:
+                # sql to get the list
+                sqlSFU  = "SELECT lfn,startEvent,endEvent FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
+                sqlSFU += "WHERE tabD.jediTaskID=tabC.jediTaskID AND tabD.datasetID=tabC.datasetID "
+                sqlSFU += "AND tabD.jediTaskID=:jediTaskID AND tabD.type IN (:type1,:type2) "
+                sqlSFU += "AND tabD.datasetName IN (:dsName,:didName) AND tabC.status=:fileStatus "
+                for tmpTaskID in str(skipFilesUsedBy).split(','):
+                    varMap = {}
+                    varMap[':type1'] = 'input'
+                    varMap[':type2'] = 'pseudo_input'
+                    varMap[':jediTaskID']  = tmpTaskID
+                    varMap[':fileStatus']  = 'finished'
+                    varMap[':didName'] = datasetSpec.datasetName
+                    varMap[':dsName'] = datasetSpec.datasetName.split(':')[-1]
+                    # begin transaction
+                    self.conn.begin()
+                    self.cur.execute(sqlSFU+comment,varMap)
+                    tmpSFU = self.cur.fetchall()
+                    for tmpLFN,tmpStartEvent,tmpEndEvent in tmpSFU:
+                        tmpID = '{0}.{1}.{2}'.format(tmpLFN,tmpStartEvent,tmpEndEvent)
+                        usedFilesToSkip.add(tmpID)
+                    # commit
+                    if not self._commit():
+                        raise RuntimeError, 'Commit error'
             # include files
             if includePatt != []:
                 newFileMap = {}
@@ -544,6 +571,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             break
                 # append
                 for fileSpec in tmpFileSpecList:
+                    # check if to skip
+                    tmpID = '{0}.{1}.{2}'.format(fileSpec.lfn,fileSpec.startEvent,fileSpec.endEvent)
+                    if tmpID in usedFilesToSkip:
+                        continue
+                    # append
                     uniqueFileKey = '{0}.{1}.{2}.{3}'.format(fileSpec.lfn,fileSpec.startEvent,
                                                              fileSpec.endEvent,fileSpec.boundaryID)
                     uniqueFileKeyList.append(uniqueFileKey)                

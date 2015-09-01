@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/1/2015
+  * added skipFilesUsedBy
+
 * 8/27/2015
   * changed AtlasPJB to skip share check for test/validation
 
