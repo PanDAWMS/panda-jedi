@@ -48,7 +48,9 @@ class InputChunk:
         # use scout
         self.useScoutFlag = None
         #memory requirements for the inputChunk
-        self.ramCount = ramCount 
+        self.ramCount = ramCount
+        #flag to set if inputchunk is empty
+        self.isEmpty = False
 
 
 

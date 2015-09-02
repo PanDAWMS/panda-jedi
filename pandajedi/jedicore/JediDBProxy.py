@@ -3045,6 +3045,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         tmpLog.debug('{0} files were duplicated'.format(nNewRec))
                                         if nNewRec == 0:
                                             break
+                                    
+                                    if tmpDatasetSpec.isMaster() and iFiles_tmp==0:
+                                        inputChunk.isEmpty = True
+                                    
                                     if iFiles[datasetID] == 0:
                                         # no input files
                                         if not readMinFiles or not tmpDatasetSpec.isPseudo():
@@ -3081,8 +3085,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 returnMap[jediTaskID] = []
                                 iTasks += 1
                             for inputChunk in inputChunks:
-                                returnMap[jediTaskID].append((taskSpec,cloudName,inputChunk))
-                                iDsPerTask += 1
+                                if not inputChunk.isEmpty:
+                                    returnMap[jediTaskID].append((taskSpec,cloudName,inputChunk))
+                                    iDsPerTask += 1
                                 # reduce the number of jobs
                                 if maxNumJobs != None and not inputChunk.isMerging:
                                     maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
