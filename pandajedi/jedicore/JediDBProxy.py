@@ -3055,9 +3055,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                             tmpLog.debug('jediTaskID={0} datasetID={1} has no files to be processed'.format(jediTaskID,datasetID))
                                             #toSkip = True
                                             break
-                                    elif simTasks == None and tmpDatasetSpec.toKeepTrack():
+                                    elif simTasks == None and tmpDatasetSpec.toKeepTrack() and iFiles_tmp!=0:
                                         # update nFilesUsed in DatasetSpec
-                                        nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles_tmp
+                                        nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles[datasetID]
                                         tmpDatasetSpec.nFilesUsed = nFilesUsed
                                         varMap = {}
                                         varMap[':jediTaskID'] = jediTaskID
