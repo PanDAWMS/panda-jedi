@@ -2825,21 +2825,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlRM+comment, varMap)
                         memReqs = map (lambda req: req[0], self.cur.fetchall()) #Unpack resultset
                         tmpLog.debug("memory requirements for files in task %s dataset %s are: %s"%(jediTaskID, datasetID, memReqs))
-
-                        # make InputChunks by ram count
-                        inputChunks = []
-                        for memReq in memReqs:
-                            inputChunks.append(InputChunk(taskSpec, ramCount=memReq))
-                        # merging
-                        if datasetType in JediDatasetSpec.getMergeProcessTypes():
-                            for inputChunk in inputChunks:
-                                inputChunk.isMerging = True
+                        if not memReqs:
+                            toSkip = True
                         else:
-                            # only process merging if enough jobs are already generated
-                            if maxNumJobs != None and maxNumJobs <= 0:
-                                tmpLog.debug('skip jediTaskID={0} datasetID={1} due to non-merge + enough jobs'.format(jediTaskID,
-                                                                                                                       primaryDatasetID)) 
-                                continue
+                            # make InputChunks by ram count
+                            inputChunks = []
+                            for memReq in memReqs:
+                                inputChunks.append(InputChunk(taskSpec, ramCount=memReq))
+                            # merging
+                            if datasetType in JediDatasetSpec.getMergeProcessTypes():
+                                for inputChunk in inputChunks:
+                                    inputChunk.isMerging = True
+                            else:
+                                # only process merging if enough jobs are already generated
+                                if maxNumJobs != None and maxNumJobs <= 0:
+                                    tmpLog.debug('skip jediTaskID={0} datasetID={1} due to non-merge + enough jobs'.format(jediTaskID,
+                                                                                                                           primaryDatasetID)) 
+                                    continue
                         # read secondary dataset IDs
                         if not toSkip:
                             # sql to get seconday dataset list
