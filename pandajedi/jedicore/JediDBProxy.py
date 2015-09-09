@@ -1397,7 +1397,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update JEDI task status by ContentsFeeder
-    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False,pid=None,setFrozenTime=True):
+    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False,pid=None,setFrozenTime=True,
+                                          useWorldCloud=False):
         comment = ' /* JediDBProxy.updateTaskStatusByContFeeder_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -1407,6 +1408,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to check status
             sqlS  = "SELECT status,lockedBy,cloud,prodSourceLabel,frozenTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlS += "WHERE jediTaskID=:jediTaskID FOR UPDATE "
+            # sql to get number of unassigned datasets
+            sqlD  = "SELECT COUNT(*) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlD += "WHERE jediTaskID=:jediTaskID AND destination IS NULL AND type IN (:type1,:type2) "
             # sql to update task
             sqlU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlU += "SET status=:status,modificationTime=:updateTime,stateChangeTime=CURRENT_DATE,"
@@ -1448,6 +1452,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sqlL+comment,varMap)
                     tmpLog.debug('unlocked')
                 else:
+                    # get number of unassigned datasets
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':type1'] = 'output'
+                    varMap[':type2'] = 'log'
+                    self.cur.execute(sqlD+comment,varMap)
+                    nUnassignedDSs, = self.cur.fetchone()
                     # update task
                     timeNow = datetime.datetime.utcnow()
                     varMap = {}
@@ -1466,7 +1477,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':frozenTime'] = frozenTime
                         else:
                             varMap[':frozenTime'] = None
-                    elif cloudName == None and prodSourceLabel in ['managed','test']:
+                    elif (cloudName == None or (useWorldCloud and nUnassignedDSs > 0)) \
+                            and prodSourceLabel in ['managed','test']:
                         # set assigning for TaskBrokerage
                         varMap[':status'] = 'assigning'
                         varMap[':frozenTime'] = None
@@ -4849,6 +4861,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get tasks to assign
             varMap = {}
             varMap[':status'] = 'assigning'
+            varMap[':worldCloud'] = JediTaskSpec.worldCloudName
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=30)
             sqlSCF  = "SELECT jediTaskID "
             sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
@@ -4860,7 +4873,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not prodSourceLabel in [None,'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlSCF += "AND prodSourceLabel=:prodSourceLabel "
-            sqlSCF += "AND cloud IS NULL "
+            sqlSCF += "AND (cloud IS NULL OR "
+            sqlSCF += "(cloud=:worldCloud AND EXISTS "
+            sqlSCF += "(SELECT 1 FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlSCF += "WHERE {0}.JEDI_Datasets.jediTaskID=tabT.jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sqlSCF += "AND type IN (:dsType1,:dsType2) AND destination IS NULL) "
+            sqlSCF += ")) "
+            varMap[':dsType1'] = 'output'
+            varMap[':dsType2'] = 'log'
             sqlSCF += "AND workQueue_ID IN (" 
             for tmpQueue_ID in workQueue.getIDs():
                 tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
@@ -4912,6 +4932,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get tasks to assign
             varMap = {}
             varMap[':status'] = 'assigning'
+            varMap[':worldCloud'] = JediTaskSpec.worldCloudName
             sqlSCF  = "SELECT jediTaskID "
             sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlSCF += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -4922,7 +4943,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not prodSourceLabel in [None,'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlSCF += "AND prodSourceLabel=:prodSourceLabel "
-            sqlSCF += "AND cloud IS NULL "
+            sqlSCF += "AND (cloud IS NULL OR "
+            sqlSCF += "(cloud=:worldCloud AND EXISTS "
+            sqlSCF += "(SELECT 1 FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlSCF += "WHERE {0}.JEDI_Datasets.jediTaskID=tabT.jediTaskID ".format(jedi_config.db.schemaJEDI)
+            sqlSCF += "AND type IN (:dsType1,:dsType2) AND destination IS NULL) "
+            sqlSCF += ")) "
+            varMap[':dsType1'] = 'output'
+            varMap[':dsType2'] = 'log'
             sqlSCF += "AND workQueue_ID IN (" 
             for tmpQueue_ID in workQueue.getIDs():
                 tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
@@ -4961,25 +4989,52 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             if taskCloudMap != {}:
-                # sql to set cloud
-                sql  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                sql += "SET cloud=:cloud,status=:status,oldStatus=NULL,stateChangeTime=CURRENT_DATE "
-                sql += "WHERE jediTaskID=:jediTaskID AND cloud IS NULL "
                 # sql to update DEFT
                 sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
                 sqlD += "SET status=:status,timeStamp=CURRENT_DATE"
                 sqlD += " WHERE taskID=:jediTaskID "
-                for jediTaskID,cloudName in taskCloudMap.iteritems():
-                    varMap = {}
-                    varMap[':jediTaskID'] = jediTaskID
-                    varMap[':status']     = 'ready'
-                    varMap[':cloud']      = cloudName
+                for jediTaskID,tmpVal in taskCloudMap.iteritems():
                     # begin transaction
                     self.conn.begin()
-                    # set cloud
-                    self.cur.execute(sql+comment,varMap)
-                    nRow = self.cur.rowcount
-                    tmpLog.debug('set cloud={0} for jediTaskID={1} with {2}'.format(cloudName,jediTaskID,nRow))
+                    if isinstance(tmpVal,types.StringType):
+                        # sql to set cloud
+                        sql  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                        sql += "SET cloud=:cloud,status=:status,oldStatus=NULL,stateChangeTime=CURRENT_DATE "
+                        sql += "WHERE jediTaskID=:jediTaskID AND cloud IS NULL "
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':status']     = 'ready'
+                        varMap[':cloud']      = tmpVal
+                        # set cloud
+                        self.cur.execute(sql+comment,varMap)
+                        nRow = self.cur.rowcount
+                        tmpLog.debug('set cloud={0} for jediTaskID={1} with {2}'.format(tmpVal,jediTaskID,nRow))
+                    else:
+                        # sql to set destinations for WORLD cloud
+                        sql  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+                        sql += "SET storageToken=:token,destination=:destination "
+                        sql += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+                        for tmpItem in tmpVal:
+                            varMap = {}
+                            varMap[':jediTaskID']  = jediTaskID
+                            varMap[':datasetID']   = tmpItem['datasetID']
+                            varMap[':token']       = tmpItem['token']
+                            varMap[':destination'] = tmpItem['destination']
+                            self.cur.execute(sql+comment,varMap)
+                            nRow = self.cur.rowcount
+                            tmpLog.debug('set token={0} for jediTaskID={1} datasetID={2} with {3}'.format(tmpItem['token'],
+                                                                                                          jediTaskID,
+                                                                                                          tmpItem['datasetID'],
+                                                                                                          nRow))
+                        # sql to set ready
+                        sql  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                        sql += "SET status=:newStatus,oldStatus=NULL,stateChangeTime=CURRENT_DATE "
+                        sql += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':newStatus']     = 'ready'
+                        varMap[':oldStatus']     = 'assigning'
+                        self.cur.execute(sql+comment,varMap)
                     # update DEFT
                     if nRow > 0:
                         deftStatus = 'ready'
@@ -7949,7 +8004,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # lock process
-    def lockProcess_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid):
+    def lockProcess_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid,forceOption):
         comment = ' /* JediDBProxy.lockProcess_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += " <vo={0} label={1} cloud={2} queue={3} pid={4}>".format(vo,prodSourceLabel,
@@ -7977,14 +8032,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # start transaction
             self.conn.begin()
             # check
-            varMap = {}
-            varMap[':vo'] = vo
-            varMap[':prodSourceLabel'] = prodSourceLabel
-            varMap[':cloud'] = cloud
-            varMap[':workqueue_id'] = workqueue_id
-            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
-            self.cur.execute(sqlCT+comment,varMap)
-            resCT = self.cur.fetchone()
+            if not forceOption:
+                varMap = {}
+                varMap[':vo'] = vo
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                varMap[':cloud'] = cloud
+                varMap[':workqueue_id'] = workqueue_id
+                varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
+                self.cur.execute(sqlCT+comment,varMap)
+                resCT = self.cur.fetchone()
+            else:
+                resCT = None
             if resCT != None:
                 tmpLog.debug('skipped locked by {0}'.format(resCT[0]))
             else:
@@ -8056,6 +8114,106 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
+            return retVal
+
+
+
+    # unlock process with PID
+    def unlockProcessWithPID_JEDI(self,vo,prodSourceLabel,workqueue_id,pid,useBase):
+        comment = ' /* JediDBProxy.unlockProcessWithPID_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1} queue={2} pid={3} useBase={4}>".format(vo,prodSourceLabel,
+                                                                                 workqueue_id,pid,useBase)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = False
+            # sql to delete
+            sqlCD  = "DELETE FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlCD += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel "
+            sqlCD += "AND workqueue_id=:workqueue_id "
+            if useBase:
+                sqlCD += "AND lockedBy LIKE :lockedBy "
+            else:
+                sqlCD += "AND lockedBy=:lockedBy "
+            # start transaction
+            self.conn.begin()
+            # delete
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':workqueue_id'] = workqueue_id
+            if useBase:
+                varMap[':lockedBy'] = pid + '%'
+            else:
+                varMap[':lockedBy'] = pid
+            self.cur.execute(sqlCD+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done')
+            retVal = True
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return retVal
+
+
+
+    # check process lock
+    def checkProcessLock_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid,checkBase):
+        comment = ' /* JediDBProxy.checkProcessLock_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1} cloud={2} queue={3} pid={4}>".format(vo,prodSourceLabel,
+                                                                               cloud,workqueue_id,pid)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = False
+            # use non-null for cloud
+            if cloud == None:
+                cloud = "NULL"
+            # sql to check
+            sqlCT  = "SELECT lockedBy "
+            sqlCT += "FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlCT += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud AND workqueue_id=:workqueue_id "
+            sqlCT += "AND lockedTime>:timeLimit "
+            # start transaction
+            self.conn.begin()
+            # check
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':cloud'] = cloud
+            varMap[':workqueue_id'] = workqueue_id
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
+            self.cur.execute(sqlCT+comment,varMap)
+            resCT = self.cur.fetchone()
+            if resCT != None:
+                lockedBy, = resCT
+                if checkBase:
+                    # check only base part
+                    if not lockedBy.startswith(pid):
+                        retVal = True
+                else:
+                    # check whole string
+                    if lockedBy != pid:
+                        retVal = True
+                if retVal == True:
+                    tmpLog.debug('skipped locked by {0}'.format(lockedBy))
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done with {0}'.format(retVal))
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog,msgType='debug')
             return retVal
 
 

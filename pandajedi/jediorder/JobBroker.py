@@ -24,4 +24,16 @@ class JobBroker (FactoryBase):
     # set live counter
     def setLiveCounter(self,vo,sourceLabel,liveCounter):
         self.getImpl(vo,sourceLabel).setLiveCounter(liveCounter)
+
+
+
+    # set lock ID
+    def setLockID(self,vo,sourceLabel,pid,tid):
+        self.getImpl(vo,sourceLabel).setLockID(pid,tid)
+
+
+
+    # get base lock ID
+    def getBaseLockID(self,vo,sourceLabel):
+        return self.getImpl(vo,sourceLabel).getBaseLockID()
         

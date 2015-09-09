@@ -90,12 +90,20 @@ class AtlasProdJobBroker (JobBrokerBase):
             self.sendLogMessage(tmpLog)
             return retTmpError
         # T1 
-        t1Sites = [self.siteMapper.getCloud(cloudName)['source']]
-        # hospital sites
-        if self.hospitalQueueMap.has_key(cloudName):
-            t1Sites += self.hospitalQueueMap[cloudName]
+        if not taskSpec.useWorldCloud():
+            t1Sites = [self.siteMapper.getCloud(cloudName)['source']]
+            # hospital sites
+            if self.hospitalQueueMap.has_key(cloudName):
+                t1Sites += self.hospitalQueueMap[cloudName]
+        else:
+            # get destination for WORLD cloud
+            t1Sites = []
+            tmpStat,datasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,datasetTypes=['log'])
+            for datasetSpec in datasetSpecList:
+                if not datasetSpec.destination in t1Sites:
+                    t1Sites.append(datasetSpec.destination)
         # sites sharing SE with T1
-        sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper,self.siteMapper.getCloud(cloudName)['source'])
+        sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper,t1Sites[0])
         # all T1
         allT1Sites = self.getAllT1Sites()
         # core count
@@ -738,7 +746,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             self.sendLogMessage(tmpLog)
             return retTmpError
         tmpLog.debug('calculate weight and check cap for {0} candidates'.format(len(scanSiteList)))
-        weightMap = {}
+        weightMapPrimary = {}
+        weightMapSecondary = {}
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
@@ -781,13 +790,22 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
                     siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
                     siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
+            # check if site is locked for WORLD
+            lockedByBrokerage = False
+            if taskSpec.useWorldCloud():
+                lockedByBrokerage = self.checkSiteLock(taskSpec.vo,taskSpec.prodSourceLabel,
+                                                       tmpSiteName,taskSpec.workQueue_ID)
             # check cap with nRunning
             cutOffValue = 20
             cutOffFactor = 2 
             nRunningCap = max(cutOffValue,cutOffFactor*nRunning)
             nRunningCap = max(nRunningCap,nPilot)
             okMsg = '  use site={0} with weight={1} {2} criteria=+use'.format(tmpSiteName,weight,weightStr)
-            if (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
+            okAsPrimay = False
+            if lockedByBrokerage:
+                ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpSiteName)
+                ngMsg += 'criteria=-lock'
+            elif (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
                 ngMsg = '  skip site={0} due to nDefined+nActivated+nAssigned+nStarting={1} '.format(tmpSiteName,
                                                                                                      nDefined+nActivated+nAssigned+nStarting)
                 ngMsg += 'greater than max({0},{1}*nRunning={1}*{2},nPilot={3}) '.format(cutOffValue,
@@ -795,50 +813,64 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                          nRunning,                                      
                                                                                          nPilot)
                 ngMsg += 'criteria=-cap'
-                # add weight
-                if not weight in weightMap:
-                    weightMap[weight] = []
-                weightMap[weight].append((siteCandidateSpec,okMsg,ngMsg))
-                # use hightest 3 weights
-                weightRank = 3
-                weightList = weightMap.keys()
-                if weightList > weightRank:
-                    weightList.sort()
-                    weightList.reverse()
-                    newWeightMap = {}
-                    for tmpWeight in weightList[:weightRank]:
-                        newWeightMap[tmpWeight] = weightMap[tmpWeight]
-                    # dump NG message
-                    for tmpWeight in weightList[weightRank:]:
-                        for tmpSiteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMap[weight]:
-                            tmpLog.debug(tmpNgMsg)
-                    weightMap = newWeightMap
             else:
-                # append        
-                newScanSiteList.append(tmpSiteName)
-                inputChunk.addSiteCandidate(siteCandidateSpec)
-                tmpLog.debug(okMsg)
-        scanSiteList = newScanSiteList
+                ngMsg = '  skip site={0} due to low weight '.format(tmpSiteName)
+                ngMsg += 'criteria=-loweigh'
+                okAsPrimay = True
+            # use primay if cap/lock check is passed
+            if okAsPrimay:
+                weightMap = weightMapPrimary
+            else:
+                weightMap = weightMapSecondary
+            # add weight
+            if not weight in weightMap:
+                weightMap[weight] = []
+            weightMap[weight].append((siteCandidateSpec,okMsg,ngMsg))
+        # use second candidates if no primary candidates passed cap/lock check
+        if weightMapPrimary == {}:
+            tmpLog.debug('use second candidates since no sites pass cap/lock check')
+            weightMap = weightMapSecondary
+            # use hightest 3 weights                                                                                                                                                  
+            weightRank = 3
+        else:
+            weightMap = weightMapPrimary
+            # use all weights
+            weightRank = None
+            # dump NG message
+            for tmpWeight in weightMapSecondary.keys():
+                for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMapSecondary[tmpWeight]:
+                    tmpLog.debug(tmpNgMsg)
+        # max candidates for WORLD
+        if taskSpec.useWorldCloud():
+            maxSiteCandidates = 10
+        else:
+            maxSiteCandidates = None
         newScanSiteList = []
-        if scanSiteList == []:
-            tmpLog.debug('use second candidates since no sites pass cap check')
-        for tmpWeight,weightList in weightMap.iteritems():
-            for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightList:
-                if scanSiteList == []:
+        weightList = weightMap.keys()
+        weightList.sort()
+        weightList.reverse()
+        for weightIdx,tmpWeight in enumerate(weightList):
+            for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMap[tmpWeight]:
+                if (weightRank == None or weightIdx < weightRank) and \
+                        (maxSiteCandidates == None or len(newScanSiteList) < maxSiteCandidates):
+                    # use site
                     tmpLog.debug(tmpOkMsg)
                     newScanSiteList.append(siteCandidateSpec.siteName)
                     inputChunk.addSiteCandidate(siteCandidateSpec)
                 else:
+                    # dump NG message
                     tmpLog.debug(tmpNgMsg)
-        # second candidates
-        if scanSiteList == []:
-            scanSiteList = newScanSiteList
+        scanSiteList = newScanSiteList
         # final check
         if scanSiteList == []:
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             self.sendLogMessage(tmpLog)
             return retTmpError
+        # lock sites for WORLD
+        if taskSpec.useWorldCloud():
+            for tmpSiteName in scanSiteList:
+                self.lockSite(taskSpec.vo,taskSpec.prodSourceLabel,tmpSiteName,taskSpec.workQueue_ID)
         tmpLog.debug('final {0} candidates'.format(len(scanSiteList)))
         # return
         self.sendLogMessage(tmpLog)

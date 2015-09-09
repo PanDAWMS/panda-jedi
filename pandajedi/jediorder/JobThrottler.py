@@ -30,3 +30,11 @@ class JobThrottler (FactoryBase):
     def mergeThrottled(self,vo,sourceLabel,thrLevel):
         impl = self.getImpl(vo,sourceLabel)
         return impl.mergeThrottled(thrLevel)
+
+
+
+    # check if lack of jobs
+    def lackOfJobs(self,vo,sourceLabel):
+        impl = self.getImpl(vo,sourceLabel)
+        return impl.lackOfJobs()
+

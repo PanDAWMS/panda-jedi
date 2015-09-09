@@ -18,6 +18,7 @@ class JobThrottlerBase (object):
         self.minPriority = None
         self.refresh()
         self.msgType      = 'jobthrottler'
+        self.underNqLimit = False
 
 
     # refresh
@@ -41,6 +42,17 @@ class JobThrottlerBase (object):
         if thrLevel in [True,False]:
             return thrLevel
         return thrLevel > THR_LEVEL5
+
+
+    # check if lack of jobs
+    def lackOfJobs(self):
+        return self.underNqLimit
+
+
+    # not enough jobs are queued
+    def notEnoughJobsQueued(self):
+        self.underNqLimit = True
+
         
 
 

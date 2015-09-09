@@ -34,8 +34,10 @@ class AtlasProdTaskBroker (TaskBrokerBase):
         retTmpError = self.SC_FAILED,{}
         # get list of jediTaskIDs
         taskIdList = []
+        taskSpecMap = {}
         for taskSpec in taskSpecList:
             taskIdList.append(taskSpec.jediTaskID)
+            taskSpecMap[taskSpec.jediTaskID] = taskSpec
         # check with panda
         tmpLog.debug('check with panda')
         tmpPandaStatus,cloudsInPanda = PandaClient.seeCloudTask(taskIdList)
@@ -44,10 +46,29 @@ class AtlasProdTaskBroker (TaskBrokerBase):
             return retTmpError
         # make return map
         retMap = {}
-        for tmpTaskID,tmpCloud in cloudsInPanda.iteritems():
-            tmpLog.debug('jediTaskID={0} -> {1}'.format(tmpTaskID,tmpCloud))
-            if not tmpCloud in ['NULL','',None]:
-                retMap[tmpTaskID] = tmpCloud
+        for tmpTaskID,tmpCoreName in cloudsInPanda.iteritems():
+            tmpLog.debug('jediTaskID={0} -> {1}'.format(tmpTaskID,tmpCoreName))
+            if not tmpCoreName in ['NULL','',None]:
+                taskSpec = taskSpecMap[tmpTaskID]
+                if taskSpec.useWorldCloud():
+                    # get destinations for WORLD cloud
+                    ddmIF = self.ddmIF.getInterface(taskSpec.vo)
+                    # get site
+                    siteSpec = self.siteMapper.getSite(tmpCoreName)
+                    # get output/log datasets
+                    tmpStat,tmpDatasetSpecs = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(tmpTaskID,['output','log'])
+                    # get destinations
+                    retMap[tmpTaskID] = []
+                    for datasetSpec in tmpDatasetSpecs:
+                        token = ddmIF.convertTokenToEndpoint(siteSpec.ddm,datasetSpec.storageToken)
+                        # use default endpoint
+                        if token == None:
+                            token = siteSpec.ddm
+                        retMap[tmpTaskID].append({'datasetID':datasetSpec.datasetID,
+                                                  'token':'dst:{0}'.format(token),
+                                                  'destination':tmpCoreName})
+                else:
+                    retMap[tmpTaskID] = tmpCoreName
         tmpLog.debug('ret {0}'.format(str(retMap)))
         # return
         tmpLog.debug('done')        
@@ -87,6 +108,9 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                 jobSpec.assignedPriority = taskSpec.taskPriority
                 jobSpec.currentPriority  = taskSpec.currentPriority
                 jobSpec.maxDiskCount     = (taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()) / 1024 / 1024
+                if taskSpec.useWorldCloud():
+                    # use destinationSE to trigger task brokerage in WORLD cloud
+                    jobSpec.destinationSE = taskSpec.cloud
                 prodDBlock = None
                 setProdDBlock = False
                 for datasetSpec in inputChunk.getDatasets():

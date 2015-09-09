@@ -180,6 +180,11 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         if limitPriority:
             limitPriorityValue = highestPrioWaiting
             self.setMinPriority(limitPriorityValue)
+        else:
+            # not enough jobs are queued
+            if nNotRun+nDefine < nQueueLimit:
+                #self.notEnoughJobsQueued()
+                pass
         msgBody = "PASS - priority limit={0}".format(limitPriorityValue)
         tmpLog.debug(msgHeader+" "+msgBody)
         return self.retUnThrottled
