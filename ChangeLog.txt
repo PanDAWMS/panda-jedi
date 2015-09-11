@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/11/2015
+  * added setScoutJobDataToTasks
+
 * 9/9/2015
   * added WORLD
 

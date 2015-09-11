@@ -37,6 +37,8 @@ class AtlasProdWatchDog (WatchDogBase):
                                            (900,30),
                                            ]:
                 self.doActionForHighPrioPending(tmpLog,minPriority,timeoutVal)
+            # action to set scout job data w/o scouts
+            self.doActionToSetScoutJobData(tmpLog)
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('failed with {0} {1}'.format(errtype,errvalue))
@@ -165,3 +167,14 @@ class AtlasProdWatchDog (WatchDogBase):
             gTmpLog.error('failed to reactivate high priority (>{0}) tasks'.format(minPriority))
         else:
             gTmpLog.info('reactivated high priority (>{0}) {1} tasks'.format(minPriority,tmpRet))
+
+
+
+    # action to set scout job data w/o scouts
+    def doActionToSetScoutJobData(self,gTmpLog):
+        tmpRet = self.taskBufferIF.setScoutJobDataToTasks_JEDI(self.vo,self.prodSourceLabel)
+        if tmpRet == None:
+            # failed                                                                                                             
+            gTmpLog.error('failed to set scout job data')
+        else:
+            gTmpLog.info('set scout job data successfully')

@@ -4451,6 +4451,114 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # set scout job data
+    def setScoutJobData_JEDI(self,taskSpec,useCommit):
+        comment = ' /* JediDBProxy.setScoutJobData_JEDI */'
+        methodName = self.getMethodName(comment)
+        jediTaskID = taskSpec.jediTaskID
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        if useCommit:
+            # begin transaction
+            self.conn.begin()
+        # set average job data
+        scoutSucceeded,scoutData = self.getScoutJobData_JEDI(jediTaskID,
+                                                             scoutSuccessRate=taskSpec.getScoutSuccessRate())
+        # sql to update task data
+        if scoutData != {}:
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            sqlTSD  = "UPDATE {0}.JEDI_Tasks SET ".format(jedi_config.db.schemaJEDI)
+            for scoutKey,scoutVal in scoutData.iteritems():
+                tmpScoutKey = ':{0}'.format(scoutKey)
+                varMap[tmpScoutKey] = scoutVal
+                sqlTSD += '{0}={1},'.format(scoutKey,tmpScoutKey)
+            sqlTSD = sqlTSD[:-1] 
+            sqlTSD += " WHERE jediTaskID=:jediTaskID "
+            tmpLog.debug(sqlTSD+comment+str(varMap))
+            self.cur.execute(sqlTSD+comment,varMap)
+        # set average merge job data
+        mergeScoutSucceeded = None
+        if taskSpec.mergeOutput():
+            mergeScoutSucceeded,mergeScoutData = self.getScoutJobData_JEDI(jediTaskID,mergeScout=True)
+            if mergeScoutData != {}:
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                sqlTSD  = "UPDATE {0}.JEDI_Tasks SET ".format(jedi_config.db.schemaJEDI)
+                for mergeScoutKey,mergeScoutVal in mergeScoutData.iteritems():
+                    # only walltime and ramCount
+                    if not mergeScoutKey.startswith('walltime') and not mergeScoutKey.startswith('ram'):
+                        continue
+                    tmpScoutKey = ':{0}'.format(mergeScoutKey)
+                    varMap[tmpScoutKey] = mergeScoutVal
+                    sqlTSD += 'merge{0}={1},'.format(mergeScoutKey,tmpScoutKey)
+                sqlTSD = sqlTSD[:-1]
+                sqlTSD += " WHERE jediTaskID=:jediTaskID "
+                tmpLog.debug(sqlTSD+comment+str(varMap))
+                self.cur.execute(sqlTSD+comment,varMap)
+        if useCommit:
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+        return scoutSucceeded,mergeScoutSucceeded
+
+
+
+    # set tasks to be assigned
+    def setScoutJobDataToTasks_JEDI(self,vo,prodSourceLabel):
+        comment = ' /* JediDBProxy.setScoutJobDataToTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        retJediTaskIDs = []
+        try:
+            # sql to get tasks to set scout job data
+            varMap = {}
+            varMap[':status'] = 'running'
+            varMap[':minJobs'] = 5
+            sqlSCF  = "SELECT tabT.jediTaskID "
+            sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{1}.T_TASK tabD ".format(jedi_config.db.schemaJEDI,jedi_config.db.schemaDEFT)
+            sqlSCF += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlSCF += "AND tabT.jediTaskID=tabD.taskID "
+            sqlSCF += "AND tabT.status=:status AND tabT.walltimeUnit IS NULL "
+            sqlSCF += "AND tabD.total_done_jobs>=:minJobs "
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+                sqlSCF += "AND tabT.vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                sqlSCF += "AND tabT.prodSourceLabel=:prodSourceLabel "
+            # begin transaction
+            self.conn.begin()
+            # get tasks
+            tmpLog.debug(sqlSCF+comment+str(varMap))
+            self.cur.execute(sqlSCF+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            nTasks = 0
+            for jediTaskID, in resList:
+                # get task
+                tmpStat,taskSpec = self.getTaskWithID_JEDI(jediTaskID,False)
+                if tmpStat:
+                    tmpLog.debug('set jediTaskID={0}'.format(jediTaskID))
+                    self.setScoutJobData_JEDI(taskSpec,True)
+                    nTasks += 1
+            # return    
+            tmpLog.debug('done with {0} tasks'.format(nTasks))
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
     # prepare tasks to be finished
     def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None,pid='lock',noBroken=False):
         comment = ' /* JediDBProxy.prepareTasksToBeFinished_JEDI */'
@@ -4676,39 +4784,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not toSkip:
                     if taskSpec.status == 'scouting':
                         # set average job data
-                        scoutSucceeded,scoutData = self.getScoutJobData_JEDI(jediTaskID,
-                                                                             scoutSuccessRate=taskSpec.getScoutSuccessRate())
-                        # sql to update task data
-                        if scoutData != {}:
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            sqlTSD  = "UPDATE {0}.JEDI_Tasks SET ".format(jedi_config.db.schemaJEDI)
-                            for scoutKey,scoutVal in scoutData.iteritems():
-                                tmpScoutKey = ':{0}'.format(scoutKey)
-                                varMap[tmpScoutKey] = scoutVal
-                                sqlTSD += '{0}={1},'.format(scoutKey,tmpScoutKey)
-                            sqlTSD = sqlTSD[:-1] 
-                            sqlTSD += " WHERE jediTaskID=:jediTaskID "
-                            tmpLog.debug(sqlTSD+comment+str(varMap))
-                            self.cur.execute(sqlTSD+comment,varMap)
-                        # set average merge job data
-                        if taskSpec.mergeOutput():
-                            mergeScoutSucceeded,mergeScoutData = self.getScoutJobData_JEDI(jediTaskID,mergeScout=True)
-                            if mergeScoutData != {}:
-                                varMap = {}
-                                varMap[':jediTaskID'] = jediTaskID
-                                sqlTSD  = "UPDATE {0}.JEDI_Tasks SET ".format(jedi_config.db.schemaJEDI)
-                                for mergeScoutKey,mergeScoutVal in mergeScoutData.iteritems():
-                                    # only walltime and ramCount
-                                    if not mergeScoutKey.startswith('walltime') and not mergeScoutKey.startswith('ram'):
-                                        continue
-                                    tmpScoutKey = ':{0}'.format(mergeScoutKey)
-                                    varMap[tmpScoutKey] = mergeScoutVal
-                                    sqlTSD += 'merge{0}={1},'.format(mergeScoutKey,tmpScoutKey)
-                                sqlTSD = sqlTSD[:-1]
-                                sqlTSD += " WHERE jediTaskID=:jediTaskID "
-                                tmpLog.debug(sqlTSD+comment+str(varMap))
-                                self.cur.execute(sqlTSD+comment,varMap)
+                        scoutSucceeded,mergeScoutSucceeded = self.setScoutJobData_JEDI(taskSpec,False)
                         # get nFiles to be used
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
