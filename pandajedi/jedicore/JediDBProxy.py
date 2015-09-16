@@ -2663,7 +2663,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRM = """SELECT ramCount FROM {0}.JEDI_Dataset_Contents 
                        WHERE jediTaskID=:jediTaskID and datasetID=:datasetID
                        AND type in ('input', 'pseudo_input')
-                       AND status = 'ready'
+                       AND status = 'ready' AND (maxAttempt IS NULL OR attemptNr<maxAttempt) 
+                       AND (maxFailure IS NULL OR failedAttempt<maxFailure)
                        GROUP BY ramCount""".format(jedi_config.db.schemaJEDI)
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
@@ -3002,7 +3003,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         varMap = {}
                                         varMap[':datasetID']  = datasetID
                                         varMap[':jediTaskID'] = jediTaskID
-                                        if tmpDatasetSpec.streamName != 'DBR':
+                                        if not tmpDatasetSpec.toKeepTrack():
                                             if not fullSimulation:
                                                 varMap[':status'] = 'ready'
                                             self.cur.execute(sqlFRNR.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
@@ -3074,7 +3075,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                                      jediTaskID))
                                     # set flag if it is a block read
                                     if tmpDatasetSpec.isMaster():
-                                        if readBlock:
+                                        if readBlock and iFiles[datasetID] == maxFilesTobeRead:
                                             inputChunk.readBlock = True
                                         else:
                                             inputChunk.readBlock = False
