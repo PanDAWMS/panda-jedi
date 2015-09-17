@@ -104,6 +104,8 @@ class JediTaskSpec(object):
     # enum for IP connectivity
     enum_ipConnectivity = {'1' : 'full',
                            '2' : 'http'}
+    # world cloud name
+    worldCloudName = 'WORLD'
 
 
 
@@ -1114,3 +1116,9 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # use world cloud
+    def useWorldCloud(self):
+        return self.cloud == self.worldCloudName

@@ -123,12 +123,15 @@ class JobGenerator (JediKnight):
                                     raise RuntimeError,'failed to check throttle'
                                 mergeUnThrottled = None
                                 if thrFlag == True:
-                                    tmpLog.debug('throttled')
                                     if self.withThrottle:
+                                        tmpLog.debug('throttled')
                                         self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
                                         continue
                                 elif thrFlag == False:
-                                    pass
+                                    # check if the queue has jobs more than nQueueLimit
+                                    if self.withThrottle and throttle.lackOfJobs(vo,workQueue.queue_type):
+                                        tmpLog.debug('unlock for multiple processes to quickly fill the queue until nQueueLimit is reached')
+                                        self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
                                 else:
                                     # leveled flag
                                     mergeUnThrottled = not throttle.mergeThrottled(vo,workQueue.queue_type,thrFlag)
@@ -177,6 +180,8 @@ class JobGenerator (JediKnight):
                                             liveCounter = MapWithLock()
                                         else:
                                             liveCounter = None
+                                        # make list for brokerage lock
+                                        brokerageLockIDs = ListWithLock([])
                                         # make workers
                                         nWorker = jedi_config.jobgen.nWorkers
                                         for iWorker in range(nWorker):
@@ -187,12 +192,17 @@ class JobGenerator (JediKnight):
                                                                      self.pid,
                                                                      workQueue,
                                                                      cloudName,
-                                                                     liveCounter)
+                                                                     liveCounter,
+                                                                     brokerageLockIDs)
                                             globalThreadPool.add(thr)
                                             thr.start()
                                         # join
                                         tmpLog.debug('try to join')
                                         threadPool.join(60*10)
+                                        # unlock locks made by brokerage
+                                        for brokeragelockID in brokerageLockIDs:
+                                            self.taskBufferIF.unlockProcessWithPID_JEDI(vo,prodSourceLabel,workQueue.queue_id,
+                                                                                        brokeragelockID,True)
                                         # dump
                                         tmpLog.debug('dump one-time pool : {0}'.format(threadPool.dump()))
                                 # unlock
@@ -349,7 +359,8 @@ class JobGeneratorThread (WorkerThread):
 
     # constructor
     def __init__(self,inputList,threadPool,taskbufferIF,ddmIF,siteMapper,
-                 execJobs,taskSetupper,pid,workQueue,cloud,liveCounter):
+                 execJobs,taskSetupper,pid,workQueue,cloud,liveCounter,
+                 brokerageLockIDs):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -366,6 +377,7 @@ class JobGeneratorThread (WorkerThread):
         self.workQueue    = workQueue
         self.cloud        = cloud
         self.liveCounter  = liveCounter
+        self.brokerageLockIDs = brokerageLockIDs
 
 
 
@@ -422,6 +434,8 @@ class JobGeneratorThread (WorkerThread):
                                 goForward = False
                             # set live counter
                             jobBroker.setLiveCounter(taskSpec.vo,taskSpec.prodSourceLabel,self.liveCounter)
+                            # set lock ID
+                            jobBroker.setLockID(taskSpec.vo,taskSpec.prodSourceLabel,self.pid,self.ident)
                         # read task params if nessesary
                         if taskSpec.useLimitedSites():
                             tmpStat,taskParamMap = self.readTaskParams(taskSpec,taskParamMap,tmpLog)
@@ -451,6 +465,11 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.setOnHold()
                                 taskSpec.setErrDiag(tmpErrStr,True)
                                 goForward = False
+                            else:
+                                # collect brokerage lock ID
+                                brokerageLockID = jobBroker.getBaseLockID(taskSpec.vo,taskSpec.prodSourceLabel)
+                                if brokerageLockID != None:
+                                    self.brokerageLockIDs.append(brokerageLockID)
                         # run splitter
                         if goForward:
                             tmpLog.info('run splitter')
@@ -866,6 +885,9 @@ class JobGeneratorThread (WorkerThread):
                     # set specialHandling
                     if specialHandling != '':
                         jobSpec.specialHandling = specialHandling
+                    # set home cloud
+                    if taskSpec.useWorldCloud():
+                        jobSpec.setHomeCloud(siteSpec.cloud)
                     # allow partial finish
                     if taskSpec.allowPartialFinish():
                         jobSpec.setToAcceptPartialFinish()

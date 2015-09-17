@@ -223,6 +223,23 @@ class AtlasDDMClient(DDMClientBase):
 
 
 
+    # convert token to endpoint
+    def convertTokenToEndpoint(self,baseSeName,token):
+        self.updateEndPointDict()
+        altName = self.getSiteAlternateName(baseSeName)
+        if altName != None:
+            for seName,seVal in self.endPointDict.iteritems():
+                if seVal['site'] == altName:
+                    # space token
+                    if seVal['token'] == token:
+                        return seName
+                    # pattern matching
+                    if re.search(token,seName) != None:
+                        return seName
+        return None
+
+
+
     # get cloud for an endpoint
     def getCloudForEndPoint(self,endPoint):
         self.updateEndPointDict()

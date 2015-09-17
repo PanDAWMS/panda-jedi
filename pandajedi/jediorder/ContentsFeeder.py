@@ -141,6 +141,11 @@ class ContentsFeederThread (WorkerThread):
                         xmlConfig = taskParamMap['loadXML']
                     else:
                         xmlConfig = None
+                    # skip files used by another task
+                    if 'skipFilesUsedBy' in taskParamMap:
+                        skipFilesUsedBy = taskParamMap['skipFilesUsedBy']
+                    else:
+                        skipFilesUsedBy = None
                     # check no wait
                     noWaitParent = False
                     parentOutDatasets = set()
@@ -419,6 +424,7 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               useRealNumEvents,
                                                                                                                               respectLB,
                                                                                                                               tgtNumEventsPerJob,
+                                                                                                                              skipFilesUsedBy,
                                                                                                                               ramCount)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
@@ -514,8 +520,8 @@ class ContentsFeederThread (WorkerThread):
                             allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,pid=self.pid,setFrozenTime=setFrozenTime)
                         elif allUpdated:
                             # all OK
-                            allRet,newTaskStatus = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,getTaskStatus=True,
-                                                                                                       pid=self.pid)
+                            allRet,newTaskStatus = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,getTaskStatus=True,pid=self.pid,
+                                                                                                       useWorldCloud=taskSpec.useWorldCloud())
                             tmpMsg = 'set task.status={0}'.format(newTaskStatus)
                             tmpLog.info(tmpMsg)
                             tmpLog.sendMsg(tmpMsg,self.msgType)

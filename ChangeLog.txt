@@ -1,5 +1,17 @@
 Release Notes
 
+* 9/11/2015
+  * added setScoutJobDataToTasks
+
+* 9/9/2015
+  * added WORLD
+
+* 9/1/2015
+  * added skipFilesUsedBy
+
+* 8/27/2015
+  * changed AtlasPJB to skip share check for test/validation
+
 * 8/25/2015
   * setting activity for registerDatasetLocation
   * changed task.outDiskCount to include size of intermediate files

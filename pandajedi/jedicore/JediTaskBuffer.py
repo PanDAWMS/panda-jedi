@@ -76,7 +76,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                    nMaxFiles,nMaxEvents,useScout,fileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,
                                    excludePatt,xmlConfig,noWaitParent,parent_tid,pid,maxFailure,
-                                   useRealNumEvents,respectLB,tgtNumEventsPerJob,ramCount):
+                                   useRealNumEvents,respectLB,tgtNumEventsPerJob,skipFilesUsedBy,ramCount):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -88,7 +88,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   includePatt,excludePatt,xmlConfig,
                                                   noWaitParent,parent_tid,pid,maxFailure,
                                                   useRealNumEvents,respectLB,
-                                                  tgtNumEventsPerJob,ramCount)
+                                                  tgtNumEventsPerJob,skipFilesUsedBy,ramCount)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -238,12 +238,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
     # update JEDI task status by ContentsFeeder
     def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False,pid=None,
-                                          setFrozenTime=True):
+                                          setFrozenTime=True,useWorldCloud=False):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,getTaskStatus,
-                                                         pid,setFrozenTime)
+                                                         pid,setFrozenTime,useWorldCloud)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -587,6 +587,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   outputTemplateMap,jobParamsTemplate,taskParams,
                                                   unmergeMasterDatasetSpec,unmergeDatasetSpecMap,
                                                   uniqueTaskName,oldTaskStatus)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # set tasks to be assigned
+    def setScoutJobDataToTasks_JEDI(self,vo,prodSourceLabel):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.setScoutJobDataToTasks_JEDI(vo,prodSourceLabel)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1120,11 +1133,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # lock process
-    def lockProcess_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid):
+    def lockProcess_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid,forceOption=False):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.lockProcess_JEDI(vo,prodSourceLabel,cloud,workqueue_id,pid)
+        retVal = proxy.lockProcess_JEDI(vo,prodSourceLabel,cloud,workqueue_id,pid,forceOption)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1138,6 +1151,32 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.unlockProcess_JEDI(vo,prodSourceLabel,cloud,workqueue_id,pid)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # unlock process with PID
+    def unlockProcessWithPID_JEDI(self,vo,prodSourceLabel,workqueue_id,pid,useBase):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.unlockProcessWithPID_JEDI(vo,prodSourceLabel,workqueue_id,pid,useBase)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # check process lock
+    def checkProcessLock_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid,checkBase):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.checkProcessLock_JEDI(vo,prodSourceLabel,cloud,workqueue_id,pid,checkBase)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

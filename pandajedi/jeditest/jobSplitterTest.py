@@ -19,7 +19,7 @@ ddmIF.setupInterface()
 from pandajedi.jediorder.JobBroker import JobBroker
 from pandajedi.jediorder.JobSplitter import JobSplitter
 from pandajedi.jediorder.JobGenerator import JobGeneratorThread
-from pandajedi.jedicore.ThreadUtils import ThreadPool
+from pandajedi.jedicore.ThreadUtils import ThreadPool,ListWithLock
 from pandajedi.jediorder.TaskSetupper import TaskSetupper
 
 import sys
@@ -37,6 +37,8 @@ prodSourceLabel = taskSpec.prodSourceLabel
 queueID = taskSpec.workQueue_ID
 
 workQueue = tbIF.getWorkQueueMap().getQueueWithID(queueID)
+
+brokerageLockIDs = ListWithLock([])
 
 threadPool = ThreadPool()
 
@@ -59,13 +61,20 @@ for dummyID,tmpList in tmpListList:
         jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
         tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo),tbIF)
         splitter = JobSplitter()
-        gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper,None,None,None,None)
+        gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper,None,
+                                 None,None,None,brokerageLockIDs)
 
         taskParamMap = None
         if taskSpec.useLimitedSites():
             tmpStat,taskParamMap = gen.readTaskParams(taskSpec,taskParamMap,tmpLog)
-
+        jobBroker.setLockID(taskSpec.vo,taskSpec.prodSourceLabel,123,0)
         tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,taskParamMap)
+        brokerageLockID = jobBroker.getBaseLockID(taskSpec.vo,taskSpec.prodSourceLabel)
+        if brokerageLockID != None:
+            brokerageLockIDs.append(brokerageLockID)
+        for brokeragelockID in brokerageLockIDs:
+            tbIF.unlockProcessWithPID_JEDI(taskSpec.vo,taskSpec.prodSourceLabel,workQueue.queue_id,
+                                           brokeragelockID,True)
         tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
         tmpStat,pandaJobs,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog,True)
 

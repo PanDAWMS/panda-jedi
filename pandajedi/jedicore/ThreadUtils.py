@@ -11,11 +11,21 @@ class ListWithLock:
         self.dataList  = dataList
         self.dataIndex = 0
 
+    def __iter__(self):
+        return self
+
     def __contains__(self,item):
         self.lock.acquire()
         ret = self.dataList.__contains__(item)
         self.lock.release()
         return ret
+
+    def next(self):
+        if self.dataIndex >= len(self.dataList):
+            raise StopIteration
+        val = self.dataList[self.dataIndex]
+        self.dataIndex += 1
+        return val
 
     def append(self,item):
         self.lock.acquire()
