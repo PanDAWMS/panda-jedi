@@ -2705,12 +2705,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFRNR += "WHERE rownum <= {1}"
 
             #sql to read memory requirements of files in dataset
+            processTypes = JediDatasetSpec.getProcessTypes()
+            counter = 0
+            pt_vm = {}
+            for processType in processTypes:
+                pt_vm[':pt{0}'.format(counter)] = processType
+                counter+=1
+            pt_bindings = ','.join(':pt{0}'.format(i) for i in xrange(len(input_fileIDs)))
             sqlRM = """SELECT ramCount FROM {0}.JEDI_Dataset_Contents 
                        WHERE jediTaskID=:jediTaskID and datasetID=:datasetID
-                       AND type in ('input', 'pseudo_input')
+                       AND type in ({1})
                        AND status = 'ready' AND (maxAttempt IS NULL OR attemptNr<maxAttempt) 
                        AND (maxFailure IS NULL OR failedAttempt<maxFailure)
-                       GROUP BY ramCount""".format(jedi_config.db.schemaJEDI)
+                       GROUP BY ramCount""".format(jedi_config.db.schemaJEDI, pt_bindings)
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
@@ -2864,7 +2871,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         taskSpec = copy.copy(origTaskSpec)
                         
                         #See if there are different memory requirements that need to be mapped to different chuncks
-                        varMap = {'jediTaskID': jediTaskID, 'datasetID': datasetID}
+                        varMap = pt_vm.copy() 
+                        varMap['jediTaskID'] = jediTaskID
+                        varMap['datasetID'] = datasetID
                         self.cur.arraysize = 1000000
                         # figure out if there are different memory requirements in the dataset
                         tmpLog.debug(sqlRM+comment+str(varMap))
@@ -3044,7 +3053,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         orderBy = 'boundaryID'
                                     # read files to make FileSpec
                                     iFiles_tmp = 0
-                                    for iDup in range(3): # avoid infinite loop just in case
+                                    for iDup in range(100): # avoid infinite loop just in case
                                         varMap = {}
                                         varMap[':datasetID']  = datasetID
                                         varMap[':jediTaskID'] = jediTaskID
@@ -3120,7 +3129,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                                      jediTaskID))
                                     # set flag if it is a block read
                                     if tmpDatasetSpec.isMaster():
-                                        if readBlock and iFiles[datasetID] == maxFilesTobeRead:
+                                        if readBlock:
                                             inputChunk.readBlock = True
                                         else:
                                             inputChunk.readBlock = False
@@ -4484,8 +4493,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if returnMap['walltime'] > limitWallTime:
                 returnMap['walltime'] = limitWallTime
         if cpuTimeList != []:
-            maxCpuTime = math.ceil(max(cpuTimeList)*1.5)
-            returnMap['cpuTime'] = long(maxCpuTime)
+            maxCpuTime = max(1,long(math.ceil(max(cpuTimeList)*1.5)))
+            returnMap['cpuTime'] = maxCpuTime
         if memSizeList != []:
             median = max(memSizeList)
             median /= 1024
@@ -8507,3 +8516,39 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return failedRet
+
+
+    # get inactive sites
+    def getInactiveSites_JEDI(self,flag,timeLimit):
+        comment = ' /* JediDBProxy.getInactiveSites_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <flag={0} timeLimit={1}>'.format(flag,timeLimit)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = set()
+            # sql 
+            sqlCD  = "SELECT site FROM {0}.SiteData ".format(jedi_config.db.schemaMETA)
+            sqlCD += "WHERE flag=:flag AND hours=:hours AND laststart<:laststart "
+            # start transaction
+            self.conn.begin()
+            # check
+            varMap = {}
+            varMap[':flag'] = flag
+            varMap[':hours'] = 3
+            varMap[':laststart'] = datetime.datetime.utcnow() - datetime.timedelta(hours=timeLimit)
+            self.cur.execute(sqlCD+comment,varMap)
+            resCD = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            for tmpSiteID, in resCD:
+                retVal.add(tmpSiteID)
+            tmpLog.debug('done')
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return retVal
