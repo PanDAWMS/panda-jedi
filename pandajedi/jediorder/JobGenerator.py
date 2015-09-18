@@ -765,7 +765,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.maxDiskCount     = taskSpec.getOutDiskSize()
                     jobSpec.maxDiskUnit      = 'MB'
                     jobSpec.minRamCount      = max(taskSpec.ramCount, self.getLargestRamCount(inSubChunk))
-                    jobSpec.minRamUnit       = taskSpec.ramUnit #TODO: Do I need to take care of RAM Units as well?
+                    jobSpec.minRamUnit       = taskSpec.ramUnit
                     if inputChunk.isMerging and taskSpec.mergeCoreCount != None:
                         jobSpec.coreCount    = taskSpec.mergeCoreCount
                     else:
