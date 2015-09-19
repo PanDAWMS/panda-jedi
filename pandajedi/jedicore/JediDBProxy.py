@@ -2723,7 +2723,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for processType in processTypes:
                 pt_vm[':pt{0}'.format(counter)] = processType
                 counter+=1
-            pt_bindings = ','.join(':pt{0}'.format(i) for i in xrange(len(input_fileIDs)))
+            pt_bindings = ','.join(':pt{0}'.format(i) for i in xrange(len(processTypes)))
             sqlRM = """SELECT ramCount FROM {0}.JEDI_Dataset_Contents 
                        WHERE jediTaskID=:jediTaskID and datasetID=:datasetID
                        AND type in ({1})
