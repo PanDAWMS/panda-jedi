@@ -3145,7 +3145,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                                      jediTaskID))
                                     # set flag if it is a block read
                                     if tmpDatasetSpec.isMaster():
-                                        if readBlock:
+                                        if readBlock and iFiles[datasetID] == maxFilesTobeRead:
                                             inputChunk.readBlock = True
                                         else:
                                             inputChunk.readBlock = False
