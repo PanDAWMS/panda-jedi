@@ -1,5 +1,9 @@
 Release Notes
 
+* 9/21/2015
+  * fixed failWhenGoalUnreached for goal=100.0
+  * fixed rescuePicked to lock tasks
+
 * 9/11/2015
   * added setScoutJobDataToTasks
 

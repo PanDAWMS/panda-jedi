@@ -181,13 +181,17 @@ class PostProcessorBase (object):
         else:
             status = 'finished'
         # check if goal is reached
-        if taskSpec.failGoalUnreached() and status == 'finished' and taskSpec.goal != None and \
+        if taskSpec.failGoalUnreached() and status == 'finished' and \
                 (not taskSpec.useExhausted() or (taskSpec.useExhausted() and taskSpec.status in ['passed'])):
+            if taskSpec.goal == None:
+                taskGoal = 1000
+            else:
+                taskGoal = taskSpec.goal
             if totalInputEvents != 0:
-                if float(totalOutputEvents)/float(totalInputEvents)*1000.0 < taskSpec.goal:
+                if float(totalOutputEvents)/float(totalInputEvents)*1000.0 < taskGoal:
                     status = 'failed'
             elif nFiles != 0:
-                if float(nFilesFinished)/float(nFiles)*1000.0 < taskSpec.goal:
+                if float(nFilesFinished)/float(nFiles)*1000.0 < taskGoal:
                     status = 'failed'
         return status
 
