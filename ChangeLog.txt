@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/22/2015
+  * removed amiFlag
+
 * 9/21/2015
   * fixed failWhenGoalUnreached for goal=100.0
   * fixed rescuePicked to lock tasks

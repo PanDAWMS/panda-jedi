@@ -22,7 +22,7 @@ class JediTaskSpec(object):
         'superStatus','campaign','mergeRamCount','mergeRamUnit',
         'mergeWalltime','mergeWalltimeUnit','throttledTime','numThrottled',
         'mergeCoreCount','goal','assessmentTime','cpuTime','cpuTimeUnit',
-        'cpuEfficiency','baseWalltime','amiFlag'
+        'cpuEfficiency','baseWalltime'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()

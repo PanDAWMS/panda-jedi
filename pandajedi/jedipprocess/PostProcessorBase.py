@@ -52,9 +52,6 @@ class PostProcessorBase (object):
             if taskSpec.usePrePro() and not taskSpec.checkPreProcessed():
                 taskSpec.setErrDiag('Preprocessing step failed',True)
         tmpLog.sendMsg('set task.status={0}'.format(taskSpec.status),self.msgType)
-        # AMI flag
-        if taskSpec.status in ['done','finished']:
-            taskSpec.amiFlag = 'READY'
         # update dataset
         for datasetSpec in taskSpec.datasetSpecList:
             if taskSpec.status in ['failed','broken','aborted']:
