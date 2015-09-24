@@ -292,7 +292,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
-                if AtlasBrokerUtils.hasZeroShare(tmpSiteSpec,taskSpec,tmpLog):
+                if AtlasBrokerUtils.hasZeroShare(tmpSiteSpec,taskSpec,inputChunk.isMerging,tmpLog):
                     tmpLog.debug('  skip site={0} due to zero share criteria=-zeroshare'.format(tmpSiteName))
                     continue
                 newScanSiteList.append(tmpSiteName)                

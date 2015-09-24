@@ -315,7 +315,7 @@ def getSiteStorageEndpointMap(siteList,siteMapper,ignoreCC=False):
 
 
 # check if the queue is suppressed
-def hasZeroShare(siteSpec,taskSpec,tmpLog):
+def hasZeroShare(siteSpec,taskSpec,ignorePrio,tmpLog):
     # per-site share is undefined
     if siteSpec.fairsharePolicy in ['',None]:
         return False
@@ -328,6 +328,20 @@ def hasZeroShare(siteSpec,taskSpec,tmpLog):
                 # new format
                 tmpMatch = re.search('(^|,|:)id={0}:'.format(taskSpec.workQueue_ID),tmpItem)
                 if tmpMatch != None:
+                    # check priority if any
+                    tmpPrio = None
+                    for tmpStr in tmpItem.split(':'):
+                        if tmpStr.startswith('priority'):
+                            tmpPrio = re.sub('priority','',tmpStr)
+                            break
+                    if tmpPrio != None:
+                        try:
+                            exec "tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio)
+                            if not tmpStat:
+                                continue
+                        except:
+                            pass
+                    # check share
                     tmpShare = tmpItem.split(':')[-1]
                     tmpSahre = tmpShare.replace('%','')
                     if tmpSahre == '0':
@@ -338,12 +352,15 @@ def hasZeroShare(siteSpec,taskSpec,tmpLog):
                 # old format
                 tmpType  = None
                 tmpGroup = None
+                tmpPrio  = None
                 tmpShare = tmpItem.split(':')[-1]
                 for tmpStr in tmpItem.split(':'):
                     if tmpStr.startswith('type='):
                         tmpType = tmpStr.split('=')[-1]
                     elif tmpStr.startswith('group='):
                         tmpGroup = tmpStr.split('=')[-1]
+                    elif tmpStr.startswith('priority'):
+                        tmpPrio = re.sub('priority','',tmpStr)
                 # check matching for type
                 if not tmpType in ['any',None]:
                     if '*' in tmpType:
@@ -358,6 +375,14 @@ def hasZeroShare(siteSpec,taskSpec,tmpLog):
                     # group mismatch
                     if re.search('^'+tmpGroup+'$',taskSpec.workingGroup) == None:
                         continue
+                # check priority
+                if tmpPrio != None and not ignorePrio:
+                    try:
+                        exec "tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio)
+                        if not tmpStat:
+                            continue
+                    except:
+                        pass
                 # check share
                 tmpShare = tmpItem.split(':')[-1]
                 if tmpShare in ['0','0%']:

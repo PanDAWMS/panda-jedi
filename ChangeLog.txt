@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/24/2015
+  * changed APJB to take priority-based shares into account 
+
 * 9/22/2015
   * removed amiFlag
 
