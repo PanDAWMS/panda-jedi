@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/25/2015
+  * added protection to TC for empty commentStr
+
 * 9/24/2015
   * changed APJB to take priority-based shares into account 
 
