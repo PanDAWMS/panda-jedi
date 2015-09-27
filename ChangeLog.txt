@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/27/2015
+  * fixed AtlasProdWatchDog for reassigning
+
 * 9/25/2015
   * added protection to TC for empty commentStr
 
