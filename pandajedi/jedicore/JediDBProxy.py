@@ -2702,7 +2702,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not fullSimulation:
                 sqlFR_RCNull += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
                 sqlFR_RCNull += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
-                sqlFR_RCNull += "AND ramCount IS NULL or ramCount=0"
+                sqlFR_RCNull += "AND (ramCount IS NULL or ramCount=0) "
             sqlFR_RCNull += "ORDER BY {0}) "
             sqlFR_RCNull += "WHERE rownum <= {1}"
             

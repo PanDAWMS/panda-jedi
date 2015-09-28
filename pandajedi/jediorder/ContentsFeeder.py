@@ -395,8 +395,7 @@ class ContentsFeederThread (WorkerThread):
                                         useFilesWithNewAttemptNr = True
                                     #ramCount
                                     ramCount = 0
-                                    if taskParamMap.has_key('ramCount'):
-                                        ramCount = taskParamMap['ramCount']
+
                                     # feed files to the contents table
                                     tmpLog.info('update contents')
                                     retDB,missingFileList,nFilesUnique,diagMap = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
