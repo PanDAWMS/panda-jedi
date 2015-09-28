@@ -2702,7 +2702,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not fullSimulation:
                 sqlFR_RCNull += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
                 sqlFR_RCNull += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
-                sqlFR_RCNull += "AND ramCount IS NULL"
+                sqlFR_RCNull += "AND ramCount IS NULL or ramCount=0"
             sqlFR_RCNull += "ORDER BY {0}) "
             sqlFR_RCNull += "WHERE rownum <= {1}"
             
@@ -2891,6 +2891,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug(sqlRM+comment+str(varMap))
                         self.cur.execute(sqlRM+comment, varMap)
                         memReqs = map (lambda req: req[0], self.cur.fetchall()) #Unpack resultset
+                        
+                        #Group 0 and NULL memReqs
+                        if 0 in memReqs and None in memReqs:
+                            memReqs.remove(None)
+                        
                         tmpLog.debug("memory requirements for files in task %s dataset %s are: %s"%(jediTaskID, datasetID, memReqs))
                         if not memReqs:
                             toSkip = True
@@ -3076,11 +3081,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         else:
                                             if not fullSimulation:
                                                 varMap[':status'] = 'ready'
-                                                if inputChunk.ramCount is not None:
+                                                if inputChunk.ramCount is not in (None, 0):
                                                     varMap[':ramCount'] = inputChunk.ramCount
-                                            if inputChunk.ramCount is not None:
+                                            if inputChunk.ramCount is not in (None, 0):
                                                 self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
-                                            else:
+                                            else: #We goup inputChunk.ramCount None and 0 together
                                                 self.cur.execute(sqlFR_RCNull.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
                                         resFileList = self.cur.fetchall()
                                         for resFile in resFileList:
