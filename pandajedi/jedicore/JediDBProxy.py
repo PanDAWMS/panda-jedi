@@ -3083,7 +3083,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                 varMap[':status'] = 'ready'
                                                 if inputChunk.ramCount not in (None, 0):
                                                     varMap[':ramCount'] = inputChunk.ramCount
-                                            if inputChunk.ramCount is not in (None, 0):
+                                            if inputChunk.ramCount not in (None, 0):
                                                 self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
                                             else: #We goup inputChunk.ramCount None and 0 together
                                                 self.cur.execute(sqlFR_RCNull.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
