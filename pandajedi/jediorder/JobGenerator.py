@@ -568,7 +568,7 @@ class JobGeneratorThread (WorkerThread):
                                 relationType = 'retry'
                             # submit
                             fqans = taskSpec.makeFQANs()
-                            tmpLog.info('submit jobs with FQAN={0}'.format(','.join(str(fqan) for fqan in fqans)))
+                            tmpLog.info('submit {0} jobs with FQAN={1}'.format(len(pandaJobs),','.join(str(fqan) for fqan in fqans)))
                             resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,
                                                                     fqans=fqans,toPending=True,
                                                                     oldPandaIDs=oldPandaIDs,

@@ -136,7 +136,7 @@ class AtlasProdWatchDog (WatchDogBase):
             # succeeded
             if isOK:    
                 # activate task
-                if taskSpec.oldStatus in ['assigning','exhausted']:
+                if taskSpec.oldStatus in ['assigning','exhausted',None]:
                     taskSpec.status = 'ready'
                 else:
                     taskSpec.status = taskSpec.oldStatus

@@ -52,9 +52,6 @@ class PostProcessorBase (object):
             if taskSpec.usePrePro() and not taskSpec.checkPreProcessed():
                 taskSpec.setErrDiag('Preprocessing step failed',True)
         tmpLog.sendMsg('set task.status={0}'.format(taskSpec.status),self.msgType)
-        # AMI flag
-        if taskSpec.status in ['done','finished']:
-            taskSpec.amiFlag = 'READY'
         # update dataset
         for datasetSpec in taskSpec.datasetSpecList:
             if taskSpec.status in ['failed','broken','aborted']:
@@ -181,13 +178,17 @@ class PostProcessorBase (object):
         else:
             status = 'finished'
         # check if goal is reached
-        if taskSpec.failGoalUnreached() and status == 'finished' and taskSpec.goal != None and \
+        if taskSpec.failGoalUnreached() and status == 'finished' and \
                 (not taskSpec.useExhausted() or (taskSpec.useExhausted() and taskSpec.status in ['passed'])):
+            if taskSpec.goal == None:
+                taskGoal = 1000
+            else:
+                taskGoal = taskSpec.goal
             if totalInputEvents != 0:
-                if float(totalOutputEvents)/float(totalInputEvents)*1000.0 < taskSpec.goal:
+                if float(totalOutputEvents)/float(totalInputEvents)*1000.0 < taskGoal:
                     status = 'failed'
             elif nFiles != 0:
-                if float(nFilesFinished)/float(nFiles)*1000.0 < taskSpec.goal:
+                if float(nFilesFinished)/float(nFiles)*1000.0 < taskGoal:
                     status = 'failed'
         return status
 

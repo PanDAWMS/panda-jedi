@@ -4,6 +4,7 @@ import sys
 import time
 import socket
 import datetime
+import traceback
 
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
@@ -121,7 +122,7 @@ class TaskCommandoThread (WorkerThread):
                         # loop twice to see immediate result
                         for iLoop in range(2):
                             # get active PandaIDs to be killed
-                            if commandStr == 'reassign' and 'soft reassign' in commentStr:
+                            if commandStr == 'reassign' and commentStr != None and 'soft reassign' in commentStr:
                                 pandaIDs = self.taskBufferIF.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
                             else:
                                 pandaIDs = self.taskBufferIF.getPandaIDsWithTask_JEDI(jediTaskID,True)
@@ -144,19 +145,20 @@ class TaskCommandoThread (WorkerThread):
                                         tmpTaskSpec.forceUpdate('oldStatus')
                                     else:
                                         # extract cloud or site
-                                        tmpItems = commentStr.split(':')
-                                        if tmpItems[0] == 'cloud':
-                                            tmpTaskSpec.cloud = tmpItems[1]
-                                        else:
-                                            tmpTaskSpec.site = tmpItems[1]
-                                        tmpMsg = 'set {0}={1}'.format(tmpItems[0],tmpItems[1])
-                                        tmpLog.sendMsg(tmpMsg,self.msgType)
-                                        tmpLog.info(tmpMsg)
-                                        # back to oldStatus if necessary 
-                                        if tmpItems[2] == 'y':
-                                            tmpTaskSpec.status = oldStatus
-                                            tmpTaskSpec.forceUpdate('oldStatus')
-                                            updateTaskStatus = False
+                                        if commentStr != None:
+                                            tmpItems = commentStr.split(':')
+                                            if tmpItems[0] == 'cloud':
+                                                tmpTaskSpec.cloud = tmpItems[1]
+                                            else:
+                                                tmpTaskSpec.site = tmpItems[1]
+                                            tmpMsg = 'set {0}={1}'.format(tmpItems[0],tmpItems[1])
+                                            tmpLog.sendMsg(tmpMsg,self.msgType)
+                                            tmpLog.info(tmpMsg)
+                                            # back to oldStatus if necessary 
+                                            if tmpItems[2] == 'y':
+                                                tmpTaskSpec.status = oldStatus
+                                                tmpTaskSpec.forceUpdate('oldStatus')
+                                                updateTaskStatus = False
                                     if commandStr == 'reassign':
                                         tmpTaskSpec.forceUpdate('errorDialog')
                                     if updateTaskStatus:
@@ -249,7 +251,9 @@ class TaskCommandoThread (WorkerThread):
                         tmpLog.error('unknown command')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
-                logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
+                errStr  = '{0} failed in runImpl() with {1}:{2} '.format(self.__class__.__name__,errtype.__name__,errvalue)
+                errStr += traceback.format_exc()
+                logger.error(errStr)
         
 
 

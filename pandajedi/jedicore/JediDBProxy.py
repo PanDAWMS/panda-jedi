@@ -3455,7 +3455,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get orphaned tasks
-            sqlTR  = "SELECT jediTaskID "
+            sqlTR  = "SELECT jediTaskID,lockedBy "
             sqlTR += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTR += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlTR += "AND tabT.status IN (:status1,:status2,:status3,:status4) AND lockedBy IS NOT NULL AND lockedTime<:timeLimit "
@@ -3472,19 +3472,27 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to reset nFilesUsed
             sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow ".format(jedi_config.db.schemaJEDI)
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID " 
-            # sql to unlock tasks
+            # sql to unlock task
             sqlTU  = "UPDATE {0}.JEDI_Tasks SET lockedBy=NULL,lockedTime=NULL ".format(jedi_config.db.schemaJEDI)
-            sqlTU += "WHERE jediTaskID=:jediTaskID"
+            sqlTU += "WHERE jediTaskID=:jediTaskID "
+            # sql to re-lock task
+            sqlRL  = "UPDATE {0}.JEDI_Tasks SET lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlRL += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy AND lockedTime<:timeLimit "
+            # sql to re-lock task with nowait
+            sqlNW  = "SELECT jediTaskID FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlNW += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy AND lockedTime<:timeLimit "
+            sqlNW += "FOR UPDATE NOWAIT "
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
+            timeLimit = datetime.datetime.utcnow() - datetime.timedelta(minutes=waitTime)
             # get orphaned tasks
             varMap = {}
             varMap[':status1'] = 'ready'
             varMap[':status2'] = 'scouting'
             varMap[':status3'] = 'running'
             varMap[':status4'] = 'merging'
-            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=waitTime)
+            varMap[':timeLimit'] = timeLimit
             if vo != None:
                 varMap[':vo'] = vo
             if prodSourceLabel != None:
@@ -3496,47 +3504,74 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 raise RuntimeError, 'Commit error'
             # loop over all tasks
             nTasks = 0
-            for jediTaskID, in resTaskList:
+            for jediTaskID,lockedBy in resTaskList:
                 tmpLog.debug('[jediTaskID={0}] rescue'.format(jediTaskID))
                 self.conn.begin()
-                # get input datasets
+                # re-lock the task with NOWAIT
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
-                varMap[':type1'] = 'input'
-                varMap[':type2'] = 'trn_log'
-                varMap[':type3'] = 'trn_output'
-                varMap[':type4'] = 'pseudo_input'
-                varMap[':type5'] = 'random_seed'
-                self.cur.execute(sqlDP+comment,varMap)
-                resDatasetList = self.cur.fetchall()
-                # loop over all input datasets
-                for datasetID, in resDatasetList:
-                    # update contents
+                varMap[':lockedBy']   = lockedBy
+                varMap[':timeLimit']  = timeLimit
+                toSkip = False
+                try:
+                    self.cur.execute(sqlNW+comment,varMap)
+                except:
+                    errType,errValue = sys.exc_info()[:2]
+                    if self.isNoWaitException(errValue):
+                        tmpLog.debug('[jediTaskID={0}] skip to rescue since locked by another'.format(jediTaskID))
+                        toSkip = True
+                    else:
+                        # failed with something else
+                        raise errType,errValue
+                if not toSkip:    
+                    # re-lock the task
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
-                    varMap[':datasetID']  = datasetID
-                    varMap[':nStatus'] = 'ready'
-                    varMap[':oStatus'] = 'picked'
-                    varMap[':keepTrack'] = 1
-                    self.cur.execute(sqlF+comment,varMap)
-                    nFileRow = self.cur.rowcount
-                    tmpLog.debug('[takID={0}] reset {1} rows for datasetID={2}'.format(jediTaskID,nFileRow,datasetID))
-                    if nFileRow > 0:
-                        # reset nFilesUsed
+                    varMap[':lockedBy']   = lockedBy
+                    varMap[':timeLimit']  = timeLimit
+                    self.cur.execute(sqlRL+comment,varMap)
+                    nRow = self.cur.rowcount
+                    if nRow == 0:
+                        tmpLog.debug('[jediTaskID={0}] skip to rescue since failed to re-lock'.format(jediTaskID))
+                    else:
+                        # get input datasets
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
-                        varMap[':datasetID']  = datasetID
-                        varMap[':nFileRow'] = nFileRow
-                        self.cur.execute(sqlDU+comment,varMap)
-                # unlock task
-                tmpLog.debug('[jediTaskID={0}] ulock'.format(jediTaskID))        
-                varMap = {}
-                varMap[':jediTaskID'] = jediTaskID
-                self.cur.execute(sqlTU+comment,varMap)
-                nRows = self.cur.rowcount
-                tmpLog.debug('[jediTaskID={0}] done with nRows={1}'.format(jediTaskID,nRows))
-                if nRows == 1:
-                    nTasks += 1
+                        varMap[':type1'] = 'input'
+                        varMap[':type2'] = 'trn_log'
+                        varMap[':type3'] = 'trn_output'
+                        varMap[':type4'] = 'pseudo_input'
+                        varMap[':type5'] = 'random_seed'
+                        self.cur.execute(sqlDP+comment,varMap)
+                        resDatasetList = self.cur.fetchall()
+                        # loop over all input datasets
+                        for datasetID, in resDatasetList:
+                            # update contents
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
+                            varMap[':nStatus'] = 'ready'
+                            varMap[':oStatus'] = 'picked'
+                            varMap[':keepTrack'] = 1
+                            self.cur.execute(sqlF+comment,varMap)
+                            nFileRow = self.cur.rowcount
+                            tmpLog.debug('[jediTaskID={0}] reset {1} rows for datasetID={2}'.format(jediTaskID,nFileRow,datasetID))
+                            if nFileRow > 0:
+                                # reset nFilesUsed
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                varMap[':nFileRow'] = nFileRow
+                                self.cur.execute(sqlDU+comment,varMap)
+                        # unlock task
+                        tmpLog.debug('[jediTaskID={0}] unlock'.format(jediTaskID))        
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        self.cur.execute(sqlTU+comment,varMap)
+                        nRows = self.cur.rowcount
+                        tmpLog.debug('[jediTaskID={0}] done with nRows={1}'.format(jediTaskID,nRows))
+                        if nRows == 1:
+                            nTasks += 1
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
