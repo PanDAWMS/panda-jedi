@@ -263,7 +263,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
                                    xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents,
-                                   respectLB,tgtNumEventsPerJob,skipFilesUsedBy):
+                                   respectLB,tgtNumEventsPerJob,skipFilesUsedBy,ramCount):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -284,8 +284,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('xmlConfig={0} noWaitParent={1} parent_tid={2}'.format(type(xmlConfig),noWaitParent,parent_tid))
         tmpLog.debug('len(fileMap)={0} pid={1}'.format(len(fileMap),pid))
         tmpLog.debug('datasetState={0} dataset.state={1}'.format(datasetState,datasetSpec.state))
-        tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1} skipFilesUsedBy={2}'.format(respectLB,tgtNumEventsPerJob,
-                                                                                       skipFilesUsedBy))
+        tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1} skipFilesUsedBy={2} ramCount={3}'.format(respectLB,tgtNumEventsPerJob,
+                                                                                       skipFilesUsedBy, ramCount))
+
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -461,6 +462,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.failedAttempt = 0
                 fileSpec.maxAttempt = maxAttempt
                 fileSpec.maxFailure = maxFailure
+                fileSpec.ramCount = ramCount
                 if nEventsPerFile != None:
                     fileSpec.nEvents = nEventsPerFile
                 elif fileVal.has_key('events') and not fileVal['events'] in ['None',None]:
@@ -2599,6 +2601,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # no tasks
             if resList == [] and isPeeking:
                 return 0
+            
             # make return
             returnMap = {}
             taskDatasetMap = {}
@@ -2619,6 +2622,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # make task-dataset mapping
                 if not taskDatasetMap.has_key(jediTaskID):
                     taskDatasetMap[jediTaskID] = []
+                 
                 taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents))
                 # use single username if WQ has a share
                 if workQueue != None and workQueue.queue_share != None:
@@ -2687,8 +2691,45 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not fullSimulation:
                 sqlFR += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
                 sqlFR += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
+                sqlFR += "AND ramCount=:ramCount "
             sqlFR += "ORDER BY {0}) "
             sqlFR += "WHERE rownum <= {1}"
+            
+            #For the cases where the ram count is not set
+            sqlFR_RCNull  = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
+            sqlFR_RCNull += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFR_RCNull += "jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            if not fullSimulation:
+                sqlFR_RCNull += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
+                sqlFR_RCNull += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
+                sqlFR_RCNull += "AND ramCount IS NULL or ramCount=0"
+            sqlFR_RCNull += "ORDER BY {0}) "
+            sqlFR_RCNull += "WHERE rownum <= {1}"
+            
+            # sql to read files without ramcount
+            sqlFRNR  = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
+            sqlFRNR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+            sqlFRNR += "jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            if not fullSimulation:
+                sqlFRNR += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
+                sqlFRNR += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
+            sqlFRNR += "ORDER BY {0}) "
+            sqlFRNR += "WHERE rownum <= {1}"
+
+            #sql to read memory requirements of files in dataset
+            processTypes = JediDatasetSpec.getProcessTypes()
+            counter = 0
+            pt_vm = {}
+            for processType in processTypes:
+                pt_vm[':pt{0}'.format(counter)] = processType
+                counter+=1
+            pt_bindings = ','.join(':pt{0}'.format(i) for i in xrange(len(processTypes)))
+            sqlRM = """SELECT ramCount FROM {0}.JEDI_Dataset_Contents 
+                       WHERE jediTaskID=:jediTaskID and datasetID=:datasetID
+                       AND type in ({1})
+                       AND status = 'ready' AND (maxAttempt IS NULL OR attemptNr<maxAttempt) 
+                       AND (maxFailure IS NULL OR failedAttempt<maxFailure)
+                       GROUP BY ramCount""".format(jedi_config.db.schemaJEDI, pt_bindings)
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
@@ -2836,20 +2877,43 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     iDsPerTask = 0
                     nDsPerTask = 10
                     for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents in taskDatasetMap[jediTaskID]:
+                        
                         primaryDatasetID = datasetID
                         datasetIDs = [datasetID]
                         taskSpec = copy.copy(origTaskSpec)
-                        # make InputChunk
-                        inputChunk = InputChunk(taskSpec)
-                        # merging
-                        if datasetType in JediDatasetSpec.getMergeProcessTypes():
-                            inputChunk.isMerging = True
+                        
+                        #See if there are different memory requirements that need to be mapped to different chuncks
+                        varMap = pt_vm.copy() 
+                        varMap['jediTaskID'] = jediTaskID
+                        varMap['datasetID'] = datasetID
+                        self.cur.arraysize = 1000000
+                        # figure out if there are different memory requirements in the dataset
+                        tmpLog.debug(sqlRM+comment+str(varMap))
+                        self.cur.execute(sqlRM+comment, varMap)
+                        memReqs = map (lambda req: req[0], self.cur.fetchall()) #Unpack resultset
+                        
+                        #Group 0 and NULL memReqs
+                        if 0 in memReqs and None in memReqs:
+                            memReqs.remove(None)
+                        
+                        tmpLog.debug("memory requirements for files in task %s dataset %s are: %s"%(jediTaskID, datasetID, memReqs))
+                        if not memReqs:
+                            toSkip = True
                         else:
-                            # only process merging if enough jobs are already generated
-                            if maxNumJobs != None and maxNumJobs <= 0:
-                                tmpLog.debug('skip jediTaskID={0} datasetID={1} due to non-merge + enough jobs'.format(jediTaskID,
-                                                                                                                       primaryDatasetID)) 
-                                continue
+                            # make InputChunks by ram count
+                            inputChunks = []
+                            for memReq in memReqs:
+                                inputChunks.append(InputChunk(taskSpec, ramCount=memReq))
+                            # merging
+                            if datasetType in JediDatasetSpec.getMergeProcessTypes():
+                                for inputChunk in inputChunks:
+                                    inputChunk.isMerging = True
+                            else:
+                                # only process merging if enough jobs are already generated
+                                if maxNumJobs != None and maxNumJobs <= 0:
+                                    tmpLog.debug('skip jediTaskID={0} datasetID={1} due to non-merge + enough jobs'.format(jediTaskID,
+                                                                                                                           primaryDatasetID)) 
+                                    continue
                         # read secondary dataset IDs
                         if not toSkip:
                             # sql to get seconday dataset list
@@ -2892,22 +2956,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':datasetID']  = datasetID
                                 try:
-                                    # select
-                                    self.cur.execute(sqlRD+comment,varMap)
-                                    resRD = self.cur.fetchone()
-                                    datasetSpec = JediDatasetSpec()
-                                    datasetSpec.pack(resRD)
-                                    # change stream name for merging
-                                    if datasetSpec.type in JediDatasetSpec.getMergeProcessTypes():
-                                        # change OUTPUT to IN
-                                        datasetSpec.streamName = re.sub('^OUTPUT','TRN_OUTPUT',datasetSpec.streamName)
-                                        # change LOG to INLOG
-                                        datasetSpec.streamName = re.sub('^LOG','TRN_LOG',datasetSpec.streamName)
-                                    # add to InputChunk
-                                    if datasetSpec.isMaster():
-                                        inputChunk.addMasterDS(datasetSpec)
-                                    else:
-                                        inputChunk.addSecondaryDS(datasetSpec)
+                                    for inputChunk in inputChunks:
+                                        # select
+                                        self.cur.execute(sqlRD+comment,varMap)
+                                        resRD = self.cur.fetchone()
+                                        datasetSpec = JediDatasetSpec()
+                                        datasetSpec.pack(resRD)
+                                        # change stream name for merging
+                                        if datasetSpec.type in JediDatasetSpec.getMergeProcessTypes():
+                                            # change OUTPUT to IN
+                                            datasetSpec.streamName = re.sub('^OUTPUT','TRN_OUTPUT',datasetSpec.streamName)
+                                            # change LOG to INLOG
+                                            datasetSpec.streamName = re.sub('^LOG','TRN_LOG',datasetSpec.streamName)
+                                        # add to InputChunk
+                                        if datasetSpec.isMaster():
+                                            inputChunk.addMasterDS(datasetSpec)
+                                        else:
+                                            inputChunk.addSecondaryDS(datasetSpec)
                                 except:
                                     errType,errValue = sys.exc_info()[:2]
                                     if self.isNoWaitException(errValue):
@@ -2918,10 +2983,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         # failed with something else
                                         raise errType,errValue
                             # set useScout
-                            if (numAvalanche == 0 and not inputChunk.isMutableMaster()) or not taskSpec.useScout():
-                                inputChunk.setUseScout(False)
+                            if (numAvalanche == 0 and not inputChunks[0].isMutableMaster()) or not taskSpec.useScout():
+                                for inputChunk in inputChunks:
+                                    inputChunk.setUseScout(False)
                             else:
-                                inputChunk.setUseScout(True)
+                                for inputChunk in inputChunks:
+                                    inputChunk.setUseScout(True)
                         # read job params and files
                         if not toSkip:
                             # read template to generate job parameters
@@ -2952,7 +3019,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 typicalNumFilesPerJob = typicalNumFilesMap[taskSpec.processingType]
                             tmpLog.debug('jediTaskID={0} typicalNumFilesPerJob={1}'.format(jediTaskID,typicalNumFilesPerJob))
                             # max number of files based on typical usage
-                            if maxNumJobs != None and not inputChunk.isMerging and not inputChunk.useScout():
+                            if maxNumJobs != None and not inputChunks[0].isMerging and not inputChunks[0].useScout():
                                 maxNumFiles = min(nFiles,typicalNumFilesPerJob*maxNumJobs+10)
                             else:
                                 maxNumFiles = nFiles
@@ -2968,119 +3035,140 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # reading with a fix size of block
                                 readBlock = True
                                 maxMasterFilesTobeRead = maxNumFiles
-                            for datasetID in datasetIDs:
-                                # get DatasetSpec
-                                tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
-                                # the number of files to be read
-                                if tmpDatasetSpec.isMaster():
-                                    maxFilesTobeRead = maxMasterFilesTobeRead
-                                else:
-                                    # for secondaries
-                                    if taskSpec.useLoadXML() or tmpDatasetSpec.isNoSplit():
-                                        maxFilesTobeRead = 10000
-                                    elif tmpDatasetSpec.getNumFilesPerJob() != None:
-                                        maxFilesTobeRead = maxMasterFilesTobeRead * tmpDatasetSpec.getNumFilesPerJob()
+                            
+                            iFiles={}
+                            for inputChunk in inputChunks:
+                                for datasetID in datasetIDs:
+                                    iFiles.setdefault(datasetID, 0)
+                                    # get DatasetSpec
+                                    tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
+                                    # the number of files to be read
+                                    if tmpDatasetSpec.isMaster():
+                                        maxFilesTobeRead = maxMasterFilesTobeRead
                                     else:
-                                        maxFilesTobeRead = int(maxMasterFilesTobeRead * tmpDatasetSpec.getRatioToMaster())
-                                # minimum read
-                                if readMinFiles:
-                                    maxFilesForMinRead = 10
-                                    if maxFilesTobeRead > maxFilesForMinRead:
-                                        maxFilesTobeRead = maxFilesForMinRead
-                                tmpLog.debug('jediTaskID={2} trying to read {0} files from datasetID={1}'.format(maxFilesTobeRead,
-                                                                                                                 datasetID,jediTaskID))
-                                if tmpDatasetSpec.isSeqNumber():
-                                    orderBy = 'fileID'
-                                elif not tmpDatasetSpec.isMaster() and taskSpec.reuseSecOnDemand():
-                                    orderBy = 'fileID'
-                                elif not taskSpec.useLoadXML():
-                                    orderBy = 'lfn'
-                                else:
-                                    orderBy = 'boundaryID'
-                                # read files to make FileSpec
-                                iFiles = 0
-                                for iDup in range(100): # avoid infinite loop just in case
-                                    varMap = {}
-                                    varMap[':datasetID']  = datasetID
-                                    varMap[':jediTaskID'] = jediTaskID
-                                    if not fullSimulation:
-                                        varMap[':status'] = 'ready'
-                                    self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead-iFiles)+comment,varMap)
-                                    resFileList = self.cur.fetchall()
-                                    for resFile in resFileList:
-                                        # make FileSpec
-                                        tmpFileSpec = JediFileSpec()
-                                        tmpFileSpec.pack(resFile)
-                                        # update file status
-                                        if simTasks == None and tmpDatasetSpec.toKeepTrack():
-                                            varMap = {}
-                                            varMap[':jediTaskID'] = tmpFileSpec.jediTaskID
-                                            varMap[':datasetID']  = tmpFileSpec.datasetID
-                                            varMap[':fileID']     = tmpFileSpec.fileID
-                                            varMap[':nStatus']    = 'picked'
-                                            varMap[':oStatus']    = 'ready'
-                                            self.cur.execute(sqlFU+comment,varMap)
-                                            nFileRow = self.cur.rowcount
-                                            if nFileRow != 1:
-                                                tmpLog.debug('skip fileID={0} already used by another'.format(tmpFileSpec.fileID))
-                                                continue
-                                        # add to InputChunk
-                                        tmpDatasetSpec.addFile(tmpFileSpec)
-                                        iFiles += 1
-                                    # no reuse
-                                    if not taskSpec.reuseSecOnDemand() or tmpDatasetSpec.isMaster() or taskSpec.useLoadXML() or \
-                                            tmpDatasetSpec.isSeqNumber() or tmpDatasetSpec.isNoSplit() or tmpDatasetSpec.toMerge():
-                                        break
-                                    # enough files were read
-                                    if iFiles == maxFilesTobeRead:
-                                        break
-                                    # duplicate files for reuse
-                                    tmpLog.debug('try to duplicate files for datasetID={0} since only {1}/{2} files were read'.format(tmpDatasetSpec.datasetID,
-                                                                                                                                      iFiles,maxFilesTobeRead))
-                                    nNewRec = self.duplicateFilesForReuse_JEDI(tmpDatasetSpec)
-                                    tmpLog.debug('{0} files were duplicated'.format(nNewRec))
-                                    if nNewRec == 0:
-                                        break
-                                if iFiles == 0:
-                                    # no input files
-                                    if not readMinFiles or not tmpDatasetSpec.isPseudo():
-                                        tmpLog.debug('jediTaskID={0} datasetID={1} has no files to be processed'.format(jediTaskID,datasetID))
-                                        toSkip = True
-                                        break
-                                elif simTasks == None and tmpDatasetSpec.toKeepTrack():
-                                    # update nFilesUsed in DatasetSpec
-                                    nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles
-                                    tmpDatasetSpec.nFilesUsed = nFilesUsed
-                                    varMap = {}
-                                    varMap[':jediTaskID'] = jediTaskID
-                                    varMap[':datasetID']  = datasetID
-                                    varMap[':nFilesUsed'] = nFilesUsed
-                                    varMap[':newnFilesUsed'] = self.cur.var(cx_Oracle.NUMBER)
-                                    varMap[':newnFilesTobeUsed'] = self.cur.var(cx_Oracle.NUMBER)
-                                    self.cur.execute(sqlDU+comment,varMap)
-                                    newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
-                                    newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
-                                tmpLog.debug('jediTaskID={2} datasetID={0} has {1} files to be processed'.format(datasetID,iFiles,
-                                                                                                                 jediTaskID))
-                                # set flag if it is a block read
-                                if tmpDatasetSpec.isMaster():
-                                    if readBlock:
-                                        inputChunk.readBlock = True
+                                        # for secondaries
+                                        if taskSpec.useLoadXML() or tmpDatasetSpec.isNoSplit():
+                                            maxFilesTobeRead = 10000
+                                        elif tmpDatasetSpec.getNumFilesPerJob() != None:
+                                            maxFilesTobeRead = maxMasterFilesTobeRead * tmpDatasetSpec.getNumFilesPerJob()
+                                        else:
+                                            maxFilesTobeRead = int(maxMasterFilesTobeRead * tmpDatasetSpec.getRatioToMaster())
+                                    # minimum read
+                                    if readMinFiles:
+                                        maxFilesForMinRead = 10
+                                        if maxFilesTobeRead > maxFilesForMinRead:
+                                            maxFilesTobeRead = maxFilesForMinRead
+                                    tmpLog.debug('jediTaskID={2} trying to read {0} files from datasetID={1}'.format(maxFilesTobeRead,
+                                                                                                                     datasetID,jediTaskID))
+                                    if tmpDatasetSpec.isSeqNumber():
+                                        orderBy = 'fileID'
+                                    elif not tmpDatasetSpec.isMaster() and taskSpec.reuseSecOnDemand():
+                                        orderBy = 'fileID'
+                                    elif not taskSpec.useLoadXML():
+                                        orderBy = 'lfn'
                                     else:
-                                        inputChunk.readBlock = False
-                                # randomize
-                                if tmpDatasetSpec.isRandom():
-                                    random.shuffle(tmpDatasetSpec.Files)
+                                        orderBy = 'boundaryID'
+                                    # read files to make FileSpec
+                                    iFiles_tmp = 0
+                                    for iDup in range(100): # avoid infinite loop just in case
+                                        varMap = {}
+                                        varMap[':datasetID']  = datasetID
+                                        varMap[':jediTaskID'] = jediTaskID
+                                        if not tmpDatasetSpec.toKeepTrack():
+                                            if not fullSimulation:
+                                                varMap[':status'] = 'ready'
+                                            self.cur.execute(sqlFRNR.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
+                                        else:
+                                            if not fullSimulation:
+                                                varMap[':status'] = 'ready'
+                                                if inputChunk.ramCount not in (None, 0):
+                                                    varMap[':ramCount'] = inputChunk.ramCount
+                                            if inputChunk.ramCount not in (None, 0):
+                                                self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
+                                            else: #We goup inputChunk.ramCount None and 0 together
+                                                self.cur.execute(sqlFR_RCNull.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
+                                        resFileList = self.cur.fetchall()
+                                        for resFile in resFileList:
+                                            # make FileSpec
+                                            tmpFileSpec = JediFileSpec()
+                                            tmpFileSpec.pack(resFile)
+                                            # update file status
+                                            if simTasks == None and tmpDatasetSpec.toKeepTrack():
+                                                varMap = {}
+                                                varMap[':jediTaskID'] = tmpFileSpec.jediTaskID
+                                                varMap[':datasetID']  = tmpFileSpec.datasetID
+                                                varMap[':fileID']     = tmpFileSpec.fileID
+                                                varMap[':nStatus']    = 'picked'
+                                                varMap[':oStatus']    = 'ready'
+                                                self.cur.execute(sqlFU+comment,varMap)
+                                                nFileRow = self.cur.rowcount
+                                                if nFileRow != 1:
+                                                    tmpLog.debug('skip fileID={0} already used by another'.format(tmpFileSpec.fileID))
+                                                    continue
+                                            # add to InputChunk
+                                            tmpDatasetSpec.addFile(tmpFileSpec)
+                                            iFiles[datasetID] += 1
+                                            iFiles_tmp += 1
+                                        # no reuse
+                                        if not taskSpec.reuseSecOnDemand() or tmpDatasetSpec.isMaster() or taskSpec.useLoadXML() or \
+                                                tmpDatasetSpec.isSeqNumber() or tmpDatasetSpec.isNoSplit() or tmpDatasetSpec.toMerge():
+                                            break
+                                        # enough files were read
+                                        if iFiles[datasetID] == maxFilesTobeRead:
+                                            break
+                                        # duplicate files for reuse
+                                        tmpLog.debug('try to duplicate files for datasetID={0} since only {1}/{2} files were read'.format(tmpDatasetSpec.datasetID,
+                                                                                                                                          iFiles,maxFilesTobeRead))
+                                        nNewRec = self.duplicateFilesForReuse_JEDI(tmpDatasetSpec)
+                                        tmpLog.debug('{0} files were duplicated'.format(nNewRec))
+                                        if nNewRec == 0:
+                                            break
+                                    
+                                    if tmpDatasetSpec.isMaster() and iFiles_tmp==0:
+                                        inputChunk.isEmpty = True
+                                    
+                                    if iFiles[datasetID] == 0:
+                                        # no input files
+                                        if not readMinFiles or not tmpDatasetSpec.isPseudo():
+                                            tmpLog.debug('jediTaskID={0} datasetID={1} has no files to be processed'.format(jediTaskID,datasetID))
+                                            #toSkip = True
+                                            break
+                                    elif simTasks == None and tmpDatasetSpec.toKeepTrack() and iFiles_tmp!=0:
+                                        # update nFilesUsed in DatasetSpec
+                                        nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles[datasetID]
+                                        tmpDatasetSpec.nFilesUsed = nFilesUsed
+                                        varMap = {}
+                                        varMap[':jediTaskID'] = jediTaskID
+                                        varMap[':datasetID']  = datasetID
+                                        varMap[':nFilesUsed'] = nFilesUsed
+                                        varMap[':newnFilesUsed'] = self.cur.var(cx_Oracle.NUMBER)
+                                        varMap[':newnFilesTobeUsed'] = self.cur.var(cx_Oracle.NUMBER)
+                                        self.cur.execute(sqlDU+comment,varMap)
+                                        newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
+                                        newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
+                                    tmpLog.debug('jediTaskID={2} datasetID={0} has {1} files to be processed'.format(datasetID,iFiles[datasetID],
+                                                                                                                     jediTaskID))
+                                    # set flag if it is a block read
+                                    if tmpDatasetSpec.isMaster():
+                                        if readBlock and iFiles[datasetID] == maxFilesTobeRead:
+                                            inputChunk.readBlock = True
+                                        else:
+                                            inputChunk.readBlock = False
+                                    # randomize
+                                    if tmpDatasetSpec.isRandom():
+                                        random.shuffle(tmpDatasetSpec.Files)
                         # add to return
                         if not toSkip:
                             if not jediTaskID in returnMap:
                                 returnMap[jediTaskID] = []
                                 iTasks += 1
-                            returnMap[jediTaskID].append((taskSpec,cloudName,inputChunk))
-                            iDsPerTask += 1
-                            # reduce the number of jobs
-                            if maxNumJobs != None and not inputChunk.isMerging:
-                                maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
+                            for inputChunk in inputChunks:
+                                if not inputChunk.isEmpty:
+                                    returnMap[jediTaskID].append((taskSpec,cloudName,inputChunk))
+                                    iDsPerTask += 1
+                                # reduce the number of jobs
+                                if maxNumJobs != None and not inputChunk.isMerging:
+                                    maxNumJobs -= int(math.ceil(float(len(inputChunk.masterDataset.Files))/float(typicalNumFilesPerJob)))
                         else:
                             tmpLog.debug('escape due to toSkip for jediTaskID={0} datasetID={1}'.format(jediTaskID,primaryDatasetID)) 
                             break
@@ -3121,6 +3209,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # change map to list
             returnList  = []
             for tmpJediTaskID,tmpTaskDsList in returnMap.iteritems():
+                for ds in tmpTaskDsList:
+                    tmpLog.debug("returning inputchunk {0}".format(ds[2]))
                 returnList.append((tmpJediTaskID,tmpTaskDsList))
             tmpLog.debug('memUsage end {0} MB pid={1}'.format(JediCoreUtils.getMemoryUsage(),os.getpid()))
             return returnList
@@ -8482,7 +8572,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return failedRet
-
 
 
     # get inactive sites

@@ -3,12 +3,24 @@ import random
 
 import JediCoreUtils
 
+from pandacommon.pandalogger.PandaLogger import PandaLogger
+logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 # class for input
 class InputChunk:
+    
+    def __str__(self):
+        sb = []
+        for key in self.__dict__:
+            sb.append("{key}='{value}'".format(key=key, value=self.__dict__[key]))
+    
+        return ', '.join(sb)
+    
+    def __repr__(self):
+        return self.__str__() 
 
     # constructor
-    def __init__(self,taskSpec,masterDataset=None,secondaryDatasetList=[]):
+    def __init__(self,taskSpec,masterDataset=None,secondaryDatasetList=[], ramCount=0):
         # task spec
         self.taskSpec = taskSpec
         # the list of secondary datasets
@@ -35,6 +47,10 @@ class InputChunk:
         self.isMerging = False
         # use scout
         self.useScoutFlag = None
+        #memory requirements for the inputChunk
+        self.ramCount = ramCount
+        #flag to set if inputchunk is empty
+        self.isEmpty = False
 
 
 
@@ -52,9 +68,9 @@ class InputChunk:
         if not secondaryDataset in self.secondaryDatasetList:
             self.secondaryDatasetList.append(secondaryDataset)
             self.datasetMap[secondaryDataset.datasetID] = {'used':0,'datasetSpec':secondaryDataset}
-        
-                    
-    
+
+
+
     # return list of datasets
     def getDatasets(self,includePseudo=False):
         dataList = []
@@ -93,8 +109,8 @@ class InputChunk:
     def resetUsedCounters(self):
         for tmpKey,tmpVal in self.datasetMap.iteritems():
             tmpVal['used'] = 0
-            
-        
+
+
 
     # add site candidates
     def addSiteCandidate(self,siteCandidateSpec):
@@ -212,8 +228,8 @@ class InputChunk:
         self.resetUsedCounters()
         # return
         return maxAtomSize
-    
-        
+
+
 
     # use scout
     def useScout(self):
@@ -248,7 +264,7 @@ class InputChunk:
             return values[-1]
         except:
             return 0
-        
+
 
 
     # get subchunk with a selection criteria
