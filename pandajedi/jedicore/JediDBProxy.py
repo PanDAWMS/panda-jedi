@@ -2715,21 +2715,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlFRNR += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
             sqlFRNR += "ORDER BY {0}) "
             sqlFRNR += "WHERE rownum <= {1}"
-
             #sql to read memory requirements of files in dataset
-            processTypes = JediDatasetSpec.getProcessTypes()
-            counter = 0
-            pt_vm = {}
-            for processType in processTypes:
-                pt_vm[':pt{0}'.format(counter)] = processType
-                counter+=1
-            pt_bindings = ','.join(':pt{0}'.format(i) for i in xrange(len(processTypes)))
             sqlRM = """SELECT ramCount FROM {0}.JEDI_Dataset_Contents 
                        WHERE jediTaskID=:jediTaskID and datasetID=:datasetID
-                       AND type in ({1})
-                       AND status = 'ready' AND (maxAttempt IS NULL OR attemptNr<maxAttempt) 
+                       AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) 
                        AND (maxFailure IS NULL OR failedAttempt<maxFailure)
-                       GROUP BY ramCount""".format(jedi_config.db.schemaJEDI, pt_bindings)
+                       GROUP BY ramCount """.format(jedi_config.db.schemaJEDI)
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
@@ -2883,12 +2874,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         taskSpec = copy.copy(origTaskSpec)
                         
                         #See if there are different memory requirements that need to be mapped to different chuncks
-                        varMap = pt_vm.copy() 
-                        varMap['jediTaskID'] = jediTaskID
-                        varMap['datasetID'] = datasetID
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':datasetID'] = datasetID
+                        varMap[':status'] = 'ready'
                         self.cur.arraysize = 1000000
                         # figure out if there are different memory requirements in the dataset
-                        tmpLog.debug(sqlRM+comment+str(varMap))
+                        #tmpLog.debug(sqlRM+comment+str(varMap))
                         self.cur.execute(sqlRM+comment, varMap)
                         memReqs = map (lambda req: req[0], self.cur.fetchall()) #Unpack resultset
                         
@@ -2896,7 +2888,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if 0 in memReqs and None in memReqs:
                             memReqs.remove(None)
                         
-                        tmpLog.debug("memory requirements for files in task %s dataset %s are: %s"%(jediTaskID, datasetID, memReqs))
+                        tmpLog.debug("memory requirements for files in jediTaskID=%s datasetID=%s are: %s"%(jediTaskID, datasetID, memReqs))
                         if not memReqs:
                             toSkip = True
                         else:
