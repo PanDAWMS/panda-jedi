@@ -1,5 +1,12 @@
 Release Notes
 
+* 9/29/2015
+  * fixed setScoutJobDataToTasks_JEDI to take young tasks into account
+  * suppressed files in JediDataset.str 
+
+* 9/28/2015
+  * added retrial module
+
 * 9/27/2015
   * fixed AtlasProdWatchDog for reassigning
 

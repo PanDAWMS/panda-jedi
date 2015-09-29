@@ -2702,7 +2702,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not fullSimulation:
                 sqlFR_RCNull += "AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) "
                 sqlFR_RCNull += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
-                sqlFR_RCNull += "AND (ramCount IS NULL or ramCount=0) "
+                sqlFR_RCNull += "AND (ramCount IS NULL OR ramCount=0) "
             sqlFR_RCNull += "ORDER BY {0}) "
             sqlFR_RCNull += "WHERE rownum <= {1}"
             
@@ -4647,7 +4647,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlSCF  = "SELECT tabT.jediTaskID "
             sqlSCF += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{1}.T_TASK tabD ".format(jedi_config.db.schemaJEDI,jedi_config.db.schemaDEFT)
             sqlSCF += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
-            sqlSCF += "AND tabT.jediTaskID=tabD.taskID AND tabT.modificationTime<:timeLimit "
+            sqlSCF += "AND tabT.jediTaskID=tabD.taskID AND tabT.modificationTime>:timeLimit "
             sqlSCF += "AND tabT.status=:status AND tabT.walltimeUnit IS NULL "
             sqlSCF += "AND tabD.total_done_jobs>=:minJobs "
             if not vo in [None,'any']:
