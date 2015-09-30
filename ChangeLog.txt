@@ -2,6 +2,7 @@ Release Notes
 
 * 9/30/2015
   * added ddd:
+  * changed AtlasPJB to work with cpuTime=0
 
 * 9/29/2015
   * fixed setScoutJobDataToTasks_JEDI to take young tasks into account

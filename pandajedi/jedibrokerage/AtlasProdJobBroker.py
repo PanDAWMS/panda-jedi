@@ -485,7 +485,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 siteMaxTime = tmpSiteSpec.maxtime
                 origSiteMaxTime = siteMaxTime
                 # sending scouts merge or wallime-undefined jobs to only sites where walltime is more than 1 day
-                if inputChunk.useScout() or inputChunk.isMerging or (taskSpec.walltime in [0,None] and taskSpec.cpuTime in [0,None]):
+                if inputChunk.useScout() or inputChunk.isMerging or \
+                        (taskSpec.walltime in [0,None] and taskSpec.walltimeUnit in ['',None] and taskSpec.cpuTimeUnit in ['',None]):
                     minTimeForZeroWalltime = 24*60*60
                     if siteMaxTime != 0 and siteMaxTime < minTimeForZeroWalltime:
                         tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient '.format(tmpSiteName,

@@ -2717,10 +2717,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFRNR += "WHERE rownum <= {1}"
             #sql to read memory requirements of files in dataset
             sqlRM = """SELECT ramCount FROM {0}.JEDI_Dataset_Contents 
-                       WHERE jediTaskID=:jediTaskID and datasetID=:datasetID
-                       AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) 
-                       AND (maxFailure IS NULL OR failedAttempt<maxFailure)
-                       GROUP BY ramCount """.format(jedi_config.db.schemaJEDI)
+                       WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID """.format(jedi_config.db.schemaJEDI)
+            if not fullSimulation:
+                sqlRM += """AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) 
+                            AND (maxFailure IS NULL OR failedAttempt<maxFailure) """
+            sqlRM += "GROUP BY ramCount "
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
@@ -2877,10 +2878,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
                         varMap[':datasetID'] = datasetID
-                        varMap[':status'] = 'ready'
+                        if not fullSimulation:
+                            varMap[':status'] = 'ready'
                         self.cur.arraysize = 1000000
                         # figure out if there are different memory requirements in the dataset
-                        #tmpLog.debug(sqlRM+comment+str(varMap))
                         self.cur.execute(sqlRM+comment, varMap)
                         memReqs = map (lambda req: req[0], self.cur.fetchall()) #Unpack resultset
                         
@@ -4541,7 +4542,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if returnMap['walltime'] > limitWallTime:
                 returnMap['walltime'] = limitWallTime
         if cpuTimeList != []:
-            maxCpuTime = max(1,long(math.ceil(max(cpuTimeList)*1.5)))
+            maxCpuTime = long(math.ceil(max(cpuTimeList)*1.5))
             returnMap['cpuTime'] = maxCpuTime
         if memSizeList != []:
             median = max(memSizeList)
