@@ -226,16 +226,19 @@ class AtlasDDMClient(DDMClientBase):
     # convert token to endpoint
     def convertTokenToEndpoint(self,baseSeName,token):
         self.updateEndPointDict()
-        altName = self.getSiteAlternateName(baseSeName)
-        if altName != None:
-            for seName,seVal in self.endPointDict.iteritems():
-                if seVal['site'] == altName:
-                    # space token
-                    if seVal['token'] == token:
-                        return seName
-                    # pattern matching
-                    if re.search(token,seName) != None:
-                        return seName
+        try:
+            altName = self.getSiteAlternateName(baseSeName)[0]
+            if altName != None:
+                for seName,seVal in self.endPointDict.iteritems():
+                    if seVal['site'] == altName:
+                        # space token
+                        if seVal['token'] == token:
+                            return seName
+                        # pattern matching
+                        if re.search(token,seName) != None:
+                            return seName
+        except:
+            pass
         return None
 
 
@@ -1016,7 +1019,7 @@ class AtlasDDMClient(DDMClientBase):
 
     # register location
     def registerDatasetLocation(self,datasetName,location,lifetime=None,owner=None,backEnd='rucio',
-                                activity=None):
+                                activity=None,grouping=None):
         methodName = 'registerDatasetLocation'
         methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
         tmpLog = MsgWrapper(logger,methodName)
@@ -1041,12 +1044,14 @@ class AtlasDDMClient(DDMClientBase):
                 owner = userInfo['nickname']
             else:
                 owner = client.account
+            if grouping == None:
+                grouping = 'DATASET'
             # add rule
             dids = []
             did = {'scope': scope, 'name': dsn}
             dids.append(did)
             client.add_replication_rule(dids=dids,copies=1,rse_expression=location,lifetime=lifetime,
-                                        grouping='DATASET',account=owner,locked=False,notify='N',
+                                        grouping=grouping,account=owner,locked=False,notify='N',
                                         ignore_availability=True,activity=activity)
         except DuplicateRule:
             pass

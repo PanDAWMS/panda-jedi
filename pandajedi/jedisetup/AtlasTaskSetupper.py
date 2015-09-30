@@ -80,10 +80,13 @@ class AtlasTaskSetupper (TaskSetupperBase):
                             if tmpList == []:
                                 # get location
                                 location = None
+                                locForRule = None
                                 if targetName == datasetSpec.datasetName:
                                     # dataset
                                     if datasetSpec.site in ['',None]:
-                                        if DataServiceUtils.getDestinationSE(datasetSpec.storageToken) != None:
+                                        if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+                                            locForRule = datasetSpec.destination
+                                        elif DataServiceUtils.getDestinationSE(datasetSpec.storageToken) != None:
                                             location = DataServiceUtils.getDestinationSE(datasetSpec.storageToken)
                                         elif taskSpec.cloud != None:
                                             # use T1 SE
@@ -91,6 +94,8 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                             location = siteMapper.getDdmEndpoint(tmpT1Name,datasetSpec.storageToken)
                                     else:
                                         location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
+                                if locForRule == None:
+                                    locForRule = location
                                 # set metadata
                                 if taskSpec.prodSourceLabel in ['managed','test'] and targetName == datasetSpec.datasetName:
                                     metaData = {}
@@ -113,17 +118,26 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                     tmpLog.error('failed to register {0}'.format(targetName))
                                     return retFatal
                                 # procedures for user 
-                                if userSetup:
+                                if userSetup or DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
                                     # register location
-                                    if targetName == datasetSpec.datasetName and not datasetSpec.site in ['',None]:
+                                    tmpToRegister = False
+                                    if userSetup and targetName == datasetSpec.datasetName and not datasetSpec.site in ['',None]:
+                                        userName = taskSpec.userName
+                                        grouping = None
+                                        tmpToRegister = True
+                                    elif DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+                                        userName = None
+                                        grouping = 'NONE'
+                                        tmpToRegister = True
+                                    if tmpToRegister:
                                         activity = DataServiceUtils.getActivityForOut(taskSpec.prodSourceLabel)
-                                        tmpLog.info('registring location={0} lifetime={1}days activity={2}'.format(location,lifetime,
-                                                                                                                   activity))
-                                        tmpStat = ddmIF.registerDatasetLocation(targetName,location,owner=taskSpec.userName,
+                                        tmpLog.info('registring location={0} lifetime={1}days activity={2} grouping={3}'.format(locForRule,lifetime,
+                                                                                                                                activity,grouping))
+                                        tmpStat = ddmIF.registerDatasetLocation(targetName,locForRule,owner=userName,
                                                                                 lifetime=lifetime,backEnd=ddmBackEnd,
-                                                                                activity=activity)
+                                                                                activity=activity,grouping=grouping)
                                         if not tmpStat:
-                                            tmpLog.error('failed to register location {0} with {2} for {1}'.format(location,
+                                            tmpLog.error('failed to register location {0} with {2} for {1}'.format(locForRule,
                                                                                                                    targetName,
                                                                                                                    ddmBackEnd))
                                             return retFatal

@@ -677,6 +677,7 @@ class JobGeneratorThread (WorkerThread):
             siteDsMap = {}
             esIndex = 0
             parallelOutMap = {}
+            dddMap = {}
             for tmpInChunk in inSubChunkList:
                 siteName      = tmpInChunk['siteName']
                 inSubChunks   = tmpInChunk['subChunks']
@@ -1031,6 +1032,15 @@ class JobGeneratorThread (WorkerThread):
                         if taskSpec.stayOutputOnSite():
                             tmpOutFileSpec.destinationSE = siteName
                             tmpOutFileSpec.destinationDBlockToke = 'dst:{0}'.format(siteSpec.ddm)
+                        # distributed dataset
+                        tmpDistributedDestination = DataServiceUtils.getDistributedDestination(tmpOutFileSpec.destinationDBlockToken)
+                        if tmpDistributedDestination != None:
+                            tmpDddKey = (siteName,tmpDistributedDestination)
+                            if not tmpDddKey in dddMap:
+                                dddMap[tmpDddKey] = self.ddmIF.getInterface(taskSpec.vo).convertTokenToEndpoint(siteSpec.ddm,tmpDistributedDestination)
+                            if dddMap[tmpDddKey] != None:
+                                tmpOutFileSpec.destinationSE = siteName
+                                tmpOutFileSpec.destinationDBlockToken = 'ddd:{0}'.format(dddMap[tmpDddKey])
                         jobSpec.addFile(tmpOutFileSpec)
                         # use the first dataset as destinationDBlock
                         if destinationDBlock == None:
