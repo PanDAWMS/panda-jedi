@@ -5,6 +5,7 @@ import uuid
 import math
 import socket
 import datetime
+import traceback
 
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
@@ -263,10 +264,18 @@ class ContentsFeederThread (WorkerThread):
                                                                                                            datasetSpec.masterID,
                                                                                                            ['nFiles'])
                                                 # use nFiles of the master as the number of records if it is larger than the default
-                                                if tmpMasterAtt['nFiles'] > seqDefNumRecords:
+                                                if 'nFiles' in tmpMasterAtt and tmpMasterAtt['nFiles'] > seqDefNumRecords:
                                                     nPFN = tmpMasterAtt['nFiles']
                                                 else:
                                                     nPFN = seqDefNumRecords
+                                                # check usedBy 
+                                                if skipFilesUsedBy != None:
+                                                    for tmpJediTaskID in str(skipFilesUsedBy).split(','):
+                                                        tmpParentAtt = self.taskBufferIF.getDatasetAttributesWithMap_JEDI(tmpJediTaskID,
+                                                                                                                          {'datasetName':datasetSpec.datasetName},
+                                                                                                                          ['nFiles'])
+                                                        if 'nFiles' in tmpParentAtt and tmpParentAtt['nFiles'] > nPFN:
+                                                            nPFN = tmpParentAtt['nFiles']
                                             tmpRet = {}
                                             # get offset
                                             tmpOffset = datasetSpec.getOffset()
@@ -300,7 +309,7 @@ class ContentsFeederThread (WorkerThread):
                                                                              }
                                 except:
                                     errtype,errvalue = sys.exc_info()[:2]
-                                    tmpLog.error('failed to get files due to {0}:{1}'.format(self.__class__.__name__,
+                                    tmpLog.error('failed to get files due to {0}:{1} {2}'.format(self.__class__.__name__,
                                                                                                  errtype.__name__,errvalue))
                                     if errtype == Interaction.JEDIFatalError:
                                         # fatal error

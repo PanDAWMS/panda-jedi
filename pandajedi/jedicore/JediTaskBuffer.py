@@ -161,6 +161,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # get JEDI dataset attributes with map
+    def getDatasetAttributesWithMap_JEDI(self,jediTaskID,criteria,attributes):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getDatasetAttributesWithMap_JEDI(jediTaskID,criteria,attributes)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # get JEDI dataset with jediTaskID and datasetID
     def getDatasetWithID_JEDI(self,jediTaskID,datasetID):
         # get DBproxy

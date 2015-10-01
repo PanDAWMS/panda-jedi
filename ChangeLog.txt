@@ -1,5 +1,9 @@
 Release Notes
 
+* 10/1/2015
+  * fixed CF for seq_num+skipFilesUsedBy
+  * changed JG to lock just before final task update
+
 * 9/30/2015
   * added ddd:
   * changed AtlasPJB to work with cpuTime=0

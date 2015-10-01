@@ -1274,6 +1274,52 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return failedRet
 
+
+
+    # get JEDI dataset attributes with map
+    def getDatasetAttributesWithMap_JEDI(self,jediTaskID,criteria,attributes):
+        comment = ' /* JediDBProxy.getDatasetAttributesWithMap_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0} criteria={1}>'.format(jediTaskID,str(criteria))
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        # return value for failure
+        failedRet = {}
+        try:
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            # sql for get attributes
+            sql  = "SELECT "
+            for tmpKey in attributes:
+                sql += '{0},'.format(tmpKey)
+            sql = sql[:-1] + ' '
+            sql += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sql += 'WHERE jediTaskID=:jediTaskID '
+            for crKey,crVal in criteria.iteritems():
+                sql += 'AND {0}=:{0} '.format(crKey)
+                varMap[':{0}'.format(crKey)] = crVal
+            # begin transaction
+            self.conn.begin()
+            # select
+            self.cur.execute(sql+comment,varMap)
+            res = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # make return
+            retMap = {}
+            if res != None:
+                for tmpIdx,tmpKey in enumerate(attributes):
+                    retMap[tmpKey] = res[tmpIdx]
+            tmpLog.debug('got {0}'.format(str(retMap)))
+            return retMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return failedRet
+
                 
         
     # get JEDI dataset with datasetID

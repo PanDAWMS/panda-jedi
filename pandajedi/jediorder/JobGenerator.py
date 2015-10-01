@@ -606,6 +606,12 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.setErrDiag(tmpErrStr)
                             # the number of generated jobs     
                             self.numGenJobs += len(pandaIDs)    
+                        # lock task
+                        tmpLog.info('lock task')
+                        tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
+                        if tmpStat == False:
+                            tmpLog.info('skip due to lock failure')
+                            continue
                         # reset unused files
                         self.taskBufferIF.resetUnusedFiles_JEDI(taskSpec.jediTaskID,inputChunk)
                         # unset lockedBy when all inputs are done for a task
