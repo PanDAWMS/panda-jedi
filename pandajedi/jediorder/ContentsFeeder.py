@@ -274,8 +274,8 @@ class ContentsFeederThread (WorkerThread):
                                                         tmpParentAtt = self.taskBufferIF.getDatasetAttributesWithMap_JEDI(tmpJediTaskID,
                                                                                                                           {'datasetName':datasetSpec.datasetName},
                                                                                                                           ['nFiles'])
-                                                        if 'nFiles' in tmpParentAtt and tmpParentAtt['nFiles'] > nPFN:
-                                                            nPFN = tmpParentAtt['nFiles']
+                                                        if 'nFiles' in tmpParentAtt and tmpParentAtt['nFiles']:
+                                                            nPFN += tmpParentAtt['nFiles']
                                             tmpRet = {}
                                             # get offset
                                             tmpOffset = datasetSpec.getOffset()
