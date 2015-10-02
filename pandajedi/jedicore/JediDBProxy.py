@@ -8191,10 +8191,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get unique files
-            sqlCT  = "SELECT MIN(fileID) minFileID "
+            sqlCT  = "SELECT COUNT(*) FROM ("
+            sqlCT += "SELECT distinct lfn,startEvent,endEvent "
             sqlCT += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlCT += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
-            sqlCT += "GROUP BY lfn,startEvent,endEvent "
+            sqlCT += ") "
             # sql to read file spec
             defaultVales = {}
             defaultVales['status'] = 'ready'
@@ -8220,15 +8221,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':jediTaskID'] = datasetSpec.jediTaskID
             varMap[':datasetID'] = datasetSpec.datasetID
             self.cur.execute(sqlCT+comment,varMap)
-            resCT = self.cur.fetchall()
-            iFile = 0
+            resCT = self.cur.fetchone()
+            iFile, = resCT
             # insert files
             varMap = {}
             varMap[':jediTaskID'] = datasetSpec.jediTaskID
             varMap[':datasetID'] = datasetSpec.datasetID
             self.cur.execute(sqlFR+comment,varMap)
             # update dataset
-            iFile = len(resCT)
             if iFile > 0:
                 varMap = {}
                 varMap[':jediTaskID'] = datasetSpec.jediTaskID

@@ -1047,6 +1047,8 @@ class JobGeneratorThread (WorkerThread):
                             if dddMap[tmpDddKey] != None:
                                 tmpOutFileSpec.destinationSE = siteName
                                 tmpOutFileSpec.destinationDBlockToken = 'ddd:{0}'.format(dddMap[tmpDddKey])
+                            else:
+                                tmpOutFileSpec.destinationDBlockToken = None
                         jobSpec.addFile(tmpOutFileSpec)
                         # use the first dataset as destinationDBlock
                         if destinationDBlock == None:

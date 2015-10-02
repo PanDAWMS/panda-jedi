@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/2/2015
+  * fixed JG to reset destinationDBlock when the site doesn't have endpoint for ddd:
+
 * 10/1/2015
   * fixed CF for seq_num+skipFilesUsedBy
   * changed JG to lock just before final task update
