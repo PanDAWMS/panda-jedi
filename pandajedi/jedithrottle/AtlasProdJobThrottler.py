@@ -21,8 +21,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nBunch = 4
         threshold = 2.0
         thresholdForSite = threshold - 1.0
-        nJobsInBunchMax = 550
-        nJobsInBunchMin = 450
+        nJobsInBunchMax = 600
+        nJobsInBunchMin = 500
         nJobsInBunchMaxES = 1000
         nWaitingLimit = 4
         nWaitingBunchLimit = 2
@@ -182,9 +182,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             self.setMinPriority(limitPriorityValue)
         else:
             # not enough jobs are queued
-            if nNotRun+nDefine < nQueueLimit:
-                #self.notEnoughJobsQueued()
-                pass
+            if nNotRun+nDefine < max(nQueueLimit,nRunning):
+                tmpLog.debug(msgHeader+" not enough jobs queued")
+                self.notEnoughJobsQueued()
         msgBody = "PASS - priority limit={0}".format(limitPriorityValue)
         tmpLog.debug(msgHeader+" "+msgBody)
         return self.retUnThrottled

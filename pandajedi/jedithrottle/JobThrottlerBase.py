@@ -14,15 +14,15 @@ class JobThrottlerBase (object):
         self.retUnThrottled = self.SC_SUCCEEDED,False
         self.retMergeUnThr  = self.SC_SUCCEEDED,THR_LEVEL5
         # limit
-        self.maxNumJobs  = None
-        self.minPriority = None
         self.refresh()
         self.msgType      = 'jobthrottler'
-        self.underNqLimit = False
 
 
     # refresh
     def refresh(self):
+        self.maxNumJobs  = None
+        self.minPriority = None
+        self.underNqLimit = False
         self.siteMapper = self.taskBufferIF.getSiteMapper()
 
         
