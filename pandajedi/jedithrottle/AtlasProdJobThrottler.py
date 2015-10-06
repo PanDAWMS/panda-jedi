@@ -185,6 +185,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             if nNotRun+nDefine < max(nQueueLimit,nRunning):
                 tmpLog.debug(msgHeader+" not enough jobs queued")
                 self.notEnoughJobsQueued()
+                self.setMaxNumJobs(nJobsInBunch)
         msgBody = "PASS - priority limit={0}".format(limitPriorityValue)
         tmpLog.debug(msgHeader+" "+msgBody)
         return self.retUnThrottled

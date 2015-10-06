@@ -22,6 +22,7 @@ class JobThrottler (FactoryBase):
         # retrieve min priority and max number of jobs from concrete class
         self.minPriority = impl.minPriority
         self.maxNumJobs = impl.maxNumJobs
+        self.lackOfJobs = impl.underNqLimit
         return retVal
 
 
@@ -30,11 +31,3 @@ class JobThrottler (FactoryBase):
     def mergeThrottled(self,vo,sourceLabel,thrLevel):
         impl = self.getImpl(vo,sourceLabel)
         return impl.mergeThrottled(thrLevel)
-
-
-
-    # check if lack of jobs
-    def lackOfJobs(self,vo,sourceLabel):
-        impl = self.getImpl(vo,sourceLabel)
-        return impl.lackOfJobs()
-

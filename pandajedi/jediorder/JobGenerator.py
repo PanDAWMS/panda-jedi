@@ -127,6 +127,8 @@ class JobGenerator (JediKnight):
                                         tmpLog.debug('throttled')
                                         self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
                                         continue
+                                elif thrFlag == False:
+                                    pass
                                 else:
                                     # leveled flag
                                     mergeUnThrottled = not throttle.mergeThrottled(vo,workQueue.queue_type,thrFlag)
@@ -168,7 +170,7 @@ class JobGenerator (JediKnight):
                                     if len(tmpList) != 0: 
                                         if thrFlag == False:
                                             # check if the queue has jobs more than nQueueLimit
-                                            if self.withThrottle and throttle.lackOfJobs(vo,workQueue.queue_type):
+                                            if self.withThrottle and throttle.lackOfJobs:
                                                 tmpLog.debug('unlock {0} for multiple processes to quickly fill the queue until nQueueLimit is reached'.format(cycleStr))
                                                 self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
                                         # put to a locked list
