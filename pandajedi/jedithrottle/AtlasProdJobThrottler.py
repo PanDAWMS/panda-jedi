@@ -118,6 +118,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         # use special limit for CERN
         if cloudName == 'CERN':
             nQueueLimit = 2000
+        if workQueue.queue_name == 'group':
+            nQueueLimit = 10000
         # use nPrestage for reprocessing   
         if workQueue.queue_name in ['reprocessing']:
             if cloudSpec.has_key('nprestage') and cloudSpec['nprestage'] > 0:

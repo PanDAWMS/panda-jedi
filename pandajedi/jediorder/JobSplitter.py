@@ -11,7 +11,9 @@ class JobSplitter:
 
     # constructor
     def __init__(self):
-        pass
+        self.sizeGradientsPerInSizeForMerge = 1.2
+        self.interceptsMerginForMerge = 500 * 1024 * 1024
+
         
 
     # split
@@ -59,12 +61,12 @@ class JobSplitter:
             nEventsPerJob = taskSpec.getNumEventsPerMergeJob()
             maxSizePerJob = None
             useBoundary = {'inSplit':3}
-            # gradients per input size is 1
-            sizeGradientsPerInSize = 1
+            # gradients per input size is 1 + margin
+            sizeGradientsPerInSize = self.sizeGradientsPerInSizeForMerge
             # intercepts for libDS
             sizeIntercepts = taskSpec.getWorkDiskSize()
             # mergein of 500MB
-            interceptsMergin = 500 * 1024 * 1024
+            interceptsMergin = self.interceptsMerginForMerge
             if sizeIntercepts < interceptsMergin:
                 sizeIntercepts = interceptsMergin
             maxOutSize = taskSpec.getMaxSizePerMergeJob()

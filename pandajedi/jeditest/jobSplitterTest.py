@@ -76,5 +76,6 @@ for dummyID,tmpList in tmpListList:
             tbIF.unlockProcessWithPID_JEDI(taskSpec.vo,taskSpec.prodSourceLabel,workQueue.queue_id,
                                            brokeragelockID,True)
         tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
-        tmpStat,pandaJobs,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog,True)
+        tmpStat,pandaJobs,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog,True,
+                                                                                                 splitter=splitter)
 

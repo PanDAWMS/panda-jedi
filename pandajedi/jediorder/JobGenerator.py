@@ -517,7 +517,8 @@ class JobGeneratorThread (WorkerThread):
                             try:
                                 tmpStat,pandaJobs,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap = self.doGenerate(taskSpec,cloudName,subChunks,
                                                                                                                           inputChunk,tmpLog,
-                                                                                                                          taskParamMap=taskParamMap)
+                                                                                                                          taskParamMap=taskParamMap,
+                                                                                                                          splitter=splitter)
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
                                 tmpLog.error('generator crashed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -657,7 +658,7 @@ class JobGeneratorThread (WorkerThread):
 
 
     # generate jobs
-    def doGenerate(self,taskSpec,cloudName,inSubChunkList,inputChunk,tmpLog,simul=False,taskParamMap=None):
+    def doGenerate(self,taskSpec,cloudName,inSubChunkList,inputChunk,tmpLog,simul=False,taskParamMap=None,splitter=None):
         # return for failure
         failedRet = Interaction.SC_FAILED,None,None,None,None,None
         # read task parameters
@@ -771,7 +772,10 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.AtlasRelease     = re.sub('\r','',jobSpec.AtlasRelease)
                     jobSpec.maxCpuCount      = taskSpec.walltime
                     jobSpec.maxCpuUnit       = taskSpec.walltimeUnit
-                    jobSpec.maxDiskCount     = taskSpec.getOutDiskSize()
+                    if inputChunk.isMerging and splitter != None:
+                        jobSpec.maxDiskCount = splitter.sizeGradientsPerInSizeForMerge
+                    else:
+                        jobSpec.maxDiskCount = taskSpec.getOutDiskSize()
                     jobSpec.maxDiskUnit      = 'MB'
                     jobSpec.minRamCount      = max(taskSpec.ramCount, self.getLargestRamCount(inSubChunk))
                     jobSpec.minRamUnit       = taskSpec.ramUnit
@@ -967,7 +971,9 @@ class JobGeneratorThread (WorkerThread):
                         pass
                     # multiply maxDiskCount by total master size or # of events
                     try:
-                        if taskSpec.outputScaleWithEvents():
+                        if inputChunk.isMerging:
+                            jobSpec.maxDiskCount *= totalFileSize
+                        elif not taskSpec.outputScaleWithEvents():
                             jobSpec.maxDiskCount *= totalMasterSize
                         else:
                             jobSpec.maxDiskCount *= totalMasterEvents
@@ -975,7 +981,10 @@ class JobGeneratorThread (WorkerThread):
                         pass
                     # add offset to maxDiskCount
                     try:
-                        jobSpec.maxDiskCount += taskSpec.getWorkDiskSize()
+                        if inputChunk.isMerging and splitter != None:
+                            jobSpec.maxDiskCount += max(taskSpec.getWorkDiskSize(),splitter.interceptsMerginForMerge)
+                        else:
+                            jobSpec.maxDiskCount += taskSpec.getWorkDiskSize()
                     except:
                         pass
                     # add input size
