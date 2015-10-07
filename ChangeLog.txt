@@ -2,6 +2,7 @@ Release Notes
 
 * 10/7/2015
   * added a margin to the multiplier of disk count estimation for pmerge
+  * fixed CF for nEventsPerRange
 
 * 10/6/2015
   * changed JG to release the lock as soon as tasks are taken when nQueued<nQueueLimit

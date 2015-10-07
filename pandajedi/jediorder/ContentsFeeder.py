@@ -251,6 +251,8 @@ class ContentsFeederThread (WorkerThread):
                                                 if taskParamMap.has_key('nEventsPerJob') and taskParamMap.has_key('nEventsPerFile') \
                                                         and taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
                                                     nPFN = nPFN * taskParamMap['nEventsPerFile'] / taskParamMap['nEventsPerJob']
+                                                elif taskParamMap.has_key('nEventsPerFile') and taskParamMap.has_key('nEventsPerRange'):
+                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] / taskParamMap['nEventsPerRange']
                                             elif 'nEvents' in taskParamMap and 'nEventsPerJob' in taskParamMap:
                                                 nPFN = taskParamMap['nEvents'] / taskParamMap['nEventsPerJob']
                                             elif 'nEvents' in taskParamMap and 'nEventsPerFile' in taskParamMap \
