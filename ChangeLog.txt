@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/8/2015
+  * ignoring TEST when converting token to RSE
+
 * 10/7/2015
   * added a margin to the multiplier of disk count estimation for pmerge
   * fixed CF for nEventsPerRange
