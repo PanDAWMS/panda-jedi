@@ -1,6 +1,7 @@
 import re
 import sys
 
+from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from WatchDogBase import WatchDogBase
 from pandajedi.jediconfig import jedi_config
@@ -159,8 +160,14 @@ class AtlasProdWatchDog (WatchDogBase):
 
     # action for high priority pending tasks
     def doActionForHighPrioPending(self,gTmpLog,minPriority,timeoutVal):
+        timeoutForPending = None
+        if hasattr(jedi_config.watchdog,'timeoutForPendingVoLabel'):
+            timeoutForPending = JediCoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel,self.vo,self.prodSourceLabel)
+        if timeoutForPending == None:
+            timeoutForPending = jedi_config.watchdog.timeoutForPending
+        timeoutForPending = int(timeoutForPending)
         tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(self.vo,self.prodSourceLabel,
-                                                               timeoutVal,jedi_config.watchdog.timeoutForPending,
+                                                               timeoutVal,timeoutForPending,
                                                                minPriority=minPriority)
         if tmpRet == None:
             # failed                                                                                                             
