@@ -871,7 +871,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         # lock sites for WORLD
         if taskSpec.useWorldCloud():
             for tmpSiteName in scanSiteList:
-                self.lockSite(taskSpec.vo,taskSpec.prodSourceLabel,tmpSiteName,taskSpec.workQueue_ID)
+                #self.lockSite(taskSpec.vo,taskSpec.prodSourceLabel,tmpSiteName,taskSpec.workQueue_ID)
+                pass
         tmpLog.debug('final {0} candidates'.format(len(scanSiteList)))
         # return
         self.sendLogMessage(tmpLog)

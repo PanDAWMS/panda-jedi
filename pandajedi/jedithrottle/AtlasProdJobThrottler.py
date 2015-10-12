@@ -24,6 +24,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nJobsInBunchMax = 600
         nJobsInBunchMin = 500
         nJobsInBunchMaxES = 1000
+        minTotalWalltime = 50*1000*1000
         nWaitingLimit = 4
         nWaitingBunchLimit = 2
         nParallel = 2
@@ -135,28 +136,34 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                         nJobsInBunch = nJobsInBunchMax
         # set number of jobs to be submitted
         self.setMaxNumJobs(nJobsInBunch/nParallel)
+        # get total walltime
+        totWalltime = self.taskBufferIF.getTotalWallTime_JEDI(vo,prodSourceLabel,workQueue,cloudName)
         # check number of jobs when high priority jobs are not waiting. test jobs are sent without throttling
         limitPriority = False
-        tmpLog.debug(msgHeader+" nQueueLimit:{0} nQueued:{1} nDefine:{2} nRunning:{3}".format(nQueueLimit,
-                                                                                              nNotRun+nDefine,
-                                                                                              nDefine,
-                                                                                              nRunning))
+        tmpLog.debug(msgHeader+" nQueueLimit:{0} nQueued:{1} nDefine:{2} nRunning:{3} totWalltime:{4}".format(nQueueLimit,
+                                                                                                              nNotRun+nDefine,
+                                                                                                              nDefine,
+                                                                                                              nRunning,
+                                                                                                              totWalltime))
         # check
-        if nRunning == 0 and (nNotRun+nDefine) > nQueueLimit:
+        if nRunning == 0 and (nNotRun+nDefine) > nQueueLimit and (totWalltime == None or totWalltime > minTotalWalltime):
             limitPriority = True
             if not highPrioQueued:
                 # pilot is not running or DDM has a problem
-                msgBody = "SKIP no running and enough nQueued({0})>{1}".format(nNotRun+nDefine,nQueueLimit)
+                msgBody = "SKIP no running and enough nQueued({0})>{1} totWalltime({2})>{3} ".format(nNotRun+nDefine,nQueueLimit,
+                                                                                                     totWalltime,minTotalWalltime)
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
-        elif nRunning != 0 and float(nNotRun+nDefine)/float(nRunning) > threshold and (nNotRun+nDefine) > nQueueLimit:
+        elif nRunning != 0 and float(nNotRun+nDefine)/float(nRunning) > threshold and \
+                (nNotRun+nDefine) > nQueueLimit and (totWalltime == None or totWalltime > minTotalWalltime):
             limitPriority = True
             if not highPrioQueued:
                 # enough jobs in Panda
-                msgBody = "SKIP nQueued({0})/nRunning({1})>{2} & nQueued({3})>{4}".format(nNotRun+nDefine,nRunning,
-                                                                                          threshold,nNotRun+nDefine,
-                                                                                          nQueueLimit)
+                msgBody = "SKIP nQueued({0})/nRunning({1})>{2} & nQueued({3})>{4} totWalltime({5})>{6}".format(nNotRun+nDefine,nRunning,
+                                                                                                               threshold,nNotRun+nDefine,
+                                                                                                               nQueueLimit,
+                                                                                                               totWalltime,minTotalWalltime)
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
@@ -184,7 +191,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             self.setMinPriority(limitPriorityValue)
         else:
             # not enough jobs are queued
-            if nNotRun+nDefine < max(nQueueLimit,nRunning):
+            if nNotRun+nDefine < max(nQueueLimit,nRunning) or (totWalltime != None and totWalltime < minTotalWalltime):
                 tmpLog.debug(msgHeader+" not enough jobs queued")
                 self.notEnoughJobsQueued()
                 self.setMaxNumJobs(nJobsInBunch)

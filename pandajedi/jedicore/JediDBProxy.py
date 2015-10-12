@@ -8647,3 +8647,71 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return retVal
+
+
+
+    # get total walltime
+    def getTotalWallTime_JEDI(self,vo,prodSourceLabel,workQueue,cloud=None):
+        comment = ' /* JediDBProxy.getTotalWallTime_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1} queue={2} cloud={3}>'.format(vo,prodSourceLabel,workQueue.queue_name,cloud)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql
+            varMap = {}
+            sql  = "SELECT SUM(NVL2(maxWalltime,maxWalltime,0)),SUM(NVL2(maxWalltime,1,0)),SUM(NVL2(maxWalltime,0,1)) "
+            sql += "FROM {0}.".format(jedi_config.db.schemaPANDA) + "{0} "
+            sql += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel "
+            if cloud != None:
+                sql += "AND cloud=:cloud "
+                varMap[':cloud'] = cloud 
+            sql += "AND workQueue_ID IN ("
+            for tmpQueue_ID in workQueue.getIDs():
+                tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
+                varMap[tmpKey] = tmpQueue_ID
+                sql += '{0},'.format(tmpKey)
+            sql  = sql[:-1]
+            sql += ") "
+            sqlA = "AND jobStatus IN (:jobStatus1,:jobStatus2) "
+            # start transaction
+            self.conn.begin()
+            # get from jobsDefined
+            varMap[':vo'] = vo
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            self.cur.execute(sql.format('jobsDefined4')+comment,varMap)
+            totWalltime,nHasVal,nNoVal = 0,0,0
+            tmpTotWalltime,tmpHasVal,tmpNoVal = self.cur.fetchone()
+            if tmpTotWalltime != None:
+                totWalltime += tmpTotWalltime
+            if tmpHasVal != None:
+                nHasVal += tmpHasVal
+            if tmpNoVal != None:
+                nNoVal += tmpNoVal
+            # get from jobsActive
+            varMap[':jobStatus1'] = 'activated'
+            varMap[':jobStatus2'] = 'starting'
+            self.cur.execute(sql.format('jobsActive4')+sqlA+comment,varMap)
+            tmpTotWalltime,tmpHasVal,tmpNoVal = self.cur.fetchone()
+            if tmpTotWalltime != None:
+                totWalltime += tmpTotWalltime
+            if tmpHasVal != None:
+                nHasVal += tmpHasVal
+            if tmpNoVal != None:
+                nNoVal += tmpNoVal
+            tmpLog.debug('totWalltime={0} nHasVal={1} nNoVal={2}'.format(totWalltime,nHasVal,nNoVal))
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            if nHasVal != 0:
+                totWalltime = long(totWalltime*(1+float(nNoVal)/float(nHasVal)))
+            else:
+                totWalltime = None
+            tmpLog.debug('done totWalltime={0}'.format(totWalltime))
+            return totWalltime
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
