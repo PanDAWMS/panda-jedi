@@ -2,6 +2,7 @@ Release Notes
 
 * 10/12/2015
   * added dynamic nQueueLimit
+  * added timeoutForPendingVoLabel
 
 * 10/8/2015
   * ignoring TEST when converting token to RSE

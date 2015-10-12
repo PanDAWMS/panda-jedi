@@ -5,6 +5,7 @@ import socket
 import datetime
 
 from pandajedi.jedicore import Interaction
+from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.FactoryBase import FactoryBase
 from JediKnight import JediKnight
@@ -57,9 +58,15 @@ class WatchDog (JediKnight,FactoryBase):
 
                         # reactivate pending tasks
                         tmpLog.info('reactivate pending tasks for vo={0} label={1}'.format(vo,prodSourceLabel)) 
+                        timeoutForPending = None
+                        if hasattr(jedi_config.watchdog,'timeoutForPendingVoLabel'): 
+                            timeoutForPending = JediCoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel,vo,prodSourceLabel)
+                        if timeoutForPending == None:
+                            timeoutForPending = jedi_config.watchdog.timeoutForPending
+                        timeoutForPending = int(timeoutForPending)    
                         tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(vo,prodSourceLabel,
                                                                                jedi_config.watchdog.waitForPending,
-                                                                               jedi_config.watchdog.timeoutForPending)
+                                                                               timeoutForPending)
                         if tmpRet == None:
                             # failed
                             tmpLog.error('failed to reactivate')
