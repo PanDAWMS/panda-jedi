@@ -432,6 +432,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             else:
                 # check at the site
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                """
                 # the number of jobs which will produce outputs
                 nRemJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'assigned') + \
                            AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'activated') + \
@@ -456,6 +457,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                                             movingInputSize,outSizePerJob,
                                                                                                             nRemJobs,diskThreshold))
                         continue
+                """        
                 # check if blacklisted
                 if self.ddmIF.isBlackListedEP(tmpSiteSpec.ddm):
                     tmpLog.debug('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm))

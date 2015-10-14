@@ -895,6 +895,9 @@ class JobGeneratorThread (WorkerThread):
                     # using job cloning
                     if setSpecialHandlingForJC:
                         specialHandling = EventServiceUtils.setHeaderForJobCloning(specialHandling,taskSpec.getJobCloningType())
+                    # dynamic number of events
+                    if not inputChunk.isMerging and taskSpec.dynamicNumEvents():
+                        specialHandling = EventServiceUtils.setHeaderForDynNumEvents(specialHandling)
                     # set specialHandling
                     if specialHandling != '':
                         jobSpec.specialHandling = specialHandling
@@ -1392,6 +1395,9 @@ class JobGeneratorThread (WorkerThread):
             tmpLFNs = []
             for tmpFileSpec in tmpFileSpecList:
                 tmpLFNs.append(tmpFileSpec.lfn)
+            # remove duplication for dynamic number of events
+            if taskSpec.dynamicNumEvents() and not isMerging:
+                tmpLFNs = list(set(tmpLFNs))
             tmpLFNs.sort()
             # change stream name and LFNs for PFN list
             if taskSpec.useListPFN() and tmpDatasetSpec.isMaster() and tmpDatasetSpec.isPseudo():

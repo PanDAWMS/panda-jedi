@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/14/2015
+  * added dynamicNumEvents stuff
+
 * 10/12/2015
   * added dynamic nQueueLimit
   * added timeoutForPendingVoLabel

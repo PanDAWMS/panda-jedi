@@ -278,6 +278,7 @@ class InputChunk:
                     coreCount=1,
                     respectLB=False,
                     corePower=None,
+                    dynNumEvents=False,
                     tmpLog=None):
         # check if there are unused files/events
         if not self.checkUnused():
@@ -298,7 +299,7 @@ class InputChunk:
         if walltimeGradient < 0:
             walltimeGradient = 0
         # overwrite parameters when nFiles/EventsPerJob is used
-        if nFilesPerJob != None:
+        if nFilesPerJob != None and not dynNumEvents:
             maxNumFiles  = nFilesPerJob
             multiplicand = nFilesPerJob
         if nEventsPerJob != None:
@@ -333,7 +334,8 @@ class InputChunk:
         outSizeMap     = {}
         lumiBlockNr    = None
         newLumiBlockNr = False
-        while (maxNumFiles == None or inputNumFiles <= maxNumFiles) \
+        inputFileSet   = set()
+        while (maxNumFiles == None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or (dynNumEvents and len(inputFileSet) <= maxNumFiles)) \
                 and (maxSize == None or (maxSize != None and fileSize <= maxSize)) \
                 and (maxWalltime <= 0 or expWalltime <= maxWalltime) \
                 and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents <= maxNumEvents)) \
@@ -360,6 +362,7 @@ class InputChunk:
                 if not inputFileMap.has_key(self.masterDataset.datasetID):
                     inputFileMap[self.masterDataset.datasetID] = []
                 inputFileMap[self.masterDataset.datasetID].append(tmpFileSpec)
+                inputFileSet.add(tmpFileSpec.lfn)
                 datasetUsage['used'] += 1
                 numMaster += 1
                 # get effective file size
@@ -483,6 +486,7 @@ class InputChunk:
             terminateFlag     = False
             newOutSizeMap     = copy.copy(outSizeMap)
             newBoundaryIDs    = set()
+            newInputFileSet   = copy.copy(inputFileSet)
             if not self.masterDataset.datasetID in newOutSizeMap:
                 newOutSizeMap[self.masterDataset.datasetID] = 0
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
@@ -516,6 +520,7 @@ class InputChunk:
                 effectiveNumEvents = tmpFileSpec.getEffectiveNumEvents()
                 newInputNumFiles += 1
                 newNumMaster += 1
+                newInputFileSet.add(tmpFileSpec.lfn)
                 if self.taskSpec.outputScaleWithEvents():
                     newFileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveNumEvents)
                     newOutSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveNumEvents)
@@ -561,7 +566,7 @@ class InputChunk:
                 break
             # check
             newOutSize = self.getOutSize(newOutSizeMap)
-            if (maxNumFiles != None and newInputNumFiles > maxNumFiles) \
+            if (maxNumFiles != None and ((not dynNumEvents and newInputNumFiles > maxNumFiles) or (dynNumEvents and len(newInputFileSet) > maxNumFiles))) \
                     or (maxSize != None and newFileSize > maxSize) \
                     or (maxSize != None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize) \
                     or (maxWalltime > 0 and newExpWalltime > maxWalltime) \

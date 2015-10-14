@@ -42,6 +42,7 @@ class JediTaskSpec(object):
         'ddmBackEnd'         : 'DE',
         'disableReassign'    : 'DI',
         'disableAutoRetry'   : 'DR',
+        'dynamicNumEvents'   : 'DY',
         'nEsConsumers'       : 'EC',
         'nEventsPerWorker'   : 'ES',
         'failGoalUnreached'  : 'FG',
@@ -1122,3 +1123,13 @@ class JediTaskSpec(object):
     # use world cloud
     def useWorldCloud(self):
         return self.cloud == self.worldCloudName
+
+
+
+    # dynamic number of events
+    def dynamicNumEvents(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['dynamicNumEvents']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False

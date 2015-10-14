@@ -39,7 +39,10 @@ class JobSplitter:
             # number of events per job if defined
             nEventsPerJob = taskSpec.getNumEventsPerJob()
             # number of files per job if defined
-            nFilesPerJob = taskSpec.getNumFilesPerJob()
+            if not taskSpec.dynamicNumEvents():
+                nFilesPerJob = taskSpec.getNumFilesPerJob()
+            else:
+                nFilesPerJob = None
             if nFilesPerJob == None and nEventsPerJob == None and inputChunk.useScout() and not taskSpec.useLoadXML():
                 nFilesPerJob = 1
             # grouping with boundaryID
@@ -50,6 +53,8 @@ class JobSplitter:
             maxOutSize = None
             # max size per job
             maxSizePerJob = taskSpec.getMaxSizePerJob()
+            # dynamic number of events
+            dynNumEvents = taskSpec.dynamicNumEvents()
         else:
             # set parameters for merging
             maxNumFiles = taskSpec.getMaxNumFilesPerMergeJob()
@@ -61,6 +66,7 @@ class JobSplitter:
             nEventsPerJob = taskSpec.getNumEventsPerMergeJob()
             maxSizePerJob = None
             useBoundary = {'inSplit':3}
+            dynNumEvents = False
             # gradients per input size is 1 + margin
             sizeGradientsPerInSize = self.sizeGradientsPerInSizeForMerge
             # intercepts for libDS
@@ -83,9 +89,10 @@ class JobSplitter:
         tmpLog.debug('walltimeGradient={0} nFilesPerJob={1} nEventsPerJob={2}'.format(walltimeGradient,
                                                                                         nFilesPerJob,
                                                                                         nEventsPerJob))
-        tmpLog.debug('sizeGradientsPerInSize={0} maxOutSize={1} respectLB={2}'.format(sizeGradientsPerInSize,
-                                                                                      maxOutSize,
-                                                                                      respectLB))
+        tmpLog.debug('sizeGradientsPerInSize={0} maxOutSize={1} respectLB={2} dynNumEvents={3}'.format(sizeGradientsPerInSize,
+                                                                                                       maxOutSize,
+                                                                                                       respectLB,
+                                                                                                       dynNumEvents))
         # split
         returnList = []
         subChunks  = []
@@ -142,7 +149,8 @@ class JobSplitter:
                                               maxOutSize=maxOutSize,
                                               coreCount=coreCount,
                                               respectLB=respectLB,
-                                              corePower=corePower, 
+                                              corePower=corePower,
+                                              dynNumEvents=dynNumEvents,
                                               tmpLog=tmpLog)
             if subChunk == None:
                 break
