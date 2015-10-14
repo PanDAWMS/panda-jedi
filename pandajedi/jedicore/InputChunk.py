@@ -279,6 +279,7 @@ class InputChunk:
                     respectLB=False,
                     corePower=None,
                     dynNumEvents=False,
+                    maxNumEventRanges=None,
                     tmpLog=None):
         # check if there are unused files/events
         if not self.checkUnused():
@@ -287,6 +288,9 @@ class InputChunk:
         if maxNumFiles == None:
             # 20 files at most by default
             maxNumFiles = 20
+        # set default max number of event ranges
+        if maxNumEventRanges == None:
+            maxNumEventRanges = 20
         # set default max size    
         if maxSize == None and nFilesPerJob == None and nEventsPerJob == None:
             # 20 GB at most by default
@@ -335,7 +339,8 @@ class InputChunk:
         lumiBlockNr    = None
         newLumiBlockNr = False
         inputFileSet   = set()
-        while (maxNumFiles == None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or (dynNumEvents and len(inputFileSet) <= maxNumFiles)) \
+        while (maxNumFiles == None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or \
+                   (dynNumEvents and len(inputFileSet) <= maxNumFiles and inputNumFiles <= maxNumEventRanges)) \
                 and (maxSize == None or (maxSize != None and fileSize <= maxSize)) \
                 and (maxWalltime <= 0 or expWalltime <= maxWalltime) \
                 and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents <= maxNumEvents)) \

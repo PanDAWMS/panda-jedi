@@ -55,6 +55,8 @@ class JobSplitter:
             maxSizePerJob = taskSpec.getMaxSizePerJob()
             # dynamic number of events
             dynNumEvents = taskSpec.dynamicNumEvents()
+            # max number of event ranges
+            maxNumEventRanges = taskSpec.getMaxEventRangesPerJob()
         else:
             # set parameters for merging
             maxNumFiles = taskSpec.getMaxNumFilesPerMergeJob()
@@ -67,6 +69,7 @@ class JobSplitter:
             maxSizePerJob = None
             useBoundary = {'inSplit':3}
             dynNumEvents = False
+            maxNumEventRanges = None
             # gradients per input size is 1 + margin
             sizeGradientsPerInSize = self.sizeGradientsPerInSizeForMerge
             # intercepts for libDS
@@ -151,6 +154,7 @@ class JobSplitter:
                                               respectLB=respectLB,
                                               corePower=corePower,
                                               dynNumEvents=dynNumEvents,
+                                              maxNumEventRanges=maxNumEventRanges,
                                               tmpLog=tmpLog)
             if subChunk == None:
                 break

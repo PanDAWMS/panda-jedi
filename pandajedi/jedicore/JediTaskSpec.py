@@ -79,10 +79,12 @@ class JediTaskSpec(object):
         'useExhausted'       : 'UX',
         'waitInput'          : 'WI',
         'maxAttemptES'       : 'XA',
+        'maxEventRangesPerJob' : 'YE',
         'nEventsPerMergeJob'   : 'ZE',
         'nFilesPerMergeJob'    : 'ZF',
         'nGBPerMergeJob'       : 'ZG',
         'nMaxFilesPerMergeJob' : 'ZM',
+
         }
     # enum for preprocessing
     enum_toPreProcess = '1'
@@ -285,6 +287,16 @@ class JediTaskSpec(object):
     def getNumEventsPerMergeJob(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['nEventsPerMergeJob']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None
+
+
+
+    # get the max number of event ranges per job if defined
+    def getMaxEventRangesPerJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['maxEventRangesPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None

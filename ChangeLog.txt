@@ -2,6 +2,7 @@ Release Notes
 
 * 10/14/2015
   * added dynamicNumEvents stuff
+  * added maxNumEventRanges
 
 * 10/12/2015
   * added dynamic nQueueLimit
