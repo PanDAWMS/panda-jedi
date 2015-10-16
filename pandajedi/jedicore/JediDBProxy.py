@@ -3400,7 +3400,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql to rollback files
             sql  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
-            sql += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oStatus AND ramCount=:ramCount"
+            sql += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oStatus "
+            if inputChunk.ramCount in (None, 0):
+                sql += "AND (ramCount IS NULL OR ramCount=:ramCount) "
+            else:
+                sql += "AND ramCount=:ramCount "
             # sql to reset nFilesUsed
             sqlD  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow ".format(jedi_config.db.schemaJEDI)
             sqlD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID " 

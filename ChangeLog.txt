@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/16/2015
+  * fixed resetUnused to take ramcount into account
+
 * 10/14/2015
   * added dynamicNumEvents stuff
   * added maxNumEventRanges
