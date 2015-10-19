@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/19/2015
+  * changed AtlasTPP to set lifetime to transient datasets
+
 * 10/16/2015
   * fixed resetUnused to take ramcount into account
 

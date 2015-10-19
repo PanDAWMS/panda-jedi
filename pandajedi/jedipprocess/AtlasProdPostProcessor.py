@@ -88,25 +88,37 @@ class AtlasProdPostProcessor (PostProcessorBase):
     def doFinalProcedure(self,taskSpec,tmpLog):
         tmpLog.info('final procedure for status={0} processingType={1}'.format(taskSpec.status,
                                                                                taskSpec.processingType))
-        if taskSpec.status in ['done','finished'] and taskSpec.processingType in ['merge']:
-            # get parent task
-            if not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
-                ddmIF = self.ddmIF.getInterface(taskSpec.vo)
-                # get parent
-                tmpStat,parentTaskSpec = self.taskBufferIF.getTaskDatasetsWithID_JEDI(taskSpec.parent_tid,None,False)
-                if tmpStat and parentTaskSpec != None:
-                    # set lifetime to parent datasets if they are transient
-                    metaData = {'lifetime':30*24*60*60}
-                    for datasetSpec in parentTaskSpec.datasetSpecList:
-                        if datasetSpec.type in ['log','output']:
-                            tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
-                            """
-                            if tmpMetadata['transient'] == True:
-                                tmpLog.info('set metadata={0} to jediTaskID={1}:datasetID={2}:Name={3}'.format(str(metaData),
-                                                                                                               taskSpec.parent_tid,
-                                                                                                               datasetSpec.datasetID,
-                                                                                                               datasetSpec.datasetName))
-                                for metadataName,metadaValue in metaData.iteritems():
-                                    ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
-                            """        
+        if taskSpec.status in ['done','finished']:
+            trnLifeTime = 30*24*60*60
+            ddmIF = self.ddmIF.getInterface(taskSpec.vo)
+            # set lifetime to transient datasets
+            metaData = {'lifetime':trnLifeTime}
+            for datasetSpec in taskSpec.datasetSpecList:
+                if datasetSpec.type in ['log','output']:
+                    tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
+                    if tmpMetadata['transient'] == True:
+                        tmpLog.info('set metadata={0} to datasetID={1}:Name={2}'.format(str(metaData),
+                                                                                        datasetSpec.datasetID,
+                                                                                        datasetSpec.datasetName))
+                        for metadataName,metadaValue in metaData.iteritems():
+                            ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
+            # set lifetime to parent transient datasets
+            if taskSpec.processingType in ['merge']:
+                # get parent task
+                if not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
+                    # get parent
+                    tmpStat,parentTaskSpec = self.taskBufferIF.getTaskDatasetsWithID_JEDI(taskSpec.parent_tid,None,False)
+                    if tmpStat and parentTaskSpec != None:
+                        # set lifetime to parent datasets if they are transient
+                        metaData = {'lifetime':trnLifeTime}
+                        for datasetSpec in parentTaskSpec.datasetSpecList:
+                            if datasetSpec.type in ['log','output']:
+                                tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
+                                if tmpMetadata['transient'] == True:
+                                    tmpLog.info('set metadata={0} to parent jediTaskID={1}:datasetID={2}:Name={3}'.format(str(metaData),
+                                                                                                                          taskSpec.parent_tid,
+                                                                                                                          datasetSpec.datasetID,
+                                                                                                                          datasetSpec.datasetName))
+                                    for metadataName,metadaValue in metaData.iteritems():
+                                        ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
         return self.SC_SUCCEEDED
