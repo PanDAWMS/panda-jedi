@@ -189,11 +189,17 @@ class InputChunk:
     # get maximum size of atomic subchunk
     def getMaxAtomSize(self,effectiveSize=False,getNumEvents=False):
         # number of files per job if defined
-        nFilesPerJob = self.taskSpec.getNumFilesPerJob()
+        if not self.isMerging:
+            nFilesPerJob = self.taskSpec.getNumFilesPerJob()
+        else:
+            nFilesPerJob = self.taskSpec.getNumFilesPerMergeJob()
         nEventsPerJob = None
         if nFilesPerJob == None:
             # number of events per job
-            nEventsPerJob = self.taskSpec.getNumEventsPerJob()
+            if not self.isMerging:
+                nEventsPerJob = self.taskSpec.getNumEventsPerJob()
+            else:
+                nEventsPerJob = self.taskSpec.getNumEventsPerMergeJob()
             if nEventsPerJob == None:
                 nFilesPerJob = 1
         # grouping with boundaryID
