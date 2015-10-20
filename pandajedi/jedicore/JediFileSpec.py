@@ -174,6 +174,9 @@ class JediFileSpec(object):
                 # set prodDBlockToken for Event Service
                 if useEventService and datasetSpec.getObjectStore() != None:
                     jobFileSpec.prodDBlockToken = 'objectstore^{0}'.format(datasetSpec.getObjectStore())
+                # allow no output
+                if datasetSpec.isAllowedNoOutput():
+                    jobFileSpec.allowNoOutput()
         # return
         return jobFileSpec
 

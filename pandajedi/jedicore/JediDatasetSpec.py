@@ -43,11 +43,16 @@ class JediDatasetSpec(object):
     _seqAttrMap = {'datasetID':'{0}.JEDI_DATASETS_ID_SEQ.nextval'.format(jedi_config.db.schemaJEDI)}
     # token for attributes
     attrToken = {
-        'offset':       'of',
-        'nFilesPerJob': 'np',
-        'objectStore' : 'os',
-        'num_records' : 'nr',
-        'transient'   : 'tr',
+        'allowNoOutput'    : 'an',
+        'consistencyCheck' : 'cc',
+        'nFilesPerJob'     : 'np',
+        'num_records'      : 'nr',
+        'offset'           : 'of',
+        'objectStore'      : 'os',
+        'random'           : 'rd',
+        'reusable'         : 'ru',
+        'transient'        : 'tr',
+        'useDuplicated'    : 'ud',
         }
 
 
@@ -521,3 +526,24 @@ class JediDatasetSpec(object):
                     else:
                         return False
         return None
+
+
+
+    # check if no output is allowed
+    def isAllowedNoOutput(self):
+        if self.attributes != None and self.attrToken['allowNoOutput'] in self.attributes.split(','):
+            return True
+        else:
+            return False
+
+
+
+    # allow no output
+    def allowedNoOutput(self):
+        if self.attributes in [None,'']:
+            items = []
+        else:
+            items = self.attributes.split(',')
+        if not self.attrToken['allowNoOutput'] in items:
+            items.append(self.attrToken['allowNoOutput'])
+            self.attributes = ','.join(items)

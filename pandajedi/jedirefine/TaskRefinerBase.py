@@ -308,6 +308,8 @@ class TaskRefinerBase (object):
                     datasetSpec.setDatasetAttribute('ru')
                 if tmpItem.has_key('offset'):
                     datasetSpec.setOffset(tmpItem['offset'])
+                if tmpItem.has_key('allowNoOutput'):
+                    datasetSpec.allowedNoOutput()
                 if tmpItem.has_key('nFilesPerJob'):
                     datasetSpec.setNumFilesPerJob(tmpItem['nFilesPerJob'])
                 if tmpItem.has_key('num_records'):

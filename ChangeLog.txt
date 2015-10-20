@@ -2,6 +2,7 @@ Release Notes
 
 * 10/20/2015
   * fixed getMaxAtom for pmerge to use getNum*PerMergeJob
+  * added allowNoOutput
 
 * 10/19/2015
   * changed AtlasTPP to set lifetime to transient datasets
