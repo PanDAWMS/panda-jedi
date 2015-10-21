@@ -381,6 +381,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if not self.isMatched(fileVal['lfn'],excludePatt):
                         newFileMap[guid] = fileVal
                 fileMap = newFileMap
+            # file list is given
+            givenFileMap = {}
+            if givenFileList != []:
+                for tmpFileItem in givenFileList:
+                    if type(tmpFileItem) == types.DictType:
+                        tmpLFN = tmpFileItem['lfn']
+                        fileItem = tmpFileItem
+                    else:
+                        tmpLFN = tmpFileItem
+                        fileItem = {'lfn':tmpFileItem}
+                    givenFileMap[tmpLFN] = fileItem
+                newFileMap = {}
+                for guid,fileVal in fileMap.iteritems():
+                    if fileVal['lfn'] in givenFileMap:
+                        newFileMap[guid] = fileVal
+                fileMap = newFileMap
             # XML config
             if xmlConfig != None:
                 try:
@@ -485,19 +501,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpFileSpecList.append(fileSpec)
                 elif givenFileList != []:
                     # given file list
-                    for tmpFileItem in givenFileList:
-                        if type(tmpFileItem) == types.DictType:
-                            fileItem = tmpFileItem
-                        else:
-                            fileItem = {'lfn':tmpFileItem}
-                        # check file name
-                        fileNamePatt = fileItem['lfn']
-                        if useFilesWithNewAttemptNr:
-                            # use files with different attempt numbers
-                            fileNamePatt = re.sub('\.\d+$','',fileNamePatt)
-                            fileNamePatt += '(\.\d+)*'
-                        if re.search('^'+fileNamePatt+'$',fileSpec.lfn) == None:
-                            continue
+                    if fileSpec.lfn in givenFileMap:
+                        fileItem = givenFileMap[fileSpec.lfn]
                         if not fileItem['lfn'] in foundFileList:
                             foundFileList.append(fileItem['lfn'])
                         copiedFileSpec = copy.copy(fileSpec)
@@ -592,16 +597,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     diagMap['errMsg'] = "too many file records >{0}".format(maxFileRecords)
                     tmpLog.error(diagMap['errMsg'])
                     return failedRet
-            # look for missing files if file list is specified
             missingFileList = []    
-            for tmpFileItem in givenFileList:
-                if type(tmpFileItem) == types.DictType:
-                    fileItem = tmpFileItem
-                else:
-                    fileItem = {'lfn':tmpFileItem}
-                if not fileItem['lfn'] in foundFileList:
-                    #missingFileList.append(fileItem['lfn'])
-                    pass
             tmpLog.debug('{0} files missing'.format(len(missingFileList)))
             # sql to check if task is locked
             sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE NOWAIT ".format(jedi_config.db.schemaJEDI)
