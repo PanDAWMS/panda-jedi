@@ -193,10 +193,11 @@ class MethodClass(object):
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 retException = errtype
-                strException = 'VO=%s type=%s stepIdx=%s : %s.%s %s args=%s kargs=%s' % \
+                argStr = 'args=%s kargs=%s' % (str(args),str(kwargs))
+                strException = 'VO=%s type=%s stepIdx=%s : %s.%s %s %s' % \
                                (self.vo,errtype.__name__,stepIdx,
                                 self.className,self.methodName,errvalue,
-                                str(args),str(kwargs))
+                                argStr[:200])
             # increment nused
             child_process.nused += 1
             # memory check

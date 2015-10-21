@@ -612,8 +612,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlCo += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql for insert
             sqlIn  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
-            sqlIn += JediFileSpec.bindValuesExpression()
-            sqlIn += " RETURNING fileID INTO :newFileID"
+            sqlIn += JediFileSpec.bindValuesExpression(useSeq=False)
+            # sql to get fileID
+            sqlFID = "SELECT {0}.JEDI_DATASET_CONT_FILEID_SEQ.nextval FROM dual ".format(jedi_config.db.schemaJEDI)
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:status ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
@@ -793,6 +794,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         totalNumEventsE = 0
                         escapeNextFile = False 
                         numUniqueLfn = 0
+                        varMaps = []
                         for uniqueFileKey in uniqueFileKeyList:
                             fileSpec = fileSpecMap[uniqueFileKey]
                             # count number of files 
@@ -824,18 +826,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if isMutableDataset:
                                 fileSpec.status = 'pending'
                                 nPending += 1
-                            # insert
-                            varMap = fileSpec.valuesMap(useSeq=True)
-                            varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
-                            self.cur.execute(sqlIn+comment,varMap)
+                            # get fileID
+                            self.cur.execute(sqlFID)
+                            fileSpec.fileID, = self.cur.fetchone()
                             nInsert += 1
                             if fileSpec.startEvent != None and fileSpec.endEvent != None:
                                 nEventsInsert += (fileSpec.endEvent-fileSpec.startEvent+1)
                             elif fileSpec.nEvents != None:
                                 nEventsInsert += fileSpec.nEvents
                             if isMutableDataset:
-                                fileID = long(varMap[':newFileID'].getvalue())
-                                pendingFID.append(fileID)
+                                pendingFID.append(fileSpec.fileID)
                             # count number of events for scouts with event-level splitting
                             if isEventSplit:
                                 try:
@@ -844,7 +844,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         nFilesToUseEventSplit += 1
                                 except:
                                     pass
+                            # make vars
+                            varMap = fileSpec.valuesMap()
+                            varMaps.append(varMap)
+                        # bulk insert
+                        tmpLog.debug('bulk insert')
+                        self.cur.executemany(sqlIn+comment,varMaps)
                         # activate pending
+                        tmpLog.debug('activate pending')
                         toActivateFID = []
                         if isMutableDataset:
                             if not datasetSpec.isMaster():
@@ -878,6 +885,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             nActivatedPending += 1
                             nReady += 1
                         # lost or recovered files
+                        tmpLog.debug('lost or recovered files')
                         uniqueFileKeySet = set(uniqueFileKeyList)    
                         for uniqueFileKey,fileVarMap in existingFiles.iteritems():
                             varMap = {}
@@ -4522,11 +4530,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         pass
                     if preOutputScaleWithEvents:
                         # scale with events
-                        tmpVal = long(math.ceil(float(outputFileBytes) / inEventsMap[pandaID]))
+                        if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
+                            tmpVal = long(math.ceil(float(outputFileBytes) / inEventsMap[pandaID]))
+                        if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10 or inEventsMap[pandaID] == 0:
+                            outSizeList.append(tmpVal)
                     else:
                         # scale with input size
                         tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
-                    outSizeList.append(tmpVal)
+                        outSizeList.append(tmpVal)
                 except:
                     pass
                 # execution time
@@ -4541,7 +4552,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpVal *= corePower
                     if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
                         tmpVal /= float(inEventsMap[pandaID])
-                    cpuTimeList.append(tmpVal)    
+                    if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10 or inEventsMap[pandaID] == 0:
+                        cpuTimeList.append(tmpVal)
                 except:
                     pass
                 # VM size

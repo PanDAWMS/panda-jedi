@@ -1,6 +1,8 @@
 Release Notes
 
 * 10/21/2015
+  * changed getScoutJobData to ignore jobs with nEvents<10
+  * using bulk insert in insertFiles
   * fixed slow insertFiles due to givenFiles
 
 * 10/20/2015
