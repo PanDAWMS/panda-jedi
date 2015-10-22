@@ -794,7 +794,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         totalNumEventsE = 0
                         escapeNextFile = False 
                         numUniqueLfn = 0
-                        varMaps = []
+                        fileSpecsForInsert = []
                         for uniqueFileKey in uniqueFileKeyList:
                             fileSpec = fileSpecMap[uniqueFileKey]
                             # count number of files 
@@ -826,16 +826,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if isMutableDataset:
                                 fileSpec.status = 'pending'
                                 nPending += 1
-                            # get fileID
-                            self.cur.execute(sqlFID)
-                            fileSpec.fileID, = self.cur.fetchone()
                             nInsert += 1
                             if fileSpec.startEvent != None and fileSpec.endEvent != None:
                                 nEventsInsert += (fileSpec.endEvent-fileSpec.startEvent+1)
                             elif fileSpec.nEvents != None:
                                 nEventsInsert += fileSpec.nEvents
-                            if isMutableDataset:
-                                pendingFID.append(fileSpec.fileID)
                             # count number of events for scouts with event-level splitting
                             if isEventSplit:
                                 try:
@@ -844,6 +839,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         nFilesToUseEventSplit += 1
                                 except:
                                     pass
+                            fileSpecsForInsert.append(fileSpec)
+                        # get fileID
+                        tmpLog.debug('get fileIDs')
+                        newFileIDs = []
+                        for i in range(nInsert):
+                            self.cur.execute(sqlFID)
+                            fileID, = self.cur.fetchone()
+                            newFileIDs.append(fileID)
+                        if isMutableDataset:
+                            pendingFID += newFileIDs
+                        # sort fileID
+                        tmpLog.debug('sort fileIDs')
+                        newFileIDs.sort()
+                        # set fileID
+                        tmpLog.debug('set fileIDs')
+                        varMaps = []
+                        for fileID,fileSpec in zip(newFileIDs,fileSpecsForInsert):
+                            fileSpec.fileID = fileID
                             # make vars
                             varMap = fileSpec.valuesMap()
                             varMaps.append(varMap)

@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/22/2015
+  * changed insertFiles to separate FID retrieval
+
 * 10/21/2015
   * changed getScoutJobData to ignore jobs with nEvents<10
   * using bulk insert in insertFiles
