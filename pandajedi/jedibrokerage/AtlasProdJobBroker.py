@@ -808,7 +808,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             if lockedByBrokerage:
                 ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpSiteName)
                 ngMsg += 'criteria=-lock'
-            elif normalizeFactors[tmpSiteName] >= totalSize and (nActivated+nStarting) > nRunningCap:
+            elif (not tmpSiteName in normalizeFactors or normalizeFactors[tmpSiteName] >= totalSize) and \
+                    (nActivated+nStarting) > nRunningCap:
                 ngMsg = '  skip site={0} due to nActivated+nStarting={1} '.format(tmpSiteName,
                                                                                   nActivated+nStarting)
                 ngMsg += 'greater than max({0},{1}*nRunning={1}*{2},nPilot={3}) '.format(cutOffValue,
@@ -817,7 +818,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                          nPilot)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
-            elif normalizeFactors[tmpSiteName] < totalSize and (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
+            elif tmpSiteName in normalizeFactors and normalizeFactors[tmpSiteName] < totalSize and \
+                    (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
                 ngMsg = '  skip site={0} due to nDefined+nActivated+nAssigned+nStarting={1} '.format(tmpSiteName,
                                                                                                      nDefined+nActivated+nAssigned+nStarting)
                 ngMsg += 'greater than max({0},{1}*nRunning={1}*{2},nPilot={3}) '.format(cutOffValue,

@@ -342,7 +342,7 @@ class ContentsFeederThread (WorkerThread):
                                             (datasetSpec.isPseudo() and taskParamMap.has_key('nEvents') and not datasetSpec.isSeqNumber()):
                                         if taskParamMap.has_key('nEventsPerFile'):
                                             nEventsPerFile = taskParamMap['nEventsPerFile']
-                                        elif datasetSpec.isPseudo() and taskParamMap.has_key('nEvents'):
+                                        elif datasetSpec.isMaster() and datasetSpec.isPseudo() and taskParamMap.has_key('nEvents'):
                                             # use nEvents as nEventsPerFile for pseudo input
                                             nEventsPerFile = taskParamMap['nEvents']
                                         if taskParamMap.has_key('nEventsPerJob'):

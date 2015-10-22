@@ -459,7 +459,7 @@ class JobGeneratorThread (WorkerThread):
                                 tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,taskParamMap)
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
-                                tmpLog.error('brokerage crashed with {0}:{1}'.format(errtype.__name__,errvalue))
+                                tmpLog.error('brokerage crashed with {0}:{1} {2}'.format(errtype.__name__,errvalue,traceback.format_exc()))
                                 tmpStat = Interaction.SC_FAILED
                             if tmpStat != Interaction.SC_SUCCEEDED:
                                 tmpErrStr = 'brokerage failed'
