@@ -808,16 +808,27 @@ class AtlasProdJobBroker (JobBrokerBase):
             if lockedByBrokerage:
                 ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpSiteName)
                 ngMsg += 'criteria=-lock'
-            elif (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
+            elif normalizeFactors[tmpSiteName] >= totalSize and (nActivated+nStarting) > nRunningCap:
+                ngMsg = '  skip site={0} due to nActivated+nStarting={1} '.format(tmpSiteName,
+                                                                                  nActivated+nStarting)
+                ngMsg += 'greater than max({0},{1}*nRunning={1}*{2},nPilot={3}) '.format(cutOffValue,
+                                                                                         cutOffFactor,                                  
+                                                                                         nRunning,                                      
+                                                                                         nPilot)
+                ngMsg += '{0} '.format(weightStr)
+                ngMsg += 'criteria=-cap'
+            elif normalizeFactors[tmpSiteName] < totalSize and (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
                 ngMsg = '  skip site={0} due to nDefined+nActivated+nAssigned+nStarting={1} '.format(tmpSiteName,
                                                                                                      nDefined+nActivated+nAssigned+nStarting)
                 ngMsg += 'greater than max({0},{1}*nRunning={1}*{2},nPilot={3}) '.format(cutOffValue,
                                                                                          cutOffFactor,                                  
                                                                                          nRunning,                                      
                                                                                          nPilot)
+                ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
             else:
                 ngMsg = '  skip site={0} due to low weight '.format(tmpSiteName)
+                ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-loweigh'
                 okAsPrimay = True
             # use primay if cap/lock check is passed
@@ -833,7 +844,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if weightMapPrimary == {}:
             tmpLog.debug('use second candidates since no sites pass cap/lock check')
             weightMap = weightMapSecondary
-            # use hightest 3 weights                                                                                                                                                  
+            # use hightest 3 weights
             weightRank = 3
         else:
             weightMap = weightMapPrimary

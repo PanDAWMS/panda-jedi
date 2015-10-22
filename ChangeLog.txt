@@ -2,6 +2,7 @@ Release Notes
 
 * 10/22/2015
   * changed insertFiles to separate FID retrieval
+  * changed AtlasPJB to cap based on nActivated+nStarting when data is available
 
 * 10/21/2015
   * changed getScoutJobData to ignore jobs with nEvents<10
