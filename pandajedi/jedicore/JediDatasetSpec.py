@@ -539,7 +539,7 @@ class JediDatasetSpec(object):
 
 
     # allow no output
-    def allowedNoOutput(self):
+    def allowNoOutput(self):
         if self.attributes in [None,'']:
             items = []
         else:

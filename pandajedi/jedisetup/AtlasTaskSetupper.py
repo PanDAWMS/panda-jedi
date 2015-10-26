@@ -93,6 +93,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                             tmpT1Name = siteMapper.getCloud(taskSpec.cloud)['source']
                                             location = siteMapper.getDdmEndpoint(tmpT1Name,datasetSpec.storageToken)
                                     else:
+                                        tmpLog.info('site={0} token='.format(datasetSpec.site,datasetSpec.storageToken))
                                         location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
                                 if locForRule == None:
                                     locForRule = location

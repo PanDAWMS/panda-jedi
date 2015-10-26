@@ -3114,8 +3114,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         maxFilesForMinRead = 10
                                         if maxFilesTobeRead > maxFilesForMinRead:
                                             maxFilesTobeRead = maxFilesForMinRead
-                                    tmpLog.debug('jediTaskID={2} trying to read {0} files from datasetID={1}'.format(maxFilesTobeRead,
-                                                                                                                     datasetID,jediTaskID))
+                                    tmpLog.debug('jediTaskID={0} trying to read {1} files from datasetID={2} with ramCount={3}'.format(jediTaskID,
+                                                                                                                                       maxFilesTobeRead-iFiles[datasetID],
+                                                                                                                                       datasetID,inputChunk.ramCount))
                                     if tmpDatasetSpec.isSeqNumber():
                                         orderBy = 'fileID'
                                     elif not tmpDatasetSpec.isMaster() and taskSpec.reuseSecOnDemand():
@@ -3167,7 +3168,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                             iFiles_tmp += 1
                                         # no reuse
                                         if not taskSpec.reuseSecOnDemand() or tmpDatasetSpec.isMaster() or taskSpec.useLoadXML() or \
-                                                tmpDatasetSpec.isSeqNumber() or tmpDatasetSpec.isNoSplit() or tmpDatasetSpec.toMerge():
+                                                tmpDatasetSpec.isSeqNumber() or tmpDatasetSpec.isNoSplit() or tmpDatasetSpec.toMerge() or \
+                                                inputChunk.ramCount not in (None, 0):
                                             break
                                         # enough files were read
                                         if iFiles[datasetID] == maxFilesTobeRead:
@@ -8735,6 +8737,98 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 totWalltime = None
             tmpLog.debug('done totWalltime={0}'.format(totWalltime))
             return totWalltime
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
+    # check duplication with internal merge
+    def checkDuplication_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.checkDuplication_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        # sql to get input datasetID
+        sqlM  = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+        sqlM += "WHERE jediTaskID=:jediTaskID AND type IN ("
+        for tmpType in JediDatasetSpec.getInputTypes():
+            mapKey = ':type_'+tmpType
+            sqlM += '{0},'.format(mapKey)
+        sqlM  = sqlM[:-1]
+        sqlM += ") AND masterID IS NULL "
+        # sql to get output datasetID and templateID
+        sqlO  = "SELECT datasetID,provenanceID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+        sqlO += "WHERE jediTaskID=:jediTaskID AND type=:type "
+        # sql to check duplication without internal merge
+        sqlWM  = "SELECT COUNT(*) FROM ( "
+        sqlWM += "SELECT distinct outPandaID "
+        sqlWM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID ANd status IN (:statT1,:statT2) "
+        sqlWM += 'MINUS '
+        sqlWM += "SELECT distinct PandaID "
+        sqlWM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID and status=:statI "
+        sqlWM += ') '
+        # sql to check duplication with internal merge
+        sqlCM  = "SELECT COUNT(*) FROM ( "
+        sqlCM += "SELECT distinct c1.outPandaID "
+        sqlCM += "FROM {0}.JEDI_Dataset_Contents c1,{0}.JEDI_Dataset_Contents c2,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
+        sqlCM += "WHERE d.jediTaskID=:jediTaskID AND c1.jediTaskID=d.jediTaskID AND c1.datasetID=d.datasetID AND d.templateID=:templateID "
+        sqlCM += "AND c1.jediTaskID=c2.jediTaskID AND c2.datasetID=:outDatasetID AND c1.pandaID=c2.pandaID and c2.status IN (:statT1,:statT2) "
+        sqlCM += 'MINUS '
+        sqlCM += "SELECT distinct PandaID "
+        sqlCM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlCM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID and status=:statI "
+        sqlCM += ') '
+        try:
+            # start transaction
+            self.conn.begin()
+            # get input datasetID
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                varMap[mapKey] = tmpType
+            self.cur.execute(sqlM+comment,varMap)
+            resM = self.cur.fetchone()
+            inDatasetID, = resM
+            # get output datasetID and templateID
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':type'] = 'output'
+            self.cur.execute(sqlO+comment,varMap)
+            resO = self.cur.fetchone()
+            if resO == None:
+                # no output
+                retVal = 0
+            else:
+                outDatasetID,templateID = resO
+                # check duplication
+                varMap = {}
+                varMap[':jediTaskID']   = jediTaskID
+                varMap[':inDatasetID']  = inDatasetID
+                varMap[':outDatasetID'] = outDatasetID
+                varMap[':statI']        = 'finished'
+                varMap[':statT1']       = 'finished'
+                varMap[':statT2']       = 'nooutput'
+                if templateID != None:
+                    # with internal merge
+                    varMap[':templateID'] = templateID
+                    self.cur.execute(sqlCM+comment,varMap)
+                else:
+                    # without internal merge
+                    self.cur.execute(sqlWM+comment,varMap)
+                retVal, = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('dup={0}'.format(retVal))
+            return retVal
         except:
             # roll back
             self._rollback()
