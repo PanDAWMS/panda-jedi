@@ -918,13 +918,17 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug('start')
         isOK = True
         try:
-            # get DQ2 API            
-            dq2=DQ2()
-            # freeze
-            dq2.freezeDataset(datasetName)
-        except DQFrozenDatasetException:
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
+            # check metadata to avoid a bug in rucio
+            tmpRet = client.get_metadata(scope,dsn)
+            # close
+            client.set_status(scope,dsn,open=False)
+        except UnsupportedOperation:
             pass
-        except DQUnknownDatasetException:
+        except DataIdentifierNotFound:
             if ignoreUnknown:
                 pass
             else:

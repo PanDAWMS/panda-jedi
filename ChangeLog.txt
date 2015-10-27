@@ -1,5 +1,9 @@
 Release Notes
 
+* 10/27/2015
+  * tweaked freezeDataset to avoid a rucio bug
+  * fixed setCloudToTask to respect distributed datasets
+
 * 10/26/2015
   * fixed for internal merge + zero suppression
   * added checkDuplication

@@ -7,6 +7,8 @@ from TaskBrokerBase import TaskBrokerBase
 import AtlasBrokerUtils
 
 from pandaserver.userinterface import Client as PandaClient
+from pandaserver.dataservice import DataServiceUtils
+
 # cannot use pandaserver.taskbuffer while Client is used
 from taskbuffer.JobSpec import JobSpec
 
@@ -60,6 +62,10 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                     # get destinations
                     retMap[tmpTaskID] = []
                     for datasetSpec in tmpDatasetSpecs:
+                        # skip distributed datasets
+                        if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+                            continue
+                        # get token
                         token = ddmIF.convertTokenToEndpoint(siteSpec.ddm,datasetSpec.storageToken)
                         # use default endpoint
                         if token == None:
