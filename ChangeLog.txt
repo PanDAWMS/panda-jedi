@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/2/2015
+  * giving a smaller weight to tape for analy
+
 * 10/27/2015
   * tweaked freezeDataset to avoid a rucio bug
   * fixed setCloudToTask to respect distributed datasets

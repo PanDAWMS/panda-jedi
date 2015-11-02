@@ -151,12 +151,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # make weight map for local
                 for tmpSiteName in tmpSiteList:
                     if not dataWeight.has_key(tmpSiteName):
-                        dataWeight[tmpSiteName] = 1
-                    else:
-                        dataWeight[tmpSiteName] += 1
+                        dataWeight[tmpSiteName] = 0
                     # give more weight to disk
                     if tmpSiteName in tmpDiskSiteList:
-                        dataWeight[tmpSiteName] += 1 
+                        dataWeight[tmpSiteName] += 1
+                    else:
+                        dataWeight[tmpSiteName] += 0.001
                 # make weight map for remote
                 for tmpSiteName,tmpWeightSrcMap in tmpSatelliteSites.iteritems():
                     # skip since local data is available
