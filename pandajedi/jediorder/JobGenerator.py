@@ -1438,6 +1438,29 @@ class JobGeneratorThread (WorkerThread):
                                                                                    tmpRange)
                     except:
                         pass
+        # loop over all streams to collect transient and final steams
+        transientStreamCombo = {}
+        streamToDelete = {}
+        if isMerging:
+            for streamName in streamLFNsMap.keys():
+                # collect transient and final steams
+                if streamName != None and not streamName.startswith('TRN_'):
+                    counterStreamName = 'TRN_'+streamName
+                    if not counterStreamName in streamLFNsMap:
+                        # streams to be deleted
+                        streamToDelete[streamName] = streamLFNsMap[streamName]
+                        streamToDelete[counterStreamName] = []
+                    else:
+                        transientStreamCombo[streamName] = {
+                            'out': streamName,
+                            'in':  counterStreamName,
+                            }
+        # delete empty streams
+        for streamName in streamToDelete.keys():
+            try:
+                del streamLFNsMap[streamName]
+            except:
+                pass
         # loop over all place holders
         for tmpMatch in re.finditer('\$\{([^\}]+)\}',parTemplate):
             placeHolder = tmpMatch.group(1)
@@ -1527,19 +1550,6 @@ class JobGeneratorThread (WorkerThread):
                     encStreamName = streamNames+'/E'
                     replaceStr = urllib.unquote(replaceStr)
                     parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
-        # loop over all streams to collect transient and final steams
-        transientStreamCombo = {}
-        for streamName in streamLFNsMap.keys():
-            # collect transient and final steams
-            if streamName != None and not streamName.startswith('TRN_'):
-                counterStreamName = 'TRN_'+streamName
-                if not counterStreamName in streamLFNsMap:
-                    # empty list
-                    streamLFNsMap[counterStreamName] = []
-                transientStreamCombo[streamName] = {
-                    'out': streamName,
-                    'in':  counterStreamName,
-                    }
         # replace params related to transient files
         replaceStrMap = {}
         emptyStreamMap = {}
@@ -1569,7 +1579,7 @@ class JobGeneratorThread (WorkerThread):
             targetName = '${TRN_'+streamNameBase+':'+streamNameBase+'}'
             if targetName in parTemplate:
                 parTemplate = parTemplate.replace(targetName,replaceStr)
-                # remove putputs with empty input files
+                # remove outputs with empty input files
                 for emptyStream in emptyStreamMap[streamNameBase]:
                     tmpFileIdx = 0
                     for tmpJobFileSpec in jobFileList:
@@ -1577,6 +1587,19 @@ class JobGeneratorThread (WorkerThread):
                             jobFileList.pop(tmpFileIdx)
                             break
                         tmpFileIdx += 1
+        # remove outputs and params for deleted streams
+        for streamName,deletedLFNs in streamToDelete.iteritems():
+            # remove params
+            parTemplate = re.sub("--[^=]+=\$\{"+streamName+"\}",'',parTemplate)
+            # remove output files
+            if deletedLFNs == []:
+                continue
+            tmpFileIdx = 0
+            for tmpJobFileSpec in jobFileList:
+                if tmpJobFileSpec.lfn in deletedLFNs:
+                    jobFileList.pop(tmpFileIdx)
+                    break
+                tmpFileIdx += 1
         # replace placeholders for numbers
         for streamName,parVal in [('SN',         serialNr),
                                   ('SN/P',       '{0:06d}'.format(serialNr)),

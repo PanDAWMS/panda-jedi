@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/4/2015
+  * changed JG to remove job parameters for empty streams
+
 * 11/2/2015
   * giving a smaller weight to tape for analy
 
