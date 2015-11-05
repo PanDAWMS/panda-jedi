@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/5/2015
+  * changed jobseed=all when switchEStoNormal is not used
+
 * 11/4/2015
   * changed JG to remove job parameters for empty streams
 

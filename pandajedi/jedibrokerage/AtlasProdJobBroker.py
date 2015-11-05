@@ -597,7 +597,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # event service
                 if taskSpec.useEventService():
-                    if tmpSiteSpec.getJobSeed() == 'std':
+                    if tmpSiteSpec.getJobSeed() == 'std' or (tmpSiteSpec.getJobSeed() == 'all' and not taskSpec.switchEStoNormal()):
                         tmpMsg = '  skip site={0} since EventService is not allowed '.format(tmpSiteName)
                         tmpMsg += 'criteria=-es'
                         tmpLog.debug(tmpMsg)
