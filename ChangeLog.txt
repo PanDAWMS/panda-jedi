@@ -3,6 +3,8 @@ Release Notes
 * 11/6/2015
   * removed T1 constraint for ES job brokerage
   * changed AtlasPTB to use confgurator tables
+  * using jobseed=std by default
+  * changed AtlasPTB to take size of expired secondaries into account
 
 * 11/5/2015
   * changed jobseed=all when switchEStoNormal is not used

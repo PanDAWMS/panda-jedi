@@ -403,7 +403,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 break
                             """    
                             # check space
-                            tmpSpaceSize = tmpEP['space_free']
+                            tmpSpaceSize = tmpEP['space_free'] + tmpEP['space_expired']
                             if tmpSpaceSize < diskThreshold:
                                 tmpLog.debug('  skip nucleus={0} since disk shortage ({1}<{2}) at endpoint {3} criteria=-space'.format(tmpNucleus,
                                                                                                                                        tmpSpaceSize,
