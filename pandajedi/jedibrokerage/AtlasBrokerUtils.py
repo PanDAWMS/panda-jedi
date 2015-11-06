@@ -62,7 +62,6 @@ def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
     except:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.ddmIF.getFilesInDataset failed with %s' % errvalue
-    
     # get replicas
     try:
         replicaMap= {}
@@ -129,6 +128,81 @@ def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
         # remove if empty
         if len(retMap[tmpCloudName]['t1']) == 0 and len(retMap[tmpCloudName]['t2']) == 0:
             del retMap[tmpCloudName]
+    # return
+    return Interaction.SC_SUCCEEDED,retMap
+
+
+
+# get nuclei where data is available
+def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[]):
+    # get replicas
+    try:
+        replicaMap = ddmIF.listReplicasPerDataset(datasetName)
+    except:
+        errtype,errvalue = sys.exc_info()[:2]
+        return errtype,'ddmIF.listReplicasPerDataset failed with %s' % errvalue
+    # loop over all clouds
+    retMap = {}
+    for tmpNucleus,tmpNucleusSpec in siteMapper.nuclei.iteritems():
+        if candidateNuclei != [] and not tmpNucleus in candidateNuclei:
+            continue
+        # loop over all datasets
+        totalNum = 0
+        totalSize = 0
+        avaNumDisk = 0
+        avaNumAny = 0
+        avaSizeDisk = 0
+        avaSizeAny = 0
+        for tmpDataset,tmpRepMap in replicaMap.iteritems():
+            tmpTotalNum = 0
+            tmpTotalSize = 0
+            tmpAvaNumDisk = 0
+            tmpAvaNumAny = 0
+            tmpAvaSizeDisk = 0
+            tmpAvaSizeAny = 0
+            # loop over all endpoints
+            for tmpLoc,locData in tmpRepMap.iteritems():
+                # get total
+                if tmpTotalNum == 0:
+                    tmpTotalNum = locData[0]['total']
+                    tmpTotalSize = locData[0]['tsize']
+                # check if the endpoint is associated
+                if tmpNucleusSpec.isAssociatedEndpoint(tmpLoc):
+                    tmpEndpoint = tmpNucleusSpec.getEndpoint(tmpLoc)
+                    tmpAvaNum   = locData[0]['found']
+                    tmpAvaSize  = locData[0]['asize']
+                    # disk
+                    if tmpEndpoint['is_tape'] != 'Y':
+                        # complete replica is available at DISK
+                        if tmpTotalNum == tmpAvaNum and tmpTotalNum > 0:
+                            tmpAvaNumDisk  = tmpAvaNum
+                            tmpAvaNumAny   = tmpAvaNum
+                            tmpAvaSizeDisk = tmpAvaSize
+                            tmpAvaSizeAny  = tmpAvaSize
+                            break
+                        if tmpAvaNum > tmpAvaNumDisk:
+                            tmpAvaNumDisk  = tmpAvaNum
+                            tmpAvaSizeDisk = tmpAvaSize
+                    # tape
+                    if tmpAvaNumAny < tmpAvaNum:
+                        tmpAvaNumAny  = tmpAvaNum
+                        tmpAvaSizeAny = tmpAvaSize
+            # total
+            totalNum     = tmpTotalNum 
+            totalSize    = tmpTotalSize
+            avaNumDisk  += tmpAvaNumDisk
+            avaNumAny   += tmpAvaNumAny
+            avaSizeDisk += tmpAvaSizeDisk
+            avaSizeAny  += tmpAvaSizeAny
+        # append
+        if tmpNucleus in candidateNuclei or avaNumAny > 0:
+            retMap[tmpNucleus] = {'tot_num'       : totalNum,
+                                  'tot_size'      : totalSize,
+                                  'ava_num_disk'  : avaNumDisk,
+                                  'ava_num_any'   : avaNumAny,
+                                  'ava_size_disk' : avaSizeDisk,
+                                  'ava_size_any'  : avaSizeAny,
+                                  }
     # return
     return Interaction.SC_SUCCEEDED,retMap
 

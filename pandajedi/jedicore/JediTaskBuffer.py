@@ -685,6 +685,32 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # calculate WORLD RW with a priority
+    def calculateWorldRWwithPrio_JEDI(self,vo,prodSourceLabel,workQueue,priority):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.calculateWorldRWwithPrio_JEDI(vo,prodSourceLabel,workQueue,priority)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # calculate WORLD RW for tasks
+    def calculateTaskWorldRW_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.calculateTaskWorldRW_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # set cloud to tasks
     def setCloudToTasks_JEDI(self,taskCloudMap):
         # get DBproxy

@@ -191,6 +191,38 @@ class AtlasDDMClient(DDMClientBase):
 
 
 
+    # list replicas per dataset
+    def listReplicasPerDataset(self,datasetName):
+        methodName = 'listReplicasPerDataset'
+        methodName += ' <datasetName={0}>'.format(datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
+            datasets = []
+            if not datasetName.endswith('/'):
+                datasets = [dsn]
+            else:
+                # get constituent datasets
+                itr = client.list_content(scope,dsn)
+                datasets = [i['name'] for i in itr]
+            retMap = {}
+            for tmpName in datasets:
+                retMap[tmpName] = self.convertOutListDatasetReplicas(tmpName)
+                tmpLog.debug('got '+str(retMap))
+                return self.SC_SUCCEEDED,retMap
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errStr = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errStr)
+            return errCode,'{0} : {1}'.format(methodName,errStr)
+
+
+
     # get site property
     def getSiteProperty(self,seName,attribute):
         methodName = 'getSiteProperty'
@@ -480,7 +512,7 @@ class AtlasDDMClient(DDMClientBase):
                                         if len(dstSiteNameList) == 0:
                                             continue
                                         for dstSiteName in dstSiteNameList:
-                                            if not dstSiteName in checkedDst:
+                                            if dstSiteName in returnMap and not dstSiteName in checkedDst:
                                                 returnMap[dstSiteName][storageType] += datasetSpec.Files
                                                 checkedDst.add(dstSiteName)
             # loop over all available LFNs
@@ -1257,6 +1289,8 @@ class AtlasDDMClient(DDMClientBase):
             rse = item["rse"]
             retMap[rse] = [{'total':item["length"],
                             'found':item["available_length"],
+                            'tsize':item["bytes"],
+                            'asize':item["available_bytes"],
                             'immutable':1}]
         return retMap
 

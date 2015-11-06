@@ -24,10 +24,14 @@ class AtlasProdJobBroker (JobBrokerBase):
         JobBrokerBase.__init__(self,ddmIF,taskBufferIF)
         self.hospitalQueueMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper)
         self.dataSiteMap = {}
+        self.suppressLogSending = False
 
 
     # wrapper for return
     def sendLogMessage(self,tmpLog):
+        # log suppression
+        if self.suppressLogSending:
+            return
         # send info to logger
         tmpLog.bulkSendMsg('prod_brokerage')
         tmpLog.debug('sent')
@@ -49,11 +53,17 @@ class AtlasProdJobBroker (JobBrokerBase):
             
 
     # main
-    def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap):
+    def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap,hintForTB=False,glLog=None):
+        # suppress sending log
+        if hintForTB:
+            self.suppressLogSending = True
         # make logger
-        tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),
-                            monToken='<jediTaskID={0} {1}>'.format(taskSpec.jediTaskID,
-                                                                   datetime.datetime.utcnow().isoformat('/')))
+        if glLog == None:
+            tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),
+                                monToken='<jediTaskID={0} {1}>'.format(taskSpec.jediTaskID,
+                                                                       datetime.datetime.utcnow().isoformat('/')))
+        else:
+            tmpLog = glLog
         tmpLog.debug('start')
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
@@ -221,6 +231,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for data availability
+        """
         if not sitePreAssigned and not siteListPreAssigned:
             for datasetSpec in inputChunk.getDatasets():
                 datasetName = datasetSpec.datasetName
@@ -246,7 +257,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                     # append
                     self.dataSiteMap[datasetName] = tmpRet
                     tmpLog.debug('map of data availability : {0}'.format(str(tmpRet)))
-                """
                 # check if T1 has the data
                 if self.dataSiteMap[datasetName].has_key(cloudName):
                     cloudHasData = True
@@ -285,7 +295,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         tmpLog.error('no candidates')
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         return retTmpError
-                """        
+        """        
         ######################################
         # selection for fairshare
         if not (workQueue.queue_type in ['managed'] and workQueue.queue_name in ['test','validation']):
@@ -690,6 +700,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError
+        # return if to give a hint for task brokerage
+        if hintForTB:
+            tmpLog.debug('done')
+            return self.SC_SUCCEEDED,scanSiteList
         ######################################
         # get available files
         normalizeFactors = {}        

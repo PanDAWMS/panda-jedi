@@ -1831,10 +1831,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             except:
                 errType,errValue = sys.exc_info()[:2]
                 if self.isNoWaitException(errValue):
-                    # resource busy and acquire with NOWAIT specified                                                                                      
+                    # resource busy and acquire with NOWAIT specified
                     tmpLog.debug('skip locked')
                 else:
-                    # failed with something else                                                                                                           
+                    # failed with something else
                     raise errType,errValue
             # commit
             if not self._commit():
@@ -5283,7 +5283,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         sql  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
                         sql += "SET storageToken=:token,destination=:destination "
                         sql += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
-                        for tmpItem in tmpVal:
+                        for tmpItem in tmpVal['datasets']:
                             varMap = {}
                             varMap[':jediTaskID']  = jediTaskID
                             varMap[':datasetID']   = tmpItem['datasetID']
@@ -5297,12 +5297,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                           nRow))
                         # sql to set ready
                         sql  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-                        sql += "SET status=:newStatus,oldStatus=NULL,stateChangeTime=CURRENT_DATE "
+                        sql += "SET nucleus=:nucleus,status=:newStatus,oldStatus=NULL,stateChangeTime=CURRENT_DATE,modificationTime=CURRENT_DATE-1/24 "
                         sql += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
-                        varMap[':newStatus']     = 'ready'
-                        varMap[':oldStatus']     = 'assigning'
+                        varMap[':nucleus']    = tmpVal['nucleus']
+                        varMap[':newStatus']  = 'ready'
+                        varMap[':oldStatus']  = 'assigning'
                         self.cur.execute(sql+comment,varMap)
                     # update DEFT
                     if nRow > 0:
@@ -5454,6 +5455,120 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # return    
             tmpLog.debug('done')
             return retMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
+    # calculate WORLD RW with a priority
+    def calculateWorldRWwithPrio_JEDI(self,vo,prodSourceLabel,workQueue,priority):
+        comment = ' /* JediDBProxy.calculateWorldRWwithPrio_JEDI */'
+        methodName = self.getMethodName(comment)
+        if workQueue == None:
+            methodName += ' <vo={0} label={1} queue={2} prio={3}>'.format(vo,prodSourceLabel,None,priority)
+        else:
+            methodName += ' <vo={0} label={1} queue={2} prio={3}>'.format(vo,prodSourceLabel,workQueue.queue_name,priority)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get RW
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':worldCloud'] = JediTaskSpec.worldCloudName
+            if priority != None:
+                varMap[':priority'] = priority
+            sql  = "SELECT tabT.nucleus,SUM((nEvents-nEventsUsed)*cpuTime) "
+            sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sql += "AND tabT.jediTaskID=tabD.jediTaskID AND masterID IS NULL "
+            sql += "AND (nFiles-nFilesFinished-nFilesFailed)>0 "
+            sql += "AND tabT.vo=:vo AND prodSourceLabel=:prodSourceLabel "
+            sql += "AND tabT.cloud=:worldCloud "
+            if priority != None:
+                sql += "AND currentPriority>=:priority "
+            if workQueue != None:
+                sql += "AND workQueue_ID IN (" 
+                for tmpQueue_ID in workQueue.getIDs():
+                    tmpKey = ':queueID_{0}'.format(tmpQueue_ID)
+                    varMap[tmpKey] = tmpQueue_ID
+                    sql += '{0},'.format(tmpKey)
+                sql  = sql[:-1]    
+                sql += ") "
+            sql += "AND tabT.status IN (:status1,:status2,:status3,:status4) "
+            sql += "AND tabD.type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sql += '{0},'.format(mapKey)
+                varMap[mapKey] = tmpType
+            sql  = sql[:-1]
+            sql += ") "
+            varMap[':status1'] = 'ready'
+            varMap[':status2'] = 'scouting'
+            varMap[':status3'] = 'running'
+            varMap[':status4'] = 'pending'
+            sql += "GROUP BY tabT.nucleus "
+            # begin transaction
+            self.conn.begin()
+            # set cloud
+            self.cur.execute(sql+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # loop over all nuclei
+            retMap = {}
+            for nucleus,worldRW in resList:
+                retMap[nucleus] = worldRW
+            tmpLog.debug('RW={0}'.format(str(retMap)))
+            # return    
+            tmpLog.debug('done')
+            return retMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
+    # calculate WORLD RW for tasks
+    def calculateTaskWorldRW_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.calculateTaskWorldRW_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get RW
+            sql  = "SELECT (nEvents-nEventsUsed)*cpuTime "
+            sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
+            sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND masterID IS NULL "
+            sql += "AND tabT.jediTaskID=:jediTaskID "
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            # begin transaction
+            self.conn.begin()
+            # get
+            self.cur.execute(sql+comment,varMap)
+            resRT = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # locked by another
+            if resRT == None:
+                retVal = None
+            else:
+                retVal = resRT[0]
+            tmpLog.debug('RW={0}'.format(retVal))
+            # return    
+            tmpLog.debug('done')
+            return retVal
         except:
             # roll back
             self._rollback()

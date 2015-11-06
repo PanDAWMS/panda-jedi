@@ -22,6 +22,7 @@ class ListWithLock:
 
     def next(self):
         if self.dataIndex >= len(self.dataList):
+            self.dataIndex = 0
             raise StopIteration
         val = self.dataList[self.dataIndex]
         self.dataIndex += 1
@@ -50,6 +51,11 @@ class ListWithLock:
         self.lock.release()
         return total,nIndx
 
+    def __len__(self):
+        self.lock.acquire()
+        ret = len(self.dataList)
+        self.lock.release()
+        return ret
 
 
 # map with lock
