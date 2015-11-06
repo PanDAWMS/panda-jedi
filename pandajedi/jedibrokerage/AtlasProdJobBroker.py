@@ -166,7 +166,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for high priorities
         t1WeightForHighPrio = 1
         if (taskSpec.currentPriority >= 900 or inputChunk.useScout()) \
-                and not sitePreAssigned and not siteListPreAssigned:
+                and not sitePreAssigned and not siteListPreAssigned \
+                and not taskSpec.useEventService():
             t1WeightForHighPrio = 100
             newScanSiteList = []
             for tmpSiteName in scanSiteList:            
