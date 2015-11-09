@@ -1014,22 +1014,27 @@ class JobGeneratorThread (WorkerThread):
                             tmpLog.error('failed to get XML config for N={0}'.format(boundaryID))
                             return failedRet
                     # outputs
-                    outSubChunk,serialNr,tmpToRegister,siteDsMap,parallelOutMap = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
-                                                                                                                        provenanceID,
-                                                                                                                        simul,
-                                                                                                                        instantiateTmpl,
-                                                                                                                        instantiatedSite,
-                                                                                                                        isUnMerging,
-                                                                                                                        False,
-                                                                                                                        xmlConfigJob,
-                                                                                                                        siteDsMap,
-                                                                                                                        middleName,
-                                                                                                                        registerDatasets,
-                                                                                                                        parallelOutMap)
+                    outSubChunk,serialNr,tmpToRegister,siteDsMap,tmpParOutMap = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
+                                                                                                                      provenanceID,
+                                                                                                                      simul,
+                                                                                                                      instantiateTmpl,
+                                                                                                                      instantiatedSite,
+                                                                                                                      isUnMerging,
+                                                                                                                      False,
+                                                                                                                      xmlConfigJob,
+                                                                                                                      siteDsMap,
+                                                                                                                      middleName,
+                                                                                                                      registerDatasets,
+                                                                                                                      None)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
                         return failedRet
+                    # update parallel output mapping
+                    for tmpParFileID,tmpParFileList in tmpParOutMap.iteritems():
+                        if not tmpParFileID in parallelOutMap:
+                            parallelOutMap[tmpParFileID] = []
+                        parallelOutMap[tmpParFileID] += tmpParFileList
                     for tmpToRegisterItem in tmpToRegister:
                         if not tmpToRegisterItem in datasetToRegister:
                             datasetToRegister.append(tmpToRegisterItem)
@@ -1104,6 +1109,9 @@ class JobGeneratorThread (WorkerThread):
                     # incremet index of event service job
                     if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
                         esIndex += 1
+                    # lock task
+                    if not simul and len(jobSpecList+tmpJobSpecList) % 50 == 0:
+                        self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
                 # increase event service consumers
                 if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
                     tmpJobSpecList = self.increaseEventServiceConsumers(tmpJobSpecList,taskSpec.getNumEventServiceConsumer(),

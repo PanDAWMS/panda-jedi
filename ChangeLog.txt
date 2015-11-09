@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/9/2015
+  * changed JG to avoid passing parallelOutMap to TB
+
 * 11/6/2015
   * removed T1 constraint for ES job brokerage
   * changed AtlasPTB to use confgurator tables
