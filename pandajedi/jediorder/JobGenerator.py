@@ -779,6 +779,11 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.maxDiskUnit      = 'MB'
                     jobSpec.minRamCount      = max(taskSpec.ramCount, self.getLargestRamCount(inSubChunk))
                     jobSpec.minRamUnit       = taskSpec.ramUnit
+                    if taskSpec.ramUnit == 'MBPerCore':
+                        if not siteSpec.coreCount in [None,0]:
+                            jobSpec.minRamCount *= siteSpec.coreCount
+                        jobSpec.minRamCount += taskSpec.baseRamCount 
+                        jobSpec.minRamUnit   = re.sub('PerCore$','',jobSpec.minRamUnit)
                     if inputChunk.isMerging and taskSpec.mergeCoreCount != None:
                         jobSpec.coreCount    = taskSpec.mergeCoreCount
                     else:

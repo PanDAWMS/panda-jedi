@@ -376,30 +376,48 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for memory
-        minRamCount  = max(taskSpec.ramCount, inputChunk.ramCount)
-        if not minRamCount in [0,None]:
+        origMinRamCount  = max(taskSpec.ramCount, inputChunk.ramCount)
+        if not origMinRamCount in [0,None]:
+            strMinRamCount = '{0}({1})'.format(origMinRamCount,taskSpec.ramUnit)
+            if not taskSpec.baseRamCount in [0,None]:
+                strMinRamCount += '+{0}'.format(taskSpec.baseRamCount)
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # job memory requirement 
+                minRamCount = origMinRamCount
+                if taskSpec.ramUnit == 'MBPerCore':
+                    if not tmpSiteSpec.coreCount in [None,0]:
+                        minRamCount = origMinRamCount * tmpSiteSpec.coreCount
+                    minRamCount += taskSpec.baseRamCount
+                # site max memory requirement
+                if not tmpSiteSpec.maxrss in [0,None]:
+                    site_maxmemory = tmpSiteSpec.maxrss
+                else:
+                    site_maxmemory = tmpSiteSpec.maxmemory
                 # check at the site
-                if tmpSiteSpec.maxmemory != 0 and minRamCount != 0 and minRamCount > tmpSiteSpec.maxmemory:
+                if site_maxmemory != 0 and minRamCount != 0 and minRamCount > site_maxmemory:
                     tmpMsg = '  skip site={0} due to site RAM shortage {1}(site upper limit) less than {2} '.format(tmpSiteName,
-                                                                                                                    tmpSiteSpec.maxmemory,
+                                                                                                                    site_maxmemory,
                                                                                                                     minRamCount)
                     tmpMsg += 'criteria=-lowmemory'
                     tmpLog.debug(tmpMsg)
                     continue
-                if tmpSiteSpec.minmemory != 0 and minRamCount != 0 and minRamCount < tmpSiteSpec.minmemory:
+                # site min memory requirement
+                if not tmpSiteSpec.minrss in [0,None]:
+                    site_minmemory = tmpSiteSpec.minrss
+                else:
+                    site_minmemory = tmpSiteSpec.minmemory
+                if site_minmemory != 0 and minRamCount != 0 and minRamCount < site_minmemory:
                     tmpMsg = '  skip site={0} due to job RAM shortage {1}(site lower limit) greater than {2} '.format(tmpSiteName,
-                                                                                                                      tmpSiteSpec.minmemory,
+                                                                                                                      site_minmemory,
                                                                                                                       minRamCount)
                     tmpMsg += 'criteria=-highmemory'
                     tmpLog.debug(tmpMsg)
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList        
-            tmpLog.debug('{0} candidates passed memory check {1}({2})'.format(len(scanSiteList),
-                                                                              minRamCount,taskSpec.ramUnit))
+            tmpLog.debug('{0} candidates passed memory check {1}'.format(len(scanSiteList),strMinRamCount))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

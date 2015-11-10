@@ -4367,9 +4367,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         returnMap = {}
         # sql to get preset values
         if not mergeScout:
-            sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,workDiskCount,cpuTime "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime "
         else:
-            sqlGPV  = "SELECT outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,workDiskCount,cpuTime "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data
@@ -4389,11 +4389,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlSCF += '{0},'.format(mapKey)
         sqlSCF  = sqlSCF[:-1]
         sqlSCF += ") AND tabD.masterID IS NULL " 
-        sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,startTime,endTime,computingSite "
+        sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,startTime,endTime,computingSite,maxPSS "
         sqlSCD += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCD += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus "
         sqlSCD += "UNION "
-        sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,startTime,endTime,computingSite "
+        sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,startTime,endTime,computingSite,maxPSS "
         sqlSCD += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCD += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND modificationTime>(CURRENT_DATE-14) "
         # get size of lib
@@ -4414,7 +4414,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.cur.execute(sqlGPV+comment,varMap)
         resGPV = self.cur.fetchone()
         if resGPV != None:
-            preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preWorkDiskCount,preCpuTime = resGPV
+            preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,preWorkDiskCount,preCpuTime = resGPV
             # get preOutDiskCount in kB
             if not preOutDiskCount in [0,None]:
                 if preOutDiskUnit != None:
@@ -4431,6 +4431,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preOutDiskUnit = None
             preWalltime = 0
             preRamCount = 0
+            preRamUnit = None
+            preBaseRamCount = 0
             preWorkDiskCount = 0
             preCpuTime = 0
         if preOutDiskUnit != None and preOutDiskUnit.endswith('PerEvent'):
@@ -4503,7 +4505,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resData = self.cur.fetchone()
             if resData != None:
                 jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,\
-                    defCoreCount,startTime,endTime,computingSite = resData
+                    defCoreCount,startTime,endTime,computingSite,maxPSS = resData
                 # get core power
                 if not computingSite in corePowerMap:
                     varMap = {}
@@ -4571,10 +4573,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         cpuTimeList.append(tmpVal)
                 except:
                     pass
-                # VM size
+                # RAM size
                 try:
-                    tmpMatch = re.search('vmPeakMax=(\d+)',jobMetrics)
-                    memSizeList.append(long(tmpMatch.group(1)))
+                    if preRamUnit == 'MBPerCore':
+                        if maxPSS > 0:
+                            tmpPSS = maxPSS
+                            if not preBaseRamCount in [0,None]:
+                                tmpPSS -= preBaseRamCount*1024
+                            tmpPSS = float(tmpPSS)/float(coreCount)
+                            tmpPSS = long(math.ceil(tmpPSS*1.1))
+                            memSizeList.append(tmpPSS)
+                    else:
+                        tmpMatch = re.search('vmPeakMax=(\d+)',jobMetrics)
+                        memSizeList.append(long(tmpMatch.group(1)))
                 except:
                     pass
                 # use lib size as workdir size
@@ -4622,10 +4633,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             median = max(memSizeList)
             median /= 1024
             returnMap['ramCount'] = long(median)
-            returnMap['ramUnit']  = 'MB'
-            # use preset value if larger
-            if preRamCount != None: # FIXME when setting ramCount is enabled again # and preRamCount > returnMap['ramCount']:
-                returnMap['ramCount'] = preRamCount
+            if preRamUnit == 'MBPerCore':
+                returnMap['ramUnit'] = preRamUnit
+            else:
+                returnMap['ramUnit'] = 'MB'
+                # use preset value if larger
+                if preRamCount != None: # FIXME when setting ramCount is enabled again # and preRamCount > returnMap['ramCount']:
+                    returnMap['ramCount'] = preRamCount
         if workSizeList != []:   
             median = max(workSizeList)
             returnMap['workDiskCount'] = long(median)

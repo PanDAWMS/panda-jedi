@@ -307,20 +307,29 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for memory
-        minRamCount  = max(taskSpec.ramCount, inputChunk.ramCount)
+        minRamCount = max(taskSpec.ramCount,inputChunk.ramCount)
         if not minRamCount in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                # check at the site
-                if tmpSiteSpec.maxmemory != 0 and minRamCount != 0 and minRamCount > tmpSiteSpec.maxmemory:
+                # site max memory requirement
+                if not tmpSiteSpec.maxrss in [0,None]:
+                    site_maxmemory = tmpSiteSpec.maxrss
+                else:
+                    site_maxmemory = tmpSiteSpec.maxmemory
+                if site_maxmemory != 0 and minRamCount != 0 and minRamCount > site_maxmemory:
                     tmpLog.debug('  skip {0} due to site RAM shortage={1}(site upper limit) < {2}'.format(tmpSiteName,
-                                                                                                          tmpSiteSpec.maxmemory,
+                                                                                                          site_maxmemory,
                                                                                                           minRamCount))
                     continue
-                if tmpSiteSpec.minmemory != 0 and minRamCount != 0 and minRamCount < tmpSiteSpec.minmemory:
+                # site min memory requirement
+                if not tmpSiteSpec.minrss in [0,None]:
+                    site_minmemory = tmpSiteSpec.minrss
+                else:
+                    site_minmemory = tmpSiteSpec.minmemory
+                if site_minmemory != 0 and minRamCount != 0 and minRamCount < site_minmemory:
                     tmpLog.debug('  skip {0} due to job RAM shortage={1}(site lower limit) > {2}'.format(tmpSiteName,
-                                                                                                         tmpSiteSpec.minmemory,
+                                                                                                         site_minmemory,
                                                                                                          minRamCount))
                     continue
                 newScanSiteList.append(tmpSiteName)
