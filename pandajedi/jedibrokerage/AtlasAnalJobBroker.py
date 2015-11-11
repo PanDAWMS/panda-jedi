@@ -317,7 +317,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     site_maxmemory = tmpSiteSpec.maxrss
                 else:
                     site_maxmemory = tmpSiteSpec.maxmemory
-                if site_maxmemory != 0 and minRamCount != 0 and minRamCount > site_maxmemory:
+                if not site_maxmemory in [0,None] and minRamCount != 0 and minRamCount > site_maxmemory:
                     tmpLog.debug('  skip {0} due to site RAM shortage={1}(site upper limit) < {2}'.format(tmpSiteName,
                                                                                                           site_maxmemory,
                                                                                                           minRamCount))
@@ -327,7 +327,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     site_minmemory = tmpSiteSpec.minrss
                 else:
                     site_minmemory = tmpSiteSpec.minmemory
-                if site_minmemory != 0 and minRamCount != 0 and minRamCount < site_minmemory:
+                if not site_minmemory in [0,None] and minRamCount != 0 and minRamCount < site_minmemory:
                     tmpLog.debug('  skip {0} due to job RAM shortage={1}(site lower limit) > {2}'.format(tmpSiteName,
                                                                                                          site_minmemory,
                                                                                                          minRamCount))

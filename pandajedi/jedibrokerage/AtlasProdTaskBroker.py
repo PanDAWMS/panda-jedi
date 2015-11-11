@@ -514,6 +514,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     totalWeight = 0
                     nucleusweights = []
                     for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                        if not tmpNucleus in nucleusRW:
+                            nucleusRW[tmpNucleus] = 0
                         wStr = '1'
                         # with RW
                         if tmpNucleus in nucleusRW and nucleusRW[tmpNucleus] >= cutOffRW:
