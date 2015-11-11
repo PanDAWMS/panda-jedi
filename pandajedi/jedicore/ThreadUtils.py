@@ -92,6 +92,9 @@ class MapWithLock:
         if not item in self.dataMap:
             return 0
         return self.dataMap[item]
+    
+    def iteritems(self):
+        return self.dataMap.iteritems()
 
 
 

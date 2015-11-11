@@ -5496,7 +5496,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':worldCloud'] = JediTaskSpec.worldCloudName
             if priority != None:
                 varMap[':priority'] = priority
-            sql  = "SELECT tabT.nucleus,SUM((nEvents-nEventsUsed)*cpuTime) "
+            sql  = "SELECT tabT.nucleus,SUM((nEvents-nEventsUsed)*DECODE(cpuTime,NULL,300,cpuTime)) "
             sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sql += "AND tabT.jediTaskID=tabD.jediTaskID AND masterID IS NULL "
@@ -5560,7 +5560,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get RW
-            sql  = "SELECT (nEvents-nEventsUsed)*cpuTime "
+            sql  = "SELECT (nEvents-nEventsUsed)*DECODE(cpuTime,NULL,300,cpuTime) "
             sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND masterID IS NULL "
             sql += "AND tabT.jediTaskID=:jediTaskID "

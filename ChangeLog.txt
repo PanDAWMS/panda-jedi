@@ -2,6 +2,7 @@ Release Notes
 
 * 11/11/2015
   * fixed AtlasPTB for missing nuclei in RW
+  * added protection to RW calculation against cpuTime=NULL
 
 * 11/10/2015
   * changed prod/anal prokerages to use max/minrss
