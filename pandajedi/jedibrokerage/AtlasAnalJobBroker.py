@@ -162,8 +162,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     # skip since local data is available
                     if tmpSiteName in tmpSiteList:
                         continue
+                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                     # negative weight for remote access
                     wRemote = 50.0
+                    if not tmpSiteSpec.wansinklimit in [0,None]:
+                        wRemote /= float(tmpSiteSpec.wansinklimit)
                     # sum weight
                     if not dataWeight.has_key(tmpSiteName):
                         dataWeight[tmpSiteName] = float(tmpWeightSrcMap['weight'])/wRemote
