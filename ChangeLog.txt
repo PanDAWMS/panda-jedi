@@ -1,6 +1,7 @@
 Release Notes
 
 * 11/13/2015
+  * fixed AtlasPTB for negative t1Weight in WORLD
   * changed AtlasPTB for all prod jobs to respect fairsharepolicy 
 
 * 11/11/2015

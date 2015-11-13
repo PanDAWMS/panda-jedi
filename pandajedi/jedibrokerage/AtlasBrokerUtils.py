@@ -7,16 +7,24 @@ from pandaserver.taskbuffer import ProcessGroups
 
 
 # get hospital queues
-def getHospitalQueues(siteMapper):
+def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
     retMap = {}
     # hospital words
     goodWordList = ['CORE$','VL$','MEM$','MP\d+$','LONG$','_HIMEM','_\d+$','SHORT$']
     # loop over all clouds
-    for tmpCloudName in siteMapper.getCloudList():
+    if siteInNucleus == None:
+        cloudList = siteMapper.getCloudList()
+    else:
+        # WORLD
+        cloudList = [cloudForNucleus]
+    for tmpCloudName in cloudList:
         # get cloud
         tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
-        # get T1
-        tmpT1Name = tmpCloudSpec['source']
+        if siteInNucleus == None:
+            # get T1
+            tmpT1Name = tmpCloudSpec['source']
+        else:
+            tmpT1Name = siteInNucleus
         tmpT1Spec = siteMapper.getSite(tmpT1Name)
         # skip if DDM is undefined
         if tmpT1Spec.ddm == []:

@@ -108,10 +108,16 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             # get destination for WORLD cloud
             t1Sites = []
-            tmpStat,datasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,datasetTypes=['log'])
+            tmpStat,datasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,datasetTypes=['log','output'])
             for datasetSpec in datasetSpecList:
-                if not datasetSpec.destination in t1Sites:
+                if self.siteMapper.checkSite(datasetSpec.destination) and \
+                        not datasetSpec.destination in t1Sites:
                     t1Sites.append(datasetSpec.destination)
+                    tmpMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper,datasetSpec.destination,cloudName)
+                    for tmpList in tmpMap.values():
+                        for tmpHQ in tmpList:
+                            if not tmpHQ in t1Sites:
+                                t1Sites.append(tmpHQ)
         # sites sharing SE with T1
         sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper,t1Sites[0])
         # all T1
