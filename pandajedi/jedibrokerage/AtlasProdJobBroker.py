@@ -298,7 +298,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         """        
         ######################################
         # selection for fairshare
-        if not (workQueue.queue_type in ['managed'] and workQueue.queue_name in ['test','validation']):
+        if taskSpec.prodSourceLabel in ['managed'] or not workQueue.queue_name in ['test','validation']:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
