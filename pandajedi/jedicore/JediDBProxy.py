@@ -4579,6 +4579,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpTimeDelta = endTime-startTime
                     tmpVal = float(totalFSize+outputFileBytes)/1024.0
                     tmpVal = tmpVal/float(tmpTimeDelta.seconds+tmpTimeDelta.days*24*3600)
+                    tmpVal /= float(coreCount)
                     ioIntentList.append(tmpVal)
                 except:
                     pass
