@@ -4485,6 +4485,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         inFSizeMap   = {}
         inEventsMap  = {}
         corePowerMap = {}
+        ioIntentList = []
         for pandaID,fsize,startEvent,endEvent,nEvents in resList:
             if not inFSizeMap.has_key(pandaID):
                 inFSizeMap[pandaID] = 0
@@ -4573,6 +4574,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         cpuTimeList.append(tmpVal)
                 except:
                     pass
+                # IO
+                try:
+                    tmpTimeDelta = endTime-startTime
+                    tmpVal = float(totalFSize+outputFileBytes)/1024.0
+                    tmpVal = tmpVal/float(tmpTimeDelta.seconds+tmpTimeDelta.days*24*3600)
+                    ioIntentList.append(tmpVal)
+                except:
+                    pass
                 # RAM size
                 try:
                     if preRamUnit == 'MBPerCore':
@@ -4629,6 +4638,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if cpuTimeList != []:
             maxCpuTime = long(math.ceil(max(cpuTimeList)*1.5))
             returnMap['cpuTime'] = maxCpuTime
+        if ioIntentList != []:
+            maxIoIntent = long(math.ceil(max(ioIntentList)))
+            returnMap['ioIntensity'] = maxCpuTime
+            returnMap['ioIntensityUnit'] = 'kB/s'
         if memSizeList != []:
             median = max(memSizeList)
             median /= 1024

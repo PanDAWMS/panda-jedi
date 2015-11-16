@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/16/2015
+  * changed getScout to fill IO info
+
 * 11/13/2015
   * fixed AtlasPTB for negative t1Weight in WORLD
   * changed AtlasPTB for all prod jobs to respect fairsharepolicy 
