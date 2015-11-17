@@ -4641,8 +4641,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap['cpuTime'] = maxCpuTime
         if ioIntentList != []:
             maxIoIntent = long(math.ceil(max(ioIntentList)))
-            returnMap['ioIntensity'] = maxCpuTime
-            returnMap['ioIntensityUnit'] = 'kB/s'
+            returnMap['ioIntensity'] = maxIoIntent
+            returnMap['ioIntensityUnit'] = 'kBPerS'
         if memSizeList != []:
             median = max(memSizeList)
             median /= 1024
