@@ -167,7 +167,7 @@ class JediFileSpec(object):
                 jobFileSpec.destinationDBlock = datasetSpec.datasetName
                 # storage token    
                 if not datasetSpec.storageToken in ['',None]:
-                    jobFileSpec.destinationDBlockToken = datasetSpec.storageToken 
+                    jobFileSpec.destinationDBlockToken = datasetSpec.storageToken.split('/')[0] 
                 # destination
                 if not datasetSpec.destination in ['',None]:
                     jobFileSpec.destinationSE = datasetSpec.destination
