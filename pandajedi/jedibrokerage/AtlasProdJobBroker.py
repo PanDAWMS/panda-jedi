@@ -107,17 +107,23 @@ class AtlasProdJobBroker (JobBrokerBase):
                 t1Sites += self.hospitalQueueMap[cloudName]
         else:
             # get destination for WORLD cloud
-            t1Sites = []
-            tmpStat,datasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,datasetTypes=['log','output'])
-            for datasetSpec in datasetSpecList:
-                if self.siteMapper.checkSite(datasetSpec.destination) and \
-                        not datasetSpec.destination in t1Sites:
-                    t1Sites.append(datasetSpec.destination)
-                    tmpMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper,datasetSpec.destination,cloudName)
-                    for tmpList in tmpMap.values():
-                        for tmpHQ in tmpList:
-                            if not tmpHQ in t1Sites:
-                                t1Sites.append(tmpHQ)
+            if not hintForTB:
+                t1Sites = []
+                tmpStat,datasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,datasetTypes=['log','output'])
+                for datasetSpec in datasetSpecList:
+                    if self.siteMapper.checkSite(datasetSpec.destination) and \
+                            not datasetSpec.destination in t1Sites:
+                        t1Sites.append(datasetSpec.destination)
+                        tmpMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper,datasetSpec.destination,cloudName)
+                        for tmpList in tmpMap.values():
+                            for tmpHQ in tmpList:
+                                if not tmpHQ in t1Sites:
+                                    t1Sites.append(tmpHQ)
+            else:
+                # user all sites in nuclei for WORLD task brokerage
+                t1Sites = []
+                for tmpNucleus in self.siteMapper.nuclei.values():
+                    t1Sites += tmpNucleus.allPandaSites
         # sites sharing SE with T1
         sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper,t1Sites[0])
         # all T1
@@ -509,11 +515,17 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for walltime
         if not taskSpec.useHS06():
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(effectiveSize=True)
-            minWalltime = taskSpec.walltime * tmpMaxAtomSize
+            if taskSpec.walltime != None:
+                minWalltime = taskSpec.walltime * tmpMaxAtomSize
+            else:
+                minWalltime = None
             strMinWalltime = 'walltime*inputSize={0}*{1}'.format(taskSpec.walltime,tmpMaxAtomSize)
         else:
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
-            minWalltime = taskSpec.cpuTime * tmpMaxAtomSize
+            if taskSpec.cpuTime != None:
+                minWalltime = taskSpec.cpuTime * tmpMaxAtomSize
+            else:
+                minWalltime = None
             strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.cpuTime,tmpMaxAtomSize)
         if minWalltime != None or inputChunk.useScout():
             newScanSiteList = []

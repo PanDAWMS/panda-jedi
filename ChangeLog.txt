@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/18/2015
+  * fixed AtlasPTB for WORLD
+
 * 11/16/2015
   * changed getScout to fill IO info
 

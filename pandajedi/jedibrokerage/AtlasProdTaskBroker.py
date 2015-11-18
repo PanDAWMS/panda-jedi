@@ -525,14 +525,15 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             weight = 1
                             wStr += '/(1 : RW={0}<{1})'.format(nucleusRW[tmpNucleus],cutOffRW)
                         # with data
-                        weight *= float(availableData[tmpNucleus]['ava_size_any'])
-                        weight /= float(availableData[tmpNucleus]['tot_size'])
-                        wStr += '*({0}=available input size on DISK/TAPE)'.format(availableData[tmpNucleus]['ava_size_any'])
-                        wStr += '/({0}=total input size)'.format(availableData[tmpNucleus]['tot_size'])
-                        # negative weight for tape
-                        if availableData[tmpNucleus]['ava_size_any'] > availableData[tmpNucleus]['ava_size_disk']:
-                            weight *= negWeightTape
-                            wStr += '*({0}=weight for TAPE)'.format(negWeightTape)
+                        if availableData != {}:
+                            weight *= float(availableData[tmpNucleus]['ava_size_any'])
+                            weight /= float(availableData[tmpNucleus]['tot_size'])
+                            wStr += '*({0}=available input size on DISK/TAPE)'.format(availableData[tmpNucleus]['ava_size_any'])
+                            wStr += '/({0}=total input size)'.format(availableData[tmpNucleus]['tot_size'])
+                            # negative weight for tape
+                            if availableData[tmpNucleus]['ava_size_any'] > availableData[tmpNucleus]['ava_size_disk']:
+                                weight *= negWeightTape
+                                wStr += '*({0}=weight for TAPE)'.format(negWeightTape)
                         tmpLog.debug('  use nucleus={0} weight={1} {2} criteria=+use'.format(tmpNucleus,weight,wStr))
                         totalWeight += weight
                         nucleusweights.append((tmpNucleus,weight))
