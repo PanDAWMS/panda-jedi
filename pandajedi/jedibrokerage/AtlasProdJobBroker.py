@@ -125,7 +125,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                 for tmpNucleus in self.siteMapper.nuclei.values():
                     t1Sites += tmpNucleus.allPandaSites
         # sites sharing SE with T1
-        sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper,t1Sites[0])
+        if len(t1Sites) > 0:
+            sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper,t1Sites[0])
+        else:
+            sitesShareSeT1 = []
         # all T1
         allT1Sites = self.getAllT1Sites()
         # core count
@@ -310,7 +313,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         """        
         ######################################
         # selection for fairshare
-        if taskSpec.prodSourceLabel in ['managed'] or not workQueue.queue_name in ['test','validation']:
+        if not sitePreAssigned and taskSpec.prodSourceLabel in ['managed'] or not workQueue.queue_name in ['test','validation']:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)

@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/19/2015
+  * fixed AtlasPTB for WORLD + no output
+
 * 11/18/2015
   * fixed AtlasPTB for WORLD
 
