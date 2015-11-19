@@ -3,6 +3,7 @@ Release Notes
 * 11/19/2015
   * changed AtlasPP to delete empty datasets
   * fixed AtlasPTB for WORLD + no output
+  * changed getScout to ignore jobs with nEvents<10
 
 * 11/18/2015
   * fixed AtlasPTB for WORLD

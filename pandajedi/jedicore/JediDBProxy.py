@@ -4555,7 +4555,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         # scale with input size
                         tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
-                        outSizeList.append(tmpVal)
+                        if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10:
+                            outSizeList.append(tmpVal)
                 except:
                     pass
                 # execution time
