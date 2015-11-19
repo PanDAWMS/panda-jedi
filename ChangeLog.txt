@@ -1,6 +1,7 @@
 Release Notes
 
 * 11/19/2015
+  * changed AtlasPP to delete empty datasets
   * fixed AtlasPTB for WORLD + no output
 
 * 11/18/2015

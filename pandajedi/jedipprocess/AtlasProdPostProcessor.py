@@ -131,9 +131,9 @@ class AtlasProdPostProcessor (PostProcessorBase):
             for datasetSpec in taskSpec.datasetSpecList:
                 try:
                     if datasetSpec.type == 'output' and datasetSpec.nFilesFinished == 0:
-                        tmpStat = True #ddmIF.deleteDataset(datasetSpec.datasetName,True,True)
+                        tmpStat = ddmIF.deleteDataset(datasetSpec.datasetName,True,True)
                         tmpLog.info('delete empty prod dataset {0} with {1}'.format(datasetSpec.datasetName,tmpStat))
                 except:
                     errtype,errvalue = sys.exc_info()[:2]
-                    tmpLog.warning('failed to delete dataset with {0}:{1}'.format(errtype.__name__,errvalue))
+                    tmpLog.warning('failed to delete empty dataset with {0}:{1}'.format(errtype.__name__,errvalue))
         return self.SC_SUCCEEDED
