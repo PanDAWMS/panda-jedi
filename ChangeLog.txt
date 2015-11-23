@@ -1,5 +1,9 @@
 Release Notes
 
+* 11/23/2015
+  * added updateJobMetrics
+  * fixed nEventsPerMergeJob
+
 * 11/19/2015
   * changed AtlasPP to delete empty datasets
   * fixed AtlasPTB for WORLD + no output

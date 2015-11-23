@@ -356,6 +356,7 @@ class InputChunk:
             if not self.masterDataset.datasetID in outSizeMap:
                 outSizeMap[self.masterDataset.datasetID] = 0
             boundaryIDs = set()
+            primaryHasEvents = False
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 # check start event to keep continuity
                 if maxNumEvents != None and tmpFileSpec.startEvent != None:
@@ -408,6 +409,7 @@ class InputChunk:
                     expWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
                 # the number of events
                 if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
+                    primaryHasEvents = True
                     inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
                     # set next start event
                     nextStartEvent = tmpFileSpec.endEvent + 1
@@ -423,6 +425,7 @@ class InputChunk:
                     lumiBlockNr = tmpFileSpec.lumiBlockNr
                 firstMaster = False
             # get files from secondaries
+            firstSecondary = True
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.datasetID in outSizeMap:
                     outSizeMap[datasetSpec.datasetID] = 0
@@ -472,6 +475,14 @@ class InputChunk:
                             outSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                         datasetUsage['used'] += 1
                         nSecFilesMap[datasetSpec.datasetID] += 1
+                        # the number of events
+                        if firstSecondary and maxNumEvents != None and not primaryHasEvents:
+                            if tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
+                                inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
+                            elif tmpFileSpec.nEvents != None:
+                                inputNumEvents += tmpFileSpec.nEvents
+                    # use only the first secondary
+                    firstSecondary = False
             # unset first loop flag
             firstLoop = False
             # check if there are unused files/evets 
@@ -486,6 +497,7 @@ class InputChunk:
             # LB is changed
             if newLumiBlockNr:
                 break
+            primaryHasEvents = False
             # check master in the next loop
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             newInputNumFiles  = inputNumFiles
@@ -503,6 +515,7 @@ class InputChunk:
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 # check continuity of event
                 if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
+                    primaryHasEvents = True
                     newInputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
                     # continuity of event is broken
                     if newNextStartEvent != None and newNextStartEvent != tmpFileSpec.startEvent:
@@ -553,6 +566,7 @@ class InputChunk:
                 if splitWithBoundaryID:
                     newBoundaryIDs.add(tmpFileSpec.boundaryID)
             # check secondaries
+            firstSecondary = True
             for datasetSpec in self.secondaryDatasetList:
                 if not datasetSpec.datasetID in newOutSizeMap:
                     newOutSizeMap[datasetSpec.datasetID] = 0
@@ -572,6 +586,13 @@ class InputChunk:
                         if sizeGradientsPerInSize != None:
                             newFileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                             newOutSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                        # the number of events
+                        if firstSecondary and maxNumEvents != None and not primaryHasEvents:
+                            if tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
+                                newInputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
+                            elif tmpFileSpec.nEvents != None:
+                                newInputNumEvents += tmpFileSpec.nEvents
+                    firstSecondary = False
             # termination            
             if terminateFlag:
                 break
