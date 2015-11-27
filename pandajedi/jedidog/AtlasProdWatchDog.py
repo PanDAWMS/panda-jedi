@@ -6,6 +6,8 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from WatchDogBase import WatchDogBase
 from pandajedi.jediconfig import jedi_config
 
+from pandaserver.dataservice import DataServiceUtils
+
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
@@ -122,6 +124,9 @@ class AtlasProdWatchDog (WatchDogBase):
             isOK = True
             for datasetSpec in datasetSpecList:
                 tmpLog.debug('dataset={0}'.format(datasetSpec.datasetName))
+                if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+                    tmpLog.debug('skip {0} is distributed'.format(datasetSpec.datasetName))
+                    continue
                 # get location
                 location = siteMapper.getDdmEndpoint(t1Site.sitename,datasetSpec.storageToken)
                 # make subscription

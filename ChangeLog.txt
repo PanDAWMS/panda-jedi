@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/27/2015
+  * fixed for reassignTask not to make subscriptions for distributed datasets 
+
 * 11/23/2015
   * added updateJobMetrics
   * fixed nEventsPerMergeJob
