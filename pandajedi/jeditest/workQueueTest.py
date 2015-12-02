@@ -20,6 +20,7 @@ from pandalogger.PandaLogger import PandaLogger
 taskBuffer= JediTaskBuffer.JediTaskBuffer(None)
 proxy = taskBuffer.proxyPool.getProxy()
 proxy.refreshWrokQueueMap()
+"""
 print proxy.workQueueMap.dump()
 
 print proxy.workQueueMap.getQueueWithSelParams('atlas','managed',
@@ -30,4 +31,4 @@ print proxy.workQueueMap.getQueueWithSelParams('atlas','managed',
                                   workingGroup='AP_Top',
                                   processingType='simul')[0].queue_name
 print proxy.workQueueMap.getShares('atlas','managed',[1,2,7,8])
-
+"""

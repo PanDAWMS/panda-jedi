@@ -29,7 +29,7 @@ def getEffectiveNumEvents(startEvent,endEvent,nEvents):
         if evtCounts > 0:
             return evtCounts
         return 1
-    if nEvents != None and nEvents > 0:
+    if nEvents != None:
         return nEvents
     return 1
 

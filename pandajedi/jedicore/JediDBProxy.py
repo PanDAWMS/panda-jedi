@@ -4596,7 +4596,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # scale with events
                         if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
                             tmpVal = long(math.ceil(float(outputFileBytes) / inEventsMap[pandaID]))
-                        if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10 or inEventsMap[pandaID] == 0:
+                        if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10:
                             outSizeList.append(tmpVal)
                             outSizeDict[tmpVal] = pandaID
                     else:
@@ -4620,7 +4620,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpVal *= corePower
                     if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
                         tmpVal /= float(inEventsMap[pandaID])
-                    if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10 or inEventsMap[pandaID] == 0:
+                    if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10:
                         cpuTimeList.append(tmpVal)
                         cpuTimeDict[tmpVal] = pandaID
                 except:
