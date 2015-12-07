@@ -75,8 +75,14 @@ class AtlasProdPostProcessor (PostProcessorBase):
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.warning('failed to delete datasets with {0}:{1}'.format(errtype.__name__,errvalue))
         # check duplication
-        nDup = self.taskBufferIF.checkDuplication_JEDI(taskSpec.jediTaskID)
-        tmpLog.info('checked duplication with {0}'.format(nDup))
+        if self.getFinalTaskStatus(taskSpec) in ['finished','done']:
+            nDup = self.taskBufferIF.checkDuplication_JEDI(taskSpec.jediTaskID)
+            tmpLog.info('checked duplication with {0}'.format(nDup))
+            if nDup > 0:
+                errStr = 'aborted since {0} duplication found'.format(nDup)
+                taskSpec.status = 'toabort'
+                taskSpec.setErrDiag(errStr)
+                tmpLog.info(errStr)
         try:
             self.doBasicPostProcess(taskSpec,tmpLog)
         except:

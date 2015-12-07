@@ -2,6 +2,7 @@ Release Notes
 
 * 12/7/2015
   * removed validationrelease from AtlasPJB
+  * enabled duplication check for production
 
 * 11/27/2015
   * fixed for reassignTask not to make subscriptions for distributed datasets 
