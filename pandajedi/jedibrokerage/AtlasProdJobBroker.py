@@ -170,24 +170,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
-        # selection for reprocessing
-        if taskSpec.processingType == 'reprocessing':
-            newScanSiteList = []
-            for tmpSiteName in scanSiteList:
-                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                # check schedconfig.validatedreleases
-                if tmpSiteSpec.validatedreleases == ['True']:
-                    newScanSiteList.append(tmpSiteName)
-                else:
-                    tmpLog.debug('  skip site=%s due to validatedreleases <> True criteria=-validated' % tmpSiteName)
-            scanSiteList = newScanSiteList        
-            tmpLog.debug('{0} candidates passed for reprocessing'.format(len(scanSiteList)))
-            if scanSiteList == []:
-                tmpLog.error('no candidates')
-                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
-                return retTmpError
-        ######################################
         # selection for high priorities
         t1WeightForHighPrio = 1
         if (taskSpec.currentPriority >= 900 or inputChunk.useScout()) \

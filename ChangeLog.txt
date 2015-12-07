@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/7/2015
+  * removed validationrelease from AtlasPJB
+
 * 11/27/2015
   * fixed for reassignTask not to make subscriptions for distributed datasets 
   * removed offet for zero events in getEffectiveNumEvents
