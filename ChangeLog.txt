@@ -1,6 +1,7 @@
 Release Notes
 
 * 12/8/2015
+  * fixed PP to go finished instead of exhausted if goal is reached
   * changed AtlasPJB to send pmerge to anywhere after 24h
 
 * 12/7/2015

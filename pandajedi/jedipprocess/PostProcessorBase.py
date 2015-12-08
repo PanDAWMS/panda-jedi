@@ -141,7 +141,7 @@ class PostProcessorBase (object):
 
 
     # get final task status
-    def getFinalTaskStatus(self,taskSpec,checkParent=True):
+    def getFinalTaskStatus(self,taskSpec,checkParent=True,checkGoal=False):
         # count nFiles and nEvents
         nFiles = 0
         nFilesFinished = 0
@@ -177,19 +177,30 @@ class PostProcessorBase (object):
             status = 'failed'
         else:
             status = 'finished'
-        # check if goal is reached
+        # task goal
+        if taskSpec.goal == None:
+            taskGoal = 1000
+        else:
+            taskGoal = taskSpec.goal
+        # completeness
+        if totalInputEvents != 0:
+            taskCompleteness = float(totalOutputEvents)/float(totalInputEvents)*1000.0
+        elif nFiles != 0:
+            taskCompleteness = float(nFilesFinished)/float(nFiles)*1000.0
+        else:
+            taskCompleteness = 0
+        # fail if goal is not reached
         if taskSpec.failGoalUnreached() and status == 'finished' and \
                 (not taskSpec.useExhausted() or (taskSpec.useExhausted() and taskSpec.status in ['passed'])):
-            if taskSpec.goal == None:
-                taskGoal = 1000
-            else:
-                taskGoal = taskSpec.goal
-            if totalInputEvents != 0:
-                if float(totalOutputEvents)/float(totalInputEvents)*1000.0 < taskGoal:
-                    status = 'failed'
-            elif nFiles != 0:
-                if float(nFilesFinished)/float(nFiles)*1000.0 < taskGoal:
-                    status = 'failed'
+            if taskCompleteness < taskGoal:
+                status = 'failed'
+        # check goal only
+        if checkGoal:
+            # no goal
+            if taskSpec.goal != None and taskCompleteness >= taskGoal:
+                return True
+            return False
+        # return status
         return status
 
 
@@ -199,7 +210,8 @@ class PostProcessorBase (object):
         # send task to exhausted
         if taskSpec.useExhausted() and not taskSpec.status in ['passed'] \
                 and self.getFinalTaskStatus(taskSpec) in ['finished'] \
-                and not self.getFinalTaskStatus(taskSpec,checkParent=False) in ['done']:
+                and not self.getFinalTaskStatus(taskSpec,checkParent=False) in ['done'] \
+                and not self.getFinalTaskStatus(taskSpec,checkGoal=True):
             taskSpec.status = 'exhausted'
             taskSpec.lockedBy = None
             taskSpec.lockedTime = None
