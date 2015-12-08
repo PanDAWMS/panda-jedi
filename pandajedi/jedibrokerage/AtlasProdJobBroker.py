@@ -65,6 +65,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             tmpLog = glLog
         tmpLog.debug('start')
+        timeNow = datetime.datetime.utcnow()
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
@@ -82,13 +83,23 @@ class AtlasProdJobBroker (JobBrokerBase):
                 scanSiteList = [taskSpec.site]
             tmpLog.debug('site={0} is pre-assigned criteria=+preassign'.format(taskSpec.site))
         elif inputChunk.getPreassignedSite() != None:
-            siteListPreAssigned = True
-            scanSiteList = DataServiceUtils.getSitesShareDDM(self.siteMapper,inputChunk.getPreassignedSite())
-            scanSiteList.append(inputChunk.getPreassignedSite())
-            tmpMsg = 'use site={0} since they share DDM endpoints with orinal_site={1} which is pre-assigned in masterDS '.format(str(scanSiteList),
-                                                                                                                                  inputChunk.getPreassignedSite())
-            tmpMsg += 'criteria=+premerge'
-            tmpLog.debug(tmpMsg)
+            if inputChunk.masterDataset.creationTime != None and inputChunk.masterDataset.modificationTime != None and \
+                    inputChunk.masterDataset.modificationTime != inputChunk.masterDataset.creationTime and \
+                    timeNow-inputChunk.masterDataset.modificationTime > datetime.timedelta(hours=24) and \
+                    taskSpec.lockedTime != None and timeNow-taskSpec.lockedTime > datetime.timedelta(hours=6):
+                # ignore pre-assigned site since pmerge is timed out
+                tmpLog.debug('ignore pre-assigned for pmerge due to timeout')
+                scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
+                tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
+            else:
+                # pmerge
+                siteListPreAssigned = True
+                scanSiteList = DataServiceUtils.getSitesShareDDM(self.siteMapper,inputChunk.getPreassignedSite())
+                scanSiteList.append(inputChunk.getPreassignedSite())
+                tmpMsg = 'use site={0} since they share DDM endpoints with orinal_site={1} which is pre-assigned in masterDS '.format(str(scanSiteList),
+                                                                                                                                      inputChunk.getPreassignedSite())
+                tmpMsg += 'criteria=+premerge'
+                tmpLog.debug(tmpMsg)
         else:
             scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
             tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))

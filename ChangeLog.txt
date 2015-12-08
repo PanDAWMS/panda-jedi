@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/8/2015
+  * changed AtlasPJB to send pmerge to anywhere after 24h
+
 * 12/7/2015
   * removed validationrelease from AtlasPJB
   * enabled duplication check for production
