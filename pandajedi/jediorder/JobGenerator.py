@@ -784,6 +784,12 @@ class JobGeneratorThread (WorkerThread):
                             jobSpec.minRamCount *= siteSpec.coreCount
                         jobSpec.minRamCount += taskSpec.baseRamCount 
                         jobSpec.minRamUnit   = re.sub('PerCore$','',jobSpec.minRamUnit)
+                    try:
+                        # round up with chunks
+                        memStep = 500
+                        jobSpec.minRamCount = int(jobSpec.minRamCount-1)/memStep*memStep + memStep
+                    except:
+                        pass
                     if jobSpec.minRamUnit in [None,'','NULL']:
                         jobSpec.minRamUnit   = 'MB'
                     if inputChunk.isMerging and taskSpec.mergeCoreCount != None:

@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/9/2015
+  * rounding up job.minramcount with 500MB chunks
+
 * 12/8/2015
   * fixed PP to go finished instead of exhausted if goal is reached
   * changed AtlasPJB to send pmerge to anywhere after 24h
