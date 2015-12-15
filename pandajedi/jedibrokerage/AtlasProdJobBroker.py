@@ -398,6 +398,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                     if not tmpSiteSpec.coreCount in [None,0]:
                         minRamCount = origMinRamCount * tmpSiteSpec.coreCount
                     minRamCount += taskSpec.baseRamCount
+                # round up
+                minRamCount = JediCoreUtils.roundUpRamCount(minRamCount)
                 # site max memory requirement
                 if not tmpSiteSpec.maxrss in [0,None]:
                     site_maxmemory = tmpSiteSpec.maxrss
@@ -663,21 +665,22 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for transferring
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
-            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            # limit
-            def_maxTransferring = 2000 
-            if tmpSiteSpec.transferringlimit == 0:
-                # use default value
-                maxTransferring   = def_maxTransferring
-            else:
-                maxTransferring = tmpSiteSpec.transferringlimit
-            # check at the site
-            nTraJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'transferring',cloud=cloudName)
-            nRunJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running',cloud=cloudName)
-            if max(maxTransferring,2*nRunJobs) < nTraJobs and not tmpSiteSpec.cloud in ['ND']:
-                tmpLog.debug('  skip site=%s due to too many transferring=%s greater than max(%s,2x%s) criteria=-transferring' % \
-                                 (tmpSiteName,nTraJobs,def_maxTransferring,nRunJobs))
-                continue
+            if not tmpSiteName in t1Sites+sitesShareSeT1:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # limit
+                def_maxTransferring = 2000 
+                if tmpSiteSpec.transferringlimit == 0:
+                    # use default value
+                    maxTransferring   = def_maxTransferring
+                else:
+                    maxTransferring = tmpSiteSpec.transferringlimit
+                # check at the site
+                nTraJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'transferring',cloud=cloudName)
+                nRunJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running',cloud=cloudName)
+                if max(maxTransferring,2*nRunJobs) < nTraJobs and not tmpSiteSpec.cloud in ['ND']:
+                    tmpLog.debug('  skip site=%s due to too many transferring=%s greater than max(%s,2x%s) criteria=-transferring' % \
+                                     (tmpSiteName,nTraJobs,def_maxTransferring,nRunJobs))
+                    continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList        
         tmpLog.debug('{0} candidates passed transferring check'.format(len(scanSiteList)))

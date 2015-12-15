@@ -290,6 +290,11 @@ class InputChunk:
         # check if there are unused files/events
         if not self.checkUnused():
             return None
+        # protection against unreasonable values
+        if nFilesPerJob == 0:
+            nFilesPerJob = None
+        if nEventsPerJob == 0:
+            nEventsPerJob = None
         # set default max number of files
         if maxNumFiles == None:
             # 20 files at most by default

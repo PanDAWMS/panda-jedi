@@ -6,6 +6,7 @@ import datetime
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
+from pandajedi.jedicore import JediCoreUtils
 from JobBrokerBase import JobBrokerBase
 from pandaserver.taskbuffer import PrioUtil
 import AtlasBrokerUtils
@@ -311,6 +312,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         ######################################
         # selection for memory
         minRamCount = max(taskSpec.ramCount,inputChunk.ramCount)
+        minRamCount = JediCoreUtils.roundUpRamCount(minRamCount)
         if not minRamCount in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:

@@ -1,5 +1,9 @@
 Release Notes
 
+* 12/15/2015
+  * using roundi up for the brokerage as well
+  * added protection against nFilesPerJob=0 and nEventsPerJob=0
+
 * 12/9/2015
   * rounding up job.minramcount with 500MB chunks
 

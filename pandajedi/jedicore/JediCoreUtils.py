@@ -108,3 +108,17 @@ def getConfigParam(configStr,vo,sourceLabel):
     except:
         pass
     return None
+
+
+
+# round up memory count
+def roundUpRamCount(ramCount):
+    if ramCount == 'NULL':
+        ramCount = None
+    if not ramCount in [None,0]:
+        try:
+            memStep = 500
+            ramCount = int(ramCount-1)/memStep*memStep + memStep
+        except:
+            pass
+    return ramCount
