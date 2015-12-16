@@ -6412,10 +6412,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not prodSourceLabel in [None,'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlTL += "AND tabT.prodSourceLabel=:prodSourceLabel "
-            # sql to update datasets    
+            # get tasks in defined with only ready datasets
+            sqlTR  = "SELECT distinct tabT.jediTaskID "
+            sqlTR += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlTR += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
+            sqlTR += "AND tabT.status=:taskStatus1 AND tabD.status=:dsStatus1 "
+            sqlTR += "AND tabD.type=:dsType AND tabT.modificationTime<:timeLimit "
+            sqlTR += "AND NOT EXISTS "
+            sqlTR += "(SELECT 1 FROM {0}.JEDI_Datasets WHERE jediTaskID=tabT.jediTaskID AND type=:dsType AND status<>:dsStatus1) ".format(jedi_config.db.schemaJEDI)
+            if not vo in [None,'any']:
+                sqlTR += "AND tabT.vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                sqlTR += "AND tabT.prodSourceLabel=:prodSourceLabel "
+            # sql to update mutable datasets    
             sqlTU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=:newStatus "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND type=:type AND state=:state AND status=:oldStatus "
+            # sql to update ready datasets    
+            sqlRD  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRD += "SET status=:newStatus "
+            sqlRD += "WHERE jediTaskID=:jediTaskID AND type=:type AND status=:oldStatus "
             # sql to update task
             sqlTD  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTD += "SET status=:newStatus,modificationtime=CURRENT_DATE "
@@ -6429,6 +6445,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nTasks = 0
             for jediTaskID,taskStatus in resTL:
                 if taskStatus == 'defined':
+                    # update mutable datasets
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
                     varMap[':type'] ='input'
@@ -6457,6 +6474,31 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if nRow > 0:
                         tmpLog.debug('jediTaskID={0} back to defined'.format(jediTaskID,nRow))
                         nTasks += 1
+            # get tasks in defined with only ready datasets
+            varMap = {}
+            varMap[':taskStatus1'] = 'defined'
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=timeLimit)
+            varMap[':dsType'] = 'input'
+            varMap[':dsStatus1'] = 'ready'
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+            # get jediTaskIDs
+            self.cur.execute(sqlTR+comment,varMap)
+            resTR = self.cur.fetchall()
+            for jediTaskID, in resTR:
+                # update ready datasets
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':type'] ='input'
+                varMap[':oldStatus'] = 'ready'
+                varMap[':newStatus'] = 'defined'
+                self.cur.execute(sqlRD+comment,varMap)
+                nRow = self.cur.rowcount
+                tmpLog.debug('jediTaskID={0} reset {1} datasets in ready'.format(jediTaskID,nRow))
+                if nRow > 0:
+                    nTasks += 1
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

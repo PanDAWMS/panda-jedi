@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/16/2015
+  * changed restartTasksForCF to restart defined tasks with only ready DSs
+
 * 12/15/2015
   * using roundi up for the brokerage as well
   * added protection against nFilesPerJob=0 and nEventsPerJob=0
