@@ -344,6 +344,7 @@ class InputChunk:
         nextStartEvent = None
         boundaryID     = None
         newBoundaryID  = False
+        eventJump      = False
         nSecFilesMap   = {}
         numMaster      = 0
         outSizeMap     = {}
@@ -366,6 +367,7 @@ class InputChunk:
                 # check start event to keep continuity
                 if maxNumEvents != None and tmpFileSpec.startEvent != None:
                     if nextStartEvent != None and nextStartEvent != tmpFileSpec.startEvent:
+                        eventJump = True
                         break
                 # check boundaryID
                 if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID \
@@ -501,6 +503,9 @@ class InputChunk:
                 break
             # LB is changed
             if newLumiBlockNr:
+                break
+            # event jump
+            if eventJump:
                 break
             primaryHasEvents = False
             # check master in the next loop

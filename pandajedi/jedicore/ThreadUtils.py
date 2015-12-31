@@ -57,6 +57,16 @@ class ListWithLock:
         self.lock.release()
         return ret
 
+    def dump(self):
+        self.lock.acquire()
+        if len(self.dataList) > self.dataIndex:
+            ret = ','.join(self.dataList[self.dataIndex:])
+        else:
+            ret = 'None'
+        self.lock.release()
+        return ret
+        
+
 
 # map with lock
 class MapWithLock:

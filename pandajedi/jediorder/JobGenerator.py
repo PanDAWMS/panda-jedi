@@ -206,7 +206,7 @@ class JobGenerator (JediKnight):
                                             self.taskBufferIF.unlockProcessWithPID_JEDI(vo,prodSourceLabel,workQueue.queue_id,
                                                                                         brokeragelockID,True)
                                         # dump
-                                        tmpLog.debug('dump one-time pool : {0}'.format(threadPool.dump()))
+                                        tmpLog.debug('dump one-time pool : {0} remTasks={1}'.format(threadPool.dump(),inputList.dump()))
                                 # unlock
                                 self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
             except:
