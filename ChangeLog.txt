@@ -1,5 +1,8 @@
 Release Notes
 
+* 1/5/2016
+  * changed restartTasksForCF to restart ready tasks with defined DSs
+
 * 12/31/2015
   * fixed CF to use nFilesForScout for toupdate in scouting
 

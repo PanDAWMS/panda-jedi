@@ -4395,7 +4395,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # get scout job data
     def getScoutJobData_JEDI(self,jediTaskID,useTransaction=False,scoutSuccessRate=None,
-                             mergeScout=False,flagJob=False):
+                             mergeScout=False,flagJob=False,setPandaID=None):
         comment = ' /* JediDBProxy.getScoutJobData_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -4426,6 +4426,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlSCF += '{0},'.format(mapKey)
         sqlSCF  = sqlSCF[:-1]
         sqlSCF += ") AND tabD.masterID IS NULL " 
+        if setPandaID != None:
+            sqlSCF += "AND tabF.PandaID=:usePandaID "
         sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
         sqlSCD += "startTime,endTime,computingSite,maxPSS,jobMetrics "
         sqlSCD += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
@@ -4504,6 +4506,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for tmpType in JediDatasetSpec.getMergeProcessTypes():
                 mapKey = ':type_'+tmpType
                 varMap[mapKey] = tmpType
+        if setPandaID != None:
+            varMap[':usePandaID'] = setPandaID
         self.cur.execute(sqlSCF+comment,varMap)
         resList = self.cur.fetchall()
         # scout scceeded or not
@@ -6424,6 +6428,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlTR += "AND tabT.vo=:vo "
             if not prodSourceLabel in [None,'any']:
                 sqlTR += "AND tabT.prodSourceLabel=:prodSourceLabel "
+            # get tasks in ready with defined datasets
+            sqlTW  = "SELECT distinct tabT.jediTaskID "
+            sqlTW += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlTW += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
+            sqlTW += "AND tabT.status=:taskStatus1 AND tabD.status=:dsStatus1 "
+            sqlTW += "AND tabD.type=:dsType AND tabT.modificationTime<:timeLimit "
+            if not vo in [None,'any']:
+                sqlTW += "AND tabT.vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                sqlTW += "AND tabT.prodSourceLabel=:prodSourceLabel "
             # sql to update mutable datasets    
             sqlTU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=:newStatus "
@@ -6498,6 +6512,30 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow = self.cur.rowcount
                 tmpLog.debug('jediTaskID={0} reset {1} datasets in ready'.format(jediTaskID,nRow))
                 if nRow > 0:
+                    nTasks += 1
+            # get tasks in ready with defined datasets
+            varMap = {}
+            varMap[':taskStatus1'] = 'ready'
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=timeLimit)
+            varMap[':dsType'] = 'input'
+            varMap[':dsStatus1'] = 'defined'
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+            # get jediTaskIDs
+            self.cur.execute(sqlTW+comment,varMap)
+            resTW = self.cur.fetchall()
+            for jediTaskID, in resTW:
+                # update task
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':oldStatus'] = 'ready'
+                varMap[':newStatus'] = 'defined'
+                self.cur.execute(sqlTD+comment,varMap)
+                nRow = self.cur.rowcount
+                if nRow > 0:
+                    tmpLog.debug('jediTaskID={0} reset to defined'.format(jediTaskID))
                     nTasks += 1
             # commit
             if not self._commit():
