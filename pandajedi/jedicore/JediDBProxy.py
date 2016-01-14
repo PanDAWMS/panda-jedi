@@ -4402,6 +4402,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start mergeScout={0}'.format(mergeScout))
         returnMap = {}
+        extraInfo = {}
         # sql to get preset values
         if not mergeScout:
             sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime "
@@ -4480,6 +4481,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preOutputScaleWithEvents = True
         else:
             preOutputScaleWithEvents = False
+        extraInfo['oldCpuTime'] = preCpuTime
         # get the size of lib 
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
@@ -4535,6 +4537,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         inEventsMap  = {}
         corePowerMap = {}
         jMetricsMap  = {}
+        execTimeMap  = {}
         for pandaID,fsize,startEvent,endEvent,nEvents in resList:
             if not inFSizeMap.has_key(pandaID):
                 inFSizeMap[pandaID] = 0
@@ -4616,6 +4619,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpVal = cpuConsumptionTime
                     walltimeList.append(tmpVal)
                     walltimeDict[tmpVal] = pandaID 
+                except:
+                    pass
+                try:
+                    execTimeMap[pandaID] = endTime-startTime
                 except:
                     pass
                 # CPU time
@@ -4707,6 +4714,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if cpuTimeList != []:
             maxCpuTime = max(cpuTimeList)
             addTag(jobTagMap,cpuTimeDict,maxCpuTime,'cpuTime')
+            try:
+                extraInfo['execTime'] = execTimeMap[cpuTimeDict[maxCpuTime]]
+            except:
+                pass
             maxCpuTime = long(math.ceil(maxCpuTime*1.5))
             returnMap['cpuTime'] = maxCpuTime
         if ioIntentList != []:
@@ -4743,13 +4754,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
         # return    
-        tmpLog.debug('succeeded={0} data->{1}'.format(scoutSucceeded,str(returnMap)))
-        return scoutSucceeded,returnMap
+        tmpLog.debug('succeeded={0} data={1} extra={2}'.format(scoutSucceeded,str(returnMap),str(extraInfo)))
+        return scoutSucceeded,returnMap,extraInfo
 
 
 
     # set scout job data
-    def setScoutJobData_JEDI(self,taskSpec,useCommit):
+    def setScoutJobData_JEDI(self,taskSpec,useCommit,useExhausted):
         comment = ' /* JediDBProxy.setScoutJobData_JEDI */'
         methodName = self.getMethodName(comment)
         jediTaskID = taskSpec.jediTaskID
@@ -4760,9 +4771,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
         # set average job data
-        scoutSucceeded,scoutData = self.getScoutJobData_JEDI(jediTaskID,
-                                                             scoutSuccessRate=taskSpec.getScoutSuccessRate(),
-                                                             flagJob=True)
+        scoutSucceeded,scoutData,extraInfo = self.getScoutJobData_JEDI(jediTaskID,
+                                                                       scoutSuccessRate=taskSpec.getScoutSuccessRate(),
+                                                                       flagJob=True)
         # sql to update task data
         if scoutData != {}:
             varMap = {}
@@ -4779,7 +4790,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # set average merge job data
         mergeScoutSucceeded = None
         if taskSpec.mergeOutput():
-            mergeScoutSucceeded,mergeScoutData = self.getScoutJobData_JEDI(jediTaskID,mergeScout=True)
+            mergeScoutSucceeded,mergeScoutData,mergeExtraInfo = self.getScoutJobData_JEDI(jediTaskID,mergeScout=True)
             if mergeScoutData != {}:
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
@@ -4799,11 +4810,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
+        # go to exhausted if necessary
+        if useExhausted and scoutSucceeded:
+            # check cpuTime
+            if taskSpec.useHS06() and 'cpuTime' in scoutData and 'execTime' in extraInfo:
+                minExecTime = 24
+                if not extraInfo['oldCpuTime'] in [0,None] and scoutData['cpuTime'] > 2*extraInfo['oldCpuTime'] \
+                        and extraInfo['execTime'] > datetime.timedelta(hours=minExecTime):
+                    errMsg = 'exhausted since scout_cpuTime ({0}) is larger than 2*task_cpuTime ({1})'.format(scoutData['cpuTime'],
+                                                                                                              extraInfo['oldCpuTime'])
+                    tmpLog.debug(errMsg)
+                    taskSpec.setErrDiag(errMsg)
+                    taskSpec.status = 'exhausted'
         return scoutSucceeded,mergeScoutSucceeded
 
 
 
-    # set tasks to be assigned
+    # set scout job data to tasks
     def setScoutJobDataToTasks_JEDI(self,vo,prodSourceLabel):
         comment = ' /* JediDBProxy.setScoutJobDataToTasks_JEDI */'
         methodName = self.getMethodName(comment)
@@ -4829,6 +4852,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not prodSourceLabel in [None,'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlSCF += "AND tabT.prodSourceLabel=:prodSourceLabel "
+            # sql to update task status
+            sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU += "SET status=:newStatus,modificationTime=CURRENT_DATE,"
+            sqlTU += "errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
+            sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
             # begin transaction
             self.conn.begin()
             # get tasks
@@ -4844,7 +4872,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpStat,taskSpec = self.getTaskWithID_JEDI(jediTaskID,False)
                 if tmpStat:
                     tmpLog.debug('set jediTaskID={0}'.format(jediTaskID))
-                    self.setScoutJobData_JEDI(taskSpec,True)
+                    self.setScoutJobData_JEDI(taskSpec,True,True)
+                    # update exhausted task status
+                    if taskSpec.status == 'exhausted':
+                        # begin transaction
+                        self.conn.begin()
+                        # update task status
+                        varMap = {}
+                        varMap[':jediTaskID'] = taskSpec.jediTaskID
+                        varMap[':newStatus'] = taskSpec.status
+                        varMap[':oldStatus'] = 'running'
+                        varMap[':errorDialog'] = taskSpec.errorDialog
+                        self.cur.execute(sqlTU+comment,varMap)
+                        nRow = self.cur.rowcount
+                        # commit
+                        if not self._commit():
+                            raise RuntimeError, 'Commit error'
+                        tmpLog.debug('set status={0} to jediTaskID={1} with {2} since {3}'.format(taskSpec.status,
+                                                                                                  taskSpec.jediTaskID,
+                                                                                                  nRow,
+                                                                                                  taskSpec.errorDialog))
                     nTasks += 1
             # return    
             tmpLog.debug('done with {0} tasks'.format(nTasks))
@@ -5083,7 +5130,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not toSkip:
                     if taskSpec.status == 'scouting':
                         # set average job data
-                        scoutSucceeded,mergeScoutSucceeded = self.setScoutJobData_JEDI(taskSpec,False)
+                        scoutSucceeded,mergeScoutSucceeded = self.setScoutJobData_JEDI(taskSpec,False,True)
                         # get nFiles to be used
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
@@ -5104,7 +5151,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.cur.execute(sqlFUU+comment,varMap)
                         # new task status
                         if scoutSucceeded or noBroken:
-                            newTaskStatus = 'scouted'
+                            if taskSpec.status == 'exhausted':
+                                # went to exhausted since real cpuTime etc is too large
+                                newTaskStatus = 'exhausted'
+                                errorDialog = taskSpec.errorDialog
+                            else:
+                                newTaskStatus = 'scouted'
                             taskSpec.setPostScout()
                         else:
                             newTaskStatus = 'tobroken'
@@ -5209,7 +5261,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':errorDialog'] = errorDialog
                         varMap[':splitRule'] = taskSpec.splitRule
                         self.cur.execute(sqlTU+comment,varMap)
-                        tmpLog.debug('done new status={0} for jediTaskID={1}'.format(newTaskStatus,jediTaskID))
+                        tmpLog.debug('done new status={0} for jediTaskID={1} since {2}'.format(newTaskStatus,jediTaskID,errorDialog))
                 # commit    
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
