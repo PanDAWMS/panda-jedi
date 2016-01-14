@@ -2,6 +2,7 @@ Release Notes
 
 * 1/14/2016
   * changed setScoutJobData so that tasks go to exhausted when execution time is unexpectedly too long
+  * removed TiersOfATLAS from AtlasDDM
 
 * 1/5/2016
   * changed restartTasksForCF to restart ready tasks with defined DSs

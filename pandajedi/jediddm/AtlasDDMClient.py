@@ -6,6 +6,7 @@ import socket
 import random
 import datetime
 import json
+import types
 import urllib2
 import traceback
 
@@ -14,7 +15,6 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from DDMClientBase import DDMClientBase
 
 from dq2.clientapi.DQ2 import DQ2
-from dq2.info import TiersOfATLAS
 from dq2.common.DQConstants import DatasetState, Metadata
 from dq2.clientapi.DQ2 import \
     DQUnknownDatasetException, \
@@ -226,8 +226,12 @@ class AtlasDDMClient(DDMClientBase):
     # get site property
     def getSiteProperty(self,seName,attribute):
         methodName = 'getSiteProperty'
+        self.updateEndPointDict()
         try:
-            return self.SC_SUCCEEDED,TiersOfATLAS.getSiteProperty(seName,attribute)
+            retVal = self.endPointDict[seName][attribute]
+            if isinstance(retVal,types.UnicodeType):
+                retVal = str(retVal)
+            return self.SC_SUCCEEDED,retVal
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
@@ -303,6 +307,8 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug('start datasetName={0} checkCompleteness={1}'.format(datasetSpec.datasetName,
                                                                           checkCompleteness))
         try:
+            # update endpoints
+            self.updateEndPointDict()
             # list of NG endpoints
             ngEndPoints = []
             if 1 in ngGroup:
@@ -320,13 +326,13 @@ class AtlasDDMClient(DDMClientBase):
                     if '*' in endPointPatt:
                         # wildcard
                         endPointPatt = endPointPatt.replace('*','.*')
-                        for endPointToA in TiersOfATLAS.getAllDestinationSites():
+                        for endPointToA in self.endPointDict.keys():
                             if re.search('^'+endPointPatt+'$',endPointToA) != None:
                                 if not endPointToA in allEndPointList:
                                     allEndPointList.append(endPointToA)
                     else:
                         # normal endpoint
-                        if endPointPatt in TiersOfATLAS.getAllDestinationSites() and \
+                        if endPointPatt in self.endPointDict.keys() and \
                                not endPointPatt in allEndPointList:
                             allEndPointList.append(endPointPatt)
                 # get associated endpoints
@@ -383,7 +389,8 @@ class AtlasDDMClient(DDMClientBase):
                         cloudLocCheckSrc[siteName] = set()
                     cloudLocCheckSrc[siteName].add(tmpCheckCloud)
                     # storage type
-                    if TiersOfATLAS.isTapeSite(tmpEndPoint):
+                    tmpStat,isTape = self.getSiteProperty(tmpEndPoint,'is_tape')
+                    if isTape == True:
                         storageType = 'localtape'
                     else:
                         storageType = 'localdisk'
@@ -400,22 +407,27 @@ class AtlasDDMClient(DDMClientBase):
                             or useCompleteOnly:
                         continue
                     # get LFC
-                    lfc = TiersOfATLAS.getLocalCatalog(tmpEndPoint)
+                    tmpStat,lfc = self.getSiteProperty(tmpEndPoint,'servedlfc')
+                    if tmpStat != self.SC_SUCCEEDED:
+                        tmpLog.error('faild to get catalog for {0} with {0}'.format(tmpEndPoint,lfc))
+                        return tmpStat,lfc
                     # add map
                     if not tmpLfcSeMap.has_key(lfc):
                         tmpLfcSeMap[lfc] = []
                     # get SE
-                    seStr = TiersOfATLAS.getSiteProperty(tmpEndPoint, 'srm')
+                    tmpStat,seStr = self.getSiteProperty(tmpEndPoint, 'se')
+                    if tmpStat != self.SC_SUCCEEDED:
+                        tmpLog.error('faild to get SE from for {0} with {1}'.format(tmpEndPoint,seStr))
+                        return tmpStat,seStr
                     tmpMatch = re.search('://([^:/]+):*\d*/',seStr)
                     if tmpMatch != None:
                         se = tmpMatch.group(1)
                         if not se in tmpLfcSeMap[lfc]:
                             tmpLfcSeMap[lfc].append(se)
-                    else:
+                    if tmpMatch == None:
                         tmpLog.error('faild to extract SE from %s for %s:%s' % \
                                      (seStr,siteName,tmpEndPoint))
                     # get SE + path
-                    seStr = TiersOfATLAS.getSiteProperty(tmpEndPoint, 'srm')
                     tmpMatch = re.search('(srm://.+)$',seStr)
                     if tmpMatch == None:
                         tmpLog.error('faild to extract SE+PATH from %s for %s:%s' % \
@@ -1213,18 +1225,23 @@ class AtlasDDMClient(DDMClientBase):
             lfcSeMap = {}
             for tmpEndPoint in datasetReplicaMap.keys():
                 # get LFC
-                lfc = TiersOfATLAS.getLocalCatalog(tmpEndPoint)
+                tmpStat,lfc = self.getSiteProperty(tmpEndPoint,'servedlfc')
+                if tmpStat != self.SC_SUCCEEDED:
+                    tmpLog.error('faild to get catalog for {0} with {0}'.format(tmpEndPoint,lfc))
+                    return tmpStat,lfc
                 # add map
                 if not lfcSeMap.has_key(lfc):
                     lfcSeMap[lfc] = []
                 # get SE
-                seStr = TiersOfATLAS.getSiteProperty(tmpEndPoint, 'srm')
-                if seStr != None:
-                    tmpMatch = re.search('://([^:/]+):*\d*/',seStr)
-                    if tmpMatch != None:
-                        se = tmpMatch.group(1)
-                        if not se in lfcSeMap[lfc]:
-                            lfcSeMap[lfc].append(se)
+                tmpStat,seStr = self.getSiteProperty(tmpEndPoint,'se')
+                if tmpStat != self.SC_SUCCEEDED:
+                    tmpLog.error('faild to get SE for {0} with {0}'.format(tmpEndPoint,seStr))
+                    return tmpStat,seStr
+                tmpMatch = re.search('://([^:/]+):*\d*/',seStr)
+                if tmpMatch != None:
+                    se = tmpMatch.group(1)
+                    if not se in lfcSeMap[lfc]:
+                        lfcSeMap[lfc].append(se)
             # get SURLs
             for lfcHost,seList in lfcSeMap.iteritems():
                 tmpStat,tmpRetMap = self.getSURLsFromLFC(lfnMap,lfcHost,seList,scopes=scopeMap)

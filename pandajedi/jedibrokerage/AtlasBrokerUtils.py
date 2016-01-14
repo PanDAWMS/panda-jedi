@@ -97,7 +97,7 @@ def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
                     continue
                 # check space token
                 if not storageToken in ['',None,'NULL']:
-                    seStr = ddmIF.getSiteProperty(tmpSE,'srm')
+                    seStr = ddmIF.getSiteProperty(tmpSE,'se')
                     try:
                         if seStr.split(':')[1] != storageToken:
                             continue
@@ -108,7 +108,7 @@ def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
                 pass
                 # check tape attribute
                 try:
-                    tmpOnTape = ddmIF.getSiteProperty(tmpSE,'tape')
+                    tmpOnTape = ddmIF.getSiteProperty(tmpSE,'is_tape')
                 except:
                     errtype,errvalue = sys.exc_info()[:2]
                     return errtype,'ddmIF.getSiteProperty for %s:tape failed with %s' % (tmpSE,errvalue)
@@ -259,7 +259,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
                 pass
                 # check tape attribute
                 try:
-                    tmpOnTape = ddmIF.getSiteProperty(tmpSE,'tape')
+                    tmpOnTape = ddmIF.getSiteProperty(tmpSE,'is_tape')
                 except:
                     errtype,errvalue = sys.exc_info()[:2]
                     return errtype,'ddmIF.getSiteProperty for %s:tape failed with %s' % (tmpSE,errvalue)
