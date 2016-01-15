@@ -1,5 +1,8 @@
 Release Notes
 
+* 1/15/2016
+  * changed message type for WORLD taskbrokerage
+
 * 1/14/2016
   * changed setScoutJobData so that tasks go to exhausted when execution time is unexpectedly too long
   * removed TiersOfATLAS from AtlasDDM

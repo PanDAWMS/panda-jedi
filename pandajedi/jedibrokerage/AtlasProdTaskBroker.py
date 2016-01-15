@@ -323,7 +323,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
     # wrapper for return
     def sendLogMessage(self,tmpLog):
         # send info to logger
-        tmpLog.bulkSendMsg('prod_brokerage')
+        tmpLog.bulkSendMsg('taskbrokerage')
         tmpLog.debug('sent')
 
 
