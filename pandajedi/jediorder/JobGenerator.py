@@ -979,6 +979,8 @@ class JobGeneratorThread (WorkerThread):
                             if taskSpec.baseWalltime != None:
                                 jobSpec.maxWalltime += taskSpec.baseWalltime
                             jobSpec.maxWalltime = long(jobSpec.maxWalltime)
+                            if taskSpec.useHS06():
+                                jobSpec.maxCpuCount = jobSpec.maxWalltime
                     except:
                         pass
                     # multiply maxDiskCount by total master size or # of events
