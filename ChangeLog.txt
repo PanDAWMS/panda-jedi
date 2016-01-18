@@ -1,6 +1,7 @@
 Release Notes
 
 * 1/18/2016
+  * changed getScoutJobData to reduce baseWalltime when calculating cpuTime
   * changed TR to respect the boolean vale for failWhenGoalUnreached
 
 * 1/15/2016

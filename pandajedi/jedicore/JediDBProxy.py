@@ -4405,9 +4405,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         extraInfo = {}
         # sql to get preset values
         if not mergeScout:
-            sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
         else:
-            sqlGPV  = "SELECT outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data
@@ -4456,7 +4456,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.cur.execute(sqlGPV+comment,varMap)
         resGPV = self.cur.fetchone()
         if resGPV != None:
-            preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,preWorkDiskCount,preCpuTime = resGPV
+            preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,\
+                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime = resGPV
             # get preOutDiskCount in kB
             if not preOutDiskCount in [0,None]:
                 if preOutDiskUnit != None:
@@ -4477,10 +4478,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preBaseRamCount = 0
             preWorkDiskCount = 0
             preCpuTime = 0
+            preCpuEfficiency = None
+            preBaseWalltime = None
         if preOutDiskUnit != None and preOutDiskUnit.endswith('PerEvent'):
             preOutputScaleWithEvents = True
         else:
             preOutputScaleWithEvents = False
+        if preCpuEfficiency == None:
+            preCpuEfficiency = 100
+        if preBaseWalltime == None:
+            preBaseWalltime = 0
         extraInfo['oldCpuTime'] = preCpuTime
         # get the size of lib 
         varMap = {}
@@ -4627,10 +4634,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     pass
                 # CPU time
                 try:
-                    tmpVal = float(cpuConsumptionTime)
-                    tmpVal *= corePower
-                    if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
-                        tmpVal /= float(inEventsMap[pandaID])
+                    if preCpuEfficiency == 0:
+                        # no scaling
+                        tmpVal = 0
+                    else:
+                        tmpTimeDelta = endTime-startTime
+                        tmpVal = (tmpTimeDelta.seconds+tmpTimeDelta.days*24*3600)
+                        if tmpVal <= preBaseWalltime:
+                            # execution is smaller than offset
+                            tmpVal = 0
+                        else:
+                            tmpVal = float(tmpVal-preBaseWalltime)*corePower*coreCount*float(preCpuEfficiency)/100.0
+                            if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
+                                tmpVal /= float(inEventsMap[pandaID])
                     if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10:
                         cpuTimeList.append(tmpVal)
                         cpuTimeDict[tmpVal] = pandaID
