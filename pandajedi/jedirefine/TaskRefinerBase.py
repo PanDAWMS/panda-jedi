@@ -244,7 +244,7 @@ class TaskRefinerBase (object):
         if 'useJobCloning' in taskParamMap:
             scValue = EventServiceUtils.getJobCloningValue(taskParamMap['useJobCloning'])
             self.setSplitRule(None,scValue,JediTaskSpec.splitRuleToken['useJobCloning'])
-        if 'failWhenGoalUnreached' in taskParamMap:
+        if 'failWhenGoalUnreached' in taskParamMap and taskParamMap['failWhenGoalUnreached'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['failGoalUnreached'])
         if 'switchEStoNormal' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['switchEStoNormal'])

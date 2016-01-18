@@ -1,5 +1,8 @@
 Release Notes
 
+* 1/18/2016
+  * changed TR to respect the boolean vale for failWhenGoalUnreached
+
 * 1/15/2016
   * changed message type for WORLD taskbrokerage
   * setting maxWalltime to maxCpuCount for HS06
