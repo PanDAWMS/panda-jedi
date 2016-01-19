@@ -1,5 +1,8 @@
 Release Notes
 
+* 1/19/2016
+  * fixed getAnalSitesWithData to ignore STAGING
+
 * 1/18/2016
   * changed getScoutJobData to reduce baseWalltime when calculating cpuTime
   * changed TR to respect the boolean vale for failWhenGoalUnreached

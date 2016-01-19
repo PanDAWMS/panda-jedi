@@ -254,6 +254,9 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
                 # check name with regexp pattern
                 if re.search(tmpSePat,tmpSE) == None:
                     continue
+                # skip staging
+                if re.search('STAGING$',tmpSE) != None:
+                    continue
                 # check archived metadata
                 # FIXME 
                 pass
