@@ -9133,11 +9133,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlWM  = "SELECT COUNT(*) FROM ( "
         sqlWM += "SELECT distinct outPandaID "
         sqlWM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
-        sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID ANd status IN (:statT1,:statT2) "
+        sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID AND status IN (:statT1,:statT2) "
         sqlWM += 'MINUS '
         sqlWM += "SELECT distinct PandaID "
         sqlWM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
-        sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID and status=:statI "
+        sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID AND status=:statI "
         sqlWM += ') '
         # sql to check duplication with internal merge
         sqlCM  = "SELECT COUNT(*) FROM ( "

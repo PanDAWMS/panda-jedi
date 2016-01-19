@@ -1,6 +1,7 @@
 Release Notes
 
 * 1/19/2016
+  * changed AtlasPP to set lifetime to failed log datasets 
   * fixed getAnalSitesWithData to ignore STAGING
 
 * 1/18/2016
