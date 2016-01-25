@@ -972,10 +972,18 @@ class JediTaskSpec(object):
 
     # get field number to add middle name to LFN 
     def getFieldNumToLFN(self):
-        if self.splitRule != None:
-            tmpMatch = re.search(self.splitRuleToken['addNthFieldToLFN']+'=([^,$]+)',self.splitRule)
-            if tmpMatch != None:
-                return int(tmpMatch.group(1))
+        try:
+            if self.splitRule != None:
+                tmpMatch = re.search(self.splitRuleToken['addNthFieldToLFN']+'=([,\d]+)',self.splitRule)
+                if tmpMatch != None:
+                    tmpList = tmpMatch.group(1).split(',')
+                    try:
+                        tmpList.remove('')
+                    except:
+                        pass
+                    return map(int,tmpList)
+        except:
+            pass
         return None    
 
 

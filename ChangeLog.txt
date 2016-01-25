@@ -1,5 +1,8 @@
 Release Notes
 
+* 1/25/2016
+  * changed addNthFieldToLFN to allow multiple fields
+
 * 1/19/2016
   * changed AtlasPP to set lifetime to failed log datasets 
   * fixed getAnalSitesWithData to ignore STAGING
