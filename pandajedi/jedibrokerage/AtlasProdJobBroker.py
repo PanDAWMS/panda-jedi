@@ -64,9 +64,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                        datetime.datetime.utcnow().isoformat('/')))
         else:
             tmpLog = glLog
-        if hintForTB:
-            tmpLog.debug('===== start for job check')
-        else:
+        if not hintForTB:
             tmpLog.debug('start')
         timeNow = datetime.datetime.utcnow()
         # return for failure
@@ -747,7 +745,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         # return if to give a hint for task brokerage
         if hintForTB:
-            tmpLog.debug('===== done for job check')
             return self.SC_SUCCEEDED,scanSiteList
         ######################################
         # get available files

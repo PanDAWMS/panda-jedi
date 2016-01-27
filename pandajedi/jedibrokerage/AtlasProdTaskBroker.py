@@ -480,9 +480,16 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     ######################################
                     # ability to execute jobs
                     newNucleusList = {}
+                    # get all panda sites
+                    tmpSiteList = []
+                    for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                        tmpSiteList += tmpNucleusSpec.allPandaSites
+                    tmpSiteList = list(set(tmpSiteList))
+                    tmpLog.debug('===== start for job check')
                     jobBroker = AtlasProdJobBroker(self.ddmIF,self.taskBufferIF)
                     tmpSt,tmpRet = jobBroker.doBrokerage(taskSpec,taskSpec.cloud,inputChunk,None,True,
-                                                         nucleusList.keys(),tmpLog)
+                                                         tmpSiteList,tmpLog)
+                    tmpLog.debug('===== done for job check')
                     if tmpSt != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to get sites where jobs can run')
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
