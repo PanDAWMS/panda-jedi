@@ -420,32 +420,6 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         self.sendLogMessage(tmpLog)
                         continue
-                    ######################################
-                    # ability to execute jobs
-                    newNucleusList = {}
-                    jobBroker = AtlasProdJobBroker(self.ddmIF,self.taskBufferIF)
-                    tmpSt,tmpRet = jobBroker.doBrokerage(taskSpec,taskSpec.cloud,inputChunk,None,True)
-                    if tmpSt != Interaction.SC_SUCCEEDED:
-                        tmpLog.error('failed to get sites where jobs can run')
-                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        self.sendLogMessage(tmpLog)
-                        continue
-                    okNuclei = set()
-                    for tmpSite in tmpRet:
-                        siteSpec = siteMapper.getSite(tmpSite)
-                        okNuclei.add(siteSpec.pandasite)
-                    for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
-                        if tmpNucleus in okNuclei:
-                            newNucleusList[tmpNucleus] = tmpNucleusSpec
-                        else:
-                            tmpLog.debug('  skip nucleus={0} due to missing ability to run jobs criteria=-job'.format(tmpNucleus))
-                    nucleusList = newNucleusList
-                    tmpLog.debug('{0} candidates passed job check'.format(len(nucleusList)))
-                    if nucleusList == {}:
-                        tmpLog.error('no candidates')
-                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        self.sendLogMessage(tmpLog)
-                        continue
                     ###################################### 
                     # data locality
                     toSkip = False
@@ -497,12 +471,39 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             else:
                                 newNucleusList[tmpNucleus] = tmpNucleusSpec
                         nucleusList = newNucleusList
-                        tmpLog.debug('{0} candidates passed job check'.format(len(nucleusList)))
+                        tmpLog.debug('{0} candidates passed data check'.format(len(nucleusList)))
                         if nucleusList == {}:
                             tmpLog.error('no candidates')
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                             self.sendLogMessage(tmpLog)
                             continue
+                    ######################################
+                    # ability to execute jobs
+                    newNucleusList = {}
+                    jobBroker = AtlasProdJobBroker(self.ddmIF,self.taskBufferIF)
+                    tmpSt,tmpRet = jobBroker.doBrokerage(taskSpec,taskSpec.cloud,inputChunk,None,True,
+                                                         nucleusList.keys(),tmpLog)
+                    if tmpSt != Interaction.SC_SUCCEEDED:
+                        tmpLog.error('failed to get sites where jobs can run')
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        self.sendLogMessage(tmpLog)
+                        continue
+                    okNuclei = set()
+                    for tmpSite in tmpRet:
+                        siteSpec = siteMapper.getSite(tmpSite)
+                        okNuclei.add(siteSpec.pandasite)
+                    for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                        if tmpNucleus in okNuclei:
+                            newNucleusList[tmpNucleus] = tmpNucleusSpec
+                        else:
+                            tmpLog.debug('  skip nucleus={0} due to missing ability to run jobs criteria=-job'.format(tmpNucleus))
+                    nucleusList = newNucleusList
+                    tmpLog.debug('{0} candidates passed job check'.format(len(nucleusList)))
+                    if nucleusList == {}:
+                        tmpLog.error('no candidates')
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        self.sendLogMessage(tmpLog)
+                        continue
                     ###################################### 
                     # RW
                     taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)

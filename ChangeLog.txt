@@ -1,5 +1,8 @@
 Release Notes
 
+* 1/27/2016
+  * changed AtlasPTB to get messages from AtlasPJB
+
 * 1/25/2016
   * changed addNthFieldToLFN to allow multiple fields
 

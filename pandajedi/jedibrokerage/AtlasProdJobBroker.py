@@ -53,7 +53,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             
 
     # main
-    def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap,hintForTB=False,glLog=None):
+    def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap,hintForTB=False,siteListForTB=None,glLog=None):
         # suppress sending log
         if hintForTB:
             self.suppressLogSending = True
@@ -64,7 +64,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                        datetime.datetime.utcnow().isoformat('/')))
         else:
             tmpLog = glLog
-        tmpLog.debug('start')
+        if hintForTB:
+            tmpLog.debug('===== start for job check')
+        else:
+            tmpLog.debug('start')
         timeNow = datetime.datetime.utcnow()
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
@@ -72,7 +75,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         # get sites in the cloud
         sitePreAssigned = False
         siteListPreAssigned = False
-        if not taskSpec.site in ['',None]:
+        if siteListForTB != None:
+            scanSiteList = siteListForTB
+        elif not taskSpec.site in ['',None]:
             if ',' in taskSpec.site:
                 # site list
                 siteListPreAssigned = True
@@ -742,7 +747,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         # return if to give a hint for task brokerage
         if hintForTB:
-            tmpLog.debug('done')
+            tmpLog.debug('===== done for job check')
             return self.SC_SUCCEEDED,scanSiteList
         ######################################
         # get available files

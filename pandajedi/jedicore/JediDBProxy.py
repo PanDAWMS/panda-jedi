@@ -3039,7 +3039,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         # failed with something else
                                         raise errType,errValue
                             # set useScout
-                            if (numAvalanche == 0 and not inputChunks[0].isMutableMaster()) or not taskSpec.useScout():
+                            if (numAvalanche == 0 and not inputChunks[0].isMutableMaster()) or \
+                                    not taskSpec.useScout() or readMinFiles:
                                 for inputChunk in inputChunks:
                                     inputChunk.setUseScout(False)
                             else:
