@@ -323,7 +323,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
     # wrapper for return
     def sendLogMessage(self,tmpLog):
         # send info to logger
-        tmpLog.bulkSendMsg('taskbrokerage')
+        tmpLog.bulkSendMsg('taskbrokerage',loggerName='bamboo')
         tmpLog.debug('sent')
 
 
@@ -354,7 +354,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                 for taskSpec,inputChunk in taskInputList:
                     lastJediTaskID = taskSpec.jediTaskID
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID))
+                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),monToken='{0}'.format(taskSpec.jediTaskID))
                     tmpLog.debug('start')
                     # get nuclei
                     nucleusList = siteMapper.nuclei
