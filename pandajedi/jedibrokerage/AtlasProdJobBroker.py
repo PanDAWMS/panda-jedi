@@ -15,6 +15,15 @@ from pandaserver.dataservice import DataServiceUtils
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
+# definitions for network
+AGIS_CLOSENESS = 'AGIS_closeness'
+BANDWIDTH = 'NWS_bw'
+BLOCKED_LINK = -1
+MAX_CLOSENESS = 9 #closeness goes from 1(best) to 9(worst)
+#NWS tags need to be prepended with activity
+TRANSFERRED_1H = '_done_1h'
+TRANSFERRED_6H = '_done_6h'
+QUEUED = '_queued'
 
 # brokerage for ATLAS production
 class AtlasProdJobBroker (JobBrokerBase):
@@ -131,7 +140,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                 if not tmpHQ in t1Sites:
                                     t1Sites.append(tmpHQ)
             else:
-                # user all sites in nuclei for WORLD task brokerage
+                # use all sites in nuclei for WORLD task brokerage
                 t1Sites = []
                 for tmpNucleus in self.siteMapper.nuclei.values():
                     t1Sites += tmpNucleus.allPandaSites
@@ -159,6 +168,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             useMP = 'unuse'
         # get workQueue
         workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithID(taskSpec.workQueue_ID)
+
         ######################################
         # selection for status
         if not sitePreAssigned:
@@ -176,6 +186,27 @@ class AtlasProdJobBroker (JobBrokerBase):
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
             if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+        #################################################
+        # WORLD CLOUD: filtering out blacklisted links
+        if taskSpec.useWorldCloud() and not sitePreAssigned and not siteListPreAssigned:
+            nucleus = taskSpec.nucleus
+            siteMapping = self.taskBufferIF.getPandaSiteToAtlasSiteMapping()
+            agisClosenessMap = self.taskBufferIF.getNetworkMetrics(nucleus, [AGIS_CLOSENESS])
+            newScanSiteList = []
+            for tmpPandaSiteName in scanSiteList:
+                try:
+                    tmpSiteName = siteMapping[tmpPandaSiteName]
+                    if agisClosenessMap[tmpSiteName] != BLOCKED_LINK:
+                        newScanSiteList.append(tmpPandaSiteName)
+                except KeyError:
+                    tmpLog.debug('  skip site={0} due to agis_closeness={1} criteria=-link_blacklisting' % (tmpPandaSiteName, BLOCKED_LINK))
+            scanSiteList = newScanSiteList
+            tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
+            if not scanSiteList:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -807,6 +838,11 @@ class AtlasProdJobBroker (JobBrokerBase):
         weightMapPrimary = {}
         weightMapSecondary = {}
         newScanSiteList = []
+
+        # get connectivity stats to the nucleus in case of WORLD cloud
+        if taskSpec.useWorldCloud():
+            networkMap = self.taskBufferIF.getNetworkMetrics(nucleus, [BANDWIDTH, AGIS_CLOSENESS, TRANSFERRED_6H])
+
         for tmpSiteName in scanSiteList:
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
             nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',None,taskSpec.workQueue_ID) + self.getLiveCount(tmpSiteName)
@@ -853,6 +889,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             if taskSpec.useWorldCloud():
                 lockedByBrokerage = self.checkSiteLock(taskSpec.vo,taskSpec.prodSourceLabel,
                                                        tmpSiteName,taskSpec.workQueue_ID)
+
             # check cap with nRunning
             cutOffValue = 20
             cutOffFactor = 2 
@@ -888,6 +925,28 @@ class AtlasProdJobBroker (JobBrokerBase):
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-loweigh'
                 okAsPrimay = True
+
+            # apply network metrics to weight
+            if taskSpec.useWorldCloud():
+                tmpAtlasSiteName = siteMapping[tmpSiteName]
+
+                # Get AGIS closeness
+                try:
+                    closeness = networkMap[tmpAtlasSiteName][AGIS_CLOSENESS]
+                except KeyError:
+                    closeness = MAX_CLOSENESS
+
+                try:
+                    nFilesInQueue = networkMap[tmpAtlasSiteName][QUEUED]
+                except KeyError:
+                    nFilesInQueue = 0
+
+                try:
+                    nFilesTransferred = networkMap[tmpAtlasSiteName][TRANSFERRED_6H]
+                except KeyError:
+                    nFilesTransferred = 0
+
+
             # use primay if cap/lock check is passed
             if okAsPrimay:
                 weightMap = weightMapPrimary
@@ -897,6 +956,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             if not weight in weightMap:
                 weightMap[weight] = []
             weightMap[weight].append((siteCandidateSpec,okMsg,ngMsg))
+
         # use second candidates if no primary candidates passed cap/lock check
         if weightMapPrimary == {}:
             tmpLog.debug('use second candidates since no sites pass cap/lock check')
@@ -911,6 +971,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpWeight in weightMapSecondary.keys():
                 for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMapSecondary[tmpWeight]:
                     tmpLog.debug(tmpNgMsg)
+
         # max candidates for WORLD
         if taskSpec.useWorldCloud():
             maxSiteCandidates = 10
