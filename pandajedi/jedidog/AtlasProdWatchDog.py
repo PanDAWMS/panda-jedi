@@ -5,6 +5,7 @@ from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from WatchDogBase import WatchDogBase
 from pandajedi.jediconfig import jedi_config
+from pandajedi.jedibrokerage import AtlasBrokerUtils
 
 from pandaserver.dataservice import DataServiceUtils
 
@@ -103,22 +104,36 @@ class AtlasProdWatchDog (WatchDogBase):
             tmpLog.debug('start to reassign')
             # DDM backend
             ddmBackEnd = taskSpec.getDdmBackEnd()
-            # update cloudtasks
-            tmpStat = self.taskBufferIF.setCloudTaskByUser('jedi',taskSpec.jediTaskID,taskSpec.cloud,'assigned',True)
-            if tmpStat != 'SUCCEEDED':
-                tmpLog.error('failed to update CloudTasks')
-                continue
             # get datasets
             tmpStat,datasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,['output','log'])
             if tmpStat != True:
                 tmpLog.error('failed to get datasets')
                 continue
-            # check cloud
-            if not siteMapper.checkCloud(taskSpec.cloud):
-                tmpLog.error("cloud={0} doesn't exist".format(taskSpec.cloud))
-                continue
-            # get T1
-            t1SiteName = siteMapper.getCloud(taskSpec.cloud)['dest']
+            # update DB
+            if not taskSpec.useWorldCloud():
+                # update cloudtasks
+                tmpStat = self.taskBufferIF.setCloudTaskByUser('jedi',taskSpec.jediTaskID,taskSpec.cloud,'assigned',True)
+                if tmpStat != 'SUCCEEDED':
+                    tmpLog.error('failed to update CloudTasks')
+                    continue
+                # check cloud
+                if not siteMapper.checkCloud(taskSpec.cloud):
+                    tmpLog.error("cloud={0} doesn't exist".format(taskSpec.cloud))
+                    continue
+            else:
+                # get nucleus
+                nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)
+                if nucleusSpec == None:
+                    tmpLog.error("nucleus={0} doesn't exist".format(taskSpec.nucleus))
+                    continue
+                # set nucleus
+                retMap = {taskSpec.jediTaskID: AtlasBrokerUtils.getDictToSetNucleus(nucleusSpec,datasetSpecList)}
+                tmpRet = self.taskBufferIF.setCloudToTasks_JEDI(retMap)
+            # get T1/nucleus
+            if not taskSpec.useWorldCloud():
+                t1SiteName = siteMapper.getCloud(taskSpec.cloud)['dest']
+            else:
+                t1SiteName = nucleusSpec.getOnePandaSite()
             t1Site = siteMapper.getSite(t1SiteName)
             # loop over all datasets
             isOK = True

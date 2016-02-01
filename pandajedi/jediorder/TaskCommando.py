@@ -149,6 +149,8 @@ class TaskCommandoThread (WorkerThread):
                                             tmpItems = commentStr.split(':')
                                             if tmpItems[0] == 'cloud':
                                                 tmpTaskSpec.cloud = tmpItems[1]
+                                            elif tmpItems[0] == 'nucleus':
+                                                tmpTaskSpec.nucleus = tmpItems[1]
                                             else:
                                                 tmpTaskSpec.site = tmpItems[1]
                                             tmpMsg = 'set {0}={1}'.format(tmpItems[0],tmpItems[1])

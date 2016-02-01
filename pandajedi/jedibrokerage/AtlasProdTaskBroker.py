@@ -358,205 +358,208 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     tmpLog.debug('start')
                     # get nuclei
                     nucleusList = siteMapper.nuclei
-                    tmpLog.debug('got {0} candidates'.format(len(nucleusList)))
-                    ######################################
-                    # check status
-                    newNucleusList = {}
-                    for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
-                        if not tmpNucleusSpec.state in ['ACTIVE']:
-                            tmpLog.debug('  skip nucleus={0} due to status={1} criteria=-status'.format(tmpNucleus,
-                                                                                                        tmpNucleusSpec.state))
-                        else:
-                            newNucleusList[tmpNucleus] = tmpNucleusSpec
-                    nucleusList = newNucleusList
-                    tmpLog.debug('{0} candidates passed status check'.format(len(nucleusList)))
-                    if nucleusList == {}:
-                        tmpLog.error('no candidates')
-                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        self.sendLogMessage(tmpLog)
-                        continue
-                    ######################################
-                    # check endpoint
-                    newNucleusList = {}
-                    tmpStat,tmpDatasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,
-                                                                                                  ['output','log'])
-                    for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
-                        toSkip = False
-                        for tmpDatasetSpec in tmpDatasetSpecList:
-                            # ignore distributed datasets
-                            if DataServiceUtils.getDistributedDestination(tmpDatasetSpec.storageToken) != None:
-                                continue
-                            # get endpoint with the pattern
-                            tmpEP = tmpNucleusSpec.getAssoicatedEndpoint(tmpDatasetSpec.storageToken)
-                            if tmpEP == None:
-                                tmpLog.debug('  skip nucleus={0} since no endpoint with {1} criteria=-match'.format(tmpNucleus,
-                                                                                                                    tmpDatasetSpec.storageToken))
-                                toSkip = True
-                                break
-                            # check state
-                            """
-                            if not tmpEP['state'] in ['ACTIVE']:
-                                tmpLog.debug('  skip nucleus={0} since endpoint {1} is in {2} criteria=-epstatus'.format(tmpNucleus,
-                                                                                                                         tmpEP['ddm_endpoint_name'],
-                                                                                                                         tmpEP['state']))
-                                toSkip = True
-                                break
-                            """    
-                            # check space
-                            tmpSpaceSize = tmpEP['space_free'] + tmpEP['space_expired']
-                            if tmpSpaceSize < diskThreshold:
-                                tmpLog.debug('  skip nucleus={0} since disk shortage ({1}<{2}) at endpoint {3} criteria=-space'.format(tmpNucleus,
-                                                                                                                                       tmpSpaceSize,
-                                                                                                                                       diskThreshold,
-                                                                                                                                       tmpEP['state']))
-                                toSkip = True
-                                break
-                        if not toSkip:
-                            newNucleusList[tmpNucleus] = tmpNucleusSpec
-                    nucleusList = newNucleusList
-                    tmpLog.debug('{0} candidates passed endpoint check'.format(len(nucleusList)))
-                    if nucleusList == {}:
-                        tmpLog.error('no candidates')
-                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        self.sendLogMessage(tmpLog)
-                        continue
-                    ###################################### 
-                    # data locality
-                    toSkip = False
-                    availableData = {}
-                    for datasetSpec in inputChunk.getDatasets():
-                        # only for real datasets
-                        if datasetSpec.isPseudo():
-                            continue
-                        # ignore DBR
-                        if DataServiceUtils.isDBR(datasetSpec.datasetName):
-                            continue
-                        # skip locality check
-                        if DataServiceUtils.getDatasetType(datasetSpec.datasetName) in datasetTypeToSkipCheck:
-                            continue
-                        # get nuclei where data is available
-                        tmpSt,tmpRet = AtlasBrokerUtils.getNucleiWithData(siteMapper,self.ddmIF,
-                                                                          datasetSpec.datasetName,
-                                                                          nucleusList.keys())
-                        if tmpSt != Interaction.SC_SUCCEEDED:
-                            tmpLog.error('failed to get nuclei where data is available, since {0}'.format(tmpRet))
-                            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                            self.sendLogMessage(tmpLog)
-                            toSkip = True
-                            break
-                        # sum
-                        for tmpNucleus,tmpVals in tmpRet.iteritems():
-                            if not tmpNucleus in availableData:
-                                availableData[tmpNucleus] = tmpVals
-                            else:
-                                availableData[tmpNucleus] = dict((k,v+tmpVals[k]) for (k,v) in availableData[tmpNucleus].iteritems())
-                    if toSkip:
-                        continue
-                    if availableData != {}:
+                    if taskSpec.nucleus in nucleusList:
+                        candidateNucleus = taskSpec.nucleus
+                    else:
+                        tmpLog.debug('got {0} candidates'.format(len(nucleusList)))
+                        ######################################
+                        # check status
                         newNucleusList = {}
-                        # skip if no data
                         for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
-                            if availableData[tmpNucleus]['tot_size'] > thrInputSize and \
-                                    availableData[tmpNucleus]['ava_size_any'] < availableData[tmpNucleus]['tot_size'] * thrInputSizeFrac:
-                                tmpLog.debug('  skip nucleus={0} due to insufficient input size {1}B < {2}*{3} criteria=-insize'.format(tmpNucleus,
-                                                                                                                                        availableData[tmpNucleus]['ava_size_any'],
-                                                                                                                                        availableData[tmpNucleus]['tot_size'],
-                                                                                                                                        thrInputSizeFrac))
-                            elif availableData[tmpNucleus]['tot_num'] > thrInputNum and \
-                                    availableData[tmpNucleus]['ava_num_any'] < availableData[tmpNucleus]['tot_num'] * thrInputNumFrac:
-                                tmpLog.debug('  skip nucleus={0} due to short number of input files {1} < {2}*{3} criteria=-innum'.format(tmpNucleus,
-                                                                                                                                          availableData[tmpNucleus]['ava_num_any'],
-                                                                                                                                          availableData[tmpNucleus]['tot_num'],
-                                                                                                                                          thrInputNumFrac))
+                            if not tmpNucleusSpec.state in ['ACTIVE']:
+                                tmpLog.debug('  skip nucleus={0} due to status={1} criteria=-status'.format(tmpNucleus,
+                                                                                                            tmpNucleusSpec.state))
                             else:
                                 newNucleusList[tmpNucleus] = tmpNucleusSpec
                         nucleusList = newNucleusList
-                        tmpLog.debug('{0} candidates passed data check'.format(len(nucleusList)))
+                        tmpLog.debug('{0} candidates passed status check'.format(len(nucleusList)))
                         if nucleusList == {}:
                             tmpLog.error('no candidates')
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                             self.sendLogMessage(tmpLog)
                             continue
-                    ######################################
-                    # ability to execute jobs
-                    newNucleusList = {}
-                    # get all panda sites
-                    tmpSiteList = []
-                    for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
-                        tmpSiteList += tmpNucleusSpec.allPandaSites
-                    tmpSiteList = list(set(tmpSiteList))
-                    tmpLog.debug('===== start for job check')
-                    jobBroker = AtlasProdJobBroker(self.ddmIF,self.taskBufferIF)
-                    tmpSt,tmpRet = jobBroker.doBrokerage(taskSpec,taskSpec.cloud,inputChunk,None,True,
-                                                         tmpSiteList,tmpLog)
-                    tmpLog.debug('===== done for job check')
-                    if tmpSt != Interaction.SC_SUCCEEDED:
-                        tmpLog.error('failed to get sites where jobs can run')
-                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        self.sendLogMessage(tmpLog)
-                        continue
-                    okNuclei = set()
-                    for tmpSite in tmpRet:
-                        siteSpec = siteMapper.getSite(tmpSite)
-                        okNuclei.add(siteSpec.pandasite)
-                    for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
-                        if tmpNucleus in okNuclei:
-                            newNucleusList[tmpNucleus] = tmpNucleusSpec
-                        else:
-                            tmpLog.debug('  skip nucleus={0} due to missing ability to run jobs criteria=-job'.format(tmpNucleus))
-                    nucleusList = newNucleusList
-                    tmpLog.debug('{0} candidates passed job check'.format(len(nucleusList)))
-                    if nucleusList == {}:
-                        tmpLog.error('no candidates')
-                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        self.sendLogMessage(tmpLog)
-                        continue
-                    ###################################### 
-                    # RW
-                    taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)
-                    ###################################### 
-                    # weight
-                    self.prioRW.acquire()
-                    nucleusRW = self.prioRW[taskSpec.currentPriority]
-                    self.prioRW.release()
-                    totalWeight = 0
-                    nucleusweights = []
-                    for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
-                        if not tmpNucleus in nucleusRW:
-                            nucleusRW[tmpNucleus] = 0
-                        wStr = '1'
-                        # with RW
-                        if tmpNucleus in nucleusRW and nucleusRW[tmpNucleus] >= cutOffRW:
-                            weight = 1 / float(nucleusRW[tmpNucleus])
-                            wStr += '/({0}=RW)'.format(nucleusRW[tmpNucleus])
-                        else:
-                            weight = 1
-                            wStr += '/(1 : RW={0}<{1})'.format(nucleusRW[tmpNucleus],cutOffRW)
-                        # with data
+                        ######################################
+                        # check endpoint
+                        newNucleusList = {}
+                        tmpStat,tmpDatasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,
+                                                                                                      ['output','log'])
+                        for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                            toSkip = False
+                            for tmpDatasetSpec in tmpDatasetSpecList:
+                                # ignore distributed datasets
+                                if DataServiceUtils.getDistributedDestination(tmpDatasetSpec.storageToken) != None:
+                                    continue
+                                # get endpoint with the pattern
+                                tmpEP = tmpNucleusSpec.getAssoicatedEndpoint(tmpDatasetSpec.storageToken)
+                                if tmpEP == None:
+                                    tmpLog.debug('  skip nucleus={0} since no endpoint with {1} criteria=-match'.format(tmpNucleus,
+                                                                                                                        tmpDatasetSpec.storageToken))
+                                    toSkip = True
+                                    break
+                                # check state
+                                """
+                                if not tmpEP['state'] in ['ACTIVE']:
+                                    tmpLog.debug('  skip nucleus={0} since endpoint {1} is in {2} criteria=-epstatus'.format(tmpNucleus,
+                                                                                                                             tmpEP['ddm_endpoint_name'],
+                                                                                                                             tmpEP['state']))
+                                    toSkip = True
+                                    break
+                                """    
+                                # check space
+                                tmpSpaceSize = tmpEP['space_free'] + tmpEP['space_expired']
+                                if tmpSpaceSize < diskThreshold:
+                                    tmpLog.debug('  skip nucleus={0} since disk shortage ({1}<{2}) at endpoint {3} criteria=-space'.format(tmpNucleus,
+                                                                                                                                           tmpSpaceSize,
+                                                                                                                                           diskThreshold,
+                                                                                                                                           tmpEP['state']))
+                                    toSkip = True
+                                    break
+                            if not toSkip:
+                                newNucleusList[tmpNucleus] = tmpNucleusSpec
+                        nucleusList = newNucleusList
+                        tmpLog.debug('{0} candidates passed endpoint check'.format(len(nucleusList)))
+                        if nucleusList == {}:
+                            tmpLog.error('no candidates')
+                            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                            self.sendLogMessage(tmpLog)
+                            continue
+                        ###################################### 
+                        # data locality
+                        toSkip = False
+                        availableData = {}
+                        for datasetSpec in inputChunk.getDatasets():
+                            # only for real datasets
+                            if datasetSpec.isPseudo():
+                                continue
+                            # ignore DBR
+                            if DataServiceUtils.isDBR(datasetSpec.datasetName):
+                                continue
+                            # skip locality check
+                            if DataServiceUtils.getDatasetType(datasetSpec.datasetName) in datasetTypeToSkipCheck:
+                                continue
+                            # get nuclei where data is available
+                            tmpSt,tmpRet = AtlasBrokerUtils.getNucleiWithData(siteMapper,self.ddmIF,
+                                                                              datasetSpec.datasetName,
+                                                                              nucleusList.keys())
+                            if tmpSt != Interaction.SC_SUCCEEDED:
+                                tmpLog.error('failed to get nuclei where data is available, since {0}'.format(tmpRet))
+                                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                                self.sendLogMessage(tmpLog)
+                                toSkip = True
+                                break
+                            # sum
+                            for tmpNucleus,tmpVals in tmpRet.iteritems():
+                                if not tmpNucleus in availableData:
+                                    availableData[tmpNucleus] = tmpVals
+                                else:
+                                    availableData[tmpNucleus] = dict((k,v+tmpVals[k]) for (k,v) in availableData[tmpNucleus].iteritems())
+                        if toSkip:
+                            continue
                         if availableData != {}:
-                            weight *= float(availableData[tmpNucleus]['ava_size_any'])
-                            weight /= float(availableData[tmpNucleus]['tot_size'])
-                            wStr += '*({0}=available input size on DISK/TAPE)'.format(availableData[tmpNucleus]['ava_size_any'])
-                            wStr += '/({0}=total input size)'.format(availableData[tmpNucleus]['tot_size'])
-                            # negative weight for tape
-                            if availableData[tmpNucleus]['ava_size_any'] > availableData[tmpNucleus]['ava_size_disk']:
-                                weight *= negWeightTape
-                                wStr += '*({0}=weight for TAPE)'.format(negWeightTape)
-                        tmpLog.debug('  use nucleus={0} weight={1} {2} criteria=+use'.format(tmpNucleus,weight,wStr))
-                        totalWeight += weight
-                        nucleusweights.append((tmpNucleus,weight))
-                    tmpLog.debug('final {0} candidates'.format(len(nucleusList)))
-                    ###################################### 
-                    # final selection
-                    tgtWeight = random.uniform(0,totalWeight)
-                    candidateNucleus = None
-                    for tmpNucleus,weight in nucleusweights:
-                        tgtWeight -= weight
-                        if tgtWeight <= 0:
-                            candidateNucleus = tmpNucleus
-                            break
-                    if candidateNucleus == None:
-                        candidateNucleus = nucleusweights[-1][0]
+                            newNucleusList = {}
+                            # skip if no data
+                            for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                                if availableData[tmpNucleus]['tot_size'] > thrInputSize and \
+                                        availableData[tmpNucleus]['ava_size_any'] < availableData[tmpNucleus]['tot_size'] * thrInputSizeFrac:
+                                    tmpLog.debug('  skip nucleus={0} due to insufficient input size {1}B < {2}*{3} criteria=-insize'.format(tmpNucleus,
+                                                                                                                                            availableData[tmpNucleus]['ava_size_any'],
+                                                                                                                                            availableData[tmpNucleus]['tot_size'],
+                                                                                                                                            thrInputSizeFrac))
+                                elif availableData[tmpNucleus]['tot_num'] > thrInputNum and \
+                                        availableData[tmpNucleus]['ava_num_any'] < availableData[tmpNucleus]['tot_num'] * thrInputNumFrac:
+                                    tmpLog.debug('  skip nucleus={0} due to short number of input files {1} < {2}*{3} criteria=-innum'.format(tmpNucleus,
+                                                                                                                                              availableData[tmpNucleus]['ava_num_any'],
+                                                                                                                                              availableData[tmpNucleus]['tot_num'],
+                                                                                                                                              thrInputNumFrac))
+                                else:
+                                    newNucleusList[tmpNucleus] = tmpNucleusSpec
+                            nucleusList = newNucleusList
+                            tmpLog.debug('{0} candidates passed data check'.format(len(nucleusList)))
+                            if nucleusList == {}:
+                                tmpLog.error('no candidates')
+                                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                                self.sendLogMessage(tmpLog)
+                                continue
+                        ######################################
+                        # ability to execute jobs
+                        newNucleusList = {}
+                        # get all panda sites
+                        tmpSiteList = []
+                        for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                            tmpSiteList += tmpNucleusSpec.allPandaSites
+                        tmpSiteList = list(set(tmpSiteList))
+                        tmpLog.debug('===== start for job check')
+                        jobBroker = AtlasProdJobBroker(self.ddmIF,self.taskBufferIF)
+                        tmpSt,tmpRet = jobBroker.doBrokerage(taskSpec,taskSpec.cloud,inputChunk,None,True,
+                                                             tmpSiteList,tmpLog)
+                        tmpLog.debug('===== done for job check')
+                        if tmpSt != Interaction.SC_SUCCEEDED:
+                            tmpLog.error('failed to get sites where jobs can run')
+                            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                            self.sendLogMessage(tmpLog)
+                            continue
+                        okNuclei = set()
+                        for tmpSite in tmpRet:
+                            siteSpec = siteMapper.getSite(tmpSite)
+                            okNuclei.add(siteSpec.pandasite)
+                        for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                            if tmpNucleus in okNuclei:
+                                newNucleusList[tmpNucleus] = tmpNucleusSpec
+                            else:
+                                tmpLog.debug('  skip nucleus={0} due to missing ability to run jobs criteria=-job'.format(tmpNucleus))
+                        nucleusList = newNucleusList
+                        tmpLog.debug('{0} candidates passed job check'.format(len(nucleusList)))
+                        if nucleusList == {}:
+                            tmpLog.error('no candidates')
+                            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                            self.sendLogMessage(tmpLog)
+                            continue
+                        ###################################### 
+                        # RW
+                        taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)
+                        ###################################### 
+                        # weight
+                        self.prioRW.acquire()
+                        nucleusRW = self.prioRW[taskSpec.currentPriority]
+                        self.prioRW.release()
+                        totalWeight = 0
+                        nucleusweights = []
+                        for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                            if not tmpNucleus in nucleusRW:
+                                nucleusRW[tmpNucleus] = 0
+                            wStr = '1'
+                            # with RW
+                            if tmpNucleus in nucleusRW and nucleusRW[tmpNucleus] >= cutOffRW:
+                                weight = 1 / float(nucleusRW[tmpNucleus])
+                                wStr += '/({0}=RW)'.format(nucleusRW[tmpNucleus])
+                            else:
+                                weight = 1
+                                wStr += '/(1 : RW={0}<{1})'.format(nucleusRW[tmpNucleus],cutOffRW)
+                            # with data
+                            if availableData != {}:
+                                weight *= float(availableData[tmpNucleus]['ava_size_any'])
+                                weight /= float(availableData[tmpNucleus]['tot_size'])
+                                wStr += '*({0}=available input size on DISK/TAPE)'.format(availableData[tmpNucleus]['ava_size_any'])
+                                wStr += '/({0}=total input size)'.format(availableData[tmpNucleus]['tot_size'])
+                                # negative weight for tape
+                                if availableData[tmpNucleus]['ava_size_any'] > availableData[tmpNucleus]['ava_size_disk']:
+                                    weight *= negWeightTape
+                                    wStr += '*({0}=weight for TAPE)'.format(negWeightTape)
+                            tmpLog.debug('  use nucleus={0} weight={1} {2} criteria=+use'.format(tmpNucleus,weight,wStr))
+                            totalWeight += weight
+                            nucleusweights.append((tmpNucleus,weight))
+                        tmpLog.debug('final {0} candidates'.format(len(nucleusList)))
+                        ###################################### 
+                        # final selection
+                        tgtWeight = random.uniform(0,totalWeight)
+                        candidateNucleus = None
+                        for tmpNucleus,weight in nucleusweights:
+                            tgtWeight -= weight
+                            if tgtWeight <= 0:
+                                candidateNucleus = tmpNucleus
+                                break
+                        if candidateNucleus == None:
+                            candidateNucleus = nucleusweights[-1][0]
                     ###################################### 
                     # update
                     nucleusSpec = nucleusList[candidateNucleus]
@@ -564,19 +567,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     tmpStat,tmpDatasetSpecs = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,
                                                                                                ['output','log'])
                     # get destinations
-                    retMap = {taskSpec.jediTaskID: {'datasets':[],'nucleus':candidateNucleus}}
-                    for datasetSpec in tmpDatasetSpecs:
-                        # skip distributed datasets
-                        if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
-                            continue
-                        # get token
-                        token = nucleusSpec.getAssoicatedEndpoint(datasetSpec.storageToken)['ddm_endpoint_name']
-                        # add origianl token
-                        if not datasetSpec.storageToken in ['',None]:
-                            token += '/{0}'.format(datasetSpec.storageToken)
-                        retMap[taskSpec.jediTaskID]['datasets'].append({'datasetID':datasetSpec.datasetID,
-                                                                        'token':'dst:{0}'.format(token),
-                                                                        'destination':nucleusSpec.getOnePandaSite()})
+                    retMap = {taskSpec.jediTaskID: AtlasBrokerUtils.getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs)}
                     tmpRet = self.taskBufferIF.setCloudToTasks_JEDI(retMap)
                     tmpLog.info('  set nucleus={0} with {1} criteria=+set'.format(candidateNucleus,tmpRet))
                     # update RW table
