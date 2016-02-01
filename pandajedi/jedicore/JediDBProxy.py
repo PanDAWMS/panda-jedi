@@ -841,7 +841,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     pass
                             fileSpecsForInsert.append(fileSpec)
                         # get fileID
-                        tmpLog.debug('get fileIDs')
+                        tmpLog.debug('get fileIDs for {0} inputs'.format(nInsert))
                         newFileIDs = []
                         for i in range(nInsert):
                             self.cur.execute(sqlFID)
@@ -940,6 +940,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             resMS = self.cur.fetchone()
                             masterStatus, = resMS
                         tmpLog.debug('masterStatus={0}'.format(masterStatus))
+                        nFilesToUseDS = 0
+                        if datasetSpec.nFilesToBeUsed != None:
+                            nFilesToUseDS = datasetSpec.nFilesToBeUsed
                         # updata dataset
                         varMap = {}
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
@@ -952,9 +955,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         elif taskStatus == 'defined' and useScout and not isEventSplit and nChunksForScout != None and nReady > sizePendingFileChunk:
                             # set a fewer number for scout for file level splitting
                             varMap[':nFilesTobeUsed'] = sizePendingFileChunk
-                        elif taskStatus == 'defined' and useScout and isEventSplit and nReady > nFilesToUseEventSplit:
+                        elif taskStatus == 'defined' and useScout and isEventSplit and nReady > max(nFilesToUseEventSplit,nFilesToUseDS):
                             # set a fewer number for scout for event level splitting
-                            varMap[':nFilesTobeUsed'] = nFilesToUseEventSplit
+                            varMap[':nFilesTobeUsed'] = max(nFilesToUseEventSplit,nFilesToUseDS)
                         else:
                             varMap[':nFilesTobeUsed'] = nReady + nUsed
                         if useScout:
