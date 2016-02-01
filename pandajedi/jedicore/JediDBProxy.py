@@ -9201,3 +9201,68 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+    def getNetworkMetrics(self, dst, keyList):
+        """
+        Get the network metrics from a source to all possible destinations
+        :param src: source site
+        :param key_list: activity keys.
+        :return: returns a dictionary with network values in the style
+        {
+            <dest>: {<key>: <value>, <key>: <value>},
+            <dest>: {<key>: <value>, <key>: <value>},
+            ...
+        }
+        """
+        comment = ' /* JediDBProxy.getNetworkMetrics */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+
+        varMap = {'dst': dst}
+        i = 0
+        for key in keyList:
+            varMap[':key{0}'.format(i)] = key
+            i += 1
+        key_bindings = ','.join(':type{0}'.format(i) for i in xrange(len(keyList)))
+
+        sql = """
+        SELECT src, key, value, ts FROM {0}.network_matrix_kv
+        WHERE dst = :dst AND key IN {1}
+        AND ts > sysdate - INTERVAL '30' MINUTE
+        """.format(jedi_config.db.schemaJEDI, key_bindings)
+
+        self.cur.execute(sql+comment,varMap)
+        resList = self.cur.fetchall()
+
+        networkMap = {}
+        for res in resList:
+            src, key, value, ts = res
+            neworkMap.set_default(src, {})
+            networkMap[src][key] = value
+
+        return networkMap
+
+
+
+    # get a  mapping of panda sites to sites
+    @memoize
+    def getPandaSiteToAtlasSiteMapping(self):
+        comment = ' /* JediDBProxy.getPandaSiteToSiteMapping */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+
+        sql = """
+        SELECT panda_site_name, site_name FROM {0}.panda_site
+        """.format(jedi_config.db.schemaJEDI)
+
+        self.cur.execute(sql+comment)
+        resList = self.cur.fetchall()
+        mapping = {}
+        for res in resList:
+            pandaSiteName, siteName = res
+            resList[pandaSiteName] = siteName
+
+        return mapping

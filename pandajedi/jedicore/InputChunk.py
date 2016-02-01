@@ -651,3 +651,13 @@ class InputChunk:
         if self.masterDataset != None and self.masterDataset.state == 'mutable':
             return True
         return False
+
+
+
+    # figure out if output will go through express stream
+    def isExpress(self):
+        if self.taskSpec.processingType == 'urgent' or self.taskSpec.currentPriority > 1000:
+            return True
+
+        return False
+
