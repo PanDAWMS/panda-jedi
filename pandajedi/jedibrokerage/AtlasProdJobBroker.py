@@ -26,7 +26,7 @@ TRANSFERRED_1H = '_done_1h'
 TRANSFERRED_6H = '_done_6h'
 QUEUED = '_queued'
 ZERO_TRANSFERS = 0.00001
-URG_ACTIVITY = 'Urgent'
+URG_ACTIVITY = 'Express'
 PRD_ACTIVITY = 'Production Output'
 
 # brokerage for ATLAS production
