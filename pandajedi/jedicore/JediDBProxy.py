@@ -9262,6 +9262,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         mapping = {}
         for res in resList:
             pandaSiteName, siteName = res
-            resList[pandaSiteName] = siteName
+            mapping[pandaSiteName] = siteName
 
+        tmpLog.debug('done')
         return mapping
