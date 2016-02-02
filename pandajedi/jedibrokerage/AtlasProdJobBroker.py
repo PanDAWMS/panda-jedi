@@ -889,7 +889,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 except (KeyError, ZeroDivisionError):
                     pass
 
-            tmpLog.debug('task {0} brokerage found that {1} is the best PanDA site connected to {1}. Candidate: {2}'.
+            tmpLog.debug('task {0} brokerage found that {1} is the best PanDA site connected to {2}. Candidate: {3}'.
                          format(taskSpec.jediTaskID, bestSite, nucleus, scanSiteList))
 
         for tmpSiteName in scanSiteList:
