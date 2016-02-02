@@ -220,11 +220,16 @@ class AtlasProdJobBroker (JobBrokerBase):
                 newScanSiteList = []
                 for tmpPandaSiteName in scanSiteList:
                     try:
-                        tmpSiteName = siteMapping[tmpPandaSiteName]
-                        if agisClosenessMap[tmpSiteName] != BLOCKED_LINK:
+                        tmpAtlasSiteName = siteMapping[tmpPandaSiteName]
+                        if agisClosenessMap[tmpAtlasSiteName] != BLOCKED_LINK:
                             newScanSiteList.append(tmpPandaSiteName)
+                        else:
+                            tmpLog.debug('  skip site={0} due to agis_closeness={1} criteria=-link_blacklisting'.format(tmpPandaSiteName, BLOCKED_LINK))
                     except KeyError:
-                        tmpLog.debug('  skip site={0} due to agis_closeness={1} criteria=-link_blacklisting'.format(tmpPandaSiteName, BLOCKED_LINK))
+                        # Don't skip missing links for the moment. In later stages missing links
+                        # default to the worst connectivity and will be penalized.
+                        newScanSiteList.append(tmpPandaSiteName)
+
                 scanSiteList = newScanSiteList
                 tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
                 if not scanSiteList:
