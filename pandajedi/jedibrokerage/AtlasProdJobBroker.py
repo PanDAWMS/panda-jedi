@@ -221,7 +221,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 for tmpPandaSiteName in scanSiteList:
                     try:
                         tmpAtlasSiteName = siteMapping[tmpPandaSiteName]
-                        if agisClosenessMap[tmpAtlasSiteName] != BLOCKED_LINK:
+                        if nucleus == tmpAtlasSiteName or agisClosenessMap[tmpAtlasSiteName] != BLOCKED_LINK:
                             newScanSiteList.append(tmpPandaSiteName)
                         else:
                             tmpLog.debug('  skip site={0} due to agis_closeness={1} criteria=-link_blacklisting'
@@ -887,6 +887,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         bestTime = currentTime
                         bestSite = tmpAtlasSiteName
                 except (KeyError, ZeroDivisionError):
+                    tmpLog.debug('site {0} not in site map or network map')
                     pass
 
             tmpLog.debug('task {0} brokerage found that {1} is the best PanDA site connected to {2}. Candidate: {3}'.
@@ -942,10 +943,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # network weight: static weight between 1 and 2
                 weightNwStatic = 1 + ((MAX_CLOSENESS - closeness) * 1.0 / MAX_CLOSENESS)
 
-                # we don't have any dynamic information for the link, so just take the static info
-                if nFilesTransferred == None:
+                if nFilesTransferred == None and nucleus != tmpAtlasSiteName: # we don't have any dynamic information for the link, so just take the static info
                     weightNw = weightNwStatic
-
+                elif nucleus == tmpAtlasSiteName:
+                    weightNw = 2.5 # Small weight boost for processing in nucleus itself
                 else:
                     # network weight: dynamic weight between 1 and 2
                     weightNwDynamic = 1 + (bestTime / (nFilesInQueue * 1.0 / nFilesTransferred))
