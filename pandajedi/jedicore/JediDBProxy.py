@@ -9225,11 +9225,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         for key in keyList:
             varMap[':key{0}'.format(i)] = key
             i += 1
-        key_bindings = ','.join(':type{0}'.format(i) for i in xrange(len(keyList)))
+        key_bindings = ','.join(':key{0}'.format(i) for i in xrange(len(keyList)))
 
         sql = """
         SELECT src, key, value, ts FROM {0}.network_matrix_kv
-        WHERE dst = :dst AND key IN {1}
+        WHERE dst = :dst AND key IN ({1})
         AND ts > sysdate - INTERVAL '90' MINUTE
         """.format(jedi_config.db.schemaJEDI, key_bindings)
 
