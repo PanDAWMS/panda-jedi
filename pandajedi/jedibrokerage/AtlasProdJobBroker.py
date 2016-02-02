@@ -224,7 +224,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         if agisClosenessMap[tmpSiteName] != BLOCKED_LINK:
                             newScanSiteList.append(tmpPandaSiteName)
                     except KeyError:
-                        tmpLog.debug('  skip site={0} due to agis_closeness={1} criteria=-link_blacklisting' % (tmpPandaSiteName, BLOCKED_LINK))
+                        tmpLog.debug('  skip site={0} due to agis_closeness={1} criteria=-link_blacklisting'.format(tmpPandaSiteName, BLOCKED_LINK))
                 scanSiteList = newScanSiteList
                 tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
                 if not scanSiteList:
