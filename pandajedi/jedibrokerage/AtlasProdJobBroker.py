@@ -39,7 +39,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         self.dataSiteMap = {}
         self.suppressLogSending = False
 
-        if hasattr(jedi_config, 'NW_ACTIVE'): #TODO: ask Tadashi if there are better ways fpr the configuration
+        if hasattr(jedi_config, 'NW_ACTIVE'): #TODO: ask Tadashi if there are better ways for the configuration
             self.nwActive = jedi_config.NW_ACTIVE
         else:
             self.nwActive = False

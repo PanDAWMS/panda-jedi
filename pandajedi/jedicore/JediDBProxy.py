@@ -9230,7 +9230,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sql = """
         SELECT src, key, value, ts FROM {0}.network_matrix_kv
         WHERE dst = :dst AND key IN {1}
-        AND ts > sysdate - INTERVAL '30' MINUTE
+        AND ts > sysdate - INTERVAL '90' MINUTE
         """.format(jedi_config.db.schemaJEDI, key_bindings)
 
         self.cur.execute(sql+comment,varMap)
