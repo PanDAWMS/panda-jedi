@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/02/2016
+  * added network weights to brokerage
+
 * 1/25/2016
   * changed addNthFieldToLFN to allow multiple fields
 

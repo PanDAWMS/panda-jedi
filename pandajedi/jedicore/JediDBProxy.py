@@ -13,6 +13,7 @@ import cx_Oracle
 from pandajedi.jediconfig import jedi_config
 
 from pandaserver import taskbuffer
+from pandaserver.taskbuffer.OraDBProxy.DBProxy
 import taskbuffer.OraDBProxy
 from WorkQueueMapper import WorkQueueMapper
 
@@ -9247,7 +9248,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get a  mapping of panda sites to sites
-    @memoize
     def getPandaSiteToAtlasSiteMapping(self):
         comment = ' /* JediDBProxy.getPandaSiteToSiteMapping */'
         methodName = self.getMethodName(comment)

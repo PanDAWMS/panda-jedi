@@ -1304,7 +1304,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getPandaSiteToSiteMapping()
+        retVal = proxy.getPandaSiteToAtlasSiteMapping()
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
