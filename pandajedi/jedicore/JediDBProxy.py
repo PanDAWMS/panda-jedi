@@ -9264,5 +9264,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             pandaSiteName, siteName = res
             mapping[pandaSiteName] = siteName
 
+        tmpLog.debug('panda site to ATLAS site mapping is: {0}'.format(mapping))
+
         tmpLog.debug('done')
         return mapping

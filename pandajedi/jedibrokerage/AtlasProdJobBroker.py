@@ -214,23 +214,24 @@ class AtlasProdJobBroker (JobBrokerBase):
         # WORLD CLOUD: filtering out blacklisted links
         if taskSpec.useWorldCloud() and not sitePreAssigned and not siteListPreAssigned:
             nucleus = taskSpec.nucleus
-            siteMapping = self.taskBufferIF.getPandaSiteToAtlasSiteMapping()
-            agisClosenessMap = self.taskBufferIF.getNetworkMetrics(nucleus, [AGIS_CLOSENESS])
-            newScanSiteList = []
-            for tmpPandaSiteName in scanSiteList:
-                try:
-                    tmpSiteName = siteMapping[tmpPandaSiteName]
-                    if agisClosenessMap[tmpSiteName] != BLOCKED_LINK:
-                        newScanSiteList.append(tmpPandaSiteName)
-                except KeyError:
-                    tmpLog.debug('  skip site={0} due to agis_closeness={1} criteria=-link_blacklisting' % (tmpPandaSiteName, BLOCKED_LINK))
-            scanSiteList = newScanSiteList
-            tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
-            if not scanSiteList:
-                tmpLog.error('no candidates')
-                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
-                return retTmpError
+            if nucleus: # if nucleus not defined, don't bother checking the network matrix
+                siteMapping = self.taskBufferIF.getPandaSiteToAtlasSiteMapping()
+                agisClosenessMap = self.taskBufferIF.getNetworkMetrics(nucleus, [AGIS_CLOSENESS])
+                newScanSiteList = []
+                for tmpPandaSiteName in scanSiteList:
+                    try:
+                        tmpSiteName = siteMapping[tmpPandaSiteName]
+                        if agisClosenessMap[tmpSiteName] != BLOCKED_LINK:
+                            newScanSiteList.append(tmpPandaSiteName)
+                    except KeyError:
+                        tmpLog.debug('  skip site={0} due to agis_closeness={1} criteria=-link_blacklisting' % (tmpPandaSiteName, BLOCKED_LINK))
+                scanSiteList = newScanSiteList
+                tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
+                if not scanSiteList:
+                    tmpLog.error('no candidates')
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    self.sendLogMessage(tmpLog)
+                    return retTmpError
         ######################################
         # selection for high priorities
         t1WeightForHighPrio = 1
@@ -860,7 +861,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         newScanSiteList = []
 
         # get connectivity stats to the nucleus in case of WORLD cloud
-        if taskSpec.useWorldCloud():
+        if taskSpec.useWorldCloud() and nucleus:
             if inputChunk.isExpress():
                 transferred_tag = '{0}{1}'.format(URG_ACTIVITY, TRANSFERRED_6H)
                 queued_tag = '{0}{1}'.format(URG_ACTIVITY, QUEUED)
@@ -914,7 +915,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 weightStr += 't1W={0} '.format(t1Weight)
 
             # apply network metrics to weight
-            if taskSpec.useWorldCloud():
+            if taskSpec.useWorldCloud() and nucleus:
                 tmpAtlasSiteName = siteMapping[tmpSiteName]
 
                 try:
