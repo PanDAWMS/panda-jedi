@@ -887,7 +887,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         bestTime = currentTime
                         bestSite = tmpAtlasSiteName
                 except (KeyError, ZeroDivisionError):
-                    tmpLog.debug('site {0} not in site map or network map')
+                    tmpLog.debug('Site {0} not in site map, network map or with 0 transfer time'.format(tmpSiteName))
                     pass
 
             tmpLog.debug('task {0} brokerage found that {1} is the best PanDA site connected to {2}. Candidate: {3}'.
