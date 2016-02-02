@@ -9242,6 +9242,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             neworkMap.set_default(src, {})
             networkMap[src][key] = value
 
+        tmpLog.debug('network map to nucleus {0} is: {1}'.format(dst, networkMap))
+
         return networkMap
 
 
