@@ -963,10 +963,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                     nFilesTransferred = None
 
                 # network weight: static weight between 1 and 2
-                weightNwStatic = 1 + ((MAX_CLOSENESS - closeness) * 1.0 / (MAX_CLOSENESS-MIN_CLOSENESS)
+                weightNwStatic = 1 + ((MAX_CLOSENESS - closeness) * 1.0 / (MAX_CLOSENESS-MIN_CLOSENESS))
 
-                if nFilesTransferred == None and nucleus != tmpAtlasSiteName: # we don't have any dynamic information for the link, so just take the static info
-                    weightNw = weightNwStatic
+                if nFilesTransferred == None and nucleus != tmpAtlasSiteName:
+                    weightNw = weightNwStatic # we don't have any dynamic information for the link, so just take the static info
                 elif nucleus == tmpAtlasSiteName:
                     weightNw = 2.5 # Small weight boost for processing in nucleus itself
                 else:
