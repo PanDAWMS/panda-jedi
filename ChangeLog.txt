@@ -1,6 +1,7 @@
 Release Notes
 
 * 2/3/2016
+  * fixed MIDDLENAME for multi fileds of addNthFieldOfInDSToLFN
   * changed AtlasPTB to use any nuclei where input is available when no nuclei can run jobs
 
 * 2/1/2016

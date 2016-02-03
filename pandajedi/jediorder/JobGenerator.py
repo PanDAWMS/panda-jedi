@@ -930,7 +930,7 @@ class JobGeneratorThread (WorkerThread):
                             for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
                                 if not tmpDatasetSpec.isMaster():
                                     try:
-                                        middleName = '.'+tmpFileSpecList[0].lfn.split('.')[4]
+                                        middleName = '.'+'.'.join(tmpFileSpecList[0].lfn.split('.')[4:4+len(taskSpec.getFieldNumToLFN())])
                                     except:
                                         pass
                                     break
