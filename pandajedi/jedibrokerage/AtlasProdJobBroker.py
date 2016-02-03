@@ -882,6 +882,10 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpSiteName in scanSiteList:
                 try:
                     tmpAtlasSiteName = siteMapping[tmpSiteName]
+
+                    if nucleus == tmpAtlasSiteName:
+                        continue
+
                     currentTime = networkMap[tmpAtlasSiteName][queued_tag]*1.0/networkMap[tmpAtlasSiteName][transferred_tag]
                     if currentTime < bestTime:
                         bestTime = currentTime
@@ -891,7 +895,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                                  .format(tmpSiteName, sys.exc_info()[:2]))
                     pass
 
-            tmpLog.debug('task {0} brokerage found that {1} is the best PanDA site connected to {2}. Candidate: {3}'.
+            if not bestSite:
+                tmpLog.debug('task {0} brokerage did not find any site with dynamic nw stats to nucleus {1}. Candidates: {2}'.
+                         format(taskSpec.jediTaskID, nucleus, scanSiteList))
+            else:
+                tmpLog.debug('task {0} brokerage found that {1} is the best PanDA site connected to nucleus{2}. Candidates: {3}'.
                          format(taskSpec.jediTaskID, bestSite, nucleus, scanSiteList))
 
         for tmpSiteName in scanSiteList:
@@ -955,8 +963,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                     # combine static and dynamic weights
                     weightNw = self.nwDynamicImportance * weightNwDynamic + self.nwStaticImportance * weightNwStatic
 
-                weightStr += 'closeness={0} nFilesTransSatNuc6h={1} nFilesQueuedSatNuc={2}'.\
-                    format(closeness, nFilesInQueue, nFilesTransferred)
+                weightStr += 'weightNw={0} (closeness={1} nFilesTransSatNuc6h={2} nFilesQueuedSatNuc={3}. Network weight: {4})'.\
+                    format(weightNw, closeness, nFilesTransferred, nFilesInQueue, self.nwActive)
 
                 #If network measurements in active mode, then apply the weight
                 if self.nwActive:
