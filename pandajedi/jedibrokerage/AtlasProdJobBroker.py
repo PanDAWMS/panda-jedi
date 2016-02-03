@@ -132,6 +132,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
             tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
+
         # get job statistics
         tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,taskSpec.prodSourceLabel)
         if not tmpSt:
@@ -867,14 +868,14 @@ class AtlasProdJobBroker (JobBrokerBase):
         newScanSiteList = []
 
         # get connectivity stats to the nucleus in case of WORLD cloud
+        if inputChunk.isExpress():
+            transferred_tag = '{0}{1}'.format(URG_ACTIVITY, TRANSFERRED_6H)
+            queued_tag = '{0}{1}'.format(URG_ACTIVITY, QUEUED)
+        else:
+            transferred_tag = '{0}{1}'.format(PRD_ACTIVITY, TRANSFERRED_6H)
+            queued_tag = '{0}{1}'.format(PRD_ACTIVITY, QUEUED)
+
         if taskSpec.useWorldCloud() and nucleus:
-            if inputChunk.isExpress():
-                transferred_tag = '{0}{1}'.format(URG_ACTIVITY, TRANSFERRED_6H)
-                queued_tag = '{0}{1}'.format(URG_ACTIVITY, QUEUED)
-                tmpLog.debug('task {0} is using express share'.format(taskSpec.jediTaskID))
-            else:
-                transferred_tag = PRD_ACTIVITY + TRANSFERRED_6H
-                tmpLog.debug('task {0} is using prod output share'.format(taskSpec.jediTaskID))
 
             networkMap = self.taskBufferIF.getNetworkMetrics(nucleus, [BANDWIDTH, AGIS_CLOSENESS, transferred_tag, queued_tag])
             bestTime = 10**12 # any large value
@@ -937,16 +938,22 @@ class AtlasProdJobBroker (JobBrokerBase):
                 try:
                     closeness = networkMap[tmpAtlasSiteName][AGIS_CLOSENESS]
                 except KeyError:
+                    tmpLog.debug('No {0} information found in network matrix from {1} to {2}'.
+                                 format(AGIS_CLOSENESS, tmpAtlasSiteName, nucleus))
                     closeness = MAX_CLOSENESS
 
                 try:
-                    nFilesInQueue = networkMap[tmpAtlasSiteName][QUEUED]
+                    nFilesInQueue = networkMap[tmpAtlasSiteName][queued_tag]
                 except KeyError:
+                    tmpLog.debug('No {0} information found in network matrix from {1} to {2}'.
+                                 format(queued_tag, tmpAtlasSiteName, nucleus))
                     nFilesInQueue = 1
 
                 try:
-                    nFilesTransferred = networkMap[tmpAtlasSiteName][TRANSFERRED_6H]
+                    nFilesTransferred = networkMap[tmpAtlasSiteName][transferred_tag]
                 except KeyError:
+                    tmpLog.debug('No {0} information found in network matrix from {1} to {2}'.
+                                 format(transferred_tag, tmpAtlasSiteName, nucleus))
                     nFilesTransferred = None
 
                 # network weight: static weight between 1 and 2
