@@ -20,7 +20,8 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 AGIS_CLOSENESS = 'AGIS_closeness'
 BANDWIDTH = 'NWS_bw'
 BLOCKED_LINK = -1
-MAX_CLOSENESS = 9 #closeness goes from 1(best) to 9(worst)
+MIN_CLOSENESS = 1 #closeness goes from 1(best) to 9(worst)
+MAX_CLOSENESS = 9
 # NWS tags need to be prepended with activity
 TRANSFERRED_1H = '_done_1h'
 TRANSFERRED_6H = '_done_6h'
@@ -962,7 +963,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     nFilesTransferred = None
 
                 # network weight: static weight between 1 and 2
-                weightNwStatic = 1 + ((MAX_CLOSENESS - closeness) * 1.0 / MAX_CLOSENESS)
+                weightNwStatic = 1 + ((MAX_CLOSENESS - closeness) * 1.0 / (MAX_CLOSENESS-MIN_CLOSENESS)
 
                 if nFilesTransferred == None and nucleus != tmpAtlasSiteName: # we don't have any dynamic information for the link, so just take the static info
                     weightNw = weightNwStatic
