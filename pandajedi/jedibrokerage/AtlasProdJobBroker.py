@@ -933,7 +933,12 @@ class AtlasProdJobBroker (JobBrokerBase):
 
             # apply network metrics to weight
             if taskSpec.useWorldCloud() and nucleus:
-                tmpAtlasSiteName = siteMapping[tmpSiteName]
+                tmpAtlasSiteName = None
+                try:
+                    tmpAtlasSiteName = siteMapping[tmpSiteName]
+                except KeyError:
+                    tmpLog.debug('Panda site {0} was not in site mapping. Default network values will be given'.
+                                 format(tmpSiteName))
 
                 try:
                     closeness = networkMap[tmpAtlasSiteName][AGIS_CLOSENESS]
