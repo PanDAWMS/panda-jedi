@@ -95,6 +95,12 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             tmpLog = glLog
         tmpLog.debug('start')
+
+        if self.nwActive:
+            tmpLog.debug('Network weights are ACTIVE!')
+        else:
+            tmpLog.debug('Network weights are PASSIVE!')
+
         timeNow = datetime.datetime.utcnow()
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
