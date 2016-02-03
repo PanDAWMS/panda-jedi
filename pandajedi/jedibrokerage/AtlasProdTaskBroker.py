@@ -494,10 +494,9 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                                              tmpSiteList,tmpLog)
                         tmpLog.debug('===== done for job check')
                         if tmpSt != Interaction.SC_SUCCEEDED:
-                            tmpLog.error('failed to get sites where jobs can run')
-                            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                            self.sendLogMessage(tmpLog)
-                            continue
+                            tmpLog.debug('failed to get sites where jobs can run. Use any nuclei where input is available')
+                            # use any nuclei where input is available if no sites can run jobs
+                            tmpRet = tmpSiteList
                         okNuclei = set()
                         for tmpSite in tmpRet:
                             siteSpec = siteMapper.getSite(tmpSite)
