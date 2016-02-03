@@ -41,19 +41,19 @@ class AtlasProdJobBroker (JobBrokerBase):
         self.suppressLogSending = False
 
         if hasattr(jedi_config.jobbroker, 'NW_ACTIVE'): #TODO: ask Tadashi if there are better ways for the configuration
-            self.nwActive = jedi_config.NW_ACTIVE
+            self.nwActive = jedi_config.jobbroker.NW_ACTIVE
         else:
             self.nwActive = False
 
         if hasattr(jedi_config.jobbroker, 'NW_STATIC_IMPORTANCE'):
-            self.nwStaticImportance = jedi_config.NW_STATIC_IMPORTANCE
+            self.nwStaticImportance = jedi_config.jobbroker.NW_STATIC_IMPORTANCE
             self.nwDynamicImportance = 1 - self.nwStaticImportance
         else:
             self.nwStaticImportance = 0.7
             self.nwDynamicImportance = 0.3
 
         if hasattr(jedi_config.jobbroker, 'NW_THRESHOLD'): # network threshold for urgent tasks
-            self.nw_threshold = jedi_config.NW_THRESHOLD
+            self.nw_threshold = jedi_config.jobbroker.NW_THRESHOLD
         else:
             self.nw_threshold = 1.7
 
