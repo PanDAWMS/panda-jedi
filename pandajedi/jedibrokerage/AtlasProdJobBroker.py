@@ -950,22 +950,22 @@ class AtlasProdJobBroker (JobBrokerBase):
                 try:
                     closeness = networkMap[tmpAtlasSiteName][AGIS_CLOSENESS]
                 except KeyError:
-                    tmpLog.debug('No {0} information found in network matrix from {1} to {2}'.
-                                 format(AGIS_CLOSENESS, tmpAtlasSiteName, nucleus))
+                    tmpLog.debug('No {0} information found in network matrix from {1}({2}) to {3}'.
+                                 format(AGIS_CLOSENESS, tmpAtlasSiteName, tmpSiteName, nucleus))
                     closeness = MAX_CLOSENESS
 
                 try:
                     nFilesInQueue = networkMap[tmpAtlasSiteName][queued_tag]
                 except KeyError:
-                    tmpLog.debug('No {0} information found in network matrix from {1} to {2}'.
-                                 format(queued_tag, tmpAtlasSiteName, nucleus))
+                    tmpLog.debug('No {0} information found in network matrix from {1} ({2}) to {3}'.
+                                 format(queued_tag, tmpAtlasSiteName, tmpSiteName, nucleus))
                     nFilesInQueue = 1
 
                 try:
                     nFilesTransferred = networkMap[tmpAtlasSiteName][transferred_tag]
                 except KeyError:
-                    tmpLog.debug('No {0} information found in network matrix from {1} to {2}'.
-                                 format(transferred_tag, tmpAtlasSiteName, nucleus))
+                    tmpLog.debug('No {0} information found in network matrix from {1}({2}) to {3}'.
+                                 format(transferred_tag, tmpAtlasSiteName, tmpSiteName, nucleus))
                     nFilesTransferred = None
 
                 # network weight: static weight between 1 and 2
