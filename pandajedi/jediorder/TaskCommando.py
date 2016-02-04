@@ -163,6 +163,12 @@ class TaskCommandoThread (WorkerThread):
                                                 updateTaskStatus = False
                                     if commandStr == 'reassign':
                                         tmpTaskSpec.forceUpdate('errorDialog')
+                                    print commandStr
+                                    if commandStr == 'finish':
+                                        # ignore failGoalUnreached when manually finished
+                                        tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID)
+                                        tmpTaskSpec.splitRule = taskSpec.splitRule
+                                        tmpTaskSpec.unsetFailGoalUnreached()
                                     if updateTaskStatus:
                                         tmpTaskSpec.status = JediTaskSpec.commandStatusMap()[commandStr]['done']
                                     tmpMsg = 'set task.status={0}'.format(tmpTaskSpec.status)
