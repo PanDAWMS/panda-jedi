@@ -229,7 +229,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 for tmpPandaSiteName in scanSiteList:
                     try:
                         tmpAtlasSiteName = siteMapping[tmpPandaSiteName]
-                        if nucleus == tmpAtlasSiteName or agisClosenessMap[tmpAtlasSiteName] != BLOCKED_LINK:
+                        if nucleus == tmpAtlasSiteName or agisClosenessMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK:
                             newScanSiteList.append(tmpPandaSiteName)
                         else:
                             tmpLog.debug('  skip site={0} due to agis_closeness={1} criteria=-link_blacklisting'
