@@ -3118,8 +3118,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         maxFilesForMinRead = 10
                                         if maxFilesTobeRead > maxFilesForMinRead:
                                             maxFilesTobeRead = maxFilesForMinRead
+                                    # number of files to read in this cycle
+                                    if tmpDatasetSpec.isMaster():
+                                        numFilesTobeReadInCycle = maxFilesTobeRead-iFiles[datasetID]
+                                    elif inputChunk.isEmpty:
+                                        numFilesTobeReadInCycle = 0
+                                    else:
+                                        numFilesTobeReadInCycle = maxFilesTobeRead
                                     tmpLog.debug('jediTaskID={0} trying to read {1} files from datasetID={2} with ramCount={3}'.format(jediTaskID,
-                                                                                                                                       maxFilesTobeRead-iFiles[datasetID],
+                                                                                                                                       numFilesTobeReadInCycle,
                                                                                                                                        datasetID,inputChunk.ramCount))
                                     if tmpDatasetSpec.isSeqNumber():
                                         orderBy = 'fileID'
@@ -3138,16 +3145,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         if not tmpDatasetSpec.toKeepTrack():
                                             if not fullSimulation:
                                                 varMap[':status'] = 'ready'
-                                            self.cur.execute(sqlFRNR.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
+                                            self.cur.execute(sqlFRNR.format(orderBy,numFilesTobeReadInCycle)+comment,varMap)
                                         else:
                                             if not fullSimulation:
                                                 varMap[':status'] = 'ready'
                                                 if inputChunk.ramCount not in (None, 0):
                                                     varMap[':ramCount'] = inputChunk.ramCount
                                             if inputChunk.ramCount not in (None, 0):
-                                                self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
+                                                self.cur.execute(sqlFR.format(orderBy,numFilesTobeReadInCycle)+comment,varMap)
                                             else: #We goup inputChunk.ramCount None and 0 together
-                                                self.cur.execute(sqlFR_RCNull.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
+                                                self.cur.execute(sqlFR_RCNull.format(orderBy,numFilesTobeReadInCycle)+comment,varMap)
                                         resFileList = self.cur.fetchall()
                                         for resFile in resFileList:
                                             # make FileSpec
@@ -3208,8 +3215,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         self.cur.execute(sqlDU+comment,varMap)
                                         newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
                                         newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
-                                    tmpLog.debug('jediTaskID={2} datasetID={0} has {1} files to be processed'.format(datasetID,iFiles[datasetID],
-                                                                                                                     jediTaskID))
+                                    tmpLog.debug('jediTaskID={2} datasetID={0} has {1} files to be processed for ramCount={3}'.format(datasetID,iFiles_tmp,
+                                                                                                                                      jediTaskID,inputChunk.ramCount))
                                     # set flag if it is a block read
                                     if tmpDatasetSpec.isMaster():
                                         if readBlock and iFiles[datasetID] == maxFilesTobeRead:

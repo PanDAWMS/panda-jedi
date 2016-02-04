@@ -1,6 +1,7 @@
 Release Notes
 
 * 2/4/2016
+  * fixed ToBeProcessed to correctly read secondary files when multiple RAM requirements
   * changed finishTask to ignore failGoalUnreached
   * setting nucleus and eventService in jobSpec
 
