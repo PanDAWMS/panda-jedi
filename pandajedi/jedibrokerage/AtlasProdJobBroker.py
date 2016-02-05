@@ -263,8 +263,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         #################################################
         # WORLD CLOUD: filtering out blacklisted links
+        nucleus = taskSpec.nucleus
         if taskSpec.useWorldCloud() and not sitePreAssigned and not siteListPreAssigned:
-            nucleus = taskSpec.nucleus
             if nucleus: # if nucleus not defined, don't bother checking the network matrix
                 siteMapping = self.taskBufferIF.getPandaSiteToAtlasSiteMapping()
                 agisClosenessMap = self.taskBufferIF.getNetworkMetrics(nucleus, [AGIS_CLOSENESS])
