@@ -14,6 +14,7 @@ from pandaserver.dataservice import DataServiceUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandalogger import logger_config
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 # definitions for network
@@ -66,6 +67,48 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.bulkSendMsg('prod_brokerage')
         tmpLog.debug('sent')
 
+    # sends a json message to ES. QUICK HACK FOR EXPERIMENTATION. SHOULD BE INCLUDED IN PANDA-COMMON
+    def sendNetworkMessage(self, taskID, src, dst, weight, weightNw, weightDynamic,
+                           weightStatic, closeness, transferred, queued, tmpLog):
+        name = 'panda.mon.jedi'
+        module = 'network_brokerage'
+
+        try:
+            import requests
+            import json
+            import time
+
+
+            url = 'http://{0}:8081'.format(logger_config.daemon['loghost_new'])
+
+            headers = {'Content-type':'application/json; charset=UTF-8'}
+
+            body = {'name': name,
+                    'module': module,
+                    'jeditaskID': taskID,
+                    'src': src,
+                    'dst': dst,
+                    'weight': weight,
+                    'weightNw': weightNw,
+                    'weightDynamic': weightDynamic,
+                    'weightStatic': weightStatic,
+                    'closeness': closeness,
+                    'ntransferred': transferred,
+                    'nqueued': queued,
+                    'msg': 'network data'}
+
+            arr=[{
+              "headers" : {
+                         "timestamp" : int(time.time())*1000,
+                         "host" : url
+              },
+              "body": "{0}".format(json.dumps(body))
+             }
+            ]
+            r=requests.post(url, data=json.dumps(arr), headers=headers, timeout=1)
+        except:
+            tmpLog.debug(sys.exc_info())
+
 
     # get all T1 sites
     def getAllT1Sites(self):
@@ -80,7 +123,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 for tmpSiteName in self.hospitalQueueMap[cloudName]:
                     t1Sites.add(tmpSiteName)
         return list(t1Sites)
-            
+
 
     # main
     def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap,hintForTB=False,glLog=None):
@@ -970,11 +1013,12 @@ class AtlasProdJobBroker (JobBrokerBase):
 
                 # network weight: static weight between 1 and 2
                 weightNwStatic = 1 + ((MAX_CLOSENESS - closeness) * 1.0 / (MAX_CLOSENESS-MIN_CLOSENESS))
+                weightNwDynamic = None
 
                 if nFilesTransferred == None and nucleus != tmpAtlasSiteName:
                     weightNw = weightNwStatic # we don't have any dynamic information for the link, so just take the static info
                 elif nucleus == tmpAtlasSiteName:
-                    weightNw = 2.5 # Small weight boost for processing in nucleus itself
+                    weightNw = 2.3 # Small weight boost for processing in nucleus itself
                 else:
                     # network weight: dynamic weight between 1 and 2
                     weightNwDynamic = 1 + (bestTime / (nFilesInQueue * 1.0 / nFilesTransferred))
@@ -985,9 +1029,13 @@ class AtlasProdJobBroker (JobBrokerBase):
                 weightStr += 'weightNw={0} (closeness={1} nFilesTransSatNuc6h={2} nFilesQueuedSatNuc={3}. Network weight: {4})'.\
                     format(weightNw, closeness, nFilesTransferred, nFilesInQueue, self.nwActive)
 
-                #If network measurements in active mode, then apply the weight
+                #If network measurements in active mode, apply the weight
                 if self.nwActive:
                     weight *= weightNw
+
+                self.sendNetworkMessage(taskSpec.jediTaskID, tmpAtlasSiteName, nucleus, weight, weightNw,
+                                        weightNwDynamic, weightNwStatic, closeness, nFilesTransferred,
+                                        nFilesInQueue, tmpLog)
 
             # make candidate
             siteCandidateSpec = SiteCandidate(tmpSiteName)
