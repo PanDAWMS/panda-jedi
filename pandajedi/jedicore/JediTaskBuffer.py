@@ -1285,3 +1285,28 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+    # get network metrics for brokerage
+    def getNetworkMetrics(self, dst, keyList):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getNetworkMetrics(dst, keyList)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+    # get network metrics for brokerage
+    def getPandaSiteToAtlasSiteMapping(self):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getPandaSiteToAtlasSiteMapping()
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+

@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/8/2016
+  * added network weights to brokerage
+
 * 2/4/2016
   * fixed ToBeProcessed to correctly read secondary files when multiple RAM requirements
   * changed finishTask to ignore failGoalUnreached

@@ -2,6 +2,7 @@ import re
 import sys
 import datetime
 
+from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
@@ -13,8 +14,22 @@ from pandaserver.dataservice import DataServiceUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandacommon.pandalogger import logger_config
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
+# definitions for network
+AGIS_CLOSENESS = 'AGIS_closeness'
+BANDWIDTH = 'NWS_bw'
+BLOCKED_LINK = -1
+MIN_CLOSENESS = 1 #closeness goes from 1(best) to 9(worst)
+MAX_CLOSENESS = 9
+# NWS tags need to be prepended with activity
+TRANSFERRED_1H = '_done_1h'
+TRANSFERRED_6H = '_done_6h'
+QUEUED = '_queued'
+ZERO_TRANSFERS = 0.00001
+URG_ACTIVITY = 'Express'
+PRD_ACTIVITY = 'Production Output'
 
 # brokerage for ATLAS production
 class AtlasProdJobBroker (JobBrokerBase):
@@ -26,6 +41,22 @@ class AtlasProdJobBroker (JobBrokerBase):
         self.dataSiteMap = {}
         self.suppressLogSending = False
 
+        if hasattr(jedi_config.jobbroker, 'NW_ACTIVE'): #TODO: ask Tadashi if there are better ways for the configuration
+            self.nwActive = jedi_config.jobbroker.NW_ACTIVE
+        else:
+            self.nwActive = False
+
+        if hasattr(jedi_config.jobbroker, 'NW_STATIC_IMPORTANCE'):
+            self.nwStaticImportance = jedi_config.jobbroker.NW_STATIC_IMPORTANCE
+            self.nwDynamicImportance = 1 - self.nwStaticImportance
+        else:
+            self.nwStaticImportance = 0.7
+            self.nwDynamicImportance = 0.3
+
+        if hasattr(jedi_config.jobbroker, 'NW_THRESHOLD'): # network threshold for urgent tasks
+            self.nw_threshold = jedi_config.jobbroker.NW_THRESHOLD
+        else:
+            self.nw_threshold = 1.7
 
     # wrapper for return
     def sendLogMessage(self,tmpLog):
@@ -35,6 +66,48 @@ class AtlasProdJobBroker (JobBrokerBase):
         # send info to logger
         tmpLog.bulkSendMsg('prod_brokerage')
         tmpLog.debug('sent')
+
+    # sends a json message to ES. QUICK HACK FOR EXPERIMENTATION. SHOULD BE INCLUDED IN PANDA-COMMON
+    def sendNetworkMessage(self, taskID, src, dst, weight, weightNw, weightDynamic,
+                           weightStatic, closeness, transferred, queued, tmpLog):
+        name = 'panda.mon.jedi'
+        module = 'network_brokerage'
+
+        try:
+            import requests
+            import json
+            import time
+
+
+            url = 'http://{0}:8081'.format(logger_config.daemon['loghost_new'])
+
+            headers = {'Content-type':'application/json; charset=UTF-8'}
+
+            body = {'name': name,
+                    'module': module,
+                    'jeditaskID': taskID,
+                    'src': src,
+                    'dst': dst,
+                    'weight': weight,
+                    'weightNw': weightNw,
+                    'weightDynamic': weightDynamic,
+                    'weightStatic': weightStatic,
+                    'closeness': closeness,
+                    'ntransferred': transferred,
+                    'nqueued': queued,
+                    'msg': 'network data'}
+
+            arr=[{
+              "headers" : {
+                         "timestamp" : int(time.time())*1000,
+                         "host" : url
+              },
+              "body": "{0}".format(json.dumps(body))
+             }
+            ]
+            r=requests.post(url, data=json.dumps(arr), headers=headers, timeout=1)
+        except:
+            tmpLog.debug(sys.exc_info())
 
 
     # get all T1 sites
@@ -50,7 +123,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 for tmpSiteName in self.hospitalQueueMap[cloudName]:
                     t1Sites.add(tmpSiteName)
         return list(t1Sites)
-            
+
 
     # main
     def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap,hintForTB=False,siteListForTB=None,glLog=None):
@@ -64,8 +137,15 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                        datetime.datetime.utcnow().isoformat('/')))
         else:
             tmpLog = glLog
+
         if not hintForTB:
             tmpLog.debug('start')
+
+        if self.nwActive:
+            tmpLog.debug('Network weights are ACTIVE!')
+        else:
+            tmpLog.debug('Network weights are PASSIVE!')
+        
         timeNow = datetime.datetime.utcnow()
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
@@ -106,6 +186,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
             tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
+
         # get job statistics
         tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,taskSpec.prodSourceLabel)
         if not tmpSt:
@@ -134,7 +215,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                 if not tmpHQ in t1Sites:
                                     t1Sites.append(tmpHQ)
             else:
-                # user all sites in nuclei for WORLD task brokerage
+                # use all sites in nuclei for WORLD task brokerage
                 t1Sites = []
                 for tmpNucleus in self.siteMapper.nuclei.values():
                     t1Sites += tmpNucleus.allPandaSites
@@ -162,6 +243,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             useMP = 'unuse'
         # get workQueue
         workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithID(taskSpec.workQueue_ID)
+
         ######################################
         # selection for status
         if not sitePreAssigned:
@@ -183,6 +265,34 @@ class AtlasProdJobBroker (JobBrokerBase):
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError
+        #################################################
+        # WORLD CLOUD: filtering out blacklisted links
+        nucleus = taskSpec.nucleus
+        if taskSpec.useWorldCloud() and not sitePreAssigned and not siteListPreAssigned:
+            if nucleus: # if nucleus not defined, don't bother checking the network matrix
+                siteMapping = self.taskBufferIF.getPandaSiteToAtlasSiteMapping()
+                agisClosenessMap = self.taskBufferIF.getNetworkMetrics(nucleus, [AGIS_CLOSENESS])
+                newScanSiteList = []
+                for tmpPandaSiteName in scanSiteList:
+                    try:
+                        tmpAtlasSiteName = siteMapping[tmpPandaSiteName]
+                        if nucleus == tmpAtlasSiteName or agisClosenessMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK:
+                            newScanSiteList.append(tmpPandaSiteName)
+                        else:
+                            tmpLog.debug('  skip site={0} due to agis_closeness={1} criteria=-link_blacklisting'
+                                         .format(tmpPandaSiteName, BLOCKED_LINK))
+                    except KeyError:
+                        # Don't skip missing links for the moment. In later stages missing links
+                        # default to the worst connectivity and will be penalized.
+                        newScanSiteList.append(tmpPandaSiteName)
+
+                scanSiteList = newScanSiteList
+                tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
+                if not scanSiteList:
+                    tmpLog.error('no candidates')
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    self.sendLogMessage(tmpLog)
+                    return retTmpError
         ######################################
         # selection for high priorities
         t1WeightForHighPrio = 1
@@ -809,6 +919,43 @@ class AtlasProdJobBroker (JobBrokerBase):
         weightMapPrimary = {}
         weightMapSecondary = {}
         newScanSiteList = []
+
+        # get connectivity stats to the nucleus in case of WORLD cloud
+        if inputChunk.isExpress():
+            transferred_tag = '{0}{1}'.format(URG_ACTIVITY, TRANSFERRED_6H)
+            queued_tag = '{0}{1}'.format(URG_ACTIVITY, QUEUED)
+        else:
+            transferred_tag = '{0}{1}'.format(PRD_ACTIVITY, TRANSFERRED_6H)
+            queued_tag = '{0}{1}'.format(PRD_ACTIVITY, QUEUED)
+
+        if taskSpec.useWorldCloud() and nucleus:
+
+            networkMap = self.taskBufferIF.getNetworkMetrics(nucleus, [BANDWIDTH, AGIS_CLOSENESS, transferred_tag, queued_tag])
+            bestTime = 10**12 # any large value
+            bestSite = None
+            for tmpSiteName in scanSiteList:
+                try:
+                    tmpAtlasSiteName = siteMapping[tmpSiteName]
+
+                    if nucleus == tmpAtlasSiteName:
+                        continue
+
+                    currentTime = networkMap[tmpAtlasSiteName][queued_tag]*1.0/networkMap[tmpAtlasSiteName][transferred_tag]
+                    if currentTime < bestTime:
+                        bestTime = currentTime
+                        bestSite = tmpAtlasSiteName
+                except (KeyError, ZeroDivisionError):
+                    tmpLog.debug('Site {0} not in site map, network map or with 0 transfer time ({1})'
+                                 .format(tmpSiteName, sys.exc_info()[:2]))
+                    pass
+
+            if not bestSite:
+                tmpLog.debug('task {0} brokerage did not find any site with dynamic nw stats to nucleus {1}. Candidates: {2}'.
+                         format(taskSpec.jediTaskID, nucleus, scanSiteList))
+            else:
+                tmpLog.debug('task {0} brokerage found that {1} is the best PanDA site connected to nucleus{2}. Candidates: {3}'.
+                         format(taskSpec.jediTaskID, bestSite, nucleus, scanSiteList))
+
         for tmpSiteName in scanSiteList:
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
             nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',None,taskSpec.workQueue_ID) + self.getLiveCount(tmpSiteName)
@@ -836,6 +983,63 @@ class AtlasProdJobBroker (JobBrokerBase):
             if tmpSiteName in t1Sites+sitesShareSeT1:
                 weight *= t1Weight
                 weightStr += 't1W={0} '.format(t1Weight)
+
+            # apply network metrics to weight
+            if taskSpec.useWorldCloud() and nucleus:
+                tmpAtlasSiteName = None
+                try:
+                    tmpAtlasSiteName = siteMapping[tmpSiteName]
+                except KeyError:
+                    tmpLog.debug('Panda site {0} was not in site mapping. Default network values will be given'.
+                                 format(tmpSiteName))
+
+                try:
+                    closeness = networkMap[tmpAtlasSiteName][AGIS_CLOSENESS]
+                except KeyError:
+                    tmpLog.debug('No {0} information found in network matrix from {1}({2}) to {3}'.
+                                 format(AGIS_CLOSENESS, tmpAtlasSiteName, tmpSiteName, nucleus))
+                    closeness = MAX_CLOSENESS
+
+                try:
+                    nFilesInQueue = networkMap[tmpAtlasSiteName][queued_tag]
+                except KeyError:
+                    tmpLog.debug('No {0} information found in network matrix from {1} ({2}) to {3}'.
+                                 format(queued_tag, tmpAtlasSiteName, tmpSiteName, nucleus))
+                    nFilesInQueue = 1
+
+                try:
+                    nFilesTransferred = networkMap[tmpAtlasSiteName][transferred_tag]
+                except KeyError:
+                    tmpLog.debug('No {0} information found in network matrix from {1}({2}) to {3}'.
+                                 format(transferred_tag, tmpAtlasSiteName, tmpSiteName, nucleus))
+                    nFilesTransferred = None
+
+                # network weight: static weight between 1 and 2
+                weightNwStatic = 1 + ((MAX_CLOSENESS - closeness) * 1.0 / (MAX_CLOSENESS-MIN_CLOSENESS))
+                weightNwDynamic = None
+
+                if nFilesTransferred == None and nucleus != tmpAtlasSiteName:
+                    weightNw = weightNwStatic # we don't have any dynamic information for the link, so just take the static info
+                elif nucleus == tmpAtlasSiteName:
+                    weightNw = 2.3 # Small weight boost for processing in nucleus itself
+                else:
+                    # network weight: dynamic weight between 1 and 2
+                    weightNwDynamic = 1 + (bestTime / (nFilesInQueue * 1.0 / nFilesTransferred))
+
+                    # combine static and dynamic weights
+                    weightNw = self.nwDynamicImportance * weightNwDynamic + self.nwStaticImportance * weightNwStatic
+
+                weightStr += 'weightNw={0} (closeness={1} nFilesTransSatNuc6h={2} nFilesQueuedSatNuc={3}. Network weight: {4})'.\
+                    format(weightNw, closeness, nFilesTransferred, nFilesInQueue, self.nwActive)
+
+                #If network measurements in active mode, apply the weight
+                if self.nwActive:
+                    weight *= weightNw
+
+                self.sendNetworkMessage(taskSpec.jediTaskID, tmpAtlasSiteName, nucleus, weight, weightNw,
+                                        weightNwDynamic, weightNwStatic, closeness, nFilesTransferred,
+                                        nFilesInQueue, tmpLog)
+
             # make candidate
             siteCandidateSpec = SiteCandidate(tmpSiteName)
             # set weight and params
@@ -855,6 +1059,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             if taskSpec.useWorldCloud():
                 lockedByBrokerage = self.checkSiteLock(taskSpec.vo,taskSpec.prodSourceLabel,
                                                        tmpSiteName,taskSpec.workQueue_ID)
+
             # check cap with nRunning
             cutOffValue = 20
             cutOffFactor = 2 
@@ -885,12 +1090,18 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                          nPilot)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
+            elif taskSpec.useWorldCloud() and self.nwActive and inputChunk.isExpress() and weightNw < self.nw_threshold:
+                ngMsg = '  skip site={0} due to low network weight for express task weightNw={1} threshold={2}'\
+                    .format(tmpSiteName, weightNw, self.nw_threshold)
+                ngMsg += '{0} '.format(weightStr)
+                ngMsg += 'criteria=-lowNetworkWeight'
             else:
                 ngMsg = '  skip site={0} due to low weight '.format(tmpSiteName)
-                ngMsg += '{0} '.format(weightStr)
+                ngMsg += 'weight={0} {1} '.format(weight, weightStr)
                 ngMsg += 'criteria=-loweigh'
                 okAsPrimay = True
-            # use primay if cap/lock check is passed
+
+            # use primary if cap/lock check is passed
             if okAsPrimay:
                 weightMap = weightMapPrimary
             else:
@@ -899,6 +1110,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             if not weight in weightMap:
                 weightMap[weight] = []
             weightMap[weight].append((siteCandidateSpec,okMsg,ngMsg))
+
         # use second candidates if no primary candidates passed cap/lock check
         if weightMapPrimary == {}:
             tmpLog.debug('use second candidates since no sites pass cap/lock check')
@@ -913,6 +1125,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpWeight in weightMapSecondary.keys():
                 for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMapSecondary[tmpWeight]:
                     tmpLog.debug(tmpNgMsg)
+
         # max candidates for WORLD
         if taskSpec.useWorldCloud():
             maxSiteCandidates = 10
