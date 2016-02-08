@@ -149,6 +149,8 @@ class TaskCommandoThread (WorkerThread):
                                             tmpItems = commentStr.split(':')
                                             if tmpItems[0] == 'cloud':
                                                 tmpTaskSpec.cloud = tmpItems[1]
+                                            elif tmpItems[0] == 'nucleus':
+                                                tmpTaskSpec.nucleus = tmpItems[1]
                                             else:
                                                 tmpTaskSpec.site = tmpItems[1]
                                             tmpMsg = 'set {0}={1}'.format(tmpItems[0],tmpItems[1])
@@ -161,6 +163,12 @@ class TaskCommandoThread (WorkerThread):
                                                 updateTaskStatus = False
                                     if commandStr == 'reassign':
                                         tmpTaskSpec.forceUpdate('errorDialog')
+                                    print commandStr
+                                    if commandStr == 'finish':
+                                        # ignore failGoalUnreached when manually finished
+                                        tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID)
+                                        tmpTaskSpec.splitRule = taskSpec.splitRule
+                                        tmpTaskSpec.unsetFailGoalUnreached()
                                     if updateTaskStatus:
                                         tmpTaskSpec.status = JediTaskSpec.commandStatusMap()[commandStr]['done']
                                     tmpMsg = 'set task.status={0}'.format(tmpTaskSpec.status)

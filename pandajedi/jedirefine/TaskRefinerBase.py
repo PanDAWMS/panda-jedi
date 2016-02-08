@@ -160,6 +160,9 @@ class TaskRefinerBase (object):
             # set dummy to force update
             taskSpec.site = 'dummy'
             taskSpec.site = None
+        # nucleus
+        if 'nucleus' in taskParamMap:
+            taskSpec.nucleus = taskParamMap['nucleus']
         # event service
         if taskParamMap.has_key('nEventsPerWorker'):
             taskSpec.eventService = 1

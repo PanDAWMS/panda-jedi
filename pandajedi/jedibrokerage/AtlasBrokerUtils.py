@@ -499,3 +499,23 @@ def isMatched(siteName,nameList):
                 return True
     # return
     return False
+
+
+
+# get dict to set nucleus
+def getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs):
+    # get destinations
+    retMap = {'datasets':[],'nucleus':nucleusSpec.name}
+    for datasetSpec in tmpDatasetSpecs:
+        # skip distributed datasets
+        if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+            continue
+        # get token
+        token = nucleusSpec.getAssoicatedEndpoint(datasetSpec.storageToken)['ddm_endpoint_name']
+        # add origianl token
+        if not datasetSpec.storageToken in ['',None]:
+            token += '/{0}'.format(datasetSpec.storageToken.split('/')[-1])
+        retMap['datasets'].append({'datasetID':datasetSpec.datasetID,
+                                   'token':'dst:{0}'.format(token),
+                                   'destination':'nucleus:{0}'.format(nucleusSpec.name)})
+    return retMap

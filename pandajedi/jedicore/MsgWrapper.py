@@ -112,9 +112,11 @@ class MsgWrapper:
 
 
     # bulk send messages to logger
-    def bulkSendMsg(self,msgType,msgLevel='info'):
+    def bulkSendMsg(self,msgType,msgLevel='info',loggerName=None):
         try:
             nChunk = 20
+            if loggerName == None:
+                loggerName = jedi_config.master.loggername
             for iMsg,message in enumerate(self.msgBuffer):
                 # get logger
                 tmpPandaLogger = PandaLogger()
@@ -122,7 +124,7 @@ class MsgWrapper:
                 tmpPandaLogger.lock()
                 tmpPandaLogger.setParams({'Type':msgType})
                 # get logger
-                tmpLogger = tmpPandaLogger.getHttpLogger(jedi_config.master.loggername)
+                tmpLogger = tmpPandaLogger.getHttpLogger(loggerName)
                 # add message
                 message = self.monToken + ' ' + message
                 if msgLevel=='error':

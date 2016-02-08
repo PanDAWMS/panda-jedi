@@ -877,6 +877,21 @@ class JediTaskSpec(object):
 
 
 
+    # remove split rule
+    def removeSplitRule(self,ruleName):
+        if self.splitRule != None:
+            items = self.splitRule.split(',')
+            newItems = []
+            for item in items:
+                # remove rile
+                tmpRuleName = item.split('=')[0]
+                if ruleName == tmpRuleName:
+                    continue
+                newItems.append(item)
+            self.splitRule = ','.join(newItems)
+
+
+
     # set to use scout
     def setUseScout(self,useFlag):
         if useFlag:
@@ -1127,6 +1142,12 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # unset fail when goal unreached
+    def unsetFailGoalUnreached(self):
+        self.removeSplitRule(self.splitRuleToken['failGoalUnreached'])
 
 
 

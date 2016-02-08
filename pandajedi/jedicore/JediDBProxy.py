@@ -841,7 +841,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     pass
                             fileSpecsForInsert.append(fileSpec)
                         # get fileID
-                        tmpLog.debug('get fileIDs')
+                        tmpLog.debug('get fileIDs for {0} inputs'.format(nInsert))
                         newFileIDs = []
                         for i in range(nInsert):
                             self.cur.execute(sqlFID)
@@ -940,6 +940,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             resMS = self.cur.fetchone()
                             masterStatus, = resMS
                         tmpLog.debug('masterStatus={0}'.format(masterStatus))
+                        nFilesToUseDS = 0
+                        if datasetSpec.nFilesToBeUsed != None:
+                            nFilesToUseDS = datasetSpec.nFilesToBeUsed
                         # updata dataset
                         varMap = {}
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
@@ -952,9 +955,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         elif taskStatus == 'defined' and useScout and not isEventSplit and nChunksForScout != None and nReady > sizePendingFileChunk:
                             # set a fewer number for scout for file level splitting
                             varMap[':nFilesTobeUsed'] = sizePendingFileChunk
-                        elif taskStatus == 'defined' and useScout and isEventSplit and nReady > nFilesToUseEventSplit:
+                        elif taskStatus == 'defined' and useScout and isEventSplit and nReady > max(nFilesToUseEventSplit,nFilesToUseDS):
                             # set a fewer number for scout for event level splitting
-                            varMap[':nFilesTobeUsed'] = nFilesToUseEventSplit
+                            varMap[':nFilesTobeUsed'] = max(nFilesToUseEventSplit,nFilesToUseDS)
                         else:
                             varMap[':nFilesTobeUsed'] = nReady + nUsed
                         if useScout:
@@ -3039,7 +3042,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         # failed with something else
                                         raise errType,errValue
                             # set useScout
-                            if (numAvalanche == 0 and not inputChunks[0].isMutableMaster()) or not taskSpec.useScout():
+                            if (numAvalanche == 0 and not inputChunks[0].isMutableMaster()) or \
+                                    not taskSpec.useScout() or readMinFiles:
                                 for inputChunk in inputChunks:
                                     inputChunk.setUseScout(False)
                             else:
@@ -3114,8 +3118,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         maxFilesForMinRead = 10
                                         if maxFilesTobeRead > maxFilesForMinRead:
                                             maxFilesTobeRead = maxFilesForMinRead
+                                    # number of files to read in this cycle
+                                    if tmpDatasetSpec.isMaster():
+                                        numFilesTobeReadInCycle = maxFilesTobeRead-iFiles[datasetID]
+                                    elif inputChunk.isEmpty:
+                                        numFilesTobeReadInCycle = 0
+                                    else:
+                                        numFilesTobeReadInCycle = maxFilesTobeRead
                                     tmpLog.debug('jediTaskID={0} trying to read {1} files from datasetID={2} with ramCount={3}'.format(jediTaskID,
-                                                                                                                                       maxFilesTobeRead-iFiles[datasetID],
+                                                                                                                                       numFilesTobeReadInCycle,
                                                                                                                                        datasetID,inputChunk.ramCount))
                                     if tmpDatasetSpec.isSeqNumber():
                                         orderBy = 'fileID'
@@ -3134,16 +3145,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         if not tmpDatasetSpec.toKeepTrack():
                                             if not fullSimulation:
                                                 varMap[':status'] = 'ready'
-                                            self.cur.execute(sqlFRNR.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
+                                            self.cur.execute(sqlFRNR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
                                         else:
                                             if not fullSimulation:
                                                 varMap[':status'] = 'ready'
                                                 if inputChunk.ramCount not in (None, 0):
                                                     varMap[':ramCount'] = inputChunk.ramCount
                                             if inputChunk.ramCount not in (None, 0):
-                                                self.cur.execute(sqlFR.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
+                                                self.cur.execute(sqlFR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
                                             else: #We goup inputChunk.ramCount None and 0 together
-                                                self.cur.execute(sqlFR_RCNull.format(orderBy,maxFilesTobeRead-iFiles[datasetID])+comment,varMap)
+                                                self.cur.execute(sqlFR_RCNull.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
                                         resFileList = self.cur.fetchall()
                                         for resFile in resFileList:
                                             # make FileSpec
@@ -3172,13 +3183,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                 inputChunk.ramCount not in (None, 0):
                                             break
                                         # enough files were read
-                                        if iFiles[datasetID] == maxFilesTobeRead:
+                                        if iFiles_tmp >= numFilesTobeReadInCycle:
                                             break
                                         # duplicate files for reuse
-                                        tmpLog.debug('try to duplicate files for datasetID={0} since only {1}/{2} files were read'.format(tmpDatasetSpec.datasetID,
-                                                                                                                                          iFiles,maxFilesTobeRead))
+                                        tmpLog.debug('jediTaskID={0} try to duplicate files for datasetID={1} since only {2}/{3} files were read'.format(jediTaskID,
+                                                                                                                                                         tmpDatasetSpec.datasetID,
+                                                                                                                                                         iFiles_tmp,
+                                                                                                                                                         numFilesTobeReadInCycle))
                                         nNewRec = self.duplicateFilesForReuse_JEDI(tmpDatasetSpec)
-                                        tmpLog.debug('{0} files were duplicated'.format(nNewRec))
+                                        tmpLog.debug('jediTaskID={0} {1} files were duplicated'.format(jediTaskID,nNewRec))
                                         if nNewRec == 0:
                                             break
                                     
@@ -3204,8 +3217,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         self.cur.execute(sqlDU+comment,varMap)
                                         newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
                                         newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
-                                    tmpLog.debug('jediTaskID={2} datasetID={0} has {1} files to be processed'.format(datasetID,iFiles[datasetID],
-                                                                                                                     jediTaskID))
+                                    tmpLog.debug('jediTaskID={2} datasetID={0} has {1} files to be processed for ramCount={3}'.format(datasetID,iFiles_tmp,
+                                                                                                                                      jediTaskID,inputChunk.ramCount))
                                     # set flag if it is a block read
                                     if tmpDatasetSpec.isMaster():
                                         if readBlock and iFiles[datasetID] == maxFilesTobeRead:
@@ -8595,6 +8608,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             defaultVales['PandaID'] = None
             defaultVales['attemptNr']    = 0
             defaultVales['failedAttempt'] = 0
+            defaultVales['ramCount'] = 0
             sqlFR  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
             sqlFR += "SELECT {0} FROM ( ".format(JediFileSpec.columnNames(useSeq=True,defaultVales=defaultVales))
             sqlFR += "SELECT {0} ".format(JediFileSpec.columnNames(defaultVales=defaultVales,skipDefaultAttr=True))

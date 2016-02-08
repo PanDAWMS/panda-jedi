@@ -766,6 +766,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.countryGroup     = taskSpec.countryGroup
                     jobSpec.computingSite    = siteName
                     jobSpec.cloud            = cloudName
+                    jobSpec.nucleus          = taskSpec.nucleus
                     jobSpec.VO               = taskSpec.vo
                     jobSpec.prodSeriesLabel  = 'pandatest'
                     jobSpec.AtlasRelease     = taskSpec.transUses
@@ -829,6 +830,7 @@ class JobGeneratorThread (WorkerThread):
                     # set specialHandling for Event Service
                     if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
                         specialHandling += EventServiceUtils.getHeaderForES(esIndex)
+                        jobSpec.eventService = 1
                     # inputs
                     prodDBlock = None
                     setProdDBlock = False
@@ -930,7 +932,7 @@ class JobGeneratorThread (WorkerThread):
                             for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
                                 if not tmpDatasetSpec.isMaster():
                                     try:
-                                        middleName = '.'+tmpFileSpecList[0].lfn.split('.')[4]
+                                        middleName = '.'+'.'.join(tmpFileSpecList[0].lfn.split('.')[4:4+len(taskSpec.getFieldNumToLFN())])
                                     except:
                                         pass
                                     break
@@ -1197,6 +1199,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.countryGroup     = taskSpec.countryGroup
             jobSpec.computingSite    = siteName
+            jobSpec.nucleus          = taskSpec.nucleus
             jobSpec.cloud            = cloudName
             jobSpec.VO               = taskSpec.vo
             jobSpec.prodSeriesLabel  = 'pandatest'
@@ -1318,6 +1321,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.countryGroup     = taskSpec.countryGroup
             jobSpec.computingSite    = siteName
+            jobSpec.nucleus          = taskSpec.nucleus
             jobSpec.cloud            = cloudName
             jobSpec.VO               = taskSpec.vo
             jobSpec.prodSeriesLabel  = 'pandatest'
