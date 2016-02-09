@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/9/2016
+  * added nokill to reassignTask
+
 * 2/8/2016
   * added network weights to brokerage
 

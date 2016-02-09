@@ -124,6 +124,8 @@ class TaskCommandoThread (WorkerThread):
                             # get active PandaIDs to be killed
                             if commandStr == 'reassign' and commentStr != None and 'soft reassign' in commentStr:
                                 pandaIDs = self.taskBufferIF.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
+                            elif commandStr == 'reassign' and commentStr != None and 'nokill reassign' in commentStr:
+                                pandaIDs = []
                             else:
                                 pandaIDs = self.taskBufferIF.getPandaIDsWithTask_JEDI(jediTaskID,True)
                             if pandaIDs == None:
