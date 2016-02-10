@@ -300,6 +300,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 and not sitePreAssigned and not siteListPreAssigned \
                 and not taskSpec.useEventService():
             t1WeightForHighPrio = 100
+            """
             newScanSiteList = []
             for tmpSiteName in scanSiteList:            
                 if tmpSiteName in t1Sites+sitesShareSeT1+allT1Sites:
@@ -316,6 +317,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError
+            """    
         ######################################
         # selection to avoid slow or inactive sites
         if (taskSpec.currentPriority >= 800 or inputChunk.useScout() or \

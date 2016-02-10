@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/10/2016
+  * removed T1 constraint from AtlasPJB for high prio or scouts  
+
 * 2/9/2016
   * added nokill to reassignTask
 
