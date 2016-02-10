@@ -548,7 +548,7 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.setErrDiag(tmpErrStr,True)
                             else:
                                 readyToSubmitJob = True
-                                if taskSpec.toRegisterDatasets():
+                                if taskSpec.toRegisterDatasets() and (not taskSpec.mergeOutput() or inputChunk.isMerging):
                                     taskSpec.registeredDatasets()
                         # lock task
                         if goForward:

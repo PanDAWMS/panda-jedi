@@ -7384,19 +7384,30 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     secMap  = {}
                     for datasetID,masterID,nFiles,nFilesFinished,status,state in resDS:
                         if masterID != None:
-                            # keep secondary dataset info
-                            if not secMap.has_key(masterID):
-                                secMap[masterID] = []
-                            secMap[masterID].append((datasetID,nFilesFinished,status,state))
-                            # update dataset
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID']  = datasetID
-                            varMap[':nDiff'] = 0
-                            varMap[':nRun'] = 0
-                            varMap[':status'] = 'ready'
-                            tmpLog.debug('set status={0} for 2nd datasetID={1}'.format(varMap[':status'],datasetID))
-                            self.cur.execute(sqlRD+comment,varMap)
+                            if not state in [None,'']:
+                                # keep secondary dataset info
+                                if not secMap.has_key(masterID):
+                                    secMap[masterID] = []
+                                secMap[masterID].append((datasetID,nFilesFinished,status,state))
+                                # update dataset
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                varMap[':nDiff'] = 0
+                                varMap[':nRun'] = 0
+                                varMap[':status'] = 'ready'
+                                tmpLog.debug('set status={0} for 2nd datasetID={1}'.format(varMap[':status'],datasetID))
+                                self.cur.execute(sqlRD+comment,varMap)
+                            else:
+                                # set dataset status to defined to trigger file lookup when state is not set
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                varMap[':nDiff'] = 0
+                                varMap[':nRun'] = 0
+                                varMap[':status'] = 'defined'
+                                tmpLog.debug('set status={0} for 2nd datasetID={1}'.format(varMap[':status'],datasetID))
+                                self.cur.execute(sqlRD+comment,varMap)
                         else:
                             # set done if no more try is needed
                             if nFiles == nFilesFinished and status == 'failed':
