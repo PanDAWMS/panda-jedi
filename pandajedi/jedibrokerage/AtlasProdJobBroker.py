@@ -78,7 +78,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             import json
             import time
 
-
             url = 'http://{0}:8081'.format(logger_config.daemon['loghost_new'])
 
             headers = {'Content-type':'application/json; charset=UTF-8'}
@@ -107,7 +106,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             ]
             r=requests.post(url, data=json.dumps(arr), headers=headers, timeout=1)
         except:
-            tmpLog.debug(sys.exc_info())
+            tmpLog.warning('Failed to send network message to panda logger: {0}'.format(sys.exc_info()[1]))
 
 
     # get all T1 sites
@@ -947,7 +946,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         bestSite = tmpAtlasSiteName
                 except (KeyError, ZeroDivisionError):
                     tmpLog.debug('Site {0} not in site map, network map or with 0 transfer time ({1})'
-                                 .format(tmpSiteName, sys.exc_info()[:2]))
+                                 .format(tmpSiteName, sys.exc_info()[1]))
                     pass
 
             if not bestSite:
