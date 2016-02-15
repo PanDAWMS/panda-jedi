@@ -1,6 +1,7 @@
 Release Notes
 
 * 2/15/2016
+  * added workQueueName
   * aded mcore_repro
   * added altStageOut
 

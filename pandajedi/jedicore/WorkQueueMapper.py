@@ -189,4 +189,13 @@ class WorkQueueMapper:
                 retMap[tmpRetKey] = tmpRetVal
         # return
         return retMap
-        
+
+
+    # get queue with name
+    def getQueueWithName(self,vo,queueType,queueName):
+        queueList = self.getQueueListWithVoType(vo,queueType)
+        for tmpQueue in queueList:
+            if tmpQueue.queue_name == queueName:
+                return tmpQueue
+        # not found
+        return None

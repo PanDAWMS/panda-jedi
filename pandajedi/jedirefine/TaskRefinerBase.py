@@ -180,12 +180,18 @@ class TaskRefinerBase (object):
         if taskParamMap.has_key('campaign'):
             taskSpec.campaign = taskParamMap['campaign']
         # work queue
-        workQueue,tmpStr = workQueueMapper.getQueueWithSelParams(taskSpec.vo,
-                                                                 taskSpec.prodSourceLabel,
-                                                                 processingType=taskSpec.processingType,
-                                                                 workingGroup=taskSpec.workingGroup,
-                                                                 coreCount=taskSpec.coreCount,
-                                                                 site=taskSpec.site)
+        workQueue = None
+        if 'workQueueName' in taskParamMap:
+            # work queue is specified
+            workQueue = workQueueMapper.getQueueWithName(taskSpec.vo,taskSpec.prodSourceLabel,taskParamMap['workQueueName'])
+        if workQueue == None:
+            # get work queue based on task attributes
+            workQueue,tmpStr = workQueueMapper.getQueueWithSelParams(taskSpec.vo,
+                                                                     taskSpec.prodSourceLabel,
+                                                                     processingType=taskSpec.processingType,
+                                                                     workingGroup=taskSpec.workingGroup,
+                                                                     coreCount=taskSpec.coreCount,
+                                                                     site=taskSpec.site)
         if workQueue == None:
             errStr  = 'workqueue is undefined for vo={0} labal={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
             errStr += 'processingType={0} workingGroup={1} coreCount={2} '.format(taskSpec.processingType,
