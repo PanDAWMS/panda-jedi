@@ -1,5 +1,9 @@
 Release Notes
 
+* 2/15/2016
+  * aded mcore_repro
+  * added altStageOut
+
 * 2/10/2016
   * fixed retryTask to correctly set status of secondary datasets
   * fixed to register final datasets when internal merge is used

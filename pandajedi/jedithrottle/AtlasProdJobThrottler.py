@@ -122,7 +122,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         if workQueue.queue_name == 'group':
             nQueueLimit = 10000
         # use nPrestage for reprocessing   
-        if workQueue.queue_name in ['reprocessing']:
+        if workQueue.queue_name in ['reprocessing','mcore_repro']:
             if cloudSpec.has_key('nprestage') and cloudSpec['nprestage'] > 0:
                 nQueueLimit = cloudSpec['nprestage']
                 # reset nJobsInBunch

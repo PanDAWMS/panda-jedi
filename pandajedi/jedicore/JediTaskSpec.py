@@ -39,6 +39,7 @@ class JediTaskSpec(object):
         'allowEmptyInput'    : 'AE',
         'addNthFieldToLFN'   : 'AN',
         'allowPartialFinish' : 'AP',
+        'altStageOut'        : 'AT',
         'ddmBackEnd'         : 'DE',
         'disableReassign'    : 'DI',
         'disableAutoRetry'   : 'DR',
@@ -94,19 +95,20 @@ class JediTaskSpec(object):
     enum_limitedSites = {'1' : 'inc',
                          '2' : 'exc',
                          '3' : 'incexc'}
-
     # enum for scout
     enum_noScout   = '1'
     enum_useScout  = '2'
     enum_postScout = '3'
-
     # enum for dataset registration
     enum_toRegisterDS   = '1'
     enum_registeredDS   = '2'
-
     # enum for IP connectivity
     enum_ipConnectivity = {'1' : 'full',
                            '2' : 'http'}
+    # enum for alternative stage-out
+    enum_altStageOut = {'1' : 'on',
+                        '2' : 'off',
+                        '3' : 'force'}
     # world cloud name
     worldCloudName = 'WORLD'
 
@@ -1174,3 +1176,23 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # set alternative stage-out
+    def setAltStageOut(self,value):
+        if value in self.enum_altStageOut.values():
+            for tmpKey,tmpVal in self.enum_altStageOut.iteritems():
+                if value == tmpVal:
+                    self.setSplitRule('altStageOut',tmpKey)
+                    break
+
+
+
+    # get alternative stage-out
+    def getAltStageOut(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['altStageOut']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return self.enum_altStageOut[tmpMatch.group(1)]
+        return None

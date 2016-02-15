@@ -240,6 +240,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['useRealNumEvents'])
         if 'ipConnectivity' in taskParamMap:
             self.taskSpec.setIpConnectivity(taskParamMap['ipConnectivity'])
+        if 'altStageOut' in taskParamMap:
+            self.taskSpec.setAltStageOut(taskParamMap['altStageOut'])
         if 'runUntilClosed' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['runUntilClosed'])
         if 'stayOutputOnSite' in taskParamMap:

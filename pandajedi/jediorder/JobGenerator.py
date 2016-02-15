@@ -918,6 +918,12 @@ class JobGeneratorThread (WorkerThread):
                     # allow partial finish
                     if taskSpec.allowPartialFinish():
                         jobSpec.setToAcceptPartialFinish()
+                    # alternative stage-out
+                    if taskSpec.mergeOutput() and not inputChunk.isMerging:
+                        # disable alternative stage-out for pre-merge jobs
+                        jobSpec.setAltStgOut('off')
+                    elif taskSpec.getAltStageOut() != None:
+                        jobSpec.setAltStgOut(taskSpec.getAltStageOut())
                     # set lumi block number
                     if lumiBlockNr != None:
                         jobSpec.setLumiBlockNr(lumiBlockNr)
