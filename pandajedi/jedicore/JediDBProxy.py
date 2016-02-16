@@ -4660,7 +4660,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpVal = float(tmpVal-preBaseWalltime)*corePower*coreCount*float(preCpuEfficiency)/100.0
                             if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
                                 tmpVal /= float(inEventsMap[pandaID])
-                    if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10:
+                    if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10 or \
+                            (inEventsMap[pandaID] < 10 and tmpVal > 6*3600):
                         cpuTimeList.append(tmpVal)
                         cpuTimeDict[tmpVal] = pandaID
                 except:
