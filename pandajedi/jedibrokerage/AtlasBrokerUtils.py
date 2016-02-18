@@ -410,6 +410,9 @@ def hasZeroShare(siteSpec,taskSpec,ignorePrio,tmpLog):
     try:
         # get process group
         tmpProGroup = ProcessGroups.getProcessGroup(taskSpec.processingType)
+        # no suppress for test queues
+        if tmpProGroup in ['test']:
+            return False
         # loop over all policies
         for tmpItem in siteSpec.fairsharePolicy.split(','):
             if re.search('(^|,|:)id=',tmpItem) != None: 

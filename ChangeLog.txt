@@ -1,6 +1,7 @@
 Release Notes
 
 * 2/18/2016
+  * changed hasZeroShare to work with processingType=validation in non-validation WQ
   * added doForPreStaging to AtlasAWD
 
 * 2/16/2016
