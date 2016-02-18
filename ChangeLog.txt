@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/18/2016
+  * added doForPreStaging to AtlasAWD
+
 * 2/16/2016
   * changed getScoutJobData to use jobs with nEvents<10 and wall>6h too
 

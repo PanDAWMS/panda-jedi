@@ -332,6 +332,9 @@ def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,t
             return {}
         # loop over all destinations 
         for tmpD,tmpW in tmpVal.iteritems():
+            # skip source sites
+            if tmpD in siteList:
+                continue
             # use first or larger value
             tmpSiteSpec = siteMapper.getSite(tmpD)
             if not retVal.has_key(tmpD) or retVal[tmpD]['weight'] < tmpW:

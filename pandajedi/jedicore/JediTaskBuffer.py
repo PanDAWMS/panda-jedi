@@ -1145,12 +1145,25 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
-    # get JEDI tasks to be throttled
+    # throttle JEDI tasks
     def throttleTasks_JEDI(self,vo,prodSourceLabel,waitTime):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.throttleTasks_JEDI(vo,prodSourceLabel,waitTime)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # throttle a JEDI task
+    def throttleTask_JEDI(self,jediTaskID,waitTime,errorDialog):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.throttleTask_JEDI(jediTaskID,waitTime,errorDialog)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1171,12 +1184,38 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
-    # lock process
-    def lockProcess_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid,forceOption=False):
+    # release throttled task
+    def releaseThrottledTask_JEDI(self,jediTaskID):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.lockProcess_JEDI(vo,prodSourceLabel,cloud,workqueue_id,pid,forceOption)
+        retVal = proxy.releaseThrottledTask_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get throttled users
+    def getThrottledUsersTasks_JEDI(self,vo,prodSourceLabel):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getThrottledUsersTasks_JEDI(vo,prodSourceLabel)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # lock process
+    def lockProcess_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid,forceOption=False,timeLimit=5):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.lockProcess_JEDI(vo,prodSourceLabel,cloud,workqueue_id,pid,forceOption,timeLimit)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

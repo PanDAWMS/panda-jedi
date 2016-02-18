@@ -1,5 +1,8 @@
 import re
+import os
 import sys
+import socket
+import traceback
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from WatchDogBase import WatchDogBase
@@ -17,6 +20,8 @@ class AtlasAnalWatchDog (WatchDogBase):
     # constructor
     def __init__(self,ddmIF,taskBufferIF):
         WatchDogBase.__init__(self,ddmIF,taskBufferIF)
+        self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0],os.getpid())
+        self.cronActions = {'forPrestage':'atlas_prs'}
 
 
 
@@ -74,6 +79,8 @@ class AtlasAnalWatchDog (WatchDogBase):
                 else:
                     # lib.tgz is not ready
                     tmpLog.debug('  keep waiting for user="{0}" libDS={1}'.format(prodUserName,datasetName))
+            # throttle tasks if so many prestaging requests
+            self.doForPreStaging()
         except:
             tmpLog = origTmpLog
             errtype,errvalue = sys.exc_info()[:2]
@@ -83,3 +90,52 @@ class AtlasAnalWatchDog (WatchDogBase):
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
     
+
+
+    # throttle tasks if so many prestaging requests
+    def doForPreStaging(self):
+        try:
+            tmpLog = MsgWrapper(logger,'doForPreStaging')
+            # lock
+            flagLocked = self.taskBufferIF.lockProcess_JEDI(self.vo,self.prodSourceLabel,
+                                                            self.cronActions['forPrestage'],
+                                                            0,self.pid,timeLimit=5)
+            if not flagLocked:
+                return
+            tmpLog.debug('start')
+            # get throttled users
+            thrUserTasks = self.taskBufferIF.getThrottledUsersTasks_JEDI(self.vo,self.prodSourceLabel)
+            # get dispatch datasets
+            dispUserTasks = self.taskBufferIF.getDispatchDatasetsPerUser(self.vo,self.prodSourceLabel,True,True)
+            # max size of prestaging requests in MB
+            maxPrestaging = 100*1024*1024
+            # throttle interval
+            thrInterval = 120
+            # loop over all users
+            for userName,userDict in dispUserTasks.iteritems():
+                # too large
+                if userDict['size'] > maxPrestaging:
+                    tmpLog.debug('{0} has too large prestaging {1}>{2}MB'.format(userName,
+                                                                                 userDict['size'],
+                                                                                 maxPrestaging))
+                    # throttle tasks
+                    for taskID in userDict['tasks']:
+                        if not userName in thrUserTasks or not taskID in thrUserTasks[userName]:
+                            tmpLog.debug('thottle jediTaskID={0}'.format(taskID))
+                            errDiag = 'throttled for {0} min due to too large prestaging from TAPE'.format(thrInterval)
+                            self.taskBufferIF.throttleTask_JEDI(taskID,thrInterval,errDiag)
+                    # remove the user from the list
+                    if userName in thrUserTasks:
+                        del thrUserTasks[userName]
+            # release users
+            for userName,taskIDs in thrUserTasks.items():
+                tmpLog.debug('{0} release throttled tasks'.format(userName))
+                # unthrottle tasks
+                for taskID in taskIDs:
+                    tmpLog.debug('unthottle jediTaskID={0}'.format(taskID))
+                    self.taskBufferIF.releaseThrottledTask_JEDI(taskID)
+            tmpLog.debug('done')
+        except:
+            errtype,errvalue = sys.exc_info()[:2]
+            tmpLog.error('failed with {0} {1} {2}'.format(errtype,errvalue,traceback.format_exc()))
+            

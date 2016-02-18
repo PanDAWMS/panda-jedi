@@ -8543,6 +8543,44 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # throttle one task
+    def throttleTask_JEDI(self,jediTaskID,waitTime,errorDialog):
+        comment = ' /* JediDBProxy.throttleTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start waitTime={0}min'.format(waitTime))
+        try:
+            # sql to throttle tasks
+            sqlTH  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTH += "SET throttledTime=:releaseTime,modificationTime=CURRENT_DATE,"
+            sqlTH += "oldStatus=status,status=:newStatus,errorDialog=:errorDialog "
+            sqlTH += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
+            sqlTH += "AND lockedBy IS NULL "
+            # begin transaction
+            self.conn.begin()
+            varMap = {}
+            varMap[':jediTaskID']   = jediTaskID
+            varMap[':newStatus']    = 'throttled'
+            varMap[':oldStatus']    = 'running'
+            varMap[':releaseTime']  = datetime.datetime.utcnow() + datetime.timedelta(minutes=waitTime)
+            varMap[':errorDialog']  = errorDialog
+            self.cur.execute(sqlTH+comment,varMap)
+            nRow = self.cur.rowcount
+            tmpLog.debug('done with {0}'.format(nRow))
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
+
+
+
     # release throttled tasks
     def releaseThrottledTasks_JEDI(self,vo,prodSourceLabel):
         comment = ' /* JediDBProxy.releaseThrottledTasks_JEDI */'
@@ -8596,6 +8634,86 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+
+    # release throttled task
+    def releaseThrottledTask_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.releaseThrottledTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to update tasks    
+            sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU += "SET status=oldStatus,oldStatus=NULL,errorDialog=NULL,modificationtime=CURRENT_DATE "
+            sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus AND lockedBy IS NULL "
+            # start transaction
+            self.conn.begin()
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':oldStatus'] = 'throttled'
+            self.cur.execute(sqlTU+comment,varMap)
+            nRow = self.cur.rowcount
+            tmpLog.debug('done with {0}'.format(nRow))
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
+
+
+
+    # get throttled users
+    def getThrottledUsersTasks_JEDI(self,vo,prodSourceLabel):
+        comment = ' /* JediDBProxy.getThrottledUsersTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1}>".format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get tasks
+            varMap = {}
+            varMap[':status'] = 'throttled'
+            sqlTL  = "SELECT jediTaskID,userName "
+            sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlTL += "AND tabT.status=:status AND tabT.lockedBy IS NULL "
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+                sqlTL += "AND vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                sqlTL += "AND prodSourceLabel=:prodSourceLabel "
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sqlTL+comment,varMap)
+            resTL = self.cur.fetchall()
+            # loop over all tasks
+            userTaskMap = {}
+            for jediTaskID,userName in resTL:
+                if not userName in userTaskMap:
+                    userTaskMap[userName] = set()
+                userTaskMap[userName].add(jediTaskID)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("get {0} users".format(len(userTaskMap)))
+            return userTaskMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return {}
 
 
 
@@ -8664,7 +8782,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # lock process
-    def lockProcess_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid,forceOption):
+    def lockProcess_JEDI(self,vo,prodSourceLabel,cloud,workqueue_id,pid,forceOption,timeLimit):
         comment = ' /* JediDBProxy.lockProcess_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += " <vo={0} label={1} cloud={2} queue={3} pid={4}>".format(vo,prodSourceLabel,
@@ -8698,7 +8816,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 varMap[':cloud'] = cloud
                 varMap[':workqueue_id'] = workqueue_id
-                varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
+                varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=timeLimit)
                 self.cur.execute(sqlCT+comment,varMap)
                 resCT = self.cur.fetchone()
             else:

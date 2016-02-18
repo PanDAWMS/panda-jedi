@@ -85,124 +85,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
             # not use MCORE
             useMP = 'unuse'
         ######################################
-        # selection for data availability
-        dataWeight = {}
-        remoteSourceList = {}
-        tapeOnlyDatasets = []
-        if inputChunk.getDatasets() != []:    
-            for datasetSpec in inputChunk.getDatasets():
-                datasetName = datasetSpec.datasetName
-                if not self.dataSiteMap.has_key(datasetName):
-                    # get the list of sites where data is available
-                    tmpLog.debug('getting the list of sites where {0} is avalable'.format(datasetName))
-                    tmpSt,tmpRet = AtlasBrokerUtils.getAnalSitesWithData(scanSiteList,
-                                                                         self.siteMapper,
-                                                                         self.ddmIF,datasetName)
-                    if tmpSt in [Interaction.JEDITemporaryError,Interaction.JEDITimeoutError]: 
-                        tmpLog.error('temporary failed to get the list of sites where data is available, since %s' % tmpRet)
-                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        # send info to logger
-                        self.sendLogMessage(tmpLog)
-                        return retTmpError
-                    if tmpSt == Interaction.JEDIFatalError:
-                        tmpLog.error('fatal error when getting the list of sites where data is available, since %s' % tmpRet)
-                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        # send info to logger
-                        self.sendLogMessage(tmpLog)
-                        return retFatal
-                    # append
-                    self.dataSiteMap[datasetName] = tmpRet
-                    if datasetName.startswith('ddo'):
-                        tmpLog.debug(' {0} sites'.format(len(tmpRet)))
-                    else:
-                        tmpLog.debug(' {0} sites : {1}'.format(len(tmpRet),str(tmpRet)))
-                # check if the data is available at somewhere
-                if self.dataSiteMap[datasetName] == {}:
-                    tmpLog.error('{0} is unavaiable at any site'.format(datasetName))
-                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    # send info to logger
-                    self.sendLogMessage(tmpLog)
-                    return retFatal
-                # check if the data is available on disk
-                if AtlasBrokerUtils.getAnalSitesWithDataDisk(self.dataSiteMap[datasetName]) == []:
-                    tmpLog.debug('{0} is avaiable only on tape'.format(datasetName))
-                    tapeOnlyDatasets.append(datasetName)
-                    #taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    # send info to logger
-                    #self.sendLogMessage(tmpLog)
-                    #return retFatal
-            # get the list of sites where data is available    
-            scanSiteList = None     
-            normFactor = 0
-            for datasetName,tmpDataSite in self.dataSiteMap.iteritems():
-                normFactor += 1
-                # get sites where replica is available
-                tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=True)
-                tmpDiskSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=False)
-                # get sites which can remotely access source sites
-                if inputChunk.isMerging:
-                    # disable remote access for merging
-                    tmpSatelliteSites = {}
-                elif (not sitePreAssigned) or (sitePreAssigned and not taskSpec.site in tmpSiteList):
-                    tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpDiskSiteList,self.taskBufferIF,
-                                                                           self.siteMapper,nSites=50,
-                                                                           protocol=allowedRemoteProtocol)
-                else:
-                    tmpSatelliteSites = {}
-                # make weight map for local
-                for tmpSiteName in tmpSiteList:
-                    if not dataWeight.has_key(tmpSiteName):
-                        dataWeight[tmpSiteName] = 0
-                    # give more weight to disk
-                    if tmpSiteName in tmpDiskSiteList:
-                        dataWeight[tmpSiteName] += 1
-                    else:
-                        dataWeight[tmpSiteName] += 0.001
-                # make weight map for remote
-                for tmpSiteName,tmpWeightSrcMap in tmpSatelliteSites.iteritems():
-                    # skip since local data is available
-                    if tmpSiteName in tmpSiteList:
-                        continue
-                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                    # negative weight for remote access
-                    wRemote = 50.0
-                    if not tmpSiteSpec.wansinklimit in [0,None]:
-                        wRemote /= float(tmpSiteSpec.wansinklimit)
-                    # sum weight
-                    if not dataWeight.has_key(tmpSiteName):
-                        dataWeight[tmpSiteName] = float(tmpWeightSrcMap['weight'])/wRemote
-                    else:
-                        dataWeight[tmpSiteName] += float(tmpWeightSrcMap['weight'])/wRemote
-                    # make remote source list
-                    if not remoteSourceList.has_key(tmpSiteName):
-                        remoteSourceList[tmpSiteName] = {}
-                    remoteSourceList[tmpSiteName][datasetName] = tmpWeightSrcMap['source']
-                # first list
-                if scanSiteList == None:
-                    scanSiteList = []
-                    for tmpSiteName in tmpSiteList + tmpSatelliteSites.keys():
-                        if not tmpSiteName in scanSiteList:
-                            scanSiteList.append(tmpSiteName)
-                    continue
-                # pickup sites which have all data
-                newScanList = []
-                for tmpSiteName in tmpSiteList + tmpSatelliteSites.keys():
-                    if tmpSiteName in scanSiteList and not tmpSiteName in newScanList:
-                        newScanList.append(tmpSiteName)
-                scanSiteList = newScanList
-                tmpLog.debug('{0} is available at {1} sites'.format(datasetName,len(scanSiteList)))
-            tmpLog.debug('{0} candidates have input data'.format(len(scanSiteList)))
-            # check for preassigned
-            if sitePreAssigned and not taskSpec.site in scanSiteList:
-                scanSiteList = []
-                tmpLog.debug('data is unavailable locally or remotely at preassigned site {0}'.format(taskSpec.site))
-            if scanSiteList == []:
-                tmpLog.error('no candidates')
-                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                # send info to logger
-                self.sendLogMessage(tmpLog)
-                return retFatal
-        ######################################
         # selection for status
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
@@ -511,6 +393,129 @@ class AtlasAnalJobBroker (JobBrokerBase):
             # send info to logger
             self.sendLogMessage(tmpLog)
             return retTmpError
+        ######################################
+        # selection for data availability
+        dataWeight = {}
+        remoteSourceList = {}
+        if inputChunk.getDatasets() != []:    
+            for datasetSpec in inputChunk.getDatasets():
+                datasetName = datasetSpec.datasetName
+                if not self.dataSiteMap.has_key(datasetName):
+                    # get the list of sites where data is available
+                    tmpLog.debug('getting the list of sites where {0} is avalable'.format(datasetName))
+                    tmpSt,tmpRet = AtlasBrokerUtils.getAnalSitesWithData(scanSiteList,
+                                                                         self.siteMapper,
+                                                                         self.ddmIF,datasetName)
+                    if tmpSt in [Interaction.JEDITemporaryError,Interaction.JEDITimeoutError]: 
+                        tmpLog.error('temporary failed to get the list of sites where data is available, since %s' % tmpRet)
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        # send info to logger
+                        self.sendLogMessage(tmpLog)
+                        return retTmpError
+                    if tmpSt == Interaction.JEDIFatalError:
+                        tmpLog.error('fatal error when getting the list of sites where data is available, since %s' % tmpRet)
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        # send info to logger
+                        self.sendLogMessage(tmpLog)
+                        return retFatal
+                    # append
+                    self.dataSiteMap[datasetName] = tmpRet
+                    if datasetName.startswith('ddo'):
+                        tmpLog.debug(' {0} sites'.format(len(tmpRet)))
+                    else:
+                        tmpLog.debug(' {0} sites : {1}'.format(len(tmpRet),str(tmpRet)))
+                # check if the data is available at somewhere
+                if self.dataSiteMap[datasetName] == {}:
+                    tmpLog.error('{0} is unavaiable at any site'.format(datasetName))
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    # send info to logger
+                    self.sendLogMessage(tmpLog)
+                    return retFatal
+            # get the list of sites where data is available    
+            scanSiteList = None
+            scanSiteListOnDisk = None
+            normFactor = 0
+            for datasetName,tmpDataSite in self.dataSiteMap.iteritems():
+                normFactor += 1
+                # get sites where replica is available
+                tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=True)
+                tmpDiskSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=False)
+                # get sites which can remotely access source sites
+                if inputChunk.isMerging:
+                    # disable remote access for merging
+                    tmpSatelliteSites = {}
+                elif (not sitePreAssigned) or (sitePreAssigned and not taskSpec.site in tmpSiteList):
+                    tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpDiskSiteList,self.taskBufferIF,
+                                                                           self.siteMapper,nSites=50,
+                                                                           protocol=allowedRemoteProtocol)
+                else:
+                    tmpSatelliteSites = {}
+                # make weight map for local
+                for tmpSiteName in tmpSiteList:
+                    if not dataWeight.has_key(tmpSiteName):
+                        dataWeight[tmpSiteName] = 0
+                    # give more weight to disk
+                    if tmpSiteName in tmpDiskSiteList:
+                        dataWeight[tmpSiteName] += 1
+                    else:
+                        dataWeight[tmpSiteName] += 0.001
+                # make weight map for remote
+                for tmpSiteName,tmpWeightSrcMap in tmpSatelliteSites.iteritems():
+                    # skip since local data is available
+                    if tmpSiteName in tmpSiteList:
+                        continue
+                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                    # negative weight for remote access
+                    wRemote = 50.0
+                    if not tmpSiteSpec.wansinklimit in [0,None]:
+                        wRemote /= float(tmpSiteSpec.wansinklimit)
+                    # sum weight
+                    if not dataWeight.has_key(tmpSiteName):
+                        dataWeight[tmpSiteName] = float(tmpWeightSrcMap['weight'])/wRemote
+                    else:
+                        dataWeight[tmpSiteName] += float(tmpWeightSrcMap['weight'])/wRemote
+                    # make remote source list
+                    if not remoteSourceList.has_key(tmpSiteName):
+                        remoteSourceList[tmpSiteName] = {}
+                    remoteSourceList[tmpSiteName][datasetName] = tmpWeightSrcMap['source']
+                # first list
+                if scanSiteList == None:
+                    scanSiteList = []
+                    for tmpSiteName in tmpSiteList + tmpSatelliteSites.keys():
+                        if not tmpSiteName in scanSiteList:
+                            scanSiteList.append(tmpSiteName)
+                    scanSiteListOnDisk = set()
+                    for tmpSiteName in tmpDiskSiteList + tmpSatelliteSites.keys():
+                        scanSiteListOnDisk.add(tmpSiteName)
+                    continue
+                # pickup sites which have all data
+                newScanList = []
+                for tmpSiteName in tmpSiteList + tmpSatelliteSites.keys():
+                    if tmpSiteName in scanSiteList and not tmpSiteName in newScanList:
+                        newScanList.append(tmpSiteName)
+                scanSiteList = newScanList
+                tmpLog.debug('{0} is available at {1} sites'.format(datasetName,len(scanSiteList)))
+                # pickup sites which have all data on DISK
+                newScanListOnDisk = set()
+                for tmpSiteName in tmpDiskSiteList + tmpSatelliteSites.keys():
+                    if tmpSiteName in scanSiteListOnDisk:
+                        newScanListOnDisk.add(tmpSiteName)
+                scanSiteListOnDisk = newScanListOnDisk
+                tmpLog.debug('{0} is available at {1} sites on DISK'.format(datasetName,len(scanSiteListOnDisk)))
+            # check for preassigned
+            if sitePreAssigned and not taskSpec.site in scanSiteList:
+                scanSiteList = []
+                tmpLog.debug('data is unavailable locally or remotely at preassigned site {0}'.format(taskSpec.site))
+            elif len(scanSiteListOnDisk) > 0:
+                # use only disk sites
+                scanSiteList = list(scanSiteListOnDisk)
+            tmpLog.debug('{0} candidates have input data'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
+                return retFatal
         ######################################
         # sites already used by task
         tmpSt,sitesUsedByTask = self.taskBufferIF.getSitesUsedByTask_JEDI(taskSpec.jediTaskID)
