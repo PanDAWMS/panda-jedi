@@ -1711,7 +1711,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug(sqlD+comment+str(varMap))
                     self.cur.execute(sqlD+comment,varMap)
                     self.setSuperStatus_JEDI(taskSpec.jediTaskID,taskSpec.status)
-            elif taskSpec.status in ['running','broken','assigning','scouting','aborted','aborting']:
+            elif taskSpec.status in ['running','broken','assigning','scouting','aborted','aborting','exhausted']:
                 # update DEFT task status
                 if taskSpec.status == 'scouting':
                     deftStatus = 'submitting'
@@ -5292,6 +5292,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':splitRule'] = taskSpec.splitRule
                         self.cur.execute(sqlTU+comment,varMap)
                         tmpLog.debug('done new status={0} for jediTaskID={1} since {2}'.format(newTaskStatus,jediTaskID,errorDialog))
+                        if newTaskStatus == 'exhausted':
+                            self.setSuperStatus_JEDI(jediTaskID,newTaskStatus)
                 # commit    
                 if not self._commit():
                     raise RuntimeError, 'Commit error'

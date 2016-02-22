@@ -261,6 +261,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['switchEStoNormal'])
         if 'nEventsPerRange' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['dynamicNumEvents'])
+        if 'allowInputWAN' in taskParamMap and taskParamMap['allowInputWAN'] == True:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['allowInputWAN'])
         # return
         return
     

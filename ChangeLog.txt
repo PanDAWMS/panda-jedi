@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/22/2016
+  * changed to update superstatus when scouting->exhausted
+
 * 2/18/2016
   * changed hasZeroShare to work with processingType=validation in non-validation WQ
   * added doForPreStaging to AtlasAWD

@@ -52,6 +52,7 @@ class JediTaskSpec(object):
         'instantiateTmplSite': 'IA',
         'ipConnectivity'     : 'IP',
         'instantiateTmpl'    : 'IT',
+        'allowInputWAN'      : 'IW',
         'useLocalIO'         : 'LI',
         'limitedSites'       : 'LS',
         'loadXML'            : 'LX',
@@ -1196,3 +1197,13 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return self.enum_altStageOut[tmpMatch.group(1)]
         return None
+
+
+
+    # allow WAN for input access 
+    def allowInputWAN(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['allowInputWAN']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
