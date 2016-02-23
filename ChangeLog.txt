@@ -1,5 +1,9 @@
 Release Notes
 
+* 2/23/2016
+  * changed AtlasPJB to support allowInputWAN
+  * removed some AGIS dependency from JG
+
 * 2/22/2016
   * changed to update superstatus when scouting->exhausted
 

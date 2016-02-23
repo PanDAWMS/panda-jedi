@@ -266,7 +266,7 @@ class AtlasDDMClient(DDMClientBase):
             altName = self.getSiteAlternateName(baseSeName)[0]
             if altName != None:
                 for seName,seVal in self.endPointDict.iteritems():
-                    if seVal['site'] == altName and seVal['type'] != 'TEST':
+                    if seVal['site'] == altName and not seVal['type'] in ['TEST','SPECIAL']:
                         # space token
                         if seVal['token'] == token:
                             return seName

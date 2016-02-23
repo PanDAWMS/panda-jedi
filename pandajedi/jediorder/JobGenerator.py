@@ -1083,10 +1083,10 @@ class JobGeneratorThread (WorkerThread):
                         if tmpDistributedDestination != None:
                             tmpDddKey = (siteName,tmpDistributedDestination)
                             if not tmpDddKey in dddMap:
-                                dddMap[tmpDddKey] = self.ddmIF.getInterface(taskSpec.vo).convertTokenToEndpoint(siteSpec.ddm,tmpDistributedDestination)
+                                dddMap[tmpDddKey] = siteSpec.ddm_endpoints.getAssoicatedEndpoint(tmpDistributedDestination)
                             if dddMap[tmpDddKey] != None:
                                 tmpOutFileSpec.destinationSE = siteName
-                                tmpOutFileSpec.destinationDBlockToken = 'ddd:{0}'.format(dddMap[tmpDddKey])
+                                tmpOutFileSpec.destinationDBlockToken = 'ddd:{0}'.format(dddMap[tmpDddKey]['ddm_endpoint_name'])
                             else:
                                 tmpOutFileSpec.destinationDBlockToken = None
                         jobSpec.addFile(tmpOutFileSpec)

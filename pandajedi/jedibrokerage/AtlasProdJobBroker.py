@@ -616,7 +616,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         continue
                 """        
                 # check if blacklisted
-                if self.ddmIF.isBlackListedEP(tmpSiteSpec.ddm):
+                if tmpSiteSpec.ddm_endpoints.getEndPoint(tmpSiteSpec.ddm)['blacklisted'] == 'Y':
                     tmpLog.debug('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm))
                     continue
             newScanSiteList.append(tmpSiteName)
@@ -957,6 +957,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                          format(taskSpec.jediTaskID, bestSite, nucleus, scanSiteList))
 
         for tmpSiteName in scanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
             nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',None,taskSpec.workQueue_ID) + self.getLiveCount(tmpSiteName)
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',None,taskSpec.workQueue_ID)
@@ -1054,6 +1055,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
                     siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
                     siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
+            # add files as remote since WAN access is allowed
+            if taskSpec.allowInputWAN() and tmpSiteSpec.allowWanInputAccess():
+                siteCandidateSpec.remoteProtocol = 'fax'
+                for datasetSpec in inputChunk.getDatasets(): 
+                    siteCandidateSpec.remoteFiles += datasetSpec.Files
             # check if site is locked for WORLD
             lockedByBrokerage = False
             if taskSpec.useWorldCloud():
