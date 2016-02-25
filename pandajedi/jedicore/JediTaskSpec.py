@@ -50,6 +50,7 @@ class JediTaskSpec(object):
         'firstEvent'         : 'FT',
         'groupBoundaryID'    : 'GB',
         'instantiateTmplSite': 'IA',
+        'allowInputLAN'      : 'IL',
         'ipConnectivity'     : 'IP',
         'instantiateTmpl'    : 'IT',
         'allowInputWAN'      : 'IW',
@@ -110,6 +111,9 @@ class JediTaskSpec(object):
     enum_altStageOut = {'1' : 'on',
                         '2' : 'off',
                         '3' : 'force'}
+    # enum for local direct access
+    enum_inputLAN = {'1' : 'use',
+                     '2' : 'only'}
     # world cloud name
     worldCloudName = 'WORLD'
 
@@ -1207,3 +1211,23 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # set mode for input LAN access
+    def setAllowInputLAN(self,value):
+        if value in self.enum_inputLAN.values():
+            for tmpKey,tmpVal in self.enum_inputLAN.iteritems():
+                if value == tmpVal:
+                    self.setSplitRule('allowInputLAN',tmpKey)
+                    break
+
+
+
+    # check if LAN is used for input access 
+    def allowInputLAN(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['allowInputLAN']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return self.enum_inputLAN[tmpMatch.group(1)]
+        return None

@@ -557,19 +557,36 @@ class AtlasProdJobBroker (JobBrokerBase):
             minDiskCount = taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(getNumEvents=True)
         else:
             minDiskCount = taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(effectiveSize=True)
-        minDiskCount = minDiskCount + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
-        minDiskCount = minDiskCount / 1024 / 1024
+        minDiskCount  += taskSpec.getWorkDiskSize()
+        minDiskCountL  = minDiskCount
+        minDiskCountD  = minDiskCount 
+        minDiskCountL += inputChunk.getMaxAtomSize()
+        minDiskCountL  = minDiskCountL / 1024 / 1024
+        minDiskCountD  = minDiskCountD / 1024 / 1024
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            # check at the site
-            if tmpSiteSpec.maxwdir != 0 and minDiskCount > tmpSiteSpec.maxwdir:
-                tmpMsg = '  skip site={0} due to small scratch disk {1} less than {2} '.format(tmpSiteName,
-                                                                                               tmpSiteSpec.maxwdir,
-                                                                                               minDiskCount)
-                tmpMsg += 'criteria=-disk'
+            # check remote access
+            if taskSpec.allowInputLAN() == 'only' and not tmpSiteSpec.direct_access_lan:
+                tmpMsg = '  skip site={0} since remote IO is disabled '.format(tmpSiteName)
+                tmpMsg += 'criteria=-remoteio'
                 tmpLog.debug(tmpMsg)
                 continue
+            # check scratch size
+            if tmpSiteSpec.maxwdir != 0:
+                if taskSpec.allowInputLAN() != None and tmpSiteSpec.direct_access_lan:
+                    # size for remote access
+                    minDiskCount = minDiskCountD
+                else:
+                    # size for copy-to-scratch
+                    minDiskCount = minDiskCountL
+                if minDiskCount > tmpSiteSpec.maxwdir:
+                    tmpMsg = '  skip site={0} due to small scratch disk {1} less than {2} '.format(tmpSiteName,
+                                                                                                   tmpSiteSpec.maxwdir,
+                                                                                                   minDiskCount)
+                    tmpMsg += 'criteria=-disk'
+                    tmpLog.debug(tmpMsg)
+                    continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
         tmpLog.debug('{0} candidates passed scratch disk check minDiskCount>{1}MB'.format(len(scanSiteList),

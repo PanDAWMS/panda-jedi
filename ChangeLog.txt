@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/25/2016
+  * added allowInputLAN
+
 * 2/23/2016
   * changed AtlasPJB to support allowInputWAN
   * removed some AGIS dependency from JG

@@ -248,6 +248,8 @@ class TaskRefinerBase (object):
             self.taskSpec.setIpConnectivity(taskParamMap['ipConnectivity'])
         if 'altStageOut' in taskParamMap:
             self.taskSpec.setAltStageOut(taskParamMap['altStageOut'])
+        if 'allowInputLAN' in taskParamMap:
+            self.taskSpec.setAllowInputLAN(taskParamMap['allowInputLAN'])
         if 'runUntilClosed' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['runUntilClosed'])
         if 'stayOutputOnSite' in taskParamMap:
