@@ -1402,8 +1402,8 @@ class JobGeneratorThread (WorkerThread):
         # make the list of stream/LFNs
         streamLFNsMap = {}
         # parameters for placeholders
-        skipEvents = 0
-        maxEvents  = None
+        skipEvents = None
+        maxEvents  = 0
         firstEvent = None
         rndmSeed   = None
         sourceURL  = None
@@ -1445,15 +1445,16 @@ class JobGeneratorThread (WorkerThread):
             # collect parameters for event-level split
             if tmpDatasetSpec.isMaster():
                 # skipEvents and firstEvent
-                if len(tmpFileSpecList) > 0:
-                    firstEvent = tmpFileSpecList[0].firstEvent
-                    if tmpFileSpecList[0].startEvent != None:
-                        skipEvents = tmpFileSpecList[0].startEvent
-                        # maxEvents
-                        maxEvents = 0
-                        for tmpFileSpec in tmpFileSpecList:
-                            if tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
-                                maxEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1) 
+                for tmpFileSpec in tmpFileSpecList:
+                    if firstEvent == None and tmpFileSpec.firstEvent != None:
+                        firstEvent = tmpFileSpec.firstEvent
+                    if skipEvents == None and tmpFileSpec.startEvent != None:
+                        skipEvents = tmpFileSpec.startEvent
+                    if tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
+                        maxEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1) 
+        # set zero if undefined
+        if skipEvents == None:
+            skipEvents = 0
         # output
         for streamName,tmpFileSpec in outSubChunk.iteritems():
             streamLFNsMap[streamName] = [tmpFileSpec.lfn]
