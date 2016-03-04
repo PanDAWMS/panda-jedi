@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/4/2016
+  * changed CF to lookup for assigning tasks
+
 * 3/3/2016
   * fixed maxEvents for zero event files
 

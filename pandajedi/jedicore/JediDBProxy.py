@@ -148,6 +148,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':ts_running']       = 'running'
             varMap[':ts_defined']       = 'defined'
+            varMap[':ts_assigning']     = 'assigning'
             varMap[':dsStatus_pending'] = 'pending'
             varMap[':dsState_mutable']  = 'mutable'
             varMap[':checkTimeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
@@ -176,7 +177,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += '{0},'.format(mapKey)
                 varMap[mapKey] = tmpStat
             sql  = sql[:-1]    
-            sql += ')) OR (tabT.status=:ts_running AND tabD.state=:dsState_mutable AND tabD.stateCheckTime<:checkTimeLimit)) '
+            sql += ')) OR (tabT.status IN (:ts_running,:ts_assigning) AND tabD.state=:dsState_mutable AND tabD.stateCheckTime<:checkTimeLimit)) '
             sql += 'AND tabT.lockedBy IS NULL AND tabD.lockedBy IS NULL '
             sql += 'AND NOT EXISTS '
             sql += '(SELECT 1 FROM {0}.JEDI_Datasets '.format(jedi_config.db.schemaJEDI)
@@ -680,7 +681,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # task is locked
                     tmpLog.debug('task is locked by {0}'.format(taskLockedBy))
                 elif not (taskStatus in JediTaskSpec.statusToUpdateContents() or \
-                              (taskStatus == 'running' and \
+                              (taskStatus in ['running','assigning'] and \
                                    (datasetState == 'mutable' or datasetSpec.state == 'mutable' or datasetSpec.isSeqNumber()))):
                     # task status is irrelevant
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
@@ -729,7 +730,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if resDs == None:
                         tmpLog.debug('dataset not found in Datasets table')
                     elif not (resDs[0] in JediDatasetSpec.statusToUpdateContents() or \
-                                  (taskStatus == 'running' and \
+                                  (taskStatus in ['running','assigning'] and \
                                        (datasetState == 'mutable' or datasetSpec.state == 'mutable') or \
                                        (taskStatus in ['running','defined'] and datasetSpec.isSeqNumber()))):
                         tmpLog.debug('ds.status={0} is not for contents update'.format(resDs[0]))
