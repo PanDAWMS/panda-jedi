@@ -36,4 +36,10 @@ class JobBroker (FactoryBase):
     # get base lock ID
     def getBaseLockID(self,vo,sourceLabel):
         return self.getImpl(vo,sourceLabel).getBaseLockID()
+
+
+
+    # set test mode
+    def setTestMode(self,vo,sourceLabel):
+        self.getImpl(vo,sourceLabel).setTestMode()
         

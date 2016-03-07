@@ -564,6 +564,14 @@ class AtlasDDMClient(DDMClientBase):
                                                     if not tmpFileSpec in returnMap[dstSiteName][storageType]:
                                                         returnMap[dstSiteName][storageType] += tmpFileSpecList
                             break
+            # all
+            for siteName in returnMap.keys():
+                siteAllFileList = set()
+                storageTypeFile = returnMap[siteName]
+                for storageType,fileList in storageTypeFile.iteritems():
+                    for tmpFileSpec in fileList:
+                        siteAllFileList.add(tmpFileSpec)
+                storageTypeFile['all'] = siteAllFileList
             # dump
             dumpStr = ''
             for siteName,storageTypeFile in returnMap.iteritems():
@@ -1295,7 +1303,7 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # convert output of listDatasetReplicas
-    def convertOutListDatasetReplicas(self,datasetName):
+    def convertOutListDatasetReplicas(self,datasetName,usefileLookup=False):
         retMap = {}
         # get rucio API
         client = RucioClient()
@@ -1309,6 +1317,33 @@ class AtlasDDMClient(DDMClientBase):
                             'tsize':item["bytes"],
                             'asize':item["available_bytes"],
                             'immutable':1}]
+        # use file lookup
+        if retMap == {} or usefileLookup:
+            itr = client.list_replicas([{'scope':scope,'name':dsn}])
+            total = 0
+            tsize = 0
+            fileRetMap = {}
+            for item in itr:
+                total += 1
+                tsize += item['bytes']
+                for rse in item['rses']:
+                    # skip if dataset-level info is available
+                    if rse in retMap:
+                        continue
+                    # use only valid files
+                    if rse in item['states'] and item['states'][rse] == 'AVAILABLE':
+                        if not rse in fileRetMap:
+                            fileRetMap[rse] = {'found':0,
+                                               'asize':0}
+                        fileRetMap[rse]['found'] += 1
+                        fileRetMap[rse]['asize'] += item['bytes']
+            # set total length and size
+            for rse in fileRetMap.keys():
+                retMap[rse] = [{'total':total,
+                                'found':fileRetMap[rse]['found'],
+                                'tsize':tsize,
+                                'asize':fileRetMap[rse]['asize'],
+                                'immutable':0}]
         return retMap
 
 

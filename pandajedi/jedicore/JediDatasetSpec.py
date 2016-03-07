@@ -65,6 +65,8 @@ class JediDatasetSpec(object):
         object.__setattr__(self,'Files',[])
         # map of changed attributes
         object.__setattr__(self,'_changedAttrs',{})
+        # distributed
+        object.__setattr__(self,'distributed',False)
 
 
 
@@ -547,3 +549,15 @@ class JediDatasetSpec(object):
         if not self.attrToken['allowNoOutput'] in items:
             items.append(self.attrToken['allowNoOutput'])
             self.attributes = ','.join(items)
+
+
+
+    # set distributed
+    def setDistributed(self):
+        self.distributed = True
+
+
+
+    # check if distributed
+    def isDistributed(self):
+        return self.distributed

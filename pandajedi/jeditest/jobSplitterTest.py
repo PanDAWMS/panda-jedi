@@ -60,6 +60,7 @@ for dummyID,tmpList in tmpListList:
     for taskSpec,cloudName,inputChunk in tmpList:
         jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
         tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo),tbIF)
+        jobBroker.setTestMode(taskSpec.vo,taskSpec.prodSourceLabel)
         splitter = JobSplitter()
         gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper,None,
                                  None,None,None,brokerageLockIDs)

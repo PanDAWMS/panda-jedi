@@ -12,6 +12,8 @@ class SiteCandidate(object):
         self.cacheFiles = []
         # the list of files read from SE using remote I/O
         self.remoteFiles = []
+        # the list of all files
+        self.allFiles = None
         # acess
         self.remoteProtocol = None
         # remote source if any
@@ -40,3 +42,22 @@ class SiteCandidate(object):
             if tmpFileSpec.fileID == fileSpec.fileID:
                 return 'remote'
         return None
+
+
+
+    # add available files
+    def addAvailableFiles(self,fileList):
+        if self.allFiles == None:
+            self.allFiles = set()
+        for tmpFileSpec in fileList:
+            self.allFiles.add(tmpFileSpec.fileID)
+
+
+
+    # check if file is available
+    def isAvailableFile(self,tmpFileSpec):
+        # N/A
+        if self.allFiles == None:
+            return True
+        return tmpFileSpec.fileID in self.allFiles
+

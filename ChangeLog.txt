@@ -1,6 +1,7 @@
 Release Notes
 
 * 3/7/2016
+  * changed AtlasDDM and AtlasAJB to support distributed datasets
   * fixed AtlasPJB to correctly get sites associated to a nucleus
 
 * 3/4/2016

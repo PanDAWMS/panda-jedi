@@ -124,6 +124,16 @@ class InputChunk:
         retSiteCandidate = None
         if ngSites == None:
             ngSites = []
+        ngSites = copy.copy(ngSites)
+        # skip sites for distributed datasets
+        for tmpDatasetSpec in self.getDatasets():
+            if tmpDatasetSpec.isDistributed():
+                datasetUsage = self.datasetMap[tmpDatasetSpec.datasetID]
+                tmpFileSpec = tmpDatasetSpec.Files[datasetUsage['used']]
+                for siteCandidate in self.siteCandidates.values():
+                    # skip if the first file is unavalble at the site
+                    if not siteCandidate.isAvailableFile(tmpFileSpec):
+                        ngSites.append(siteCandidate.siteName)
         # get total weight
         totalWeight = 0
         weightList  = []
@@ -350,6 +360,7 @@ class InputChunk:
         outSizeMap     = {}
         lumiBlockNr    = None
         newLumiBlockNr = False
+        siteAvailable  = True
         inputFileSet   = set()
         while (maxNumFiles == None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or \
                    (dynNumEvents and len(inputFileSet) <= maxNumFiles and inputNumFiles <= maxNumEventRanges)) \
@@ -377,6 +388,11 @@ class InputChunk:
                 # check LB
                 if respectLB and lumiBlockNr != None and lumiBlockNr != tmpFileSpec.lumiBlockNr:
                     newLumiBlockNr = True
+                    break
+                # check for distributed datasets
+                if self.masterDataset.isDistributed() and siteName != None and \
+                        not siteCandidate.isAvailableFile(tmpFileSpec):
+                    siteAvailable = False
                     break
                 if not inputFileMap.has_key(self.masterDataset.datasetID):
                     inputFileMap[self.masterDataset.datasetID] = []
@@ -472,6 +488,10 @@ class InputChunk:
                         if splitWithBoundaryID and boundaryID != None and \
                                 not (boundaryID == tmpFileSpec.boundaryID or tmpFileSpec.boundaryID in boundaryIDs):
                             break
+                        # check for distributed datasets
+                        if datasetSpec.isDistributed() and siteName != None and \
+                                not siteCandidate.isAvailableFile(tmpFileSpec):
+                            break
                         if not inputFileMap.has_key(datasetSpec.datasetID):
                             inputFileMap[datasetSpec.datasetID] = []
                         inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
@@ -506,6 +526,9 @@ class InputChunk:
                 break
             # event jump
             if eventJump:
+                break
+            # distributed files are unavailable
+            if not siteAvailable:
                 break
             primaryHasEvents = False
             # check master in the next loop
@@ -543,6 +566,13 @@ class InputChunk:
                     break
                 # check LB
                 if respectLB and lumiBlockNr != None and lumiBlockNr != tmpFileSpec.lumiBlockNr:
+                    # no files in the next loop
+                    if newInputNumFiles == 0:
+                        terminateFlag = True
+                    break
+                # check for distributed datasets
+                if self.masterDataset.isDistributed() and siteName != None and \
+                        not siteCandidate.isAvailableFile(tmpFileSpec):
                     # no files in the next loop
                     if newInputNumFiles == 0:
                         terminateFlag = True

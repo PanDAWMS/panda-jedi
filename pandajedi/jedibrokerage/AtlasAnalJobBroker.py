@@ -337,7 +337,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
             if nPilot == 0 and not taskSpec.prodSourceLabel in ['test']:
                 tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
-                continue
+                if not self.testMode:
+                    continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList        
         tmpLog.debug('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
@@ -424,6 +425,19 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         tmpLog.debug(' {0} sites'.format(len(tmpRet)))
                     else:
                         tmpLog.debug(' {0} sites : {1}'.format(len(tmpRet),str(tmpRet)))
+                        # check if distributed
+                        if tmpRet != {}:
+                            isDistributed = True
+                            for tmpMap in tmpRet.values():
+                                for tmpVal in tmpMap.values():
+                                    if tmpVal['state'] == 'complete':
+                                        isDistributed = False
+                                        break
+                                if not isDistributed:
+                                    break
+                            if isDistributed:
+                                datasetSpec.setDistributed()
+                                tmpLog.debug(' {0} is distributed'.format(datasetName))
                 # check if the data is available at somewhere
                 if self.dataSiteMap[datasetName] == {}:
                     tmpLog.error('{0} is unavaiable at any site'.format(datasetName))
@@ -680,13 +694,15 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if availableFiles.has_key(tmpSiteName):
                     if len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localdisk']) or \
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['cache']) or \
-                            len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localtape']):
+                            len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localtape']) or \
+                            (tmpDatasetSpec.isDistributed() and len(availableFiles[tmpSiteName]['all']) > 0):
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
                         # add cached files to local list since cached files go to pending when reassigned
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['cache']
                         siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
                         siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
                         siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
+                        siteCandidateSpec.addAvailableFiles(availableFiles[tmpSiteName]['all'])
                         isAvailable = True
                     else:
                         tmpMsg = '{0} is incompete at {1} : nFiles={2} nLocal={3} nCached={4} nTape={5}'

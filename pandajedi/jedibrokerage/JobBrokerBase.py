@@ -10,6 +10,7 @@ class JobBrokerBase (object):
         self.lockID = None
         self.baseLockID = None
         self.useLock = False
+        self.testMode = False
         self.refresh()
 
 
@@ -59,6 +60,11 @@ class JobBrokerBase (object):
 
     def checkSiteLock(self,vo,prodSourceLabel,siteName,queue_id):
         return self.taskBufferIF.checkProcessLock_JEDI(vo,prodSourceLabel,siteName,queue_id,self.baseLockID,True)
+
+
+
+    def setTestMode(self):
+        self.testMode = True
 
 
 

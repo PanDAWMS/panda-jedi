@@ -101,9 +101,10 @@ class JobSplitter:
         subChunks  = []
         iSubChunks = 0
         nSubChunks = 25
+        subChunk   = None
         while True:
             # change site
-            if iSubChunks % nSubChunks == 0:
+            if iSubChunks % nSubChunks == 0 or subChunk == []:
                 # append to return map
                 if subChunks != []:
                     # get site names for parallel execution
@@ -114,6 +115,7 @@ class JobSplitter:
                                        'subChunks':subChunks,
                                        'siteCandidate':siteCandidate,
                                        })
+                    tmpLog.debug('split to %s subchunks' % len(subChunks))
                     # reset
                     subChunks = []
                 # new candidate
@@ -158,8 +160,9 @@ class JobSplitter:
                                               tmpLog=tmpLog)
             if subChunk == None:
                 break
-            # append
-            subChunks.append(subChunk)
+            if subChunk != []:
+                # append
+                subChunks.append(subChunk)
             iSubChunks += 1
         # append to return map if remain
         if subChunks != []:
@@ -171,8 +174,9 @@ class JobSplitter:
                                'subChunks':subChunks,
                                'siteCandidate':siteCandidate,
                                })
-        tmpLog.debug('split to %s subchunks' % iSubChunks)            
+            tmpLog.debug('split to %s subchunks' % len(subChunks))
         # return
+        tmpLog.debug('done')
         return self.SC_SUCCEEDED,returnList
 
 
