@@ -203,16 +203,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             # get destination for WORLD cloud
             if not hintForTB:
                 t1Sites = []
-                tmpStat,datasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,datasetTypes=['log','output'])
-                for datasetSpec in datasetSpecList:
-                    if self.siteMapper.checkSite(datasetSpec.destination) and \
-                            not datasetSpec.destination in t1Sites:
-                        t1Sites.append(datasetSpec.destination)
-                        tmpMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper,datasetSpec.destination,cloudName)
-                        for tmpList in tmpMap.values():
-                            for tmpHQ in tmpList:
-                                if not tmpHQ in t1Sites:
-                                    t1Sites.append(tmpHQ)
+                t1Sites = self.siteMapper.getNucleus(taskSpec.nucleus).allPandaSites
             else:
                 # use all sites in nuclei for WORLD task brokerage
                 t1Sites = []
