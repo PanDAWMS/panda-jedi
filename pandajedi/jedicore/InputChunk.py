@@ -129,11 +129,12 @@ class InputChunk:
         for tmpDatasetSpec in self.getDatasets():
             if tmpDatasetSpec.isDistributed():
                 datasetUsage = self.datasetMap[tmpDatasetSpec.datasetID]
-                tmpFileSpec = tmpDatasetSpec.Files[datasetUsage['used']]
-                for siteCandidate in self.siteCandidates.values():
-                    # skip if the first file is unavalble at the site
-                    if not siteCandidate.isAvailableFile(tmpFileSpec):
-                        ngSites.append(siteCandidate.siteName)
+                if len(tmpDatasetSpec.Files) > datasetUsage['used']:
+                    tmpFileSpec = tmpDatasetSpec.Files[datasetUsage['used']]
+                    for siteCandidate in self.siteCandidates.values():
+                        # skip if the first file is unavalble at the site
+                        if not siteCandidate.isAvailableFile(tmpFileSpec):
+                            ngSites.append(siteCandidate.siteName)
         # get total weight
         totalWeight = 0
         weightList  = []

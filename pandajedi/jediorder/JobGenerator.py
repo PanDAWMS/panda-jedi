@@ -211,8 +211,9 @@ class JobGenerator (JediKnight):
                                 self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
             except:
                 errtype,errvalue = sys.exc_info()[:2]
-                tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
-                                                                         errtype.__name__,errvalue))
+                tmpLog.error('failed in {0}.start() with {1}:{2} {3}'.format(self.__class__.__name__,
+                                                                             errtype.__name__,errvalue,
+                                                                             traceback.format_exc()))
             # unlock just in case
             try:
                 for vo in self.vos:
