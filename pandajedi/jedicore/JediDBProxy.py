@@ -3995,6 +3995,70 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error("failed to insert jediTaskID={0} with {1} {2}".format(jediTaskID,errtype,errvalue))
                             isOK = False
+                            try:
+                                tmpLog.debug('trying to delete jediTaskID={0}'.format(jediTaskID))
+                                # check status
+                                sqlDelCK  = "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                                sqlDelCK += "WHERE jediTaskID=:jediTaskID "
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                self.cur.execute(sqlDelCK+comment,varMap)
+                                resDelCK = self.cur.fetchone()
+                                if resDelCK != None:
+                                    delStatus, = resDelCK
+                                else:
+                                    delStatus = None
+                                # get size of DEFT param
+                                sqlDelDZ  = "SELECT LENGTH(jedi_task_parameters) FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                                sqlDelDZ += "WHERE taskid=:jediTaskID "
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                self.cur.execute(sqlDelDZ+comment,varMap)
+                                resDelDZ = self.cur.fetchone()
+                                if resDelDZ != None:
+                                    delDeftSize, = resDelDZ
+                                else:
+                                    delDeftSize = None
+                                # get size of JEDI param
+                                sqlDelJZ  = "SELECT LENGTH(taskParams) FROM {0}.JEDI_TaskParams ".format(jedi_config.db.schemaJEDI)
+                                sqlDelJZ += "WHERE jediTaskID=:jediTaskID "
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                self.cur.execute(sqlDelJZ+comment,varMap)
+                                resDelJZ = self.cur.fetchone()
+                                if resDelJZ != None:
+                                    delJediSize, = resDelJZ
+                                else:
+                                    delJediSize = None
+                                tmpLog.debug('jediTaskID={0} has status={1} param size in DEFT {2} vs in JEDI {3}'.format(jediTaskID,
+                                                                                                                          delStatus,
+                                                                                                                          delDeftSize,
+                                                                                                                          delJediSize))
+                                # delete
+                                if False:#delStatus == 'registered' and delDeftSize != delJediSize and delJediSize == 2000:
+                                    sqlDelJP  = "DELETE FROM {0}.JEDI_TaskParams ".format(jedi_config.db.schemaJEDI)
+                                    sqlDelJP += "WHERE jediTaskID=:jediTaskID "
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    self.cur.execute(sqlDelJP+comment,varMap)
+                                    nRowP = self.cur.rowcount
+                                    tmpLog.debug('deleted param for jediTaskID={0} with {1}'.format(jediTaskID,nRowP))
+                                    sqlDelJT  = "DELETE FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                                    sqlDelJT += "WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    self.cur.execute(sqlDelJT+comment,varMap)
+                                    nRowT = self.cur.rowcount
+                                    tmpLog.debug('deleted task for jediTaskID={0} with {1}'.format(jediTaskID,nRowT))
+                                    if nRowP == 1 and nRowT == 1:
+                                        # commit 
+                                        if not self._commit():
+                                            raise RuntimeError, 'Commit error'
+                                        # continue to skip subsequent rollback
+                                        continue
+                            except:
+                                errtype,errvalue = sys.exc_info()[:2]
+                                tmpLog.error("failed to delete jediTaskID={0} with {1} {2}".format(jediTaskID,errtype,errvalue))
                     if isOK:
                         # check task parameters
                         varMap = {}

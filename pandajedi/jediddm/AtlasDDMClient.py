@@ -1106,9 +1106,11 @@ class AtlasDDMClient(DDMClientBase):
             dids = []
             did = {'scope': scope, 'name': dsn}
             dids.append(did)
-            client.add_replication_rule(dids=dids,copies=1,rse_expression=location,lifetime=lifetime,
-                                        grouping=grouping,account=owner,locked=False,notify='N',
-                                        ignore_availability=True,activity=activity)
+            locList = location.split(',')
+            for tmpLoc in locList:
+                client.add_replication_rule(dids=dids,copies=1,rse_expression=tmpLoc,lifetime=lifetime,
+                                            grouping=grouping,account=owner,locked=False,notify='N',
+                                            ignore_availability=True,activity=activity)
         except DuplicateRule:
             pass
         except:

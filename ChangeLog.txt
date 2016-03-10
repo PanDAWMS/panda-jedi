@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/10/2016
+  * changed AtlasDDM to support registration of multiple locations
+
 * 3/8/2016
   * fixed InputChunk for distributed datasets
 
