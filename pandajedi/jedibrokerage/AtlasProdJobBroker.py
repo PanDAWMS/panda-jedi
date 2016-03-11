@@ -637,20 +637,38 @@ class AtlasProdJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # selection for walltime
+        if taskSpec.useEventService() and not taskSpec.getNumEventServiceConsumer() in [1,None]:
+            nEsConsumers = taskSpec.getNumEventServiceConsumer()
+        else:
+            nEsConsumers = 1
         if not taskSpec.useHS06():
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(effectiveSize=True)
             if taskSpec.walltime != None:
                 minWalltime = taskSpec.walltime * tmpMaxAtomSize
             else:
                 minWalltime = None
-            strMinWalltime = 'walltime*inputSize={0}*{1}'.format(taskSpec.walltime,tmpMaxAtomSize)
+            # take # of consumers into account
+            if not taskSpec.useEventService():
+                strMinWalltime = 'walltime*inputSize={0}*{1}'.format(taskSpec.walltime,tmpMaxAtomSize)
+            else:
+                strMinWalltime = 'walltime*inputSize/nEsConsumers={0}*{1}/{2}'.format(taskSpec.walltime,
+                                                                                      tmpMaxAtomSize,
+                                                                                      nEsConsumers)
         else:
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
             if taskSpec.cpuTime != None:
                 minWalltime = taskSpec.cpuTime * tmpMaxAtomSize
             else:
                 minWalltime = None
-            strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.cpuTime,tmpMaxAtomSize)
+            # take # of consumers into account
+            if not taskSpec.useEventService():
+                strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.cpuTime,tmpMaxAtomSize)
+            else:
+                strMinWalltime = 'cpuTime*nEventsPerJob/nEsConsumers={0}*{1}/{2}'.format(taskSpec.cpuTime,
+                                                                                         tmpMaxAtomSize,
+                                                                                         nEsConsumers)
+        if minWalltime != None:
+            minWalltime /= nEsConsumers
         if minWalltime != None or inputChunk.useScout():
             newScanSiteList = []
             for tmpSiteName in scanSiteList:

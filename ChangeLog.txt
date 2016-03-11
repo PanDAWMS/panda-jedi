@@ -1,5 +1,9 @@
 Release Notes
 
+* 3/11/2016
+  * changed AtlasPJB to take EC into account when walltime estimation
+  * changed getTasksToRefine to delete leftover
+
 * 3/10/2016
   * changed AtlasDDM to support registration of multiple locations
 

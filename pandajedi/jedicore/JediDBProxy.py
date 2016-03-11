@@ -3996,6 +3996,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpLog.error("failed to insert jediTaskID={0} with {1} {2}".format(jediTaskID,errtype,errvalue))
                             isOK = False
                             try:
+                                # delete task and param until DEFT bug is fixed
                                 tmpLog.debug('trying to delete jediTaskID={0}'.format(jediTaskID))
                                 # check status
                                 sqlDelCK  = "SELECT status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
@@ -4035,7 +4036,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                                           delDeftSize,
                                                                                                                           delJediSize))
                                 # delete
-                                if False:#delStatus == 'registered' and delDeftSize != delJediSize and delJediSize == 2000:
+                                if delStatus == 'registered' and delDeftSize != delJediSize and delJediSize == 2000:
                                     sqlDelJP  = "DELETE FROM {0}.JEDI_TaskParams ".format(jedi_config.db.schemaJEDI)
                                     sqlDelJP += "WHERE jediTaskID=:jediTaskID "
                                     varMap = {}
