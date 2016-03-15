@@ -1019,7 +1019,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # number of files to move
                 nFilesToMove = maxNumFiles-len(siteFilesMap[tmpSiteName])
                 # consider size and # of files 
-                weight = weight * (totalSize+siteSizeMap[tmpSiteName]) / totalSize * (nFilesToMove/100+1)
+                weight = weight * (totalSize+siteSizeMap[tmpSiteName]) / totalSize / (nFilesToMove/100+1)
                 weightStr += 'fileSizeToMove={0}MB nFilesToMove={1} '.format(mbToMove,nFilesToMove)
             # T1 weight
             if tmpSiteName in t1Sites+sitesShareSeT1:
