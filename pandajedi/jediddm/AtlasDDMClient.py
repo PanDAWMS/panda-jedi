@@ -64,7 +64,8 @@ class AtlasDDMClient(DDMClientBase):
         self.lastUpdateEP = None
         # how frequently update endpoint dict
         self.timeIntervalEP = datetime.timedelta(seconds=60*10)
-
+        # NG endpoint types
+        self.ngEndPointTypes = ['TEST','SPECIAL']
 
 
 
@@ -253,7 +254,7 @@ class AtlasDDMClient(DDMClientBase):
         self.updateEndPointDict()
         epList = []
         for seName,seVal in self.endPointDict.iteritems():
-            if seVal['site'] == altName:
+            if seVal['site'] == altName and not seVal['type'] in self.ngEndPointTypes:
                 epList.append(seName)
         return epList
 
@@ -266,7 +267,7 @@ class AtlasDDMClient(DDMClientBase):
             altName = self.getSiteAlternateName(baseSeName)[0]
             if altName != None:
                 for seName,seVal in self.endPointDict.iteritems():
-                    if seVal['site'] == altName and not seVal['type'] in ['TEST','SPECIAL']:
+                    if seVal['site'] == altName and not seVal['type'] in self.ngEndPointTypes:
                         # space token
                         if seVal['token'] == token:
                             return seName
@@ -428,7 +429,7 @@ class AtlasDDMClient(DDMClientBase):
                         tmpLog.error('faild to extract SE from %s for %s:%s' % \
                                      (seStr,siteName,tmpEndPoint))
                     # get SE + path
-                    tmpMatch = re.search('(srm://.+)$',seStr)
+                    tmpMatch = re.search('([^/]+://.+)$',seStr)
                     if tmpMatch == None:
                         tmpLog.error('faild to extract SE+PATH from %s for %s:%s' % \
                                      (seStr,siteName,tmpEndPoint))
@@ -1518,13 +1519,9 @@ class AtlasDDMClient(DDMClientBase):
         try:
             tmpLog.debug('start')
             jsonStr = ''
-            res = urllib2.urlopen('http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&state=ACTIVE')
+            res = urllib2.urlopen('http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&state=ACTIVE&preset=dict')
             jsonStr = res.read()
-            tmpList= json.loads(jsonStr)
-            endPointDict = {}
-            for tmpItem in tmpList:
-                endPointDict[tmpItem['name']] = tmpItem
-            self.endPointDict = endPointDict
+            self.endPointDict = json.loads(jsonStr)
             tmpLog.debug('got {0} endpoints '.format(len(self.endPointDict)))
         except:
             errtype,errvalue = sys.exc_info()[:2]
@@ -1533,3 +1530,39 @@ class AtlasDDMClient(DDMClientBase):
                                                                            jsonStr)
             tmpLog.error(errStr)
         return
+
+
+
+    # check if the dataset is distributed
+    def isDistributedDataset(self,datasetName):
+        methodName  = 'isDistributedDataset'
+        methodName += ' <datasetName={0}>'.format(datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        isDDS = None
+        isOK = True
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
+            # get rules
+            for rule in client.list_did_rules(scope,dsn):
+                if rule['grouping'] != 'NONE':
+                    isDDS = False
+                    break
+                elif isDDS == None:
+                    isDDS = True
+            # use False when there is no rule
+            if isDDS == None:
+                isDDS = False
+        except:
+            isOK = False
+        if not isOK:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
+        tmpLog.debug('done with {0}'.format(isDDS))
+        return self.SC_SUCCEEDED,isDDS

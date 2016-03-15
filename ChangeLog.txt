@@ -1,5 +1,10 @@
 Release Notes
 
+* 3/15/2016
+  * added isDistributedDataset
+  * changed AtlasPJB to take into account the number of files to move
+  * using dict instead of list in AGIS json
+
 * 3/11/2016
   * changed AtlasPJB to take EC into account when walltime estimation
   * changed getTasksToRefine to delete leftover

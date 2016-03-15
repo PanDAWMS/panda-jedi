@@ -436,8 +436,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                 if not isDistributed:
                                     break
                             if isDistributed:
-                                datasetSpec.setDistributed()
-                                tmpLog.debug(' {0} is distributed'.format(datasetName))
+                                # check if really distributed
+                                isDistributed = self.ddmIF.isDistributedDataset(datasetName)
+                                if isDistributed:
+                                    datasetSpec.setDistributed()
+                                    tmpLog.debug(' {0} is distributed'.format(datasetName))
                 # check if the data is available at somewhere
                 if self.dataSiteMap[datasetName] == {}:
                     tmpLog.error('{0} is unavaiable at any site'.format(datasetName))

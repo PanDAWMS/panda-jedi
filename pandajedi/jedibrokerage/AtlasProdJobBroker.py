@@ -884,8 +884,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             return self.SC_SUCCEEDED,scanSiteList
         ######################################
         # get available files
-        normalizeFactors = {}        
+        siteSizeMap = {}        
         availableFileMap = {}
+        siteFilesMap = {}
         for datasetSpec in inputChunk.getDatasets():
             try:
                 # mapping between sites and storage endpoints
@@ -917,21 +918,30 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
             # loop over all sites to get the size of available files
             for tmpSiteName in scanSiteList:
-                if not normalizeFactors.has_key(tmpSiteName):
-                    normalizeFactors[tmpSiteName] = 0
+                if not siteSizeMap.has_key(tmpSiteName):
+                    siteSizeMap[tmpSiteName] = 0
+                if not tmpSiteName in siteFilesMap:
+                    siteFilesMap[tmpSiteName] = set()
                 # get the total size of available files
                 if availableFileMap[datasetSpec.datasetName].has_key(tmpSiteName):
                     availableFiles = availableFileMap[datasetSpec.datasetName][tmpSiteName]
                     for tmpFileSpec in \
                             availableFiles['localdisk']+availableFiles['localtape']+availableFiles['cache']:
-                        normalizeFactors[tmpSiteName] += tmpFileSpec.fsize
+                        if not tmpFileSpec.fileID in siteFilesMap[tmpSiteName]:
+                            siteSizeMap[tmpSiteName] += tmpFileSpec.fsize
+                        siteFilesMap[tmpSiteName].add(tmpFileSpec.fileID)
         # get max total size
-        tmpTotalSizes = normalizeFactors.values()
+        tmpTotalSizes = siteSizeMap.values()
         tmpTotalSizes.sort()
         if tmpTotalSizes != []:
             totalSize = tmpTotalSizes.pop()
         else:
             totalSize = 0
+        # get max num of available files
+        maxNumFiles = 0
+        for tmpSiteName,tmpSet in siteFilesMap.iteritems():
+            if maxNumFiles < len(tmpSet):
+                maxNumFiles = len(tmpSet)
         ######################################
         # calculate weight
         tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
@@ -998,14 +1008,19 @@ class AtlasProdJobBroker (JobBrokerBase):
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
             weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 1) / manyAssigned
-            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} totalSize={5} manyAss={6} nPilot={7} '.format(nRunning,nActivated,nAssigned,
-                                                                                                                      nStarting,nDefined,
-                                                                                                                      totalSize,manyAssigned,
-                                                                                                                      nPilot)
-            # normalize weights by taking data availability into account
-            if totalSize != 0:
-                weight = weight * float(normalizeFactors[tmpSiteName]+totalSize) / float(totalSize)
-                weightStr += 'availableSize={0} '.format(normalizeFactors[tmpSiteName])
+            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7} totalSize={5}MB '.format(nRunning,nActivated,nAssigned,
+                                                                                                                        nStarting,nDefined,
+                                                                                                                        long(totalSize/1024/1024),
+                                                                                                                        manyAssigned,nPilot)
+            # reduce weights by taking data availability into account
+            if totalSize > 0:
+                # file size to move in MB
+                mbToMove = long((totalSize-siteSizeMap[tmpSiteName])/(1024*1024))
+                # number of files to move
+                nFilesToMove = maxNumFiles-len(siteFilesMap[tmpSiteName])
+                # consider size and # of files 
+                weight = weight * (totalSize+siteSizeMap[tmpSiteName]) / totalSize * (nFilesToMove/100+1)
+                weightStr += 'fileSizeToMove={0}MB nFilesToMove={1} '.format(mbToMove,nFilesToMove)
             # T1 weight
             if tmpSiteName in t1Sites+sitesShareSeT1:
                 weight *= t1Weight
@@ -1102,20 +1117,22 @@ class AtlasProdJobBroker (JobBrokerBase):
             if lockedByBrokerage:
                 ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpSiteName)
                 ngMsg += 'criteria=-lock'
-            elif (not tmpSiteName in normalizeFactors or normalizeFactors[tmpSiteName] >= totalSize) and \
+            elif (not tmpSiteName in siteSizeMap or siteSizeMap[tmpSiteName] >= totalSize) and \
                     (nActivated+nStarting) > nRunningCap:
-                ngMsg = '  skip site={0} due to nActivated+nStarting={1} '.format(tmpSiteName,
-                                                                                  nActivated+nStarting)
+                ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpSiteName,
+                                                                                             weight,
+                                                                                             nActivated+nStarting)
                 ngMsg += 'greater than max({0},{1}*nRunning={1}*{2},nPilot={3}) '.format(cutOffValue,
                                                                                          cutOffFactor,                                  
                                                                                          nRunning,                                      
                                                                                          nPilot)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
-            elif tmpSiteName in normalizeFactors and normalizeFactors[tmpSiteName] < totalSize and \
+            elif tmpSiteName in siteSizeMap and siteSizeMap[tmpSiteName] < totalSize and \
                     (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
-                ngMsg = '  skip site={0} due to nDefined+nActivated+nAssigned+nStarting={1} '.format(tmpSiteName,
-                                                                                                     nDefined+nActivated+nAssigned+nStarting)
+                ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} '.format(tmpSiteName,
+                                                                                                                weight,
+                                                                                                                nDefined+nActivated+nAssigned+nStarting)
                 ngMsg += 'greater than max({0},{1}*nRunning={1}*{2},nPilot={3}) '.format(cutOffValue,
                                                                                          cutOffFactor,                                  
                                                                                          nRunning,                                      
