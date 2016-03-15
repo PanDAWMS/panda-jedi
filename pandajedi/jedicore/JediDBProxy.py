@@ -1475,7 +1475,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to check status
-            sqlS  = "SELECT status,lockedBy,cloud,prodSourceLabel,frozenTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlS  = "SELECT status,lockedBy,cloud,prodSourceLabel,frozenTime,nucleus FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlS += "WHERE jediTaskID=:jediTaskID FOR UPDATE "
             # sql to get number of unassigned datasets
             sqlD  = "SELECT COUNT(*) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
@@ -1505,7 +1505,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if res == None:
                 tmpLog.debug('task is not found in Tasks table')
             else:
-                taskStatus,lockedBy,cloudName,prodSourceLabel,frozenTime = res
+                taskStatus,lockedBy,cloudName,prodSourceLabel,frozenTime,nucleus = res
                 if lockedBy != pid:
                     # task is locked
                     tmpLog.debug('task is locked by {0}'.format(lockedBy))
@@ -1546,7 +1546,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':frozenTime'] = frozenTime
                         else:
                             varMap[':frozenTime'] = None
-                    elif (cloudName == None or (useWorldCloud and nUnassignedDSs > 0)) \
+                    elif (cloudName == None or (useWorldCloud and (nUnassignedDSs > 0 or nucleus in ['',None]))) \
                             and prodSourceLabel in ['managed','test']:
                         # set assigning for TaskBrokerage
                         varMap[':status'] = 'assigning'
@@ -5399,11 +5399,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlSCF += "AND prodSourceLabel=:prodSourceLabel "
             sqlSCF += "AND (cloud IS NULL OR "
-            sqlSCF += "(cloud=:worldCloud AND EXISTS "
+            sqlSCF += "(cloud=:worldCloud AND (nucleus IS NULL OR EXISTS "
             sqlSCF += "(SELECT 1 FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlSCF += "WHERE {0}.JEDI_Datasets.jediTaskID=tabT.jediTaskID ".format(jedi_config.db.schemaJEDI)
             sqlSCF += "AND type IN (:dsType1,:dsType2) AND destination IS NULL) "
-            sqlSCF += ")) "
+            sqlSCF += "))) "
             varMap[':dsType1'] = 'output'
             varMap[':dsType2'] = 'log'
             sqlSCF += "AND workQueue_ID IN (" 
@@ -5546,7 +5546,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':token']       = tmpItem['token']
                             varMap[':destination'] = tmpItem['destination']
                             self.cur.execute(sql+comment,varMap)
-                            nRow = self.cur.rowcount
                             tmpLog.debug('set token={0} for jediTaskID={1} datasetID={2} with {3}'.format(tmpItem['token'],
                                                                                                           jediTaskID,
                                                                                                           tmpItem['datasetID'],
@@ -5561,6 +5560,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':newStatus']  = 'ready'
                         varMap[':oldStatus']  = 'assigning'
                         self.cur.execute(sql+comment,varMap)
+                        nRow = self.cur.rowcount
+                        tmpLog.debug('set nucleus={0} for jediTaskID={1} with {2}'.format(tmpVal['nucleus'],jediTaskID,nRow))
                     # update DEFT
                     if nRow > 0:
                         deftStatus = 'ready'

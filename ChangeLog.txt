@@ -1,6 +1,8 @@
 Release Notes
 
 * 3/15/2016
+  * set cloudToTask for tasks with no outputs
+  * fixed updateByCF for tasks with no outputs
   * added isDistributedDataset
   * changed AtlasPJB to take into account the number of files to move
   * using dict instead of list in AGIS json
