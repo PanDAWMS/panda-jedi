@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/16/2016
+  * fixed AtlasTR to correctly set/unset transient to datasets
+
 * 3/15/2016
   * set cloudToTask for tasks with no outputs
   * fixed updateByCF for tasks with no outputs

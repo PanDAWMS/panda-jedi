@@ -47,11 +47,17 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                     outFileTemplate = tmpOutTemplateMap['filenameTemplate']
                     if re.search('\.\d+$',outFileTemplate) == None and not outFileTemplate.endswith('.panda.um'):
                         tmpOutTemplateMap['filenameTemplate'] = outFileTemplate + '.1'
+            # extract input datatype
+            datasetTypeListIn = []
+            for datasetSpec in self.inMasterDatasetSpec+self.inSecDatasetSpecList:
+                datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
+                if not datasetType in ['',None]:
+                    datasetTypeListIn.append(datasetType)
             # extract datatype and set destination if nessesary
             datasetTypeList = []
             for datasetSpec in self.outDatasetSpecList:
                 datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
-                if datasetType != '':
+                if not datasetType in ['',None]:
                     datasetTypeList.append(datasetType)
                 storageToken = DataServiceUtils.getDestinationSE(datasetSpec.storageToken)
                 if storageToken != None:
@@ -74,7 +80,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                     for datasetSpec in parentTaskSpec.datasetSpecList:
                         if datasetSpec.type in ['log','output']:
                             datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
-                            if datasetType != '' and datasetType in datasetTypeList:
+                            if not datasetType in ['',None] and datasetType in datasetTypeList and datasetType in datasetTypeListIn:
                                 tmpLog.info('set metadata={0} to parent jediTaskID={1}:datasetID={2}:Name={3}'.format(str(metaData),
                                                                                                                       self.taskSpec.parent_tid,
                                                                                                                       datasetSpec.datasetID,
