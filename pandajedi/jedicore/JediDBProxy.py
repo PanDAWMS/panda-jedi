@@ -5546,10 +5546,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':token']       = tmpItem['token']
                             varMap[':destination'] = tmpItem['destination']
                             self.cur.execute(sql+comment,varMap)
-                            tmpLog.debug('set token={0} for jediTaskID={1} datasetID={2} with {3}'.format(tmpItem['token'],
+                            tmpLog.debug('set token={0} for jediTaskID={1} datasetID={2}'.format(tmpItem['token'],
                                                                                                           jediTaskID,
-                                                                                                          tmpItem['datasetID'],
-                                                                                                          nRow))
+                                                                                                          tmpItem['datasetID']))
                         # sql to set ready
                         sql  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
                         sql += "SET nucleus=:nucleus,status=:newStatus,oldStatus=NULL,stateChangeTime=CURRENT_DATE,modificationTime=CURRENT_DATE-1/24 "
