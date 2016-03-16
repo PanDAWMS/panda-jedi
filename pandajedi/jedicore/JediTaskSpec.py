@@ -747,7 +747,7 @@ class JediTaskSpec(object):
         # change status
         if self.status in ['ready','running','merging','scouting','defined',
                            'topreprocess','preprocessing','registered',
-                           'prepared']:
+                           'prepared','rerefine']:
             self.oldStatus = self.status
             self.status = 'pending'
 

@@ -1,6 +1,7 @@
 Release Notes
 
 * 3/16/2016
+  * added rerefine to setOnHold
   * added putLogToOS
   * fixed AtlasTR to correctly set/unset transient to datasets
 
