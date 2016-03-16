@@ -927,6 +927,9 @@ class JobGeneratorThread (WorkerThread):
                         jobSpec.setAltStgOut('off')
                     elif taskSpec.getAltStageOut() != None:
                         jobSpec.setAltStgOut(taskSpec.getAltStageOut())
+                    # log to OS
+                    if taskSpec.putLogToOS():
+                        jobSpec.setToPutLogToOS()
                     # set lumi block number
                     if lumiBlockNr != None:
                         jobSpec.setLumiBlockNr(lumiBlockNr)

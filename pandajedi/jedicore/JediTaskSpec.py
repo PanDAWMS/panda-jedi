@@ -65,6 +65,7 @@ class JediTaskSpec(object):
         'nSitesPerJob'       : 'NS',
         'noWaitParent'       : 'NW',
         'pfnList'            : 'PL',
+        'putLogToOS'         : 'PO',
         'runUntilClosed'     : 'RC',
         'registerDatasets'   : 'RD',
         'respectLB'          : 'RL',
@@ -1231,3 +1232,14 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return self.enum_inputLAN[tmpMatch.group(1)]
         return None
+
+
+
+    # put log files to OS
+    def putLogToOS(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['putLogToOS']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
