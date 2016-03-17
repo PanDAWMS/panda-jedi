@@ -171,7 +171,7 @@ class MethodClass(object):
                 stepIdx = 2
                 timeoutPeriodACK = 30
                 if not pipe.poll(timeoutPeriodACK):
-                    raise JEDITimeoutError,"didn't get ACK for %ssec" % timeoutPeriodACK
+                    raise JEDITimeoutError,"did not get ACK for %ssec" % timeoutPeriodACK
                 ack = pipe.recv()
                 # send command
                 stepIdx = 3
@@ -180,7 +180,7 @@ class MethodClass(object):
                 stepIdx = 4
                 timeoutPeriod = 600
                 if not pipe.poll(timeoutPeriod):
-                    raise JEDITimeoutError,"didn't get response for %ssec" % timeoutPeriod
+                    raise JEDITimeoutError,"didn not get response for %ssec" % timeoutPeriod
                 # get response
                 stepIdx = 5
                 ret = pipe.recv()

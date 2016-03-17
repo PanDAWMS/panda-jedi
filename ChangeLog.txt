@@ -1,6 +1,7 @@
 Release Notes
 
 * 3/17/2016
+  * removed quote from error message for upstream
   * changed fatal errors in JG to temporary
   * added skipUnavailableFiles to InputChunk
 

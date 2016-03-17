@@ -564,7 +564,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             return retTmpError
         # check for preassigned
         if sitePreAssigned and not taskSpec.site in scanSiteList:
-            tmpLog.debug("preassigned site {0} didn't pass all tests".format(taskSpec.site))
+            tmpLog.debug("preassigned site {0} did not pass all tests".format(taskSpec.site))
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             # send info to logger
