@@ -432,7 +432,7 @@ class JobGeneratorThread (WorkerThread):
                             if not tmpStat:
                                 tmpErrStr = 'failed to initialize JobBroker'
                                 tmpLog.error(tmpErrStr)
-                                taskSpec.status = 'tobroken'
+                                taskSpec.setOnHold()
                                 taskSpec.setErrDiag(tmpErrStr)                        
                                 goForward = False
                             # set live counter
@@ -445,7 +445,7 @@ class JobGeneratorThread (WorkerThread):
                             if not tmpStat:
                                 tmpErrStr = 'failed to read task params'
                                 tmpLog.error(tmpErrStr)
-                                taskSpec.status = 'tobroken'
+                                taskSpec.setOnHold()
                                 taskSpec.setErrDiag(tmpErrStr)                        
                                 goForward = False
                         # run brokerage
@@ -527,7 +527,7 @@ class JobGeneratorThread (WorkerThread):
                             if tmpStat != Interaction.SC_SUCCEEDED:
                                 tmpErrStr = 'job generation failed'
                                 tmpLog.error(tmpErrStr)
-                                taskSpec.status = 'tobroken'
+                                taskSpec.setOnHold()
                                 taskSpec.setErrDiag(tmpErrStr)
                                 goForward = False
                         # lock task

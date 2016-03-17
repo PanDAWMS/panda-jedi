@@ -692,3 +692,28 @@ class InputChunk:
 
         return False
 
+
+
+
+    # skip unavailable files in distributed datasets
+    def skipUnavailableFiles(self):
+        # skip files if no candiate have them
+        nSkip = 0
+        for tmpDatasetSpec in self.getDatasets():
+            if tmpDatasetSpec.isDistributed():
+                datasetUsage = self.datasetMap[tmpDatasetSpec.datasetID]
+                while len(tmpDatasetSpec.Files) > datasetUsage['used']:
+                    tmpFileSpec = tmpDatasetSpec.Files[datasetUsage['used']]
+                    isOK = False
+                    for siteCandidate in self.siteCandidates.values():
+                        if siteCandidate.isAvailableFile(tmpFileSpec):
+                            isOK = True
+                            break
+                    if isOK:
+                        break
+                    # skip and check the next
+                    datasetUsage['used'] += 1
+                    nSkip += 1
+        return nSkip
+
+

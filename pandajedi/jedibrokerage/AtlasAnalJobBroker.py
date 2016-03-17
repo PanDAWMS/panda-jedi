@@ -396,6 +396,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # selection for data availability
+        hasDDS = False
         dataWeight = {}
         remoteSourceList = {}
         if inputChunk.getDatasets() != []:    
@@ -439,6 +440,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                 # check if really distributed
                                 isDistributed = self.ddmIF.isDistributedDataset(datasetName)
                                 if isDistributed:
+                                    hasDDS = True
                                     datasetSpec.setDistributed()
                                     tmpLog.debug(' {0} is distributed'.format(datasetName))
                 # check if the data is available at somewhere
@@ -614,7 +616,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     weightMap[weight] = []
                 weightMap[weight].append(siteCandidateSpec)    
         # limit the number of sites
-        maxNumSites = 5
+        if not hasDDS:
+            maxNumSites = 5
+        else:
+            # use all sites for distributed datasets
+            maxNumSites = len(scanSiteList)
         weightList = weightMap.keys()
         weightList.sort()
         weightList.reverse()

@@ -118,8 +118,13 @@ class JobSplitter:
                     tmpLog.debug('split to %s subchunks' % len(subChunks))
                     # reset
                     subChunks = []
+                # skip unavailable files in distributed datasets
+                nSkip = inputChunk.skipUnavailableFiles()
+                tmpLog.debug('skipped {0} files'.format(nSkip))
                 # new candidate
                 siteCandidate = inputChunk.getOneSiteCandidate(nSubChunks)
+                if siteCandidate == None:
+                    break
                 siteName = siteCandidate.siteName
                 siteSpec = siteMapper.getSite(siteName)
                 # get maxSize if it is set in taskSpec

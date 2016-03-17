@@ -1,5 +1,9 @@
 Release Notes
 
+* 3/17/2016
+  * changed fatal errors in JG to temporary
+  * added skipUnavailableFiles to InputChunk
+
 * 3/16/2016
   * added rerefine to setOnHold
   * added putLogToOS
