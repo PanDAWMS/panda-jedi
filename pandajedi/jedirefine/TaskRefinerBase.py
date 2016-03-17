@@ -168,6 +168,12 @@ class TaskRefinerBase (object):
             taskSpec.eventService = 1
         else:
             taskSpec.eventService = 0
+        # ttc: time to completion
+        if taskParamMap.has_key('ttcTimestamp'):
+            taskSpec.ttcTimestamp = taskParamMap['ttcTimestamp']
+        # rtc: remaining to completion
+        if taskParamMap.has_key('rtcTimestamp'):
+            taskSpec.rtcTimestamp = taskParamMap['rtcTimestamp']
         # goal
         if 'goal' in taskParamMap:
             try:
