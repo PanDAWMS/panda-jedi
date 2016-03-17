@@ -170,10 +170,11 @@ class TaskRefinerBase (object):
             taskSpec.eventService = 0
         # ttcr: requested time to completion
         if taskParamMap.has_key('ttcrTimestamp'):
-            taskSpec.ttcRequested = datetime.datetime.utcfromtimestamp(taskParamMap['ttcrTimestamp'])
-        # ttcj: time to completion predicted by jedi
-        if taskParamMap.has_key('ttcjTimestamp'):
-            taskSpec.ttcPredicted = datetime.datetime.utcfromtimestamp(taskParamMap['ttcjTimestamp'])
+            try:
+                # get rid of the +00:00 timezone string and parse the timestamp
+                taskSpec.ttcRequested = datetime.datetime.datetime.strptime(taskParamMap['ttcrTimestamp'].split('+')[0], '%Y-%m-%d %H:%M:%S.%f')
+            except (IndexError, ValueError):
+                pass
         # goal
         if 'goal' in taskParamMap:
             try:
