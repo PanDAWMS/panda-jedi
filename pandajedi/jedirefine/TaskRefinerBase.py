@@ -172,7 +172,7 @@ class TaskRefinerBase (object):
         if taskParamMap.has_key('ttcrTimestamp'):
             try:
                 # get rid of the +00:00 timezone string and parse the timestamp
-                taskSpec.ttcRequested = datetime.datetime.datetime.strptime(taskParamMap['ttcrTimestamp'].split('+')[0], '%Y-%m-%d %H:%M:%S.%f')
+                taskSpec.ttcRequested = datetime.datetime.strptime(taskParamMap['ttcrTimestamp'].split('+')[0], '%Y-%m-%d %H:%M:%S.%f')
             except (IndexError, ValueError):
                 pass
         # goal
