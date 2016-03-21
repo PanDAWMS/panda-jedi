@@ -168,6 +168,13 @@ class TaskRefinerBase (object):
             taskSpec.eventService = 1
         else:
             taskSpec.eventService = 0
+        # ttcr: requested time to completion
+        if taskParamMap.has_key('ttcrTimestamp'):
+            try:
+                # get rid of the +00:00 timezone string and parse the timestamp
+                taskSpec.ttcRequested = datetime.datetime.strptime(taskParamMap['ttcrTimestamp'].split('+')[0], '%Y-%m-%d %H:%M:%S.%f')
+            except (IndexError, ValueError):
+                pass
         # goal
         if 'goal' in taskParamMap:
             try:
