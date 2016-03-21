@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/21/2016
+  * changed JS to take job multiplicity into account
+
 * 3/17/2016
   * removed quote from error message for upstream
   * changed fatal errors in JG to temporary

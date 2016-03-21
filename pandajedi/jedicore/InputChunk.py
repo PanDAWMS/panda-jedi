@@ -297,6 +297,7 @@ class InputChunk:
                     corePower=None,
                     dynNumEvents=False,
                     maxNumEventRanges=None,
+                    multiplicity=None,
                     tmpLog=None):
         # check if there are unused files/events
         if not self.checkUnused():
@@ -428,9 +429,14 @@ class InputChunk:
                     if not corePower in [None,0]:
                         tmpExpWalltime /= corePower
                     tmpExpWalltime /= float(self.taskSpec.cpuEfficiency)/100.0
+                    if multiplicity != None:
+                        tmpExpWalltime /= float(multiplicity)
                     expWalltime += long(tmpExpWalltime)
                 else:
-                    expWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
+                    tmpExpWalltime = walltimeGradient * effectiveFsize / float(coreCount)
+                    if multiplicity != None:
+                        tmpExpWalltime /= float(multiplicity)
+                    expWalltime += long(tmpExpWalltime)
                 # the number of events
                 if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
                     primaryHasEvents = True
@@ -600,9 +606,14 @@ class InputChunk:
                     if not corePower in [None,0]:
                         tmpExpWalltime /= corePower
                     tmpExpWalltime /= float(self.taskSpec.cpuEfficiency)/100.0
+                    if multiplicity != None:
+                        tmpExpWalltime /= float(multiplicity)
                     newExpWalltime += long(tmpExpWalltime)
                 else:
-                    newExpWalltime += long(walltimeGradient * effectiveFsize / float(coreCount))
+                    tmpExpWalltime = walltimeGradient * effectiveFsize / float(coreCount)
+                    if multiplicity != None:
+                        tmpExpWalltime /= float(multiplicity)
+                    newExpWalltime += long(tmpExpWalltime)
                 # boundaryID
                 if splitWithBoundaryID:
                     newBoundaryIDs.add(tmpFileSpec.boundaryID)
