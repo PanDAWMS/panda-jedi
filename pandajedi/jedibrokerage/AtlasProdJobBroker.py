@@ -202,8 +202,15 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             # get destination for WORLD cloud
             if not hintForTB:
+                # get nucleus
+                nucleusSpec = self.siteMapper.getNucleus(taskSpec.nucleus)
+                if nucleusSpec == None:
+                    tmpLog.error('unknown nucleus {0}'.format(taskSpec.nucleus))
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    self.sendLogMessage(tmpLog)
+                    return retTmpError
                 t1Sites = []
-                t1Sites = self.siteMapper.getNucleus(taskSpec.nucleus).allPandaSites
+                t1Sites = nucleusSpec.allPandaSites
             else:
                 # use all sites in nuclei for WORLD task brokerage
                 t1Sites = []
@@ -624,7 +631,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                         continue
                 """        
                 # check if blacklisted
-                if tmpSiteSpec.ddm_endpoints.getEndPoint(tmpSiteSpec.ddm)['blacklisted'] == 'Y':
+                tmpEndPoint = tmpSiteSpec.ddm_endpoints.getEndPoint(tmpSiteSpec.ddm)
+                if tmpEndPoint != None and tmpEndPoint['blacklisted'] == 'Y':
                     tmpLog.debug('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm))
                     continue
             newScanSiteList.append(tmpSiteName)
@@ -637,7 +645,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # selection for walltime
-        if taskSpec.useEventService() and not taskSpec.getNumEventServiceConsumer() in [1,None]:
+        if taskSpec.useEventService() and not taskSpec.getNumEventServiceConsumer() in [1,None] \
+                and not taskSpec.useJobCloning():
             nEsConsumers = taskSpec.getNumEventServiceConsumer()
         else:
             nEsConsumers = 1
@@ -785,7 +794,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # event service
-                if taskSpec.useEventService():
+                if taskSpec.useEventService() and not taskSpec.useJobCloning():
                     if tmpSiteSpec.getJobSeed() == 'std':
                         tmpMsg = '  skip site={0} since EventService is not allowed '.format(tmpSiteName)
                         tmpMsg += 'criteria=-es'

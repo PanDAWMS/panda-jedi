@@ -163,6 +163,15 @@ class TaskRefinerBase (object):
         # nucleus
         if 'nucleus' in taskParamMap:
             taskSpec.nucleus = taskParamMap['nucleus']
+        # preset some parameters for job cloning
+        if 'useJobCloning' in taskParamMap:
+            # set implicit parameters
+            if not 'nEventsPerWorker' in taskParamMap:
+                taskParamMap['nEventsPerWorker'] = 1
+            if not 'nSitesPerJob' in taskParamMap:
+                taskParamMap['nSitesPerJob'] = 2
+            if not 'nEsConsumers' in taskParamMap:
+                taskParamMap['nEsConsumers'] = taskParamMap['nSitesPerJob']
         # event service
         if taskParamMap.has_key('nEventsPerWorker'):
             taskSpec.eventService = 1

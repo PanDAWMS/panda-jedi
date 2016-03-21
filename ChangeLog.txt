@@ -2,6 +2,7 @@ Release Notes
 
 * 3/21/2016
   * changed JS to take job multiplicity into account
+  * fixed JRB to set implicit parameters for job cloning
 
 * 3/17/2016
   * removed quote from error message for upstream

@@ -58,7 +58,10 @@ class JobSplitter:
             # max number of event ranges
             maxNumEventRanges = taskSpec.getMaxEventRangesPerJob()
             # multiplicity of jobs
-            multiplicity = taskSpec.getNumEventServiceConsumer()
+            if taskSpec.useJobCloning():
+                multiplicity = 1
+            else:
+                multiplicity = taskSpec.getNumEventServiceConsumer()
         else:
             # set parameters for merging
             maxNumFiles = taskSpec.getMaxNumFilesPerMergeJob()
