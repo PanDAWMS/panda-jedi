@@ -1141,8 +1141,9 @@ class JobGeneratorThread (WorkerThread):
                         self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
                 # increase event service consumers
                 if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
-                    tmpJobSpecList = self.increaseEventServiceConsumers(tmpJobSpecList,taskSpec.getNumEventServiceConsumer(),
-                                                                        taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap)
+                    tmpJobSpecList,oldPandaIDs = self.increaseEventServiceConsumers(tmpJobSpecList,taskSpec.getNumEventServiceConsumer(),
+                                                                                    taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap,
+                                                                                    oldPandaIDs)
                 # add to all list
                 jobSpecList += tmpJobSpecList
                 # sort
@@ -1687,14 +1688,16 @@ class JobGeneratorThread (WorkerThread):
 
 
     # increase event service consumers
-    def increaseEventServiceConsumers(self,pandaJobs,nConsumers,nSitesPerJob,parallelOutMap,outDsMap):
+    def increaseEventServiceConsumers(self,pandaJobs,nConsumers,nSitesPerJob,parallelOutMap,outDsMap,oldPandaIDs):
         newPandaJobs = []
-        for pandaJob in pandaJobs:
+        newOldPandaIDs = []
+        for pandaJob,oldPandaID in zip(pandaJobs,oldPandaIDs):
             for iConsumers in range (nConsumers):
                 newPandaJob = self.clonePandaJob(pandaJob,iConsumers,parallelOutMap,outDsMap)
                 newPandaJobs.append(newPandaJob)
+                newOldPandaIDs.append(oldPandaID)
         # return
-        return newPandaJobs
+        return newPandaJobs,newOldPandaIDs
                     
 
 

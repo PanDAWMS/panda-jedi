@@ -1,6 +1,7 @@
 Release Notes
 
 * 3/23/2016
+  * fixed JG to record retry history for multiple consumers
   * fixed JG for ddd:
 
 * 3/21/2016
