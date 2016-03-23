@@ -1703,22 +1703,34 @@ class JobGeneratorThread (WorkerThread):
         newPandaJob = copy.copy(pandaJob)
         sites = newPandaJob.computingSite.split(',')
         nSites = len(sites)
+        # set site for parallel jobs
+        if nSites > 1:
+            newPandaJob.computingSite = sites[index % nSites]
+        # clone files
         newPandaJob.Files = []
         for fileSpec in pandaJob.Files:
             if nSites == 1 or not fileSpec.type in ['log','output'] or \
                     (fileSpec.fileID in parallelOutMap and len(parallelOutMap[fileSpec.fileID]) == 1):
                 newFileSpec = copy.copy(fileSpec)
-                # append PandaID as suffix for log files of normal ES consumers
-                if newFileSpec.type == 'log':
-                    newFileSpec.lfn += '.$PANDAID'
             else:
                 newFileSpec = parallelOutMap[fileSpec.fileID][index % nSites]
                 datasetSpec = outDsMap[newFileSpec.datasetID]
                 newFileSpec = newFileSpec.convertToJobFileSpec(datasetSpec,useEventService=True)
+            # append PandaID as suffix for log files to avoid LFN duplication
+            if newFileSpec.type == 'log':
+                newFileSpec.lfn += '.$PANDAID'
+            if nSites > 1 and fileSpec.type in ['log','output']:
+                # distributed dataset
+                datasetSpec = outDsMap[newFileSpec.datasetID]
+                tmpDistributedDestination = DataServiceUtils.getDistributedDestination(datasetSpec.storageToken)
+                if tmpDistributedDestination != None:
+                    siteSpec = self.siteMapper.getSite(newPandaJob.computingSite)
+                    tmpDestination = siteSpec.ddm_endpoints.getAssoicatedEndpoint(tmpDistributedDestination)
+                    # change destination
+                    newFileSpec.destinationSE = newPandaJob.computingSite
+                    if tmpDestination != None:
+                        newFileSpec.destinationDBlockToken = 'ddd:{0}'.format(tmpDestination['ddm_endpoint_name'])
             newPandaJob.addFile(newFileSpec)
-        # set site for parallel jobs
-        if nSites > 1:
-            newPandaJob.computingSite = sites[index % nSites]
         return newPandaJob
 
 

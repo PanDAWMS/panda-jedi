@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/23/2016
+  * fixed JG for ddd:
+
 * 3/21/2016
   * changed JS to take job multiplicity into account
   * fixed JRB to set implicit parameters for job cloning
