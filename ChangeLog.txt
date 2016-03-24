@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/24/2016
+  * fixed retryTask for active exhausted tasks
+
 * 3/23/2016
   * fixed JG to record retry history for multiple consumers
   * fixed JG for ddd:

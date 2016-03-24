@@ -5163,7 +5163,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to update task status
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=:status,modificationTime=CURRENT_DATE,lockedBy=NULL,lockedTime=NULL,"
-            sqlTU += "errorDialog=:errorDialog,splitRule=:splitRule,stateChangeTime=CURRENT_DATE "
+            sqlTU += "errorDialog=:errorDialog,splitRule=:splitRule,stateChangeTime=CURRENT_DATE,oldStatus=:oldStatus "
             sqlTU += "WHERE jediTaskID=:jediTaskID "
             # sql to update split rule
             sqlUSL  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
@@ -5178,6 +5178,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # read task
                 toSkip = False
                 errorDialog = None
+                oldStatus = None
                 try:
                     # read task
                     varMap = {}
@@ -5251,6 +5252,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # went to exhausted since real cpuTime etc is too large
                                 newTaskStatus = 'exhausted'
                                 errorDialog = taskSpec.errorDialog
+                                oldStatus = taskStatus
                             else:
                                 newTaskStatus = 'scouted'
                             taskSpec.setPostScout()
@@ -5354,6 +5356,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
                         varMap[':status'] = newTaskStatus
+                        varMap[':oldStatus'] = oldStatus
                         varMap[':errorDialog'] = errorDialog
                         varMap[':splitRule'] = taskSpec.splitRule
                         self.cur.execute(sqlTU+comment,varMap)
@@ -5881,7 +5884,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':comm_task'] = jediTaskID
                 sqlLock  = "SELECT comm_cmd FROM {0}.PRODSYS_COMM WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
                 sqlLock += "FOR UPDATE "
-                toSkip = False                
+                toSkip = False
+                changeStatusOnly = False
                 try:
                     tmpLog.debug(sqlLock+comment+str(varMap))
                     self.cur.execute(sqlLock+comment,varMap)
@@ -5940,7 +5944,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 isOK = False
                             if isOK:
                                 # set new task status
-                                if commandStatusMap.has_key(commandStr):
+                                if commandStr == 'retry' and taskStatus == 'exhausted' and taskOldStatus in ['running','scouting']:
+                                    # change task status only since retryTask increments attemptNrs for existing jobs
+                                    newTaskStatus = 'running'
+                                    changeStatusOnly = True
+                                elif commandStatusMap.has_key(commandStr):
                                     newTaskStatus = commandStatusMap[commandStr]['doing']
                                 else:
                                     tmpLog.error("jediTaskID={0} new status is undefined for command={1}".format(jediTaskID,commandStr))
@@ -5958,7 +5966,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             sqlTU += "SET status=:status,"
                         else:
                             sqlTU += "SET status=oldStatus,"
-                        if taskStatus in ['paused']:
+                        if taskStatus in ['paused'] or changeStatusOnly:
                             sqlTU += "oldStatus=NULL,"
                         elif not taskStatus in ['pending']:
                             sqlTU += "oldStatus=status,"
@@ -5982,7 +5990,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlUC+comment,varMap)
                         # append
                         if isOK:
-                            if not commandStr in ['pause','resume']:
+                            if not commandStr in ['pause','resume'] and not changeStatusOnly:
                                 retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment,
                                                           'oldStatus':taskStatus}
                                 # use old status if pending
