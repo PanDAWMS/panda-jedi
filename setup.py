@@ -171,24 +171,24 @@ setup(
               ],
     data_files=[
                 # config files 
-                ('etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
+                ('/etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
                                ]
                  ),
                 # misc files 
-                ('etc/misc', ['templates/panda_jedi.cron.rpmnew.template',
+                ('/etc/misc', ['templates/panda_jedi.cron.rpmnew.template',
                               'templates/panda_jedi.logrotate.rpmnew.template',
                                ]
                  ),
                 # sysconfig
-                ('etc/sysconfig', ['templates/panda_jedi-sysconfig.rpmnew.template',
+                ('/etc/sysconfig', ['templates/panda_jedi-sysconfig.rpmnew.template',
                                    ]
                  ),
                 # init script
-                ('etc/init.d', ['templates/panda_jedi-ctl.exe.template',
+                ('/etc/init.d', ['templates/panda_jedi-ctl.exe.template',
                                    ]
                  ),
                 # exec
-                ('usr/bin', ['templates/panda_jedi-reniceJEDI.exe.template',
+                ('/usr/bin', ['templates/panda_jedi-reniceJEDI.exe.template',
                              ]
                  ),
                 ],
