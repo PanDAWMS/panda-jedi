@@ -184,7 +184,7 @@ setup(
                                    ]
                  ),
                 # init script
-                ('/etc/init.d', ['templates/panda_jedi-ctl.exe.template',
+                ('/etc/rc.d/init.d', ['templates/panda_jedi-ctl.exe.template',
                                    ]
                  ),
                 # exec
