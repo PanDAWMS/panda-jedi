@@ -14,6 +14,7 @@ from pandajedi.jediconfig import jedi_config
 
 from pandaserver import taskbuffer
 import taskbuffer.OraDBProxy
+from pandaserver.taskbuffer import EventServiceUtils
 from WorkQueueMapper import WorkQueueMapper
 
 from JediTaskSpec import JediTaskSpec
@@ -4484,12 +4485,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         extraInfo = {}
         # sql to get preset values
         if not mergeScout:
-            sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,eventService "
         else:
-            sqlGPV  = "SELECT outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,eventService "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
-        # sql to get scout job data
+        # sql to get scout job data from JEDI
         sqlSCF  = "SELECT tabF.PandaID,tabF.fsize,tabF.startEvent,tabF.endEvent,tabF.nEvents "
         sqlSCF += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
         sqlSCF += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status "
@@ -4508,15 +4509,28 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlSCF += ") AND tabD.masterID IS NULL " 
         if setPandaID != None:
             sqlSCF += "AND tabF.PandaID=:usePandaID "
-        sqlSCD  = "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCD += "startTime,endTime,computingSite,maxPSS,jobMetrics "
-        sqlSCD += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
-        sqlSCD += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus "
-        sqlSCD += "UNION "
-        sqlSCD += "SELECT jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCD += "startTime,endTime,computingSite,maxPSS,jobMetrics "
-        sqlSCD += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
-        sqlSCD += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND modificationTime>(CURRENT_DATE-14) "
+        # sql to get normal scout job data from Panda 
+        sqlSCDN  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
+        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents "
+        sqlSCDN += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
+        sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
+        sqlSCDN += "UNION "
+        sqlSCDN += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
+        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents "
+        sqlSCDN += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
+        sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
+        sqlSCDN += "AND modificationTime>(CURRENT_DATE-14) "
+        # sql to get ES scout job data from Panda 
+        sqlSCDE  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
+        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents "
+        sqlSCDE += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
+        sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
+        sqlSCDE += "UNION "
+        sqlSCDE += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
+        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents "
+        sqlSCDE += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
+        sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
+        sqlSCDE += "AND modificationTime>(CURRENT_DATE-14) "
         # get size of lib
         sqlLIB  = "SELECT MAX(fsize) "
         sqlLIB += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
@@ -4536,7 +4550,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         resGPV = self.cur.fetchone()
         if resGPV != None:
             preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,\
-                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime = resGPV
+                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime,eventServiceTask \
+                = resGPV
             # get preOutDiskCount in kB
             if not preOutDiskCount in [0,None]:
                 if preOutDiskUnit != None:
@@ -4559,6 +4574,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preCpuTime = 0
             preCpuEfficiency = None
             preBaseWalltime = None
+            evetServiceTask = 0
         if preOutDiskUnit != None and preOutDiskUnit.endswith('PerEvent'):
             preOutputScaleWithEvents = True
         else:
@@ -4635,137 +4651,163 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 inEventsMap[pandaID] = 0
             inEventsMap[pandaID] += JediCoreUtils.getEffectiveNumEvents(startEvent,endEvent,nEvents)
         # loop over all jobs
-        for pandaID,totalFSize in inFSizeMap.iteritems():
+        loopPandaIDs = inFSizeMap.keys()
+        for loopPandaID in loopPandaIDs:
+            totalFSize = inFSizeMap[loopPandaID]
             # get job data
             varMap = {}
-            varMap[':pandaID']  = pandaID
-            varMap[':jobStatus']= 'finished'
-            self.cur.execute(sqlSCD+comment,varMap)
+            varMap[':pandaID']   = loopPandaID
+            varMap[':jobStatus'] = 'finished'
+            varMap[':jediTaskID'] = jediTaskID
+            self.cur.execute(sqlSCDN+comment,varMap)
             resData = self.cur.fetchone()
             if resData != None:
-                jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,\
-                    defCoreCount,startTime,endTime,computingSite,maxPSS,jobMetrics = resData
-                # get core power
-                if not computingSite in corePowerMap:
+                eventServiceJob = resData[0]
+                jobsetID = resData[1]
+                resDataList = [resData]
+                # get all ES jobs since input is associated to only one consumer
+                if eventServiceJob == EventServiceUtils.esJobFlagNumber:
                     varMap = {}
-                    varMap[':site'] = computingSite
-                    self.cur.execute(sqlCore+comment,varMap)
-                    resCore = self.cur.fetchone()
-                    if resCore != None:
-                        corePower, = resCore
-                    corePowerMap[computingSite] = corePower
-                corePower = corePowerMap[computingSite]
-                if corePower in [0,None]:
-                    corePower = 10
-                finishedJobs.append(pandaID)
-                inFSizeList.append(totalFSize)
-                jMetricsMap[pandaID] = jobMetrics
-                # core count
-                coreCount = 1
-                try:
-                    if actualCoreCount != None:
-                        coreCount = actualCoreCount
-                    else:
-                        # extract coreCount
-                        tmpMatch = re.search('coreCount=(\d+)',jobMetrics)
-                        if tmpMatch != None:
-                            coreCount = long(tmpMatch.group(1))
-                        else:
-                            # use jobdef
-                            if not defCoreCount in [None,0]:
-                                coreCount = defCoreCount
-                except:
-                    pass
-                # output size
-                try:
+                    varMap[':pandaID']   = jobsetID
+                    varMap[':jobStatus'] = 'finished'
+                    varMap[':jediTaskID'] = jediTaskID
+                    self.cur.execute(sqlSCDE+comment,varMap)
+                    resDataList = self.cur.fetchall()
+                # loop over all jobs
+                for oneResData in resDataList:
+                    eventServiceJob,jobsetID,pandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,\
+                        defCoreCount,startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents = oneResData
+                    # add inputSize and nEvents
+                    if not pandaID in inFSizeMap:
+                        inFSizeMap[pandaID] = totalFSize
+                    if not pandaID in inEventsMap or eventServiceJob == EventServiceUtils.esJobFlagNumber:
+                        inEventsMap[pandaID] = nEvents
+                    # get core power
+                    if not computingSite in corePowerMap:
+                        varMap = {}
+                        varMap[':site'] = computingSite
+                        self.cur.execute(sqlCore+comment,varMap)
+                        resCore = self.cur.fetchone()
+                        if resCore != None:
+                            corePower, = resCore
+                        corePowerMap[computingSite] = corePower
+                    corePower = corePowerMap[computingSite]
+                    if corePower in [0,None]:
+                        corePower = 10
+                    finishedJobs.append(pandaID)
+                    inFSizeList.append(totalFSize)
+                    jMetricsMap[pandaID] = jobMetrics
+                    # core count
+                    coreCount = 1
                     try:
-                        # add size of intermediate files
-                        if jobMetrics != None:
-                            tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
-                            outputFileBytes += long(tmpMatch.group(1))
+                        if actualCoreCount != None:
+                            coreCount = actualCoreCount
+                        else:
+                            # extract coreCount
+                            tmpMatch = re.search('coreCount=(\d+)',jobMetrics)
+                            if tmpMatch != None:
+                                coreCount = long(tmpMatch.group(1))
+                            else:
+                                # use jobdef
+                                if not defCoreCount in [None,0]:
+                                    coreCount = defCoreCount
                     except:
                         pass
-                    if preOutputScaleWithEvents:
-                        # scale with events
-                        if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
-                            tmpVal = long(math.ceil(float(outputFileBytes) / inEventsMap[pandaID]))
-                        if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10:
-                            outSizeList.append(tmpVal)
-                            outSizeDict[tmpVal] = pandaID
-                    else:
-                        # scale with input size
-                        tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
-                        if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10:
-                            outSizeList.append(tmpVal)
-                            outSizeDict[tmpVal] = pandaID
-                except:
-                    pass
-                # execution time
-                try:
-                    tmpVal = cpuConsumptionTime
-                    walltimeList.append(tmpVal)
-                    walltimeDict[tmpVal] = pandaID 
-                except:
-                    pass
-                try:
-                    execTimeMap[pandaID] = endTime-startTime
-                except:
-                    pass
-                # CPU time
-                try:
-                    if preCpuEfficiency == 0:
-                        # no scaling
-                        tmpVal = 0
-                    else:
-                        tmpTimeDelta = endTime-startTime
-                        tmpVal = (tmpTimeDelta.seconds+tmpTimeDelta.days*24*3600)
-                        if tmpVal <= preBaseWalltime:
-                            # execution is smaller than offset
-                            tmpVal = 0
-                        else:
-                            tmpVal = float(tmpVal-preBaseWalltime)*corePower*coreCount*float(preCpuEfficiency)/100.0
-                            if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
-                                tmpVal /= float(inEventsMap[pandaID])
-                    if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10 or \
-                            (inEventsMap[pandaID] < 10 and tmpVal > 6*3600):
-                        cpuTimeList.append(tmpVal)
-                        cpuTimeDict[tmpVal] = pandaID
-                except:
-                    pass
-                # IO
-                try:
-                    tmpTimeDelta = endTime-startTime
-                    tmpVal = totalFSize*1024.0+float(outputFileBytes)/1024.0
-                    tmpVal = tmpVal/float(tmpTimeDelta.seconds+tmpTimeDelta.days*24*3600)
-                    tmpVal /= float(coreCount)
-                    ioIntentList.append(tmpVal)
-                    ioIntentDict[tmpVal] = pandaID
-                except:
-                    pass
-                # RAM size
-                try:
-                    if preRamUnit == 'MBPerCore':
-                        if maxPSS > 0:
-                            tmpPSS = maxPSS
-                            if not preBaseRamCount in [0,None]:
-                                tmpPSS -= preBaseRamCount*1024
-                            tmpPSS = float(tmpPSS)/float(coreCount)
-                            tmpPSS = long(math.ceil(tmpPSS*1.1))
-                            memSizeList.append(tmpPSS)
-                            memSizeDict[tmpPSS] = pandaID
-                    else:
-                        tmpMatch = re.search('vmPeakMax=(\d+)',jobMetrics)
-                        tmpVMEM = long(tmpMatch.group(1))
-                        memSizeList.append(tmpVMEM)
-                        memSizeDict[tmpVMEM]= pandaID
-                except:
-                    pass
-                # use lib size as workdir size
-                tmpWorkSize = 0
-                if tmpWorkSize == None or (libSize != None and libSize > tmpWorkSize):
-                    tmpWorkSize = libSize
-                if tmpWorkSize != None:
-                    workSizeList.append(tmpWorkSize)
+                    # output size
+                    if eventServiceJob != EventServiceUtils.esJobFlagNumber:
+                        try:
+                            try:
+                                # add size of intermediate files
+                                if jobMetrics != None:
+                                    tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
+                                    outputFileBytes += long(tmpMatch.group(1))
+                            except:
+                                pass
+                            if preOutputScaleWithEvents:
+                                # scale with events
+                                if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
+                                    tmpVal = long(math.ceil(float(outputFileBytes) / inEventsMap[pandaID]))
+                                if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10:
+                                    outSizeList.append(tmpVal)
+                                    outSizeDict[tmpVal] = pandaID
+                            else:
+                                # scale with input size
+                                tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
+                                if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10:
+                                    outSizeList.append(tmpVal)
+                                    outSizeDict[tmpVal] = pandaID
+                        except:
+                            pass
+                    # execution time
+                    if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
+                        try:
+                            tmpVal = cpuConsumptionTime
+                            walltimeList.append(tmpVal)
+                            walltimeDict[tmpVal] = pandaID 
+                        except:
+                            pass
+                        try:
+                            execTimeMap[pandaID] = endTime-startTime
+                        except:
+                            pass
+                    # CPU time
+                    if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
+                        try:
+                            if preCpuEfficiency == 0:
+                                # no scaling
+                                tmpVal = 0
+                            else:
+                                tmpTimeDelta = endTime-startTime
+                                tmpVal = (tmpTimeDelta.seconds+tmpTimeDelta.days*24*3600)
+                                if tmpVal <= preBaseWalltime:
+                                    # execution is smaller than offset
+                                    tmpVal = 0
+                                else:
+                                    tmpVal = float(tmpVal-preBaseWalltime)*corePower*coreCount*float(preCpuEfficiency)/100.0
+                                    if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
+                                        tmpVal /= float(inEventsMap[pandaID])
+                            if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10 or \
+                                    (inEventsMap[pandaID] < 10 and tmpVal > 6*3600):
+                                cpuTimeList.append(tmpVal)
+                                cpuTimeDict[tmpVal] = pandaID
+                        except:
+                            pass
+                    # IO
+                    if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
+                        try:
+                            tmpTimeDelta = endTime-startTime
+                            tmpVal = totalFSize*1024.0+float(outputFileBytes)/1024.0
+                            tmpVal = tmpVal/float(tmpTimeDelta.seconds+tmpTimeDelta.days*24*3600)
+                            tmpVal /= float(coreCount)
+                            ioIntentList.append(tmpVal)
+                            ioIntentDict[tmpVal] = pandaID
+                        except:
+                            pass
+                    # RAM size
+                    if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
+                        try:
+                            if preRamUnit == 'MBPerCore':
+                                if maxPSS > 0:
+                                    tmpPSS = maxPSS
+                                    if not preBaseRamCount in [0,None]:
+                                        tmpPSS -= preBaseRamCount*1024
+                                    tmpPSS = float(tmpPSS)/float(coreCount)
+                                    tmpPSS = long(math.ceil(tmpPSS*1.1))
+                                    memSizeList.append(tmpPSS)
+                                    memSizeDict[tmpPSS] = pandaID
+                            else:
+                                tmpMatch = re.search('vmPeakMax=(\d+)',jobMetrics)
+                                tmpVMEM = long(tmpMatch.group(1))
+                                memSizeList.append(tmpVMEM)
+                                memSizeDict[tmpVMEM]= pandaID
+                        except:
+                            pass
+                    # use lib size as workdir size
+                    tmpWorkSize = 0
+                    if tmpWorkSize == None or (libSize != None and libSize > tmpWorkSize):
+                        tmpWorkSize = libSize
+                    if tmpWorkSize != None:
+                        workSizeList.append(tmpWorkSize)
         # add tags
         def addTag(jobTagMap,idDict,value,tagStr):
             tmpPandaID = idDict[value]

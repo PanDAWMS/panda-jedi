@@ -1,6 +1,7 @@
 Release Notes
 
 * 3/24/2016
+  * fixed scoutJobData for ES
   * fixed retryTask for active exhausted tasks
 
 * 3/23/2016

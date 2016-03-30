@@ -831,7 +831,7 @@ class JobGeneratorThread (WorkerThread):
                     # set specialHandling for Event Service
                     if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
                         specialHandling += EventServiceUtils.getHeaderForES(esIndex)
-                        jobSpec.eventService = 1
+                        jobSpec.eventService = EventServiceUtils.esJobFlagNumber
                     # inputs
                     prodDBlock = None
                     setProdDBlock = False
