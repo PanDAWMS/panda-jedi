@@ -5115,11 +5115,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # get tasks for early avalanche
             if simTasks == None and prodSourceLabel in [None,'managed']:
                 minSuccessScouts = 5
+                timeToCheck = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+                taskstatus = 'scouting'
                 varMap = {}
-                varMap[':taskstatus'] = 'scouting'
+                varMap[':taskstatus'] = taskstatus 
                 varMap[':prodSourceLabel'] = 'managed'
                 varMap[':fileStatus'] = 'finished'
                 varMap[':minSuccess'] = minSuccessScouts
+                varMap[':timeLimit'] = timeToCheck
                 if vo != None:
                     varMap[':vo'] = vo
                 sqlEA  = "SELECT jediTaskID,COUNT(*) FROM "
@@ -5129,6 +5132,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlEA += "AND tabT.jediTaskID=tabD.jediTaskID "
                 sqlEA += "AND tabD.jediTaskID=tabF.jediTaskID AND tabD.datasetID=tabF.datasetID "
                 sqlEA += "AND tabT.status=:taskstatus AND prodSourceLabel=:prodSourceLabel "
+                sqlEA += "AND (tabT.assessmentTime IS NULL OR tabT.assessmentTime<:timeLimit) "
                 if vo != None:
                     sqlEA += "AND tabT.vo=:vo "
                 sqlEA += "AND tabT.lockedBy IS NULL "
@@ -5147,13 +5151,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.debug(sqlEA+comment+str(varMap))
                 self.cur.execute(sqlEA+comment,varMap)
                 resList = self.cur.fetchall()
+                # update assessmentTime
+                sqlLK  = "UPDATE {0}.JEDI_Tasks SET assessmentTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+                sqlLK += "WHERE jediTaskID=:jediTaskID AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) AND status=:status "
                 # append to list
                 for jediTaskID,totFinished in resList:
                     if totFinished>=minSuccessScouts:
                         if not jediTaskID in jediTaskIDstatusMap:
-                            jediTaskIDstatusMap[jediTaskID] = varMap[':taskstatus']
+                            jediTaskIDstatusMap[jediTaskID] = taskstatus
                             tmpLog.debug('got jediTaskID={0} {1} finihsed jobs for early avalanche'.format(jediTaskID,
                                                                                                            totFinished))
+                    # update assessmentTime to avoid frequent check
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':timeLimit'] = timeToCheck
+                    varMap[':status'] = taskstatus
+                    self.cur.execute(sqlLK+comment,varMap)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

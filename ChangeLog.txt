@@ -2,6 +2,7 @@ Release Notes
 
 * 3/30/2016
   * fixed prepareTasksToBeFinished_JEDI for scouting+noWaitParent
+  * using assessmentTime for early avalanche
 
 * 3/24/2016
   * fixed scoutJobData for ES
