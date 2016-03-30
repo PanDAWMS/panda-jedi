@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/30/2016
+  * fixed prepareTasksToBeFinished_JEDI for scouting+noWaitParent
+
 * 3/24/2016
   * fixed scoutJobData for ES
   * fixed retryTask for active exhausted tasks

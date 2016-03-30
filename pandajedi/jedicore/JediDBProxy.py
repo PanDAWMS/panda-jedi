@@ -5116,20 +5116,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if simTasks == None and prodSourceLabel in [None,'managed']:
                 minSuccessScouts = 5
                 varMap = {}
-                varMap['taskstatus'] = 'scouting'
-                varMap['prodSourceLabel'] = 'managed'
+                varMap[':taskstatus'] = 'scouting'
+                varMap[':prodSourceLabel'] = 'managed'
+                varMap[':fileStatus'] = 'finished'
+                varMap[':minSuccess'] = minSuccessScouts
                 if vo != None:
                     varMap[':vo'] = vo
-                sqlEA  = "SELECT * FROM "
-                sqlEA += "(SELECT tabT.jediTaskID,SUM(nFilesFinished) totFinished,SUM(nFilesToBeUsed) totToBeUsed "
-                sqlEA += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
+                sqlEA  = "SELECT jediTaskID,COUNT(*) FROM "
+                sqlEA += "(SELECT tabT.jediTaskID,tabF.PandaID "
+                sqlEA += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabF ".format(jedi_config.db.schemaJEDI)
                 sqlEA += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
                 sqlEA += "AND tabT.jediTaskID=tabD.jediTaskID "
+                sqlEA += "AND tabD.jediTaskID=tabF.jediTaskID AND tabD.datasetID=tabF.datasetID "
                 sqlEA += "AND tabT.status=:taskstatus AND prodSourceLabel=:prodSourceLabel "
                 if vo != None:
                     sqlEA += "AND tabT.vo=:vo "
                 sqlEA += "AND tabT.lockedBy IS NULL "
-                sqlEA += "AND tabD.masterID IS NULL "
+                sqlEA += "AND tabD.masterID IS NULL AND tabD.nFilesFinished>=:minSuccess "
                 sqlEA += 'AND tabD.type IN ('
                 for tmpType in JediDatasetSpec.getInputTypes():
                     mapKey = ':type_'+tmpType
@@ -5137,20 +5140,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[mapKey] = tmpType
                 sqlEA  = sqlEA[:-1]
                 sqlEA += ') '
-                sqlEA += 'GROUP BY tabT.jediTaskID) '
-                sqlEA += 'WHERE totToBeUsed>0 AND totFinished*{0}>=totToBeUsed*{1} '.format(10,minSuccessScouts)
-                sqlEA += 'AND rownum<={0}'.format(nTasks)
+                sqlEA += 'AND tabF.status=:fileStatus '
+                sqlEA += 'GROUP BY tabT.jediTaskID,tabF.PandaID) '
+                sqlEA += 'GROUP BY jediTaskID '
                 # get tasks
                 tmpLog.debug(sqlEA+comment+str(varMap))
                 self.cur.execute(sqlEA+comment,varMap)
                 resList = self.cur.fetchall()
                 # append to list
-                for jediTaskID,totFinished,totToBeUsed in resList:
-                    if not jediTaskID in jediTaskIDstatusMap:
-                        jediTaskIDstatusMap[jediTaskID] = varMap['taskstatus']
-                        tmpLog.debug('got jediTaskID={0} {1}/{2} for early avalanche'.format(jediTaskID,
-                                                                                             totFinished,
-                                                                                             totToBeUsed))
+                for jediTaskID,totFinished in resList:
+                    if totFinished>=minSuccessScouts:
+                        if not jediTaskID in jediTaskIDstatusMap:
+                            jediTaskIDstatusMap[jediTaskID] = varMap[':taskstatus']
+                            tmpLog.debug('got jediTaskID={0} {1} finihsed jobs for early avalanche'.format(jediTaskID,
+                                                                                                           totFinished))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
