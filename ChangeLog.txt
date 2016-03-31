@@ -1,6 +1,7 @@
 Release Notes
 
 * 3/31/2016
+  * disabled to send scouts to non-short queues if site is set
   * fixed AtlasAJB for remote access not to ignore resource matching
 
 * 3/30/2016
