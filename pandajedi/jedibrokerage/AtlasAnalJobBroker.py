@@ -1,5 +1,6 @@
 import re
 import sys
+import copy
 import random
 import datetime
 
@@ -399,7 +400,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
         hasDDS = False
         dataWeight = {}
         remoteSourceList = {}
-        if inputChunk.getDatasets() != []:    
+        if inputChunk.getDatasets() != []:
+            oldScanSiteList = copy.copy(scanSiteList)
             for datasetSpec in inputChunk.getDatasets():
                 datasetName = datasetSpec.datasetName
                 if not self.dataSiteMap.has_key(datasetName):
@@ -501,10 +503,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if scanSiteList == None:
                     scanSiteList = []
                     for tmpSiteName in tmpSiteList + tmpSatelliteSites.keys():
+                        if not tmpSiteName in oldScanSiteList:
+                            continue
                         if not tmpSiteName in scanSiteList:
                             scanSiteList.append(tmpSiteName)
                     scanSiteListOnDisk = set()
                     for tmpSiteName in tmpDiskSiteList + tmpSatelliteSites.keys():
+                        if not tmpSiteName in oldScanSiteList:
+                            continue
                         scanSiteListOnDisk.add(tmpSiteName)
                     continue
                 # pickup sites which have all data

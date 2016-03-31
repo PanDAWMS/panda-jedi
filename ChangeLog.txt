@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/31/2016
+  * fixed AtlasAJB for remote access not to ignore resource matching
+
 * 3/30/2016
   * fixed prepareTasksToBeFinished_JEDI for scouting+noWaitParent
   * using assessmentTime for early avalanche
