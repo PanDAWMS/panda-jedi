@@ -55,7 +55,6 @@ sys.argv = newArgv
 class install_panda(install_org):
     def initialize_options (self):
         install_org.initialize_options(self)
-        self.prefix = '/data/atlpan/srv'
 
 
 # generates files using templates and install them
@@ -174,10 +173,13 @@ setup(
                 ('/etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
                                ]
                  ),
-                # misc files 
-                ('/etc/misc', ['templates/panda_jedi.cron.rpmnew.template',
-                              'templates/panda_jedi.logrotate.rpmnew.template',
-                               ]
+                # cron files
+                ('/etc/cron.d', ['templates/panda_jedi.cron.rpmnew.template',
+                                ]
+                 ),
+                # logrotate
+                ('/etc/logrotate.d', ['templates/panda_jedi.logrotate.rpmnew.template',
+                                     ]
                  ),
                 # sysconfig
                 ('/etc/sysconfig', ['templates/panda_jedi-sysconfig.rpmnew.template',
