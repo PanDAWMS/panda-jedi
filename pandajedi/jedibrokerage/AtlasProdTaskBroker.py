@@ -380,6 +380,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             continue
                         ######################################
                         # check endpoint
+                        fractionFreeSpace = {}
                         newNucleusList = {}
                         tmpStat,tmpDatasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,
                                                                                                       ['output','log'])
@@ -419,6 +420,21 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                                                                                                                                                      tmpEP['ddm_endpoint_name']))
                                     toSkip = True
                                     break
+                                # keep fraction of free space
+                                if not tmpNucleus in fractionFreeSpace:
+                                    fractionFreeSpace[tmpNucleus] = {'total':0,'free':0}
+                                try:
+                                    tmpOld = float(fractionFreeSpace[tmpNucleus]['free']) / \
+                                        float(fractionFreeSpace[tmpNucleus]['total'])
+                                except:
+                                    tmpOld = None
+                                try:
+                                    tmpNew = float(tmpSpaceSize-tmpSpaceToUse)/float(tmpEP['space_total'])
+                                except:
+                                    tmpNew = None
+                                if tmpNew != None and (tmpOld == None or tmpNew < tmpOld):
+                                    fractionFreeSpace[tmpNucleus] = {'total':tmpEP['space_total'],
+                                                                     'free':tmpSpaceSize-tmpSpaceToUse}
                             if not toSkip:
                                 newNucleusList[tmpNucleus] = tmpNucleusSpec
                         nucleusList = newNucleusList
@@ -549,6 +565,16 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 if availableData[tmpNucleus]['ava_size_any'] > availableData[tmpNucleus]['ava_size_disk']:
                                     weight *= negWeightTape
                                     wStr += '*({0}=weight for TAPE)'.format(negWeightTape)
+                                # fraction of free space
+                                if tmpNucleus in fractionFreeSpace:
+                                    try:
+                                        tmpFrac = float(fractionFreeSpace[tmpNucleus]['free']) / \
+                                            float(fractionFreeSpace[tmpNucleus]['total'])
+                                        weight *= tmpFrac
+                                        wStr += '*({0}=free space)/({1}=total space)'.format(fractionFreeSpace[tmpNucleus]['free'],
+                                                                                             fractionFreeSpace[tmpNucleus]['total'])
+                                    except:
+                                        pass
                             tmpLog.debug('  use nucleus={0} weight={1} {2} criteria=+use'.format(tmpNucleus,weight,wStr))
                             totalWeight += weight
                             nucleusweights.append((tmpNucleus,weight))
