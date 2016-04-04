@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/4/2016
+  * changed AtlasTJB to take fullRW into account for space estimation
+
 * 3/31/2016
   * fixed AtlasAJB for ath releases
   * disabled to send scouts to non-short queues if site is set

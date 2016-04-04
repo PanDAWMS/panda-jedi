@@ -407,11 +407,16 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 """    
                                 # check space
                                 tmpSpaceSize = tmpEP['space_free'] + tmpEP['space_expired']
-                                if tmpSpaceSize < diskThreshold:
-                                    tmpLog.debug('  skip nucleus={0} since disk shortage ({1}<{2}) at endpoint {3} criteria=-space'.format(tmpNucleus,
-                                                                                                                                           tmpSpaceSize,
-                                                                                                                                           diskThreshold,
-                                                                                                                                           tmpEP['state']))
+                                tmpSpaceToUse = 0
+                                if tmpNucleus in self.fullRW:
+                                    # 0.25GB per cpuTime/corePower/day
+                                    tmpSpaceToUse = long(self.fullRW[tmpNucleus]/10/24/3600*0.25)
+                                if tmpSpaceSize-tmpSpaceToUse < diskThreshold:
+                                    tmpLog.debug('  skip nucleus={0} since disk shortage (free {1} + reserved {2} < thr {3}) at endpoint {4} criteria=-space'.format(tmpNucleus,
+                                                                                                                                                                     tmpSpaceSize,
+                                                                                                                                                                     tmpSpaceToUse,
+                                                                                                                                                                     diskThreshold,
+                                                                                                                                                                     tmpEP['ddm_endpoint_name']))
                                     toSkip = True
                                     break
                             if not toSkip:
