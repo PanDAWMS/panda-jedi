@@ -79,8 +79,9 @@ class AtlasProdPostProcessor (PostProcessorBase):
             nDup = self.taskBufferIF.checkDuplication_JEDI(taskSpec.jediTaskID)
             tmpLog.info('checked duplication with {0}'.format(nDup))
             if nDup > 0:
-                errStr = 'aborted since {0} duplication found'.format(nDup)
-                taskSpec.status = 'toabort'
+                errStr = 'paused since {0} duplication found'.format(nDup)
+                taskSpec.oldStatus = self.getFinalTaskStatus(taskSpec)
+                taskSpec.status = 'paused'
                 taskSpec.setErrDiag(errStr)
                 tmpLog.info(errStr)
         try:
@@ -97,7 +98,8 @@ class AtlasProdPostProcessor (PostProcessorBase):
     def doFinalProcedure(self,taskSpec,tmpLog):
         tmpLog.info('final procedure for status={0} processingType={1}'.format(taskSpec.status,
                                                                                taskSpec.processingType))
-        if taskSpec.status in ['done','finished']:
+        if taskSpec.status in ['done','finished'] or \
+                (taskSpec.status == 'paused' and taskSpec.oldStatus in ['done','finished']):
             trnLifeTime = 30*24*60*60
             ddmIF = self.ddmIF.getInterface(taskSpec.vo)
             # set lifetime to transient datasets
@@ -131,7 +133,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                                     for metadataName,metadaValue in metaData.iteritems():
                                         ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
         # delete empty datasets
-        if taskSpec.status == 'done':
+        if taskSpec.status == 'done' or (taskSpec.status == 'paused' and taskSpec.oldStatus == 'done'):
             ddmIF = self.ddmIF.getInterface(taskSpec.vo)
             # loop over all datasets
             for datasetSpec in taskSpec.datasetSpecList:

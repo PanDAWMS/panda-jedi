@@ -9408,18 +9408,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlO  = "SELECT datasetID,provenanceID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
         sqlO += "WHERE jediTaskID=:jediTaskID AND type=:type "
         # sql to check duplication without internal merge
-        sqlWM  = "SELECT COUNT(*) FROM ( "
-        sqlWM += "SELECT distinct outPandaID "
+        sqlWM  = "SELECT distinct outPandaID "
         sqlWM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
         sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID AND status IN (:statT1,:statT2) "
         sqlWM += 'MINUS '
         sqlWM += "SELECT distinct PandaID "
         sqlWM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
         sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID AND status=:statI "
-        sqlWM += ') '
         # sql to check duplication with internal merge
-        sqlCM  = "SELECT COUNT(*) FROM ( "
-        sqlCM += "SELECT distinct c1.outPandaID "
+        sqlCM  = "SELECT distinct c1.outPandaID "
         sqlCM += "FROM {0}.JEDI_Dataset_Contents c1,{0}.JEDI_Dataset_Contents c2,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
         sqlCM += "WHERE d.jediTaskID=:jediTaskID AND c1.jediTaskID=d.jediTaskID AND c1.datasetID=d.datasetID AND d.templateID=:templateID "
         sqlCM += "AND c1.jediTaskID=c2.jediTaskID AND c2.datasetID=:outDatasetID AND c1.pandaID=c2.pandaID and c2.status IN (:statT1,:statT2) "
@@ -9427,7 +9424,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlCM += "SELECT distinct PandaID "
         sqlCM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
         sqlCM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID and status=:statI "
-        sqlCM += ') '
         try:
             # start transaction
             self.conn.begin()
@@ -9467,7 +9463,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         # without internal merge
                         self.cur.execute(sqlWM+comment,varMap)
-                    retVal, = self.cur.fetchone()
+                    retList = self.cur.fetchall()
+                    dupPandaIDs = []
+                    for dupPandaID, in retList:
+                        dupPandaIDs.append(dupPandaID)
+                        tmpLog.debug('bad PandaID={0}'.format(dupPandaID))
+                    retVal = len(dupPandaIDs)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

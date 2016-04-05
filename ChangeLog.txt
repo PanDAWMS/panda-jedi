@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/5/2016
+  * changed AtlasPPP to pause tasks when duplication is found
+
 * 4/4/2016
   * added fractionFreeSpace to AtlasPTB
   * changed AtlasPTB to take fullRW into account for space estimation

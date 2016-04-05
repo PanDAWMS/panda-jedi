@@ -166,6 +166,8 @@ class PostProcessorBase (object):
             status = 'broken'
         elif taskSpec.status == 'toabort':
             status = 'aborted'
+        elif taskSpec.status == 'paused':
+            status = 'paused'
         elif nFiles == nFilesFinished and nFiles > 0:
             # check parent status
             if checkParent and not taskSpec.parent_tid in [None,taskSpec.jediTaskID] and \
