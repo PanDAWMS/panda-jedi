@@ -1,6 +1,7 @@
 Release Notes
 
 * 4/5/2016
+  * fixed AtlasAJB to works with strings for excluded/includedSites
   * changed AtlasPPP to pause tasks when duplication is found
 
 * 4/4/2016

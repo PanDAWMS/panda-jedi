@@ -1,6 +1,7 @@
 import re
 import sys
 import copy
+import types
 import random
 import datetime
 
@@ -59,8 +60,20 @@ class AtlasAnalJobBroker (JobBrokerBase):
         if taskSpec.useLimitedSites():
             if 'excludedSite' in taskParamMap:
                 excludeList = taskParamMap['excludedSite']
+                # str to list for task retry
+                try:
+                    if type(excludeList) != types.ListType:
+                        excludeList = excludeList.split(',')
+                except:
+                    pass
             if 'includedSite' in taskParamMap:
                 includeList = taskParamMap['includedSite']
+                # str to list for task retry
+                try:
+                    if type(includeList) != types.ListType:
+                        includeList = includeList.split(',')
+                except:
+                    pass
         # loop over all sites        
         for siteName,tmpSiteSpec in self.siteMapper.siteSpecList.iteritems():
             if tmpSiteSpec.type == 'analysis':
