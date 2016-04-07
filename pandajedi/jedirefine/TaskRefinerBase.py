@@ -207,12 +207,14 @@ class TaskRefinerBase (object):
                                                                      processingType=taskSpec.processingType,
                                                                      workingGroup=taskSpec.workingGroup,
                                                                      coreCount=taskSpec.coreCount,
-                                                                     site=taskSpec.site)
+                                                                     site=taskSpec.site,
+                                                                     eventService=taskSpec.eventService)
         if workQueue == None:
             errStr  = 'workqueue is undefined for vo={0} labal={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
-            errStr += 'processingType={0} workingGroup={1} coreCount={2} '.format(taskSpec.processingType,
-                                                                                  taskSpec.workingGroup,
-                                                                                  taskSpec.coreCount)
+            errStr += 'processingType={0} workingGroup={1} coreCount={2} eventService={3} '.format(taskSpec.processingType,
+                                                                                                   taskSpec.workingGroup,
+                                                                                                   taskSpec.coreCount,
+                                                                                                   taskSpec.eventService)
             raise RuntimeError,errStr
         taskSpec.workQueue_ID = workQueue.queue_id
         self.taskSpec = taskSpec

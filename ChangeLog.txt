@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/7/2016
+  * added eventService to WQ
+
 * 4/5/2016
   * fixed AtlasAJB to works with strings for excluded/includedSites
   * changed AtlasPPP to pause tasks when duplication is found

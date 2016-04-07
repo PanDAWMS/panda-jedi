@@ -121,6 +121,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             nQueueLimit = 2000
         if workQueue.queue_name == 'group':
             nQueueLimit = 10000
+        if workQueue.queue_name == 'eventservice':
+            nQueueLimit = 2000
         # use nPrestage for reprocessing   
         if workQueue.queue_name in ['reprocessing','mcore_repro']:
             if cloudSpec.has_key('nprestage') and cloudSpec['nprestage'] > 0:
