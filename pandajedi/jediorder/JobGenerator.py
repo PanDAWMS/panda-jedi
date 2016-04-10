@@ -1148,7 +1148,7 @@ class JobGeneratorThread (WorkerThread):
                 jobSpecList += tmpJobSpecList
                 # sort
                 if taskSpec.useEventService() and taskSpec.getNumSitesPerJob():
-                    jobSpecList = self.sortParallelJobsBySite(jobSpecList)
+                    jobSpecList,oldPandaIDs = self.sortParallelJobsBySite(jobSpecList,oldPandaIDs)
             # return
             return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap
         except:
@@ -1739,17 +1739,23 @@ class JobGeneratorThread (WorkerThread):
 
 
     # sort parallel jobs by site 
-    def sortParallelJobsBySite(self,pandaJobs):
+    def sortParallelJobsBySite(self,pandaJobs,oldPandaIDs):
         tmpMap = {}
-        for pandaJob in pandaJobs:
+        oldMap = {}
+        for pandaJob,oldPandaID in zip(pandaJobs,oldPandaIDs):
             if not pandaJob.computingSite in tmpMap:
                 tmpMap[pandaJob.computingSite] = []
+            if not pandaJob.computingSite in oldMap:
+                oldMap[pandaJob.computingSite] = []
             tmpMap[pandaJob.computingSite].append(pandaJob)
+            oldMap[pandaJob.computingSite].append(oldPandaID)
         newPandaJobs = []
+        newOldPandaIds = []
         for computingSite in tmpMap.keys():
             newPandaJobs += tmpMap[computingSite]
+            newOldPandaIds += oldMap[computingSite]
         # return
-        return newPandaJobs
+        return newPandaJobs,newOldPandaIds
 
 
 
