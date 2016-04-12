@@ -12,7 +12,7 @@ class WorkQueue(object):
                    'criteria','variables','partitionID','stretchable','status')
     # parameters for selection criteria
     _paramsForSelection = ('prodSourceLabel','workingGroup','processingType','coreCount',
-                           'site','eventService')
+                           'site','eventService','splitRule')
     
     # constructor
     def __init__(self):
@@ -116,6 +116,8 @@ class WorkQueue(object):
             # NULL
             tmpEvalStr = re.sub(' IS NULL','==None',tmpEvalStr)
             tmpEvalStr = re.sub(' IS NOT NULL',"!=None",tmpEvalStr)
+            # replace NOT to not
+            tmpEvalStr = re.sub(' NOT ',' not ',tmpEvalStr,re.I)
             # fomat cases
             for tmpParam in self._paramsForSelection:
                 tmpEvalStr = re.sub(tmpParam,tmpParam,tmpEvalStr,re.I)            

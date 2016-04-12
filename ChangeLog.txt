@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/12/2016
+  * added splitRule to mapper attributes
+
 * 4/10/2016
   * fixed sortParallelJobsBySite for oldPandaIDs
 

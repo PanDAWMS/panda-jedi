@@ -195,28 +195,6 @@ class TaskRefinerBase (object):
         # campaign
         if taskParamMap.has_key('campaign'):
             taskSpec.campaign = taskParamMap['campaign']
-        # work queue
-        workQueue = None
-        if 'workQueueName' in taskParamMap:
-            # work queue is specified
-            workQueue = workQueueMapper.getQueueWithName(taskSpec.vo,taskSpec.prodSourceLabel,taskParamMap['workQueueName'])
-        if workQueue == None:
-            # get work queue based on task attributes
-            workQueue,tmpStr = workQueueMapper.getQueueWithSelParams(taskSpec.vo,
-                                                                     taskSpec.prodSourceLabel,
-                                                                     processingType=taskSpec.processingType,
-                                                                     workingGroup=taskSpec.workingGroup,
-                                                                     coreCount=taskSpec.coreCount,
-                                                                     site=taskSpec.site,
-                                                                     eventService=taskSpec.eventService)
-        if workQueue == None:
-            errStr  = 'workqueue is undefined for vo={0} labal={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
-            errStr += 'processingType={0} workingGroup={1} coreCount={2} eventService={3} '.format(taskSpec.processingType,
-                                                                                                   taskSpec.workingGroup,
-                                                                                                   taskSpec.coreCount,
-                                                                                                   taskSpec.eventService)
-            raise RuntimeError,errStr
-        taskSpec.workQueue_ID = workQueue.queue_id
         self.taskSpec = taskSpec
         # set split rule    
         if 'tgtNumEventsPerJob' in taskParamMap:
@@ -285,6 +263,30 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['allowInputWAN'])
         if 'putLogToOS' in taskParamMap and taskParamMap['putLogToOS'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['putLogToOS'])
+        # work queue
+        workQueue = None
+        if 'workQueueName' in taskParamMap:
+            # work queue is specified
+            workQueue = workQueueMapper.getQueueWithName(taskSpec.vo,taskSpec.prodSourceLabel,taskParamMap['workQueueName'])
+        if workQueue == None:
+            # get work queue based on task attributes
+            workQueue,tmpStr = workQueueMapper.getQueueWithSelParams(taskSpec.vo,
+                                                                     taskSpec.prodSourceLabel,
+                                                                     processingType=taskSpec.processingType,
+                                                                     workingGroup=taskSpec.workingGroup,
+                                                                     coreCount=taskSpec.coreCount,
+                                                                     site=taskSpec.site,
+                                                                     eventService=taskSpec.eventService,
+                                                                     splitRule=taskSpec.splitRule)
+        if workQueue == None:
+            errStr  = 'workqueue is undefined for vo={0} labal={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
+            errStr += 'processingType={0} workingGroup={1} coreCount={2} eventService={3} '.format(taskSpec.processingType,
+                                                                                                   taskSpec.workingGroup,
+                                                                                                   taskSpec.coreCount,
+                                                                                                   taskSpec.eventService)
+            errStr += 'splitRule={0} '.format(taskSpec.splitRule)
+            raise RuntimeError,errStr
+        self.taskSpec.workQueue_ID = workQueue.queue_id
         # return
         return
     
