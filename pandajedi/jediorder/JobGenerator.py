@@ -1141,14 +1141,15 @@ class JobGeneratorThread (WorkerThread):
                         self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
                 # increase event service consumers
                 if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
-                    tmpJobSpecList,oldPandaIDs = self.increaseEventServiceConsumers(tmpJobSpecList,taskSpec.getNumEventServiceConsumer(),
-                                                                                    taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap,
-                                                                                    oldPandaIDs)
+                    tmpJobSpecList,incOldPandaIDs = self.increaseEventServiceConsumers(tmpJobSpecList,taskSpec.getNumEventServiceConsumer(),
+                                                                                       taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap,
+                                                                                       oldPandaIDs[len(jobSpecList):])
+                    oldPandaIDs = oldPandaIDs[:len(jobSpecList)] + incOldPandaIDs
                 # add to all list
                 jobSpecList += tmpJobSpecList
-                # sort
-                if taskSpec.useEventService() and taskSpec.getNumSitesPerJob():
-                    jobSpecList,oldPandaIDs = self.sortParallelJobsBySite(jobSpecList,oldPandaIDs)
+            # sort
+            if taskSpec.useEventService() and taskSpec.getNumSitesPerJob():
+                jobSpecList,oldPandaIDs = self.sortParallelJobsBySite(jobSpecList,oldPandaIDs)
             # return
             return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap
         except:
