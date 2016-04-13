@@ -1,6 +1,7 @@
 Release Notes
 
 * 4/13/2016
+  * fixed JG for pending tasks to release lock
   * fixed dump in ThreadUtils
   * imporved AtlasAJB to work with includedSite=''
   * improved unlockTasks to release tasks locked by dead processes
