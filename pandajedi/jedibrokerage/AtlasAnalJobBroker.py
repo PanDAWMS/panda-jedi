@@ -69,6 +69,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if 'includedSite' in taskParamMap:
                 includeList = taskParamMap['includedSite']
                 # str to list for task retry
+                if includeList == '':
+                    includeList = None
                 try:
                     if type(includeList) != types.ListType:
                         includeList = includeList.split(',')
