@@ -104,7 +104,7 @@ class AtlasProdJobBroker (JobBrokerBase):
               "body": "{0}".format(json.dumps(body))
              }
             ]
-            r=requests.post(url, data=json.dumps(arr), headers=headers, timeout=1)
+            r=requests.post(url, data=json.dumps(arr), headers=headers, timeout=0.2)
         except:
             tmpLog.warning('Failed to send network message to panda logger: {0}'.format(sys.exc_info()[1]))
 
