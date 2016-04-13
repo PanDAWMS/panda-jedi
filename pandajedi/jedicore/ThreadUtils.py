@@ -60,7 +60,7 @@ class ListWithLock:
     def dump(self):
         self.lock.acquire()
         if len(self.dataList) > self.dataIndex:
-            ret = ','.join(self.dataList[self.dataIndex:])
+            ret = ','.join(map(str,self.dataList[self.dataIndex:]))
         else:
             ret = 'None'
         self.lock.release()
