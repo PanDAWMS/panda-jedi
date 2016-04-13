@@ -502,25 +502,6 @@ class ContentsFeederThread (WorkerThread):
                     # change task status unless the task is running
                     if not runningTask:
                         if taskOnHold:
-                            if not noWaitParent:
-                                # initialize task generator
-                                taskGenerator = TaskGenerator(taskSpec.vo,taskSpec.prodSourceLabel)
-                                tmpStat = taskGenerator.initializeMods(self.taskBufferIF,
-                                                                       self.ddmIF.getInterface(taskSpec.vo))
-                                if not tmpStat:
-                                    tmpErrStr = 'failed to initialize TaskGenerator'
-                                    tmpLog.error(tmpErrStr)
-                                    taskSpec.status = 'tobroken'
-                                    taskSpec.setErrDiag(tmpErrStr)
-                                else:
-                                    # make parent tasks if necessary
-                                    tmpLog.info('make parent tasks with {0} (if necessary)'.format(taskGenerator.getClassName(taskSpec.vo,
-                                                                                                                              taskSpec.prodSourceLabel)))
-                                    tmpStat = taskGenerator.doGenerate(taskSpec,taskParamMap,missingFilesMap=missingMap)
-                                    if tmpStat == Interaction.SC_FATAL:
-                                        # failed to make parent tasks
-                                        taskSpec.status = 'tobroken'
-                                        tmpLog.error('failed to make parent tasks')
                             # go to pending state
                             if not taskSpec.status in ['broken','tobroken']:
                                 taskSpec.setOnHold()
