@@ -6071,6 +6071,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # use old status if pending
                                 if taskStatus == 'pending':
                                     retTaskIDs[jediTaskID]['oldStatus'] = taskOldStatus
+                            # update job table
+                            if commandStr in ['pause','resume']:
+                                sqlJT  = 'UPDATE {0}.jobsActive4 '.format(jedi_config.db.schemaPANDA)
+                                sqlJT += 'SET jobStatus=:newJobStatus '
+                                sqlJT += 'WHERE jediTaskID=:jediTaskID AND jobStatus=:oldJobStatus '
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                if commandStr == 'resume':
+                                    varMap[':newJobStatus'] = 'activated'
+                                    varMap[':oldJobStatus'] = 'throttled'
+                                else:
+                                    varMap[':newJobStatus'] = 'throttled'
+                                    varMap[':oldJobStatus'] = 'activated'
+                                self.cur.execute(sqlJT+comment,varMap)
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
