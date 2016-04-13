@@ -509,11 +509,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # unlock tasks
-    def unlockTasks_JEDI(self,vo,prodSourceLabel,waitTime):
+    def unlockTasks_JEDI(self,vo,prodSourceLabel,waitTime,hostName=None,pgid=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.unlockTasks_JEDI(vo,prodSourceLabel,waitTime)
+        retVal = proxy.unlockTasks_JEDI(vo,prodSourceLabel,waitTime,hostName,pgid)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

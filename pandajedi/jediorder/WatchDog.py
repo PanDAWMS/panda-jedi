@@ -73,6 +73,18 @@ class WatchDog (JediKnight,FactoryBase):
                         else:
                             tmpLog.info('reactivated {0} tasks'.format(tmpRet))
                         # unlock tasks
+                        tmpLog.info('unlock tasks for vo={0} label={1} host={2} pgid={3}'.format(vo,prodSourceLabel,
+                                                                                                 socket.getfqdn().split('.')[0],
+                                                                                                 os.getpgrp()))
+                        tmpRet = self.taskBufferIF.unlockTasks_JEDI(vo,prodSourceLabel,10,
+                                                                    socket.getfqdn().split('.')[0],
+                                                                    os.getpgrp())
+                        if tmpRet == None:
+                            # failed
+                            tmpLog.error('failed to unlock')
+                        else:
+                            tmpLog.info('unlock {0} tasks'.format(tmpRet))
+                        # unlock tasks
                         tmpLog.info('unlock tasks for vo={0} label={1}'.format(vo,prodSourceLabel)) 
                         tmpRet = self.taskBufferIF.unlockTasks_JEDI(vo,prodSourceLabel,
                                                                     jedi_config.watchdog.waitForLocked)

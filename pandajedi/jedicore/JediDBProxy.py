@@ -3665,10 +3665,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # unlock tasks
-    def unlockTasks_JEDI(self,vo,prodSourceLabel,waitTime):
+    def unlockTasks_JEDI(self,vo,prodSourceLabel,waitTime,hostName,pgid):
         comment = ' /* JediDBProxy.unlockTasks_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        methodName += ' <vo={0} label={1} host={2} pgid={3}>'.format(vo,prodSourceLabel,hostName,pgid)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -3678,31 +3678,48 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if vo != None:
                 sqlTR += "AND vo=:vo "
             if prodSourceLabel != None:
-                sqlTR += "AND prodSourceLabel=:prodSourceLabel " 
+                sqlTR += "AND prodSourceLabel=:prodSourceLabel "
+            if hostName != None:
+                sqlTR += "AND lockedBy LIKE :patt "
             # sql to unlock
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET lockedBy=NULL,lockedTime=NULL "
-            sqlTU += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NOT NULL AND lockedTime<:timeLimit "
-            if vo != None:
-                sqlTU += "AND vo=:vo "
-            if prodSourceLabel != None:
-                sqlTU += "AND prodSourceLabel=:prodSourceLabel " 
+            sqlTU += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy AND lockedTime<:timeLimit "
             timeNow = datetime.datetime.utcnow()
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 1000
             # get locked task list
+            timeLimit = timeNow - datetime.timedelta(minutes=waitTime)
             varMap = {}
-            varMap[':timeLimit'] = timeNow - datetime.timedelta(minutes=waitTime)
+            varMap[':timeLimit'] = timeLimit
             if vo != None:
                 varMap[':vo'] = vo
             if prodSourceLabel != None:
                 varMap[':prodSourceLabel'] = prodSourceLabel
+            if hostName != None:
+                varMap[':patt'] = '{0}-%'.format(hostName)
             self.cur.execute(sqlTR+comment,varMap)
             taskList = self.cur.fetchall()
             # unlock tasks
             nTasks = 0
             for jediTaskID,lockedBy,lockedTime in taskList:
+                # extract PID
+                if hostName != None:
+                    # hostname mismatch
+                    if not lockedBy.startswith(hostName):
+                        continue
+                    tmpMatch = re.search('^{0}-\d+_(\d+)-'.format(hostName),lockedBy)
+                    # no PGID
+                    if tmpMatch == None:
+                        continue
+                    tmpPGID = long(tmpMatch.group(1))
+                    # active process
+                    if tmpPGID == pgid:
+                        continue
+                varMap = {}
+                varMap[':lockedBy'] = lockedBy
+                varMap[':timeLimit'] = timeLimit
                 varMap[':jediTaskID'] = jediTaskID
                 self.cur.execute(sqlTU+comment,varMap)
                 iTasks = self.cur.rowcount

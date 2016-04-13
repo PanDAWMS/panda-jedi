@@ -29,7 +29,7 @@ class ContentsFeeder (JediKnight):
     def __init__(self,commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels):
         self.vos = self.parseInit(vos)
         self.prodSourceLabels = self.parseInit(prodSourceLabels)
-        self.pid = '{0}-{1}-con'.format(socket.getfqdn().split('.')[0],os.getpid())
+        self.pid = '{0}-{1}_{2}-con'.format(socket.getfqdn().split('.')[0],os.getpid(),os.getpgrp())
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
 
 
@@ -535,6 +535,9 @@ class ContentsFeederThread (WorkerThread):
                             tmpMsg = 'set task.status={0}'.format(newTaskStatus)
                             tmpLog.info(tmpMsg)
                             tmpLog.sendMsg(tmpMsg,self.msgType)
+                        # just unlock
+                        retUnlock = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID,self.pid)
+                        tmpLog.info('unlock not-running task with {0}'.format(retUnlock))
                     else:
                         # just unlock
                         retUnlock = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID,self.pid)

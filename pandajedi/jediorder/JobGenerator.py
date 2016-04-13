@@ -46,7 +46,7 @@ class JobGenerator (JediKnight):
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
         self.vos = self.parseInit(vos)
         self.prodSourceLabels = self.parseInit(prodSourceLabels)
-        self.pid = '{0}-{1}-gen'.format(socket.getfqdn().split('.')[0],os.getpid())
+        self.pid = '{0}-{1}_{2}-gen'.format(socket.getfqdn().split('.')[0],os.getpid(),os.getpgrp())
         self.cloudList = cloudList
         self.withThrottle = withThrottle
         self.execJobs = execJobs

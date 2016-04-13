@@ -1,6 +1,7 @@
 Release Notes
 
 * 4/13/2016
+  * improved unlockTasks to release tasks locked by dead processes
   * fixed oldPandaIDs in JG for job cloning and multiple consumers
 
 * 4/12/2016
