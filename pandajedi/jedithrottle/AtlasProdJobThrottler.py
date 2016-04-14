@@ -24,7 +24,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nJobsInBunchMax = 600
         nJobsInBunchMin = 500
         nJobsInBunchMaxES = 1000
-        if workQueue.criteria != None and 'site' in workQueue.criteria):
+        if workQueue.criteria != None and 'site' in workQueue.criteria:
             minTotalWalltime = 10*1000*1000
         else:
             minTotalWalltime = 50*1000*1000
