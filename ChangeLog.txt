@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/14/2016
+  * using smaller minTotalWalltime for WQ with site in AtlasPJT
+
 * 4/13/2016
   * changed resume/pauseTask to  activate/throttle jobs
   * fixed JG for pending tasks to release lock
