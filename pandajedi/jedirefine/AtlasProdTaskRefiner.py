@@ -59,12 +59,6 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                 datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
                 if not datasetType in ['',None]:
                     datasetTypeList.append(datasetType)
-                storageToken = DataServiceUtils.getDestinationSE(datasetSpec.storageToken)
-                if storageToken != None:
-                    tmpSiteList = self.ddmIF.getInterface(self.taskSpec.vo).getSitesWithEndPoint(storageToken,self.siteMapper,'production')
-                    if tmpSiteList == []:
-                        raise RuntimeError,'cannot find online siteID associated to {0}'.format(storageToken)
-                    datasetSpec.destination = tmpSiteList[0]
             # set numThrottled to use the task throttling mechanism
             if not 'noThrottle' in taskParamMap:
                 self.taskSpec.numThrottled = 0

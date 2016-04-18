@@ -517,7 +517,10 @@ def getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs):
         if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
             continue
         # get token
-        token = nucleusSpec.getAssoicatedEndpoint(datasetSpec.storageToken)['ddm_endpoint_name']
+        endPoint = nucleusSpec.getAssoicatedEndpoint(datasetSpec.storageToken)
+        if endPoint == None:
+            continue
+        token = endPoint['ddm_endpoint_name']
         # add origianl token
         if not datasetSpec.storageToken in ['',None]:
             token += '/{0}'.format(datasetSpec.storageToken.split('/')[-1])

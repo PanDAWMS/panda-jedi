@@ -1,5 +1,6 @@
 import re
 import sys
+import traceback
 
 from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -45,7 +46,8 @@ class AtlasProdWatchDog (WatchDogBase):
             self.doActionToSetScoutJobData(tmpLog)
         except:
             errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('failed with {0} {1}'.format(errtype,errvalue))
+            tmpLog.error('failed with {0}:{1} {2}'.format(errtype.__name__,errvalue,
+                                                          traceback.format_exc()))
         # return
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
