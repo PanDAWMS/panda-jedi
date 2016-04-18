@@ -1,4 +1,6 @@
 import os
+import copy
+import math
 
 
 # get effective file size
@@ -122,3 +124,19 @@ def roundUpRamCount(ramCount):
         except:
             pass
     return ramCount
+
+
+
+# get percentile until numpy 1.5.X becomes available
+def percentile(inList,percent,idMap):
+    inList = copy.copy(inList)
+    inList.sort()
+    k = (len(inList)-1) * float(percent)/100
+    f = math.floor(k)
+    c = math.ceil(k)
+    val0 = inList[int(f)]
+    val1 = inList[int(c)]
+    d0 = val0 * (c-k)
+    d1 = val1 * (k-f)
+    retVal = d0+d1
+    return retVal,[val0,val1]

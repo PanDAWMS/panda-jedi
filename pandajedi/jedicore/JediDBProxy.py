@@ -4827,10 +4827,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         workSizeList.append(tmpWorkSize)
         # add tags
         def addTag(jobTagMap,idDict,value,tagStr):
-            tmpPandaID = idDict[value]
-            if not tmpPandaID in jobTagMap:
-                jobTagMap[tmpPandaID] = []
-            jobTagMap[tmpPandaID].append(tagStr)
+            if value in idDict:
+                tmpPandaID = idDict[value]
+                if not tmpPandaID in jobTagMap:
+                    jobTagMap[tmpPandaID] = []
+                if not tagStr in jobTagMap[tmpPandaID]:
+                    jobTagMap[tmpPandaID].append(tagStr)
         # calculate values
         jobTagMap = {}
         if outSizeList != []:
@@ -4867,12 +4869,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if returnMap['walltime'] > limitWallTime:
                 returnMap['walltime'] = limitWallTime
         if cpuTimeList != []:
-            maxCpuTime = max(cpuTimeList)
-            addTag(jobTagMap,cpuTimeDict,maxCpuTime,'cpuTime')
-            try:
-                extraInfo['execTime'] = execTimeMap[cpuTimeDict[maxCpuTime]]
-            except:
-                pass
+            maxCpuTime,origValues = JediCoreUtils.percentile(cpuTimeList,95,cpuTimeDict)
+            for origValue in origValues:
+                addTag(jobTagMap,cpuTimeDict,origValue,'cpuTime')
+                try:
+                    extraInfo['execTime'] = execTimeMap[cpuTimeDict[origValue]]
+                except:
+                    pass
             maxCpuTime = long(math.ceil(maxCpuTime*1.5))
             returnMap['cpuTime'] = maxCpuTime
         if ioIntentList != []:
@@ -4909,7 +4912,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
         # return    
-        tmpLog.debug('succeeded={0} data={1} extra={2}'.format(scoutSucceeded,str(returnMap),str(extraInfo)))
+        tmpLog.debug('succeeded={0} data={1} extra={2} tag={3}'.format(scoutSucceeded,str(returnMap),str(extraInfo),
+                                                                       jobTagMap))
         return scoutSucceeded,returnMap,extraInfo
 
 
