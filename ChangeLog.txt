@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/19/2016
+  * fixed getScoutJobData to use jobs with nEvents<10 but wallTime>6h
+
 * 4/18/2016
   * using 95th percentile for cpuTime
   * fixed dst:XYZ to use nucleus instead of PQ
