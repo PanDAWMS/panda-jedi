@@ -1124,6 +1124,12 @@ class JediTaskSpec(object):
 
 
 
+    # RAM scales with nCores
+    def ramPerCore(self):
+        return self.ramUnit in ['MBPerCore','MBPerCoreFixed']
+
+
+
     # run until input is closed
     def runUntilClosed(self):
         if self.splitRule != None:

@@ -4803,7 +4803,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # RAM size
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
-                            if preRamUnit == 'MBPerCore':
+                            if preRamUnit == 'MBPerCoreFixed':
+                                pass
+                            elif preRamUnit == 'MBPerCore':
                                 if maxPSS > 0:
                                     tmpPSS = maxPSS
                                     if not preBaseRamCount in [0,None]:

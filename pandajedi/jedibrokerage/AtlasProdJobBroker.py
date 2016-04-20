@@ -510,12 +510,12 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # job memory requirement 
                 minRamCount = origMinRamCount
-                if taskSpec.ramUnit == 'MBPerCore':
+                if taskSpec.ramPerCore():
                     if not tmpSiteSpec.coreCount in [None,0]:
                         minRamCount = origMinRamCount * tmpSiteSpec.coreCount
                     minRamCount += taskSpec.baseRamCount
-                # round up
-                minRamCount = JediCoreUtils.roundUpRamCount(minRamCount)
+                # compensate
+                minRamCount = JediCoreUtils.compensateRamCount(minRamCount)
                 # site max memory requirement
                 if not tmpSiteSpec.maxrss in [0,None]:
                     site_maxmemory = tmpSiteSpec.maxrss

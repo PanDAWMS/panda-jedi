@@ -113,16 +113,12 @@ def getConfigParam(configStr,vo,sourceLabel):
 
 
 
-# round up memory count
-def roundUpRamCount(ramCount):
+# compensate memory count
+def compensateRamCount(ramCount):
     if ramCount == 'NULL':
         ramCount = None
     if not ramCount in [None,0]:
-        try:
-            memStep = 500
-            ramCount = int(ramCount-1)/memStep*memStep + memStep
-        except:
-            pass
+        ramCount = int(ramCount*0.95)
     return ramCount
 
 

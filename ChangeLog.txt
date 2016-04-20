@@ -1,6 +1,8 @@
 Release Notes
 
 * 4/20/2016
+  * introduced 5% of tolerance in minRamCount
+  * introduced MBPerCoreFixed
   * changed JG to set maxWalltime=24h to scouts with cpuTime=0 or None
 
 * 4/19/2016

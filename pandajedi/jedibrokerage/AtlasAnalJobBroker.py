@@ -210,7 +210,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         ######################################
         # selection for memory
         minRamCount = max(taskSpec.ramCount,inputChunk.ramCount)
-        minRamCount = JediCoreUtils.roundUpRamCount(minRamCount)
+        minRamCount = JediCoreUtils.compensateRamCount(minRamCount)
         if not minRamCount in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
