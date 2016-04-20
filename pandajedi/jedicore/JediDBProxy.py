@@ -3686,6 +3686,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTU += "SET lockedBy=NULL,lockedTime=NULL "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy AND lockedTime<:timeLimit "
             timeNow = datetime.datetime.utcnow()
+            # sql to get picked datasets
+            sqlDP  = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDP += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2,:type3,:type4,:type5) " 
+            # sql to rollback files
+            sqlF  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
+            sqlF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oStatus AND keepTrack=:keepTrack "
+            # sql to reset nFilesUsed
+            sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=nFilesUsed-:nFileRow ".format(jedi_config.db.schemaJEDI)
+            sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID " 
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 1000
@@ -3726,6 +3735,35 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if iTasks == 1:
                     tmpLog.debug('unlocked jediTaskID={0} lockedBy={1} lockedTime={2}'.format(jediTaskID,lockedBy,
                                                                                               lockedTime))
+                    # get input datasets
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':type1'] = 'input'
+                    varMap[':type2'] = 'trn_log'
+                    varMap[':type3'] = 'trn_output'
+                    varMap[':type4'] = 'pseudo_input'
+                    varMap[':type5'] = 'random_seed'
+                    self.cur.execute(sqlDP+comment,varMap)
+                    resDatasetList = self.cur.fetchall()
+                    # loop over all input datasets
+                    for datasetID, in resDatasetList:
+                        # update contents
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':datasetID']  = datasetID
+                        varMap[':nStatus'] = 'ready'
+                        varMap[':oStatus'] = 'picked'
+                        varMap[':keepTrack'] = 1
+                        self.cur.execute(sqlF+comment,varMap)
+                        nFileRow = self.cur.rowcount
+                        tmpLog.debug('unlocked jediTaskID={0} released {1} rows for datasetID={2}'.format(jediTaskID,nFileRow,datasetID))
+                        if nFileRow > 0:
+                            # reset nFilesUsed
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID']  = datasetID
+                            varMap[':nFileRow'] = nFileRow
+                            self.cur.execute(sqlDU+comment,varMap)
                 nTasks += iTasks
             # commit
             if not self._commit():
