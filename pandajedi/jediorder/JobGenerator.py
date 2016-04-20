@@ -982,7 +982,10 @@ class JobGeneratorThread (WorkerThread):
                         pass
                     # maxWalltime
                     try:
-                        if taskSpec.cpuTime != None:
+                        if taskSpec.cpuTime in [0,None] and taskSpec.useHS06() and inputChunk.useScout():
+                            jobSpec.maxWalltime = 24*60*60
+                            jobSpec.maxCpuCount = 24*60*60
+                        elif taskSpec.cpuTime != None:
                             jobSpec.maxWalltime = taskSpec.cpuTime
                             if jobSpec.maxWalltime != None and jobSpec.maxWalltime > 0:
                                 jobSpec.maxWalltime *= totalMasterEvents

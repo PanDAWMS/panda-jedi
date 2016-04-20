@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/20/2016
+  * changed JG to set maxWalltime=24h to scouts with cpuTime=0 or None
+
 * 4/19/2016
   * fixed getScoutJobData to use jobs with nEvents<10 but wallTime>6h
 
