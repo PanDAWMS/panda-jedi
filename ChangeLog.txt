@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/25/2016
+  * changed AtlasPTB to respect dst: when input is unavailable
+
 * 4/20/2016
   * fixed unlockTasks to release picked files
   * introduced 5% of tolerance in minRamCount
