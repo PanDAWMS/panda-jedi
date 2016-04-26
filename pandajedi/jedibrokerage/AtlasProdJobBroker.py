@@ -21,8 +21,8 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 AGIS_CLOSENESS = 'AGIS_closeness'
 BANDWIDTH = 'NWS_bw'
 BLOCKED_LINK = -1
-MIN_CLOSENESS = 1 #closeness goes from 1(best) to 9(worst)
-MAX_CLOSENESS = 9
+MIN_CLOSENESS = 0 # closeness goes from 0(best) to 11(worst)
+MAX_CLOSENESS = 11
 # NWS tags need to be prepended with activity
 TRANSFERRED_1H = '_done_1h'
 TRANSFERRED_6H = '_done_6h'
