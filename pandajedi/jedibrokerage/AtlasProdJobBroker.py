@@ -1085,7 +1085,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                     weightNw = 2.3 # Small weight boost for processing in nucleus itself
                 else:
                     # network weight: dynamic weight between 1 and 2
-                    weightNwDynamic = 1 + (bestTime / (nFilesInQueue * 1.0 / nFilesTransferred))
+                    try:
+                        weightNwDynamic = 1 + (bestTime / (nFilesInQueue * 1.0 / nFilesTransferred))
+                    except ZeroDivisionError:
+                        weightNwDynamic = 2
 
                     # combine static and dynamic weights
                     weightNw = self.nwDynamicImportance * weightNwDynamic + self.nwStaticImportance * weightNwStatic
