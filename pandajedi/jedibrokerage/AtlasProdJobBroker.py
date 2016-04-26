@@ -993,7 +993,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     try:
                         transferred = networkMap[tmpAtlasSiteName][transferred_tag]
                     except KeyError:
-                        nFilesTransferred = 0
+                        transferred = 0
 
                     currentTime = queued * 1.0 / transferred
                     if currentTime < bestTime:
