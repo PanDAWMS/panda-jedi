@@ -9574,7 +9574,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
 
-        varMap = {'dst': dst}
+        latest_validity = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
+
+        varMap = {'dst': dst,
+                  'latest_validity': latest_validity}
         i = 0
         for key in keyList:
             varMap[':key{0}'.format(i)] = key
@@ -9584,7 +9587,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sql = """
         SELECT src, key, value, ts FROM {0}.network_matrix_kv
         WHERE dst = :dst AND key IN ({1})
-        AND ts > sysdate - INTERVAL '90' MINUTE
+        AND ts > :latest_validity
         """.format(jedi_config.db.schemaJEDI, key_bindings)
 
         self.cur.execute(sql+comment,varMap)
