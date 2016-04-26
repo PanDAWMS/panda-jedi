@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/26/2016
+  * resetting walltimeunit when re-refining tasks
+
 * 4/25/2016
   * changed AtlasPTB to respect dst: when input is unavailable
 
