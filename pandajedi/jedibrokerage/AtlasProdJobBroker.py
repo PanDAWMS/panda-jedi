@@ -985,7 +985,17 @@ class AtlasProdJobBroker (JobBrokerBase):
                     if nucleus == tmpAtlasSiteName:
                         continue
 
-                    currentTime = networkMap[tmpAtlasSiteName][queued_tag]*1.0/networkMap[tmpAtlasSiteName][transferred_tag]
+                    try:
+                        queued = networkMap[tmpAtlasSiteName][queued_tag]
+                    except KeyError:
+                        queued = 0
+
+                    try:
+                        transferred = networkMap[tmpAtlasSiteName][transferred_tag]
+                    except KeyError:
+                        nFilesTransferred = 0
+
+                    currentTime = queued * 1.0 / transferred
                     if currentTime < bestTime:
                         bestTime = currentTime
                         bestSite = tmpAtlasSiteName
