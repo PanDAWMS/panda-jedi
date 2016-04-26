@@ -99,6 +99,9 @@ class TaskRefinerBase (object):
             taskSpec.walltime = 0
         if taskParamMap.has_key('walltimeUnit'):
             taskSpec.walltimeUnit = taskParamMap['walltimeUnit']
+        else:
+            # force to set NULL so that retried tasks get data from scouts again
+            taskSpec.forceUpdate('walltimeUnit')
         if taskParamMap.has_key('outDiskCount'):
             taskSpec.outDiskCount = taskParamMap['outDiskCount']
         else:
