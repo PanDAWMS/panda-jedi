@@ -168,11 +168,13 @@ class JobGenerator (JediKnight):
                                 else:
                                     tmpLog.debug('got {0} input tasks'.format(len(tmpList)))
                                     if len(tmpList) != 0: 
+                                        lackOfJobs = False
                                         if thrFlag == False:
                                             # check if the queue has jobs more than nQueueLimit
                                             if self.withThrottle and throttle.lackOfJobs:
                                                 tmpLog.debug('unlock {0} for multiple processes to quickly fill the queue until nQueueLimit is reached'.format(cycleStr))
                                                 self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
+                                                lackOfJobs = True
                                         # put to a locked list
                                         inputList = ListWithLock(tmpList)
                                         # make thread pool
@@ -195,7 +197,8 @@ class JobGenerator (JediKnight):
                                                                      workQueue,
                                                                      cloudName,
                                                                      liveCounter,
-                                                                     brokerageLockIDs)
+                                                                     brokerageLockIDs,
+                                                                     lackOfJobs)
                                             globalThreadPool.add(thr)
                                             thr.start()
                                         # join
@@ -363,7 +366,8 @@ class JobGeneratorThread (WorkerThread):
     # constructor
     def __init__(self,inputList,threadPool,taskbufferIF,ddmIF,siteMapper,
                  execJobs,taskSetupper,pid,workQueue,cloud,liveCounter,
-                 brokerageLockIDs):
+                 brokerageLockIDs,
+                 lackOfJobs):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -381,6 +385,7 @@ class JobGeneratorThread (WorkerThread):
         self.cloud        = cloud
         self.liveCounter  = liveCounter
         self.brokerageLockIDs = brokerageLockIDs
+        self.lackOfJobs   = lackOfJobs
 
 
 
@@ -449,11 +454,13 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.setErrDiag(tmpErrStr)                        
                                 goForward = False
                         # run brokerage
+                        lockCounter = False
                         if goForward:
-                            if self.liveCounter != None:
+                            if self.liveCounter != None and not inputChunk.isMerging and not self.lackOfJobs:
                                 tmpLog.info('trying to lock counter')
                                 self.liveCounter.acquire() 
                                 tmpLog.info('locked counter')
+                                lockCounter = True
                             tmpLog.info('run brokerage with {0}'.format(jobBroker.getClassName(taskSpec.vo,
                                                                                                taskSpec.prodSourceLabel)))
                             try:
@@ -488,7 +495,12 @@ class JobGeneratorThread (WorkerThread):
                                         and inputChunk.readBlock == True:
                                     subChunks[-1]['subChunks'] = subChunks[-1]['subChunks'][:-1]
                                 # update counter
-                                if self.liveCounter != None:
+                                if self.liveCounter != None and not inputChunk.isMerging:
+                                    if not lockCounter:
+                                        tmpLog.info('trying to lock counter')
+                                        self.liveCounter.acquire()
+                                        tmpLog.info('locked counter')
+                                        lockCounter = True
                                     for tmpSubChunk in subChunks:
                                         self.liveCounter.add(tmpSubChunk['siteName'],len(tmpSubChunk['subChunks']))
                             except:
@@ -502,7 +514,7 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.setErrDiag(tmpErrStr)                                
                                 goForward = False
                         # release lock
-                        if self.liveCounter != None:
+                        if lockCounter:
                             tmpLog.info('release counter')
                             self.liveCounter.release() 
                         # lock task
@@ -1128,11 +1140,14 @@ class JobGeneratorThread (WorkerThread):
                     # middle name
                     paramList.append(('MIDDLENAME',middleName))
                     # job parameter
+                    if taskSpec.useEventService(siteSpec) and not taskSpec.useJobCloning():
+                        useEStoMakeJP = True
+                    else:
+                        useEStoMakeJP = False
                     jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
                                                                    serialNr,paramList,jobSpec,simul,
                                                                    taskParamMap,inputChunk.isMerging,
-                                                                   jobSpec.Files,
-                                                                   taskSpec.useEventService(siteSpec))
+                                                                   jobSpec.Files,useEStoMakeJP)
                     # add
                     tmpJobSpecList.append(jobSpec)
                     oldPandaIDs.append(subOldPandaIDs)
@@ -1669,8 +1684,8 @@ class JobGeneratorThread (WorkerThread):
             parTemplate = parTemplate.replace('<PANDA_ES_ONLY>','')
             parTemplate = parTemplate.replace('</PANDA_ES_ONLY>','')
         else:
-            parTemplate = re.sub('<PANDA_ES_ONLY>(.*)</PANDA_ES_ONLY>','',parTemplate)
-            parTemplate = re.sub('<PANDA_ESMERGE.*>(.*)</PANDA_ESMERGE.*>','',parTemplate)
+            parTemplate = re.sub('<PANDA_ES_ONLY>[^<]*</PANDA_ES_ONLY>','',parTemplate)
+            parTemplate = re.sub('<PANDA_ESMERGE.*>[^<]*</PANDA_ESMERGE.*>','',parTemplate)
         # return
         return parTemplate
 

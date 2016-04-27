@@ -1,5 +1,9 @@
 Release Notes
 
+* 4/27/2016
+  * changed JG not to lock counter for pmerge or nQueued<nQueueLimit
+  * fixed JG for uniform tasks with ES and non-ES
+
 * 4/26/2016
   * resetting walltimeunit when re-refining tasks
   * updates/protections for new network metrics sources
