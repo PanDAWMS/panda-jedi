@@ -1,6 +1,7 @@
 Release Notes
 
 * 4/27/2016
+  * increased nQueueLimit for group to 40k
   * changed JG not to lock counter for pmerge or nQueued<nQueueLimit
   * fixed JG for uniform tasks with ES and non-ES
 

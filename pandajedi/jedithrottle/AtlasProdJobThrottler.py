@@ -123,7 +123,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         if cloudName == 'CERN':
             nQueueLimit = 2000
         if workQueue.queue_name == 'group':
-            nQueueLimit = 10000
+            nQueueLimit = 40000
         if workQueue.queue_name == 'eventservice':
             nQueueLimit = 2000
         # use nPrestage for reprocessing   
