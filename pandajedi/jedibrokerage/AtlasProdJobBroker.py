@@ -58,6 +58,12 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             self.nw_threshold = 1.7
 
+        if hasattr(jedi_config.jobbroker, 'QUEUE_THRESHOLD'): # network threshold for urgent tasks
+            self.queue_threshold = jedi_config.jobbroker.QUEUE_THRESHOLD
+        else:
+            self.queue_threshold = 300
+
+
     # wrapper for return
     def sendLogMessage(self,tmpLog):
         # log suppression
@@ -125,7 +131,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
 
     # main
-    def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap,hintForTB=False,siteListForTB=None,glLog=None):
+    def doBrokerage(self, taskSpec, cloudName, inputChunk, taskParamMap, hintForTB=False, siteListForTB=None, glLog=None):
         # suppress sending log
         if hintForTB:
             self.suppressLogSending = True
@@ -144,7 +150,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpLog.debug('Network weights are ACTIVE!')
         else:
             tmpLog.debug('Network weights are PASSIVE!')
-        
+
         timeNow = datetime.datetime.utcnow()
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
@@ -216,6 +222,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 t1Sites = []
                 for tmpNucleus in self.siteMapper.nuclei.values():
                     t1Sites += tmpNucleus.allPandaSites
+
         # sites sharing SE with T1
         if len(t1Sites) > 0:
             sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper,t1Sites[0])
@@ -262,33 +269,49 @@ class AtlasProdJobBroker (JobBrokerBase):
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError
+
         #################################################
-        # WORLD CLOUD: filtering out blacklisted links
+        # WORLD CLOUD: get the nucleus and the network map
         nucleus = taskSpec.nucleus
         siteMapping = self.taskBufferIF.getPandaSiteToAtlasSiteMapping()
-        if taskSpec.useWorldCloud() and nucleus and not sitePreAssigned and not siteListPreAssigned:
-                agisClosenessMap = self.taskBufferIF.getNetworkMetrics(nucleus, [AGIS_CLOSENESS])
-                newScanSiteList = []
-                for tmpPandaSiteName in scanSiteList:
-                    try:
-                        tmpAtlasSiteName = siteMapping[tmpPandaSiteName]
-                        if nucleus == tmpAtlasSiteName or agisClosenessMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK:
-                            newScanSiteList.append(tmpPandaSiteName)
-                        else:
-                            tmpLog.debug('  skip site={0} due to agis_closeness={1} criteria=-link_blacklisting'
-                                         .format(tmpPandaSiteName, BLOCKED_LINK))
-                    except KeyError:
-                        # Don't skip missing links for the moment. In later stages missing links
-                        # default to the worst connectivity and will be penalized.
-                        newScanSiteList.append(tmpPandaSiteName)
 
-                scanSiteList = newScanSiteList
-                tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
-                if not scanSiteList:
-                    tmpLog.error('no candidates')
-                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
-                    return retTmpError
+        if taskSpec.useWorldCloud() and nucleus:
+            # get connectivity stats to the nucleus in case of WORLD cloud
+            if inputChunk.isExpress():
+                transferred_tag = '{0}{1}'.format(URG_ACTIVITY, TRANSFERRED_6H)
+                queued_tag = '{0}{1}'.format(URG_ACTIVITY, QUEUED)
+            else:
+                transferred_tag = '{0}{1}'.format(PRD_ACTIVITY, TRANSFERRED_6H)
+                queued_tag = '{0}{1}'.format(PRD_ACTIVITY, QUEUED)
+
+            networkMap = self.taskBufferIF.getNetworkMetrics(nucleus, [BANDWIDTH, AGIS_CLOSENESS, transferred_tag, queued_tag])
+
+        #####################################################
+        # filtering out blacklisted or links with long queues
+        if taskSpec.useWorldCloud() and nucleus and not sitePreAssigned and not siteListPreAssigned:
+            newScanSiteList = []
+            for tmpPandaSiteName in scanSiteList:
+                try:
+                    tmpAtlasSiteName = siteMapping[tmpPandaSiteName]
+                    if nucleus == tmpAtlasSiteName or \
+                                    networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK or \
+                                    networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold:
+                        newScanSiteList.append(tmpPandaSiteName)
+                    else:
+                        tmpLog.debug('  skip site={0} due to agis_closeness={1} or files queued {2}: criteria=-link_unusable'
+                                     .format(tmpPandaSiteName, BLOCKED_LINK, networkMap[tmpAtlasSiteName][queued_tag]))
+                except KeyError:
+                    # Don't skip missing links for the moment. In later stages missing links
+                    # default to the worst connectivity and will be penalized.
+                    newScanSiteList.append(tmpPandaSiteName)
+
+            scanSiteList = newScanSiteList
+            tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
+            if not scanSiteList:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
         ######################################
         # selection for high priorities
         t1WeightForHighPrio = 1
@@ -965,17 +988,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         weightMapSecondary = {}
         newScanSiteList = []
 
-        # get connectivity stats to the nucleus in case of WORLD cloud
-        if inputChunk.isExpress():
-            transferred_tag = '{0}{1}'.format(URG_ACTIVITY, TRANSFERRED_6H)
-            queued_tag = '{0}{1}'.format(URG_ACTIVITY, QUEUED)
-        else:
-            transferred_tag = '{0}{1}'.format(PRD_ACTIVITY, TRANSFERRED_6H)
-            queued_tag = '{0}{1}'.format(PRD_ACTIVITY, QUEUED)
-
         if taskSpec.useWorldCloud() and nucleus:
 
-            networkMap = self.taskBufferIF.getNetworkMetrics(nucleus, [BANDWIDTH, AGIS_CLOSENESS, transferred_tag, queued_tag])
             bestTime = 10**12 # any large value
             bestSite = None
             for tmpSiteName in scanSiteList:
