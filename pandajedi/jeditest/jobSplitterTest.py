@@ -63,7 +63,7 @@ for dummyID,tmpList in tmpListList:
         jobBroker.setTestMode(taskSpec.vo,taskSpec.prodSourceLabel)
         splitter = JobSplitter()
         gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper,None,
-                                 None,None,None,brokerageLockIDs)
+                                 None,None,None,brokerageLockIDs, False)
 
         taskParamMap = None
         if taskSpec.useLimitedSites():
