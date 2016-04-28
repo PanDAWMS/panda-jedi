@@ -1167,7 +1167,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
             elif taskSpec.useWorldCloud() and self.nwActive and inputChunk.isExpress() \
-                    and weightNw < self.nw_threshold * self.nw:
+                    and weightNw < self.nw_threshold * self.nw_weight_multiplier:
                 ngMsg = '  skip site={0} due to low network weight for express task weightNw={1} threshold={2}'\
                     .format(tmpSiteName, weightNw, self.nw_threshold)
                 ngMsg += '{0} '.format(weightStr)
