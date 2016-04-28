@@ -7528,6 +7528,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlUTN  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlUTN += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE,startTime=CURRENT_DATE "
             sqlUTN += "WHERE jediTaskID=:jediTaskID "
+            # sql to update DEFT task status
+            sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlTT += "SET status=:status,timeStamp=CURRENT_DATE,start_time=NULL "
+            sqlTT += "WHERE taskID=:jediTaskID AND start_time IS NOT NULL "
             # sql to reset running files
             sqlRR  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlRR += "SET status=:newStatus,attemptNr=attemptNr+1,maxAttempt=maxAttempt+:maxAttempt " 
@@ -7726,7 +7730,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if changedMasterList != []:
                             newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
                         else:
-                            # to to finalization since no files left in ready status
+                            # to finalization since no files left in ready status
                             msgStr = 'no {0} since no new/unprocessed files available'.format(commStr)
                             tmpLog.debug(msgStr)
                             newTaskStatus = taskOldStatus
@@ -7744,6 +7748,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # set old update time to trigger subsequent process
                     varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     self.cur.execute(sqlUTN+comment,varMap)
+                    # update DEFT
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':status']     = 'ready'
+                    self.cur.execute(sqlTT+comment,varMap)
                 else:
                     tmpLog.debug('back to taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
                     varMap[':updateTime'] = datetime.datetime.utcnow()

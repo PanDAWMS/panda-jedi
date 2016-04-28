@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/28/2016
+  * changed retryTask to update t_task.start_time
+
 * 4/27/2016
   * increased nQueueLimit for group to 40k
   * changed JG not to lock counter for pmerge or nQueued<nQueueLimit
