@@ -124,6 +124,19 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpLog.warning('Failed to send network message to panda logger: {0}'.format(sys.exc_info()[1]))
 
 
+    def convertMBpsToWeight(self, mbps):
+        """
+        Takes MBps value and converts to a weight between 1 and 2
+        """
+        mbps_thresholds = [200, 100, 75, 50, 20, 10, 2, 1]
+        weights = [2, 1.9, 1.8, 1.6, 1.5, 1.3, 1.2, 1.1]
+
+        for threshold, weight in zip(mbps_thresholds, weights):
+            if mbps > threshold:
+                return weight
+        return 1
+
+
     # get all T1 sites
     def getAllT1Sites(self):
         cloudList = self.siteMapper.getCloudList()
@@ -1000,23 +1013,6 @@ class AtlasProdJobBroker (JobBrokerBase):
         weightMapSecondary = {}
         newScanSiteList = []
 
-        # Get the maximum throughput between the satellite candidates to the nucleus
-        if taskSpec.useWorldCloud() and nucleus:
-            max_mbps_to_nucleus = 0
-            for queue in scanSiteList:
-
-                try:
-                    site = siteMapping[queue]
-                except KeyError:
-                    continue
-
-                if site == nucleus:  # Don't compare against site transferring to itself
-                    continue
-
-                for metric in [FTS_1H, FTS_1D, FTS_1W]:
-                    if networkMap[site].has_key(metric) and networkMap[site][metric] > max_mbps_to_nucleus:
-                        max_mbps_to_nucleus = networkMap[site][metric]
-
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
@@ -1094,15 +1090,15 @@ class AtlasProdJobBroker (JobBrokerBase):
                     weightNwQueue = 2 - (nFilesInQueue * 1.0 / self.queue_threshold)
 
                     # throughput weight: the higher the throughput, the higher the weight
-                    if mbps and max_mbps_to_nucleus:
-                        weightNwThroughput = 1 + mbps/max_mbps_to_nucleus
+                    if mbps is not None:
+                        weightNwThroughput = self.convertMBpsToWeight(mbps)
                     else:
                         weightNwThroughput = 1 + ((MAX_CLOSENESS - closeness) * 1.0 / (MAX_CLOSENESS-MIN_CLOSENESS))
 
                 # combine queue and throughput weights
                 weightNw = self.nwQueueImportance * weightNwQueue + self.nwThroughputImportance * weightNwThroughput
 
-                weightStr += 'weightNw={0} (closeness={1} nFilesQueued={2} throughput={3}MBps. Network weight: {4})'.\
+                weightStr += 'weightNw={0} (closeness={1} nFilesQueued={2} throughput={3}MBps Network weight={4})'.\
                     format(weightNw, closeness, nFilesInQueue, mbps, self.nwActive)
 
                 #If network measurements in active mode, apply the weight
