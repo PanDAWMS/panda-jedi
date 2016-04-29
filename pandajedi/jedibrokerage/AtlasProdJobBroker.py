@@ -1010,7 +1010,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 except KeyError:
                     continue
 
-                if site == nucleus: # Don't compare against site transferrring to itself
+                if site == nucleus:  # Don't compare against site transferring to itself
                     continue
 
                 for metric in [FTS_1H, FTS_1D, FTS_1W]:
@@ -1081,8 +1081,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                     mbps = networkMap[tmpAtlasSiteName][FTS_1D]
                     mbps = networkMap[tmpAtlasSiteName][FTS_1H]
                 except KeyError:
-                    tmpLog.debug('No dynamic FTS mbps information found in network matrix from {0}({1}) to {2}'.
-                                 format(tmpAtlasSiteName, tmpSiteName, nucleus))
+                    if mbps is None:
+                        tmpLog.debug('No dynamic FTS mbps information found in network matrix from {0}({1}) to {2}'.
+                                     format(tmpAtlasSiteName, tmpSiteName, nucleus))
 
                 # network weight: value between 1 and 2, except when nucleus == satellite
                 if nucleus == tmpAtlasSiteName: # 25 per cent weight boost for processing in nucleus itself
