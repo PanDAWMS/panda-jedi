@@ -1001,17 +1001,21 @@ class AtlasProdJobBroker (JobBrokerBase):
         newScanSiteList = []
 
         # Get the maximum throughput between the satellite candidates to the nucleus
-        max_mbps_to_nucleus = 0
-        for queue in scanSiteList:
+        if taskSpec.useWorldCloud() and nucleus:
+            max_mbps_to_nucleus = 0
+            for queue in scanSiteList:
 
-            try:
-                site = siteMapping[queue]
-            except KeyError:
-                continue
+                try:
+                    site = siteMapping[queue]
+                except KeyError:
+                    continue
 
-            for metric in [FTS_1H, FTS_1D, FTS_1W]:
-                if networkMap[site].has_key(metric) and networkMap[site][metric] > max_mbps_to_nucleus:
-                    max_mbps_to_nucleus = networkMap[site][metric]
+                if site == nucleus: # Don't compare against site transferrring to itself
+                    continue
+
+                for metric in [FTS_1H, FTS_1D, FTS_1W]:
+                    if networkMap[site].has_key(metric) and networkMap[site][metric] > max_mbps_to_nucleus:
+                        max_mbps_to_nucleus = networkMap[site][metric]
 
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
