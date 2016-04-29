@@ -83,7 +83,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
     # sends a json message to ES. QUICK HACK FOR EXPERIMENTATION. SHOULD BE INCLUDED IN PANDA-COMMON
     def sendNetworkMessage(self, taskID, src, dst, weight, weightNw, weightNwThroughput,
-                           weightNwQueued, mbps, max_mbps, closeness, nqueued, tmpLog):
+                           weightNwQueued, mbps, closeness, nqueued, tmpLog):
         name = 'panda.mon.jedi'
         module = 'network_brokerage'
 
@@ -106,7 +106,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                     'weightNwThroughput': weightNwThroughput,
                     'weightNwQueued': weightNwQueued,
                     'mbps': mbps,
-                    'max_mbps': max_mbps,
                     'closeness': closeness,
                     'nqueued': nqueued,
                     'msg': 'network data'}
@@ -1106,7 +1105,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     weight *= weightNw
 
                 self.sendNetworkMessage(taskSpec.jediTaskID, tmpAtlasSiteName, nucleus, weight, weightNw,
-                                        weightNwThroughput, weightNwQueue, mbps, max_mbps_to_nucleus, closeness,
+                                        weightNwThroughput, weightNwQueue, mbps, closeness,
                                         nFilesInQueue, tmpLog)
 
             # make candidate
