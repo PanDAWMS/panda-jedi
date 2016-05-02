@@ -379,6 +379,23 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             self.sendLogMessage(tmpLog)
                             continue
                         ######################################
+                        # check status of transfer backlog
+                        newNucleusList = {}
+                        backlogged_nuclei = self.taskBufferIF.getBackloggedNuclei()
+                        for tmpNucleus, tmpNucleusSpec in nucleusList.iteritems():
+                            if tmpNucleus in backlogged_nuclei:
+                                tmpLog.debug('  skip nucleus={0} due to long transfer backlog criteria=-transfer_backlog'.
+                                             format(tmpNucleus))
+                            else:
+                                newNucleusList[tmpNucleus] = tmpNucleusSpec
+                        nucleusList = newNucleusList
+                        tmpLog.debug('{0} candidates passed status check'.format(len(nucleusList)))
+                        if nucleusList == {}:
+                            tmpLog.error('no candidates')
+                            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                            self.sendLogMessage(tmpLog)
+                            continue
+                        ######################################
                         # check endpoint
                         fractionFreeSpace = {}
                         newNucleusList = {}

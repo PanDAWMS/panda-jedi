@@ -1337,6 +1337,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         # return
         return retVal
 
+    # get nuclei that have built up a long backlog
+    def getBackloggedNuclei(self):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getBackloggedNuclei()
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
 
     # get network metrics for brokerage
     def getPandaSiteToAtlasSiteMapping(self):

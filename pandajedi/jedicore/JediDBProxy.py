@@ -9614,6 +9614,42 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    def getBackloggedNuclei(self):
+        """
+        Return a list of nuclei, which has built up transfer backlog. We will consider a nucleus as backlogged,
+         when it has over 3000 output transfers queued and there are more than 3 sites with queues over
+        """
+
+        comment = ' /* JediDBProxy.getBackloggedNuclei */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+
+        latest_validity = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
+
+        varMap = {'latest_validity': latest_validity}
+
+        sql = """
+              SELECT dst
+              FROM {0}.network_matrix_kv
+              WHERE key = 'Production Output_queued'
+              AND ts > :latest_validity
+              GROUP BY dst
+              HAVING SUM(value) > 3000
+        """.format(jedi_config.db.schemaJEDI)
+
+        self.cur.execute(sql+comment, varMap)
+        try:
+            backlogged_nuclei = self.cur.fetchall()[0]
+        except IndexError:
+            backlogged_nuclei = []
+
+        tmpLog.debug('Nuclei with a long backlog are: {0}'.format(backlogged_nuclei))
+
+        return backlogged_nuclei
+
+
+
     # get a  mapping of panda sites to sites
     def getPandaSiteToAtlasSiteMapping(self):
         comment = ' /* JediDBProxy.getPandaSiteToSiteMapping */'
