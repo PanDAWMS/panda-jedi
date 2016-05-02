@@ -3,6 +3,7 @@ Release Notes
 * 5/02/2016
   * updated to second version of network brokerage
   * changed AtlasPJB to ignore t1w for pmerge
+  * fixed taskRW in AtlasPTB
 
 * 4/28/2016
   * changed retryTask to update t_task.start_time
