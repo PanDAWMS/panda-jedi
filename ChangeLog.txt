@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/02/2016
+  * updated to second version of network brokerage
+
 * 4/28/2016
   * changed retryTask to update t_task.start_time
 
