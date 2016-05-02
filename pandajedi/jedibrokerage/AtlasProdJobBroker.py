@@ -895,7 +895,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if t1Weight == 0:
             # use T1 weight in cloudconfig
             t1Weight = self.siteMapper.getCloud(cloudName)['weight']
-        if t1Weight < 0:
+        if t1Weight < 0 and not inputChunk.isMerging:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 if not tmpSiteName in t1Sites:
