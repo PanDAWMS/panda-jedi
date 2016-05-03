@@ -356,6 +356,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),monToken='{0}'.format(taskSpec.jediTaskID))
                     tmpLog.debug('start')
+                    # RW
+                    taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)
                     # get nuclei
                     nucleusList = siteMapper.nuclei
                     if taskSpec.nucleus in nucleusList:
@@ -554,9 +556,6 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                             self.sendLogMessage(tmpLog)
                             continue
-                        ###################################### 
-                        # RW
-                        taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)
                         ###################################### 
                         # weight
                         self.prioRW.acquire()
