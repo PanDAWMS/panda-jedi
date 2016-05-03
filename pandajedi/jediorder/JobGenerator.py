@@ -791,7 +791,7 @@ class JobGeneratorThread (WorkerThread):
                     else:
                         jobSpec.maxDiskCount = taskSpec.getOutDiskSize()
                     jobSpec.maxDiskUnit      = 'MB'
-                    jobSpec.minRamCount      = max(taskSpec.ramCount, self.getLargestRamCount(inSubChunk))
+                    jobSpec.minRamCount      = inputChunk.getMaxRamCount()
                     jobSpec.minRamUnit       = taskSpec.ramUnit
                     if taskSpec.ramPerCore():
                         if not siteSpec.coreCount in [None,0]:

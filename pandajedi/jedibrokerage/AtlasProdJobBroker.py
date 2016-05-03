@@ -547,7 +547,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for memory
-        origMinRamCount  = max(taskSpec.ramCount, inputChunk.ramCount)
+        origMinRamCount = inputChunk.getMaxRamCount()
         if not origMinRamCount in [0,None]:
             strMinRamCount = '{0}({1})'.format(origMinRamCount,taskSpec.ramUnit)
             if not taskSpec.baseRamCount in [0,None]:

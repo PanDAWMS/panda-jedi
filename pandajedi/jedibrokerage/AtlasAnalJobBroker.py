@@ -209,7 +209,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # selection for memory
-        minRamCount = max(taskSpec.ramCount,inputChunk.ramCount)
+        minRamCount = inputChunk.getMaxRamCount()
         minRamCount = JediCoreUtils.compensateRamCount(minRamCount)
         if not minRamCount in [0,None]:
             newScanSiteList = []

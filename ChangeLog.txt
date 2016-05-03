@@ -1,6 +1,9 @@
 Release Notes
 
-* 5/02/2016
+* 5/3/2016
+  * changed job brokerages to use mergeRamCount for pmerge
+
+* 5/2/2016
   * updated to second version of network brokerage
   * changed AtlasPJB to ignore t1w for pmerge
   * avoid assigning tasks to nuclei with large transfer backlogs
