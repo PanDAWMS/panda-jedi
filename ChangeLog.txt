@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/4/2016
+  * changed lifetime of transient datasets to 14 days
+
 * 5/3/2016
   * changed job brokerages to use mergeRamCount for pmerge
 
