@@ -1,6 +1,7 @@
 Release Notes
 
 * 5/4/2016
+  * fixed lockedBy IS NULL in getTaskDatasetsWithID_JEDI 
   * changed lifetime of transient datasets to 14 days
 
 * 5/3/2016

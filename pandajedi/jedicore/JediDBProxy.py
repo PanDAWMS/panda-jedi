@@ -1877,9 +1877,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql
             sql  = "SELECT {0} ".format(JediTaskSpec.columnNames())
-            sql += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL ".format(jedi_config.db.schemaJEDI)
+            sql += "FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
             if lockTask:
-                sql += "FOR UPDATE NOWAIT"
+                sql += "AND lockedBy IS NULL FOR UPDATE NOWAIT"
             sqlLK  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlLK += "WHERE jediTaskID=:jediTaskID "
             sqlDS  = "SELECT {0} ".format(JediDatasetSpec.columnNames())
@@ -1925,7 +1925,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            tmpLog.debug('done')
+            if taskSpec == None:
+                tmpLog.debug('done with None')
+            else:
+                tmpLog.debug('done with OK')
             return True,taskSpec
         except:
             # roll back
