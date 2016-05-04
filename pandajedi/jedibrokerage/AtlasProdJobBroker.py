@@ -317,8 +317,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 try:
                     tmpAtlasSiteName = siteMapping[tmpPandaSiteName]
                     if nucleus == tmpAtlasSiteName or \
-                                    networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK or \
-                                    networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold:
+                                    (networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK and \
+                                    networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold):
                         newScanSiteList.append(tmpPandaSiteName)
                     else:
                         tmpLog.debug('  skip site={0} due to agis_closeness={1} or too many files queued {2}: criteria=-link_unusable'
