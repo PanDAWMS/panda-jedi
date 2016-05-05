@@ -12,14 +12,14 @@ $ sudo yum install panda-jedi
 
 $ cd /etc/panda
 $ sudo mv panda_jedi.cfg.rpmnew panda_jedi.cfg
-$ sudo cp /etc/cron.d/panda_jedi.cron.rpmnew /etc/cron.d/panda_jedi.cron
+$ sudo cp panda_jedi.cron.rpmnew /etc/cron.d/panda_jedi.cron
 $ sudo cp /etc/logrotate.d/panda_jedi.logrotate.rpmnew /etc/logrotate.d/panda_jedi.logrotate
 
 
 4. Add the JEDI service
 
-$ sudo ln -fs /etc/rc.d/init.d/panda_jedi-ctl /etc/init.d/panda-jedi
-$ sudo /sbin/chkconfig --add panda-jedi
+$ sudo ln -fs /etc/rc.d/init.d/panda_jedi-ctl /etc/init.d/panda_jedi
+$ sudo /sbin/chkconfig --add panda_jedi
 
 
 Start JEDI

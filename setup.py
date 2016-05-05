@@ -169,13 +169,10 @@ setup(
                'pandajedi.jedipprocess',
               ],
     data_files=[
-                # config files 
+                # config and cron files
                 ('/etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
+                                'templates/panda_jedi.cron.rpmnew.template',
                                ]
-                 ),
-                # cron files
-                ('/etc/cron.d', ['templates/panda_jedi.cron.rpmnew.template',
-                                ]
                  ),
                 # logrotate
                 ('/etc/logrotate.d', ['templates/panda_jedi.logrotate.rpmnew.template',
