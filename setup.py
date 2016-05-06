@@ -14,6 +14,10 @@ release_version = PandaPkgInfo.release_version
 if os.environ.has_key('BUILD_NUMBER'):
     release_version = '{0}.{1}'.format(release_version,os.environ['BUILD_NUMBER'])
 
+# define user name and group
+panda_user = 'atlpan'
+panda_group = 'zp'
+
 import re
 import sys
 import commands
