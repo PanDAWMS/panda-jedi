@@ -100,6 +100,7 @@ class JobGenerator (JediKnight):
                                 tmpLog.debug('start {0}'.format(cycleStr))
                                 # check if to lock
                                 lockFlag = self.toLockProcess(vo,prodSourceLabel,workQueue.queue_name,cloudName)
+                                flagLocked = False
                                 if lockFlag:
                                     tmpLog.debug('check if to lock')
                                     # lock
@@ -123,7 +124,7 @@ class JobGenerator (JediKnight):
                                     raise RuntimeError,'failed to check throttle'
                                 mergeUnThrottled = None
                                 if thrFlag == True:
-                                    if self.withThrottle:
+                                    if flagLocked:
                                         tmpLog.debug('throttled')
                                         self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
                                         continue
@@ -134,7 +135,7 @@ class JobGenerator (JediKnight):
                                     mergeUnThrottled = not throttle.mergeThrottled(vo,workQueue.queue_type,thrFlag)
                                     if not mergeUnThrottled:
                                         tmpLog.debug('throttled including merge')
-                                        if self.withThrottle:
+                                        if flagLocked:
                                             self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
                                             continue
                                     else:
@@ -150,6 +151,14 @@ class JobGenerator (JediKnight):
                                 nTasksToGetTasks = tmpParamsToGetTasks['nTasks']
                                 nFilesToGetTasks = tmpParamsToGetTasks['nFiles']
                                 tmpLog.debug('nTasks={0} nFiles={1} to get tasks'.format(nTasksToGetTasks,nFilesToGetTasks))
+                                # release lock when lack of jobs
+                                lackOfJobs = False
+                                if thrFlag == False:
+                                    if flagLocked and throttle.lackOfJobs:
+                                        tmpLog.debug('unlock {0} for multiple processes to quickly fill the queue until nQueueLimit is reached'.format(cycleStr))
+                                        self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
+                                        lackOfJobs = True
+                                        flagLocked = True
                                 # get the list of input 
                                 tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,vo,
                                                                                        workQueue,
@@ -168,13 +177,6 @@ class JobGenerator (JediKnight):
                                 else:
                                     tmpLog.debug('got {0} input tasks'.format(len(tmpList)))
                                     if len(tmpList) != 0: 
-                                        lackOfJobs = False
-                                        if thrFlag == False:
-                                            # check if the queue has jobs more than nQueueLimit
-                                            if self.withThrottle and throttle.lackOfJobs:
-                                                tmpLog.debug('unlock {0} for multiple processes to quickly fill the queue until nQueueLimit is reached'.format(cycleStr))
-                                                self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
-                                                lackOfJobs = True
                                         # put to a locked list
                                         inputList = ListWithLock(tmpList)
                                         # make thread pool
