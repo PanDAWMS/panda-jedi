@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/6/2016
+  * set maxNumJobs=nQueueLimit/10 when nQueued<nQueueLimit
+
 * 5/4/2016
   * fixed lockedBy IS NULL in getTaskDatasetsWithID_JEDI 
   * changed lifetime of transient datasets to 14 days
