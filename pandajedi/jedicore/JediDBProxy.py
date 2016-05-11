@@ -9675,3 +9675,50 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         tmpLog.debug('done')
         return mapping
+
+
+
+
+    # get failure counts for a task
+    def getFailureCountsForTask_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.getFailureCountsForTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql
+            sql  = "SELECT COUNT(*),computingSite,jobStatus "
+            sql += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
+            sql += "WHERE jediTaskID=:jediTaskID AND modificationTime>SYSDATE-1 "
+            sql += "AND ((jobStatus=:jobFailed AND pilotErrorCode IS NOT NULL AND pilotErrorCode<>0) OR "
+            sql += "(jobStatus=:jobClosed AND jobSubStatus=:toReassign)) "
+            sql += "GROUP BY computingSite,jobStatus "
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':jobClosed']  = 'closed'
+            varMap[':jobFailed']  = 'failed'
+            varMap[':toReassign'] = 'toreassign'
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sql+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # make dict
+            retMap = {}
+            for cnt,computingSite,jobStatus in resList:
+                if not computingSite in retMap:
+                    retMap[computingSite] = {}
+                if not jobStatus in retMap[computingSite]:
+                    retMap[computingSite][jobStatus] = 0
+                retMap[computingSite][jobStatus] += cnt
+            tmpLog.debug(str(retMap))
+            return retMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return {}

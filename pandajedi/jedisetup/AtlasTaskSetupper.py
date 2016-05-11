@@ -72,7 +72,10 @@ class AtlasTaskSetupper (TaskSetupperBase):
                         if not targetName in avDatasetList:
                             # set lifetime
                             if targetName.startswith('panda'):
-                                lifetime = 14
+                                if datasetSpec.type == 'trn_log' and taskSpec.prodSourceLabel == 'managed':
+                                    lifetime = 365
+                                else:
+                                    lifetime = 14
                             else:
                                 lifetime = None
                             # check dataset/container in DDM

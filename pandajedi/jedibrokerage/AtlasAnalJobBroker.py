@@ -597,6 +597,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         weightMap = {}
         candidateSpecList = []
         preSiteCandidateSpec = None
+        failureCounts = self.taskBufferIF.getFailureCountsForTask_JEDI(taskSpec.jediTaskID)
         for tmpSiteName in scanSiteList:
             # get number of jobs in each job status. Using workQueueID=None to include non-JEDI jobs
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',  None,None)
@@ -604,6 +605,13 @@ class AtlasAnalJobBroker (JobBrokerBase):
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,None) + \
                          AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,None)
             nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting', None,None)
+            nFailed    = 0
+            nClosed    = 0
+            if tmpSiteName in failureCounts:
+                if 'failed' in failureCounts[tmpSiteName]:
+                    nFailed = failureCounts[tmpSiteName]['failed']
+                if 'closed' in failureCounts[tmpSiteName]:
+                    nClosed = failureCounts[tmpSiteName]['closed']
             weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + 1)
             nThrottled = 0
             if remoteSourceList.has_key(tmpSiteName):
@@ -621,14 +629,16 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 preSiteCandidateSpec = siteCandidateSpec
             # set weight
             siteCandidateSpec.weight = weight
-            tmpLog.debug('  site={0} nRun={1} nDef={2} nAct={3} nStart={4} nTr={5} dataW={6} W={7}'.format(tmpSiteName,
-                                                                                                           nRunning,
-                                                                                                           nAssigned,
-                                                                                                           nActivated,
-                                                                                                           nStarting,
-                                                                                                           nThrottled,
-                                                                                                           tmpDataWeight,
-                                                                                                           weight))
+            tmpLog.debug('  site={0} nRun={1} nDef={2} nAct={3} nStart={4} nFailed={5} nClosed={6} nTr={7} dataW={8} W={9}'.format(tmpSiteName,
+                                                                                                                                   nRunning,
+                                                                                                                                   nAssigned,
+                                                                                                                                   nActivated,
+                                                                                                                                   nStarting,
+                                                                                                                                   nFailed,
+                                                                                                                                   nClosed,
+                                                                                                                                   nThrottled,
+                                                                                                                                   tmpDataWeight,
+                                                                                                                                   weight))
             # append
             if tmpSiteName in sitesUsedByTask:
                 candidateSpecList.append(siteCandidateSpec)

@@ -1359,3 +1359,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         # return
         return retVal
 
+
+
+    # get failure counts for a task
+    def getFailureCountsForTask_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getFailureCountsForTask_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+

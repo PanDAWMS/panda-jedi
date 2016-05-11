@@ -1,5 +1,9 @@
 Release Notes
 
+* 5/11/2016
+  * added getFailureCountsForTask_JEDI
+  * changed lifetime of um.log to 365 days
+
 * 5/6/2016
   * changed JG not to lock when nQueued<nQueueLimit
   * set maxNumJobs=nQueueLimit/10 when nQueued<nQueueLimit
