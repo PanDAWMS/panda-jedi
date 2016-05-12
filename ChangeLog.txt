@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/12/2016
+  * changed t1weight based on IO intensity
+
 * 5/11/2016
   * added getFailureCountsForTask_JEDI
   * changed lifetime of um.log to 365 days

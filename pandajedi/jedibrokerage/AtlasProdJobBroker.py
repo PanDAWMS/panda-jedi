@@ -893,8 +893,12 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for T1 weight
         t1Weight = taskSpec.getT1Weight()
         if t1Weight == 0:
-            # use T1 weight in cloudconfig
-            t1Weight = self.siteMapper.getCloud(cloudName)['weight']
+            tmpLog.debug('IO intensity {0}'.format(taskSpec.ioIntensity))
+            # use T1 weight in cloudconfig if IO intensive
+            if taskSpec.ioIntensity != None and taskSpec.ioIntensity > 500:
+                t1Weight = self.siteMapper.getCloud(cloudName)['weight']
+            else:
+                t1Weight = 1
         if t1Weight < 0 and not inputChunk.isMerging:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
