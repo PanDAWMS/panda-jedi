@@ -498,25 +498,33 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         if availableData != {}:
                             newNucleusList = {}
                             # skip if no data
+                            skipMsgList = []
                             for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
                                 if len(nucleusList) == 1:
                                     tmpLog.debug('  disable data locality check for nucleus={0} since no other candidate'.format(tmpNucleus))
                                     newNucleusList[tmpNucleus] = tmpNucleusSpec
                                 elif availableData[tmpNucleus]['tot_size'] > thrInputSize and \
                                         availableData[tmpNucleus]['ava_size_any'] < availableData[tmpNucleus]['tot_size'] * thrInputSizeFrac:
-                                    tmpLog.debug('  skip nucleus={0} due to insufficient input size {1}B < {2}*{3} criteria=-insize'.format(tmpNucleus,
-                                                                                                                                            availableData[tmpNucleus]['ava_size_any'],
-                                                                                                                                            availableData[tmpNucleus]['tot_size'],
-                                                                                                                                            thrInputSizeFrac))
+                                    tmpMsg = '  skip nucleus={0} due to insufficient input size {1}B < {2}*{3} criteria=-insize'.format(tmpNucleus,
+                                                                                                                                        availableData[tmpNucleus]['ava_size_any'],
+                                                                                                                                        availableData[tmpNucleus]['tot_size'],
+                                                                                                                                        thrInputSizeFrac)
+                                    skipMsgList.append(tmpMsg)
                                 elif availableData[tmpNucleus]['tot_num'] > thrInputNum and \
                                         availableData[tmpNucleus]['ava_num_any'] < availableData[tmpNucleus]['tot_num'] * thrInputNumFrac:
-                                    tmpLog.debug('  skip nucleus={0} due to short number of input files {1} < {2}*{3} criteria=-innum'.format(tmpNucleus,
-                                                                                                                                              availableData[tmpNucleus]['ava_num_any'],
-                                                                                                                                              availableData[tmpNucleus]['tot_num'],
-                                                                                                                                              thrInputNumFrac))
+                                    tmpMsg = '  skip nucleus={0} due to short number of input files {1} < {2}*{3} criteria=-innum'.format(tmpNucleus,
+                                                                                                                                          availableData[tmpNucleus]['ava_num_any'],
+                                                                                                                                          availableData[tmpNucleus]['tot_num'],
+                                                                                                                                          thrInputNumFrac)
+                                    skipMsgList.append(tmpMsg)
                                 else:
                                     newNucleusList[tmpNucleus] = tmpNucleusSpec
-                            nucleusList = newNucleusList
+                            if len(newNucleusList) > 0:
+                                nucleusList = newNucleusList
+                                for tmpMsg in skipMsgList:
+                                    tmpLog.debug(tmpMsg)
+                            else:
+                                tmpLog.debug('  disable data locality check since no nucleus has input data')
                             tmpLog.debug('{0} candidates passed data check'.format(len(nucleusList)))
                             if nucleusList == {}:
                                 tmpLog.error('no candidates')

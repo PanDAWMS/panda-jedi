@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/16/2016
+  * changed AtlasPTB to skip data locality check when no nucleus has data
+
 * 5/12/2016
   * changed t1weight based on IO intensity
 
