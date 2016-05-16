@@ -1,6 +1,7 @@
 Release Notes
 
 * 5/16/2016
+  * fixed ZeroDivision error in AtlasPTB
   * changed AtlasPTB to skip data locality check when no nucleus has data
 
 * 5/12/2016

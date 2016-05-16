@@ -584,14 +584,15 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 wStr += '/(1 : RW={0}<{1})'.format(nucleusRW[tmpNucleus],cutOffRW)
                             # with data
                             if availableData != {}:
-                                weight *= float(availableData[tmpNucleus]['ava_size_any'])
-                                weight /= float(availableData[tmpNucleus]['tot_size'])
-                                wStr += '*({0}=available input size on DISK/TAPE)'.format(availableData[tmpNucleus]['ava_size_any'])
-                                wStr += '/({0}=total input size)'.format(availableData[tmpNucleus]['tot_size'])
-                                # negative weight for tape
-                                if availableData[tmpNucleus]['ava_size_any'] > availableData[tmpNucleus]['ava_size_disk']:
-                                    weight *= negWeightTape
-                                    wStr += '*({0}=weight for TAPE)'.format(negWeightTape)
+                                if availableData[tmpNucleus]['tot_size'] > 0:
+                                    weight *= float(availableData[tmpNucleus]['ava_size_any'])
+                                    weight /= float(availableData[tmpNucleus]['tot_size'])
+                                    wStr += '*({0}=available input size on DISK/TAPE)'.format(availableData[tmpNucleus]['ava_size_any'])
+                                    wStr += '/({0}=total input size)'.format(availableData[tmpNucleus]['tot_size'])
+                                    # negative weight for tape
+                                    if availableData[tmpNucleus]['ava_size_any'] > availableData[tmpNucleus]['ava_size_disk']:
+                                        weight *= negWeightTape
+                                        wStr += '*({0}=weight for TAPE)'.format(negWeightTape)
                                 # fraction of free space
                                 if tmpNucleus in fractionFreeSpace:
                                     try:
