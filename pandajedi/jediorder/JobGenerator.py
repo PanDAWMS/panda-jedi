@@ -1040,9 +1040,9 @@ class JobGeneratorThread (WorkerThread):
                     # maxDiskCount in MB
                     jobSpec.maxDiskCount /= (1024*1024)
                     jobSpec.maxDiskCount = long(jobSpec.maxDiskCount)
-                    # FIXME one maxwdir is used
-                    if siteSpec.maxinputsize < jobSpec.maxDiskCount:
-                        jobSpec.maxDiskCount = siteSpec.maxinputsize
+                    # cap not to go over site limit
+                    if siteSpec.maxwdir != 0 and siteSpec.maxwdir < jobSpec.maxDiskCount:
+                        jobSpec.maxDiskCount = siteSpec.maxwdir
                     # unset maxCpuCount and minRamCount for merge jobs 
                     if inputChunk.isMerging:
                         if jobSpec.maxCpuCount != [None,'NULL']:
