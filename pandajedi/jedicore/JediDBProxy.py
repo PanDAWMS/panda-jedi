@@ -14,6 +14,7 @@ from pandajedi.jediconfig import jedi_config
 
 from pandaserver import taskbuffer
 import taskbuffer.OraDBProxy
+from pandaserver.taskbuffer import JobUtils
 from pandaserver.taskbuffer import EventServiceUtils
 from WorkQueueMapper import WorkQueueMapper
 
@@ -4509,6 +4510,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             items = jobMetrics.split(' ')
             items.append(tagStr)
             newSH = ' '.join(items)
+        # cap
+        newSH = newSH[:500]
         # update live table
         sqlL  = "UPDATE {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlL += "SET jobMetrics=:newStr WHERE PandaID=:PandaID "
@@ -4756,21 +4759,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     inFSizeList.append(totalFSize)
                     jMetricsMap[pandaID] = jobMetrics
                     # core count
-                    coreCount = 1
-                    try:
-                        if actualCoreCount != None:
-                            coreCount = actualCoreCount
-                        else:
-                            # extract coreCount
-                            tmpMatch = re.search('coreCount=(\d+)',jobMetrics)
-                            if tmpMatch != None:
-                                coreCount = long(tmpMatch.group(1))
-                            else:
-                                # use jobdef
-                                if not defCoreCount in [None,0]:
-                                    coreCount = defCoreCount
-                    except:
-                        pass
+                    coreCount = JobUtils.getCoreCount(actualCoreCount,defCoreCount,jobMetrics)
                     # output size
                     if eventServiceJob != EventServiceUtils.esJobFlagNumber:
                         try:
@@ -4811,19 +4800,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # CPU time
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
-                            if preCpuEfficiency == 0:
-                                # no scaling
-                                tmpVal = 0
-                            else:
-                                tmpTimeDelta = endTime-startTime
-                                tmpVal = (tmpTimeDelta.seconds+tmpTimeDelta.days*24*3600)
-                                if tmpVal <= preBaseWalltime:
-                                    # execution is smaller than offset
-                                    tmpVal = 0
-                                else:
-                                    tmpVal = float(tmpVal-preBaseWalltime)*corePower*coreCount*float(preCpuEfficiency)/100.0
-                                    if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
-                                        tmpVal /= float(inEventsMap[pandaID])
+                            tmpVal = JobUtils.getHS06sec(startTime,endTime,preBaseWalltime,preCpuEfficiency,corePower,coreCount)
+                            if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
+                                tmpVal /= float(inEventsMap[pandaID])
                             if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10 or \
                                     (inEventsMap[pandaID] < 10 and pandaID in execTimeMap and execTimeMap[pandaID] > 6*3600):
                                 cpuTimeList.append(tmpVal)

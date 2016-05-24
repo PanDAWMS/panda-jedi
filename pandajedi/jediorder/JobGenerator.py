@@ -910,6 +910,10 @@ class JobGeneratorThread (WorkerThread):
                                 totalMasterSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
                                                                                       tmpFileSpec.endEvent,tmpFileSpec.nEvents)
                                 totalMasterEvents += tmpFileSpec.getEffectiveNumEvents()
+                                # set failure count
+                                if tmpFileSpec.failedAttempt != None:
+                                    if jobSpec.failedAttempt == None or jobSpec.failedAttempt < tmpFileSpec.failedAttempt:
+                                        jobSpec.failedAttempt = tmpFileSpec.failedAttempt
                             # total file size
                             if tmpInFileSpec.status != 'cached':
                                 totalFileSize += tmpFileSpec.fsize
