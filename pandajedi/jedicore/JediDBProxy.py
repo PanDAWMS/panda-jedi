@@ -9620,7 +9620,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getBackloggedNuclei(self):
         """
         Return a list of nuclei, which has built up transfer backlog. We will consider a nucleus as backlogged,
-         when it has over 3000 output transfers queued and there are more than 3 sites with queues over
+         when it has over 1500 output transfers queued and there are more than 3 sites with queues over
         """
 
         comment = ' /* JediDBProxy.getBackloggedNuclei */'
@@ -9638,7 +9638,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
               WHERE key = 'Production Output_queued'
               AND ts > :latest_validity
               GROUP BY dst
-              HAVING SUM(value) > 3000
+              HAVING SUM(value) > 2000
         """.format(jedi_config.db.schemaJEDI)
 
         self.cur.execute(sql+comment, varMap)

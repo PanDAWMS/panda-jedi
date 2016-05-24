@@ -64,7 +64,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if hasattr(jedi_config.jobbroker, 'QUEUE_THRESHOLD'):
             self.queue_threshold = jedi_config.jobbroker.QUEUE_THRESHOLD
         else:
-            self.queue_threshold = 300
+            self.queue_threshold = 150
 
         if hasattr(jedi_config.jobbroker, 'NW_WEIGHT_MULTIPLIER'):
             self.nw_weight_multiplier = jedi_config.jobbroker.NW_WEIGHT_MULTIPLIER
