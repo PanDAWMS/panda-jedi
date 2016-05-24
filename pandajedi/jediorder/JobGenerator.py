@@ -912,7 +912,8 @@ class JobGeneratorThread (WorkerThread):
                                 totalMasterEvents += tmpFileSpec.getEffectiveNumEvents()
                                 # set failure count
                                 if tmpFileSpec.failedAttempt != None:
-                                    if jobSpec.failedAttempt == None or jobSpec.failedAttempt < tmpFileSpec.failedAttempt:
+                                    if jobSpec.failedAttempt in [None,'NULL'] or \
+                                            jobSpec.failedAttempt < tmpFileSpec.failedAttempt:
                                         jobSpec.failedAttempt = tmpFileSpec.failedAttempt
                             # total file size
                             if tmpInFileSpec.status != 'cached':
