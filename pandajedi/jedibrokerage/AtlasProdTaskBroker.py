@@ -628,6 +628,10 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     retMap = {taskSpec.jediTaskID: AtlasBrokerUtils.getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs)}
                     tmpRet = self.taskBufferIF.setCloudToTasks_JEDI(retMap)
                     tmpLog.info('  set nucleus={0} with {1} criteria=+set'.format(candidateNucleus,tmpRet))
+                    self.sendLogMessage(tmpLog)
+                    if tmpRet:
+                        tmpMsg = 'set task.status=ready'
+                        tmpLog.sendMsg(tmpMsg,self.msgType)
                     # update RW table
                     self.prioRW.acquire()
                     for prio,rwMap in self.prioRW.iteritems():

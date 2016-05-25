@@ -1,6 +1,7 @@
 Release Notes
 
 * 5/25/2016
+  * changed AtlasPTB to send more log messages
   * added writeInputToFile
 
 * 5/24/2016
