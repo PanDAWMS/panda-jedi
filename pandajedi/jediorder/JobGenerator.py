@@ -949,6 +949,9 @@ class JobGeneratorThread (WorkerThread):
                     # log to OS
                     if taskSpec.putLogToOS():
                         jobSpec.setToPutLogToOS()
+                    # write input to file
+                    if taskSpec.writeInputToFile():
+                        jobSpec.setToWriteInputToFile()
                     # set lumi block number
                     if lumiBlockNr != None:
                         jobSpec.setLumiBlockNr(lumiBlockNr)
@@ -1432,6 +1435,8 @@ class JobGeneratorThread (WorkerThread):
             parTemplate = taskParamMap['mergeSpec']['jobParameters']
         # make the list of stream/LFNs
         streamLFNsMap = {}
+        # mapping between stream and dataset
+        streamDsMap = {}
         # parameters for placeholders
         skipEvents = None
         maxEvents  = 0
@@ -1471,8 +1476,14 @@ class JobGeneratorThread (WorkerThread):
                     tmpPFN = taskParamMap['pfnList'][long(tmpLFN.split(':')[0])]
                     tmpPFNs.append(tmpPFN)
                 tmpLFNs = tmpPFNs
-            # add
+            # add to map
             streamLFNsMap[streamName] = tmpLFNs
+            # collect dataset or container name to be used as tmp file name
+            if not tmpDatasetSpec.containerName in [None,'']:
+                streamDsMap[streamName] = tmpDatasetSpec.containerName
+            else:
+                streamDsMap[streamName] = tmpDatasetSpec.datasetName
+            streamDsMap[streamName] = re.sub('/$','',streamDsMap[streamName])
             # collect parameters for event-level split
             if tmpDatasetSpec.isMaster():
                 # skipEvents and firstEvent
@@ -1559,6 +1570,9 @@ class JobGeneratorThread (WorkerThread):
                 if '/T' in decorators:
                     parTemplate = parTemplate.replace('${'+placeHolder+'}',str(listLFN))
                     continue
+                # write to file
+                if '/F' in decorators:
+                    parTemplate = parTemplate.replace('${'+placeHolder+'}','tmpin_'+streamDsMap[streamName])
                 # single file
                 if len(listLFN) == 1:
                     # just replace with the original file name

@@ -266,6 +266,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['allowInputWAN'])
         if 'putLogToOS' in taskParamMap and taskParamMap['putLogToOS'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['putLogToOS'])
+        if 'writeInputToFile' in taskParamMap and taskParamMap['writeInputToFile'] == True:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['writeInputToFile'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
