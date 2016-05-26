@@ -11,7 +11,6 @@ from JobBrokerBase import JobBrokerBase
 import AtlasBrokerUtils
 from pandaserver.dataservice import DataServiceUtils
 
-
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 from pandacommon.pandalogger import logger_config
@@ -33,44 +32,40 @@ PRD_ACTIVITY = 'Production Output'
 FTS_1H = 'fts_mbps_1h'
 FTS_1D = 'fts_mbps_1d'
 FTS_1W = 'fts_mbps_1w'
+APP = 'jedi'
+COMPONENT = 'jobbroker'
+VO = 'atlas'
 
 # brokerage for ATLAS production
 class AtlasProdJobBroker (JobBrokerBase):
 
     # constructor
     def __init__(self,ddmIF,taskBufferIF):
-        JobBrokerBase.__init__(self,ddmIF,taskBufferIF)
+        JobBrokerBase.__init__(self,ddmIF, taskBufferIF)
         self.hospitalQueueMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper)
         self.dataSiteMap = {}
         self.suppressLogSending = False
 
-        if hasattr(jedi_config.jobbroker, 'NW_ACTIVE'): #TODO: ask Tadashi if there are better ways for the configuration
-            self.nwActive = jedi_config.jobbroker.NW_ACTIVE
-        else:
+        self.nwActive = taskBufferIF.getConfigValue(COMPONENT, 'NW_ACTIVE', APP, VO)
+        if self.nwActive is None:
             self.nwActive = False
 
-        if hasattr(jedi_config.jobbroker, 'NW_QUEUE_IMPORTANCE'):
-            self.nwQueueImportance = jedi_config.jobbroker.NW_QUEUE_IMPORTANCE
-            self.nwThroughputImportance = 1 - self.nwQueueImportance
-        else:
+        self.nwQueueImportance = taskBufferIF.getConfigValue(COMPONENT, 'NW_QUEUE_IMPORTANCE', APP, VO)
+        if self.nwQueueImportance is None:
             self.nwQueueImportance = 0.5
-            self.nwThroughputImportance = 0.5
+        self.nwThroughputImportance = 1 - self.nwQueueImportance
 
-        if hasattr(jedi_config.jobbroker, 'NW_THRESHOLD'): # network threshold for urgent tasks
-            self.nw_threshold = jedi_config.jobbroker.NW_THRESHOLD
-        else:
+        self.nw_threshold = taskBufferIF.getConfigValue(COMPONENT, 'NW_THRESHOLD', APP, VO)
+        if self.nw_threshold is None:
             self.nw_threshold = 1.7
 
-        if hasattr(jedi_config.jobbroker, 'QUEUE_THRESHOLD'):
-            self.queue_threshold = jedi_config.jobbroker.QUEUE_THRESHOLD
-        else:
+        self.queue_threshold = taskBufferIF.getConfigValue(COMPONENT, 'NQUEUED_SAT_CAP', APP, VO)
+        if self.queue_threshold is None:
             self.queue_threshold = 150
 
-        if hasattr(jedi_config.jobbroker, 'NW_WEIGHT_MULTIPLIER'):
-            self.nw_weight_multiplier = jedi_config.jobbroker.NW_WEIGHT_MULTIPLIER
-        else:
+        self.nw_weight_multiplier = taskBufferIF.getConfigValue(COMPONENT, 'NW_WEIGHT_MULTIPLIER', APP, VO)
+        if self.nw_weight_multiplier is None:
             self.nw_weight_multiplier = 1
-
 
     # wrapper for return
     def sendLogMessage(self,tmpLog):

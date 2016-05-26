@@ -9630,7 +9630,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         latest_validity = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
 
-        varMap = {'latest_validity': latest_validity}
+        nqueued_cap = self.getConfigValue('taskbroker', 'NQUEUED_NUC_CAP', 'jedi')
+        if nqueued_cap is None:
+            nqueued_cap = 2000
+
+        varMap = {':latest_validity': latest_validity,
+                  ':nqueued_cap': nqueued_cap}
 
         sql = """
               SELECT dst
@@ -9638,12 +9643,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
               WHERE key = 'Production Output_queued'
               AND ts > :latest_validity
               GROUP BY dst
-              HAVING SUM(value) > 2000
+              HAVING SUM(value) > :nqueued_cap
         """.format(jedi_config.db.schemaJEDI)
 
         self.cur.execute(sql+comment, varMap)
         try:
-            backlogged_nuclei = self.cur.fetchall()[0]
+            backlogged_nuclei = [entry[0] for entry in self.cur.fetchall()]
         except IndexError:
             backlogged_nuclei = []
 
