@@ -82,6 +82,7 @@ class JediTaskSpec(object):
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
         'useExhausted'       : 'UX',
+        'writeInputToFile'   : 'WF',
         'waitInput'          : 'WI',
         'maxAttemptES'       : 'XA',
         'maxEventRangesPerJob' : 'YE',
@@ -1246,6 +1247,16 @@ class JediTaskSpec(object):
     def putLogToOS(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['putLogToOS']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # write input to file
+    def writeInputToFile(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['writeInputToFile']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False
