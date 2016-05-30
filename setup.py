@@ -177,19 +177,19 @@ setup(
     data_files=[
                 # config and cron files
                 ('/etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
-                                'templates/panda_jedi.cron.rpmnew.template',
+                                'templates/panda_jedi.cron.template',
                                ]
                  ),
                 # logrotate
-                ('/etc/logrotate.d', ['templates/panda_jedi.logrotate.rpmnew.template',
+                ('/etc/logrotate.d', ['templates/logrotate.d/panda_jedi.template',
                                      ]
                  ),
                 # sysconfig
-                ('/etc/sysconfig', ['templates/panda_jedi-sysconfig.rpmnew.template',
+                ('/etc/sysconfig', ['templates/sysconfig/panda_jedi.template',
                                    ]
                  ),
                 # init script
-                ('/etc/rc.d/init.d', ['templates/panda_jedi-ctl.exe.template',
+                ('/etc/rc.d/init.d', ['templates/init.d/panda_jedi.exe.template',
                                    ]
                  ),
                 # exec
