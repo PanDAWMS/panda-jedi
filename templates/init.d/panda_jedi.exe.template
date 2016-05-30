@@ -4,8 +4,8 @@
 #
 # description: Panda JEDI
 # processname: python
-# config: /etc/sysconfig/panda_server-sysconfig
-# config: /etc/sysconfig/panda_jedi-sysconfig
+# config: /etc/sysconfig/panda_server
+# config: /etc/sysconfig/panda_jedi
 # pidfile: /var/log/panda/panda_jedi.pid
 
 # When multiple arguments are given, only the error from the _last_
@@ -28,13 +28,13 @@ JEDISTDOUT='/var/log/panda/panda_jedi_stdout.log'
 JEDISTDERR='/var/log/panda/panda_jedi_stderr.log'
 
 # Source panda server env variables
-if [ -r /etc/sysconfig/panda_server-sysconfig ]; then
-   . /etc/sysconfig/panda_server-sysconfig
+if [ -r /etc/sysconfig/panda_server ]; then
+   . /etc/sysconfig/panda_server
 fi
 
 # Source panda JEDI env variables
-if [ -r /etc/sysconfig/panda_jedi-sysconfig ]; then
-   . /etc/sysconfig/panda_jedi-sysconfig
+if [ -r /etc/sysconfig/panda_jedi ]; then
+   . /etc/sysconfig/panda_jedi
 fi
 
 ERROR=0
