@@ -67,6 +67,8 @@ class install_data_panda (install_data_org):
     def initialize_options (self):
         install_data_org.initialize_options (self)
         self.install_purelib = None
+        self.panda_user = panda_user
+        self.panda_group = panda_group
         
     def finalize_options (self):
         # set install_purelib
