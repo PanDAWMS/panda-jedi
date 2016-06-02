@@ -1484,6 +1484,7 @@ class JobGeneratorThread (WorkerThread):
             else:
                 streamDsMap[streamName] = tmpDatasetSpec.datasetName
             streamDsMap[streamName] = re.sub('/$','',streamDsMap[streamName])
+            streamDsMap[streamName] = streamDsMap[streamName].split(':')[-1]
             # collect parameters for event-level split
             if tmpDatasetSpec.isMaster():
                 # skipEvents and firstEvent

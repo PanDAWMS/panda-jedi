@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/2/2016
+  * removed scope from tmpin
+
 * 5/25/2016
   * changed AtlasPTB to send more log messages
   * added writeInputToFile
