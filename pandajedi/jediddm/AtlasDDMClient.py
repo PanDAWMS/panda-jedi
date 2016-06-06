@@ -1169,7 +1169,8 @@ class AtlasDDMClient(DDMClientBase):
     def registerDatasetSubscription(self,datasetName,location,activity,lifetime=None,
                                     asynchronous=False):
         methodName = 'registerDatasetSubscription'
-        methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
+        methodName = '{0} datasetName={1} location={2} activity={3} asyn={4}'.format(methodName,datasetName,
+                                                                                     location,activity,asynchronous)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         isOK = True
