@@ -1,6 +1,7 @@
 Release Notes
 
 * 6/6/2016
+  * using rucio in registerDatasetSubscription
   * fixed AtlasPWD to use Production Output for subscriptions
 
 * 6/2/2016

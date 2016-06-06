@@ -1166,28 +1166,31 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # register subscription
-    def registerDatasetSubscription(self,datasetName,location,activity=None,ignoreUnknown=False,
-                                    backEnd='rucio'):
+    def registerDatasetSubscription(self,datasetName,location,activity,lifetime=None,
+                                    asynchronous=False):
         methodName = 'registerDatasetSubscription'
         methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         isOK = True
         try:
-            # get DQ2 API
-            if backEnd == None:
-                dq2 = DQ2()
-            else:
-                dq2 = DQ2(force_backend=backEnd)
-            # call
-            dq2.registerDatasetSubscription(datasetName,location,activity=activity)
-        except DQSubscriptionExistsException:
+            if lifetime != None:
+                lifetime = lifetime*24*60*60
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
+            dids = [{'scope': scope, 'name': dsn}]
+            # check if a replication rule already exists
+            for rule in client.list_did_rules(scope=scope, name=dsn):
+                if (rule['rse_expression'] == location) and (rule['account'] == client.account):
+                    return True
+            client.add_replication_rule(dids=dids,copies=1,rse_expression=location,weight=None,
+                                        lifetime=lifetime, grouping='DATASET', account=client.account,
+                                        locked=False, notify='N',ignore_availability=True,
+                                        activity=activity,asynchronous=asynchronous)
+        except DuplicateRule:
             pass
-        except DQUnknownDatasetException:
-            if ignoreUnknown:
-                pass
-            else:
-                isOK = False
         except:
             isOK = False
         if not isOK:
