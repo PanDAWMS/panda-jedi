@@ -150,7 +150,7 @@ class AtlasProdWatchDog (WatchDogBase):
                 tmpLog.debug('registering subscription to {0} with backend={1}'.format(location,
                                                                                        ddmBackEnd))
                 tmpStat = ddmIF.registerDatasetSubscription(datasetSpec.datasetName,location,
-                                                            activity='Production',ignoreUnknown=True,
+                                                            activity='Production Output',ignoreUnknown=True,
                                                             backEnd=ddmBackEnd)
                 if tmpStat != True:
                     tmpLog.error("failed to make subscription")
