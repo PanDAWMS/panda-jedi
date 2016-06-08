@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/8/2016
+  * increased space limit to 100TB in AtlasPTB
+
 * 6/6/2016
   * using rucio in registerDatasetSubscription
   * fixed AtlasPWD to use Production Output for subscriptions

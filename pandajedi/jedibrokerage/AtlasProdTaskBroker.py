@@ -330,7 +330,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
     # main function
     def runImpl(self):
         # cutoff for disk in TB
-        diskThreshold = 5 * 1024
+        diskThreshold = 100 * 1024
         # dataset type to ignore file availability check
         datasetTypeToSkipCheck = ['log']
         thrInputSize = 1024*1024*1024
