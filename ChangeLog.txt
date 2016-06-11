@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/11/2016
+  * changed TR not to update the same task simultaneously
+
 * 6/8/2016
   * increased space limit to 100TB in AtlasPTB
 

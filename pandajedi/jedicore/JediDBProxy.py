@@ -1658,8 +1658,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[tmpKey] = tmpVal
             tmpLog.debug(sqlU+sql+comment+str(varMap))
             self.cur.execute(sqlU+sql+comment,varMap)
+            # the number of updated rows
+            nRows = self.cur.rowcount
             # insert unknown datasets
-            if insertUnknown != None:
+            if  nRows > 0 and insertUnknown != None:
                 # sql to check
                 sqlUC  = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
                 sqlUC += "WHERE jediTaskID=:jediTaskID AND type=:type AND datasetName=:datasetName "
@@ -1685,60 +1687,59 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         datasetSpec.type = JediDatasetSpec.getUnknownInputType()
                         varMap = datasetSpec.valuesMap(useSeq=True)
                         self.cur.execute(sqlUI+comment,varMap)
-            # the number of updated rows
-            nRows = self.cur.rowcount
             # update DEFT
-            if updateDEFT:
-                # count number of finished jobs
-                sqlC  = "SELECT count(distinct pandaID) "
-                sqlC += "FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
-                sqlC += "WHERE tabD.jediTaskID=tabC.jediTaskID AND tabD.jediTaskID=:jediTaskID "
-                sqlC += "AND tabC.status=:status "
-                sqlC += "AND masterID IS NULL AND pandaID IS NOT NULL "
-                varMap = {}
-                varMap[':jediTaskID'] = taskSpec.jediTaskID
-                varMap[':status'] = 'finished'
-                self.cur.execute(sqlC+comment,varMap)
-                res = self.cur.fetchone()
-                if res == None:
-                    tmpLog.debug('failed to count # of finished jobs when updating DEFT table')
-                else:
-                    nDone, = res 
-                    sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-                    sqlD += "SET status=:status,total_done_jobs=:nDone,timeStamp=CURRENT_DATE "
-                    sqlD += "WHERE taskID=:jediTaskID "
+            if nRows > 0:
+                if updateDEFT:
+                    # count number of finished jobs
+                    sqlC  = "SELECT count(distinct pandaID) "
+                    sqlC += "FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
+                    sqlC += "WHERE tabD.jediTaskID=tabC.jediTaskID AND tabD.jediTaskID=:jediTaskID "
+                    sqlC += "AND tabC.status=:status "
+                    sqlC += "AND masterID IS NULL AND pandaID IS NOT NULL "
                     varMap = {}
-                    varMap[':status'] = taskSpec.status
                     varMap[':jediTaskID'] = taskSpec.jediTaskID
-                    varMap[':nDone'] = nDone
+                    varMap[':status'] = 'finished'
+                    self.cur.execute(sqlC+comment,varMap)
+                    res = self.cur.fetchone()
+                    if res == None:
+                        tmpLog.debug('failed to count # of finished jobs when updating DEFT table')
+                    else:
+                        nDone, = res 
+                        sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                        sqlD += "SET status=:status,total_done_jobs=:nDone,timeStamp=CURRENT_DATE "
+                        sqlD += "WHERE taskID=:jediTaskID "
+                        varMap = {}
+                        varMap[':status'] = taskSpec.status
+                        varMap[':jediTaskID'] = taskSpec.jediTaskID
+                        varMap[':nDone'] = nDone
+                        tmpLog.debug(sqlD+comment+str(varMap))
+                        self.cur.execute(sqlD+comment,varMap)
+                        self.setSuperStatus_JEDI(taskSpec.jediTaskID,taskSpec.status)
+                elif taskSpec.status in ['running','broken','assigning','scouting','aborted','aborting','exhausted']:
+                    # update DEFT task status
+                    if taskSpec.status == 'scouting':
+                        deftStatus = 'submitting'
+                    else:
+                        deftStatus = taskSpec.status
+                    sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                    sqlD += "SET status=:status,timeStamp=CURRENT_DATE"
+                    if taskSpec.status == 'scouting':
+                        sqlD += ",start_time=CURRENT_DATE"
+                    sqlD += " WHERE taskID=:jediTaskID "
+                    varMap = {}
+                    varMap[':status'] = deftStatus
+                    varMap[':jediTaskID'] = taskSpec.jediTaskID
                     tmpLog.debug(sqlD+comment+str(varMap))
                     self.cur.execute(sqlD+comment,varMap)
-                    self.setSuperStatus_JEDI(taskSpec.jediTaskID,taskSpec.status)
-            elif taskSpec.status in ['running','broken','assigning','scouting','aborted','aborting','exhausted']:
-                # update DEFT task status
-                if taskSpec.status == 'scouting':
-                    deftStatus = 'submitting'
-                else:
-                    deftStatus = taskSpec.status
-                sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-                sqlD += "SET status=:status,timeStamp=CURRENT_DATE"
-                if taskSpec.status == 'scouting':
-                    sqlD += ",start_time=CURRENT_DATE"
-                sqlD += " WHERE taskID=:jediTaskID "
-                varMap = {}
-                varMap[':status'] = deftStatus
-                varMap[':jediTaskID'] = taskSpec.jediTaskID
-                tmpLog.debug(sqlD+comment+str(varMap))
-                self.cur.execute(sqlD+comment,varMap)
-                self.setSuperStatus_JEDI(taskSpec.jediTaskID,deftStatus)
-                if taskSpec.status == 'running':
-                    varMap = {}
-                    varMap[':jediTaskID'] = taskSpec.jediTaskID
-                    sqlDS  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-                    sqlDS += "SET start_time=timeStamp "
-                    sqlDS += "WHERE taskID=:jediTaskID AND start_time IS NULL "
-                    tmpLog.debug(sqlDS+comment+str(varMap))
-                    self.cur.execute(sqlDS+comment,varMap)
+                    self.setSuperStatus_JEDI(taskSpec.jediTaskID,deftStatus)
+                    if taskSpec.status == 'running':
+                        varMap = {}
+                        varMap[':jediTaskID'] = taskSpec.jediTaskID
+                        sqlDS  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                        sqlDS += "SET start_time=timeStamp "
+                        sqlDS += "WHERE taskID=:jediTaskID AND start_time IS NULL "
+                        tmpLog.debug(sqlDS+comment+str(varMap))
+                        self.cur.execute(sqlDS+comment,varMap)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'

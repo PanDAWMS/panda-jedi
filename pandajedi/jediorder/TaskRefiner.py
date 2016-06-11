@@ -198,7 +198,7 @@ class TaskRefinerThread (WorkerThread):
                                         impl.taskSpec.setErrDiag(errStr)
                                         tmpLog.info(errStr)
                                         self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
-                                                                          setFrozenTime=False)
+                                                                          oldStatus=[taskStatus],setFrozenTime=False)
                                         continue
                                     else:
                                         # not wait for parent
@@ -239,6 +239,7 @@ class TaskRefinerThread (WorkerThread):
                                 impl.taskSpec.setErrDiag(tmpErrStr)
                                 tmpLog.info(tmpErrStr)
                                 self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
+                                                                  oldStatus=[taskStatus],
                                                                   insertUnknown=impl.unknownDatasetList,
                                                                   setFrozenTime=setFrozenTime)
                                 continue
@@ -257,7 +258,7 @@ class TaskRefinerThread (WorkerThread):
                         tmpTaskSpec.status = 'tobroken'
                         if errStr != '':
                             tmpTaskSpec.setErrDiag(errStr,True)
-                        self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':tmpTaskSpec.jediTaskID})
+                        self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':tmpTaskSpec.jediTaskID},oldStatus=[taskStatus])
                     else:
                         tmpLog.info('registering')                    
                         # fill JEDI tables
@@ -292,13 +293,15 @@ class TaskRefinerThread (WorkerThread):
                                     tmpLog.error(tmpErrStr)
                                     impl.taskSpec.status = newTaskStatus
                                     impl.taskSpec.setErrDiag(tmpErrStr,True)
-                                    self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
+                                    self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
+                                                                      oldStatus=[taskStatus])
                                 tmpMsg = 'set task.status={0}'.format(newTaskStatus)
                                 tmpLog.info(tmpMsg)
                                 tmpLog.sendMsg(tmpMsg,self.msgType)
                             else:
                                 # update task with new params
-                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID})
+                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
+                                                                  oldStatus=[taskStatus])
                                 # appending for incremetnal execution
                                 tmpStat = self.taskBufferIF.appendDatasets_JEDI(jediTaskID,impl.inMasterDatasetSpec,
                                                                                 impl.inSecDatasetSpecList)
