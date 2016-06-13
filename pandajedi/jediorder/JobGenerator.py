@@ -418,6 +418,8 @@ class JobGeneratorThread (WorkerThread):
                     # loop over all inputs
                     for idxInputList,tmpInputItem in enumerate(inputList):
                         taskSpec,cloudName,inputChunk = tmpInputItem
+                        # reset error dialog
+                        taskSpec.errorDialog = None
                         # reset map of buildSpec
                         self.buildSpecMap = {}
                         # make logger

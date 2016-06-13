@@ -6557,7 +6557,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlTL += "AND currentPriority>:minPriority "
             # sql to update tasks    
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlTU += "SET status=oldStatus,oldStatus=NULL,errorDialog=NULL,modificationtime=CURRENT_DATE "
+            sqlTU += "SET status=oldStatus,oldStatus=NULL,modificationtime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND oldStatus IS NOT NULL "
             # sql to timeout tasks    
             sqlTO  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
