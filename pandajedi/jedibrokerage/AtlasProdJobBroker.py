@@ -190,7 +190,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             if inputChunk.masterDataset.creationTime != None and inputChunk.masterDataset.modificationTime != None and \
                     inputChunk.masterDataset.modificationTime != inputChunk.masterDataset.creationTime and \
                     timeNow-inputChunk.masterDataset.modificationTime > datetime.timedelta(hours=24) and \
-                    (taskSpec.lockedTime == None or timeNow-taskSpec.lockedTime > datetime.timedelta(hours=6)):
+                    taskSpec.frozenTime != None and timeNow-taskSpec.frozenTime > datetime.timedelta(hours=6):
                 # ignore pre-assigned site since pmerge is timed out
                 tmpLog.debug('ignore pre-assigned for pmerge due to timeout')
                 scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
