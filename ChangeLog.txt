@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/13/2016
+  * fixed 24h timeout in AtlasPJB to send pmerge to remote sites
+
 * 6/11/2016
   * changed TR not to update the same task simultaneously
 
