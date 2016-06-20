@@ -1,12 +1,12 @@
 # Ensure python is 2.5
-PATH=/data/atlpan/bin:$PATH
+PATH=/bin:/usr/local/bin:/usr/bin:$PATH
 
 # for DQ2
 export X509_CERT_DIR=/etc/grid-security/certificates
 export X509_USER_PROXY=/data/atlpan/x509up_u25606
 
 # panda home
-export PANDA_HOME=@@install_dir@@
+export PANDA_HOME=/data/atlpan
 
 # timezone
 export TZ=UTC

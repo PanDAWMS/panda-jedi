@@ -14,6 +14,10 @@ release_version = PandaPkgInfo.release_version
 if os.environ.has_key('BUILD_NUMBER'):
     release_version = '{0}.{1}'.format(release_version,os.environ['BUILD_NUMBER'])
 
+# define user name and group
+panda_user = 'atlpan'
+panda_group = 'zp'
+
 import re
 import sys
 import commands
@@ -55,7 +59,6 @@ sys.argv = newArgv
 class install_panda(install_org):
     def initialize_options (self):
         install_org.initialize_options(self)
-        self.prefix = '/data/atlpan/srv'
 
 
 # generates files using templates and install them
@@ -64,6 +67,8 @@ class install_data_panda (install_data_org):
     def initialize_options (self):
         install_data_org.initialize_options (self)
         self.install_purelib = None
+        self.panda_user = panda_user
+        self.panda_group = panda_group
         
     def finalize_options (self):
         # set install_purelib
@@ -170,25 +175,25 @@ setup(
                'pandajedi.jedipprocess',
               ],
     data_files=[
-                # config files 
-                ('etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
+                # config and cron files
+                ('/etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
+                                'templates/panda_jedi.cron.template',
                                ]
                  ),
-                # misc files 
-                ('etc/misc', ['templates/panda_jedi.cron.rpmnew.template',
-                              'templates/panda_jedi.logrotate.rpmnew.template',
-                               ]
+                # logrotate
+                ('/etc/logrotate.d', ['templates/logrotate.d/panda_jedi.template',
+                                     ]
                  ),
                 # sysconfig
-                ('etc/sysconfig', ['templates/panda_jedi-sysconfig.rpmnew.template',
+                ('/etc/sysconfig', ['templates/sysconfig/panda_jedi.template',
                                    ]
                  ),
                 # init script
-                ('etc/init.d', ['templates/panda_jedi-ctl.exe.template',
+                ('/etc/rc.d/init.d', ['templates/init.d/panda_jedi.exe.template',
                                    ]
                  ),
                 # exec
-                ('usr/bin', ['templates/panda_jedi-reniceJEDI.exe.template',
+                ('/usr/bin', ['templates/panda_jedi-reniceJEDI.exe.template',
                              ]
                  ),
                 ],
