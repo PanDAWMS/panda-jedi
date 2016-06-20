@@ -976,10 +976,12 @@ class JobGeneratorThread (WorkerThread):
                                     break
                         else:
                             # extract from dataset name
-                            if len(jobSpec.prodDBlock.split('.')) >= max(taskSpec.getFieldNumToLFN()):
+                            tmpMidStr = jobSpec.prodDBlock.split(':')[-1]
+                            tmpMidStrList = re.split('\.|_tid\d+',tmpMidStr)
+                            if len(tmpMidStrList) >= max(taskSpec.getFieldNumToLFN()):
                                 middleName = ''
                                 for tmpFieldNum in taskSpec.getFieldNumToLFN():
-                                    middleName += '.'+jobSpec.prodDBlock.split('.')[tmpFieldNum-1]
+                                    middleName += '.'+tmpMidStrList[tmpFieldNum-1]
                     # set provenanceID
                     provenanceID = None    
                     if useBoundary != None and useBoundary['outMap'] == True:

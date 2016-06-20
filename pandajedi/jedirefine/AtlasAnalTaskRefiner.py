@@ -64,6 +64,9 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         if taskParamMap.has_key('mergeSpec') and not taskParamMap['mergeSpec'].has_key('transPath'):
             taskParamMap['mergeSpec']['transPath'] = 'http://{0}:{1}/trf/user/runMerge-00-00-02'.format(panda_config.pserveralias,
                                                                                                         panda_config.pserverportcache)
+        # min ram count
+        if not 'ramCount' in taskParamMap:
+            taskParamMap['ramCount'] = 2000
         # update task parameters
         self.updatedTaskParams = taskParamMap
         # call base method
