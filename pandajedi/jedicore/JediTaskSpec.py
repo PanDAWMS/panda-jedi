@@ -517,7 +517,7 @@ class JediTaskSpec(object):
 
     # use Event Service
     def useEventService(self,siteSpec=None):
-        if self.eventService == 1:
+        if self.eventService in [1,2]:
             # check site if ES is disabled
             if self.switchEStoNormal() and siteSpec != None and siteSpec.getJobSeed() in ['all']:
                 return False

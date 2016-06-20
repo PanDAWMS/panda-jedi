@@ -175,8 +175,10 @@ class TaskRefinerBase (object):
                 taskParamMap['nSitesPerJob'] = 2
             if not 'nEsConsumers' in taskParamMap:
                 taskParamMap['nEsConsumers'] = taskParamMap['nSitesPerJob']
-        # event service
-        if taskParamMap.has_key('nEventsPerWorker'):
+        # event service flag
+        if 'useJobCloning' in taskParamMap:
+            taskSpec.eventService = 2
+        elif taskParamMap.has_key('nEventsPerWorker'):
             taskSpec.eventService = 1
         else:
             taskSpec.eventService = 0
