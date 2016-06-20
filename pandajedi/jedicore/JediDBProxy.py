@@ -4547,9 +4547,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         extraInfo = {}
         # sql to get preset values
         if not mergeScout:
-            sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,eventService "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
         else:
-            sqlGPV  = "SELECT outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,eventService "
+            sqlGPV  = "SELECT outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data from JEDI
@@ -4612,7 +4612,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         resGPV = self.cur.fetchone()
         if resGPV != None:
             preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,\
-                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime,eventServiceTask \
+                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime \
                 = resGPV
             # get preOutDiskCount in kB
             if not preOutDiskCount in [0,None]:
@@ -4636,7 +4636,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preCpuTime = 0
             preCpuEfficiency = None
             preBaseWalltime = None
-            evetServiceTask = 0
         if preOutDiskUnit != None and preOutDiskUnit.endswith('PerEvent'):
             preOutputScaleWithEvents = True
         else:

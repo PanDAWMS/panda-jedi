@@ -1,5 +1,9 @@
 Release Notes
 
+* 6/20/2016
+  * using eventService=2 for tasks with JC
+  * enabled space check in AtlasPJB
+
 * 6/13/2016
   * changed not to reset errorDiag until next JG attempt
   * fixed 24h timeout in AtlasPJB to send pmerge to remote sites

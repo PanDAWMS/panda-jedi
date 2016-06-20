@@ -644,39 +644,20 @@ class AtlasProdJobBroker (JobBrokerBase):
             if tmpSiteName in t1Sites:
                 pass
             else:
-                # check at the site
-                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                """
-                # the number of jobs which will produce outputs
-                nRemJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'assigned') + \
-                           AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'activated') + \
-                           AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'throttled') + \
-                           AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running')
-                # the size of input files which will be copied to the site
-                movingInputSize = self.taskBufferIF.getMovingInputSize_JEDI(tmpSiteName)
-                if movingInputSize == None:
-                    tmpLog.error('failed to get the size of input file moving to {0}'.format(tmpSiteName))
-                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
-                    return retTmpError
-                # free space - inputs - outputs(250MB*nJobs) must be >= 200GB
-                outSizePerJob = 0.250
-                diskThreshold = 200
-                tmpSiteSpaceMap = self.ddmIF.getRseUsage(tmpSiteSpec.ddm)
-                if tmpSiteSpaceMap != {}:
-                    tmpSiteFreeSpace = tmpSiteSpaceMap['free']
-                    tmpSpaceSize = tmpSiteFreeSpace - movingInputSize - nRemJobs * outSizePerJob
-                    if tmpSiteSpec.space != 0 and tmpSpaceSize < diskThreshold:
-                        tmpLog.debug('  skip {0} due to disk shortage in SE = {1}-{2}-{3}x{4} < {5}'.format(tmpSiteName,tmpSiteFreeSpace,
-                                                                                                            movingInputSize,outSizePerJob,
-                                                                                                            nRemJobs,diskThreshold))
-                        continue
-                """        
-                # check if blacklisted
+                # check endpoint
                 tmpEndPoint = tmpSiteSpec.ddm_endpoints.getEndPoint(tmpSiteSpec.ddm)
-                if tmpEndPoint != None and tmpEndPoint['blacklisted'] == 'Y':
-                    tmpLog.debug('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm))
-                    continue
+                if tmpEndPoint != None:
+                    # check free size
+                    tmpSpaceSize = tmpEndPoint['space_free'] + tmpEndPoint['space_expired']
+                    diskThreshold = 200
+                    if tmpSpaceSize < diskThreshold:
+                        tmpLog.debug('  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName,tmpSiteSpec.ddm,
+                                                                                                                    tmpSpaceSize,diskThreshold))
+                        continue
+                    # check if blacklisted
+                    if tmpEndPoint['blacklisted'] == 'Y':
+                        tmpLog.debug('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm))
+                        continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
         tmpLog.debug('{0} candidates passed SE space check'.format(len(scanSiteList)))
