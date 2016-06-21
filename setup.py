@@ -113,7 +113,7 @@ class install_data_panda (install_data_org):
                     raise RuntimeError,"%s doesn't have the .template extension" % srcFile
                 # dest filename
                 destFile = re.sub('(\.exe)*\.template$','',srcFile)
-                destFile = destFile.split('/')[-1]
+                destFile = re.sub(r'^templates/', '', destFile)
                 destFile = '%s/%s' % (tmpDir,destFile)
                 # open src
                 inFile = open(srcFile)
@@ -127,6 +127,9 @@ class install_data_panda (install_data_org):
                         raise RuntimeError,'unknown pattern %s in %s' % (item,srcFile)
                     # get pattern
                     patt = getattr(self,item)
+                    # remove install root, if any
+                    if self.root is not None and patt.startswith(self.root):
+                        patt = patt[len(self.root):]
                     # remove build/*/dump for bdist
                     patt = re.sub('build/[^/]+/dumb','',patt)
                     # remove /var/tmp/*-buildroot for bdist_rpm
@@ -134,6 +137,10 @@ class install_data_panda (install_data_org):
                     # replace
                     filedata = filedata.replace('@@%s@@' % item, patt)
                 # write to dest
+                if '/' in destFile:
+                    destSubDir = os.path.dirname(destFile)
+                    if not os.path.exists(destSubDir):
+                        os.makedirs(destSubDir)
                 oFile = open(destFile,'w')
                 oFile.write(filedata)
                 oFile.close()
