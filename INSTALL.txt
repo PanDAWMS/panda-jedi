@@ -6,7 +6,16 @@ Installation
 
 2. Install panda-jedi package
 
-$ sudo yum install panda-jedi
+* For tar-ball installation
+  1. Checkout packages from git
+    $ git clone git://git@github.com/PanDAWMS/panda-jedi.git
+ 
+  2. Build and install
+    $ cd panda-jedi
+    $ python setup.py install
+ 
+* For RPM installation
+  $ sudo yum install panda-jedi
 
 3. Modify config files
 
