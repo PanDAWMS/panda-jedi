@@ -1,6 +1,8 @@
 Release Notes
 
 * 6/20/2016
+  * using _tid\d+ as a deliminator for NthField
+  * setting ramCount=2000 for anal tasks by default
   * using eventService=2 for tasks with JC
   * enabled space check in AtlasPJB
 
@@ -1479,4 +1481,4 @@ Release Notes
 * 5/10/2013
   * first version
 
- LocalWords:  serizlize
+ LocalWords:  serizlize NthField
