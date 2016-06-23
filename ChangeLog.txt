@@ -1,5 +1,9 @@
 Release Notes
 
+* 6/23/2016
+  * add forceAvalanche
+  * put logrotate file to etc/panda to avoid automatic installation on test nodes
+
 * 6/20/2016
   * using _tid\d+ as a deliminator for NthField
   * setting ramCount=2000 for anal tasks by default

@@ -185,11 +185,8 @@ setup(
                 # config and cron files
                 ('/etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
                                 'templates/panda_jedi.cron.template',
+                                'templates/logrotate.d/panda_jedi.template',
                                ]
-                 ),
-                # logrotate
-                ('/etc/logrotate.d', ['templates/logrotate.d/panda_jedi.template',
-                                     ]
                  ),
                 # sysconfig
                 ('/etc/sysconfig', ['templates/sysconfig/panda_jedi.template',

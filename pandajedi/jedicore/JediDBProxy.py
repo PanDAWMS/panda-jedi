@@ -5154,7 +5154,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # make list
             jediTaskIDstatusMap = {}
             for jediTaskID,taskStatus in resList:
-                jediTaskIDstatusMap[jediTaskID] = taskStatus 
+                jediTaskIDstatusMap[jediTaskID] = taskStatus
+            # tasks to force avalanche
+            toAvalancheTasks = set()
             # get tasks for early avalanche
             if simTasks == None and prodSourceLabel in [None,'managed']:
                 minSuccessScouts = 5
@@ -5210,6 +5212,31 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':timeLimit'] = timeToCheck
                     varMap[':status'] = taskstatus
                     self.cur.execute(sqlLK+comment,varMap)
+            # get tasks to force avalanche
+            if simTasks == None:
+                varMap = {}
+                varMap[':taskstatus'] = taskstatus 
+                sqlFA  = "SELECT jediTaskID "
+                sqlFA += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+                sqlFA += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+                sqlFA += "AND tabT.status=:taskstatus "
+                if prodSourceLabel != None:
+                    sqlFA += "AND prodSourceLabel=:prodSourceLabel "
+                    varMap[':prodSourceLabel'] = prodSourceLabel
+                if vo != None:
+                    sqlFA += "AND tabT.vo=:vo "
+                    varMap[':vo'] = vo
+                sqlFA += "AND tabT.walltimeUnit IS NOT NULL "
+                # get tasks
+                tmpLog.debug(sqlFA+comment+str(varMap))
+                self.cur.execute(sqlFA+comment,varMap)
+                resList = self.cur.fetchall()
+                # append to list
+                for jediTaskID, in resList:
+                    if not jediTaskID in jediTaskIDstatusMap:
+                        jediTaskIDstatusMap[jediTaskID] = taskstatus
+                        toAvalancheTasks.add(jediTaskID)
+                        tmpLog.debug('got jediTaskID={0} to force avalanche'.format(jediTaskID))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -5269,6 +5296,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to update split rule
             sqlUSL  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlUSL += "SET splitRule=:splitRule WHERE jediTaskID=:jediTaskID "
+            # sql to reset walltimeUnit
+            sqlRWU  = "UPDATE {0}.JEDI_Tasks SET walltimeUnit=NULL ".format(jedi_config.db.schemaJEDI)
+            sqlRWU += "WHERE jediTaskID=:jediTaskID AND status=:status AND walltimeUnit IS NOT NULL "
             # loop over all tasks
             iTasks = 0
             for jediTaskID in jediTaskIDList:
@@ -5327,6 +5357,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # update dataset
                 if not toSkip:
                     if taskSpec.status == 'scouting':
+                        # reset walltimeUnit
+                        if jediTaskID in toAvalancheTasks:
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':status'] = taskSpec.status
+                            self.cur.execute(sqlRWU+comment,varMap)
                         # set average job data
                         scoutSucceeded,mergeScoutSucceeded = self.setScoutJobData_JEDI(taskSpec,False,True)
                         # get nFiles to be used
@@ -5348,7 +5384,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':nFilesToBeUsed'] = nReadyFiles
                             self.cur.execute(sqlFUU+comment,varMap)
                         # new task status
-                        if scoutSucceeded or noBroken:
+                        if scoutSucceeded or noBroken or jediTaskID in toAvalancheTasks:
                             if taskSpec.status == 'exhausted':
                                 # went to exhausted since real cpuTime etc is too large
                                 newTaskStatus = 'exhausted'
