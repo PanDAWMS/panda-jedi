@@ -6075,6 +6075,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for resume".format(jediTaskID,
                                                                                                                             commandStr,taskStatus))
                                     isOK = False
+                            elif commandStr == 'avalanche':
+                                if not taskStatus in ['scouting']:
+                                    # task is in a status which rejects resume
+                                    tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for resume".format(jediTaskID,
+                                                                                                                            commandStr,taskStatus))
+                                    isOK = False
                             elif taskStatus in JediTaskSpec.statusToRejectExtChange():
                                 # task is in a status which rejects external changes
                                 tmpLog.error("jediTaskID={0} rejected command={1} (due to status={2})".format(jediTaskID,commandStr,taskStatus))
@@ -6084,6 +6090,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 if commandStr == 'retry' and taskStatus == 'exhausted' and taskOldStatus in ['running','scouting']:
                                     # change task status only since retryTask increments attemptNrs for existing jobs
                                     newTaskStatus = 'running'
+                                    changeStatusOnly = True
+                                elif commandStr in ['avalanche']:
+                                    newTaskStatus = 'scouting'
                                     changeStatusOnly = True
                                 elif commandStatusMap.has_key(commandStr):
                                     newTaskStatus = commandStatusMap[commandStr]['doing']
@@ -6107,6 +6116,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             sqlTU += "oldStatus=NULL,"
                         elif not taskStatus in ['pending']:
                             sqlTU += "oldStatus=status,"
+                        if commandStr in ['avalanche']:
+                            # set dummy wallTimeUnit to trigger avalanche
+                            sqlTU += "wallTimeUnit=:wallTimeUnit,"
+                            varMap[':wallTimeUnit'] = 'ava'
                         sqlTU += "modificationTime=CURRENT_DATE,errorDialog=:errDiag,stateChangeTime=CURRENT_DATE "
                         sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:taskStatus "
                         tmpLog.debug(sqlTU+comment+str(varMap))

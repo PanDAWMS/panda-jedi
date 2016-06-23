@@ -814,6 +814,8 @@ class JediTaskSpec(object):
                            'done' : 'dummy'},
                 'resume' : {'doing': 'dummy',
                             'done' : 'dummy'},
+                'avalanche' : {'doing': 'dummy',
+                               'done' : 'dummy'},
                 }
     commandStatusMap = classmethod(commandStatusMap)
 
