@@ -975,8 +975,15 @@ class JobGeneratorThread (WorkerThread):
                                         pass
                                     break
                         else:
-                            # extract from dataset name
-                            tmpMidStr = jobSpec.prodDBlock.split(':')[-1]
+                            # extract from file or dataset name
+                            if taskSpec.useFileAsSourceLFN():
+                                tmpMidStr = ''
+                                for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
+                                    if tmpDatasetSpec.isMaster():
+                                        tmpMidStr = tmpFileSpecList[0].lfn
+                                        break
+                            else:
+                                tmpMidStr = jobSpec.prodDBlock.split(':')[-1]
                             tmpMidStrList = re.split('\.|_tid\d+',tmpMidStr)
                             if len(tmpMidStrList) >= max(taskSpec.getFieldNumToLFN()):
                                 middleName = ''

@@ -79,6 +79,7 @@ class JediTaskSpec(object):
         'useBuild'           : 'UB',
         'useJobCloning'      : 'UC',
         'useRealNumEvents'   : 'UE',
+        'useFileAsSourceLFN' : 'UF',
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
         'useExhausted'       : 'UX',
@@ -943,6 +944,16 @@ class JediTaskSpec(object):
     def useRealNumEvents(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['useRealNumEvents']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # use input LFN as source for output LFN
+    def useFileAsSourceLFN(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useFileAsSourceLFN']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

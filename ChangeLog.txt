@@ -1,7 +1,9 @@
 Release Notes
 
 * 6/23/2016
-  * add forceAvalanche
+  * using longer lifetime for unmerged datasets when AOD merge is not very successful
+  * added useFileAsSourceLFN
+  * added forceAvalanche
   * put logrotate file to etc/panda to avoid automatic installation on test nodes
 
 * 6/20/2016
