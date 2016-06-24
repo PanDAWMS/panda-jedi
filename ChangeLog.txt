@@ -1,6 +1,7 @@
 Release Notes
 
 * 6/24/2016
+  * enabled history-aware brokerage for analysis
   * added splitByFields
 
 * 6/23/2016

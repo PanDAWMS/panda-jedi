@@ -7187,9 +7187,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # execute
             self.cur.execute(sqlDS+comment,varMap)
             resList = self.cur.fetchall()
-            siteList = []
-            for siteName in resList:
-                siteList.append(siteName)
+            siteList = set()
+            for siteName, in resList:
+                siteList.add(siteName)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -9713,7 +9713,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get failure counts for a task
-    def getFailureCountsForTask_JEDI(self,jediTaskID):
+    def getFailureCountsForTask_JEDI(self,jediTaskID,timeWindow):
         comment = ' /* JediDBProxy.getFailureCountsForTask_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -9723,14 +9723,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql
             sql  = "SELECT COUNT(*),computingSite,jobStatus "
             sql += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
-            sql += "WHERE jediTaskID=:jediTaskID AND modificationTime>SYSDATE-1 "
-            sql += "AND ((jobStatus=:jobFailed AND pilotErrorCode IS NOT NULL AND pilotErrorCode<>0) OR "
-            sql += "(jobStatus=:jobClosed AND jobSubStatus=:toReassign)) "
+            sql += "WHERE jediTaskID=:jediTaskID AND modificationTime>CURRENT_DATE-{0}/24 ".format(timeWindow)
+            sql += "AND ("
+            sql += "(jobStatus=:jobFailed AND pilotErrorCode IS NOT NULL AND pilotErrorCode<>0) OR "
+            sql += "(jobStatus=:jobClosed AND jobSubStatus=:toReassign) OR "
+            sql += "(jobStatus=:jobFinished) "
+            sql += ") "
             sql += "GROUP BY computingSite,jobStatus "
             varMap = {}
-            varMap[':jediTaskID'] = jediTaskID
-            varMap[':jobClosed']  = 'closed'
-            varMap[':jobFailed']  = 'failed'
+            varMap[':jediTaskID']  = jediTaskID
+            varMap[':jobClosed']   = 'closed'
+            varMap[':jobFailed']   = 'failed'
+            varMap[':jobFinished'] = 'finished'
             varMap[':toReassign'] = 'toreassign'
             # start transaction
             self.conn.begin()

@@ -528,3 +528,65 @@ def getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs):
                                    'token':'dst:{0}'.format(token),
                                    'destination':'nucleus:{0}'.format(nucleusSpec.name)})
     return retMap
+
+
+
+# remove problematic sites
+def skipProblematicSites(candidateSpecList,ngSites,sitesUsedByTask,preSetSiteSpec,maxNumSites,timeWindow,tmpLog):
+    newcandidateSpecList = []
+    skippedSites = set()
+    usedSitesAll = []
+    usedSitesGood = []
+    newSitesAll = []
+    newSitesGood = []
+    # collect sites already used by the task
+    for candidateSpec in candidateSpecList:
+        # check if problematic
+        isGood = True
+        if candidateSpec.siteName in ngSites and \
+                (preSetSiteSpec == None or candidateSpec.siteName != preSetSiteSpec.siteName):
+            isGood = False
+            skippedSites.add(candidateSpec.siteName)
+        # check if used
+        if candidateSpec.siteName in sitesUsedByTask:
+            usedSitesAll.append(candidateSpec)
+            if isGood:
+                usedSitesGood.append(candidateSpec)
+        else:
+            newSitesAll.append(candidateSpec)
+            if isGood:
+                newSitesGood.append(candidateSpec)
+    # unlimit number of sites if undefined
+    if maxNumSites in [0,None]:
+        maxNumSites = len(candidateSpec)
+    # only used sites are enough
+    if len(usedSitesAll) >= maxNumSites:
+        # no good used sites
+        if len(usedSitesGood) == 0:
+            newcandidateSpecList = usedSitesAll
+            # disable dump
+            skippedSites = []
+        else:
+            newcandidateSpecList = usedSitesGood
+    else:
+        # no good used sites
+        if len(usedSitesGood) == 0:
+            # some good new sites are there
+            if len(newSitesGood) > 0:
+                newcandidateSpecList = newSitesGood[:maxNumSites-len(usedSitesAll)]
+            else:
+                # no good used and new sites
+                newcandidateSpecList = usedSitesAll+newSitesAll[:maxNumSites-len(usedSitesAll)]
+                # disable dump
+                skippedSites = []
+        else:
+            # some good new sites are there
+            if len(newSitesGood) > 0:
+                newcandidateSpecList = usedSitesGood+newSitesGood[:maxNumSites-len(usedSitesAll)]
+            else:
+                # only good used sites
+                newcandidateSpecList = usedSitesGood 
+    # dump
+    for skippedSite in skippedSites:
+        tmpLog.debug('  skip {0} too many closed or failed for last {1}hr'.format(skippedSite,timeWindow))
+    return newcandidateSpecList
