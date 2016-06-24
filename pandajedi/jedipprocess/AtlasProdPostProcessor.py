@@ -116,13 +116,13 @@ class AtlasProdPostProcessor (PostProcessorBase):
                                                                                         datasetSpec.datasetName))
                         for metadataName,metadaValue in metaData.iteritems():
                             ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
-                    # collect dataset types
-                    datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
-                    if not datasetType in ['',None]:
-                        if datasetSpec.type == 'input':
-                            datasetTypeListI.add(datasetType)
-                        elif datasetSpec.type == 'output':
-                            datasetTypeListO.add(datasetType)
+                # collect dataset types
+                datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
+                if not datasetType in ['',None]:
+                    if datasetSpec.type == 'input':
+                        datasetTypeListI.add(datasetType)
+                    elif datasetSpec.type == 'output':
+                        datasetTypeListO.add(datasetType)
             # set lifetime to parent transient datasets
             if taskSpec.processingType in ['merge']:
                 # get parent task
