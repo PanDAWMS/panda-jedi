@@ -106,6 +106,8 @@ class AtlasProdPostProcessor (PostProcessorBase):
             ddmIF = self.ddmIF.getInterface(taskSpec.vo)
             # set lifetime to transient datasets
             metaData = {'lifetime':trnLifeTime}
+            datasetTypeListI = set()
+            datasetTypeListO = set()
             for datasetSpec in taskSpec.datasetSpecList:
                 if datasetSpec.type in ['log','output']:
                     if datasetSpec.getTransient() == True:
@@ -114,6 +116,13 @@ class AtlasProdPostProcessor (PostProcessorBase):
                                                                                         datasetSpec.datasetName))
                         for metadataName,metadaValue in metaData.iteritems():
                             ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
+                    # collect dataset types
+                    datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
+                    if not datasetType in ['',None]:
+                        if datasetSpec.type == 'input':
+                            datasetTypeListI.add(datasetType)
+                        elif datasetSpec.type == 'output':
+                            datasetTypeListO.add(datasetType)
             # set lifetime to parent transient datasets
             if taskSpec.processingType in ['merge']:
                 # get parent task
@@ -123,9 +132,13 @@ class AtlasProdPostProcessor (PostProcessorBase):
                     if tmpStat and parentTaskSpec != None:
                         # set lifetime to parent datasets if they are transient
                         for datasetSpec in parentTaskSpec.datasetSpecList:
-                            if datasetSpec.type in ['log','output']:
+                            if datasetSpec.type in ['output']:
+                                # check dataset type
+                                datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
+                                if not datasetType in datasetTypeListI or not datasetType in datasetTypeListO:
+                                    continue
                                 # use longer lifetime for finished AOD merge with success rate < 90%
-                                if taskSpec.status == 'finished' and DataServiceUtils.getDatasetType(datasetSpec.datasetName) == 'AOD' \
+                                if taskSpec.status == 'finished' and datasetType == 'AOD' \
                                         and self.getTaskCompleteness(taskSpec)[-1] < 900:
                                     metaData = {'lifetime':trnLifeTimeLong}
                                 else:
