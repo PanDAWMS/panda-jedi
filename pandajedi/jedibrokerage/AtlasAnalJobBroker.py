@@ -615,8 +615,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     nFailed = failureCounts[tmpSiteName]['failed']
                 if 'closed' in failureCounts[tmpSiteName]:
                     nClosed = failureCounts[tmpSiteName]['closed']
-                if 'finihsed' in failureCounts[tmpSiteName]:
-                    nFinished = failureCounts[tmpSiteName]['finihsed']
+                if 'finished' in failureCounts[tmpSiteName]:
+                    nFinished = failureCounts[tmpSiteName]['finished']
             # problematic sites
             if nFailed+nClosed > 2*nFinished:
                 problematicSites.add(tmpSiteName)
