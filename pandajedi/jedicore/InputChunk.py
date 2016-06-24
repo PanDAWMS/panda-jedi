@@ -298,6 +298,7 @@ class InputChunk:
                     dynNumEvents=False,
                     maxNumEventRanges=None,
                     multiplicity=None,
+                    splitByFields=None, 
                     tmpLog=None):
         # check if there are unused files/events
         if not self.checkUnused():
@@ -364,6 +365,7 @@ class InputChunk:
         newLumiBlockNr = False
         siteAvailable  = True
         inputFileSet   = set()
+        fieldStr       = None
         while (maxNumFiles == None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or \
                    (dynNumEvents and len(inputFileSet) <= maxNumFiles and inputNumFiles <= maxNumEventRanges)) \
                 and (maxSize == None or (maxSize != None and fileSize <= maxSize)) \
@@ -391,6 +393,14 @@ class InputChunk:
                 if respectLB and lumiBlockNr != None and lumiBlockNr != tmpFileSpec.lumiBlockNr:
                     newLumiBlockNr = True
                     break
+                # check field
+                if splitByFields != None:
+                    tmpFieldStr = tmpFileSpec.extractFieldsStr(splitByFields)
+                    if fieldStr == None:
+                        fieldStr = tmpFieldStr
+                    elif tmpFieldStr != fieldStr:
+                        newBoundaryID = True
+                        break
                 # check for distributed datasets
                 if self.masterDataset.isDistributed() and siteName != None and \
                         not siteCandidate.isAvailableFile(tmpFileSpec):
@@ -577,6 +587,14 @@ class InputChunk:
                     if newInputNumFiles == 0:
                         terminateFlag = True
                     break
+                # check field
+                if splitByFields != None:
+                    tmpFieldStr = tmpFileSpec.extractFieldsStr(splitByFields)
+                    if tmpFieldStr != fieldStr:
+                        # no files in the next loop
+                        if newInputNumFiles == 0:
+                            terminateFlag = True
+                        break
                 # check for distributed datasets
                 if self.masterDataset.isDistributed() and siteName != None and \
                         not siteCandidate.isAvailableFile(tmpFileSpec):

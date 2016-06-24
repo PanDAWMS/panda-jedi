@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/24/2016
+  * added splitByFields
+
 * 6/23/2016
   * using longer lifetime for unmerged datasets when AOD merge is not very successful
   * added useFileAsSourceLFN
