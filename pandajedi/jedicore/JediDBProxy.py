@@ -6168,7 +6168,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap = {}
                 varMap[':status'] = taskStatusMap['doing']
                 # skip dummy status
-                if varMap[':status'] == 'dummy':
+                if varMap[':status'] in ['dummy','paused']:
                     continue
                 self.conn.begin()
                 # FIXME

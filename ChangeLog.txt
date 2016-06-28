@@ -1,5 +1,9 @@
 Release Notes
 
+* 6/28/2016
+  * fixed AtlasPWD for deleted datasets
+  * fixed TC for paused
+
 * 6/24/2016
   * enabled history-aware brokerage for analysis
   * added splitByFields
