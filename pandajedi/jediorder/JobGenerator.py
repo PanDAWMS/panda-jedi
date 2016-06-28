@@ -889,7 +889,8 @@ class JobGeneratorThread (WorkerThread):
                             if tmpFileSpec.locality == 'remote':
                                 jobSpec.transferType = siteCandidate.remoteProtocol
                                 jobSpec.sourceSite = siteCandidate.remoteSource
-                            elif taskSpec.allowInputLAN() != None and siteSpec.direct_access_lan:
+                            elif taskSpec.allowInputLAN() != None and siteSpec.direct_access_lan \
+                                    and not inputChunk.isMerging:
                                 jobSpec.transferType = 'direct'
                             # collect old PandaIDs
                             if tmpFileSpec.PandaID != None and not tmpFileSpec.PandaID in subOldPandaIDs:

@@ -1,6 +1,8 @@
 Release Notes
 
 * 6/28/2016
+  * resetting transferType for pmerge
+  * using lfn sort for pmerge even if reuseSecOnDemand is used
   * fixed AtlasPWD for deleted datasets
   * fixed TC for paused
 

@@ -3132,17 +3132,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         numFilesTobeReadInCycle = 0
                                     else:
                                         numFilesTobeReadInCycle = maxFilesTobeRead
-                                    tmpLog.debug('jediTaskID={0} trying to read {1} files from datasetID={2} with ramCount={3}'.format(jediTaskID,
-                                                                                                                                       numFilesTobeReadInCycle,
-                                                                                                                                       datasetID,inputChunk.ramCount))
                                     if tmpDatasetSpec.isSeqNumber():
                                         orderBy = 'fileID'
-                                    elif not tmpDatasetSpec.isMaster() and taskSpec.reuseSecOnDemand():
+                                    elif not tmpDatasetSpec.isMaster() and taskSpec.reuseSecOnDemand() \
+                                            and not inputChunk.isMerging:
                                         orderBy = 'fileID'
                                     elif not taskSpec.useLoadXML():
                                         orderBy = 'lfn'
                                     else:
                                         orderBy = 'boundaryID'
+                                    tmpLog.debug('jediTaskID={0} trying to read {1} files from datasetID={2} with ramCount={3} orderBy={4}'.format(jediTaskID,
+                                                                                                                                                   numFilesTobeReadInCycle,
+                                                                                                                                                   datasetID,inputChunk.ramCount,
+                                                                                                                                                   orderBy))
                                     # read files to make FileSpec
                                     iFiles_tmp = 0
                                     for iDup in range(100): # avoid infinite loop just in case
