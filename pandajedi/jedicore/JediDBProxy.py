@@ -617,7 +617,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlIn  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
             sqlIn += JediFileSpec.bindValuesExpression(useSeq=False)
             # sql to get fileID
-            sqlFID = "SELECT {0}.JEDI_DATASET_CONT_FILEID_SEQ.nextval FROM dual ".format(jedi_config.db.schemaJEDI)
+            sqlFID  = "SELECT {0}.JEDI_DATASET_CONT_FILEID_SEQ.nextval FROM ".format(jedi_config.db.schemaJEDI)
+            sqlFID += "(SELECT level FROM dual CONNECT BY level<=:nIDs) " 
             # sql to update file status
             sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:status ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
@@ -846,9 +847,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # get fileID
                         tmpLog.debug('get fileIDs for {0} inputs'.format(nInsert))
                         newFileIDs = []
-                        for i in range(nInsert):
-                            self.cur.execute(sqlFID)
-                            fileID, = self.cur.fetchone()
+                        varMap = {}
+                        varMap[':nIDs'] = nInsert
+                        self.cur.execute(sqlFID,varMap)
+                        resFID = self.cur.fetchall()
+                        for fileID, in resFID:
                             newFileIDs.append(fileID)
                         if isMutableDataset:
                             pendingFID += newFileIDs
@@ -864,7 +867,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap = fileSpec.valuesMap()
                             varMaps.append(varMap)
                         # bulk insert
-                        tmpLog.debug('bulk insert')
+                        tmpLog.debug('bulk insert {0} files'.format(len(varMaps)))
                         self.cur.executemany(sqlIn+comment,varMaps)
                         # activate pending
                         tmpLog.debug('activate pending')
