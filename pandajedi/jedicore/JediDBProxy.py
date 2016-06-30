@@ -847,12 +847,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # get fileID
                         tmpLog.debug('get fileIDs for {0} inputs'.format(nInsert))
                         newFileIDs = []
-                        varMap = {}
-                        varMap[':nIDs'] = nInsert
-                        self.cur.execute(sqlFID,varMap)
-                        resFID = self.cur.fetchall()
-                        for fileID, in resFID:
-                            newFileIDs.append(fileID)
+                        if nInsert > 0:
+                            varMap = {}
+                            varMap[':nIDs'] = nInsert
+                            self.cur.execute(sqlFID,varMap)
+                            resFID = self.cur.fetchall()
+                            for fileID, in resFID:
+                                newFileIDs.append(fileID)
                         if isMutableDataset:
                             pendingFID += newFileIDs
                         # sort fileID
