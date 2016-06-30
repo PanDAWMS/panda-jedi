@@ -52,6 +52,7 @@ class JediTaskSpec(object):
         'groupBoundaryID'    : 'GB',
         'instantiateTmplSite': 'IA',
         'allowInputLAN'      : 'IL',
+        'ignoreMissingInDS'  : 'IM',
         'ipConnectivity'     : 'IP',
         'instantiateTmpl'    : 'IT',
         'allowInputWAN'      : 'IW',
@@ -1270,6 +1271,16 @@ class JediTaskSpec(object):
     def writeInputToFile(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['writeInputToFile']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # ignore missing input datasets
+    def ignoreMissingInDS(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['ignoreMissingInDS']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

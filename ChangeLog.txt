@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/30/2016
+  * added ignoreMissingInDS
+
 * 6/28/2016
   * resetting transferType for pmerge
   * using lfn sort for pmerge even if reuseSecOnDemand is used

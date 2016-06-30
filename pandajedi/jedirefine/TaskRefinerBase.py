@@ -270,6 +270,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['writeInputToFile'])
         if 'useFileAsSourceLFN' in taskParamMap and taskParamMap['useFileAsSourceLFN'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['useFileAsSourceLFN'])
+        if 'ignoreMissingInDS' in taskParamMap and taskParamMap['ignoreMissingInDS'] == True:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['ignoreMissingInDS'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
