@@ -6,24 +6,26 @@ Installation
 
 2. Install panda-jedi package
 
-$ sudo yum install panda-jedi
-
-INSTALLDIR is set to /data/atlpan/srv for RPMs.
-
+* For tar-ball installation
+  1. Checkout packages from git
+    $ git clone git://git@github.com/PanDAWMS/panda-jedi.git
+ 
+  2. Build and install
+    $ cd panda-jedi
+    $ python setup.py install
+ 
+* For RPM installation
+  $ sudo yum install panda-jedi
 
 3. Modify config files
 
-$ cd INSTALLDIR/etc/panda
+$ cd /etc/panda
 $ sudo mv panda_jedi.cfg.rpmnew panda_jedi.cfg
-$ sudo cp INSTALLDIR/etc/misc/panda_jedi.cron.rpmnew /etc/cron.d/pandaj_edi.cron
-$ sudo cp INSTALLDIR/etc/misc/panda_jedi.logrotate.rpmnew /etc/logrotate.d/panda_jedi.logrotate
-
 
 4. Add the JEDI service
 
-$ sudo ln -fs INSTALLDIR/etc/init.d/panda_jedi-ctl /etc/init.d/panda-jedi
-$ sudo /sbin/chkconfig --add panda-jedi
-  
+$ sudo ln -fs /etc/rc.d/init.d/panda_jedi /etc/init.d/panda_jedi
+$ sudo /sbin/chkconfig --add panda_jedi
 
 
 Start JEDI

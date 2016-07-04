@@ -96,9 +96,7 @@ class TaskRefinerBase (object):
             taskSpec.walltime = taskParamMap['walltime']
         else:
             taskSpec.walltime = 0
-        if taskParamMap.has_key('walltimeUnit'):
-            taskSpec.walltimeUnit = taskParamMap['walltimeUnit']
-        else:
+        if not taskParamMap.has_key('walltimeUnit'):
             # force to set NULL so that retried tasks get data from scouts again
             taskSpec.forceUpdate('walltimeUnit')
         if taskParamMap.has_key('outDiskCount'):
@@ -269,6 +267,10 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['putLogToOS'])
         if 'writeInputToFile' in taskParamMap and taskParamMap['writeInputToFile'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['writeInputToFile'])
+        if 'useFileAsSourceLFN' in taskParamMap and taskParamMap['useFileAsSourceLFN'] == True:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['useFileAsSourceLFN'])
+        if 'ignoreMissingInDS' in taskParamMap and taskParamMap['ignoreMissingInDS'] == True:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['ignoreMissingInDS'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:

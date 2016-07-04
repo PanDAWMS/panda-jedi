@@ -596,8 +596,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
         tmpLog.debug('final {0} candidates'.format(len(scanSiteList)))
         weightMap = {}
         candidateSpecList = []
+        timeWindowForFC = 6
         preSiteCandidateSpec = None
-        failureCounts = self.taskBufferIF.getFailureCountsForTask_JEDI(taskSpec.jediTaskID)
+        failureCounts = self.taskBufferIF.getFailureCountsForTask_JEDI(taskSpec.jediTaskID,timeWindowForFC)
+        problematicSites = set()
         for tmpSiteName in scanSiteList:
             # get number of jobs in each job status. Using workQueueID=None to include non-JEDI jobs
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',  None,None)
@@ -607,11 +609,18 @@ class AtlasAnalJobBroker (JobBrokerBase):
             nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting', None,None)
             nFailed    = 0
             nClosed    = 0
+            nFinished  = 0
             if tmpSiteName in failureCounts:
                 if 'failed' in failureCounts[tmpSiteName]:
                     nFailed = failureCounts[tmpSiteName]['failed']
                 if 'closed' in failureCounts[tmpSiteName]:
                     nClosed = failureCounts[tmpSiteName]['closed']
+                if 'finished' in failureCounts[tmpSiteName]:
+                    nFinished = failureCounts[tmpSiteName]['finished']
+            # problematic sites
+            if nFailed+nClosed > 2*nFinished:
+                problematicSites.add(tmpSiteName)
+            # calculate weight
             weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + 1)
             nThrottled = 0
             if remoteSourceList.has_key(tmpSiteName):
@@ -629,16 +638,18 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 preSiteCandidateSpec = siteCandidateSpec
             # set weight
             siteCandidateSpec.weight = weight
-            tmpLog.debug('  site={0} nRun={1} nDef={2} nAct={3} nStart={4} nFailed={5} nClosed={6} nTr={7} dataW={8} W={9}'.format(tmpSiteName,
-                                                                                                                                   nRunning,
-                                                                                                                                   nAssigned,
-                                                                                                                                   nActivated,
-                                                                                                                                   nStarting,
-                                                                                                                                   nFailed,
-                                                                                                                                   nClosed,
-                                                                                                                                   nThrottled,
-                                                                                                                                   tmpDataWeight,
-                                                                                                                                   weight))
+            tmpStr  = '  site={0} nRun={1} nDef={2} nAct={3} nStart={4} '.format(tmpSiteName,
+                                                                                 nRunning,        
+                                                                                 nAssigned,       
+                                                                                 nActivated,      
+                                                                                 nStarting)
+            tmpStr += 'nFailed={0} nClosed={1} nFinished={2} nTr={3} dataW={4} W={5}'.format(nFailed,
+                                                                                             nClosed,
+                                                                                             nFinished,
+                                                                                             nThrottled,
+                                                                                             tmpDataWeight,
+                                                                                             weight)
+            tmpLog.debug(tmpStr)
             # append
             if tmpSiteName in sitesUsedByTask:
                 candidateSpecList.append(siteCandidateSpec)
@@ -646,21 +657,25 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if not weightMap.has_key(weight):
                     weightMap[weight] = []
                 weightMap[weight].append(siteCandidateSpec)    
-        # limit the number of sites
-        if not hasDDS:
-            maxNumSites = 5
-        else:
-            # use all sites for distributed datasets
-            maxNumSites = len(scanSiteList)
+        # sort candidates by weights
         weightList = weightMap.keys()
         weightList.sort()
         weightList.reverse()
         for weightVal in weightList:
-            if len(candidateSpecList) >= maxNumSites:
-                break
             sitesWithWeight = weightMap[weightVal]
             random.shuffle(sitesWithWeight)
-            candidateSpecList += sitesWithWeight[:(maxNumSites-len(candidateSpecList))]
+            candidateSpecList += sitesWithWeight
+        # limit the number of sites. use all sites for distributed datasets
+        if not hasDDS:
+            maxNumSites = 10
+            # remove problematic sites
+            candidateSpecList = AtlasBrokerUtils.skipProblematicSites(candidateSpecList,
+                                                                      problematicSites,
+                                                                      sitesUsedByTask,
+                                                                      preSiteCandidateSpec,
+                                                                      maxNumSites,
+                                                                      timeWindowForFC,
+                                                                      tmpLog)
         # append preassigned
         if sitePreAssigned and preSiteCandidateSpec != None and not preSiteCandidateSpec in candidateSpecList: 
             candidateSpecList.append(preSiteCandidateSpec)

@@ -200,10 +200,17 @@ class ContentsFeederThread (WorkerThread):
                                     # update dataset status    
                                     self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
                                 else:
-                                    # temporary error
-                                    taskOnHold = True
+                                    if not taskSpec.ignoreMissingInDS():
+                                        # temporary error
+                                        taskOnHold = True
+                                    else:
+                                        # ignore missing 
+                                        datasetStatus = 'failed'
+                                        # update dataset status
+                                        self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
                                 taskSpec.setErrDiag('failed to get metadata for {0}'.format(datasetSpec.datasetName))
-                                allUpdated = False
+                                if not taskSpec.ignoreMissingInDS():
+                                    allUpdated = False
                             else:
                                 # get file list specified in task parameters
                                 fileList,includePatt,excludePatt = RefinerUtils.extractFileList(taskParamMap,datasetSpec.datasetName)   

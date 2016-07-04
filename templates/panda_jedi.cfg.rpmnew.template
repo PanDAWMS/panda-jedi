@@ -6,10 +6,10 @@
 [master]
 
 # uid
-uname = atlpan
+uname = @@panda_user@@
 
 # gid
-gname = zp
+gname = @@panda_group@@
 
 # logger name
 loggername = jedi

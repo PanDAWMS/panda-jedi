@@ -1192,6 +1192,8 @@ class AtlasDDMClient(DDMClientBase):
                                         activity=activity,asynchronous=asynchronous)
         except DuplicateRule:
             pass
+        except DataIdentifierNotFound:
+            pass
         except:
             isOK = False
         if not isOK:
