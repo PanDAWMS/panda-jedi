@@ -1,4 +1,0 @@
-HOME=/home/atlpan
-
-3 1 * * * atlpan @@install_dir@@/usr/bin/panda_server-tmpwatch.sh > /dev/null 2>&1
-45 */6 * * * atlpan @@install_dir@@/usr/bin/panda_server-vomsrenew.sh > /dev/null 2>&1

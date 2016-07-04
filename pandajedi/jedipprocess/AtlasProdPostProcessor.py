@@ -4,6 +4,7 @@ import sys
 from pandajedi.jedicore import Interaction
 from PostProcessorBase import PostProcessorBase
 
+from pandaserver.dataservice import DataServiceUtils
 
 
 # post processor for ATLAS production
@@ -101,18 +102,27 @@ class AtlasProdPostProcessor (PostProcessorBase):
         if taskSpec.status in ['done','finished'] or \
                 (taskSpec.status == 'paused' and taskSpec.oldStatus in ['done','finished']):
             trnLifeTime = 14*24*60*60
+            trnLifeTimeLong = 28*24*60*60
             ddmIF = self.ddmIF.getInterface(taskSpec.vo)
             # set lifetime to transient datasets
             metaData = {'lifetime':trnLifeTime}
+            datasetTypeListI = set()
+            datasetTypeListO = set()
             for datasetSpec in taskSpec.datasetSpecList:
                 if datasetSpec.type in ['log','output']:
-                    tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
-                    if tmpMetadata['transient'] == True:
+                    if datasetSpec.getTransient() == True:
                         tmpLog.info('set metadata={0} to datasetID={1}:Name={2}'.format(str(metaData),
                                                                                         datasetSpec.datasetID,
                                                                                         datasetSpec.datasetName))
                         for metadataName,metadaValue in metaData.iteritems():
                             ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
+                # collect dataset types
+                datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
+                if not datasetType in ['',None]:
+                    if datasetSpec.type == 'input':
+                        datasetTypeListI.add(datasetType)
+                    elif datasetSpec.type == 'output':
+                        datasetTypeListO.add(datasetType)
             # set lifetime to parent transient datasets
             if taskSpec.processingType in ['merge']:
                 # get parent task
@@ -121,9 +131,18 @@ class AtlasProdPostProcessor (PostProcessorBase):
                     tmpStat,parentTaskSpec = self.taskBufferIF.getTaskDatasetsWithID_JEDI(taskSpec.parent_tid,None,False)
                     if tmpStat and parentTaskSpec != None:
                         # set lifetime to parent datasets if they are transient
-                        metaData = {'lifetime':trnLifeTime}
                         for datasetSpec in parentTaskSpec.datasetSpecList:
-                            if datasetSpec.type in ['log','output']:
+                            if datasetSpec.type in ['output']:
+                                # check dataset type
+                                datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
+                                if not datasetType in datasetTypeListI or not datasetType in datasetTypeListO:
+                                    continue
+                                # use longer lifetime for finished AOD merge with success rate < 90%
+                                if taskSpec.status == 'finished' and datasetType == 'AOD' \
+                                        and self.getTaskCompleteness(taskSpec)[-1] < 900:
+                                    metaData = {'lifetime':trnLifeTimeLong}
+                                else:
+                                    metaData = {'lifetime':trnLifeTime}
                                 tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
                                 if tmpMetadata['transient'] == True:
                                     tmpLog.info('set metadata={0} to parent jediTaskID={1}:datasetID={2}:Name={3}'.format(str(metaData),

@@ -1,5 +1,28 @@
 Release Notes
 
+* 7/4/2016
+  * changed ToBeProcessed to check done datasets as well
+
+* 6/30/2016
+  * added ignoreMissingInDS
+  * using bulk fetching for JEDI_DATASET_CONT_FILEID_SEQ
+
+* 6/28/2016
+  * resetting transferType for pmerge
+  * using lfn sort for pmerge even if reuseSecOnDemand is used
+  * fixed AtlasPWD for deleted datasets
+  * fixed TC for paused
+
+* 6/24/2016
+  * enabled history-aware brokerage for analysis
+  * added splitByFields
+
+* 6/23/2016
+  * using longer lifetime for unmerged datasets when AOD merge is not very successful
+  * added useFileAsSourceLFN
+  * added forceAvalanche
+  * put logrotate file to etc/panda to avoid automatic installation on test nodes
+
 * 6/20/2016
   * using _tid\d+ as a deliminator for NthField
   * setting ramCount=2000 for anal tasks by default

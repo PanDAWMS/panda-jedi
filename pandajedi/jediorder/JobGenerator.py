@@ -889,7 +889,8 @@ class JobGeneratorThread (WorkerThread):
                             if tmpFileSpec.locality == 'remote':
                                 jobSpec.transferType = siteCandidate.remoteProtocol
                                 jobSpec.sourceSite = siteCandidate.remoteSource
-                            elif taskSpec.allowInputLAN() != None and siteSpec.direct_access_lan:
+                            elif taskSpec.allowInputLAN() != None and siteSpec.direct_access_lan \
+                                    and not inputChunk.isMerging:
                                 jobSpec.transferType = 'direct'
                             # collect old PandaIDs
                             if tmpFileSpec.PandaID != None and not tmpFileSpec.PandaID in subOldPandaIDs:
@@ -975,13 +976,19 @@ class JobGeneratorThread (WorkerThread):
                                         pass
                                     break
                         else:
-                            # extract from dataset name
-                            tmpMidStr = jobSpec.prodDBlock.split(':')[-1]
-                            tmpMidStrList = re.split('\.|_tid\d+',tmpMidStr)
-                            if len(tmpMidStrList) >= max(taskSpec.getFieldNumToLFN()):
-                                middleName = ''
-                                for tmpFieldNum in taskSpec.getFieldNumToLFN():
-                                    middleName += '.'+tmpMidStrList[tmpFieldNum-1]
+                            # extract from file or dataset name
+                            if taskSpec.useFileAsSourceLFN():
+                                for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
+                                    if tmpDatasetSpec.isMaster():
+                                        middleName = tmpFileSpecList[0].extractFieldsStr(taskSpec.getFieldNumToLFN())
+                                        break
+                            else:
+                                tmpMidStr = jobSpec.prodDBlock.split(':')[-1]
+                                tmpMidStrList = re.split('\.|_tid\d+',tmpMidStr)
+                                if len(tmpMidStrList) >= max(taskSpec.getFieldNumToLFN()):
+                                    middleName = ''
+                                    for tmpFieldNum in taskSpec.getFieldNumToLFN():
+                                        middleName += '.'+tmpMidStrList[tmpFieldNum-1]
                     # set provenanceID
                     provenanceID = None    
                     if useBoundary != None and useBoundary['outMap'] == True:

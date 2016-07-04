@@ -147,12 +147,18 @@ class AtlasProdWatchDog (WatchDogBase):
                 # get location
                 location = siteMapper.getDdmEndpoint(t1Site.sitename,datasetSpec.storageToken)
                 # make subscription
-                tmpLog.debug('registering subscription to {0} with backend={1}'.format(location,
-                                                                                       ddmBackEnd))
-                tmpStat = ddmIF.registerDatasetSubscription(datasetSpec.datasetName,location,
-                                                            'Production Output',asynchronous=True)
-                if tmpStat != True:
-                    tmpLog.error("failed to make subscription")
+                try:
+                    tmpLog.debug('registering subscription to {0} with backend={1}'.format(location,
+                                                                                           ddmBackEnd))
+                    tmpStat = ddmIF.registerDatasetSubscription(datasetSpec.datasetName,location,
+                                                                'Production Output',asynchronous=True)
+                    if tmpStat != True:
+                        tmpLog.error("failed to make subscription")
+                        isOK = False
+                        break
+                except:
+                    errtype,errvalue = sys.exc_info()[:2]
+                    tmpLog.warning('failed to make subscription with {0}:{1}'.format(errtype.__name__,errvalue))
                     isOK = False
                     break
             # succeeded

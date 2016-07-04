@@ -354,7 +354,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                 for taskSpec,inputChunk in taskInputList:
                     lastJediTaskID = taskSpec.jediTaskID
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),monToken='{0}'.format(taskSpec.jediTaskID))
+                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),monToken='jediTaskID={0}'.format(taskSpec.jediTaskID))
                     tmpLog.debug('start')
                     # RW
                     taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)

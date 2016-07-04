@@ -3,6 +3,7 @@ file specification for JEDI
 
 """
 
+import re
 import types
 
 from taskbuffer.FileSpec import FileSpec as JobFileSpec
@@ -209,7 +210,6 @@ class JediFileSpec(object):
         return True
 
 
-
     # get effective number of events
     def getEffectiveNumEvents(self):
         if self.endEvent != None and self.startEvent != None:
@@ -220,4 +220,15 @@ class JediFileSpec(object):
         if self.nEvents != None and self.nEvents > 0:
             return self.nEvents
         return 1
-                       
+
+
+    # extract fields string
+    def extractFieldsStr(self,fieldNumList):
+        tmpFieldStr = ''
+        try:
+            tmpMidStrList = re.split('\.|_tid\d+',self.lfn)
+            for tmpFieldNum in fieldNumList:
+                tmpFieldStr += '.'+tmpMidStrList[tmpFieldNum-1]
+        except:
+            pass
+        return tmpFieldStr

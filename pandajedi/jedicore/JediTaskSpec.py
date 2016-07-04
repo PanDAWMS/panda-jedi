@@ -52,6 +52,7 @@ class JediTaskSpec(object):
         'groupBoundaryID'    : 'GB',
         'instantiateTmplSite': 'IA',
         'allowInputLAN'      : 'IL',
+        'ignoreMissingInDS'  : 'IM',
         'ipConnectivity'     : 'IP',
         'instantiateTmpl'    : 'IT',
         'allowInputWAN'      : 'IW',
@@ -79,6 +80,7 @@ class JediTaskSpec(object):
         'useBuild'           : 'UB',
         'useJobCloning'      : 'UC',
         'useRealNumEvents'   : 'UE',
+        'useFileAsSourceLFN' : 'UF',
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
         'useExhausted'       : 'UX',
@@ -814,6 +816,8 @@ class JediTaskSpec(object):
                            'done' : 'dummy'},
                 'resume' : {'doing': 'dummy',
                             'done' : 'dummy'},
+                'avalanche' : {'doing': 'dummy',
+                               'done' : 'dummy'},
                 }
     commandStatusMap = classmethod(commandStatusMap)
 
@@ -941,6 +945,16 @@ class JediTaskSpec(object):
     def useRealNumEvents(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['useRealNumEvents']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # use input LFN as source for output LFN
+    def useFileAsSourceLFN(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useFileAsSourceLFN']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False
@@ -1257,6 +1271,16 @@ class JediTaskSpec(object):
     def writeInputToFile(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['writeInputToFile']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # ignore missing input datasets
+    def ignoreMissingInDS(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['ignoreMissingInDS']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

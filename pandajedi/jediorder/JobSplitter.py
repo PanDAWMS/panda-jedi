@@ -62,6 +62,11 @@ class JobSplitter:
                 multiplicity = 1
             else:
                 multiplicity = taskSpec.getNumEventServiceConsumer()
+            # split with fields
+            if taskSpec.getFieldNumToLFN() != None and taskSpec.useFileAsSourceLFN():
+                splitByFields = taskSpec.getFieldNumToLFN()
+            else:
+                splitByFields = None
         else:
             # set parameters for merging
             maxNumFiles = taskSpec.getMaxNumFilesPerMergeJob()
@@ -88,6 +93,11 @@ class JobSplitter:
             if maxOutSize == None:
                 # max output size is 5GB for merging by default
                 maxOutSize = 5 * 1024 * 1024 * 1024
+            # split with fields
+            if taskSpec.getFieldNumToLFN() != None and taskSpec.useFileAsSourceLFN():
+                splitByFields = range(4+1,4+1+len(taskSpec.getFieldNumToLFN()))
+            else:
+                splitByFields = None
         # LB
         respectLB = taskSpec.respectLumiblock()
         # dump
@@ -102,7 +112,7 @@ class JobSplitter:
                                                                                                        maxOutSize,
                                                                                                        respectLB,
                                                                                                        dynNumEvents))
-        tmpLog.debug('multiplicity={0}'.format(multiplicity))
+        tmpLog.debug('multiplicity={0} splitByFields={1}'.format(multiplicity,str(splitByFields)))
         # split
         returnList = []
         subChunks  = []
@@ -170,6 +180,7 @@ class JobSplitter:
                                               dynNumEvents=dynNumEvents,
                                               maxNumEventRanges=maxNumEventRanges,
                                               multiplicity=multiplicity,
+                                              splitByFields=splitByFields,
                                               tmpLog=tmpLog)
             if subChunk == None:
                 break

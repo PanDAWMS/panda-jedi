@@ -140,14 +140,12 @@ class PostProcessorBase (object):
 
 
 
-    # get final task status
-    def getFinalTaskStatus(self,taskSpec,checkParent=True,checkGoal=False):
-        # count nFiles and nEvents
+    # get task completeness
+    def getTaskCompleteness(self,taskSpec):
         nFiles = 0
         nFilesFinished = 0
         totalInputEvents = 0
-        totalOutputEvents = 0
-        firstOutput = True
+        totalOkEvents = 0
         for datasetSpec in taskSpec.datasetSpecList:
             if datasetSpec.isMasterInput():
                 nFiles += datasetSpec.nFiles
@@ -156,12 +154,26 @@ class PostProcessorBase (object):
                     totalInputEvents += datasetSpec.nEvents
                 except:
                     pass
-            elif firstOutput and datasetSpec.type == 'output':
-                firstOutput = False
                 try:
-                    totalOutputEvents += datasetSpec.nEvents
+                    totalOkEvents += datasetSpec.nEventsUsed
                 except:
                     pass
+        # completeness
+        if totalInputEvents != 0:
+            taskCompleteness = float(totalOkEvents)/float(totalInputEvents)*1000.0
+        elif nFiles != 0:
+            taskCompleteness = float(nFilesFinished)/float(nFiles)*1000.0
+        else:
+            taskCompleteness = 0
+        return nFiles,nFilesFinished,totalInputEvents,totalOkEvents,taskCompleteness
+
+
+
+    # get final task status
+    def getFinalTaskStatus(self,taskSpec,checkParent=True,checkGoal=False):
+        # count nFiles and nEvents
+        nFiles,nFilesFinished,totalInputEvents,totalOkEvents,taskCompleteness = self.getTaskCompleteness(taskSpec)
+        # set new task status
         if taskSpec.status == 'tobroken':
             status = 'broken'
         elif taskSpec.status == 'toabort':
@@ -184,13 +196,6 @@ class PostProcessorBase (object):
             taskGoal = 1000
         else:
             taskGoal = taskSpec.goal
-        # completeness
-        if totalInputEvents != 0:
-            taskCompleteness = float(totalOutputEvents)/float(totalInputEvents)*1000.0
-        elif nFiles != 0:
-            taskCompleteness = float(nFilesFinished)/float(nFiles)*1000.0
-        else:
-            taskCompleteness = 0
         # fail if goal is not reached
         if taskSpec.failGoalUnreached() and status == 'finished' and \
                 (not taskSpec.useExhausted() or (taskSpec.useExhausted() and taskSpec.status in ['passed'])):
