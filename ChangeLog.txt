@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/4/2016
+  * changed ToBeProcessed to check done datasets as well
+
 * 6/30/2016
   * added ignoreMissingInDS
   * using bulk fetching for JEDI_DATASET_CONT_FILEID_SEQ

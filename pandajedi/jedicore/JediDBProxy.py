@@ -2572,7 +2572,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':prodSourceLabel'] = prodSourceLabel
                 if not cloudName in [None,'','any']:
                     varMap[':cloud']       = cloudName
-                varMap[':dsStatus']        = 'ready'            
+                varMap[':dsStatus1']       = 'ready'            
+                varMap[':dsStatus2']       = 'done'            
                 varMap[':dsOKStatus1']     = 'ready'
                 varMap[':dsOKStatus2']     = 'done'
                 varMap[':dsOKStatus3']     = 'defined'
@@ -2614,7 +2615,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         sql += '{0},'.format(mapKey)
                         varMap[mapKey] = tmpType
                 sql  = sql[:-1]
-                sql += ') AND tabD.status=:dsStatus '
+                sql += ') AND tabD.status IN (:dsStatus1,:dsStatus2) '
                 sql += 'AND masterID IS NULL '
                 if minPriority != None:
                     varMap[':minPriority'] = minPriority
