@@ -161,7 +161,7 @@ class TaskRefinerThread (WorkerThread):
                             # initalize impl
                             impl.initializeRefiner(tmpLog)
                             impl.oldTaskStatus = taskStatus
-                            # extarct common parameters
+                            # extract common parameters
                             impl.extractCommon(jediTaskID,taskParamMap,self.workQueueMapper,splitRule)
                             # set parent tid
                             if not parent_tid in [None,jediTaskID]:

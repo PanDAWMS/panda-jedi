@@ -23,7 +23,7 @@ class JediTaskSpec(object):
         'mergeWalltime','mergeWalltimeUnit','throttledTime','numThrottled',
         'mergeCoreCount','goal','assessmentTime','cpuTime','cpuTimeUnit',
         'cpuEfficiency','baseWalltime','nucleus','baseRamCount',
-        'ttcRequested', 'ttcPredicted', 'ttcPredictionDate'
+        'ttcRequested', 'ttcPredicted', 'ttcPredictionDate', 'share'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
@@ -457,7 +457,7 @@ class JediTaskSpec(object):
 
 
 
-    # check splitRile if not wait for completion of parent 
+    # check splitRule if not wait for completion of parent
     def noWaitParentSL(cls,splitRule):
         if splitRule != None:
             tmpMatch = re.search(cls.splitRuleToken['noWaitParent']+'=(\d+)',splitRule)
