@@ -12,7 +12,7 @@ from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediFileSpec import JediFileSpec
 from pandaserver.taskbuffer import EventServiceUtils
-from pandaserver.taskbuffer import GlobalShares
+from pandaserver.taskbuffer.GlobalShares import GlobalShares
 
 # base class for task refine
 class TaskRefinerBase (object):
