@@ -297,19 +297,19 @@ class TaskRefinerBase (object):
         self.taskSpec.workQueue_ID = workQueue.queue_id
 
         # Initialize the global share
-        share = None
-        if 'share' in taskParamMap and GlobalShares.is_valid_share(taskParamMap['share']):
+        gshare = None
+        if 'gshare' in taskParamMap and GlobalShares.is_valid_share(taskParamMap['gshare']):
             # work queue is specified
-            share = taskParamMap['share']
+            gshare = taskParamMap['gshare']
         else:
             # get share based on definition
-            share = GlobalShares.get_share_for_task(self.taskSpec)
+            gshare = GlobalShares.get_share_for_task(self.taskSpec)
             if share is None:
                 errStr  = 'share is undefined for vo={0} label={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
                 errStr += 'workingGroup={0} campaign={1} '.format(taskSpec.workingGroup, taskSpec.campaign)
                 raise RuntimeError,errStr
 
-            self.taskSpec.share = share
+            self.taskSpec.gshare = gshare
 
         # return
         return

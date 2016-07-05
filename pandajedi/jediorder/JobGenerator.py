@@ -828,7 +828,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.currentPriority  = jobSpec.assignedPriority
                     jobSpec.lockedby         = 'jedi'
                     jobSpec.workQueue_ID     = taskSpec.workQueue_ID
-                    jobSpec.share     = taskSpec.share
+                    jobSpec.gshare     = taskSpec.gshare
                     # disable reassign
                     if taskSpec.disableReassign():
                         jobSpec.relocationFlag = 2
