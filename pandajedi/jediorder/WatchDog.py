@@ -121,6 +121,14 @@ class WatchDog (JediKnight,FactoryBase):
                             for jediTaskID in tmpRet:
                                 self.taskBufferIF.sendCommandTaskPanda(jediTaskID,'JEDI. Goal reached',True,'finish',comQualifier='soft')
                             tmpLog.info('finished {0} tasks'.format(tmpRet))
+                        # rescue unlocked tasks with picked files
+                        tmpLog.info('rescue unlocked tasks with picked files for vo={0} label={1}'.format(vo,prodSourceLabel)) 
+                        tmpRet = self.taskBufferIF.rescueUnLockedTasksWithPicked_JEDI(vo,prodSourceLabel,60,self.pid)
+                        if tmpRet == None:
+                            # failed
+                            tmpLog.error('failed to rescue unlocked tasks')
+                        else:
+                            tmpLog.info('rescue unlocked {0} tasks'.format(tmpRet))
                         # vo/prodSourceLabel specific action
                         impl = self.getImpl(vo,prodSourceLabel)
                         if impl != None:

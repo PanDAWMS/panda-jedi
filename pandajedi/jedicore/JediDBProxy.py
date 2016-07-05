@@ -3676,6 +3676,132 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # rescue unlocked tasks with picked files
+    def rescueUnLockedTasksWithPicked_JEDI(self,vo,prodSourceLabel,waitTime,pid):
+        comment = ' /* JediDBProxy.rescueUnLockedTasksWithPicked_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            timeToCheck = datetime.datetime.utcnow() - datetime.timedelta(minutes=waitTime)
+            varMap = {}
+            varMap[':taskstatus1'] = 'running'
+            varMap[':taskstatus2'] = 'scouting'
+            varMap[':taskstatus3'] = 'ready'
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':timeLimit'] = timeToCheck
+            # sql to get tasks and datasetsto be checked
+            sqlRL  = "SELECT tabT.jediTaskID,tabD.datasetID "
+            sqlRL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
+            sqlRL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlRL += "AND tabT.jediTaskID=tabD.jediTaskID "
+            sqlRL += "AND tabT.status IN (:taskstatus1,:taskstatus2,:taskstatus3) AND prodSourceLabel=:prodSourceLabel "
+            sqlRL += "AND tabT.lockedBy IS NULL AND tabT.lockedTime IS NULL "
+            sqlRL += "AND tabT.modificationTime<:timeLimit "
+            sqlRL += "AND (tabT.rescueTime IS NULL OR tabT.rescueTime<:timeLimit) "
+            if vo != None:
+                sqlRL += "AND tabT.vo=:vo "
+                varMap[':vo'] = vo
+            sqlRL += "AND tabT.lockedBy IS NULL "
+            sqlRL += "AND tabD.masterID IS NULL AND tabD.nFilesTobeUsed=tabD.nFilesUsed "
+            sqlRL += "AND tabD.nFilesTobeUsed>0 AND tabD.nFilesTobeUsed>(tabD.nFilesFinished+tabD.nFilesFailed) "
+            sqlRL += 'AND tabD.type IN ('
+            for tmpType in JediDatasetSpec.getProcessTypes():
+                mapKey = ':type_'+tmpType
+                sqlRL += '{0},'.format(mapKey)
+                varMap[mapKey] = tmpType
+            sqlRL  = sqlRL[:-1]
+            sqlRL += ') '
+            # sql to check if there is picked file
+            sqlDP  = "SELECT * FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlDP += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:fileStatus AND rownum<2 "
+            # sql to set dummy lock to task
+            sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU += "SET lockedBy=:lockedBy,lockedTime=:lockedTime,rescueTime=CURRENT_DATE "
+            sqlTU += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL AND lockedTime IS NULL "
+            sqlTU += "AND modificationTime<:timeLimit "
+            # sql to lock task with nowait
+            sqlNW  = "SELECT jediTaskID FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlNW += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL AND lockedTime IS NULL "
+            sqlNW += "AND (rescueTime IS NULL OR rescueTime<:timeLimit) "
+            sqlNW += "FOR UPDATE NOWAIT "
+            # begin transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            # get tasks
+            self.cur.execute(sqlRL+comment,varMap)
+            resTaskList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('got {0} tasks'.format(len(resTaskList)))
+            # loop over all tasks
+            ngTasks = set()
+            for jediTaskID,datasetID in resTaskList:
+                if jediTaskID in ngTasks:
+                    continue
+                tmpLog.debug('[jediTaskID={0} datasetID={1}] to check'.format(jediTaskID,datasetID))
+                self.conn.begin()
+                # lock task
+                toSkip = False
+                try:
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':timeLimit']  = timeToCheck
+                    self.cur.execute(sqlNW+comment,varMap)
+                    resNW = self.cur.fetchone()
+                    if resNW == None:
+                        tmpLog.debug('[jediTaskID={0} datasetID] skip since checked by another'.format(jediTaskID,
+                                                                                                       datasetID))
+                        toSkip = True
+                except:
+                    errType,errValue = sys.exc_info()[:2]
+                    if self.isNoWaitException(errValue):
+                        tmpLog.debug('[jediTaskID={0} datasetID] skip since locked by another'.format(jediTaskID,
+                                                                                                      datasetID))
+                        toSkip = True
+                    else:
+                        # failed with something else
+                        raise errType,errValue
+                if not toSkip:
+                    # check if there is picked file
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':datasetID']  = datasetID
+                    varMap[':fileStatus'] = 'picked'
+                    self.cur.execute(sqlDP+comment,varMap)
+                    resDP = self.cur.fetchone()
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':timeLimit'] = timeToCheck
+                    if resDP == None:
+                        # OK
+                        varMap[':lockedBy'] = None
+                        varMap[':lockedTime'] = None
+                    else:
+                        varMap[':lockedBy'] = pid
+                        varMap[':lockedTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=24)
+                        tmpLog.debug('[jediTaskID={0} datasetID={1}] set dummy lock to trigger rescue'.format(jediTaskID,datasetID))
+                        ngTasks.add(jediTaskID)
+                    self.cur.execute(sqlTU+comment,varMap)
+                    nRow = self.cur.rowcount
+                    tmpLog.debug('[jediTaskID={0} datasetID={1}] done with {2}'.format(jediTaskID,datasetID,nRow))
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+            nTasks = len(ngTasks)
+            tmpLog.debug('done {0} stuck tasks'.format(nTasks))
+            return nTasks
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+
     # unlock tasks
     def unlockTasks_JEDI(self,vo,prodSourceLabel,waitTime,hostName,pgid):
         comment = ' /* JediDBProxy.unlockTasks_JEDI */'

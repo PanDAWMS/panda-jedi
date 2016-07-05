@@ -508,6 +508,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
 
+    # rescue unlocked tasks with picked files
+    def rescueUnLockedTasksWithPicked_JEDI(self,vo,prodSourceLabel,waitTime,pid):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.rescueUnLockedTasksWithPicked_JEDI(vo,prodSourceLabel,waitTime,pid)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
     # unlock tasks
     def unlockTasks_JEDI(self,vo,prodSourceLabel,waitTime,hostName=None,pgid=None):
         # get DBproxy
