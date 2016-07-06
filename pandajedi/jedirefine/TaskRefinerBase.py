@@ -304,10 +304,11 @@ class TaskRefinerBase (object):
         else:
             # get share based on definition
             gshare = GlobalShares.get_share_for_task(self.taskSpec)
-            if share is None:
-                errStr  = 'share is undefined for vo={0} label={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
-                errStr += 'workingGroup={0} campaign={1} '.format(taskSpec.workingGroup, taskSpec.campaign)
-                raise RuntimeError,errStr
+            if gshare is None:
+                gshare = 'No match'
+                # errStr  = 'share is undefined for vo={0} label={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
+                # errStr += 'workingGroup={0} campaign={1} '.format(taskSpec.workingGroup, taskSpec.campaign)
+                # raise RuntimeError,errStr
 
             self.taskSpec.gshare = gshare
 
