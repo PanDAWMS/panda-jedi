@@ -316,9 +316,15 @@ class AtlasProdJobBroker (JobBrokerBase):
                                     networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold):
                         newScanSiteList.append(tmpPandaSiteName)
                     else:
-                        tmpLog.debug('  skip site={0} due to agis_closeness={1} or too many files queued {2}: criteria=-link_unusable'
-                                     .format(tmpPandaSiteName, networkMap[tmpAtlasSiteName][AGIS_CLOSENESS],
-                                             networkMap[tmpAtlasSiteName][queued_tag]))
+                        if networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] == BLOCKED_LINK:
+                            reason = 'agis_closeness={0}'.format(networkMap[tmpAtlasSiteName][AGIS_CLOSENESS])
+                        elif networkMap[tmpAtlasSiteName][queued_tag] >= self.queue_threshold:
+                            reason = 'too many output files queued {0}(>{1} link limit)'\
+                                .format(networkMap[tmpAtlasSiteName][queued_tag], self.queue_threshold)
+                        else:
+                            reason = 'reason unknown'
+                        tmpLog.debug('  skip site={0} due to {1}, from satellite={2} to nucleus={3}: criteria=-link_unusable'
+                        .format(tmpPandaSiteName, reason, tmpAtlasSiteName, nucleus))
                 except KeyError:
                     # Don't skip missing links for the moment. In later stages missing links
                     # default to the worst connectivity and will be penalized.
