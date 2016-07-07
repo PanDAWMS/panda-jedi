@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/7/2016
+  * added removeTags to AtlasAPP
+
 * 7/5/2016
   * added rescueUnLockedTasksWithPicked
 

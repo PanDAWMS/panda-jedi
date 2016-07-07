@@ -240,7 +240,7 @@ PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(\
             creationDate=taskSpec.creationDate,
             endTime=taskSpec.endTime,
             status=taskSpec.status,
-            errorDialog=taskSpec.errorDialog,
+            errorDialog=self.removeTags(taskSpec.errorDialog),
             params=cliParams,
             taskName=taskSpec.taskName,
             oldPandaMon=urllib.urlencode(urlData),
@@ -328,3 +328,16 @@ Report Panda problems of any sort to
                             tmpLog.error("{0}:{1}".format(errType,errValue))
         # not send email
         return retSupp
+
+
+
+    # remove tags
+    def removeTags(self,tmpStr):
+        try:
+            if tmpStr != None:
+                tmpStr = re.sub('>[^<]+<','><',tmpStr)
+                tmpStr = re.sub('<[^<]+>','',tmpStr)
+        except:
+            pass
+        return tmpStr
+
