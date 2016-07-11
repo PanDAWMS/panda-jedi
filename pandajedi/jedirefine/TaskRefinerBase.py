@@ -198,6 +198,9 @@ class TaskRefinerBase (object):
         # campaign
         if taskParamMap.has_key('campaign'):
             taskSpec.campaign = taskParamMap['campaign']
+        # request type
+        if 'requestType' in taskParamMap:
+            taskSpec.requestType = taskParamMap['requestType']
         self.taskSpec = taskSpec
         # set split rule    
         if 'tgtNumEventsPerJob' in taskParamMap:

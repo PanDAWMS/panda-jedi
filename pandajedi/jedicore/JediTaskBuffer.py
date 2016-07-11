@@ -1385,3 +1385,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         # return
         return retVal
 
+
+
+    # get old merge job PandaIDs
+    def getOldMergeJobPandaIDs_JEDI(self,jediTaskID,pandaID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getOldMergeJobPandaIDs_JEDI(jediTaskID,pandaID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+

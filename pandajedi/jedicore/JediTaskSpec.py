@@ -23,7 +23,8 @@ class JediTaskSpec(object):
         'mergeWalltime','mergeWalltimeUnit','throttledTime','numThrottled',
         'mergeCoreCount','goal','assessmentTime','cpuTime','cpuTimeUnit',
         'cpuEfficiency','baseWalltime','nucleus','baseRamCount',
-        'ttcRequested', 'ttcPredicted', 'ttcPredictionDate','rescueTime'
+        'ttcRequested', 'ttcPredicted', 'ttcPredictionDate','rescueTime',
+        'requestType'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()

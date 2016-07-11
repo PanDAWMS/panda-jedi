@@ -895,6 +895,9 @@ class JobGeneratorThread (WorkerThread):
                             # collect old PandaIDs
                             if tmpFileSpec.PandaID != None and not tmpFileSpec.PandaID in subOldPandaIDs:
                                 subOldPandaIDs.append(tmpFileSpec.PandaID)
+                                subOldMergePandaIDs = self.taskBufferIF.getOldMergeJobPandaIDs_JEDI(taskSpec.jediTaskID,
+                                                                                                    tmpFileSpec.PandaID)
+                                subOldPandaIDs += subOldMergePandaIDs
                             # set specialHandling for normal Event Service
                             if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging \
                                     and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.isPseudo():
@@ -960,6 +963,9 @@ class JobGeneratorThread (WorkerThread):
                     # set lumi block number
                     if lumiBlockNr != None:
                         jobSpec.setLumiBlockNr(lumiBlockNr)
+                    # request type
+                    if not taskSpec.requestType in ['',None]:
+                        jobSpec.setRequestType(taskSpec.requestType)
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock == False and prodDBlock != None:
                         jobSpec.prodDBlock = prodDBlock

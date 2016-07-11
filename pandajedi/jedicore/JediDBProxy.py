@@ -9892,3 +9892,43 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return {}
+
+
+
+    # get old merge job PandaIDs
+    def getOldMergeJobPandaIDs_JEDI(self,jediTaskID,pandaID):
+        comment = ' /* JediDBProxy.getOldMergeJobPandaIDs_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0} PandaID={1}>'.format(jediTaskID,pandaID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql
+            sql  = "SELECT distinct tabC.PandaID "
+            sql += "FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
+            sql += "WHERE tabD.jediTaskID=:jediTaskID AND tabD.jediTaskID=tabC.jediTaskID "
+            sql += "AND tabD.datasetID=tabC.datasetID "
+            sql += "AND tabD.type=:dsType AND tabC.outPandaID=:pandaID "
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':pandaID']    = pandaID
+            varMap[':dsType']     = 'trn_log'
+            # start transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            self.cur.execute(sql+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            retVal = []
+            for tmpPandaID, in resList:
+                retVal.append(tmpPandaID)
+            tmpLog.debug(str(retVal))
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return []
