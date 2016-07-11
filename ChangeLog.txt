@@ -1,6 +1,7 @@
 Release Notes
 
 * 7/11/2016
+  * added jumbo job stuff
   * added requestType
   * added getOldMergeJobPandaIDs
 

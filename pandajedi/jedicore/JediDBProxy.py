@@ -9933,3 +9933,113 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return []
+
+
+    # get active jumbo jobs for a task
+    def getActiveJumboJobs_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.getActiveJumboJobs_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql
+            sql  = "SELECT PandaID,jobStatus,computingSite "
+            sql += "FROM {0}.jobsWaiting4 ".format(jedi_config.db.schemaPANDA)
+            sql += "WHERE jediTaskID=:jediTaskID AND eventService=:jumboJob "
+            sql += "UNION "
+            sql += "SELECT PandaID,jobStatus,computingSite "
+            sql += "FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            sql += "WHERE jediTaskID=:jediTaskID AND eventService=:jumboJob "
+            sql += "UNION "
+            sql += "SELECT PandaID,jobStatus,computingSite "
+            sql += "FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+            sql += "WHERE jediTaskID=:jediTaskID AND eventService=:jumboJob "
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':jumboJob'] = EventServiceUtils.jumboJobFlagNumber
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sql+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            retMap = {}
+            for pandaID,jobStatus,computingSite in resList:
+                retMap[pandaID] = {'status' : jobStatus,
+                                   'site' : computingSite}
+            tmpLog.debug(str(retMap))
+            return retMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return {}
+
+
+
+    # get jobParms of the first job
+    def getJobParamsOfFirstJob_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.getJobParamsOfFirstJob_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = ''
+            # sql to get PandaID of the first job
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            sql  = "SELECT * FROM ("
+            sql += "SELECT PandaID "
+            sql += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF ".format(jedi_config.db.schemaJEDI)
+            sql += "WHERE tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID "
+            sql += "AND tabD.datasetID=tabF.datasetID "
+            sql += "AND tabD.masterID IS NULL "
+            sql += "AND tabF.type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sql += '{0},'.format(mapKey)
+                varMap[mapKey] = tmpType
+            sql  = sql[:-1]
+            sql += ") "
+            sql += "ORDER BY fileID "
+            sql += ") WHERE rownum<2 "
+            # sql to get jobParms
+            sqlJ  = "SELECT jobParameters FROM {0}.jobParamsTable WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
+            sqlJA = "SELECT jobParameters FROM {0}.jobParamsTable_ARCH WHERE PandaID=:PandaID".format(jedi_config.db.schemaPANDAARCH)
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sql+comment,varMap)
+            res = self.cur.fetchone()
+            if res != None and res[0] != None:
+                varMap = {}
+                varMap[':PandaID'] = res[0]
+                self.cur.execute(sqlJ+comment,varMap)
+                for clobJobP, in self.cur:
+                    try:
+                        retVal = clobJobP.read()
+                    except:
+                        retVal = str(clobJobP)
+                    break
+                if retVal == '':
+                    self.cur.execute(sqlJA+comment,varMap)
+                    for clobJobP, in self.cur:
+                        try:
+                            retVal = clobJobP.read()
+                        except:
+                            retVal = str(clobJobP)
+                            break
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('get {0} bytes'.format(len(retVal)))
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return retVal

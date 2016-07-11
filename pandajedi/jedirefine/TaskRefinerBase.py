@@ -221,6 +221,7 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'t1Weight',         JediTaskSpec.splitRuleToken['t1Weight'])
         self.setSplitRule(taskParamMap,'maxAttemptES',     JediTaskSpec.splitRuleToken['maxAttemptES'])
         self.setSplitRule(taskParamMap,'nSitesPerJob',     JediTaskSpec.splitRuleToken['nSitesPerJob'])
+        self.setSplitRule(taskParamMap,'nJumboJobs',       JediTaskSpec.splitRuleToken['nJumboJobs'])
         self.setSplitRule(taskParamMap,'nEventsPerMergeJob',   JediTaskSpec.splitRuleToken['nEventsPerMergeJob'])
         self.setSplitRule(taskParamMap,'nFilesPerMergeJob',    JediTaskSpec.splitRuleToken['nFilesPerMergeJob'])
         self.setSplitRule(taskParamMap,'nGBPerMergeJob',       JediTaskSpec.splitRuleToken['nGBPerMergeJob'])

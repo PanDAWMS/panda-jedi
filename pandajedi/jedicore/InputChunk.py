@@ -30,6 +30,8 @@ class InputChunk:
             self.secondaryDatasetList = secondaryDatasetList
         # the list of site candidates
         self.siteCandidates = {}
+        # the list of site candidates for jumbo jobs
+        self.siteCandidatesJumbo = {}
         # the name of master index
         self.masterIndexName = None
         # dataset mapping including indexes of files/events
@@ -119,6 +121,13 @@ class InputChunk:
 
 
 
+    # add site candidates
+    def addSiteCandidateForJumbo(self,siteCandidateSpec):
+        self.siteCandidatesJumbo[siteCandidateSpec.siteName] = siteCandidateSpec
+        return
+
+
+
     # get one site candidate randomly
     def getOneSiteCandidate(self,nSubChunks=0,ngSites=None):
         retSiteCandidate = None
@@ -185,6 +194,37 @@ class InputChunk:
                 return self.getParallelSites(nSites,nSubChunks,usedSites)
         return ','.join(usedSites)
 
+
+
+    # get one site for jumbo jobs
+    def getOneSiteCandidateForJumbo(self,ngSites):
+        # get total weight
+        totalWeight = 0
+        weightList  = []
+        siteCandidateList = self.siteCandidatesJumbo.values()
+        newSiteCandidateList = []
+        for siteCandidate in siteCandidateList:
+            # remove NG sites
+            if siteCandidate.siteName in ngSites:
+                continue
+            totalWeight += siteCandidate.weight
+            newSiteCandidateList.append(siteCandidate)
+        siteCandidateList = newSiteCandidateList
+        # empty
+        if siteCandidateList == []:
+            return None
+        # get random number
+        rNumber = random.random() * totalWeight
+        for siteCandidate in siteCandidateList:
+            rNumber -= siteCandidate.weight
+            if rNumber <= 0:
+                retSiteCandidate = siteCandidate
+                break
+        # return something as a protection against precision of float
+        if retSiteCandidate == None:
+            retSiteCandidate = random.choice(siteCandidateList)
+        return retSiteCandidate
+        
 
 
     # check if unused files/events remain

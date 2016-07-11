@@ -905,11 +905,14 @@ class AtlasProdJobBroker (JobBrokerBase):
             nWNmap = self.taskBufferIF.getCurrentSiteData()
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
                 nPilot = 0
                 if nWNmap.has_key(tmpSiteName):
                     nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
-                if nPilot == 0 and not 'test' in taskSpec.prodSourceLabel:
+                # skip no pilot sites unless the task and the site use jumbo jobs
+                if nPilot == 0 and not 'test' in taskSpec.prodSourceLabel and \
+                        (taskSpec.getNumJumboJobs() == None or not tmpSiteSpec.useJumboJobs()):
                     tmpLog.debug('  skip site=%s due to no pilot criteria=-nopilot' % tmpSiteName)
                     continue
                 newScanSiteList.append(tmpSiteName)
@@ -996,8 +999,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.debug('calculate weight and check cap for {0} candidates'.format(len(scanSiteList)))
         weightMapPrimary = {}
         weightMapSecondary = {}
+        weightMapJumbo = {}
         newScanSiteList = []
-
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
@@ -1118,14 +1121,23 @@ class AtlasProdJobBroker (JobBrokerBase):
             if taskSpec.useWorldCloud():
                 lockedByBrokerage = self.checkSiteLock(taskSpec.vo,taskSpec.prodSourceLabel,
                                                        tmpSiteName,taskSpec.workQueue_ID)
-
             # check cap with nRunning
             cutOffValue = 20
             cutOffFactor = 2 
             nRunningCap = max(cutOffValue,cutOffFactor*nRunning)
             nRunningCap = max(nRunningCap,nPilot)
-            okMsg = '  use site={0} with weight={1} {2} criteria=+use'.format(tmpSiteName,weight,weightStr)
-            okAsPrimay = False
+            if taskSpec.getNumJumboJobs() == None or not tmpSiteSpec.useJumboJobs():
+                forJumbo = False
+            else:
+                forJumbo = True
+            # OK message. Use jumbo as primary by default
+            if not forJumbo:
+                okMsg = '  use site={0} with weight={1} {2} criteria=+use'.format(tmpSiteName,weight,weightStr)
+                okAsPrimay = False
+            else:
+                okMsg = '  use site={0} for jumbo jobs with weight={1} {2} criteria=+usejumbo'.format(tmpSiteName,weight,weightStr)
+                okAsPrimay = True
+            # checks
             if lockedByBrokerage:
                 ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpSiteName)
                 ngMsg += 'criteria=-lock'
@@ -1162,9 +1174,13 @@ class AtlasProdJobBroker (JobBrokerBase):
                 ngMsg += 'weight={0} {1} '.format(weight, weightStr)
                 ngMsg += 'criteria=-loweigh'
                 okAsPrimay = True
-
-            # use primary if cap/lock check is passed
-            if okAsPrimay:
+            # add to jumbo or primary or secondary
+            if forJumbo:
+                # only OK sites for jumbo
+                if not okAsPrimay:
+                    continue
+                weightMap = weightMapJumbo
+            elif okAsPrimay:
                 weightMap = weightMapPrimary
             else:
                 weightMap = weightMapSecondary
@@ -1172,7 +1188,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             if not weight in weightMap:
                 weightMap[weight] = []
             weightMap[weight].append((siteCandidateSpec,okMsg,ngMsg))
-
         # use second candidates if no primary candidates passed cap/lock check
         if weightMapPrimary == {}:
             tmpLog.debug('use second candidates since no sites pass cap/lock check')
@@ -1187,7 +1202,12 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpWeight in weightMapSecondary.keys():
                 for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMapSecondary[tmpWeight]:
                     tmpLog.debug(tmpNgMsg)
-
+        # add jumbo sites
+        for weight,tmpList in weightMapJumbo.iteritems():
+            if not weight in weightMap:
+                weightMap[weight] = []
+            for tmpItem in tmpList:
+                weightMap[weight].append(tmpItem)
         # max candidates for WORLD
         if taskSpec.useWorldCloud():
             maxSiteCandidates = 10
@@ -1199,6 +1219,15 @@ class AtlasProdJobBroker (JobBrokerBase):
         weightList.reverse()
         for weightIdx,tmpWeight in enumerate(weightList):
             for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMap[tmpWeight]:
+                # candidates for jumbo jobs
+                if taskSpec.getNumJumboJobs() != None:
+                    tmpSiteSpec = self.siteMapper.getSite(siteCandidateSpec.siteName)
+                    if tmpSiteSpec.useJumboJobs():
+                        # use site for jumbo jobs
+                        tmpLog.debug(tmpOkMsg)
+                        inputChunk.addSiteCandidateForJumbo(siteCandidateSpec)
+                        continue
+                # candidates for normal jobs
                 if (weightRank == None or weightIdx < weightRank) and \
                         (maxSiteCandidates == None or len(newScanSiteList) < maxSiteCandidates):
                     # use site

@@ -849,7 +849,12 @@ class JobGeneratorThread (WorkerThread):
                     # set specialHandling for Event Service
                     if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
                         specialHandling += EventServiceUtils.getHeaderForES(esIndex)
-                        jobSpec.eventService = EventServiceUtils.esJobFlagNumber
+                        if taskSpec.getNumJumboJobs() == None:
+                            # normal ES job
+                            jobSpec.eventService = EventServiceUtils.esJobFlagNumber
+                        else:
+                            # co-jumbo job
+                            jobSpec.eventService = EventServiceUtils.coJumboJobFlagNumber
                     # inputs
                     prodDBlock = None
                     setProdDBlock = False
@@ -912,7 +917,10 @@ class JobGeneratorThread (WorkerThread):
                                                                                         tmpFileSpec.startEvent,
                                                                                         tmpFileSpec.endEvent,
                                                                                         nEventsPerWorker,
-                                                                                        taskSpec.getMaxAttemptES())
+                                                                                        taskSpec.getMaxAttemptES(),
+                                                                                        taskSpec.getFirstEventOffset(),
+                                                                                        tmpFileSpec.firstEvent
+                                                                                        )
                             # calcurate total master size
                             if tmpDatasetSpec.isMaster():
                                 totalMasterSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
@@ -1188,15 +1196,20 @@ class JobGeneratorThread (WorkerThread):
                         self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
                 # increase event service consumers
                 if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
-                    tmpJobSpecList,incOldPandaIDs = self.increaseEventServiceConsumers(tmpJobSpecList,taskSpec.getNumEventServiceConsumer(),
-                                                                                       taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap,
-                                                                                       oldPandaIDs[len(jobSpecList):])
-                    oldPandaIDs = oldPandaIDs[:len(jobSpecList)] + incOldPandaIDs
+                    nConsumers = taskSpec.getNumEventServiceConsumer()
+                    if nConsumers != None and nConsumers > 1:
+                        tmpJobSpecList,incOldPandaIDs = self.increaseEventServiceConsumers(tmpJobSpecList,nConsumers,
+                                                                                           taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap,
+                                                                                           oldPandaIDs[len(jobSpecList):])
+                        oldPandaIDs = oldPandaIDs[:len(jobSpecList)] + incOldPandaIDs
                 # add to all list
                 jobSpecList += tmpJobSpecList
             # sort
             if taskSpec.useEventService() and taskSpec.getNumSitesPerJob():
                 jobSpecList,oldPandaIDs = self.sortParallelJobsBySite(jobSpecList,oldPandaIDs)
+            # make jumbo jobs
+            if taskSpec.getNumJumboJobs() != None and self.taskBufferIF.isApplicableTaskForJumbo(taskSpec.jediTaskID):
+                jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul)
             # return
             return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap
         except:
@@ -1762,23 +1775,43 @@ class JobGeneratorThread (WorkerThread):
 
 
     # close panda job with new specialHandling
-    def clonePandaJob(self,pandaJob,index,parallelOutMap,outDsMap):
+    def clonePandaJob(self,pandaJob,index,parallelOutMap,outDsMap,sites=None,forJumbo=False):
         newPandaJob = copy.copy(pandaJob)
-        sites = newPandaJob.computingSite.split(',')
+        if sites == None:
+            sites = newPandaJob.computingSite.split(',')
         nSites = len(sites)
         # set site for parallel jobs
-        if nSites > 1:
-            newPandaJob.computingSite = sites[index % nSites]
+        newPandaJob.computingSite = sites[index % nSites]
+        datasetList = set()
+        # reset SH for jumbo
+        if forJumbo:
+            EventServiceUtils.removeHeaderForES(newPandaJob)
         # clone files
         newPandaJob.Files = []
         for fileSpec in pandaJob.Files:
-            if nSites == 1 or not fileSpec.type in ['log','output'] or \
+            # copy files
+            if forJumbo or nSites == 1 or not fileSpec.type in ['log','output'] or \
                     (fileSpec.fileID in parallelOutMap and len(parallelOutMap[fileSpec.fileID]) == 1):
                 newFileSpec = copy.copy(fileSpec)
             else:
                 newFileSpec = parallelOutMap[fileSpec.fileID][index % nSites]
                 datasetSpec = outDsMap[newFileSpec.datasetID]
                 newFileSpec = newFileSpec.convertToJobFileSpec(datasetSpec,useEventService=True)
+            # use log/output files and only one input file per dataset for jumbo jobs
+            if forJumbo:
+                # reset fileID to avoid updating JEDI tables
+                newFileSpec.fileID = None
+                if newFileSpec.type in ['log','output']:
+                    pass
+                elif newFileSpec.type == 'input' and not newFileSpec.datasetID in datasetList:
+                    datasetList.add(newFileSpec.datasetID)
+                    # reset LFN etc since jumbo job runs on any file
+                    newFileSpec.lfn = 'any'
+                    newFileSpec.GUID = None
+                    # reset status to trigger input data transfer
+                    newFileSpec.status = None
+                else:
+                    continue
             # append PandaID as suffix for log files to avoid LFN duplication
             if newFileSpec.type == 'log':
                 newFileSpec.lfn += '.$PANDAID'
@@ -1795,6 +1828,49 @@ class JobGeneratorThread (WorkerThread):
                         newFileSpec.destinationDBlockToken = 'ddd:{0}'.format(tmpDestination['ddm_endpoint_name'])
             newPandaJob.addFile(newFileSpec)
         return newPandaJob
+
+
+
+    # make jumbo jobs
+    def makeJumboJobs(self,pandaJobs,taskSpec,inputChunk,simul):
+        jumboJobs = []
+        # no original
+        if len(pandaJobs) == 0:
+            return jumboJobs
+        # get active jumbo jobs
+        if not simul:
+            activeJumboJobs = self.taskBufferIF.getActiveJumboJobs_JEDI(taskSpec.jediTaskID)
+        else:
+            activeJumboJobs = {}
+        # enough jobs
+        numNewJumboJobs = taskSpec.getNumJumboJobs() - len(activeJumboJobs) 
+        if numNewJumboJobs <= 0:
+            return jumboJobs
+        # sites which already have jumbo jobs
+        sitesWithJumbo = []
+        for tmpPandaID,activeJumboJob in activeJumboJobs.iteritems():
+            sitesWithJumbo.append(activeJumboJob['site'])
+        # get sites
+        newSites = []
+        for i in range(numNewJumboJobs):
+            siteCandidate = inputChunk.getOneSiteCandidateForJumbo(sitesWithJumbo+newSites)
+            if siteCandidate == None:
+                break
+            newSites.append(siteCandidate.siteName)
+        nJumbo = len(newSites)
+        # get job parameter of the first job
+        if nJumbo > 0:
+            jobParams = self.taskBufferIF.getJobParamsOfFirstJob_JEDI(taskSpec.jediTaskID)
+        # make jumbo jobs
+        for iJumbo in range(nJumbo):
+            newJumboJob = self.clonePandaJob(pandaJobs[0],iJumbo,{},{},newSites,True)
+            newJumboJob.eventService = EventServiceUtils.jumboJobFlagNumber
+            # job params inherit from the first job since first_event etc must be the first value
+            if jobParams != '':
+                newJumboJob.jobParameters = jobParams
+            jumboJobs.append(newJumboJob)
+        # return
+        return jumboJobs
 
 
 

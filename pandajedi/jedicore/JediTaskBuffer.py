@@ -1398,3 +1398,29 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         # return
         return retVal
 
+
+
+    # get active jumbo jobs for a task
+    def getActiveJumboJobs_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getActiveJumboJobs_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get jobParms of the first job
+    def getJobParamsOfFirstJob_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getJobParamsOfFirstJob_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
