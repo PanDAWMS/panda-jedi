@@ -9923,7 +9923,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 raise RuntimeError, 'Commit error'
             retVal = []
             for tmpPandaID, in resList:
-                retVal.append(tmpPandaID)
+                if tmpPandaID != pandaID:
+                    retVal.append(tmpPandaID)
             tmpLog.debug(str(retVal))
             return retVal
         except:
