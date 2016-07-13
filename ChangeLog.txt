@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/12/2016
+  * changed AtlasTS and AtlasPPP to register and delete ES datasets
+
 * 7/11/2016
   * added jumbo job stuff
   * added requestType
