@@ -2321,6 +2321,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             tmpl_RelationMap = {}
             mstr_RelationMap = {}
+            varMapsForInsert = []
             for datasetID,datasetName,vo,masterID,datsetStatus,datasetType in resList:
                 fileDatasetIDs = []
                 for instantiatedSite in instantiatedSites.split(','):
@@ -2461,7 +2462,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 if indexFileID < len(fileIDPool):
                                     fileSpec.fileID = fileIDPool[indexFileID]
                                     varMap = fileSpec.valuesMap()
-                                    self.cur.execute(sqlII+comment,varMap)
+                                    varMapsForInsert.append(varMap)
                                     indexFileID += 1
                                 else:
                                     varMap = fileSpec.valuesMap(useSeq=True)
@@ -2485,6 +2486,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 firstFileID = fileSpec.fileID
                                 parallelOutMap[firstFileID] = []
                             parallelOutMap[firstFileID].append(fileSpec)
+            # bulk insert
+            if len(varMapsForInsert) > 0:
+                tmpLog.debug('bulk insert {0} files'.format(len(varMapsForInsert)))
+                self.cur.executemany(sqlII+comment,varMapsForInsert)
             # set masterID to concrete datasets 
             for fileDatasetID,(masterID,instantiatedSite) in mstr_RelationMap.iteritems():
                 varMap = {}
