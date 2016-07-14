@@ -635,18 +635,22 @@ class JobGeneratorThread (WorkerThread):
                             tmpLog.info('skip due to lock failure')
                             continue
                         # reset unused files
-                        self.taskBufferIF.resetUnusedFiles_JEDI(taskSpec.jediTaskID,inputChunk)
+                        nFileReset = self.taskBufferIF.resetUnusedFiles_JEDI(taskSpec.jediTaskID,inputChunk)
                         # unset lockedBy when all inputs are done for a task
+                        setOldModTime = False
                         if idxInputList+1 == len(inputList):
                             taskSpec.lockedBy = None
                             taskSpec.lockedTime = None
+                            if taskSpec.status == 'running' and nFileReset > 0 and taskSpec.currentPriority > 900:
+                                setOldModTime = True
                         else:
                             taskSpec.lockedBy = self.pid
                             taskSpec.lockedTime = datetime.datetime.utcnow()
                         # update task
                         retDB = self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
-                                                                  oldStatus=JediTaskSpec.statusForJobGenerator()+['pending'])
-                        tmpMsg = 'set task.status={0} with {1}'.format(taskSpec.status,str(retDB))
+                                                                  oldStatus=JediTaskSpec.statusForJobGenerator()+['pending'],
+                                                                  setOldModTime=setOldModTime)
+                        tmpMsg = 'set task.status={0} oldTask={2} with {1}'.format(taskSpec.status,str(retDB),setOldModTime)
                         tmpLog.info(tmpMsg)
                         if not taskSpec.errorDialog in ['',None]:
                             tmpMsg += ' ' + taskSpec.errorDialog

@@ -1600,7 +1600,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update JEDI task
-    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None,updateDEFT=True,insertUnknown=None,setFrozenTime=True):
+    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None,updateDEFT=True,insertUnknown=None,setFrozenTime=True,setOldModTime=False):
         comment = ' /* JediDBProxy.updateTask_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(taskSpec.jediTaskID)
@@ -1620,7 +1620,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # set attributes
             timeNow = datetime.datetime.utcnow()
-            taskSpec.modificationTime = timeNow
+            if setOldModTime:
+                taskSpec.modificationTime = timeNow - datetime.timedelta(hours=1)
+            else:
+                taskSpec.modificationTime = timeNow
             # sql to get old status
             sqlS  = "SELECT status,frozenTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI) 
             sql = 'WHERE '
@@ -2416,7 +2419,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpl_RelationMap[datasetID][instantiatedSite] = fileDatasetID
                     fileDatasetIDs.append(fileDatasetID)
                 # get output templates
-                tmpLog.debug('get output templates')
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 varMap[':datasetID']  = datasetID
@@ -3463,6 +3465,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
+            nFileRowMaster = 0
             # sql to rollback files
             sql  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oStatus "
@@ -3493,17 +3496,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':nFileRow'] = nFileRow
                     # update dataset
                     self.cur.execute(sqlD+comment,varMap)
+                    if datasetSpec.isMaster():
+                        nFileRowMaster = nFileRow
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('done')
-            return True
+            return nFileRowMaster
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return False
+            return 0
 
 
 
