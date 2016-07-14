@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/14/2016
+  * using bulk fetch for fileID in JG
+
 * 7/12/2016
   * changed AtlasTS and AtlasPPP to register and delete ES datasets
 

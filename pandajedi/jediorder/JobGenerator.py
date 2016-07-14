@@ -706,6 +706,13 @@ class JobGeneratorThread (WorkerThread):
             esIndex = 0
             parallelOutMap = {}
             dddMap = {}
+            nOutputs = None
+            fileIDPool = []
+            # count expeceted number of jobs
+            totalNormalJobs = 0
+            for tmpInChunk in inSubChunkList:
+                totalNormalJobs += len(tmpInChunk['subChunks'])
+            # loop over all sub chunks
             for tmpInChunk in inSubChunkList:
                 siteName      = tmpInChunk['siteName']
                 inSubChunks   = tmpInChunk['subChunks']
@@ -1104,11 +1111,24 @@ class JobGeneratorThread (WorkerThread):
                                                                                                                       siteDsMap,
                                                                                                                       middleName,
                                                                                                                       registerDatasets,
-                                                                                                                      None)
+                                                                                                                      None,
+                                                                                                                      fileIDPool)
                     if outSubChunk == None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
                         return failedRet
+                    # number of outputs per job
+                    if not simul:
+                        if nOutputs == None:
+                            nOutputs = len(outSubChunk)
+                            # bulk fetch fileIDs
+                            if totalNormalJobs > 1:
+                                fileIDPool = self.taskBufferIF.bulkFetchFileIDs_JEDI(taskSpec.jediTaskID,nOutputs*(totalNormalJobs-1))
+                        else:
+                            try:
+                                fileIDPool = fileIDPool[nOutputs:]
+                            except:
+                                fileIDPool = []
                     # update parallel output mapping
                     for tmpParFileID,tmpParFileList in tmpParOutMap.iteritems():
                         if not tmpParFileID in parallelOutMap:

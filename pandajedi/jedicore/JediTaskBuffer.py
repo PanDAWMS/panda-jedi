@@ -403,13 +403,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     # generate output files for task
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None,
                             isUnMerging=False,isPrePro=False,xmlConfigJob=None,siteDsMap=None,middleName='',
-                            registerDatasets=False,parallelOutMap=None):
+                            registerDatasets=False,parallelOutMap=None,fileIDPool=[]):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,
                                            isUnMerging,isPrePro,xmlConfigJob,siteDsMap,middleName,
-                                           registerDatasets,parallelOutMap)
+                                           registerDatasets,parallelOutMap,fileIDPool)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1419,6 +1419,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getJobParamsOfFirstJob_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # bulk fetch fileIDs
+    def bulkFetchFileIDs_JEDI(self,jediTaskID,nIDs):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.bulkFetchFileIDs_JEDI(jediTaskID,nIDs)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

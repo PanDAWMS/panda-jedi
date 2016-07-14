@@ -2233,7 +2233,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # generate output files for task, and instantiate template datasets if necessary
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSites,isUnMerging,
-                            isPrePro,xmlConfigJob,siteDsMap,middleName,registerDatasets,parallelOutMap):
+                            isPrePro,xmlConfigJob,siteDsMap,middleName,registerDatasets,parallelOutMap,
+                            fileIDPool):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -2242,7 +2243,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                             instantiateTmpl,
                                                                                             instantiatedSites))
         tmpLog.debug('isUnMerging={0} isPrePro={1} xmlConfigJob={2}'.format(isUnMerging,isPrePro,type(xmlConfigJob)))
-        tmpLog.debug('middleName={0} registerDatasets={1}'.format(middleName,registerDatasets))
+        tmpLog.debug('middleName={0} registerDatasets={1} idPool={2}'.format(middleName,registerDatasets,len(fileIDPool)))
         try:
             if instantiatedSites == None:
                 instantiatedSites = ''
@@ -2252,6 +2253,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 parallelOutMap = {}
             outMap = {}
             datasetToRegister = []
+            indexFileID = 0
             # sql to get dataset
             sqlD  = "SELECT "
             sqlD += "datasetID,datasetName,vo,masterID,status,type FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
@@ -2266,6 +2268,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlI  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
             sqlI += JediFileSpec.bindValuesExpression()
             sqlI += " RETURNING fileID INTO :newFileID"
+            # sql to insert files without fileID
+            sqlII  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
+            sqlII += JediFileSpec.bindValuesExpression(useSeq=False)
             # sql to increment SN
             sqlU  = "UPDATE {0}.JEDI_Output_Template SET serialNr=serialNr+1 ".format(jedi_config.db.schemaJEDI)
             sqlU += "WHERE jediTaskID=:jediTaskID AND outTempID=:outTempID "
@@ -2453,10 +2458,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 fileSpec.scope = self.extractScope(datasetName)
                             if not simul:    
                                 # insert
-                                varMap = fileSpec.valuesMap(useSeq=True)
-                                varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
-                                self.cur.execute(sqlI+comment,varMap)
-                                fileSpec.fileID = long(varMap[':newFileID'].getvalue())
+                                if indexFileID < len(fileIDPool):
+                                    fileSpec.fileID = fileIDPool[indexFileID]
+                                    varMap = fileSpec.valuesMap()
+                                    self.cur.execute(sqlII+comment,varMap)
+                                    indexFileID += 1
+                                else:
+                                    varMap = fileSpec.valuesMap(useSeq=True)
+                                    varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
+                                    self.cur.execute(sqlI+comment,varMap)
+                                    fileSpec.fileID = long(varMap[':newFileID'].getvalue())
                                 # increment SN
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
@@ -2487,7 +2498,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            tmpLog.debug('done')
+            tmpLog.debug('done indexFileID={0}'.format(indexFileID))
             return outMap,maxSerialNr,datasetToRegister,siteDsMap,parallelOutMap
         except:
             # roll back
@@ -10043,3 +10054,39 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return retVal
+
+
+
+    # bulk fetch fileIDs
+    def bulkFetchFileIDs_JEDI(self,jediTaskID,nIDs):
+        comment = ' /* JediDBProxy.bulkFetchFileIDs_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0} nIDs={1}>'.format(jediTaskID,nIDs)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            newFileIDs = []
+            varMap = {}
+            varMap[':nIDs'] = nIDs
+            # sql to get fileID
+            sqlFID  = "SELECT {0}.JEDI_DATASET_CONT_FILEID_SEQ.nextval FROM ".format(jedi_config.db.schemaJEDI)
+            sqlFID += "(SELECT level FROM dual CONNECT BY level<=:nIDs) " 
+            # start transaction
+            self.conn.begin()
+            self.cur.arraysize = 10000
+            self.cur.execute(sqlFID+comment,varMap)
+            resFID = self.cur.fetchall()
+            for fileID, in resFID:
+                newFileIDs.append(fileID)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('got {0} IDs'.format(len(newFileIDs)))
+            return newFileIDs
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return []
+
