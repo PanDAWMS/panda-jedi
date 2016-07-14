@@ -2322,6 +2322,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpl_RelationMap = {}
             mstr_RelationMap = {}
             varMapsForInsert = []
+            varMapsForSN     = []
             for datasetID,datasetName,vo,masterID,datsetStatus,datasetType in resList:
                 fileDatasetIDs = []
                 for instantiatedSite in instantiatedSites.split(','):
@@ -2415,6 +2416,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpl_RelationMap[datasetID][instantiatedSite] = fileDatasetID
                     fileDatasetIDs.append(fileDatasetID)
                 # get output templates
+                tmpLog.debug('get output templates')
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 varMap[':datasetID']  = datasetID
@@ -2473,10 +2475,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':outTempID']  = outTempID
-                                self.cur.execute(sqlU+comment,varMap)
-                                nRow = self.cur.rowcount
-                                if nRow != 1:
-                                    raise RuntimeError, 'Failed to increment SN for outTempID={0}'.format(outTempID)
+                                varMapsForSN.append(varMap)
                             else:
                                 # set dummy for simulation
                                 fileSpec.fileID = fileSpec.datasetID
@@ -2486,6 +2485,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 firstFileID = fileSpec.fileID
                                 parallelOutMap[firstFileID] = []
                             parallelOutMap[firstFileID].append(fileSpec)
+            # bulk increment
+            if len(varMapsForSN) > 0:
+                tmpLog.debug('bulk increment {0} SNs'.format(len(varMapsForSN)))
+                self.cur.executemany(sqlU+comment,varMapsForSN)
             # bulk insert
             if len(varMapsForInsert) > 0:
                 tmpLog.debug('bulk insert {0} files'.format(len(varMapsForInsert)))

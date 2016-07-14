@@ -1,6 +1,7 @@
 Release Notes
 
 * 7/14/2016
+  * using bulk increment in getOutput
   * using bulk fetch and insert for files in JG
 
 * 7/12/2016
