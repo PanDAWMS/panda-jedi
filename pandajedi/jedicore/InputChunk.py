@@ -369,7 +369,8 @@ class InputChunk:
         # overwrite parameters when nFiles/EventsPerJob is used
         if nFilesPerJob != None and not dynNumEvents:
             maxNumFiles  = nFilesPerJob
-            multiplicand = nFilesPerJob
+            if not respectLB:
+                multiplicand = nFilesPerJob
         if nEventsPerJob != None:
             maxNumEvents = nEventsPerJob
         # split with boundayID
@@ -572,8 +573,8 @@ class InputChunk:
             # check if there are unused files/evets 
             if not self.checkUnused():
                 break
-            # break if nFilesPerJob is used
-            if nFilesPerJob != None:
+            # break if nFilesPerJob is used as multiplicand
+            if nFilesPerJob != None and not respectLB:
                 break
             # boundayID is changed
             if newBoundaryID:

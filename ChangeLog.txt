@@ -2,6 +2,7 @@ Release Notes
 
 * 7/19/2016
   * changed TRB to check boolean value of noWaitParent
+  * changed IC for NG+NF+LB
 
 * 7/14/2016
   * setting old modtime in JG for high prio + running + one or more reset
