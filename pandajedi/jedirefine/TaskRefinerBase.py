@@ -231,7 +231,7 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,4,JediTaskSpec.splitRuleToken['groupBoundaryID'])
         if taskParamMap.has_key('pfnList'):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['pfnList'])
-        if taskParamMap.has_key('noWaitParent'):
+        if taskParamMap.has_key('noWaitParent') and taskParamMap['noWaitParent'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noWaitParent'])
         if 'respectLB' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['respectLB'])
