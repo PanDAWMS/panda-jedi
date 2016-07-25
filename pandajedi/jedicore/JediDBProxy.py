@@ -9918,7 +9918,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return {}
 
 
-
     # get old merge job PandaIDs
     def getOldMergeJobPandaIDs_JEDI(self,jediTaskID,pandaID):
         comment = ' /* JediDBProxy.getOldMergeJobPandaIDs_JEDI */'

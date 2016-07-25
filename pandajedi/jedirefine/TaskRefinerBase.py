@@ -12,8 +12,7 @@ from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediFileSpec import JediFileSpec
 from pandaserver.taskbuffer import EventServiceUtils
-
-
+from pandaserver.taskbuffer.GlobalShares import GlobalShares
 
 # base class for task refine
 class TaskRefinerBase (object):
@@ -281,7 +280,7 @@ class TaskRefinerBase (object):
         if 'workQueueName' in taskParamMap:
             # work queue is specified
             workQueue = workQueueMapper.getQueueWithName(taskSpec.vo,taskSpec.prodSourceLabel,taskParamMap['workQueueName'])
-        if workQueue == None:
+        if workQueue is None:
             # get work queue based on task attributes
             workQueue,tmpStr = workQueueMapper.getQueueWithSelParams(taskSpec.vo,
                                                                      taskSpec.prodSourceLabel,
@@ -291,8 +290,8 @@ class TaskRefinerBase (object):
                                                                      site=taskSpec.site,
                                                                      eventService=taskSpec.eventService,
                                                                      splitRule=taskSpec.splitRule)
-        if workQueue == None:
-            errStr  = 'workqueue is undefined for vo={0} labal={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
+        if workQueue is None:
+            errStr  = 'workqueue is undefined for vo={0} label={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
             errStr += 'processingType={0} workingGroup={1} coreCount={2} eventService={3} '.format(taskSpec.processingType,
                                                                                                    taskSpec.workingGroup,
                                                                                                    taskSpec.coreCount,
@@ -300,6 +299,23 @@ class TaskRefinerBase (object):
             errStr += 'splitRule={0} '.format(taskSpec.splitRule)
             raise RuntimeError,errStr
         self.taskSpec.workQueue_ID = workQueue.queue_id
+
+        # Initialize the global share
+        gshare = None
+        if 'gshare' in taskParamMap and GlobalShares.is_valid_share(taskParamMap['gshare']):
+            # work queue is specified
+            gshare = taskParamMap['gshare']
+        else:
+            # get share based on definition
+            gshare = GlobalShares.get_share_for_task(self.taskSpec)
+            if gshare is None:
+                gshare = 'No match'
+                # errStr  = 'share is undefined for vo={0} label={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
+                # errStr += 'workingGroup={0} campaign={1} '.format(taskSpec.workingGroup, taskSpec.campaign)
+                # raise RuntimeError,errStr
+
+            self.taskSpec.gshare = gshare
+
         # return
         return
     
