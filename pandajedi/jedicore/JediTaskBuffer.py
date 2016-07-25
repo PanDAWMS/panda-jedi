@@ -223,12 +223,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
     # update JEDI task
     def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None,updateDEFT=False,insertUnknown=None,
-                        setFrozenTime=True):
+                        setFrozenTime=True,setOldModTime=False):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.updateTask_JEDI(taskSpec,criteria,oldStatus,updateDEFT,insertUnknown,
-                                       setFrozenTime)
+                                       setFrozenTime,setOldModTime)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -403,13 +403,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
     # generate output files for task
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None,
                             isUnMerging=False,isPrePro=False,xmlConfigJob=None,siteDsMap=None,middleName='',
-                            registerDatasets=False,parallelOutMap=None):
+                            registerDatasets=False,parallelOutMap=None,fileIDPool=[]):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,
                                            isUnMerging,isPrePro,xmlConfigJob,siteDsMap,middleName,
-                                           registerDatasets,parallelOutMap)
+                                           registerDatasets,parallelOutMap,fileIDPool)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -501,6 +501,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.rescuePickedFiles_JEDI(vo,prodSourceLabel,waitTime)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # rescue unlocked tasks with picked files
+    def rescueUnLockedTasksWithPicked_JEDI(self,vo,prodSourceLabel,waitTime,pid):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.rescueUnLockedTasksWithPicked_JEDI(vo,prodSourceLabel,waitTime,pid)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1365,6 +1378,58 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getFailureCountsForTask_JEDI(jediTaskID,timeWindow)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get old merge job PandaIDs
+    def getOldMergeJobPandaIDs_JEDI(self,jediTaskID,pandaID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getOldMergeJobPandaIDs_JEDI(jediTaskID,pandaID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get active jumbo jobs for a task
+    def getActiveJumboJobs_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getActiveJumboJobs_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get jobParms of the first job
+    def getJobParamsOfFirstJob_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getJobParamsOfFirstJob_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # bulk fetch fileIDs
+    def bulkFetchFileIDs_JEDI(self,jediTaskID,nIDs):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.bulkFetchFileIDs_JEDI(jediTaskID,nIDs)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

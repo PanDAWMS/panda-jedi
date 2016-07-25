@@ -23,7 +23,8 @@ class JediTaskSpec(object):
         'mergeWalltime','mergeWalltimeUnit','throttledTime','numThrottled',
         'mergeCoreCount','goal','assessmentTime','cpuTime','cpuTimeUnit',
         'cpuEfficiency','baseWalltime','nucleus','baseRamCount',
-        'ttcRequested', 'ttcPredicted', 'ttcPredictionDate', 'gshare'
+        'ttcRequested', 'ttcPredicted', 'ttcPredictionDate','rescueTime',
+        'requestType', 'gshare'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
@@ -64,6 +65,7 @@ class JediTaskSpec(object):
         'nEventsPerJob'      : 'NE',
         'nFilesPerJob'       : 'NF',
         'nGBPerJob'          : 'NG',
+        'nJumboJobs'         : 'NJ',
         'nSitesPerJob'       : 'NS',
         'noWaitParent'       : 'NW',
         'pfnList'            : 'PL',
@@ -309,6 +311,16 @@ class JediTaskSpec(object):
     def getMaxEventRangesPerJob(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['maxEventRangesPerJob']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None
+
+
+
+    # get the number of jumbo jobs if defined
+    def getNumJumboJobs(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['nJumboJobs']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None

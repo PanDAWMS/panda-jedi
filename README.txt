@@ -1,7 +1,7 @@
 The core package for JEDI
 
 
-** Ducumentation
+** Documentation
 
 https://twiki.cern.ch/twiki/bin/view/PanDA/PandaJEDI
 

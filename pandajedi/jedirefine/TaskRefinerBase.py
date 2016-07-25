@@ -197,6 +197,9 @@ class TaskRefinerBase (object):
         # campaign
         if taskParamMap.has_key('campaign'):
             taskSpec.campaign = taskParamMap['campaign']
+        # request type
+        if 'requestType' in taskParamMap:
+            taskSpec.requestType = taskParamMap['requestType']
         self.taskSpec = taskSpec
         # set split rule    
         if 'tgtNumEventsPerJob' in taskParamMap:
@@ -217,6 +220,7 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'t1Weight',         JediTaskSpec.splitRuleToken['t1Weight'])
         self.setSplitRule(taskParamMap,'maxAttemptES',     JediTaskSpec.splitRuleToken['maxAttemptES'])
         self.setSplitRule(taskParamMap,'nSitesPerJob',     JediTaskSpec.splitRuleToken['nSitesPerJob'])
+        self.setSplitRule(taskParamMap,'nJumboJobs',       JediTaskSpec.splitRuleToken['nJumboJobs'])
         self.setSplitRule(taskParamMap,'nEventsPerMergeJob',   JediTaskSpec.splitRuleToken['nEventsPerMergeJob'])
         self.setSplitRule(taskParamMap,'nFilesPerMergeJob',    JediTaskSpec.splitRuleToken['nFilesPerMergeJob'])
         self.setSplitRule(taskParamMap,'nGBPerMergeJob',       JediTaskSpec.splitRuleToken['nGBPerMergeJob'])
@@ -226,7 +230,7 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,4,JediTaskSpec.splitRuleToken['groupBoundaryID'])
         if taskParamMap.has_key('pfnList'):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['pfnList'])
-        if taskParamMap.has_key('noWaitParent'):
+        if taskParamMap.has_key('noWaitParent') and taskParamMap['noWaitParent'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noWaitParent'])
         if 'respectLB' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['respectLB'])

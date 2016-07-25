@@ -1,5 +1,28 @@
 Release Notes
 
+* 7/19/2016
+  * changed TRB to check boolean value of noWaitParent
+  * changed IC for NG+NF+LB
+
+* 7/14/2016
+  * setting old modtime in JG for high prio + running + one or more reset
+  * using bulk increment in getOutput
+  * using bulk fetch and insert for files in JG
+
+* 7/12/2016
+  * changed AtlasTS and AtlasPPP to register and delete ES datasets
+
+* 7/11/2016
+  * added jumbo job stuff
+  * added requestType
+  * added getOldMergeJobPandaIDs
+
+* 7/7/2016
+  * added removeTags to AtlasAPP
+
+* 7/5/2016
+  * added rescueUnLockedTasksWithPicked
+
 * 7/4/2016
   * changed ToBeProcessed to check done datasets as well
 

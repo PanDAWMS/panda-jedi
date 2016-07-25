@@ -1,6 +1,7 @@
 import sys
 import time
 import datetime
+import traceback
 
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
@@ -168,7 +169,8 @@ class TaskRefinerThread (WorkerThread):
                                 impl.taskSpec.parent_tid = parent_tid
                         except:
                             errtype,errvalue = sys.exc_info()[:2]
-                            errStr = 'failed to extract common parameters with {0}:{1}'.format(errtype.__name__,errvalue)
+                            errStr = 'failed to extract common parameters with {0}:{1} {2}'.format(errtype.__name__,errvalue,
+                                                                                                   traceback.format_exc())
                             tmpLog.error(errStr)
                             tmpStat = Interaction.SC_FAILED
                     # check attribute length

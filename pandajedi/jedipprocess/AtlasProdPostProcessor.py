@@ -5,6 +5,7 @@ from pandajedi.jedicore import Interaction
 from PostProcessorBase import PostProcessorBase
 
 from pandaserver.dataservice import DataServiceUtils
+from pandaserver.taskbuffer import EventServiceUtils
 
 
 # post processor for ATLAS production
@@ -75,6 +76,16 @@ class AtlasProdPostProcessor (PostProcessorBase):
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.warning('failed to delete datasets with {0}:{1}'.format(errtype.__name__,errvalue))
+            try:
+                # delete ES datasets
+                if taskSpec.useEventService() and not taskSpec.useJobCloning() and datasetSpec.type == 'output':
+                    targetName = datasetSpec.datasetName +  EventServiceUtils.esSuffixDDM
+                    tmpLog.info('deleting ES DS dataName={0}'.format(targetName))
+                    retStr = ddmIF.deleteDataset(targetName,False,ignoreUnknown=True)
+                    tmpLog.info(retStr)
+            except:
+                errtype,errvalue = sys.exc_info()[:2]
+                tmpLog.warning('failed to delete ES DS with {0}:{1}'.format(errtype.__name__,errvalue))
         # check duplication
         if self.getFinalTaskStatus(taskSpec) in ['finished','done']:
             nDup = self.taskBufferIF.checkDuplication_JEDI(taskSpec.jediTaskID)
