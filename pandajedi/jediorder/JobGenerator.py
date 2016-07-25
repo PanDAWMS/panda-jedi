@@ -1054,7 +1054,7 @@ class JobGeneratorThread (WorkerThread):
                                     jobSpec.maxWalltime /= float(siteSpec.coreCount)
                                 if not siteSpec.corepower in [0,None]:
                                     jobSpec.maxWalltime /= siteSpec.corepower
-                            if taskSpec.cpuEfficiency != None:
+                            if not taskSpec.cpuEfficiency in [None,0]:
                                 jobSpec.maxWalltime /= (float(taskSpec.cpuEfficiency) / 100.0)
                             if taskSpec.baseWalltime != None:
                                 jobSpec.maxWalltime += taskSpec.baseWalltime

@@ -479,7 +479,10 @@ class InputChunk:
                     tmpExpWalltime = walltimeGradient * effectiveNumEvents / float(coreCount)
                     if not corePower in [None,0]:
                         tmpExpWalltime /= corePower
-                    tmpExpWalltime /= float(self.taskSpec.cpuEfficiency)/100.0
+                    if self.taskSpec.cpuEfficiency == 0:
+                        tmpExpWalltime = 0
+                    else:
+                        tmpExpWalltime /= float(self.taskSpec.cpuEfficiency)/100.0
                     if multiplicity != None:
                         tmpExpWalltime /= float(multiplicity)
                     expWalltime += long(tmpExpWalltime)
@@ -664,7 +667,10 @@ class InputChunk:
                     tmpExpWalltime = walltimeGradient * effectiveNumEvents / float(coreCount)
                     if not corePower in [None,0]:
                         tmpExpWalltime /= corePower
-                    tmpExpWalltime /= float(self.taskSpec.cpuEfficiency)/100.0
+                    if self.taskSpec.cpuEfficiency == 0:
+                        tmpExpWalltime = 0
+                    else:
+                        tmpExpWalltime /= float(self.taskSpec.cpuEfficiency)/100.0
                     if multiplicity != None:
                         tmpExpWalltime /= float(multiplicity)
                     newExpWalltime += long(tmpExpWalltime)

@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/25/2016
+  * fixed IC for cpuEfficiency=0
+
 * 7/19/2016
   * changed TRB to check boolean value of noWaitParent
   * changed IC for NG+NF+LB
