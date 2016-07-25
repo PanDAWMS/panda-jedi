@@ -2,6 +2,7 @@ Release Notes
 
 * 7/25/2016
   * fixed IC for cpuEfficiency=0
+  * tagging of shares
 
 * 7/19/2016
   * changed TRB to check boolean value of noWaitParent
