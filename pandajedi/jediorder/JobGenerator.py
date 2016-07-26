@@ -839,7 +839,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.currentPriority  = jobSpec.assignedPriority
                     jobSpec.lockedby         = 'jedi'
                     jobSpec.workQueue_ID     = taskSpec.workQueue_ID
-                    jobSpec.gshare     = taskSpec.gshare
+                    jobSpec.gshare           = taskSpec.gshare
                     # disable reassign
                     if taskSpec.disableReassign():
                         jobSpec.relocationFlag = 2
@@ -1306,6 +1306,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.AtlasRelease     = re.sub('\r','',jobSpec.AtlasRelease)
             jobSpec.lockedby         = 'jedi'
             jobSpec.workQueue_ID     = taskSpec.workQueue_ID
+            jobSpec.gshare           = taskSpec.gshare
             jobSpec.metadata         = ''
             # make libDS name
             if datasetSpec == None or datasetSpec.state == 'closed' or fileSpec == None:
@@ -1430,6 +1431,7 @@ class JobGeneratorThread (WorkerThread):
             """
             jobSpec.lockedby         = 'jedi'
             jobSpec.workQueue_ID     = taskSpec.workQueue_ID
+            jobSpec.gshare           = taskSpec.gshare
             jobSpec.destinationSE    = siteName
             jobSpec.metadata         = ''
             # get log file
