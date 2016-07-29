@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/29/2016
+  * fixed AtlasPJB to use score queues for pmerge even if site is specified
+
 * 7/25/2016
   * fixed IC for cpuEfficiency=0
   * tagging of shares

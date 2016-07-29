@@ -176,7 +176,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         siteListPreAssigned = False
         if siteListForTB != None:
             scanSiteList = siteListForTB
-        elif not taskSpec.site in ['',None]:
+        elif not taskSpec.site in ['',None] and inputChunk.getPreassignedSite() == None:
             if ',' in taskSpec.site:
                 # site list
                 siteListPreAssigned = True
