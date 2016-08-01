@@ -1,5 +1,8 @@
 Release Notes
 
+* 8/1/2016
+  * using campaign in WQ 
+
 * 7/29/2016
   * fixed AtlasPJB to use score queues for pmerge even if site is specified
 

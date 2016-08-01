@@ -289,14 +289,15 @@ class TaskRefinerBase (object):
                                                                      coreCount=taskSpec.coreCount,
                                                                      site=taskSpec.site,
                                                                      eventService=taskSpec.eventService,
-                                                                     splitRule=taskSpec.splitRule)
+                                                                     splitRule=taskSpec.splitRule,
+                                                                     campaign=taskSpec.campaign)
         if workQueue is None:
             errStr  = 'workqueue is undefined for vo={0} label={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
             errStr += 'processingType={0} workingGroup={1} coreCount={2} eventService={3} '.format(taskSpec.processingType,
                                                                                                    taskSpec.workingGroup,
                                                                                                    taskSpec.coreCount,
                                                                                                    taskSpec.eventService)
-            errStr += 'splitRule={0} '.format(taskSpec.splitRule)
+            errStr += 'splitRule={0} campaign={1}'.format(taskSpec.splitRule,taskSpec.campaign)
             raise RuntimeError,errStr
         self.taskSpec.workQueue_ID = workQueue.queue_id
 

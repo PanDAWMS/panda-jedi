@@ -12,7 +12,7 @@ class WorkQueue(object):
                    'criteria','variables','partitionID','stretchable','status')
     # parameters for selection criteria
     _paramsForSelection = ('prodSourceLabel','workingGroup','processingType','coreCount',
-                           'site','eventService','splitRule')
+                           'site','eventService','splitRule','campaign')
     
     # constructor
     def __init__(self):
