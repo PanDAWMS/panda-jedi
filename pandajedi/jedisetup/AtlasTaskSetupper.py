@@ -171,7 +171,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'jediTaskID':taskSpec.jediTaskID,
                                                                       'datasetID':datasetID})
                     # register ES datasets
-                    if taskSpec.useEventService() and not taskSpec.useJobCloning() and datasetSpec.type == 'output':
+                    if False: # FIXME taskSpec.useEventService() and not taskSpec.useJobCloning() and datasetSpec.type == 'output':
                         targetName = datasetSpec.datasetName +  EventServiceUtils.esSuffixDDM
                         location = None
                         metaData = {}
