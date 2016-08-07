@@ -408,10 +408,7 @@ class AtlasDDMClient(DDMClientBase):
                             or useCompleteOnly:
                         continue
                     # get LFC
-                    tmpStat,lfc = self.getSiteProperty(tmpEndPoint,'servedlfc')
-                    if tmpStat != self.SC_SUCCEEDED:
-                        tmpLog.error('faild to get catalog for {0} with {0}'.format(tmpEndPoint,lfc))
-                        return tmpStat,lfc
+                    lfc = 'rucio://atlas-rucio.cern.ch:/grid/atlas'
                     # add map
                     if not tmpLfcSeMap.has_key(lfc):
                         tmpLfcSeMap[lfc] = []
