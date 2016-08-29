@@ -148,8 +148,6 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # get DQ2 API            
-            dq2=DQ2()
             if not datasetName.endswith('/'):
                 # get file list
                 tmpRet = self.convertOutListDatasetReplicas(datasetName)
@@ -160,7 +158,7 @@ class AtlasDDMClient(DDMClientBase):
                 attrList = ['total','found']
                 retMap = {}
                 # get constituent datasets
-                dsList = dq2.listDatasetsInContainer(datasetName)
+                tmpS,dsList = self.listDatasetsInContainer(datasetName)
                 for tmpName in dsList:
                     tmpLog.debug(tmpName)
                     tmpRet = self.convertOutListDatasetReplicas(tmpName)
@@ -778,6 +776,21 @@ class AtlasDDMClient(DDMClientBase):
         return self.SC_SUCCEEDED,True
             
 
+    
+    # wrapper for list_content
+    def wp_list_content(self,client,scope,dsn):
+        retList = []
+        # get contents
+        for data in client.list_content(scope,dsn):
+            if data['type'] == 'CONTAINER':
+                retList += self.wp_list_content(client,data['scope'],data['name'])
+            elif data['type'] == 'DATASET':
+                retList.append('{0}:{1}'.format(data['scope'],data['name']))
+            else:
+                pass
+        return retList
+
+
 
     # list datasets in container
     def listDatasetsInContainer(self,containerName):
@@ -786,10 +799,12 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # get DQ2 API            
-            dq2=DQ2()
-            # get list
-            dsList = dq2.listDatasetsInContainer(containerName)
+            # get rucio
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(containerName)
+            # get contents
+            dsList = self.wp_list_content(client,scope,dsn)
             tmpLog.debug('got '+str(dsList))
             return self.SC_SUCCEEDED,dsList
         except:
