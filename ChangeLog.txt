@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/2/2016
+  * using cloneJobs for ES even with nConsumer=1
+
 * 8/29/2016
   * changed analysis to work with containers of containers
 

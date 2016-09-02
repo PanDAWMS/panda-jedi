@@ -1222,7 +1222,7 @@ class JobGeneratorThread (WorkerThread):
                 # increase event service consumers
                 if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
                     nConsumers = taskSpec.getNumEventServiceConsumer()
-                    if nConsumers != None and nConsumers > 1:
+                    if nConsumers != None:
                         tmpJobSpecList,incOldPandaIDs = self.increaseEventServiceConsumers(tmpJobSpecList,nConsumers,
                                                                                            taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap,
                                                                                            oldPandaIDs[len(jobSpecList):])
