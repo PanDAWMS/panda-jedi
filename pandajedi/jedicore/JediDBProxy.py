@@ -1701,6 +1701,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sqlC  = "SELECT count(distinct pandaID) "
                     sqlC += "FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
                     sqlC += "WHERE tabD.jediTaskID=tabC.jediTaskID AND tabD.jediTaskID=:jediTaskID "
+                    sqlC += "AND tabC.datasetID=tabD.datasetID "
                     sqlC += "AND tabC.status=:status "
                     sqlC += "AND masterID IS NULL AND pandaID IS NOT NULL "
                     varMap = {}
