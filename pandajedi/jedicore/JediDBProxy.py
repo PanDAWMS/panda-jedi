@@ -4993,10 +4993,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     memSizeList.append(tmpPSS)
                                     memSizeDict[tmpPSS] = pandaID
                             else:
-                                tmpMatch = re.search('vmPeakMax=(\d+)',jobMetrics)
-                                tmpVMEM = long(tmpMatch.group(1))
-                                memSizeList.append(tmpVMEM)
-                                memSizeDict[tmpVMEM]= pandaID
+                                if maxPSS > 0:
+                                    tmpMEM = maxPSS
+                                else:
+                                    tmpMatch = re.search('vmPeakMax=(\d+)',jobMetrics)
+                                    tmpMEM = long(tmpMatch.group(1))
+                                memSizeList.append(tmpMEM)
+                                memSizeDict[tmpMEM]= pandaID
                         except:
                             pass
                     # use lib size as workdir size
@@ -5068,14 +5071,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             median = max(memSizeList)
             addTag(jobTagMap,memSizeDict,median,'ramCount')
             median /= 1024
-            returnMap['ramCount'] = long(median)
+            median = long(median)
             if preRamUnit == 'MBPerCore':
+                returnMap['ramUnit'] = preRamUnit
+                returnMap['ramCount'] = median
+            elif preRamUnit == 'MBPerCoreFixed':
                 returnMap['ramUnit'] = preRamUnit
             else:
                 returnMap['ramUnit'] = 'MB'
                 # use preset value if larger
-                if preRamCount != None: # FIXME when setting ramCount is enabled again # and preRamCount > returnMap['ramCount']:
+                if preRamCount != None and preRamCount > median:
                     returnMap['ramCount'] = preRamCount
+                else:
+                    returnMap['ramCount'] = median    
         if workSizeList != []:   
             median = max(workSizeList)
             returnMap['workDiskCount'] = long(median)

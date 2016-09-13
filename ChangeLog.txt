@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/13/2016
+  * using maxPSS for analy tasks
+
 * 9/2/2016
   * using cloneJobs for ES even with nConsumer=1
 
