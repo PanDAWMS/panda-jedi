@@ -10111,3 +10111,35 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return []
 
+
+
+    # set del flag to events
+    def setDelFlagToEvents_JEDI(self,jediTaskID):
+        comment = ' /* JediDBProxy.setDelFlagToEvents_JEDI( */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':delFlag'] = 'Y'
+            # sql to set del flag
+            sqlFID  = "UPDATE {0}.JEDI_Events ".format(jedi_config.db.schemaJEDI)
+            sqlFID += "SET file_not_deleted=:delFlag "
+            sqlFID += "WHERE jediTaskID=:jediTaskID AND file_not_deleted IS NULL AND objStore_ID IS NOT NULL "
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sqlFID+comment,varMap)
+            nRow = self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('set Y to {0} event ranges'.format(nRow))
+            return nRow
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None

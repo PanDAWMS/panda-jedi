@@ -1435,3 +1435,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         # return
         return retVal
 
+
+
+    # set del flag to events
+    def setDelFlagToEvents_JEDI(self,jediTaskID):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.setDelFlagToEvents_JEDI(jediTaskID)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
