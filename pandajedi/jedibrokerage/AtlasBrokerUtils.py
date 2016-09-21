@@ -142,10 +142,10 @@ def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
 
 
 # get nuclei where data is available
-def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[]):
+def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[],deepScan=False):
     # get replicas
     try:
-        replicaMap = ddmIF.listReplicasPerDataset(datasetName)
+        replicaMap = ddmIF.listReplicasPerDataset(datasetName,deepScan)
     except:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.listReplicasPerDataset failed with %s' % errvalue

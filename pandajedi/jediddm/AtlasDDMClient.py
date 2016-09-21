@@ -191,11 +191,11 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # list replicas per dataset
-    def listReplicasPerDataset(self,datasetName):
+    def listReplicasPerDataset(self,datasetName,deepScan=False):
         methodName = 'listReplicasPerDataset'
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
+        tmpLog.debug('start with deepScan={0}'.format(deepScan))
         try:
             # get rucio API
             client = RucioClient()
@@ -210,7 +210,7 @@ class AtlasDDMClient(DDMClientBase):
                 datasets = [i['name'] for i in itr]
             retMap = {}
             for tmpName in datasets:
-                retMap[tmpName] = self.convertOutListDatasetReplicas(tmpName)
+                retMap[tmpName] = self.convertOutListDatasetReplicas(tmpName,deepScan)
                 tmpLog.debug('got '+str(retMap))
                 return self.SC_SUCCEEDED,retMap
         except:
@@ -1330,41 +1330,23 @@ class AtlasDDMClient(DDMClientBase):
         client = RucioClient()
         # get scope and name
         scope,dsn = self.extract_scope(datasetName)
-        itr = client.list_dataset_replicas(scope,dsn)
+        # get replicas
+        itr = client.list_dataset_replicas(scope,dsn,deep=usefileLookup)
+        items = []
         for item in itr:
+            items.append(item)
+        # deep lookup if shallow gave nothing
+        if items == [] and not usefileLookup:
+            itr = client.list_dataset_replicas(scope,dsn,deep=True)
+            for item in itr:
+                items.append(item)
+        for item in items:
             rse = item["rse"]
             retMap[rse] = [{'total':item["length"],
                             'found':item["available_length"],
                             'tsize':item["bytes"],
                             'asize':item["available_bytes"],
                             'immutable':1}]
-        # use file lookup
-        if retMap == {} or usefileLookup:
-            itr = client.list_replicas([{'scope':scope,'name':dsn}])
-            total = 0
-            tsize = 0
-            fileRetMap = {}
-            for item in itr:
-                total += 1
-                tsize += item['bytes']
-                for rse in item['rses']:
-                    # skip if dataset-level info is available
-                    if rse in retMap:
-                        continue
-                    # use only valid files
-                    if rse in item['states'] and item['states'][rse] == 'AVAILABLE':
-                        if not rse in fileRetMap:
-                            fileRetMap[rse] = {'found':0,
-                                               'asize':0}
-                        fileRetMap[rse]['found'] += 1
-                        fileRetMap[rse]['asize'] += item['bytes']
-            # set total length and size
-            for rse in fileRetMap.keys():
-                retMap[rse] = [{'total':total,
-                                'found':fileRetMap[rse]['found'],
-                                'tsize':tsize,
-                                'asize':fileRetMap[rse]['asize'],
-                                'immutable':0}]
         return retMap
 
 

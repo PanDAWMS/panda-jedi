@@ -477,10 +477,16 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             # skip locality check
                             if DataServiceUtils.getDatasetType(datasetSpec.datasetName) in datasetTypeToSkipCheck:
                                 continue
+                            # use deep scan for primary dataset
+                            if datasetSpec.isMaster():
+                                deepScan = True
+                            else:
+                                deepScan = False
                             # get nuclei where data is available
                             tmpSt,tmpRet = AtlasBrokerUtils.getNucleiWithData(siteMapper,self.ddmIF,
                                                                               datasetSpec.datasetName,
-                                                                              nucleusList.keys())
+                                                                              nucleusList.keys(),
+                                                                              deepScan)
                             if tmpSt != Interaction.SC_SUCCEEDED:
                                 tmpLog.error('failed to get nuclei where data is available, since {0}'.format(tmpRet))
                                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

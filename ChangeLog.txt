@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/21/2016
+  * changed AtlasPTB to use deep in list_dataset_replicas for primary dataset replica lookup
+
 * 9/16/2016
   * setting DEL to event ranges
 
