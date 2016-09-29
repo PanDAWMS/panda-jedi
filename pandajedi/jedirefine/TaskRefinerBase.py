@@ -503,6 +503,9 @@ class TaskRefinerBase (object):
                         umDatasetSpec.streamName = datasetSpec.streamName
                         if datasetSpec.isAllowedNoOutput():
                             umDatasetSpec.allowNoOutput()
+                        # ratio
+                        if datasetSpec.getRatioToMaster() > 1:
+                            umDatasetSpec.setDatasetAttribute('ratio={0}'.format(datasetSpec.getRatioToMaster()))
                         # make unmerged output template 
                         if outFileTemplate != None:
                             umOutTemplateMap = {'jediTaskID' : self.taskSpec.jediTaskID,
