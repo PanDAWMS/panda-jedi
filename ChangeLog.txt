@@ -1,5 +1,9 @@
 Release Notes
 
+* 9/30/2016
+  * changed tobeprocess for ratio in float
+  * changed ratio of output to check boundaryID
+
 * 9/29/2016
   * added support ratio for output datasets
 

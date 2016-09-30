@@ -546,7 +546,8 @@ class InputChunk:
                         datasetUsage['used'] = 0
                     for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
                         # check boundaryID
-                        if splitWithBoundaryID and boundaryID != None and \
+                        if (splitWithBoundaryID or (useBoundary != None and useBoundary['inSplit'] == 3 and datasetSpec.getRatioToMaster() > 1)) \
+                                and boundaryID != None and \
                                 not (boundaryID == tmpFileSpec.boundaryID or tmpFileSpec.boundaryID in boundaryIDs):
                             break
                         # check for distributed datasets
