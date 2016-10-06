@@ -175,7 +175,8 @@ class TaskCommandoThread (WorkerThread):
                                     tmpMsg = 'set task.status={0}'.format(tmpTaskSpec.status)
                                     tmpLog.sendMsg(tmpMsg,self.msgType)
                                     tmpLog.info(tmpMsg)
-                                    tmpRet = self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':jediTaskID})
+                                    tmpRet = self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':jediTaskID},
+                                                                               setOldModTime=True)
                                     tmpLog.info('done with {0}'.format(str(tmpRet)))
                                     break
                                 else:

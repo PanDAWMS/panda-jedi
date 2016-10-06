@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/6/2016
+  * support for reassignTaskToNucleus=None
+
 * 9/30/2016
   * changed tobeprocess for ratio in float
   * changed ratio of output to check boundaryID

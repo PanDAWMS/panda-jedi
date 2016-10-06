@@ -123,6 +123,15 @@ class AtlasProdWatchDog (WatchDogBase):
                     tmpLog.error("cloud={0} doesn't exist".format(taskSpec.cloud))
                     continue
             else:
+                # re-run task brokerage
+                if taskSpec.nucleus in [None,'']:
+                    taskSpec.status = 'assigning'
+                    taskSpec.oldStatus = None
+                    taskSpec.setToRegisterDatasets()
+                    self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
+                                                      setOldModTime=True)
+                    tmpLog.debug('set task.status={0} to trigger task brokerage again'.format(taskSpec.status))
+                    continue
                 # get nucleus
                 nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)
                 if nucleusSpec == None:
@@ -169,7 +178,8 @@ class AtlasProdWatchDog (WatchDogBase):
                 else:
                     taskSpec.status = taskSpec.oldStatus
                 taskSpec.oldStatus = None
-                self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
+                self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
+                                                  setOldModTime=True)
                 tmpLog.debug('finished to reassign')
 
 
