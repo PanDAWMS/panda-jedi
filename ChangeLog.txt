@@ -1,6 +1,7 @@
 Release Notes
 
 * 10/6/2016
+  * added addEsParams
   * support for reassignTaskToNucleus=None
 
 * 9/30/2016
