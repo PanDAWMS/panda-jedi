@@ -4321,7 +4321,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.cur.execute(sqlCopy+comment,varMap)
                             retStr = ''
                             for tmpItem, in self.cur:
-                                retStr = tmpItem.read(amount=1000000)
+                                retStr = tmpItem.read(amount=5000000)
                                 break
                             # check size
                             if len(retStr) != totalSize:
