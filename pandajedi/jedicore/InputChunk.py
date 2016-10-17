@@ -237,6 +237,15 @@ class InputChunk:
 
 
 
+    # check if secondary datasets use event ratios
+    def useEventRatioForSec(self):
+        for datasetSpec in self.secondaryDatasetList:
+            if datasetSpec.getEventRatio() != None:
+                return True
+        return False
+
+
+
     # get maximum size of atomic subchunk
     def getMaxAtomSize(self,effectiveSize=False,getNumEvents=False):
         # number of files per job if defined
@@ -387,6 +396,8 @@ class InputChunk:
         # get site when splitting per site
         if siteName != None:
             siteCandidate = self.siteCandidates[siteName]
+        # use event ratios
+        useEventRatio = self.useEventRatioForSec()
         # start splitting
         inputNumFiles  = 0
         inputNumEvents = 0 
@@ -400,6 +411,7 @@ class InputChunk:
         newBoundaryID  = False
         eventJump      = False
         nSecFilesMap   = {}
+        nSecEventsMap  = {}
         numMaster      = 0
         outSizeMap     = {}
         lumiBlockNr    = None
@@ -492,7 +504,7 @@ class InputChunk:
                         tmpExpWalltime /= float(multiplicity)
                     expWalltime += long(tmpExpWalltime)
                 # the number of events
-                if maxNumEvents != None and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
+                if (maxNumEvents != None or useEventRatio) and tmpFileSpec.startEvent != None and tmpFileSpec.endEvent != None:
                     primaryHasEvents = True
                     inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
                     # set next start event
@@ -537,7 +549,7 @@ class InputChunk:
                         continue
                     if nSecondary == None:
                         nSecondary = datasetSpec.getNumMultByRatio(numMaster) - nSecFilesMap[datasetSpec.datasetID]
-                        if splitWithBoundaryID and useBoundary['inSplit'] != 3:
+                        if (datasetSpec.getEventRatio() != None and inputNumEvents > 0) or (splitWithBoundaryID and useBoundary['inSplit'] != 3):
                             # set large number to get all associated secondary files
                             nSecondary = 10000
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
@@ -554,6 +566,12 @@ class InputChunk:
                         if datasetSpec.isDistributed() and siteName != None and \
                                 not siteCandidate.isAvailableFile(tmpFileSpec):
                             break
+                        # check ratio
+                        if not datasetSpec.datasetID in nSecEventsMap:
+                            nSecEventsMap[datasetSpec.datasetID] = 0
+                        if datasetSpec.getEventRatio() != None and inputNumEvents > 0:
+                            if float(nSecEventsMap[datasetSpec.datasetID]) / float(inputNumEvents) >= datasetSpec.getEventRatio():
+                                break
                         if not inputFileMap.has_key(datasetSpec.datasetID):
                             inputFileMap[datasetSpec.datasetID] = []
                         inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
@@ -570,6 +588,7 @@ class InputChunk:
                                 inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
                             elif tmpFileSpec.nEvents != None:
                                 inputNumEvents += tmpFileSpec.nEvents
+                        nSecEventsMap[datasetSpec.datasetID] += tmpFileSpec.nEvents
                     # use only the first secondary
                     firstSecondary = False
             # unset first loop flag

@@ -15,7 +15,7 @@ def unicodeConvert(input):
             retList.append(unicodeConvert(tmpItem))
         return retList
     elif isinstance(input, unicode):
-        return input.encode('utf-8')
+        return input.encode('ascii','ignore')
     return input
 
 

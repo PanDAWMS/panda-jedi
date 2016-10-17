@@ -45,6 +45,7 @@ class JediDatasetSpec(object):
     attrToken = {
         'allowNoOutput'    : 'an',
         'consistencyCheck' : 'cc',
+        'eventRatio'       : 'er',
         'nFilesPerJob'     : 'np',
         'num_records'      : 'nr',
         'offset'           : 'of',
@@ -478,7 +479,7 @@ class JediDatasetSpec(object):
 
 
 
-    # set the number of files per job
+     # set the number of files per job
     def setNumFilesPerJob(self,num):
         self.setDatasetAttribute('{0}={1}'.format(self.attrToken['nFilesPerJob'],num))
 
@@ -561,3 +562,30 @@ class JediDatasetSpec(object):
     # check if distributed
     def isDistributed(self):
         return self.distributed
+
+
+
+    # set event ratio
+    def setEventRatio(self,num):
+        self.setDatasetAttribute('{0}={1}'.format(self.attrToken['eventRatio'],num))
+
+
+
+    # get event ratio
+    def getEventRatio(self):
+        if self.attributes != None:
+            for item in self.attributes.split(','):
+                tmpMatch = re.search(self.attrToken['eventRatio']+'=(\d+(\.\d+)*)',item)
+                if tmpMatch != None:
+                    ratioStr = tmpMatch.group(1)
+                    try:
+                        # integer
+                        return int(ratioStr)
+                    except:
+                        pass
+                    try:
+                        # float
+                        return float(ratioStr)
+                    except:
+                        pass
+        return None

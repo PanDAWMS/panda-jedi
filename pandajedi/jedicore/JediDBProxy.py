@@ -3129,11 +3129,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # reading with a fix size of block
                                 readBlock = True
                                 maxMasterFilesTobeRead = maxNumFiles
-                            
-                            iFiles={}
+                            iFiles = {}
+                            totalEvents = {}
                             for inputChunk in inputChunks:
                                 for datasetID in datasetIDs:
                                     iFiles.setdefault(datasetID, 0)
+                                    totalEvents.setdefault(datasetID, 0)
                                     # get DatasetSpec
                                     tmpDatasetSpec = inputChunk.getDatasetWithID(datasetID)
                                     # the number of files to be read
@@ -3141,7 +3142,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         maxFilesTobeRead = maxMasterFilesTobeRead
                                     else:
                                         # for secondaries
-                                        if taskSpec.useLoadXML() or tmpDatasetSpec.isNoSplit():
+                                        if taskSpec.useLoadXML() or tmpDatasetSpec.isNoSplit() \
+                                                or tmpDatasetSpec.getEventRatio() != None:
                                             maxFilesTobeRead = 10000
                                         elif tmpDatasetSpec.getNumFilesPerJob() != None:
                                             maxFilesTobeRead = maxMasterFilesTobeRead * tmpDatasetSpec.getNumFilesPerJob()
@@ -3213,6 +3215,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                             tmpDatasetSpec.addFile(tmpFileSpec)
                                             iFiles[datasetID] += 1
                                             iFiles_tmp += 1
+                                            totalEvents[datasetID] += tmpFileSpec.getEffectiveNumEvents()
                                         # no reuse
                                         if not taskSpec.reuseSecOnDemand() or tmpDatasetSpec.isMaster() or taskSpec.useLoadXML() or \
                                                 tmpDatasetSpec.isSeqNumber() or tmpDatasetSpec.isNoSplit() or tmpDatasetSpec.toMerge() or \
@@ -3221,11 +3224,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         # enough files were read
                                         if iFiles_tmp >= numFilesTobeReadInCycle:
                                             break
+                                        # enough events were read
+                                        if tmpDatasetSpec.getEventRatio() != None and \
+                                                totalEvents[datasetID] >= tmpDatasetSpec.getEventRatio() * totalEvents[inputChunk.masterDataset.datasetID]:
+                                            break
                                         # duplicate files for reuse
-                                        tmpLog.debug('jediTaskID={0} try to duplicate files for datasetID={1} since only {2}/{3} files were read'.format(jediTaskID,
-                                                                                                                                                         tmpDatasetSpec.datasetID,
-                                                                                                                                                         iFiles_tmp,
-                                                                                                                                                         numFilesTobeReadInCycle))
+                                        tmpStr  = 'jediTaskID={0} try to duplicate files for datasetID={1} '.format(jediTaskID,
+                                                                                                                   tmpDatasetSpec.datasetID)
+                                        tmpStr += 'since only {0}/{1} files were read '.format(iFiles_tmp,
+                                                                                               numFilesTobeReadInCycle)
+                                        if tmpDatasetSpec.getEventRatio() != None:
+                                            tmpStr += 'or {0} events is less than {1}*{2} '.format(totalEvents[datasetID],
+                                                                                                   tmpDatasetSpec.getEventRatio(),
+                                                                                                   totalEvents[inputChunk.masterDataset.datasetID])
+                                        tmpLog.debug(tmpStr)
                                         nNewRec = self.duplicateFilesForReuse_JEDI(tmpDatasetSpec)
                                         tmpLog.debug('jediTaskID={0} {1} files were duplicated'.format(jediTaskID,nNewRec))
                                         if nNewRec == 0:

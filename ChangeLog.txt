@@ -1,5 +1,9 @@
 Release Notes
 
+* 10/17/2016
+  * removing multi-byte characters from task params
+  * added eventRatio
+
 * 10/6/2016
   * added addEsParams
   * support for reassignTaskToNucleus=None
