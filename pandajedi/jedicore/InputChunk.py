@@ -588,7 +588,8 @@ class InputChunk:
                                 inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
                             elif tmpFileSpec.nEvents != None:
                                 inputNumEvents += tmpFileSpec.nEvents
-                        nSecEventsMap[datasetSpec.datasetID] += tmpFileSpec.nEvents
+                        if tmpFileSpec.nEvents != None:
+                            nSecEventsMap[datasetSpec.datasetID] += tmpFileSpec.nEvents
                     # use only the first secondary
                     firstSecondary = False
             # unset first loop flag
