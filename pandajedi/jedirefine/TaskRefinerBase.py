@@ -12,7 +12,6 @@ from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediFileSpec import JediFileSpec
 from pandaserver.taskbuffer import EventServiceUtils
-from pandaserver.taskbuffer.GlobalShares import GlobalShares
 
 # base class for task refine
 class TaskRefinerBase (object):
@@ -303,12 +302,12 @@ class TaskRefinerBase (object):
 
         # Initialize the global share
         gshare = None
-        if 'gshare' in taskParamMap and GlobalShares.is_valid_share(taskParamMap['gshare']):
+        if 'gshare' in taskParamMap and self.taskBufferIF.is_valid_share(taskParamMap['gshare']):
             # work queue is specified
             gshare = taskParamMap['gshare']
         else:
             # get share based on definition
-            gshare = GlobalShares.get_share_for_task(self.taskSpec)
+            gshare = self.taskBufferIF.get_share_for_task(self.taskSpec)
             if gshare is None:
                 gshare = 'No match'
                 # errStr  = 'share is undefined for vo={0} label={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
