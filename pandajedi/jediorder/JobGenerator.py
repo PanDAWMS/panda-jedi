@@ -721,12 +721,12 @@ class JobGeneratorThread (WorkerThread):
                 siteName      = tmpInChunk['siteName']
                 inSubChunks   = tmpInChunk['subChunks']
                 siteCandidate = tmpInChunk['siteCandidate']
-                siteSpec      = self.siteMapper.getSite(siteName.split(',')[0]) 
+                siteSpec      = self.siteMapper .getSite(siteName.split(',')[0])
                 buildFileSpec = None
                 # make preprocessing job
                 if taskSpec.usePrePro():
-                    tmpStat,preproJobSpec,tmpToRegister = self.doGeneratePrePro(taskSpec,cloudName,siteName,taskParamMap,
-                                                                                inSubChunks,tmpLog,simul)
+                    tmpStat,preproJobSpec,tmpToRegister = self.doGeneratePrePro(taskSpec,cloudName,siteName,siteSpec,
+                                                                                taskParamMap,inSubChunks,tmpLog,simul)
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to generate prepro job')
                         return failedRet
@@ -741,7 +741,8 @@ class JobGeneratorThread (WorkerThread):
                 # make build job
                 elif taskSpec.useBuild():
                     tmpStat,buildJobSpec,buildFileSpec,tmpToRegister = self.doGenerateBuild(taskSpec,cloudName,siteName,
-                                                                                            taskParamMap,tmpLog,simul)
+                                                                                            siteSpec,taskParamMap,
+                                                                                            tmpLog,simul)
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to generate build job')
                         return failedRet
@@ -823,6 +824,8 @@ class JobGeneratorThread (WorkerThread):
                         jobSpec.coreCount    = taskSpec.mergeCoreCount
                     else:
                         jobSpec.coreCount    = taskSpec.coreCount
+                    # calculate the hs06 occupied by the job
+                    jobSpec.hs06 = jobSpec.coreCount * siteSpec.corepower
                     jobSpec.ipConnectivity   = 'yes'
                     jobSpec.metadata         = ''
                     if inputChunk.isMerging:
