@@ -303,9 +303,10 @@ class AtlasDDMClient(DDMClientBase):
         methodName = 'getAvailableFiles'
         methodName += ' <datasetID={0}>'.format(datasetSpec.datasetID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start datasetName={0} checkCompleteness={1}'.format(datasetSpec.datasetName,
-                                                                          checkCompleteness))
         try:
+            tmpLog.debug('start datasetName={0} checkCompleteness={1} nFiles={2}'.format(datasetSpec.datasetName,
+                                                                                         checkCompleteness,
+                                                                                         len(datasetSpec.Files)))
             # update endpoints
             self.updateEndPointDict()
             # list of NG endpoints
@@ -1021,8 +1022,24 @@ class AtlasDDMClient(DDMClientBase):
         try:
             # cleanup DN
             userName = parse_dn(userName)
-            # exec
-            tmpRet = infoClient().finger(userName)
+            # get rucio API
+            client = RucioClient()
+            userInfo = None
+            for i in client.list_accounts(account_type='USER',identity=userName):
+                userInfo = {'nickname':i['account'],
+                            'email':i['email']}
+                break
+            if userInfo == None:
+                # remove /CN=\d
+                userName = re.sub('/CN=\d+$','',userName)
+                for i in client.list_accounts(account_type='USER',identity=userName):
+                    userInfo = {'nickname':i['account'],
+                                'email':i['email']}
+                    break
+            if userInfo == None:
+                tmpLog.error('failed to get account info')
+                return self.SC_FAILED,None
+            tmpRet = userInfo
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)

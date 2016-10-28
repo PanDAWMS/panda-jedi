@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/28/2016
+  * changed AtlasDDM to work with DN mapped to multiple rucio accounts
+
 * 10/17/2016
   * removing multi-byte characters from task params
   * added eventRatio
