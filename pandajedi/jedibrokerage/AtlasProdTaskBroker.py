@@ -584,7 +584,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             # with RW
                             if tmpNucleus in nucleusRW and nucleusRW[tmpNucleus] >= cutOffRW:
                                 weight = 1 / float(nucleusRW[tmpNucleus])
-                                wStr += '/({0}=RW)'.format(nucleusRW[tmpNucleus])
+                                wStr += '/( RW={0} )'.format(nucleusRW[tmpNucleus])
                             else:
                                 weight = 1
                                 wStr += '/(1 : RW={0}<{1})'.format(nucleusRW[tmpNucleus],cutOffRW)
@@ -593,19 +593,19 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 if availableData[tmpNucleus]['tot_size'] > 0:
                                     weight *= float(availableData[tmpNucleus]['ava_size_any'])
                                     weight /= float(availableData[tmpNucleus]['tot_size'])
-                                    wStr += '*({0}=available input size on DISK/TAPE)'.format(availableData[tmpNucleus]['ava_size_any'])
-                                    wStr += '/({0}=total input size)'.format(availableData[tmpNucleus]['tot_size'])
+                                    wStr += '* ( available_input_size_DISKTAPE={0} )'.format(availableData[tmpNucleus]['ava_size_any'])
+                                    wStr += '/ ( total_input_size={0} )'.format(availableData[tmpNucleus]['tot_size'])
                                     # negative weight for tape
                                     if availableData[tmpNucleus]['ava_size_any'] > availableData[tmpNucleus]['ava_size_disk']:
                                         weight *= negWeightTape
-                                        wStr += '*({0}=weight for TAPE)'.format(negWeightTape)
+                                        wStr += '*( weight_TAPE={0} )'.format(negWeightTape)
                                 # fraction of free space
                                 if tmpNucleus in fractionFreeSpace:
                                     try:
                                         tmpFrac = float(fractionFreeSpace[tmpNucleus]['free']) / \
                                             float(fractionFreeSpace[tmpNucleus]['total'])
                                         weight *= tmpFrac
-                                        wStr += '*({0}=free space)/({1}=total space)'.format(fractionFreeSpace[tmpNucleus]['free'],
+                                        wStr += '*( free_space={0} )/( total_space={1} )'.format(fractionFreeSpace[tmpNucleus]['free'],
                                                                                              fractionFreeSpace[tmpNucleus]['total'])
                                     except:
                                         pass

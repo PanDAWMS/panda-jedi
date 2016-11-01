@@ -1017,7 +1017,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
             weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 1) / manyAssigned
-            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7} totalSize={5}MB '.format(nRunning,nActivated,nAssigned,
+            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7} totalSizeMB={5} '.format(nRunning,nActivated,nAssigned,
                                                                                                                         nStarting,nDefined,
                                                                                                                         long(totalSize/1024/1024),
                                                                                                                         manyAssigned,nPilot)
@@ -1029,7 +1029,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 nFilesToMove = maxNumFiles-len(siteFilesMap[tmpSiteName])
                 # consider size and # of files 
                 weight = weight * (totalSize+siteSizeMap[tmpSiteName]) / totalSize / (nFilesToMove/100+1)
-                weightStr += 'fileSizeToMove={0}MB nFilesToMove={1} '.format(mbToMove,nFilesToMove)
+                weightStr += 'fileSizeToMoveMB={0} nFilesToMove={1} '.format(mbToMove,nFilesToMove)
             # T1 weight
             if tmpSiteName in t1Sites+sitesShareSeT1:
                 weight *= t1Weight
@@ -1146,10 +1146,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpSiteName,
                                                                                              weight,
                                                                                              nActivated+nStarting)
-                ngMsg += 'greater than max({0},{1}*nRunning={1}*{2},nPilot={3}) '.format(cutOffValue,
-                                                                                         cutOffFactor,                                  
-                                                                                         nRunning,                                      
-                                                                                         nPilot)
+                ngMsg += 'greater than max({0},{1}*nRun,nPilot) '.format(cutOffValue, cutOffFactor)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
             elif tmpSiteName in siteSizeMap and siteSizeMap[tmpSiteName] < totalSize and \
