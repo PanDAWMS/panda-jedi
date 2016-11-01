@@ -1086,7 +1086,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # combine queue and throughput weights
                 weightNw = self.nwQueueImportance * weightNwQueue + self.nwThroughputImportance * weightNwThroughput
 
-                weightStr += 'weightNw={0} (closeness={1} nFilesQueued={2} throughput={3}MBps Network weight={4})'.\
+                weightStr += 'weightNw={0} ( closeness={1} nFilesQueued={2} throughputMBps={3} Network weight={4} )'.\
                     format(weightNw, closeness, nFilesInQueue, mbps, self.nwActive)
 
                 #If network measurements in active mode, apply the weight
