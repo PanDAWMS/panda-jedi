@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/7/2016
+  * changed JG not to use compact input params for user's trf jobs
+
 * 10/28/2016
   * changed AtlasDDM to work with DN mapped to multiple rucio accounts
 

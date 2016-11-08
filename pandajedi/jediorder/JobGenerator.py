@@ -1687,7 +1687,7 @@ class JobGeneratorThread (WorkerThread):
                     parTemplate = parTemplate.replace('${'+streamNames+'}',replaceStr)
                     # encoded    
                     encStreamName = streamNames+'/E'
-                    replaceStr = urllib.unquote(replaceStr)
+                    replaceStr = urllib.unquote(fullLFNList)
                     parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
         # replace params related to transient files
         replaceStrMap = {}
