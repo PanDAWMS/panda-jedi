@@ -988,6 +988,32 @@ class AtlasProdJobBroker (JobBrokerBase):
             if maxNumFiles < len(tmpSet):
                 maxNumFiles = len(tmpSet)
         ######################################
+        # selection for fileSizeToMove
+        ioIntensityCutoff = 200
+        moveSizeCutoffGB = 10
+        if not sitePreAssigned and not inputChunk.isMerging and taskSpec.ioIntensity is not None and taskSpec.ioIntensity > ioIntensityCutoff:
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # file size to move in MB
+                mbToMove = long((totalSize-siteSizeMap[tmpSiteName])/(1024*1024))
+                if mbToMove > moveSizeCutoffGB * 1024:
+                    tmpMsg = '  skip site={0} since size of missing input is too large ({1} GB > {2} GB) '.format(tmpSiteName,
+                                                                                                                  long(mbToMove/1024),
+                                                                                                                  moveSizeCutoffGB)
+                    tmpMsg += 'for IO intensive task ({0} > {1} kBPerS) '.format(taskSpec.ioIntensity,ioIntensityCutoff)
+                    tmpMsg += 'criteria=-io'
+                    tmpLog.debug(tmpMsg)
+                    continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList
+            tmpLog.debug('{0} candidates passed IO check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+        ######################################
         # calculate weight
         tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
                                                                                     taskSpec.prodSourceLabel)
