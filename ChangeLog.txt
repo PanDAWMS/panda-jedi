@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/9/2016
+  * changed AtlasPTB not to ignore job execution ability
+
 * 11/7/2016
   * changed JG not to use compact input params for user's trf jobs
 
