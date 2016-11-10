@@ -162,6 +162,7 @@ class JobSplitter:
                 tmpLog.debug('new weight {0}'.format(siteCandidate.weight))
                 tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2} corePower={3}'.format(maxSize,maxWalltime,
                                                                                               coreCount,corePower))
+
             # get sub chunk
             subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
                                               maxNumFiles=maxNumFiles,
