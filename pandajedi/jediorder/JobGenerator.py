@@ -825,7 +825,8 @@ class JobGeneratorThread (WorkerThread):
                     else:
                         jobSpec.coreCount    = taskSpec.coreCount
                     # calculate the hs06 occupied by the job
-                    jobSpec.hs06 = jobSpec.coreCount * siteSpec.corepower
+                    if siteSpec.corepower:
+                        jobSpec.hs06 = jobSpec.coreCount * siteSpec.corepower
                     jobSpec.ipConnectivity   = 'yes'
                     jobSpec.metadata         = ''
                     if inputChunk.isMerging:
@@ -1399,7 +1400,7 @@ class JobGeneratorThread (WorkerThread):
 
 
     # generate preprocessing jobs
-    def doGeneratePrePro(self,taskSpec,cloudName,siteName,taskParamMap,inSubChunks,tmpLog,simul=False):
+    def doGeneratePrePro(self,taskSpec,cloudName,siteName,siteSpec,taskParamMap,inSubChunks,tmpLog,simul=False):
         # return for failure
         failedRet = Interaction.SC_FAILED,None,None
         try:
@@ -1437,6 +1438,8 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.gshare           = taskSpec.gshare
             jobSpec.destinationSE    = siteName
             jobSpec.metadata         = ''
+            if siteSpec.corepower:
+                jobSpec.hs06 = jobSpec.coreCount * siteSpec.corepower
             # get log file
             outSubChunk,serialNr,datasetToRegister,siteDsMap,parallelOutMap = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
                                                                                                                     None,
