@@ -741,8 +741,7 @@ class JobGeneratorThread (WorkerThread):
                 # make build job
                 elif taskSpec.useBuild():
                     tmpStat,buildJobSpec,buildFileSpec,tmpToRegister = self.doGenerateBuild(taskSpec,cloudName,siteName,
-                                                                                            siteSpec,taskParamMap,
-                                                                                            tmpLog,simul)
+                                                                                            taskParamMap,tmpLog,simul)
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to generate build job')
                         return failedRet
