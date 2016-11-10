@@ -721,7 +721,7 @@ class JobGeneratorThread (WorkerThread):
                 siteName      = tmpInChunk['siteName']
                 inSubChunks   = tmpInChunk['subChunks']
                 siteCandidate = tmpInChunk['siteCandidate']
-                siteSpec      = self.siteMapper .getSite(siteName.split(',')[0])
+                siteSpec      = self.siteMapper.getSite(siteName.split(',')[0])
                 buildFileSpec = None
                 # make preprocessing job
                 if taskSpec.usePrePro():
