@@ -4931,13 +4931,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # core count
                     coreCount = JobUtils.getCoreCount(actualCoreCount,defCoreCount,jobMetrics)
                     # output size
+                    tmpWorkSize = 0
                     if eventServiceJob != EventServiceUtils.esJobFlagNumber:
                         try:
                             try:
                                 # add size of intermediate files
                                 if jobMetrics != None:
                                     tmpMatch = re.search('workDirSize=(\d+)',jobMetrics)
-                                    outputFileBytes += long(tmpMatch.group(1))
+                                    tmpWorkSize = long(tmpMatch.group(1)) 
+                                    tmpWorkSize /= (1024 * 1024)
                             except:
                                 pass
                             if preOutputScaleWithEvents:
@@ -5015,7 +5017,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         except:
                             pass
                     # use lib size as workdir size
-                    tmpWorkSize = 0
                     if tmpWorkSize == None or (libSize != None and libSize > tmpWorkSize):
                         tmpWorkSize = libSize
                     if tmpWorkSize != None:
