@@ -1,5 +1,9 @@
 Release Notes
 
+* 11/16/2016
+  * using 1 for negative ramCount
+  * fixed AtlasPJB for no-input tasks
+
 * 11/14/2016
   * changed outDiskCount not to scale with workDiskCount
 

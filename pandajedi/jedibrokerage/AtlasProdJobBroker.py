@@ -991,7 +991,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for fileSizeToMove
         ioIntensityCutoff = 200
         moveSizeCutoffGB = 10
-        if not sitePreAssigned and not inputChunk.isMerging and taskSpec.ioIntensity is not None and taskSpec.ioIntensity > ioIntensityCutoff:
+        if not sitePreAssigned and totalSize > 0 and not inputChunk.isMerging and taskSpec.ioIntensity is not None and taskSpec.ioIntensity > ioIntensityCutoff:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)

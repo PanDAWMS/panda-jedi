@@ -5081,22 +5081,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap['ioIntensity'] = maxIoIntent
             returnMap['ioIntensityUnit'] = 'kBPerS'
         if memSizeList != []:
-            median = max(memSizeList)
-            addTag(jobTagMap,memSizeDict,median,'ramCount')
-            median /= 1024
-            median = long(median)
+            memVal = max(memSizeList)
+            addTag(jobTagMap,memSizeDict,memVal,'ramCount')
+            memVal /= 1024
+            memVal = long(memVal)
+            if memVal < 0:
+                memVal = 1
             if preRamUnit == 'MBPerCore':
                 returnMap['ramUnit'] = preRamUnit
-                returnMap['ramCount'] = median
+                returnMap['ramCount'] = memVal
             elif preRamUnit == 'MBPerCoreFixed':
                 returnMap['ramUnit'] = preRamUnit
             else:
                 returnMap['ramUnit'] = 'MB'
                 # use preset value if larger
-                if preRamCount != None and preRamCount > median:
+                if preRamCount != None and preRamCount > memVal:
                     returnMap['ramCount'] = preRamCount
                 else:
-                    returnMap['ramCount'] = median    
+                    returnMap['ramCount'] = memVal    
         if workSizeList != []:   
             median = max(workSizeList)
             returnMap['workDiskCount'] = long(median)
