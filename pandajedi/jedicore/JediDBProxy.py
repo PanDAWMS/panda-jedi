@@ -10140,7 +10140,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':jediTaskID'] = jediTaskID
             varMap[':delFlag'] = 'Y'
             # sql to set del flag
-            sqlFID  = "UPDATE {0}.JEDI_Events ".format(jedi_config.db.schemaJEDI)
+            sqlFID  = "UPDATE /*+ INDEX_RS_ASC(JEDI_EVENTS JEDI_EVENTS_PK) */ {0}.JEDI_Events ".format(jedi_config.db.schemaJEDI)
             sqlFID += "SET file_not_deleted=:delFlag "
             sqlFID += "WHERE jediTaskID=:jediTaskID AND file_not_deleted IS NULL AND objStore_ID IS NOT NULL "
             # start transaction
