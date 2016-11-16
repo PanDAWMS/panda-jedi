@@ -108,16 +108,20 @@ class AtlasAnalWatchDog (WatchDogBase):
             # get dispatch datasets
             dispUserTasks = self.taskBufferIF.getDispatchDatasetsPerUser(self.vo,self.prodSourceLabel,True,True)
             # max size of prestaging requests in MB
-            maxPrestaging = 100*1024*1024
+            maxPrestaging = self.taskBufferIF.getConfigValue('anal_watchdog', 'PRESTAGE_LIMIT', 'jedi', 'atlas')
+            if maxPrestaging == None:
+                maxPrestaging = 1
+            maxPrestaging *= 1024*1024
             # throttle interval
             thrInterval = 120
             # loop over all users
             for userName,userDict in dispUserTasks.iteritems():
+                tmpLog.debug('{0} {1} GB'.format(userName, userDict['size']/1024))
                 # too large
                 if userDict['size'] > maxPrestaging:
-                    tmpLog.debug('{0} has too large prestaging {1}>{2}MB'.format(userName,
-                                                                                 userDict['size'],
-                                                                                 maxPrestaging))
+                    tmpLog.debug('{0} has too large prestaging {1}>{2} GB'.format(userName,
+                                                                                  userDict['size']/1024,
+                                                                                  maxPrestaging/1024))
                     # throttle tasks
                     for taskID in userDict['tasks']:
                         if not userName in thrUserTasks or not taskID in thrUserTasks[userName]:

@@ -1,6 +1,7 @@
 Release Notes
 
 * 11/16/2016
+  * changed AtlasAW to use PRESTAGE_LIMIT
   * added a hint to setDelFlag
   * using 1 for negative ramCount
   * fixed AtlasPJB for no-input tasks
