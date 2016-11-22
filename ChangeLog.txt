@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/22/2016
+  * fixed AtlasAJB to use configurator tables instead of schedconfig.space
+
 * 11/16/2016
   * changed AtlasAW to use PRESTAGE_LIMIT
   * added a hint to setDelFlag

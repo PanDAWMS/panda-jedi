@@ -292,19 +292,21 @@ class AtlasAnalJobBroker (JobBrokerBase):
         # selection for available space in SE
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
-            # check at the site
+            # check endpoint
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            # free space must be >= 200GB
-            diskThreshold = 200
-            tmpSpaceSize = tmpSiteSpec.space
-            if tmpSiteSpec.space != 0 and tmpSpaceSize < diskThreshold:
-                tmpLog.debug('  skip {0} due to disk shortage in SE = {1} < {2}GB'.format(tmpSiteName,tmpSiteSpec.space,
-                                                                                          diskThreshold))
-                continue
-            # check if blacklisted
-            if self.ddmIF.isBlackListedEP(tmpSiteSpec.ddm):
-                tmpLog.debug('  skip {0} since {1} is blacklisted in DDM'.format(tmpSiteName,tmpSiteSpec.ddm))
-                continue
+            tmpEndPoint = tmpSiteSpec.ddm_endpoints.getEndPoint(tmpSiteSpec.ddm)
+            if tmpEndPoint is not None:
+                # free space must be >= 200GB
+                diskThreshold = 200
+                tmpSpaceSize = tmpEndPoint['space_expired'] + tmpEndPoint['space_free']
+                if tmpSpaceSize < diskThreshold:
+                    tmpLog.debug('  skip {0} due to disk shortage in SE {1} < {2}GB'.format(tmpSiteName,tmpSpaceSize,
+                                                                                            diskThreshold))
+                    continue
+                # check if blacklisted
+                if tmpEndPoint['blacklisted'] == 'Y':
+                    tmpLog.debug('  skip {0} since {1} is blacklisted in DDM'.format(tmpSiteName,tmpSiteSpec.ddm))
+                    continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
         tmpLog.debug('{0} candidates passed SE space check'.format(len(scanSiteList)))
