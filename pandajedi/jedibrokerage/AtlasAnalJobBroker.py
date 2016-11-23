@@ -117,7 +117,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if not skipFlag:    
                 newScanSiteList.append(tmpSiteName)
             else:
-                tmpLog.debug('  skip %s due to status=%s' % (tmpSiteName,tmpSiteSpec.status))
+                tmpLog.debug('  skip site=%s due to status=%s criteria=-status' % (tmpSiteName,tmpSiteSpec.status))
         scanSiteList = newScanSiteList        
         tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
         if scanSiteList == []:
@@ -137,7 +137,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         (useMP =='unuse' and tmpSiteSpec.coreCount in [0,1,None]):
                         newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpLog.debug('  skip %s due to core mismatch site:%s != task:%s' % \
+                    tmpLog.debug('  skip site=%s due to core mismatch site:%s != task:%s criteria=-cpucore' % \
                                  (tmpSiteName,tmpSiteSpec.coreCount,taskSpec.coreCount))
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
@@ -194,7 +194,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     newScanSiteList.append(tmpSiteName)
                 else:
                     # release is unavailable
-                    tmpLog.debug('  skip %s due to missing rel/cache %s:%s:%s' % \
+                    tmpLog.debug('  skip site=%s due to missing rel/cache %s:%s:%s criteria=-cache' % \
                                  (tmpSiteName,taskSpec.transUses,taskSpec.transHome,taskSpec.architecture))
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed for SW {1}:{2}:{3}'.format(len(scanSiteList),
@@ -221,7 +221,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 else:
                     site_maxmemory = tmpSiteSpec.maxmemory
                 if not site_maxmemory in [0,None] and minRamCount != 0 and minRamCount > site_maxmemory:
-                    tmpLog.debug('  skip {0} due to site RAM shortage={1}(site upper limit) < {2}'.format(tmpSiteName,
+                    tmpLog.debug('  skip site={0} due to site RAM shortage={1}(site upper limit) < {2} criteria=-lowmemory'.format(tmpSiteName,
                                                                                                           site_maxmemory,
                                                                                                           minRamCount))
                     continue
@@ -231,7 +231,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 else:
                     site_minmemory = tmpSiteSpec.minmemory
                 if not site_minmemory in [0,None] and minRamCount != 0 and minRamCount < site_minmemory:
-                    tmpLog.debug('  skip {0} due to job RAM shortage={1}(site lower limit) > {2}'.format(tmpSiteName,
+                    tmpLog.debug('  skip site={0} due to job RAM shortage={1}(site lower limit) > {2} criteria=-highmemory'.format(tmpSiteName,
                                                                                                          site_minmemory,
                                                                                                          minRamCount))
                     continue
@@ -275,7 +275,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 else:
                     minDiskCount = minDiskCountS
                 if minDiskCount > tmpSiteSpec.maxwdir:
-                    tmpLog.debug('  skip {0} due to small scratch disk={1} < {2}'.format(tmpSiteName,
+                    tmpLog.debug('  skip site={0} due to small scratch disk={1} < {2} criteria=-disk'.format(tmpSiteName,
                                                                                          tmpSiteSpec.maxwdir,
                                                                                          minDiskCount))
                     continue
@@ -300,12 +300,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 diskThreshold = 200
                 tmpSpaceSize = tmpEndPoint['space_expired'] + tmpEndPoint['space_free']
                 if tmpSpaceSize < diskThreshold:
-                    tmpLog.debug('  skip {0} due to disk shortage in SE {1} < {2}GB'.format(tmpSiteName,tmpSpaceSize,
+                    tmpLog.debug('  skip site={0} due to disk shortage in SE {1} < {2}GB criteria=-disk'.format(tmpSiteName,tmpSpaceSize,
                                                                                             diskThreshold))
                     continue
                 # check if blacklisted
                 if tmpEndPoint['blacklisted'] == 'Y':
-                    tmpLog.debug('  skip {0} since {1} is blacklisted in DDM'.format(tmpSiteName,tmpSiteSpec.ddm))
+                    tmpLog.debug('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm))
                     continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
@@ -326,12 +326,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
                 if tmpSiteSpec.maxtime != 0 and minWalltime > tmpSiteSpec.maxtime:
-                    tmpLog.debug('  skip {0} due to short site walltime={1}(site upper limit) < {2}'.format(tmpSiteName,
+                    tmpLog.debug('  skip site={0} due to short site walltime={1}(site upper limit) < {2} criteria=-shortwalltime'.format(tmpSiteName,
                                                                                                             tmpSiteSpec.maxtime,
                                                                                                             minWalltime))
                     continue
                 if tmpSiteSpec.mintime != 0 and minWalltime < tmpSiteSpec.mintime:
-                    tmpLog.debug('  skip {0} due to short job walltime={1}(site lower limit) > {2}'.format(tmpSiteName,
+                    tmpLog.debug('  skip site={0} due to short job walltime={1}(site lower limit) > {2} criteria=-longwalltime'.format(tmpSiteName,
                                                                                                            tmpSiteSpec.mintime,
                                                                                                            minWalltime))
                     continue
@@ -354,7 +354,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if nWNmap.has_key(tmpSiteName):
                 nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
             if nPilot == 0 and not taskSpec.prodSourceLabel in ['test']:
-                tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
+                tmpLog.debug('  skip site=%s due to no pilot criteria=-nopilot' % tmpSiteName)
                 if not self.testMode:
                     continue
             newScanSiteList.append(tmpSiteName)
@@ -374,25 +374,25 @@ class AtlasAnalJobBroker (JobBrokerBase):
             autoSite = False
             # check exclusion
             if AtlasBrokerUtils.isMatched(tmpSiteName,excludeList):
-                tmpLog.debug('  skip {0} excluded'.format(tmpSiteName))
+                tmpLog.debug('  skip site={0} excluded criteria=-excluded'.format(tmpSiteName))
                 continue
             # check inclusion
             if includeList != None and not AtlasBrokerUtils.isMatched(tmpSiteName,includeList):
                 if 'AUTO' in includeList:
                     autoSite = True
                 else:
-                    tmpLog.debug('  skip {0} not included'.format(tmpSiteName))
+                    tmpLog.debug('  skip site={0} not included criteria=-notincluded'.format(tmpSiteName))
                     continue
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # limited access
             if tmpSiteSpec.accesscontrol == 'grouplist':
                 if not siteAccessMap.has_key(tmpSiteSpec.sitename) or \
                         siteAccessMap[tmpSiteSpec.sitename] != 'approved':
-                    tmpLog.debug('  skip {0} limited access'.format(tmpSiteName))
+                    tmpLog.debug('  skip site={0} limited access criteria=-limitedaccess'.format(tmpSiteName))
                     continue
             # check cloud
             if not taskSpec.cloud in [None,'','any',tmpSiteSpec.cloud]: 
-                tmpLog.debug('  skip {0} cloud missmatch'.format(tmpSiteName))
+                tmpLog.debug('  skip site={0} cloud mismatch criteria=-cloudmismatch'.format(tmpSiteName))
                 continue
             if autoSite:
                 sitesForANY.append(tmpSiteName)
@@ -403,7 +403,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             newScanSiteList = sitesForANY
         else:
             for tmpSiteName in sitesForANY:
-                tmpLog.debug('  skip {0} not included'.format(tmpSiteName))
+                tmpLog.debug('  skip site={0} not included criteria=-notincluded'.format(tmpSiteName))
         scanSiteList = newScanSiteList        
         tmpLog.debug('{0} candidates passed inclusion/exclusion/cloud'.format(len(scanSiteList)))
         if scanSiteList == []:
@@ -726,7 +726,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpSiteName = siteCandidateSpec.siteName
             # preassigned
             if sitePreAssigned and tmpSiteName != taskSpec.site:
-                tmpLog.debug('  skip {0} non pre-assigned site'.format(tmpSiteName))
+                tmpLog.debug('  skip site={0} non pre-assigned site criteria=-nonpreassigned'.format(tmpSiteName))
                 continue
             # set available files
             if inputChunk.getDatasets() == []: 
@@ -774,11 +774,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     break
             # append
             if not isAvailable:
-                tmpLog.debug('  skip {0} file unavailable'.format(siteCandidateSpec.siteName))
+                tmpLog.debug('  skip site={0} file unavailable criteria=-fileunavailable'.format(siteCandidateSpec.siteName))
                 continue
             inputChunk.addSiteCandidate(siteCandidateSpec)
             newScanSiteList.append(siteCandidateSpec.siteName)
-            tmpLog.debug('  use {0} with weight={1} nLocalDisk={2} nLocalTaps={3} nCache={4} nRemote={5}'.format(siteCandidateSpec.siteName,
+            tmpLog.debug('  use site={0} with weight={1} nLocalDisk={2} nLocalTaps={3} nCache={4} nRemote={5} criteria=+use'.format(siteCandidateSpec.siteName,
                                                                                                                  siteCandidateSpec.weight,
                                                                                                                  len(siteCandidateSpec.localDiskFiles),
                                                                                                                  len(siteCandidateSpec.localTapeFiles),
