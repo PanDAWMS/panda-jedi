@@ -137,7 +137,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         (useMP =='unuse' and tmpSiteSpec.coreCount in [0,1,None]):
                         newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpLog.debug('  skip site=%s due to core mismatch site:%s != task:%s criteria=-cpucore' % \
+                    tmpLog.debug('  skip site=%s due to core mismatch cores_site:%s <> cores_task:%s criteria=-cpucore' % \
                                  (tmpSiteName,tmpSiteSpec.coreCount,taskSpec.coreCount))
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
