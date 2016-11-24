@@ -137,7 +137,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         (useMP =='unuse' and tmpSiteSpec.coreCount in [0,1,None]):
                         newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpLog.debug('  skip site=%s due to core mismatch cores_site:%s <> cores_task:%s criteria=-cpucore' % \
+                    tmpLog.debug('  skip site=%s due to core mismatch cores_site=%s <> cores_task=%s criteria=-cpucore' % \
                                  (tmpSiteName,tmpSiteSpec.coreCount,taskSpec.coreCount))
             scanSiteList = newScanSiteList        
             tmpLog.debug('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
@@ -221,7 +221,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 else:
                     site_maxmemory = tmpSiteSpec.maxmemory
                 if not site_maxmemory in [0,None] and minRamCount != 0 and minRamCount > site_maxmemory:
-                    tmpLog.debug('  skip site={0} due to site RAM shortage={1}(site upper limit) < {2} criteria=-lowmemory'.format(tmpSiteName,
+                    tmpLog.debug('  skip site={0} due to site RAM shortage. site_maxmemory={1} < job_minramcount={2} criteria=-lowmemory'.format(tmpSiteName,
                                                                                                           site_maxmemory,
                                                                                                           minRamCount))
                     continue
@@ -231,7 +231,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 else:
                     site_minmemory = tmpSiteSpec.minmemory
                 if not site_minmemory in [0,None] and minRamCount != 0 and minRamCount < site_minmemory:
-                    tmpLog.debug('  skip site={0} due to job RAM shortage={1}(site lower limit) > {2} criteria=-highmemory'.format(tmpSiteName,
+                    tmpLog.debug('  skip site={0} due to job RAM shortage. site_minmemory={1} > job_minramcount={2} criteria=-highmemory'.format(tmpSiteName,
                                                                                                          site_minmemory,
                                                                                                          minRamCount))
                     continue
