@@ -550,15 +550,18 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for memory
         origMinRamCount = inputChunk.getMaxRamCount()
         if not origMinRamCount in [0,None]:
-            strMinRamCount = '{0}({1})'.format(origMinRamCount,taskSpec.ramUnit)
-            if not taskSpec.baseRamCount in [0,None]:
+            if inputChunk.isMerging:
+                strMinRamCount = '{0}(MB)'.format(origMinRamCount)
+            else:
+                strMinRamCount = '{0}({1})'.format(origMinRamCount,taskSpec.ramUnit)
+            if not inputChunk.isMerging and not taskSpec.baseRamCount in [0,None]:
                 strMinRamCount += '+{0}'.format(taskSpec.baseRamCount)
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # job memory requirement 
                 minRamCount = origMinRamCount
-                if taskSpec.ramPerCore():
+                if taskSpec.ramPerCore() and not inputChunk.isMerging:
                     if not tmpSiteSpec.coreCount in [None,0]:
                         minRamCount = origMinRamCount * tmpSiteSpec.coreCount
                     minRamCount += taskSpec.baseRamCount

@@ -1,6 +1,7 @@
 Release Notes
 
 * 11/24/2016
+  * changed AtlasPJB not to use baseramcount for pmerge
   * disabled transfer backlog check when negative T1 weight in AtlasPTB
   * changed thresholds for data availability check configurable in AtlasPTB
 
