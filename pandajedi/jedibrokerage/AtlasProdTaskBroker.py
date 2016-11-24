@@ -333,10 +333,22 @@ class AtlasProdTaskBrokerThread (WorkerThread):
         diskThreshold = 100 * 1024
         # dataset type to ignore file availability check
         datasetTypeToSkipCheck = ['log']
-        thrInputSize = 1024*1024*1024
-        thrInputNum = 100
-        thrInputSizeFrac = 0.1
-        thrInputNumFrac = 0.1
+        # thresholds for data availability check
+        thrInputSize = self.taskBufferIF.getConfigValue(self.msgType, 'INPUT_SIZE_THRESHOLD', 'jedi', 'atlas')
+        if thrInputSize is None:
+            thrInputSize = 1
+        thrInputSize *= 1024*1024*1024
+        thrInputNum = self.taskBufferIF.getConfigValue(self.msgType, 'INPUT_NUM_THRESHOLD', 'jedi', 'atlas')
+        if thrInputNum is None:
+            thrInputNum = 100
+        thrInputSizeFrac = self.taskBufferIF.getConfigValue(self.msgType, 'INPUT_SIZE_FRACTION', 'jedi', 'atlas')
+        if thrInputSizeFrac is None:
+            thrInputSizeFrac = 10
+        thrInputSizeFrac = float(thrInputSizeFrac) / 100
+        thrInputNumFrac = self.taskBufferIF.getConfigValue(self.msgType, 'INPUT_NUM_FRACTION', 'jedi', 'atlas')
+        if thrInputNumFrac is None:
+            thrInputNumFrac = 10
+        thrInputNumFrac = float(thrInputNumFrac) / 100
         cutOffRW = 50
         negWeightTape = 0.001
         # main
@@ -356,6 +368,10 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),monToken='jediTaskID={0}'.format(taskSpec.jediTaskID))
                     tmpLog.debug('start')
+                    tmpLog.debug('thrInputSize:{0} thrInputNum:{1} thrInputSizeFrac:{2} thrInputNumFrac;{3}'.format(thrInputSize,
+                                                                                                                    thrInputNum,
+                                                                                                                    thrInputSizeFrac,
+                                                                                                                    thrInputNumFrac))
                     # RW
                     taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)
                     # get nuclei
@@ -382,21 +398,25 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             continue
                         ######################################
                         # check status of transfer backlog
-                        newNucleusList = {}
-                        backlogged_nuclei = self.taskBufferIF.getBackloggedNuclei()
-                        for tmpNucleus, tmpNucleusSpec in nucleusList.iteritems():
-                            if tmpNucleus in backlogged_nuclei:
-                                tmpLog.debug('  skip nucleus={0} due to long transfer backlog criteria=-transfer_backlog'.
-                                             format(tmpNucleus))
-                            else:
-                                newNucleusList[tmpNucleus] = tmpNucleusSpec
-                        nucleusList = newNucleusList
-                        tmpLog.debug('{0} candidates passed status check'.format(len(nucleusList)))
-                        if nucleusList == {}:
-                            tmpLog.error('no candidates')
-                            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                            self.sendLogMessage(tmpLog)
-                            continue
+                        t1Weight = taskSpec.getT1Weight()
+                        if t1Weight < 0:
+                            tmpLog.debug('skip transfer backlog check due to negative T1Weight')
+                        else:
+                            newNucleusList = {}
+                            backlogged_nuclei = self.taskBufferIF.getBackloggedNuclei()
+                            for tmpNucleus, tmpNucleusSpec in nucleusList.iteritems():
+                                if tmpNucleus in backlogged_nuclei:
+                                    tmpLog.debug('  skip nucleus={0} due to long transfer backlog criteria=-transfer_backlog'.
+                                                 format(tmpNucleus))
+                                else:
+                                    newNucleusList[tmpNucleus] = tmpNucleusSpec
+                            nucleusList = newNucleusList
+                            tmpLog.debug('{0} candidates passed transfer backlog check'.format(len(nucleusList)))
+                            if nucleusList == {}:
+                                tmpLog.error('no candidates')
+                                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                                self.sendLogMessage(tmpLog)
+                                continue
                         ######################################
                         # check endpoint
                         fractionFreeSpace = {}
