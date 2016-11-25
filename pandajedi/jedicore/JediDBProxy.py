@@ -4814,6 +4814,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preCpuEfficiency = 100
         if preBaseWalltime == None:
             preBaseWalltime = 0
+        # don't use baseRamCount for pmerge
+        if mergeScout:
+            preBaseRamCount = 0
         extraInfo['oldCpuTime'] = preCpuTime
         # get the size of lib 
         varMap = {}
