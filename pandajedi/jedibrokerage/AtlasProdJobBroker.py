@@ -407,7 +407,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     continue
                 if not self.dataSiteMap.has_key(datasetName):
                     # get the list of sites where data is available
-                    tmpLog.debug('getting the list of sites where {0} is avalable'.format(datasetName))
+                    tmpLog.debug('getting the list of sites where {0} is available'.format(datasetName))
                     tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,
                                                                      self.ddmIF,datasetName,
                                                                      datasetSpec.storageToken)

@@ -423,7 +423,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 datasetName = datasetSpec.datasetName
                 if not self.dataSiteMap.has_key(datasetName):
                     # get the list of sites where data is available
-                    tmpLog.debug('getting the list of sites where {0} is avalable'.format(datasetName))
+                    tmpLog.debug('getting the list of sites where {0} is available'.format(datasetName))
                     tmpSt,tmpRet = AtlasBrokerUtils.getAnalSitesWithData(scanSiteList,
                                                                          self.siteMapper,
                                                                          self.ddmIF,datasetName)
@@ -464,7 +464,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                     tmpLog.debug(' {0} is distributed'.format(datasetName))
                 # check if the data is available at somewhere
                 if self.dataSiteMap[datasetName] == {}:
-                    tmpLog.error('{0} is unavaiable at any site'.format(datasetName))
+                    tmpLog.error('{0} is unavailable at any site'.format(datasetName))
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     # send info to logger
                     self.sendLogMessage(tmpLog)
