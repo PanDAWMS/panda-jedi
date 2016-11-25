@@ -1395,8 +1395,8 @@ class JobGeneratorThread (WorkerThread):
             return Interaction.SC_SUCCEEDED,jobSpec,runFileSpec,datasetToRegister
         except:
             errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('{0}.doGenerateBuild() failed with {1}:{2}'.format(self.__class__.__name__,
-                                                                            errtype.__name__,errvalue))
+            tmpLog.error('{0}.doGenerateBuild() failed with {1}'.format(self.__class__.__name__,
+                                                                        traceback.format_exc()))
             return failedRet
 
 
@@ -1486,8 +1486,8 @@ class JobGeneratorThread (WorkerThread):
             return Interaction.SC_SUCCEEDED,jobSpec,datasetToRegister
         except:
             errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('{0}.doGeneratePrePro() failed with {1}:{2}'.format(self.__class__.__name__,
-                                                                             errtype.__name__,errvalue))
+            tmpLog.error('{0}.doGeneratePrePro() failed with {1}'.format(self.__class__.__name__,
+                                                                         traceback.format_exc()))
             return failedRet
 
 
