@@ -5222,6 +5222,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTU += "SET status=:newStatus,modificationTime=CURRENT_DATE,"
             sqlTU += "errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
+            # sql to update DEFT task status
+            sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlTT += "SET status=:status,timeStamp=CURRENT_DATE "
+            sqlTT += "WHERE taskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
             # get tasks
@@ -5250,6 +5254,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':errorDialog'] = taskSpec.errorDialog
                         self.cur.execute(sqlTU+comment,varMap)
                         nRow = self.cur.rowcount
+                        # update DEFT task
+                        if nRow > 0:
+                            varMap = dict()
+                            varMap[':jediTaskID'] = taskSpec.jediTaskID
+                            varMap[':status'] = taskSpec.status
+                            self.cur.execute(sqlTT+comment,varMap)
                         # commit
                         if not self._commit():
                             raise RuntimeError, 'Commit error'

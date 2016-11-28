@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/28/2016
+  * fixed setScout to propagate exhausted to DEFT
+
 * 11/24/2016
   * changed AtlasPJB not to use baseramcount for pmerge
   * disabled transfer backlog check when negative T1 weight in AtlasPTB
