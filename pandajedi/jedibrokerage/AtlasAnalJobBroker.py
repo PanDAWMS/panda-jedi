@@ -168,7 +168,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # remove AnalysisTransforms-
                 transHome = re.sub('^[^-]+-*','',taskSpec.transHome)
                 transHome = re.sub('_','-',transHome)
-                if re.search('rel_\d+(\n|$)',taskSpec.transHome) == None and taskSpec.transHome != 'AnalysisTransforms':
+                if re.search('rel_\d+(\n|$)',taskSpec.transHome) == None and taskSpec.transHome != 'AnalysisTransforms' and \
+                        re.search('\d{4}-\d{2}-\d{2}T\d{4}$',taskSpec.transHome) == None :
                     # cache is checked 
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
                                                                              caches=transHome,

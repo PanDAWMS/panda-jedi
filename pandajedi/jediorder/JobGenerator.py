@@ -780,7 +780,7 @@ class JobGeneratorThread (WorkerThread):
                         jobSpec.transformation = taskSpec.transPath
                     jobSpec.cmtConfig        = taskSpec.architecture
                     if taskSpec.transHome != None:
-                        jobSpec.homepackage  = re.sub('-(?P<dig>\d)','/\g<dig>',taskSpec.transHome)
+                        jobSpec.homepackage  = re.sub('-(?P<dig>\d+\.)','/\g<dig>',taskSpec.transHome)
                         jobSpec.homepackage  = re.sub('\r','',jobSpec.homepackage)
                     jobSpec.prodSourceLabel  = taskSpec.prodSourceLabel
                     if inputChunk.isMerging:
