@@ -71,7 +71,7 @@ class AtlasProdWatchDog (WatchDogBase):
                                                                       datasetParamList=['nFiles','nFilesUsed','nFilesTobeUsed',
                                                                                         'nFilesFinished','nFilesFailed'])
             boostedPrio = 900
-            toBoostRatio = 0.9 
+            toBoostRatio = 0.95 
             for taskParam,datasetParam in taskVarList:
                 jediTaskID = taskParam['jediTaskID']
                 taskPriority = taskParam['taskPriority']
