@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/5/2016
+  * increased scout priority to 901
+
 * 12/1/2016
   * changed AtlasPWD to boost task priorities at 95%
   * fixed AtlasAJB and JG to support cmake-based nightlies

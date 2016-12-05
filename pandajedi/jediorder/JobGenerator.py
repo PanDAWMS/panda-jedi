@@ -691,7 +691,7 @@ class JobGeneratorThread (WorkerThread):
             if not tmpStat:
                 return failedRet
         # special priorities 
-        scoutPriority = 900
+        scoutPriority = 901
         mergePriority = 5000
         # register datasets
         registerDatasets = taskSpec.toRegisterDatasets()
