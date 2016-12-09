@@ -121,35 +121,21 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 else:
                     nJobsInBunch = nJobsInBunchMax
         nQueueLimit = nJobsInBunch*nBunch
-        # use special limit for CERN
-        if cloudName == 'CERN':
-            nQueueLimit = 2000
-        if workQueue.queue_name == 'group':
-            nQueueLimit = 40000
-        if workQueue.queue_name == 'group_data':
-            nQueueLimit = 6000
-        if workQueue.queue_name == 'eventservice':
-            nQueueLimit = 2000
-        if workQueue.queue_name == 'opportunistic':
-            nQueueLimit = 10000
-        if workQueue.queue_name == 'titan':
-            nQueueLimit = 5000
+        # use special nQueueLimit
         tmpVal = self.taskBufferIF.getConfigValue(compName, 'NQUEUELIMIT_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
         if tmpVal is not None:
             nQueueLimit = tmpVal
         # use nPrestage for reprocessing   
         if workQueue.queue_name in ['reprocessing','mcore_repro']:
-            if cloudSpec.has_key('nprestage') and cloudSpec['nprestage'] > 0:
-                nQueueLimit = cloudSpec['nprestage']
-                # reset nJobsInBunch
-                if nQueueLimit > (nNotRun+nDefine):
-                    tmpRemainingSlot = nQueueLimit - (nNotRun+nDefine)
-                    if tmpRemainingSlot < nJobsInBunch:
-                        pass
-                    elif tmpRemainingSlot < nJobsInBunchMax:
-                        nJobsInBunch = tmpRemainingSlot
-                    else:
-                        nJobsInBunch = nJobsInBunchMax
+            # reset nJobsInBunch
+            if nQueueLimit > (nNotRun+nDefine):
+                tmpRemainingSlot = nQueueLimit - (nNotRun+nDefine)
+                if tmpRemainingSlot < nJobsInBunch:
+                    pass
+                elif tmpRemainingSlot < nJobsInBunchMax:
+                    nJobsInBunch = tmpRemainingSlot
+                else:
+                    nJobsInBunch = nJobsInBunchMax
         # get cap
         nRunningCap = self.taskBufferIF.getConfigValue(compName, 'NRUNNINGCAP_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
         # set number of jobs to be submitted
