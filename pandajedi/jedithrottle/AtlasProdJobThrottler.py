@@ -17,6 +17,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
 
     # check if throttled
     def toBeThrottled(self,vo,prodSourceLabel,cloudName,workQueue,jobStat):
+        # component name
+        compName = 'prod_job_throttler'
         # params
         nBunch = 4
         threshold = 2.0
@@ -132,7 +134,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             nQueueLimit = 10000
         if workQueue.queue_name == 'titan':
             nQueueLimit = 5000
-
+        tmpVal = self.taskBufferIF.getConfigValue(compName, 'NQUEUELIMIT_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
+        if tmpVal is not None:
+            nQueueLimit = tmpVal
         # use nPrestage for reprocessing   
         if workQueue.queue_name in ['reprocessing','mcore_repro']:
             if cloudSpec.has_key('nprestage') and cloudSpec['nprestage'] > 0:
@@ -146,17 +150,21 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                         nJobsInBunch = tmpRemainingSlot
                     else:
                         nJobsInBunch = nJobsInBunchMax
+        # get cap
+        nRunningCap = self.taskBufferIF.getConfigValue(compName, 'NRUNNINGCAP_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
         # set number of jobs to be submitted
         self.setMaxNumJobs(nJobsInBunch/nParallel)
         # get total walltime
         totWalltime = self.taskBufferIF.getTotalWallTime_JEDI(vo,prodSourceLabel,workQueue,cloudName)
         # check number of jobs when high priority jobs are not waiting. test jobs are sent without throttling
         limitPriority = False
-        tmpLog.debug(msgHeader+" nQueueLimit:{0} nQueued:{1} nDefine:{2} nRunning:{3} totWalltime:{4}".format(nQueueLimit,
-                                                                                                              nNotRun+nDefine,
-                                                                                                              nDefine,
-                                                                                                              nRunning,
-                                                                                                              totWalltime))
+        tmpStr = msgHeader+" nQueueLimit:{0} nQueued:{1} nDefine:{2} nRunning:{3} totWalltime:{4} nRunCap:{5}"
+        tmpLog.debug(tmpStr.format(nQueueLimit,
+                                   nNotRun+nDefine,
+                                   nDefine,
+                                   nRunning,
+                                   totWalltime,
+                                   nRunningCap))
         # check
         if nRunning == 0 and (nNotRun+nDefine) > nQueueLimit and (totWalltime == None or totWalltime > minTotalWalltime):
             limitPriority = True
@@ -193,6 +201,14 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 # too many waiting
                 msgBody = "SKIP too many nWaiting({0})>max(nRunning({1})x{2},{3}x{4})".format(nWaiting,nRunning,nWaitingLimit,
                                                                                               nJobsInBunch,nWaitingBunchLimit)
+                tmpLog.debug(msgHeader+" "+msgBody)
+                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
+                return self.retMergeUnThr
+        elif nRunningCap is not None and nRunning > nRunningCap:
+            limitPriority = True
+            if not highPrioQueued:
+                # cap on running
+                msgBody = "SKIP nRunning({0})>nRunningCap({1})".format(nRunning,nRunningCap)
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr

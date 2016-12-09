@@ -97,9 +97,11 @@ class AtlasProdPostProcessor (PostProcessorBase):
                 taskSpec.setErrDiag(errStr)
                 tmpLog.info(errStr)
         # set del flag to event ranges
+        """ temporarily disabled until Oracle migrates to new RAC
         if taskSpec.useEventService() and not taskSpec.useJobCloning():
             nDel = self.taskBufferIF.setDelFlagToEvents_JEDI(taskSpec.jediTaskID)
             tmpLog.info('set DEL flag to {0} event ranges'.format(nDel))
+        """
         try:
             self.doBasicPostProcess(taskSpec,tmpLog)
         except:

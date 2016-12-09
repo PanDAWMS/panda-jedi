@@ -1,5 +1,9 @@
 Release Notes
 
+* 12/9/2016
+  * added nRunningCap to AtlasPJT
+  * disabled setDEL in AtlasPP
+
 * 12/5/2016
   * increased scout priority to 901
 
