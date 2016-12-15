@@ -138,19 +138,21 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                     nJobsInBunch = nJobsInBunchMax
         # get cap
         nRunningCap = self.taskBufferIF.getConfigValue(compName, 'NRUNNINGCAP_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
+        nQueueCap = self.taskBufferIF.getConfigValue(compName, 'NQUEUECAP_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
         # set number of jobs to be submitted
         self.setMaxNumJobs(nJobsInBunch/nParallel)
         # get total walltime
         totWalltime = self.taskBufferIF.getTotalWallTime_JEDI(vo,prodSourceLabel,workQueue,cloudName)
         # check number of jobs when high priority jobs are not waiting. test jobs are sent without throttling
         limitPriority = False
-        tmpStr = msgHeader+" nQueueLimit:{0} nQueued:{1} nDefine:{2} nRunning:{3} totWalltime:{4} nRunCap:{5}"
+        tmpStr = msgHeader+" nQueueLimit:{0} nQueued:{1} nDefine:{2} nRunning:{3} totWalltime:{4} nRunCap:{5} nQueueCap:{6}"
         tmpLog.debug(tmpStr.format(nQueueLimit,
                                    nNotRun+nDefine,
                                    nDefine,
                                    nRunning,
                                    totWalltime,
-                                   nRunningCap))
+                                   nRunningCap,
+                                   nQueueCap))
         # check
         if nRunning == 0 and (nNotRun+nDefine) > nQueueLimit and (totWalltime == None or totWalltime > minTotalWalltime):
             limitPriority = True
@@ -195,6 +197,14 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             if not highPrioQueued:
                 # cap on running
                 msgBody = "SKIP nRunning({0})>nRunningCap({1})".format(nRunning,nRunningCap)
+                tmpLog.debug(msgHeader+" "+msgBody)
+                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
+                return self.retMergeUnThr
+        elif nQueueCap is not None and nNotRun+nDefine > nQueueCap:
+            limitPriority = True
+            if not highPrioQueued:
+                # cap on queued
+                msgBody = "SKIP nQueue({0})>nQueueCap({1})".format(nNotRun+nDefine,nQueueCap)
                 tmpLog.debug(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr

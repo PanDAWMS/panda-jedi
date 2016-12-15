@@ -1,6 +1,7 @@
 Release Notes
 
 * 12/15/2016
+  * added nQueueCap
   * added mergeEsAtOS
 
 * 12/9/2016
