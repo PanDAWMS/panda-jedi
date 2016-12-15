@@ -965,6 +965,9 @@ class JobGeneratorThread (WorkerThread):
                     # dynamic number of events
                     if not inputChunk.isMerging and taskSpec.dynamicNumEvents():
                         specialHandling = EventServiceUtils.setHeaderForDynNumEvents(specialHandling)
+                    # merge ES on ObjectStore
+                    if taskSpec.mergeEsOnOS():
+                        specialHandling = EventServiceUtils.setHeaderForMergeAtOS(specialHandling)
                     # set specialHandling
                     if specialHandling != '':
                         jobSpec.specialHandling = specialHandling

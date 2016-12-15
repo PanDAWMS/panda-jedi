@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/15/2016
+  * added mergeEsAtOS
+
 * 12/9/2016
   * added nRunningCap to AtlasPJT
   * disabled setDEL in AtlasPP

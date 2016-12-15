@@ -60,6 +60,7 @@ class JediTaskSpec(object):
         'useLocalIO'         : 'LI',
         'limitedSites'       : 'LS',
         'loadXML'            : 'LX',
+        'mergeEsOnOS'        : 'ME',
         'nMaxFilesPerJob'    : 'MF',
         'mergeOutput'        : 'MO',
         'nEventsPerJob'      : 'NE',
@@ -1273,6 +1274,16 @@ class JediTaskSpec(object):
     def putLogToOS(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['putLogToOS']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # merge ES on Object Store
+    def mergeEsOnOS(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['mergeEsOnOS']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False
