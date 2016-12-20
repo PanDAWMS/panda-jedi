@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/20/2016
+  * changed setScoutJobData to set exhausted when task_ramCount<4GB and scout_ramCount>4GB
+
 * 12/15/2016
   * added nQueueCap
   * added mergeEsAtOS

@@ -4818,6 +4818,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if mergeScout:
             preBaseRamCount = 0
         extraInfo['oldCpuTime'] = preCpuTime
+        extraInfo['oldRamCount'] = preRamCount
         # get the size of lib 
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
@@ -5132,6 +5133,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
+        # get memory threshold for exausted
+        ramThr = self.getConfigValue('dbproxy','RAM_THR_EXAUSTED','jedi')
+        if ramThr is None:
+            ramThr = 4
+        ramThr *= 1024
         if useCommit:
             # begin transaction
             self.conn.begin()
@@ -5184,6 +5190,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         and extraInfo['execTime'] > datetime.timedelta(hours=minExecTime):
                     errMsg = 'exhausted since scout_cpuTime ({0}) is larger than 2*task_cpuTime ({1})'.format(scoutData['cpuTime'],
                                                                                                               extraInfo['oldCpuTime'])
+                    tmpLog.debug(errMsg)
+                    taskSpec.setErrDiag(errMsg)
+                    taskSpec.status = 'exhausted'
+            # check ramCount
+            if taskSpec.status != 'exhausted':
+                if taskSpec.ramPerCore() and 'ramCount' in scoutData and extraInfo['oldRamCount'] is not None \
+                        and extraInfo['oldRamCount'] < ramThr and scoutData['ramCount'] > ramThr:
+                    errMsg = 'exhausted since scout_ramCount {0} MB is larger than {1} MB '.format(scoutData['ramCount'],
+                                                                                                   ramThr)
+                    errMsg += 'while task_ramCount {0} MB is less than {1} MB'.format(extraInfo['oldRamCount'],
+                                                                                      ramThr)
                     tmpLog.debug(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
