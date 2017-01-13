@@ -935,9 +935,11 @@ class JediTaskSpec(object):
 
 
     # use scout
-    def useScout(self):
-        if self.splitRule != None:
-            tmpMatch = re.search(self.splitRuleToken['useScout']+'=(\d+)',self.splitRule)
+    def useScout(self,splitRule=None):
+        if splitRule is None:
+            splitRule = self.splitRule
+        if splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['useScout']+'=(\d+)',splitRule)
             if tmpMatch != None and tmpMatch.group(1) == self.enum_useScout:
                 return True
         return False

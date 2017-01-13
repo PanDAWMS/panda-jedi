@@ -1,5 +1,8 @@
 Release Notes
 
+* 1/12/2017
+  * fixed for incexec with input containers
+
 * 12/20/2016
   * changed setScoutJobData to set exhausted when task_ramCount<4GB and scout_ramCount>4GB
 

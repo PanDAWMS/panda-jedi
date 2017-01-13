@@ -621,6 +621,9 @@ class JobGeneratorThread (WorkerThread):
                                     taskSpec.status = 'scouting'
                                 else:
                                     taskSpec.status = 'running'
+                                    # scout was skipped
+                                    if taskSpec.useScout():
+                                        taskSpec.setUseScout(False)
                             else:
                                 tmpErrStr = 'submitted only {0}/{1}'.format(len(pandaIDs),len(pandaJobs))
                                 tmpLog.error(tmpErrStr)

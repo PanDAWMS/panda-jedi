@@ -433,7 +433,7 @@ class TaskRefinerBase (object):
                             # normal dataset name
                             tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).listDatasets(datasetName)
                         for elementDatasetName in tmpDatasetNameList:
-                            if not elementDatasetName in tmpItem['expandedList']:
+                            if nIn > 0 or not elementDatasetName in tmpItem['expandedList']:
                                 tmpItem['expandedList'].append(elementDatasetName)
                                 inDatasetSpec = copy.copy(datasetSpec)
                                 inDatasetSpec.datasetName = elementDatasetName
