@@ -2586,6 +2586,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # time limit to avoid duplication
         timeLimit = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
         try:
+            # attribute for GROUP BY
+            if workQueue is not None:
+                attrNameForGroupBy = self.getConfigValue('jobgen','GROUPBYATTR_{0}'.format(workQueue.queue_name),'jedi')
+            else:
+                attrNameForGroupBy = None
+            if attrNameForGroupBy is None or attrNameForGroupBy not in JediTaskSpec.attributes:
+                attrNameForGroupBy = 'userName'
+                setGroupByAttr = False
+            else:
+                setGroupByAttr = True
             # sql to get tasks/datasets
             if simTasks == None:
                 varMap = {}
@@ -2602,7 +2612,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':dsOKStatus4']     = 'registered'
                 varMap[':dsOKStatus5']     = 'failed'
                 varMap[':timeLimit']       = timeLimit
-                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.userName,nFiles,nEvents "
+                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.{0},nFiles,nEvents ".format(attrNameForGroupBy)
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
                 sql += "AND tabT.vo=:vo AND workQueue_ID IN ("
@@ -2660,9 +2670,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 varMap = {}
                 if not fullSimulation:
-                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.userName,nFiles,nEvents "
+                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.{0},nFiles,nEvents ".format(attrNameForGroupBy)
                 else:
-                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed,tabD.type,tabT.status,tabT.userName,nFiles,nEvents "
+                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed,tabD.type,tabT.status,tabT.{0},nFiles,nEvents ".format(attrNameForGroupBy)
                 sql += "FROM {0}.JEDI_Tasks tabT,{1}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI,
                                                                                  jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ("
@@ -2710,7 +2720,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             taskAvalancheMap = {}
             taskUserPrioMap = {}
             taskPrioMap = {}
-            for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,taskStatus,userName,tmpNumInputFiles,tmpNumInputEvents in resList:
+            for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,\
+                    taskStatus,groupByAttr,tmpNumInputFiles,tmpNumInputEvents in resList:
                 tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3} prio={4}'.format(jediTaskID,datasetID,
                                                                                                      tmpNumFiles,datasetType,
                                                                                                      currentPriority))
@@ -2724,42 +2735,42 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskDatasetMap[jediTaskID] = []
                  
                 taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents))
-                # use single username if WQ has a share
-                if workQueue != None and workQueue.queue_share != None:
-                    userName = ''
+                # use single value if WQ has a share
+                if workQueue != None and workQueue.queue_share != None and not setGroupByAttr:
+                    groupByAttr = ''
                 # increase priority so that scouts do not wait behind the bulk
                 if taskStatus in ['ready','scouting']:
                     currentPriority += 1
                 # make task-prio mapping
                 taskPrioMap[jediTaskID] = currentPriority
-                if not userName in taskUserPrioMap:
-                    taskUserPrioMap[userName] = {}
-                if not currentPriority in taskUserPrioMap[userName]:
-                    taskUserPrioMap[userName][currentPriority] = []
-                if not jediTaskID in taskUserPrioMap[userName][currentPriority]:
-                    taskUserPrioMap[userName][currentPriority].append(jediTaskID)
+                if not groupByAttr in taskUserPrioMap:
+                    taskUserPrioMap[groupByAttr] = {}
+                if not currentPriority in taskUserPrioMap[groupByAttr]:
+                    taskUserPrioMap[groupByAttr][currentPriority] = []
+                if not jediTaskID in taskUserPrioMap[groupByAttr][currentPriority]:
+                    taskUserPrioMap[groupByAttr][currentPriority].append(jediTaskID)
             # make user-task mapping
             userTaskMap = {}
-            for userName in taskUserPrioMap.keys():
+            for groupByAttr in taskUserPrioMap.keys():
                 # use high priority tasks first
-                priorityList = taskUserPrioMap[userName].keys()
+                priorityList = taskUserPrioMap[groupByAttr].keys()
                 priorityList.sort()
                 priorityList.reverse()
                 for currentPriority in priorityList:
-                    if not userName in userTaskMap:
-                        userTaskMap[userName] = []
-                    userTaskMap[userName] += taskUserPrioMap[userName][currentPriority]
+                    if not groupByAttr in userTaskMap:
+                        userTaskMap[groupByAttr] = []
+                    userTaskMap[groupByAttr] += taskUserPrioMap[groupByAttr][currentPriority]
             tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
             # make list
-            userNameList = userTaskMap.keys()
-            random.shuffle(userNameList)
-            tmpLog.debug('{0} users ready'.format(len(userNameList)))
-            while userNameList != []:
-                for userName in userNameList:
-                    if userTaskMap[userName] == []:
-                        userNameList.remove(userName)
+            groupByAttrList = userTaskMap.keys()
+            random.shuffle(groupByAttrList)
+            tmpLog.debug('{0} groupBy values'.format(len(groupByAttrList)))
+            while groupByAttrList != []:
+                for groupByAttr in groupByAttrList:
+                    if userTaskMap[groupByAttr] == []:
+                        groupByAttrList.remove(groupByAttr)
                     else:
-                        jediTaskIDList.append(userTaskMap[userName].pop(0))
+                        jediTaskIDList.append(userTaskMap[groupByAttr].pop(0))
             # sql to read task
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
             sqlRT += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)

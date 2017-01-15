@@ -1,5 +1,8 @@
 Release Notes
 
+* 1/13/2017
+  * introduced GROUPBYATTR in getTasksToBeProcessed
+
 * 1/12/2017
   * fixed for incexec with input containers
 

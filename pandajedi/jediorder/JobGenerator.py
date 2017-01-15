@@ -600,11 +600,17 @@ class JobGeneratorThread (WorkerThread):
                                     pandaIDs.append(items[0])
                             # check if submission was successful
                             if len(pandaIDs) == len(pandaJobs):
-                                tmpMsg = 'successfully submitted jobs_submitted={0}/jobs_possible={1} for VO={2} cloud={3} queue={4} status={5}'.format(len(pandaIDs),
-                                                                                                                           len(pandaJobs),
-                                                                                                                           taskSpec.vo,cloudName,
-                                                                                                                           self.workQueue.queue_name,
-                                                                                                                           oldStatus)
+                                tmpMsg = 'successfully submitted '
+                                tmpMsg += 'jobs_submitted={0}/jobs_possible={1} for VO={2} cloud={3} queue={4} status={5} nucleus={6}'.format(len(pandaIDs),
+                                                                                                                                              len(pandaJobs),
+                                                                                                                                              taskSpec.vo,cloudName,
+                                                                                                                                              self.workQueue.queue_name,
+                                                                                                                                              oldStatus,
+                                                                                                                                              taskSpec.nucleus)
+                                if inputChunk.isMerging:
+                                    tmpMsg += ' pmerge=Y'
+                                else:
+                                    tmpMsg += ' pmerge=N'
                                 tmpLog.info(tmpMsg)
                                 tmpLog.sendMsg(tmpMsg,self.msgType)
                                 if self.execJobs:
