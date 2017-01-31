@@ -291,11 +291,11 @@ class TaskRefinerBase (object):
         workQueue = None
         if 'workQueueName' in taskParamMap:
             # work queue is specified
-            workQueue = workQueueMapper.getQueueWithName(taskSpec.vo,taskSpec.prodSourceLabel,taskParamMap['workQueueName'])
+            workQueue = workQueueMapper.getQueueByName(taskSpec.vo, taskParamMap['workQueueName'])
         if workQueue is None:
             # get work queue based on task attributes
             workQueue,tmpStr = workQueueMapper.getQueueWithSelParams(taskSpec.vo,
-                                                                     taskSpec.prodSourceLabel,
+                                                                     prodSourceLabel=taskSpec.prodSourceLabel,
                                                                      processingType=taskSpec.processingType,
                                                                      workingGroup=taskSpec.workingGroup,
                                                                      coreCount=taskSpec.coreCount,
@@ -322,7 +322,7 @@ class TaskRefinerBase (object):
             # get share based on definition
             gshare = self.taskBufferIF.get_share_for_task(self.taskSpec)
             if gshare is None:
-                gshare = 'Undefined'
+                gshare = 'Undefined' # Should not happen. Undefined is set when no share is found
                 # errStr  = 'share is undefined for vo={0} label={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
                 # errStr += 'workingGroup={0} campaign={1} '.format(taskSpec.workingGroup, taskSpec.campaign)
                 # raise RuntimeError,errStr

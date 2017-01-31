@@ -16,7 +16,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
 
 
     # check if throttled
-    def toBeThrottled(self,vo,prodSourceLabel,cloudName,workQueue,jobStat):
+    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, jobStat, gshare):
         # component name
         compName = 'prod_job_throttler'
         # params
@@ -36,8 +36,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nParallelCap = 5
         # make logger
         tmpLog = MsgWrapper(logger)
-        workQueueIDs = workQueue.getIDs()
-        msgHeader = '{0}:{1} cloud={2} queue={3}:'.format(vo,prodSourceLabel,cloudName,workQueue.queue_name)
+        workQueueIDs = workQueue.getIDs() # get ids of queue and sub_queues
+        msgHeader = '{0}:{1} cloud={2} queue={3}:'.format(vo, prodSourceLabel, cloudName, workQueue.queue_name)
         tmpLog.debug(msgHeader+' start workQueueID={0}'.format(str(workQueueIDs)))
         # change threashold
         if workQueue.queue_name in ['mcore']:

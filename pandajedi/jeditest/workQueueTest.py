@@ -19,10 +19,10 @@ from pandalogger.PandaLogger import PandaLogger
 
 taskBuffer= JediTaskBuffer.JediTaskBuffer(None)
 proxy = taskBuffer.proxyPool.getProxy()
-proxy.refreshWrokQueueMap()
-"""
-print proxy.workQueueMap.dump()
+proxy.refreshWorkQueueMap()
 
+print proxy.workQueueMap.dump()
+"""
 print proxy.workQueueMap.getQueueWithSelParams('atlas','managed',
                                   prodSourceLabel='managed',
                                   workingGroup='GP_Top')[0].queue_name
