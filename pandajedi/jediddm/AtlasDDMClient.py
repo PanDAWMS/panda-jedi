@@ -596,7 +596,7 @@ class AtlasDDMClient(DDMClientBase):
                     for tmpDict in client.list_replicas(dids,['srm']):
                         tmpLFN = str(tmpDict['name'])
                         surls = []
-                        for tmpRSE,tmpSURLs in tmpDict['rses']:
+                        for tmpRSE,tmpSURLs in tmpDict['rses'].iteritems():
                             # rse selection
                             if len(storages) > 0 and not tmpRSE in storages:
                                 continue
@@ -606,7 +606,7 @@ class AtlasDDMClient(DDMClientBase):
                     dids = []
         except:
             errType,errValue = sys.exc_info()[:2]
-            return self.SC_FAILED,"file lookup failed with {0}:{1}".format(errType,errValue)
+            return self.SC_FAILED,"file lookup failed with {0}:{1} {2}".format(errType,errValue,traceback.format_exc())
         # return
         return self.SC_SUCCEEDED,retVal
 
