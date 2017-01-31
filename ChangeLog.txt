@@ -3,6 +3,7 @@ Release Notes
 * 1/31/2017
   * removed dq2 dependency
   * changed not to change oldstatus when throttled->paused
+  * fixed eventRatio for nSecond % nMaster != 0
 
 * 1/13/2017
   * introduced GROUPBYATTR in getTasksToBeProcessed
