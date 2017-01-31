@@ -261,8 +261,9 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
                 try:
                     tmpOnTape = ddmIF.getSiteProperty(tmpSE,'is_tape')
                 except:
-                    errtype,errvalue = sys.exc_info()[:2]
-                    return errtype,'ddmIF.getSiteProperty for %s:tape failed with %s' % (tmpSE,errvalue)
+                    continue
+                    # errtype,errvalue = sys.exc_info()[:2]
+                    # return errtype,'ddmIF.getSiteProperty for %s:tape failed with %s' % (tmpSE,errvalue)
                 # check completeness
                 tmpStatistics = replicaMap[datasetName][tmpSE][-1] 
                 if tmpStatistics['found'] == None:
