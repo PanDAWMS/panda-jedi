@@ -106,7 +106,7 @@ class AtlasDDMClient(DDMClientBase):
                         # use larger attempt number
                         oldMap = baseLFNmap[baseLFN]
                         if oldMap['attNr'] < attNr:
-                            del newFileMap[oldMap['guid']]
+                            del fileMap[oldMap['guid']]
                             addMap = True
                     else:
                         addMap = True
