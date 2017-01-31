@@ -346,7 +346,7 @@ def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,t
 
 
 # get the number of jobs in a status
-def getNumJobs(jobStatMap,computingSite,jobStatus,cloud=None,workQueue_ID=None):
+def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_ID=None):
     if not jobStatMap.has_key(computingSite):
         return 0
     nJobs = 0
@@ -403,7 +403,7 @@ def getSiteStorageEndpointMap(siteList,siteMapper,ignoreCC=False):
 
 
 # check if the queue is suppressed
-def hasZeroShare(siteSpec,taskSpec,ignorePrio,tmpLog):
+def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
     # per-site share is undefined
     if siteSpec.fairsharePolicy in ['',None]:
         return False

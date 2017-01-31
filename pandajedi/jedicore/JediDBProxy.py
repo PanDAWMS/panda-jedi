@@ -99,21 +99,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # get work queue map
     def getWorkQueueMap(self):
-        self.refreshWrokQueueMap()
+        self.refreshWorkQueueMap()
         return self.workQueueMap
 
     
 
     # refresh work queue map
-    def refreshWrokQueueMap(self):
+    def refreshWorkQueueMap(self):
         # avoid frequent lookup
         if self.updateTimeForWorkQueue != None and \
                (datetime.datetime.utcnow()-self.updateTimeForWorkQueue) < datetime.timedelta(minutes=10):
             return
-        comment = ' /* JediDBProxy.refreshWrokQueueMap */'
+        comment = ' /* JediDBProxy.refreshWorkQueueMap */'
         methodName = self.getMethodName(comment)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
+
+        leave_shares = self.get_sorted_leaves()
+
         # SQL
         sql = self.workQueueMap.getSqlQuery()
         try:
@@ -125,7 +128,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             # make map
-            self.workQueueMap.makeMap(res)
+            self.workQueueMap.makeMap(res, leave_shares)
             tmpLog.debug('done')
             self.updateTimeForWorkQueue = datetime.datetime.utcnow()
             return True
@@ -9870,7 +9873,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getBackloggedNuclei(self):
         """
         Return a list of nuclei, which has built up transfer backlog. We will consider a nucleus as backlogged,
-         when it has over 1500 output transfers queued and there are more than 3 sites with queues over
+         when it has over 2000 output transfers queued and there are more than 3 sites with queues over
         """
 
         comment = ' /* JediDBProxy.getBackloggedNuclei */'
