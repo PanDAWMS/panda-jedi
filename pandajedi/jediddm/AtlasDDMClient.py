@@ -14,28 +14,9 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 from DDMClientBase import DDMClientBase
 
-from dq2.clientapi.DQ2 import DQ2
-from dq2.common.DQConstants import DatasetState, Metadata
-from dq2.clientapi.DQ2 import \
-    DQUnknownDatasetException, \
-    DQDatasetExistsException, \
-    DQSubscriptionExistsException, \
-    DQFrozenDatasetException
-from dq2.container.exceptions import DQContainerExistsException,\
-    DQContainerAlreadyHasDataset
-import dq2.filecatalog
-from dq2.common import parse_dn
-from dq2.info.client.infoClient import infoClient
-
 from rucio.client import Client as RucioClient
 from rucio.common.exception import UnsupportedOperation,DataIdentifierNotFound,DataIdentifierAlreadyExists,\
-    DuplicateRule
-
-try:
-    from pyAMI.client import AMIClient
-    from pyAMI import query as amiquery
-except:
-    pass
+    DuplicateRule,DuplicateContent
 
 from pandaserver.dataservice import DataServiceUtils
 
@@ -51,7 +32,7 @@ class AtlasDDMClient(DDMClientBase):
         # initialize base class
         DDMClientBase.__init__(self,con)
         # the list of fatal error
-        self.fatalErrors = [DQUnknownDatasetException]
+        self.fatalErrors = []
         # list of blacklisted endpoints
         self.blackListEndPoints = []
         # time of last update for blacklist
@@ -69,6 +50,16 @@ class AtlasDDMClient(DDMClientBase):
 
 
 
+    # get a parsed certificate DN
+    def parse_dn(self,tmpDN):
+        if tmpDN is not None:
+            tmpDN = re.sub('/CN=limited proxy','',tmpDN)
+            tmpDN = re.sub('(/CN=proxy)+$', '', tmpDN)
+            #tmpDN = re.sub('(/CN=\d+)+$', '', tmpDN)
+        return tmpDN
+        
+
+
     # get files in dataset
     def getFilesInDataset(self,datasetName,getNumEvents=False,skipDuplicate=True,ignoreUnknown=False,longFormat=False):
         methodName = 'getFilesInDataset'
@@ -76,58 +67,55 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # get DQ2 API            
-            dq2=DQ2()
-            # get file list
-            tmpRet = dq2.listFilesInDataset(datasetName,long=longFormat)
-            if tmpRet == ():
-                fileMap = {}
-            else:
-                fileMap = tmpRet[0]
+            # get Rucio API            
+            client = RucioClient()
+            # extract scope from dataset
+            scope,dsn = self.extract_scope(datasetName)
+            # get files
+            fileMap = {}
+            baseLFNmap = {}
+            for x in client.list_files(scope, dsn, long=longFormat):
+                # convert to old dict format
+                lfn = str(x['name'])
+                attrs = {}
+                attrs['lfn'] = lfn
+                attrs['chksum'] = "ad:" + str(x['adler32'])
+                attrs['md5sum'] = attrs['chksum']
+                attrs['checksum'] = attrs['chksum']
+                attrs['fsize'] = x['bytes']
+                attrs['filesize'] = attrs['fsize']
+                attrs['scope'] = str(x['scope'])
+                attrs['events'] = str(x['events'])
+                if longFormat:
+                    attrs['lumiblocknr'] = str(x['lumiblocknr'])
+                guid = str('%s-%s-%s-%s-%s' % (x['guid'][0:8], x['guid'][8:12], x['guid'][12:16], x['guid'][16:20], x['guid'][20:32]))
+                attrs['guid'] = guid
                 # skip duplicated files
                 if skipDuplicate:
-                    newFileMap = {}
-                    baseLFNmap = {}
-                    for tmpGUID,valMap in fileMap.iteritems():
-                        # extract base LFN and attempt number
-                        lfn = valMap['lfn']
-                        baseLFN = re.sub('(\.(\d+))$','',lfn)
-                        attNr = re.sub(baseLFN+'\.*','',lfn)
-                        if attNr == '':
-                            # without attempt number
-                            attNr = -1
-                        else:
-                            attNr = int(attNr)
-                        # compare attempt numbers    
-                        addMap = False    
-                        if baseLFNmap.has_key(baseLFN):
-                            # use larger attempt number
-                            oldMap = baseLFNmap[baseLFN]
-                            if oldMap['attNr'] < attNr:
-                                del newFileMap[oldMap['guid']]
-                                addMap = True
-                        else:
+                    # extract base LFN and attempt number
+                    baseLFN = re.sub('(\.(\d+))$','',lfn)
+                    attNr = re.sub(baseLFN+'\.*','',lfn)
+                    if attNr == '':
+                        # without attempt number
+                        attNr = -1
+                    else:
+                        attNr = int(attNr)
+                    # compare attempt numbers    
+                    addMap = False    
+                    if baseLFNmap.has_key(baseLFN):
+                        # use larger attempt number
+                        oldMap = baseLFNmap[baseLFN]
+                        if oldMap['attNr'] < attNr:
+                            del newFileMap[oldMap['guid']]
                             addMap = True
-                        # append    
-                        if addMap:    
-                            baseLFNmap[baseLFN] = {'guid':tmpGUID,
-                                                   'attNr':attNr}
-                            newFileMap[tmpGUID] = valMap
-                    # use new map
-                    fileMap = newFileMap
-                # get number of events in each file
-                if getNumEvents:
-                    try:
-                        amiDatasetName = re.sub('(_tid\d+)*(_\d+)*/$','',datasetName)
-                        amiclient = AMIClient()
-                        for amiItem in amiquery.get_files(amiclient,amiDatasetName):
-                            amiGUID = amiItem['fileGUID']
-                            if fileMap.has_key(amiGUID):
-                                fileMap[amiGUID]['nevents'] = long(amiItem['events'])
-                    except:
-                        errtype,errvalue = sys.exc_info()[:2]
-                        errStr = '{0} AMI failed with {1} {2}'.format(methodName,errtype.__name__,errvalue)
-                        tmpLog.warning(errStr)
+                    else:
+                        addMap = True
+                    # append    
+                    if not addMap:    
+                        continue
+                    baseLFNmap[baseLFN] = {'guid':guid,
+                                           'attNr':attNr}
+                fileMap[guid] = attrs
             tmpLog.debug('done')
             return self.SC_SUCCEEDED,fileMap
         except:
@@ -135,7 +123,7 @@ class AtlasDDMClient(DDMClientBase):
             errCode = self.checkError(errtype)
             errStr = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errStr)
-            if ignoreUnknown and errtype == DQUnknownDatasetException:
+            if ignoreUnknown and errtype == DataIdentifierNotFound:
                 return self.SC_SUCCEEDED,{}
             return errCode,'{0} : {1}'.format(methodName,errStr)
 
@@ -418,7 +406,7 @@ class AtlasDDMClient(DDMClientBase):
                         return tmpStat,seStr
                     tmpMatch = re.search('://([^:/]+):*\d*/',seStr)
                     if tmpMatch != None:
-                        se = tmpMatch.group(1)
+                        se = tmpEndPoint
                         if not se in tmpLfcSeMap[lfc]:
                             tmpLfcSeMap[lfc].append(se)
                     if tmpMatch == None:
@@ -588,59 +576,38 @@ class AtlasDDMClient(DDMClientBase):
             errMsg += traceback.format_exc()
             tmpLog.error(errMsg)
             return self.SC_FAILED,'{0}.{1} {2}'.format(self.__class__.__name__,methodName,errMsg)
+
         
 
     # get SURLs from LFC
     def getSURLsFromLFC(self,files,lfcHost,storages,verbose=False,scopes={}):
         try:
-            # connect
-            apiLFC = dq2.filecatalog.create_file_catalog(lfcHost)
-            apiLFC.connect()
+            client = RucioClient()
             # get PFN
             iGUID = 0
             nGUID = 5000
-            pfnMap   = {}
-            listGUID = {}
-            for guid,tmpLFN in files.iteritems():
-                if verbose:
-                    sys.stdout.write('.')
-                    sys.stdout.flush()
+            retVal = {}
+            dids   = []
+            for guid,lfn in files.iteritems():
                 iGUID += 1
-                if lfcHost.startswith('rucio') and scopes.has_key(tmpLFN):
-                    listGUID[guid] = scopes[tmpLFN]+':'+tmpLFN
-                else:
-                    listGUID[guid] = tmpLFN
-                if iGUID % nGUID == 0 or iGUID == len(files):
-                    # get replica
-                    resReplicas = apiLFC.bulkFindReplicas(listGUID)
-                    for retGUID,resValMap in resReplicas.iteritems():
-                        for retSURL in resValMap['surls']:
-                            # get host
-                            match = re.search('^[^:]+://([^:/]+):*\d*/',retSURL)
-                            if match==None:
+                dids.append({'scope':scope,'name':lfn})
+                if len(dids) % nGUID == 0 or iGUID == len(files):
+                    for tmpDict in client.list_replicas(dids,['srm']):
+                        tmpLFN = str(tmpDict['name'])
+                        surls = []
+                        for tmpRSE,tmpSURLs in tmpDict['rses']:
+                            # rse selection
+                            if len(storages) > 0 and not tmpRSE in storages:
                                 continue
-                            # check host
-                            host = match.group(1)
-                            if storages != [] and (not host in storages):
-                                continue
-                            # append
-                            if not pfnMap.has_key(retGUID):
-                                pfnMap[retGUID] = []
-                            pfnMap[retGUID].append(retSURL)
-                    # reset
-                    listGUID = {}
-            # disconnect
-            apiLFC.disconnect()
+                            surls += tmpSURLs
+                        if len(surls) > 0:
+                            retVal[tmpLFN] = surls
+                    dids = []
         except:
             errType,errValue = sys.exc_info()[:2]
-            return self.SC_FAILED,"LFC lookup failed with {0}:{1}".format(errType,errValue)
-        # collect LFNs
-        retLFNs = {}
-        for guid,lfn in files.iteritems():
-            if guid in pfnMap:
-                retLFNs[lfn] = pfnMap[guid]
+            return self.SC_FAILED,"file lookup failed with {0}:{1}".format(errType,errValue)
         # return
-        return self.SC_SUCCEEDED,retLFNs
+        return self.SC_SUCCEEDED,retVal
 
 
 
@@ -674,28 +641,6 @@ class AtlasDDMClient(DDMClientBase):
 
 
 
-    # check dataset consistency
-    def checkDatasetConsistency(self,location,datasetName):
-        # make logger
-        methodName = 'checkDatasetConsistency'
-        methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
-        tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
-        try:
-            # get DQ2 API
-            dq2=DQ2()
-            # check
-            tmpRet = dq2.checkDatasetConsistency(location,datasetName)
-            tmpLog.debug(str(tmpRet))
-        except:
-            errtype,errvalue = sys.exc_info()[:2]
-            errMsg = 'failed with {0} {1}'.format(errtype.__name__,errvalue)
-            tmpLog.error(errMsg)
-            errCode = self.checkError(errtype)
-            return errCode,'{0}.{1} {2}'.format(self.__class__.__name__,methodName,errMsg)
-            
-
-        
     # check error
     def checkError(self,errType):
         if errType in self.fatalErrors:
@@ -714,11 +659,21 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # get DQ2 API            
-            dq2=DQ2()
-            # get file list
-            tmpRet = dq2.listDatasets2({'name':datasetName},long=False,all=False)
-            dsList = tmpRet.keys()
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
+            filters = {}
+            if dsn.endswith('/'):
+                dsn = dsn[:-1]
+            filters['name'] = dsn
+            dsList = set()
+            for name in client.list_dids(scope, filters, 'dataset'):
+                dsList.add('%s:%s' % (scope, name))
+            for name in client.list_dids(scope, filters, 'container'):
+                dsList.add('%s:%s/' % (scope, name))
+            dsList = list(dsList)
+            # ignore panda internal datasets
             if ignorePandaDS:
                 tmpDsList = []
                 for tmpDS in dsList:
@@ -730,10 +685,6 @@ class AtlasDDMClient(DDMClientBase):
             return self.SC_SUCCEEDED,dsList
         except:
             errtype,errvalue = sys.exc_info()[:2]
-            if 'DQContainerUnknownException' in str(errvalue):
-                dsList = []
-                tmpLog.debug('got '+str(dsList))
-                return self.SC_SUCCEEDED,dsList
             errCode = self.checkError(errtype)
             errStr = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errStr)
@@ -762,9 +713,7 @@ class AtlasDDMClient(DDMClientBase):
             else:
                 # register container
                 client.add_container(scope=scope,name=dsn[:-1])
-        except (DQContainerExistsException,
-                DQDatasetExistsException,
-                DataIdentifierAlreadyExists): 
+        except DataIdentifierAlreadyExists: 
             pass
         except:
             errtype,errvalue = sys.exc_info()[:2]
@@ -865,15 +814,26 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # get DQ2 API
-            if backEnd == None:
-                dq2 = DQ2()
-            else:
-                dq2 = DQ2(force_backend=backEnd)
-            # add
-            dq2.registerDatasetsInContainer(containerName,datasetNames)
-        except DQContainerAlreadyHasDataset:
-            pass
+            # get Rucio API
+            client = RucioClient()
+            c_scope,c_name = self.extract_scope(containerName)
+            if c_name.endswith('/'):
+                c_name = c_name[:-1]
+            dsns = []
+            for ds in datasetNames:
+                ds_scope, ds_name = self.extract_scope(ds)
+                dsn = {'scope': ds_scope, 'name': ds_name}
+                dsns.append(dsn)
+            try:
+                # add datasets
+                client.add_datasets_to_container(scope=c_scope, name=c_name, dsns=dsns)
+            except DuplicateContent:
+                # add datasets one by one
+                for ds in dsns:
+                    try:
+                        client.add_datasets_to_container(scope=c_scope, name=c_name, dsns=[ds])
+                    except DuplicateContent:
+                        pass
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
@@ -893,7 +853,7 @@ class AtlasDDMClient(DDMClientBase):
         # get ddo datasets
         tmpStat,ddoDatasets = self.listDatasets('ddo.*')
         if tmpStat != self.SC_SUCCEEDED or ddoDatasets == {}:
-            tmpLog.error('failed to get a list of DBRelease datasets from DQ2')
+            tmpLog.error('failed to get a list of DBRelease datasets from DDM')
             return self.SC_FAILED,None
         # reverse sort to avoid redundant lookup   
         ddoDatasets.sort()
@@ -969,7 +929,7 @@ class AtlasDDMClient(DDMClientBase):
             latestDBR = tmpName
         # failed
         if latestDBR == '':
-            tmpLog.error('failed to get the latest version of DBRelease dataset from DQ2')
+            tmpLog.error('failed to get the latest version of DBRelease dataset from DDM')
             return self.SC_FAILED,None
         tmpLog.debug('use {0}'.format(latestDBR))
         return self.SC_SUCCEEDED,latestDBR
@@ -1021,7 +981,7 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug('start')
         try:
             # cleanup DN
-            userName = parse_dn(userName)
+            userName = self.parse_dn(userName)
             # get rucio API
             client = RucioClient()
             userInfo = None
@@ -1048,31 +1008,6 @@ class AtlasDDMClient(DDMClientBase):
             return errCode,'{0}:{1}'.format(methodName,errMsg)
         tmpLog.debug('done with '+str(tmpRet))
         return self.SC_SUCCEEDED,tmpRet
-
-
-
-    # set dataset ownership
-    def setDatasetOwner(self,datasetName,userName,backEnd='rucio'):
-        methodName = 'setDatasetOwner'
-        methodName = '{0} datasetName={1} userName={2}'.format(methodName,datasetName,userName)
-        tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
-        try:
-            if backEnd == 'dq2':
-                # cleanup DN
-                userName = parse_dn(userName)
-                # get DQ2 API            
-                dq2=DQ2()
-                # set
-                dq2.setMetaDataAttribute(datasetName,'owner',userName)
-        except:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
-            tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
-        tmpLog.debug('done')
-        return self.SC_SUCCEEDED,True
 
 
 
@@ -1114,7 +1049,7 @@ class AtlasDDMClient(DDMClientBase):
             # get rucio API
             client = RucioClient()
             # cleanup DN
-            owner = parse_dn(owner)
+            owner = self.parse_dn(owner)
             # get scope and name
             scope,dsn = self.extract_scope(datasetName)
             # lifetime
@@ -1164,18 +1099,22 @@ class AtlasDDMClient(DDMClientBase):
         retStr = ''
         nFiles = -1
         try:
-            # get DQ2 API            
-            dq2=DQ2()
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
             # get the number of files
             if emptyOnly:
-                nFiles = dq2.getNumberOfFiles(datasetName)
+                nFiles = 0
+                for x in client.list_files(scope, dsn, long=long):
+                    nFiles += 1
             # erase
             if not emptyOnly or nFiles == 0:
-                dq2.eraseDataset(datasetName)
+                client.set_metadata(scope=scope, name=dsn, key='lifetime', value=0.0001)
                 retStr = 'deleted {0}'.format(datasetName)
             else:
                 retStr = 'keep {0} where {1} files are available'.format(datasetName,nFiles)
-        except DQUnknownDatasetException:
+        except DataIdentifierNotFound:
             if ignoreUnknown:
                 pass
             else:
@@ -1285,7 +1224,7 @@ class AtlasDDMClient(DDMClientBase):
                     return tmpStat,seStr
                 tmpMatch = re.search('://([^:/]+):*\d*/',seStr)
                 if tmpMatch != None:
-                    se = tmpMatch.group(1)
+                    se = tmpEndPoint
                     if not se in lfcSeMap[lfc]:
                         lfcSeMap[lfc].append(se)
             # get SURLs

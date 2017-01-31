@@ -116,11 +116,7 @@ def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
                 tmpStatistics = replicaMap[datasetName][tmpSE][-1] 
                 if tmpStatistics['found'] == None:
                     tmpDatasetStatus = 'unknown'
-                    # refresh request
-                    try:
-                        ddmIF.checkDatasetConsistency(tmpSE,datasetName)
-                    except:
-                        pass
+                    pass
                 elif tmpStatistics['total'] == tmpStatistics['found'] and tmpStatistics['total'] >= totalNumDatasets:
                     tmpDatasetStatus = 'complete'
                 else:
@@ -271,10 +267,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
                 if tmpStatistics['found'] == None:
                     tmpDatasetStatus = 'unknown'
                     # refresh request
-                    try:
-                        ddmIF.checkDatasetConsistency(tmpSE,datasetName)
-                    except:
-                        pass
+                    pass
                 elif tmpStatistics['total'] == tmpStatistics['found']:
                     tmpDatasetStatus = 'complete'
                 else:
