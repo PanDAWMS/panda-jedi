@@ -590,6 +590,7 @@ class AtlasDDMClient(DDMClientBase):
             dids   = []
             for guid,lfn in files.iteritems():
                 iGUID += 1
+                scope = scopes[lfn]
                 dids.append({'scope':scope,'name':lfn})
                 if len(dids) % nGUID == 0 or iGUID == len(files):
                     for tmpDict in client.list_replicas(dids,['srm']):
