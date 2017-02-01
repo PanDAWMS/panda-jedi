@@ -3256,7 +3256,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                 if subTotEvtSecond < targetEvents:
                                                     enoughSecondary = False
                                                     break
-                                            break
                                         if enoughSecondary:
                                             break
                                         # duplicate files for reuse
