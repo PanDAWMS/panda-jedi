@@ -3238,8 +3238,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         # check if enough events were read
                                         totEvtSecond = 0
                                         secIndex = 0
-                                        enoughSecondary = True
+                                        enoughSecondary = False
                                         if tmpDatasetSpec.getEventRatio() is not None:
+                                            enoughSecondary = True
                                             for evtMaster in totalEvents[inputChunk.masterDataset.datasetID]:
                                                 targetEvents = evtMaster * tmpDatasetSpec.getEventRatio()
                                                 targetEvents = long(math.ceil(targetEvents))
