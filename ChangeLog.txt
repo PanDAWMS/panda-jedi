@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/7/2017
+  * added DISK_THRESHOLD_xyz in AtlasPTB
+
 * 1/31/2017
   * removed dq2 dependency
   * changed not to change oldstatus when throttled->paused

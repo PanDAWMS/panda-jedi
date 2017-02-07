@@ -218,7 +218,8 @@ class AtlasProdTaskBroker (TaskBrokerBase):
             for iWorker in range(4):
                 thr = AtlasProdTaskBrokerThread(inputListWorld,threadPool,
                                                 self.taskBufferIF,ddmIF,
-                                                fullRWs,liveCounter)
+                                                fullRWs,liveCounter,
+                                                workQueue)
                 thr.start()
             threadPool.join(60*10)
         # return
@@ -307,7 +308,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
 
     # constructor
     def __init__(self,inputList,threadPool,taskbufferIF,ddmIF,
-                 fullRW,prioRW):
+                 fullRW,prioRW,workQueue):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -318,6 +319,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
         self.fullRW       = fullRW
         self.prioRW       = prioRW
         self.numTasks     = 0
+        self.workQueue    = workQueue
 
 
     # wrapper for return
@@ -330,7 +332,10 @@ class AtlasProdTaskBrokerThread (WorkerThread):
     # main function
     def runImpl(self):
         # cutoff for disk in TB
-        diskThreshold = 100 * 1024
+        diskThreshold = self.taskBufferIF.getConfigValue(self.msgType, 'DISK_THRESHOLD_{0}'.format(self.workQueue.queue_name),
+                                                         'jedi', 'atlas')
+        if diskThreshold is None:
+            diskThreshold = 100 * 1024
         # dataset type to ignore file availability check
         datasetTypeToSkipCheck = ['log']
         # thresholds for data availability check
@@ -452,7 +457,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     # 0.25GB per cpuTime/corePower/day
                                     tmpSpaceToUse = long(self.fullRW[tmpNucleus]/10/24/3600*0.25)
                                 if tmpSpaceSize-tmpSpaceToUse < diskThreshold:
-                                    tmpLog.debug('  skip nucleus={0} since disk shortage (free {1} + reserved {2} < thr {3}) at endpoint {4} criteria=-space'.format(tmpNucleus,
+                                    tmpLog.debug('  skip nucleus={0} since disk shortage (free {1} - reserved {2} < thr {3}) at endpoint {4} criteria=-space'.format(tmpNucleus,
                                                                                                                                                                      tmpSpaceSize,
                                                                                                                                                                      tmpSpaceToUse,
                                                                                                                                                                      diskThreshold,
@@ -477,7 +482,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             if not toSkip:
                                 newNucleusList[tmpNucleus] = tmpNucleusSpec
                         nucleusList = newNucleusList
-                        tmpLog.debug('{0} candidates passed endpoint check'.format(len(nucleusList)))
+                        tmpLog.debug('{0} candidates passed endpoint check {1} TB'.format(len(nucleusList),diskThreshold/1024))
                         if nucleusList == {}:
                             tmpLog.error('no candidates')
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
