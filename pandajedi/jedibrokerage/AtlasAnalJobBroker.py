@@ -299,7 +299,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if tmpEndPoint is not None:
                 # free space must be >= 200GB
                 diskThreshold = 200
-                tmpSpaceSize = tmpEndPoint['space_expired'] + tmpEndPoint['space_free']
+                tmpSpaceSize = 0
+                if tmpEndPoint['space_expired'] is not None:
+                    tmpSpaceSize += tmpEndPoint['space_expired']
+                if tmpEndPoint['space_free'] is not None:
+                    tmpSpaceSize += tmpEndPoint['space_free']
                 if tmpSpaceSize < diskThreshold:
                     tmpLog.debug('  skip site={0} due to disk shortage in SE {1} < {2}GB criteria=-disk'.format(tmpSiteName,tmpSpaceSize,
                                                                                             diskThreshold))

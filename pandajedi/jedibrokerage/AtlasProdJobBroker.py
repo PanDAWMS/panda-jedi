@@ -657,7 +657,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpEndPoint = tmpSiteSpec.ddm_endpoints.getEndPoint(tmpSiteSpec.ddm)
                 if tmpEndPoint != None:
                     # check free size
-                    tmpSpaceSize = tmpEndPoint['space_free'] + tmpEndPoint['space_expired']
+                    tmpSpaceSize = 0
+                    if tmpEndPoint['space_free'] is not None:
+                        tmpSpaceSize += tmpEndPoint['space_free']
+                    if tmpEndPoint['space_expired'] is not None:
+                        tmpSpaceSize += tmpEndPoint['space_expired']
                     diskThreshold = 200
                     if tmpSpaceSize < diskThreshold:
                         tmpLog.debug('  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName,tmpSiteSpec.ddm,
