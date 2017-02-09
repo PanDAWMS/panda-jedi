@@ -114,7 +114,7 @@ class ContentsFeederThread (WorkerThread):
                     runningTask = False
                     missingMap = {}
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(jediTaskID))
+                    tmpLog = MsgWrapper(self.logger,'< jediTaskID={0} >'.format(jediTaskID))
                     # get task
                     tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID,False,True,self.pid,10)
                     if not tmpStat or taskSpec == None:
@@ -170,9 +170,9 @@ class ContentsFeederThread (WorkerThread):
                         if taskParamMap.has_key('nFiles'):
                             origNumFiles = taskParamMap['nFiles']
                         for datasetSpec in dsList:
-                            tmpLog.info('start loop for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))
+                            tmpLog.debug('start loop for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))
                             # get dataset metadata
-                            tmpLog.info('get metadata')
+                            tmpLog.debug('get metadata')
                             gotMetadata = False
                             stateUpdateTime = datetime.datetime.utcnow()                    
                             try:
@@ -220,7 +220,7 @@ class ContentsFeederThread (WorkerThread):
                                 else:
                                     getNumEvents = False
                                 # get file list from DDM
-                                tmpLog.info('get files')
+                                tmpLog.debug('get files')
                                 try:
                                     useInFilesWithNewAttemptNr = False
                                     skipDuplicate = not datasetSpec.useDuplicatedFiles()
@@ -240,13 +240,13 @@ class ContentsFeederThread (WorkerThread):
                                                                          skipDuplicate=skipDuplicate,
                                                                          longFormat=longFormat
                                                                          )
-                                        tmpLog.info('got {0} files in {1}'.format(len(tmpRet),tmpDatasetName))
+                                        tmpLog.debug('got {0} files in {1}'.format(len(tmpRet),tmpDatasetName))
                                         # remove lost files
                                         tmpLostFiles = ddmIF.findLostFiles(tmpDatasetName,tmpRet)
                                         if tmpLostFiles != {}:
-                                            tmpLog.info('found {0} lost files in {1}'.format(len(tmpLostFiles),tmpDatasetName))
+                                            tmpLog.debug('found {0} lost files in {1}'.format(len(tmpLostFiles),tmpDatasetName))
                                             for tmpListGUID,tmpLostLFN in tmpLostFiles.iteritems():
-                                                tmpLog.info('removed {0}'.format(tmpLostLFN))
+                                                tmpLog.debug('removed {0}'.format(tmpLostLFN))
                                                 del tmpRet[tmpListGUID]
                                     else:
                                         if datasetSpec.isSeqNumber():
@@ -415,7 +415,7 @@ class ContentsFeederThread (WorkerThread):
                                     ramCount = 0
 
                                     # feed files to the contents table
-                                    tmpLog.info('update contents')
+                                    tmpLog.debug('update contents')
                                     retDB,missingFileList,nFilesUnique,diagMap = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
                                                                                                                               tmpMetadata['state'],
                                                                                                                               stateUpdateTime,
@@ -452,12 +452,12 @@ class ContentsFeederThread (WorkerThread):
                                     elif retDB == None:
                                         # the dataset is locked by another or status is not applicable
                                         allUpdated = False
-                                        tmpLog.info('escape since task or dataset is locked')
+                                        tmpLog.debug('escape since task or dataset is locked')
                                         break
                                     elif missingFileList != []:
                                         # files are missing
                                         tmpErrStr = '{0} files missing in {1}'.format(len(missingFileList),datasetSpec.datasetName)
-                                        tmpLog.info(tmpErrStr)
+                                        tmpLog.debug(tmpErrStr)
                                         taskSpec.setErrDiag(tmpErrStr)
                                         allUpdated = False
                                         taskOnHold = True
@@ -483,12 +483,12 @@ class ContentsFeederThread (WorkerThread):
                                             and tmpMetadata['state'] != 'closed' and datasetSpec.isMaster():
                                         tmpErrStr = 'insufficient inputs are ready. '
                                         tmpErrStr += diagMap['errMsg']
-                                        tmpLog.info(tmpErrStr)
+                                        tmpLog.debug(tmpErrStr)
                                         taskSpec.setErrDiag(tmpErrStr)
                                         taskOnHold = True
                                         setFrozenTime = False
                                         break
-                            tmpLog.info('end loop')
+                            tmpLog.debug('end loop')
                     # no mater input
                     if not taskOnHold and not taskBroken and allUpdated and nFilesMaster == 0 and checkedMaster:
                         tmpErrStr = 'no master input files. input dataset is empty'
@@ -525,12 +525,12 @@ class ContentsFeederThread (WorkerThread):
                             tmpLog.sendMsg(tmpMsg,self.msgType)
                         # just unlock
                         retUnlock = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID,self.pid)
-                        tmpLog.info('unlock not-running task with {0}'.format(retUnlock))
+                        tmpLog.debug('unlock not-running task with {0}'.format(retUnlock))
                     else:
                         # just unlock
                         retUnlock = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID,self.pid)
-                        tmpLog.info('unlock task with {0}'.format(retUnlock))
-                    tmpLog.info('done')
+                        tmpLog.debug('unlock task with {0}'.format(retUnlock))
+                    tmpLog.debug('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))

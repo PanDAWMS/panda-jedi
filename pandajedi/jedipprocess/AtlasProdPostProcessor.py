@@ -41,7 +41,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                         return self.SC_FAILED
                     # get files in dataset
                     ddmFiles = ddmIF.getFilesInDataset(datasetSpec.datasetName,skipDuplicate=False,ignoreUnknown=True)
-                    tmpLog.info('datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM'.format(datasetSpec.datasetID,
+                    tmpLog.debug('datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM'.format(datasetSpec.datasetID,
                                                                                                       datasetSpec.datasetName,
                                                                                                       len(okFiles),len(ddmFiles)))
                     # check all files
@@ -50,7 +50,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                         if attMap['lfn'] not in okFiles:
                             did = {'scope':attMap['scope'], 'name':attMap['lfn']}
                             toDelete.append(did)
-                            tmpLog.info('delete {0} from {1}'.format(attMap['lfn'],datasetSpec.datasetName))
+                            tmpLog.debug('delete {0} from {1}'.format(attMap['lfn'],datasetSpec.datasetName))
                     # delete
                     if toDelete != []:
                         ddmIF.deleteFilesFromDataset(datasetSpec.datasetName,toDelete)
@@ -70,7 +70,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
             try:
                 # delete transient datasets
                 if datasetSpec.type in ['trn_output']:
-                    tmpLog.info('deleting datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
+                    tmpLog.debug('deleting datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
                     retStr = ddmIF.deleteDataset(datasetSpec.datasetName,False,ignoreUnknown=True)
                     tmpLog.info(retStr)
             except:
@@ -80,22 +80,22 @@ class AtlasProdPostProcessor (PostProcessorBase):
                 # delete ES datasets
                 if taskSpec.useEventService() and not taskSpec.useJobCloning() and datasetSpec.type == 'output':
                     targetName = datasetSpec.datasetName +  EventServiceUtils.esSuffixDDM
-                    tmpLog.info('deleting ES DS dataName={0}'.format(targetName))
+                    tmpLog.debug('deleting ES DS dataName={0}'.format(targetName))
                     retStr = ddmIF.deleteDataset(targetName,False,ignoreUnknown=True)
-                    tmpLog.info(retStr)
+                    tmpLog.debug(retStr)
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.warning('failed to delete ES DS with {0}:{1}'.format(errtype.__name__,errvalue))
         # check duplication
         if self.getFinalTaskStatus(taskSpec) in ['finished','done']:
             nDup = self.taskBufferIF.checkDuplication_JEDI(taskSpec.jediTaskID)
-            tmpLog.info('checked duplication with {0}'.format(nDup))
+            tmpLog.debug('checked duplication with {0}'.format(nDup))
             if nDup > 0:
                 errStr = 'paused since {0} duplication found'.format(nDup)
                 taskSpec.oldStatus = self.getFinalTaskStatus(taskSpec)
                 taskSpec.status = 'paused'
                 taskSpec.setErrDiag(errStr)
-                tmpLog.info(errStr)
+                tmpLog.debug(errStr)
         # set del flag to event ranges
         """ temporarily disabled until Oracle migrates to new RAC
         if taskSpec.useEventService() and not taskSpec.useJobCloning():
@@ -128,7 +128,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
             for datasetSpec in taskSpec.datasetSpecList:
                 if datasetSpec.type in ['log','output']:
                     if datasetSpec.getTransient() == True:
-                        tmpLog.info('set metadata={0} to datasetID={1}:Name={2}'.format(str(metaData),
+                        tmpLog.debug('set metadata={0} to datasetID={1}:Name={2}'.format(str(metaData),
                                                                                         datasetSpec.datasetID,
                                                                                         datasetSpec.datasetName))
                         for metadataName,metadaValue in metaData.iteritems():
@@ -162,7 +162,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                                     metaData = {'lifetime':trnLifeTime}
                                 tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
                                 if tmpMetadata['transient'] == True:
-                                    tmpLog.info('set metadata={0} to parent jediTaskID={1}:datasetID={2}:Name={3}'.format(str(metaData),
+                                    tmpLog.debug('set metadata={0} to parent jediTaskID={1}:datasetID={2}:Name={3}'.format(str(metaData),
                                                                                                                           taskSpec.parent_tid,
                                                                                                                           datasetSpec.datasetID,
                                                                                                                           datasetSpec.datasetName))
@@ -176,7 +176,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                 try:
                     if datasetSpec.type == 'output' and datasetSpec.nFilesFinished == 0:
                         tmpStat = ddmIF.deleteDataset(datasetSpec.datasetName,True,True)
-                        tmpLog.info('delete empty prod dataset {0} with {1}'.format(datasetSpec.datasetName,tmpStat))
+                        tmpLog.debug('delete empty prod dataset {0} with {1}'.format(datasetSpec.datasetName,tmpStat))
                 except:
                     errtype,errvalue = sys.exc_info()[:2]
                     tmpLog.warning('failed to delete empty dataset with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -188,7 +188,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
             metaData = {'lifetime':trnLifeTime}
             for datasetSpec in taskSpec.datasetSpecList:
                 if datasetSpec.type in ['log']:
-                    tmpLog.info('set metadata={0} to failed datasetID={1}:Name={2}'.format(str(metaData),
+                    tmpLog.debug('set metadata={0} to failed datasetID={1}:Name={2}'.format(str(metaData),
                                                                                            datasetSpec.datasetID,
                                                                                            datasetSpec.datasetName))
                     for metadataName,metadaValue in metaData.iteritems():

@@ -1126,6 +1126,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if self.nwActive:
                     weight *= weightNw
 
+                tmpLog.info('subject=network_data jeditaskid={0} src={1} dst={2} weight={3} weightNw={4} '
+                            'weightNwThroughput={5} weightNwQueued={6} mbps={7} closeness={8} nqueued={9}'
+                            .format(taskSpec.jediTaskID, tmpAtlasSiteName, nucleus, weight, weightNw,
+                                    weightNwThroughput, weightNwQueue, mbps, closeness, nFilesInQueue))
+
                 self.sendNetworkMessage(taskSpec.jediTaskID, tmpAtlasSiteName, nucleus, weight, weightNw,
                                         weightNwThroughput, weightNwQueue, mbps, closeness,
                                         nFilesInQueue, tmpLog)

@@ -95,7 +95,6 @@ class TaskCommandoThread (WorkerThread):
         self.msgType = 'taskcommando'
 
 
-
     # main
     def runImpl(self):
         while True:
@@ -110,7 +109,7 @@ class TaskCommandoThread (WorkerThread):
                 # loop over all tasks
                 for jediTaskID,commandMap in taskList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,' <jediTaskID={0}>'.format(jediTaskID))
+                    tmpLog = MsgWrapper(self.logger,' < jediTaskID={0} >'.format(jediTaskID))
                     commandStr = commandMap['command']
                     commentStr = commandMap['comment']
                     oldStatus  = commandMap['oldStatus']
@@ -118,6 +117,7 @@ class TaskCommandoThread (WorkerThread):
                     tmpStat = Interaction.SC_SUCCEEDED
                     if commandStr in ['kill','finish','reassign']:
                         tmpMsg = 'executing {0}'.format(commandStr)
+                        tmpLog.info(tmpMsg)
                         tmpLog.sendMsg(tmpMsg,self.msgType)
                         # loop twice to see immediate result
                         for iLoop in range(2):
@@ -206,6 +206,7 @@ class TaskCommandoThread (WorkerThread):
                                         tmpLog.info('done with {0}'.format(str(tmpRet)))
                     elif commandStr in ['retry','incexec']:
                         tmpMsg = 'executing {0}'.format(commandStr)
+                        tmpLog.info(tmpMsg)
                         tmpLog.sendMsg(tmpMsg,self.msgType)
                         # change task params for incexec
                         if commandStr == 'incexec':

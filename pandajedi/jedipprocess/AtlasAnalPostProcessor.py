@@ -59,7 +59,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                         return self.SC_FAILED
                     # get files in dataset
                     ddmFiles = ddmIF.getFilesInDataset(datasetSpec.datasetName,skipDuplicate=False)
-                    tmpLog.info('datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM'.format(datasetSpec.datasetID,
+                    tmpLog.debug('datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM'.format(datasetSpec.datasetID,
                                                                                                       datasetSpec.datasetName,
                                                                                                       len(okFiles),len(ddmFiles)))
                     # check all files
@@ -68,17 +68,17 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                         if attMap['lfn'] not in okFiles:
                             did = {'scope':attMap['scope'], 'name':attMap['lfn']}
                             toDelete.append(did)
-                            tmpLog.info('delete {0} from {1}'.format(attMap['lfn'],datasetSpec.datasetName))
+                            tmpLog.debug('delete {0} from {1}'.format(attMap['lfn'],datasetSpec.datasetName))
                     # delete
                     if toDelete != []:
                         ddmIF.deleteFilesFromDataset(datasetSpec.datasetName,toDelete)
                 # freeze datasets
                 if not closedFlag and not (datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']):
-                    tmpLog.info('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
+                    tmpLog.debug('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
                     ddmIF.freezeDataset(datasetSpec.datasetName,ignoreUnknown=True)
                 else:
                     if datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']:
-                        tmpLog.info('skip freezing transient datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
+                        tmpLog.debug('skip freezing transient datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
                 # update dataset
                 datasetSpec.state = 'closed'
                 datasetSpec.stateCheckTime = datetime.datetime.utcnow()
@@ -93,7 +93,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                     if datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']:
                         emptyOnly = False
                     retStr = ddmIF.deleteDataset(datasetSpec.datasetName,emptyOnly,ignoreUnknown=True)
-                    tmpLog.info(retStr)
+                    tmpLog.debug(retStr)
                 # update dataset in DB
                 self.taskBufferIF.updateDatasetAttributes_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID,
                                                                {'state':datasetSpec.state,
@@ -133,7 +133,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
             tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
         if toAdd == None or \
                 (self.taskParamMap != None and self.taskParamMap.has_key('noEmail') and self.taskParamMap['noEmail'] == True):
-            tmpLog.info('email notification is suppressed')
+            tmpLog.debug('email notification is suppressed')
         else:
             # send email notification
             fromAdd = self.senderAddress()

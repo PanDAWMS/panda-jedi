@@ -112,13 +112,13 @@ class TaskRefinerThread (WorkerThread):
                 taskList = self.taskList.get(nTasks)
                 # no more datasets
                 if len(taskList) == 0:
-                    self.logger.debug('{0} terminating since no more items'.format(self.__class__.__name__))
+                    self.logger.info('{0} terminating since no more items'.format(self.__class__.__name__))
                     return
                 # loop over all tasks
                 for jediTaskID,splitRule,taskStatus,parent_tid in taskList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(jediTaskID))
-                    tmpLog.info('start')
+                    tmpLog = MsgWrapper(self.logger,'< jediTaskID={0} >'.format(jediTaskID))
+                    tmpLog.debug('start')
                     tmpStat = Interaction.SC_SUCCEEDED
                     errStr = ''
                     # read task parameters
@@ -129,7 +129,7 @@ class TaskRefinerThread (WorkerThread):
                     except:
                         errtype,errvalue = sys.exc_info()[:2]
                         errStr = 'conversion to map from json failed with {0}:{1}'.format(errtype.__name__,errvalue)
-                        tmpLog.error(taskParam)
+                        tmpLog.debug(taskParam)
                         tmpLog.error(errStr)
                         continue
                         tmpStat = Interaction.SC_FAILED
@@ -157,7 +157,7 @@ class TaskRefinerThread (WorkerThread):
                             tmpStat = Interaction.SC_FAILED
                     # extract common parameters
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        tmpLog.info('extracting common')                    
+                        tmpLog.info('extracting common')
                         try:
                             # initalize impl
                             impl.initializeRefiner(tmpLog)

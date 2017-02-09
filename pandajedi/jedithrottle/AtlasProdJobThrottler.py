@@ -44,13 +44,13 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         # check cloud status
         if not self.siteMapper.checkCloud(cloudName):
             msgBody = "SKIP cloud={0} undefined".format(cloudName)
-            tmpLog.debug(msgHeader+" "+msgBody)
+            tmpLog.warning(msgHeader+" "+msgBody)
             tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
             return self.retThrottled
         cloudSpec = self.siteMapper.getCloud(cloudName)
         if cloudSpec['status'] in ['offline']:
             msgBody = "SKIP cloud.status={0}".format(cloudSpec['status'])
-            tmpLog.debug(msgHeader+" "+msgBody)
+            tmpLog.warning(msgHeader+" "+msgBody)
             tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
             return self.retThrottled
         if cloudSpec['status'] in ['test']:
@@ -58,7 +58,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 msgBody = "SKIP cloud.status={0} for non test queue ({1})".format(cloudSpec['status'],
                                                                                   workQueue.queue_name)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning')
-                tmpLog.debug(msgHeader+" "+msgBody)
+                tmpLog.warning(msgHeader+" "+msgBody)
                 return self.retThrottled
         # check if unthrottled
         if workQueue.queue_share == None:
@@ -160,7 +160,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 # pilot is not running or DDM has a problem
                 msgBody = "SKIP no running and enough nQueued({0})>{1} totWalltime({2})>{3} ".format(nNotRun+nDefine,nQueueLimit,
                                                                                                      totWalltime,minTotalWalltime)
-                tmpLog.debug(msgHeader+" "+msgBody)
+                tmpLog.warning(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
         elif nRunning != 0 and float(nNotRun+nDefine)/float(nRunning) > threshold and \
@@ -172,7 +172,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                                                                                                                threshold,nNotRun+nDefine,
                                                                                                                nQueueLimit,
                                                                                                                totWalltime,minTotalWalltime)
-                tmpLog.debug(msgHeader+" "+msgBody)
+                tmpLog.warning(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
         elif nDefine > nQueueLimit:
@@ -180,7 +180,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             if not highPrioQueued:
                 # brokerage is stuck
                 msgBody = "SKIP too many nDefined({0})>{1}".format(nDefine,nQueueLimit)
-                tmpLog.debug(msgHeader+" "+msgBody)
+                tmpLog.warning(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
         elif nWaiting > nRunning*nWaitingLimit and nWaiting > nJobsInBunch*nWaitingBunchLimit:
@@ -189,7 +189,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 # too many waiting
                 msgBody = "SKIP too many nWaiting({0})>max(nRunning({1})x{2},{3}x{4})".format(nWaiting,nRunning,nWaitingLimit,
                                                                                               nJobsInBunch,nWaitingBunchLimit)
-                tmpLog.debug(msgHeader+" "+msgBody)
+                tmpLog.warning(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
         elif nRunningCap is not None and nRunning > nRunningCap:
@@ -197,7 +197,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             if not highPrioQueued:
                 # cap on running
                 msgBody = "SKIP nRunning({0})>nRunningCap({1})".format(nRunning,nRunningCap)
-                tmpLog.debug(msgHeader+" "+msgBody)
+                tmpLog.warning(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
         elif nQueueCap is not None and nNotRun+nDefine > nQueueCap:
@@ -205,7 +205,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             if not highPrioQueued:
                 # cap on queued
                 msgBody = "SKIP nQueue({0})>nQueueCap({1})".format(nNotRun+nDefine,nQueueCap)
-                tmpLog.debug(msgHeader+" "+msgBody)
+                tmpLog.warning(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
         # get jobs from prodDB

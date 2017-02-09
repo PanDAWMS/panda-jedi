@@ -405,11 +405,13 @@ class JobGeneratorThread (WorkerThread):
                     self.logger.debug('{0} terminating after generating {1} jobs since no more inputs '.format(self.__class__.__name__,
                                                                                                                self.numGenJobs))
                     if self.numGenJobs > 0:
+                        prefix = '<VO={0} queue_type={1} cloud={2} queue={3}>'.format(self.workQueue.VO,
+                                                                                      self.workQueue.queue_type,
+                                                                                      self.cloud,
+                                                                                      self.workQueue.queue_name)
                         tmpMsg = ": submitted {0} jobs".format(self.numGenJobs)
-                        tmpLog = MsgWrapper(self.logger,monToken='<{0}:{1} cloud={2} queue={3}>'.format(self.workQueue.VO,
-                                                                                                        self.workQueue.queue_type,
-                                                                                                        self.cloud,
-                                                                                                        self.workQueue.queue_name))
+                        tmpLog = MsgWrapper(self.logger,monToken=prefix)
+                        tmpLog.info(prefix + tmpMsg)
                         tmpLog.sendMsg(tmpMsg,self.msgType)
                     return
                 # loop over all tasks
@@ -426,8 +428,8 @@ class JobGeneratorThread (WorkerThread):
                         tmpLog = MsgWrapper(self.logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,
                                                                                                 inputChunk.masterIndexName),
                                             monToken='<jediTaskID={0}>'.format(taskSpec.jediTaskID))
-                        tmpLog.info('start with VO={0} cloud={1} queue={2}'.format(taskSpec.vo,cloudName,
-                                                                                   self.workQueue.queue_name))
+                        tmpLog.info('start to generate with VO={0} cloud={1} queue={2}'.format(taskSpec.vo,cloudName,
+                                                                                               self.workQueue.queue_name))
                         tmpLog.sendMsg('start to generate jobs',self.msgType)
                         readyToSubmitJob = False
                         jobsSubmitted = False
@@ -462,11 +464,11 @@ class JobGeneratorThread (WorkerThread):
                         lockCounter = False
                         if goForward:
                             if self.liveCounter != None and not inputChunk.isMerging and not self.lackOfJobs:
-                                tmpLog.info('trying to lock counter')
+                                tmpLog.debug('trying to lock counter')
                                 self.liveCounter.acquire() 
-                                tmpLog.info('locked counter')
+                                tmpLog.debug('locked counter')
                                 lockCounter = True
-                            tmpLog.info('run brokerage with {0}'.format(jobBroker.getClassName(taskSpec.vo,
+                            tmpLog.debug('run brokerage with {0}'.format(jobBroker.getClassName(taskSpec.vo,
                                                                                                taskSpec.prodSourceLabel)))
                             try:
                                 tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,taskParamMap)
@@ -487,7 +489,7 @@ class JobGeneratorThread (WorkerThread):
                                     self.brokerageLockIDs.append(brokerageLockID)
                         # run splitter
                         if goForward:
-                            tmpLog.info('run splitter')
+                            tmpLog.debug('run splitter')
                             splitter = JobSplitter()
                             try:
                                 tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
@@ -502,9 +504,9 @@ class JobGeneratorThread (WorkerThread):
                                 # update counter
                                 if self.liveCounter != None and not inputChunk.isMerging:
                                     if not lockCounter:
-                                        tmpLog.info('trying to lock counter')
+                                        tmpLog.debug('trying to lock counter')
                                         self.liveCounter.acquire()
-                                        tmpLog.info('locked counter')
+                                        tmpLog.debug('locked counter')
                                         lockCounter = True
                                     for tmpSubChunk in subChunks:
                                         self.liveCounter.add(tmpSubChunk['siteName'],len(tmpSubChunk['subChunks']))
@@ -520,18 +522,18 @@ class JobGeneratorThread (WorkerThread):
                                 goForward = False
                         # release lock
                         if lockCounter:
-                            tmpLog.info('release counter')
+                            tmpLog.debug('release counter')
                             self.liveCounter.release() 
                         # lock task
                         if goForward:
-                            tmpLog.info('lock task')
+                            tmpLog.debug('lock task')
                             tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
                             if tmpStat == False:
-                                tmpLog.info('skip due to lock failure')
+                                tmpLog.debug('skip due to lock failure')
                                 continue
                         # generate jobs
                         if goForward:
-                            tmpLog.info('run job generator')
+                            tmpLog.debug('run job generator')
                             try:
                                 tmpStat,pandaJobs,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap = self.doGenerate(taskSpec,cloudName,subChunks,
                                                                                                                           inputChunk,tmpLog,
@@ -549,14 +551,14 @@ class JobGeneratorThread (WorkerThread):
                                 goForward = False
                         # lock task
                         if goForward:
-                            tmpLog.info('lock task')
+                            tmpLog.debug('lock task')
                             tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
                             if tmpStat == False:
-                                tmpLog.info('skip due to lock failure')
+                                tmpLog.debug('skip due to lock failure')
                                 continue
                         # setup task
                         if goForward:
-                            tmpLog.info('run setupper with {0}'.format(self.taskSetupper.getClassName(taskSpec.vo,
+                            tmpLog.debug('run setupper with {0}'.format(self.taskSetupper.getClassName(taskSpec.vo,
                                                                                                       taskSpec.prodSourceLabel)))
                             tmpStat = self.taskSetupper.doSetup(taskSpec,datasetToRegister,pandaJobs)
                             if tmpStat != Interaction.SC_SUCCEEDED:
@@ -570,10 +572,10 @@ class JobGeneratorThread (WorkerThread):
                                     taskSpec.registeredDatasets()
                         # lock task
                         if goForward:
-                            tmpLog.info('lock task')
+                            tmpLog.debug('lock task')
                             tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
                             if tmpStat == False:
-                                tmpLog.info('skip due to lock failure')
+                                tmpLog.debug('skip due to lock failure')
                                 continue
                         # submit
                         if readyToSubmitJob:
@@ -589,7 +591,7 @@ class JobGeneratorThread (WorkerThread):
                                 relationType = 'retry'
                             # submit
                             fqans = taskSpec.makeFQANs()
-                            tmpLog.info('submit {0} jobs with FQAN={1}'.format(len(pandaJobs),','.join(str(fqan) for fqan in fqans)))
+                            tmpLog.info('submit njobs={0} jobs with FQAN={1}'.format(len(pandaJobs),','.join(str(fqan) for fqan in fqans)))
                             resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,
                                                                     fqans=fqans,toPending=True,
                                                                     oldPandaIDs=oldPandaIDs,
@@ -638,10 +640,10 @@ class JobGeneratorThread (WorkerThread):
                             # the number of generated jobs     
                             self.numGenJobs += len(pandaIDs)    
                         # lock task
-                        tmpLog.info('lock task')
+                        tmpLog.debug('lock task')
                         tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
                         if tmpStat == False:
-                            tmpLog.info('skip due to lock failure')
+                            tmpLog.debug('skip due to lock failure')
                             continue
                         # reset unused files
                         nFileReset = self.taskBufferIF.resetUnusedFiles_JEDI(taskSpec.jediTaskID,inputChunk)
@@ -664,7 +666,8 @@ class JobGeneratorThread (WorkerThread):
                         if not taskSpec.errorDialog in ['',None]:
                             tmpMsg += ' ' + taskSpec.errorDialog
                         tmpLog.sendMsg(tmpMsg,self.msgType)
-                        tmpLog.info('done')
+                        tmpLog.info(tmpMsg)
+                        tmpLog.debug('done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('%s.runImpl() failed with %s %s lastJediTaskID=%s' % (self.__class__.__name__,errtype.__name__,errvalue,

@@ -373,7 +373,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),monToken='jediTaskID={0}'.format(taskSpec.jediTaskID))
                     tmpLog.debug('start')
-                    tmpLog.debug('thrInputSize:{0} thrInputNum:{1} thrInputSizeFrac:{2} thrInputNumFrac;{3}'.format(thrInputSize,
+                    tmpLog.info('thrInputSize:{0} thrInputNum:{1} thrInputSizeFrac:{2} thrInputNumFrac;{3}'.format(thrInputSize,
                                                                                                                     thrInputNum,
                                                                                                                     thrInputSizeFrac,
                                                                                                                     thrInputNumFrac))
@@ -384,18 +384,18 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     if taskSpec.nucleus in nucleusList:
                         candidateNucleus = taskSpec.nucleus
                     else:
-                        tmpLog.debug('got {0} candidates'.format(len(nucleusList)))
+                        tmpLog.info('got {0} candidates'.format(len(nucleusList)))
                         ######################################
                         # check status
                         newNucleusList = {}
                         for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
                             if not tmpNucleusSpec.state in ['ACTIVE']:
-                                tmpLog.debug('  skip nucleus={0} due to status={1} criteria=-status'.format(tmpNucleus,
+                                tmpLog.info('  skip nucleus={0} due to status={1} criteria=-status'.format(tmpNucleus,
                                                                                                             tmpNucleusSpec.state))
                             else:
                                 newNucleusList[tmpNucleus] = tmpNucleusSpec
                         nucleusList = newNucleusList
-                        tmpLog.debug('{0} candidates passed status check'.format(len(nucleusList)))
+                        tmpLog.info('{0} candidates passed status check'.format(len(nucleusList)))
                         if nucleusList == {}:
                             tmpLog.error('no candidates')
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -405,18 +405,18 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         # check status of transfer backlog
                         t1Weight = taskSpec.getT1Weight()
                         if t1Weight < 0:
-                            tmpLog.debug('skip transfer backlog check due to negative T1Weight')
+                            tmpLog.info('skip transfer backlog check due to negative T1Weight')
                         else:
                             newNucleusList = {}
                             backlogged_nuclei = self.taskBufferIF.getBackloggedNuclei()
                             for tmpNucleus, tmpNucleusSpec in nucleusList.iteritems():
                                 if tmpNucleus in backlogged_nuclei:
-                                    tmpLog.debug('  skip nucleus={0} due to long transfer backlog criteria=-transfer_backlog'.
+                                    tmpLog.info('  skip nucleus={0} due to long transfer backlog criteria=-transfer_backlog'.
                                                  format(tmpNucleus))
                                 else:
                                     newNucleusList[tmpNucleus] = tmpNucleusSpec
                             nucleusList = newNucleusList
-                            tmpLog.debug('{0} candidates passed transfer backlog check'.format(len(nucleusList)))
+                            tmpLog.info('{0} candidates passed transfer backlog check'.format(len(nucleusList)))
                             if nucleusList == {}:
                                 tmpLog.error('no candidates')
                                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -437,14 +437,14 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 # get endpoint with the pattern
                                 tmpEP = tmpNucleusSpec.getAssoicatedEndpoint(tmpDatasetSpec.storageToken)
                                 if tmpEP == None:
-                                    tmpLog.debug('  skip nucleus={0} since no endpoint with {1} criteria=-match'.format(tmpNucleus,
+                                    tmpLog.info('  skip nucleus={0} since no endpoint with {1} criteria=-match'.format(tmpNucleus,
                                                                                                                         tmpDatasetSpec.storageToken))
                                     toSkip = True
                                     break
                                 # check state
                                 """
                                 if not tmpEP['state'] in ['ACTIVE']:
-                                    tmpLog.debug('  skip nucleus={0} since endpoint {1} is in {2} criteria=-epstatus'.format(tmpNucleus,
+                                    tmpLog.info('  skip nucleus={0} since endpoint {1} is in {2} criteria=-epstatus'.format(tmpNucleus,
                                                                                                                              tmpEP['ddm_endpoint_name'],
                                                                                                                              tmpEP['state']))
                                     toSkip = True
@@ -457,7 +457,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     # 0.25GB per cpuTime/corePower/day
                                     tmpSpaceToUse = long(self.fullRW[tmpNucleus]/10/24/3600*0.25)
                                 if tmpSpaceSize-tmpSpaceToUse < diskThreshold:
-                                    tmpLog.debug('  skip nucleus={0} since disk shortage (free {1} - reserved {2} < thr {3}) at endpoint {4} criteria=-space'.format(tmpNucleus,
+                                    tmpLog.info('  skip nucleus={0} since disk shortage (free {1} - reserved {2} < thr {3}) at endpoint {4} criteria=-space'.format(tmpNucleus,
                                                                                                                                                                      tmpSpaceSize,
                                                                                                                                                                      tmpSpaceToUse,
                                                                                                                                                                      diskThreshold,
@@ -482,7 +482,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             if not toSkip:
                                 newNucleusList[tmpNucleus] = tmpNucleusSpec
                         nucleusList = newNucleusList
-                        tmpLog.debug('{0} candidates passed endpoint check {1} TB'.format(len(nucleusList),diskThreshold/1024))
+                        tmpLog.info('{0} candidates passed endpoint check {1} TB'.format(len(nucleusList),diskThreshold/1024))
                         if nucleusList == {}:
                             tmpLog.error('no candidates')
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -514,9 +514,9 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             if tmpNucleus in okNuclei:
                                 newNucleusList[tmpNucleus] = tmpNucleusSpec
                             else:
-                                tmpLog.debug('  skip nucleus={0} due to missing ability to run jobs criteria=-job'.format(tmpNucleus))
+                                tmpLog.info('  skip nucleus={0} due to missing ability to run jobs criteria=-job'.format(tmpNucleus))
                         nucleusList = newNucleusList
-                        tmpLog.debug('{0} candidates passed job check'.format(len(nucleusList)))
+                        tmpLog.info('{0} candidates passed job check'.format(len(nucleusList)))
                         if nucleusList == {}:
                             tmpLog.error('no candidates')
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -566,7 +566,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             skipMsgList = []
                             for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
                                 if len(nucleusList) == 1:
-                                    tmpLog.debug('  disable data locality check for nucleus={0} since no other candidate'.format(tmpNucleus))
+                                    tmpLog.info('  disable data locality check for nucleus={0} since no other candidate'.format(tmpNucleus))
                                     newNucleusList[tmpNucleus] = tmpNucleusSpec
                                 elif availableData[tmpNucleus]['tot_size'] > thrInputSize and \
                                         availableData[tmpNucleus]['ava_size_any'] < availableData[tmpNucleus]['tot_size'] * thrInputSizeFrac:
@@ -587,10 +587,10 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             if len(newNucleusList) > 0:
                                 nucleusList = newNucleusList
                                 for tmpMsg in skipMsgList:
-                                    tmpLog.debug(tmpMsg)
+                                    tmpLog.info(tmpMsg)
                             else:
-                                tmpLog.debug('  disable data locality check since no nucleus has input data')
-                            tmpLog.debug('{0} candidates passed data check'.format(len(nucleusList)))
+                                tmpLog.info('  disable data locality check since no nucleus has input data')
+                            tmpLog.info('{0} candidates passed data check'.format(len(nucleusList)))
                             if nucleusList == {}:
                                 tmpLog.error('no candidates')
                                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -635,10 +635,10 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                                                                              fractionFreeSpace[tmpNucleus]['total'])
                                     except:
                                         pass
-                            tmpLog.debug('  use nucleus={0} weight={1} {2} criteria=+use'.format(tmpNucleus,weight,wStr))
+                            tmpLog.info('  use nucleus={0} weight={1} {2} criteria=+use'.format(tmpNucleus,weight,wStr))
                             totalWeight += weight
                             nucleusweights.append((tmpNucleus,weight))
-                        tmpLog.debug('final {0} candidates'.format(len(nucleusList)))
+                        tmpLog.info('final {0} candidates'.format(len(nucleusList)))
                         ###################################### 
                         # final selection
                         tgtWeight = random.uniform(0,totalWeight)
@@ -663,6 +663,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     self.sendLogMessage(tmpLog)
                     if tmpRet:
                         tmpMsg = 'set task.status=ready'
+                        tmpLog.info(tmpMsg)
                         tmpLog.sendMsg(tmpMsg,self.msgType)
                     # update RW table
                     self.prioRW.acquire()
