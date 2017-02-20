@@ -46,6 +46,7 @@ class JediDatasetSpec(object):
         'allowNoOutput'    : 'an',
         'consistencyCheck' : 'cc',
         'eventRatio'       : 'er',
+        'indexConsistent'  : 'ic',
         'nFilesPerJob'     : 'np',
         'num_records'      : 'nr',
         'offset'           : 'of',
@@ -175,6 +176,19 @@ class JediDatasetSpec(object):
 
     # set dataset attribute
     def setDatasetAttribute(self,attr):
+        if self.attributes == None:
+            self.attributes = ''
+        else:
+            self.attributes += ','
+        self.attributes += attr
+
+
+
+    # set dataset attribute with label
+    def setDatasetAttributeWithLabel(self,label):
+        if label not in self.attrToken:
+            return
+        attr = self.attrToken[label]
         if self.attributes == None:
             self.attributes = ''
         else:
@@ -550,6 +564,15 @@ class JediDatasetSpec(object):
         if not self.attrToken['allowNoOutput'] in items:
             items.append(self.attrToken['allowNoOutput'])
             self.attributes = ','.join(items)
+
+
+
+    # check if index consistency is required
+    def indexConsistent(self):
+        if self.attributes != None and self.attrToken['indexConsistent'] in self.attributes.split(','):
+            return True
+        else:
+            return False
 
 
 

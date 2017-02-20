@@ -113,6 +113,7 @@ class ContentsFeederThread (WorkerThread):
                     taskOnHold = False
                     runningTask = False
                     missingMap = {}
+                    datasetsIdxConsistency = []
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'< jediTaskID={0} >'.format(jediTaskID))
                     # get task
@@ -171,6 +172,9 @@ class ContentsFeederThread (WorkerThread):
                             origNumFiles = taskParamMap['nFiles']
                         for datasetSpec in dsList:
                             tmpLog.debug('start loop for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))
+                            # index consistency
+                            if datasetSpec.indexConsistent():
+                                datasetsIdxConsistency.append(datasetSpec.datasetID)
                             # get dataset metadata
                             tmpLog.debug('get metadata')
                             gotMetadata = False
@@ -442,7 +446,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               respectLB,
                                                                                                                               tgtNumEventsPerJob,
                                                                                                                               skipFilesUsedBy,
-                                                                                                                              ramCount)
+                                                                                                                              ramCount,
+                                                                                                                              taskSpec)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))
@@ -479,7 +484,7 @@ class ContentsFeederThread (WorkerThread):
                                     if diagMap['isRunningTask']:
                                         runningTask = True
                                     # no activated pending input for noWait
-                                    if noWaitParent and diagMap['nActivatedPending'] == 0 and not (useScout and nChunksForScout == 0) \
+                                    if noWaitParent and diagMap['nActivatedPending'] == 0 and not (useScout and nChunksForScout <= 0) \
                                             and tmpMetadata['state'] != 'closed' and datasetSpec.isMaster():
                                         tmpErrStr = 'insufficient inputs are ready. '
                                         tmpErrStr += diagMap['errMsg']
@@ -498,6 +503,9 @@ class ContentsFeederThread (WorkerThread):
                             taskOnHold = True
                         else:
                             taskBroken = True
+                    # index consistency
+                    if not taskOnHold and not taskBroken and len(datasetsIdxConsistency) > 0:
+                        self.taskBufferIF.removeFilesIndexInconsistent_JEDI(jediTaskID,datasetsIdxConsistency)
                     # update task status
                     if taskBroken:
                         # task is broken

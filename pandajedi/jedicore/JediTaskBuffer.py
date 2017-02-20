@@ -76,7 +76,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                    nMaxFiles,nMaxEvents,useScout,fileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,
                                    excludePatt,xmlConfig,noWaitParent,parent_tid,pid,maxFailure,
-                                   useRealNumEvents,respectLB,tgtNumEventsPerJob,skipFilesUsedBy,ramCount):
+                                   useRealNumEvents,respectLB,tgtNumEventsPerJob,skipFilesUsedBy,
+                                   ramCount,taskSpec):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -88,7 +89,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   includePatt,excludePatt,xmlConfig,
                                                   noWaitParent,parent_tid,pid,maxFailure,
                                                   useRealNumEvents,respectLB,
-                                                  tgtNumEventsPerJob,skipFilesUsedBy,ramCount)
+                                                  tgtNumEventsPerJob,skipFilesUsedBy,
+                                                  ramCount,taskSpec)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1448,3 +1450,15 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         # return
         return retVal
 
+
+
+    # set del flag to events
+    def removeFilesIndexInconsistent_JEDI(self,jediTaskID,datasetIDs):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.removeFilesIndexInconsistent_JEDI(jediTaskID,datasetIDs)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

@@ -75,6 +75,7 @@ class JediTaskSpec(object):
         'registerDatasets'   : 'RD',
         'respectLB'          : 'RL',
         'reuseSecOnDemand'   : 'RO',
+        'respectSplitRule'   : 'RR',
         'randomSeed'         : 'RS',
         'switchEStoNormal'   : 'SE',
         'stayOutputOnSite'   : 'SO',
@@ -1066,6 +1067,16 @@ class JediTaskSpec(object):
     def respectLumiblock(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['respectLB']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # respect split rule
+    def respectSplitRule(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['respectSplitRule']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

@@ -43,7 +43,8 @@ class JobSplitter:
                 nFilesPerJob = taskSpec.getNumFilesPerJob()
             else:
                 nFilesPerJob = None
-            if nFilesPerJob == None and nEventsPerJob == None and inputChunk.useScout() and not taskSpec.useLoadXML():
+            if nFilesPerJob == None and nEventsPerJob == None and inputChunk.useScout() \
+                    and not taskSpec.useLoadXML() and not taskSpec.respectSplitRule():
                 nFilesPerJob = 1
             # grouping with boundaryID
             useBoundary = taskSpec.useGroupWithBoundaryID()

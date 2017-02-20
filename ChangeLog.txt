@@ -1,5 +1,9 @@
 Release Notes
 
+* 2/20/2017
+  * added respectSplitRule
+  * added indexConsistent
+
 * 2/7/2017
   * added DISK_THRESHOLD_xyz in AtlasPTB
 

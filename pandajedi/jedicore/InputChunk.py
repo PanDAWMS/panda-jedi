@@ -237,6 +237,16 @@ class InputChunk:
 
 
 
+    # get master used index 
+    def getMasterUsedIndex(self):
+        # master is undefined
+        if self.masterIndexName == None:
+            return 0
+        indexVal = self.datasetMap[self.masterIndexName]
+        return indexVal['used']
+
+
+
     # check if secondary datasets use event ratios
     def useEventRatioForSec(self):
         for datasetSpec in self.secondaryDatasetList:

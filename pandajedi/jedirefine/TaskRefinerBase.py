@@ -233,6 +233,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noWaitParent'])
         if 'respectLB' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['respectLB'])
+        if 'respectSplitRule' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['respectSplitRule'])
         if taskParamMap.has_key('reuseSecOnDemand'):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['reuseSecOnDemand'])
         if 'ddmBackEnd' in taskParamMap:
@@ -382,6 +384,8 @@ class TaskRefinerBase (object):
                     datasetSpec.setDatasetAttribute('rd')
                 if tmpItem.has_key('reusable'):
                     datasetSpec.setDatasetAttribute('ru')
+                if tmpItem.has_key('indexConsistent'):
+                    datasetSpec.setDatasetAttributeWithLabel('indexConsistent')
                 if tmpItem.has_key('offset'):
                     datasetSpec.setOffset(tmpItem['offset'])
                 if tmpItem.has_key('allowNoOutput'):

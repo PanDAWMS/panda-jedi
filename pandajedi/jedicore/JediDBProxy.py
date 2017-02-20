@@ -266,7 +266,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
                                    xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents,
-                                   respectLB,tgtNumEventsPerJob,skipFilesUsedBy,ramCount):
+                                   respectLB,tgtNumEventsPerJob,skipFilesUsedBy,ramCount,taskSpec):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -697,6 +697,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sizePendingEventChunk = None
                     strSizePendingEventChunk = ''
                     if taskStatus == 'defined' and useScout:
+                        nChunks = nChunksForScout
                         # number of files for scout
                         sizePendingFileChunk = nChunksForScout
                         strSizePendingFileChunk = '{0}'.format(sizePendingFileChunk)
@@ -712,6 +713,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         # the number of chunks in one bunch
                         nChunkInBunch = 20
+                        nChunks = nChunkInBunch
                         # number of files to be activated
                         sizePendingFileChunk = nChunkInBunch
                         strSizePendingFileChunk = '{0}'.format(sizePendingFileChunk)
@@ -870,6 +872,44 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # bulk insert
                         tmpLog.debug('bulk insert {0} files'.format(len(varMaps)))
                         self.cur.executemany(sqlIn+comment,varMaps)
+                        # respect split rule
+                        enoughPendingWithSL = False
+                        numFilesWithSL = 0
+                        if datasetSpec.isMaster() and taskSpec.respectSplitRule():
+                            tmpDatasetSpec = copy.copy(datasetSpec)
+                            # read files
+                            sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
+                            sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
+                            sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
+                            sqlFR += "ORDER BY lfn "
+                            varMap = {}
+                            varMap[':datasetID']  = datasetSpec.datasetID
+                            varMap[':jediTaskID'] = datasetSpec.jediTaskID
+                            if isMutableDataset:
+                                varMap[':status'] = 'pending'
+                            else:
+                                varMap[':status'] = 'ready'
+                            self.cur.execute(sqlFR+comment,varMap)
+                            resFileList = self.cur.fetchall()
+                            for resFile in resFileList:
+                                # make FileSpec
+                                tmpFileSpec = JediFileSpec()
+                                tmpFileSpec.pack(resFile)
+                                tmpDatasetSpec.addFile(tmpFileSpec)
+                            tmpInputChunk = InputChunk(taskSpec)
+                            tmpInputChunk.addMasterDS(tmpDatasetSpec)
+                            # make sub chunks
+                            for i in range(nChunks):
+                                tmpInputChunk.getSubChunk(None,nFilesPerJob=taskSpec.getNumFilesPerJob(),
+                                                          sizeGradients=taskSpec.getOutDiskSize(),
+                                                          sizeIntercepts=taskSpec.getWorkDiskSize(),
+                                                          maxSize=taskSpec.getMaxSizePerJob(),
+                                                          nEventsPerJob=taskSpec.getNumEventsPerJob(),
+                                                          respectLB=taskSpec.respectLumiblock())
+                                enoughPendingWithSL = tmpInputChunk.checkUnused()
+                                if not enoughPendingWithSL:
+                                    break
+                            numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
                         # activate pending
                         tmpLog.debug('activate pending')
                         toActivateFID = []
@@ -878,7 +918,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # activate all files except master dataset
                                 toActivateFID = pendingFID
                             else:
-                                if isEventSplit:
+                                if datasetSpec.isMaster() and taskSpec.respectSplitRule():
+                                    # enough pending
+                                    if enoughPendingWithSL:
+                                        toActivateFID = pendingFID[:numFilesWithSL]
+                                    else:
+                                        diagMap['errMsg'] = 'not enough files'
+                                elif isEventSplit:
                                     # enough events are pending
                                     if nEventsToUseEventSplit >= sizePendingEventChunk and nFilesToUseEventSplit > 0:
                                         toActivateFID = pendingFID[:(int(nPending/nFilesToUseEventSplit)*nFilesToUseEventSplit)]
@@ -956,7 +1002,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':datasetID'] = datasetSpec.datasetID
                         varMap[':nFiles'] = nInsert + len(existingFiles) - nLost
                         varMap[':nEvents'] = nEventsInsert + nEventsExist
-                        if xmlConfig != None:
+                        if datasetSpec.isMaster() and taskSpec.respectSplitRule():
+                            if isMutableDataset:
+                                varMap[':nFilesTobeUsed'] = nReady + nUsed
+                            else:
+                                varMap[':nFilesTobeUsed'] = numFilesWithSL + nUsed
+                        elif xmlConfig != None:
                             # disable scout for --loadXML
                             varMap[':nFilesTobeUsed'] = nReady + nUsed
                         elif taskStatus == 'defined' and useScout and not isEventSplit and nChunksForScout != None and nReady > sizePendingFileChunk:
@@ -10194,7 +10245,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # set del flag to events
     def setDelFlagToEvents_JEDI(self,jediTaskID):
-        comment = ' /* JediDBProxy.setDelFlagToEvents_JEDI( */'
+        comment = ' /* JediDBProxy.setDelFlagToEvents_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
@@ -10222,3 +10273,100 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+
+    # set del flag to events
+    def removeFilesIndexInconsistent_JEDI(self,jediTaskID,datasetIDs):
+        comment = ' /* JediDBProxy.removeFilesIndexInconsistent_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get files
+            sqlFID  = "SELECT lfn,fileID FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFID += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # start transaction
+            self.conn.begin()
+            # get files
+            lfnMap = {}
+            for datasetID in datasetIDs:
+                if datasetID not in lfnMap:
+                    lfnMap[datasetID] = {}
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':datasetID'] = datasetID
+                self.cur.execute(sqlFID+comment,varMap)
+                tmpRes = self.cur.fetchall()
+                for lfn,fileID in tmpRes:
+                    items = lfn.split('.')
+                    if len(items) < 3:
+                        continue
+                    idx = items[1] + items[2]
+                    if idx not in lfnMap[datasetID]:
+                        lfnMap[datasetID][idx] = []
+                    lfnMap[datasetID][idx].append(fileID)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # find common elements
+            datasetID = datasetIDs[0]
+            commonIdx = set(lfnMap[datasetID].keys())
+            for datasetID in datasetIDs[1:]:
+                commonIdx = commonIdx & set(lfnMap[datasetID].keys())
+            tmpLog.debug('{0} common files'.format(len(commonIdx)))
+            # sql to remove uncommon
+            sqlRF  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlRF += "SET status=:newStatus "
+            sqlRF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID "
+            sqlRF += "AND status=:oldStatus "
+            # sql to count files
+            sqlCF  = "SELECT COUNT(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status<>:status "
+            # sql to update nFiles
+            sqlUD  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlUD += "SET nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed "
+            sqlUD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            self.conn.begin()
+            # remove uncommon
+            for datasetID in datasetIDs:
+                nLost = 0
+                for idx,fileIDs in lfnMap[datasetID].iteritems():
+                    if idx not in commonIdx:
+                        for fileID in fileIDs:
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID'] = datasetID
+                            varMap[':fileID'] = fileID
+                            varMap[':oldStatus'] = 'ready'
+                            varMap[':newStatus'] = 'lost'
+                            self.cur.execute(sqlRF+comment,varMap)
+                            nRow = self.cur.rowcount
+                            if nRow > 0:
+                                nLost += 1
+                tmpLog.debug('set {0} files to lost for datasetID={1}'.format(nLost,datasetID))
+                # count files
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':datasetID'] = datasetID
+                varMap[':status'] = 'lost'
+                self.cur.execute(sqlCF+comment,varMap)
+                nFiles, = self.cur.fetchone()
+                # update nFiles
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':datasetID'] = datasetID
+                varMap[':nFiles'] = nFiles
+                varMap[':nFilesTobeUsed'] = nFiles
+                self.cur.execute(sqlUD+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
