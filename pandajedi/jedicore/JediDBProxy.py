@@ -9137,7 +9137,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get tasks
             varMap = {}
             varMap[':status'] = 'throttled'
-            sqlTL  = "SELECT jediTaskID "
+            sqlTL  = "SELECT jediTaskID,oldStatus "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlTL += "AND tabT.status=:status AND tabT.throttledTime<CURRENT_DATE AND tabT.lockedBy IS NULL "
@@ -9158,7 +9158,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resTL = self.cur.fetchall()
             # loop over all tasks
             nRow = 0
-            for jediTaskID, in resTL:
+            for jediTaskID,oldStatus in resTL:
+                if oldStatus in [None,'']:
+                    tmpLog.debug('cannot release jediTaskID={0} since oldStatus is invalid'.format(jediTaskID))
+                    continue
                 timeoutFlag = False
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
