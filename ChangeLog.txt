@@ -1,6 +1,7 @@
 Release Notes
 
 * 2/20/2017
+  * changed AtlasPTB for task.nucleus=satellite
   * added respectSplitRule
   * added indexConsistent
 

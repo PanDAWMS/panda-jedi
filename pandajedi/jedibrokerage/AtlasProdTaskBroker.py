@@ -381,7 +381,10 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)
                     # get nuclei
                     nucleusList = siteMapper.nuclei
-                    if taskSpec.nucleus in nucleusList:
+                    if taskSpec.nucleus in siteMapper.nuclei:
+                        candidateNucleus = taskSpec.nucleus
+                    elif taskSpec.nucleus in siteMapper.satellites:
+                        nucleusList = siteMapper.satellites
                         candidateNucleus = taskSpec.nucleus
                     else:
                         tmpLog.info('got {0} candidates'.format(len(nucleusList)))
