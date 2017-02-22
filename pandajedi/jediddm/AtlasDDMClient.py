@@ -1041,7 +1041,7 @@ class AtlasDDMClient(DDMClientBase):
 
     # register location
     def registerDatasetLocation(self,datasetName,location,lifetime=None,owner=None,backEnd='rucio',
-                                activity=None,grouping=None):
+                                activity=None,grouping=None,weight=None,copies=1):
         methodName = 'registerDatasetLocation'
         methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
         tmpLog = MsgWrapper(logger,methodName)
@@ -1074,9 +1074,9 @@ class AtlasDDMClient(DDMClientBase):
             dids.append(did)
             locList = location.split(',')
             for tmpLoc in locList:
-                client.add_replication_rule(dids=dids,copies=1,rse_expression=tmpLoc,lifetime=lifetime,
+                client.add_replication_rule(dids=dids,copies=copies,rse_expression=tmpLoc,lifetime=lifetime,
                                             grouping=grouping,account=owner,locked=False,notify='N',
-                                            ignore_availability=True,activity=activity)
+                                            ignore_availability=True,activity=activity,weight=weight)
         except DuplicateRule:
             pass
         except:

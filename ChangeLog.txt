@@ -1,5 +1,9 @@
 Release Notes
 
+* 2/22/2017
+  * fixed generateBuildJob for nightlies
+  * changed AtlasTS to make duble copy for users
+
 * 2/20/2017
   * changed AtlasPTB for task.nucleus=satellite
   * added respectSplitRule

@@ -1309,7 +1309,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.transformation   = taskParamMap['buildSpec']['transPath']
             jobSpec.cmtConfig        = taskSpec.architecture
             if taskSpec.transHome != None:
-                jobSpec.homepackage  = re.sub('-(?P<dig>\d)','/\g<dig>',taskSpec.transHome)
+                jobSpec.homepackage  = re.sub('-(?P<dig>\d+\.)','/\g<dig>',taskSpec.transHome)
                 jobSpec.homepackage  = re.sub('\r','',jobSpec.homepackage)
             jobSpec.prodSourceLabel  = taskParamMap['buildSpec']['prodSourceLabel']
             jobSpec.processingType   = taskSpec.processingType
@@ -1429,11 +1429,6 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.maxAttempt       = 0
             jobSpec.jobName          = taskSpec.taskName
             jobSpec.transformation   = taskParamMap['preproSpec']['transPath']
-            """
-            jobSpec.cmtConfig        = taskSpec.architecture
-            jobSpec.homepackage      = re.sub('-(?P<dig>\d)','/\g<dig>',taskSpec.transHome)
-            jobSpec.homepackage      = re.sub('\r','',jobSpec.homepackage)
-            """
             jobSpec.prodSourceLabel  = taskParamMap['preproSpec']['prodSourceLabel']
             jobSpec.processingType   = taskSpec.processingType
             jobSpec.jediTaskID       = taskSpec.jediTaskID
