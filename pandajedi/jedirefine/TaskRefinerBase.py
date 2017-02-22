@@ -171,6 +171,9 @@ class TaskRefinerBase (object):
                 taskParamMap['nSitesPerJob'] = 2
             if not 'nEsConsumers' in taskParamMap:
                 taskParamMap['nEsConsumers'] = taskParamMap['nSitesPerJob']
+        # minimum granularity
+        if 'minGranularity' in taskParamMap:
+            taskParamMap['nEventsPerRange'] = taskParamMap['minGranularity']
         # event service flag
         if 'useJobCloning' in taskParamMap:
             taskSpec.eventService = 2
