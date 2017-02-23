@@ -585,7 +585,7 @@ class AtlasDDMClient(DDMClientBase):
             client = RucioClient()
             # get PFN
             iGUID = 0
-            nGUID = 5000
+            nGUID = 1000
             retVal = {}
             dids   = []
             for guid,lfn in files.iteritems():
@@ -1254,7 +1254,7 @@ class AtlasDDMClient(DDMClientBase):
     # get sites associated to a DDM endpoint
     def getSitesWithEndPoint(self,endPoint,siteMapper,siteType):
         retList = []
-        # get alternate name                                                                                                          
+        # get alternate name
         altNameList = self.getSiteAlternateName(endPoint)
         if altNameList != None and altNameList != [''] and len(altNameList) > 0:
             altName = altNameList[0]
