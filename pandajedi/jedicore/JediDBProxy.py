@@ -296,6 +296,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                    'nActivatedPending':0,
                    'isRunningTask':False}
         failedRet = False,0,None,diagMap
+        harmlessRet = None,0,None,diagMap
         regStart = datetime.datetime.utcnow()
         # max number of file records per dataset
         maxFileRecords = 200000
@@ -1098,7 +1099,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             regTime = datetime.datetime.utcnow() - regStart
             tmpLog.debug('took %s.%03d sec' % (regTime.seconds,regTime.microseconds/1000))
-            return failedRet
+            return harmlessRet
 
 
 
