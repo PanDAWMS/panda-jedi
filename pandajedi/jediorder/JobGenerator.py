@@ -943,9 +943,20 @@ class JobGeneratorThread (WorkerThread):
                                         setSpecialHandlingForJC = True
                                     else:
                                         nEventsPerWorker = taskSpec.getNumEventsPerWorker()
+                                    # set start and end events
+                                    tmpStartEvent = tmpFileSpec.startEvent
+                                    if tmpStartEvent is None:
+                                        tmpStartEvent = 1
+                                    tmpEndEvent = tmpFileSpec.endEvent
+                                    if tmpEndEvent is None:
+                                        tmpEndEvent = tmpFileSpec.nEvents
+                                        if tmpEndEvent is None:
+                                            tmpEndEvent = 1
+                                    if tmpEndEvent < tmpStartEvent:
+                                        tmpEndEvent = tmpStartEvent
                                     specialHandling += EventServiceUtils.encodeFileInfo(tmpFileSpec.lfn,
-                                                                                        tmpFileSpec.startEvent,
-                                                                                        tmpFileSpec.endEvent,
+                                                                                        tmpStartEvent,
+                                                                                        tmpEndEvent,
                                                                                         nEventsPerWorker,
                                                                                         taskSpec.getMaxAttemptES(),
                                                                                         taskSpec.getFirstEventOffset(),

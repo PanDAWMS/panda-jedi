@@ -1,6 +1,7 @@
 import re
 import sys
 import shlex
+import random
 
 from pandajedi.jedicore import Interaction
 from TaskRefinerBase import TaskRefinerBase
@@ -22,6 +23,13 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
         # set ddmBackEnd
         if not 'ddmBackEnd' in taskParamMap:
             taskParamMap['ddmBackEnd'] = 'rucio'
+        # add ES paramsters
+        if 'esFraction' in taskParamMap and taskParamMap['esFraction'] > 0:
+            tmpStr  = '<PANDA_ES_ONLY>--eventService=True</PANDA_ES_ONLY>'
+            taskParamMap['jobParameters'].append({'type':'constant',
+                                                  'value':tmpStr})
+            if 'nEventsPerWorker' not in taskParamMap and taskParamMap['esFraction'] > random.random():
+                taskParamMap['nEventsPerWorker'] = 1
         TaskRefinerBase.extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule)
 
 
@@ -32,39 +40,6 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
         tmpLog = self.tmpLog
         tmpLog.debug('start taskType={0}'.format(self.taskSpec.taskType))
         try:
-            # add ES paramsters
-            if 'addEsParams' in taskParamMap and taskParamMap['addEsParams'] == True:
-                preInclude = False
-                preExec = False
-                for tmpItem in taskParamMap['jobParameters']:
-                    if 'value' in tmpItem:
-                        if 'preInclude' in tmpItem['value']:
-                            tmpStr = '<PANDA_ES_ONLY>,AthenaMP/AthenaMP_EventService.py</PANDA_ES_ONLY>'
-                            tmpItem['value'] = self.insertString('preInclude',tmpStr,tmpItem['value'])
-                            preInclude = True
-                        if 'preExec' in tmpItem['value']:
-                            tmpStr  = '<PANDA_ES_ONLY>;'
-                            tmpStr += 'import os;pilot_tmp=type(str(),(),{})();'
-                            tmpStr += 'pilot_tmp.__dict__.update(**os.environ);'
-                            tmpStr += 'from AthenaMP.AthenaMPFlags import jobproperties as jps;'
-                            tmpStr += 'jps.AthenaMPFlags.EventRangeChannel=pilot_tmp.PILOT_EVENTRANGECHANNEL'
-                            tmpStr += '</PANDA_ES_ONLY>'
-                            tmpItem['value'] = self.insertString('preExec',tmpStr,tmpItem['value'])
-                            preExec = True
-                # add if missing
-                if not preInclude:
-                    tmpStr = '<PANDA_ES_ONLY>preInclude="AthenaMP/AthenaMP_EventService.py"</PANDA_ES_ONLY>'
-                    taskParamMap['jobParameters'].append({'type':'constant',
-                                                          'value':tmpStr})
-                if not preExec:
-                    tmpStr  = '<PANDA_ES_ONLY>preExec="'
-                    tmpStr += 'import os;pilot_tmp=type(str(),(),{})();'
-                    tmpStr += 'pilot_tmp.__dict__.update(**os.environ);'
-                    tmpStr += 'from AthenaMP.AthenaMPFlags import jobproperties as jps;'
-                    tmpStr += 'jps.AthenaMPFlags.EventRangeChannel=pilot_tmp.PILOT_EVENTRANGECHANNEL'
-                    tmpStr += '"</PANDA_ES_ONLY>'
-                    taskParamMap['jobParameters'].append({'type':'constant',
-                                                          'value':tmpStr})
             # basic refine    
             self.doBasicRefine(taskParamMap)
             # set nosplit+repeat for DBR

@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/2/2017
+  * added esFraction
+
 * 2/22/2017
   * fixed generateBuildJob for nightlies
   * changed AtlasTS to make duble copy for users
