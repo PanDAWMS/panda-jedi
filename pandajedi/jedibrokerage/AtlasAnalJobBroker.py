@@ -578,16 +578,15 @@ class AtlasAnalJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # calculate weight
-        fqans = taskSpec.makeFQANs()
         """
+        fqans = taskSpec.makeFQANs()
         tmpDm1,tmpDm2,tmpPriorityOffset,tmpSerNum,tmpWeight = self.taskBufferIF.getPrioParameters([],taskSpec.userName,fqans,
                                                                                                   taskSpec.workingGroup,True)
         currentPriority = PrioUtil.calculatePriority(tmpPriorityOffset,tmpSerNum,tmpWeight)
         currentPriority -= 500
         tmpLog.debug('currentPriority={0}'.format(currentPriority))
         """
-        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
-                                                                                    taskSpec.prodSourceLabel)
+        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec, vo)
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

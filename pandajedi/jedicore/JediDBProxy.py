@@ -2204,10 +2204,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get job statistics with work queue
-    def getJobStatisticsWithWorkQueue_JEDI(self,vo,prodSourceLabel,minPriority=None,cloud=None):
+    def getJobStatisticsWithWorkQueue_JEDI(self, vo, prodSourceLabel, minPriority=None, cloud=None):
         comment = ' /* DBProxy.getJobStatisticsWithWorkQueue_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' <vo={0} label={1} cloud={2}>'.format(vo,prodSourceLabel,cloud)
+        methodName += ' <vo={0} label={1} cloud={2}>'.format(vo, prodSourceLabel, cloud)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start minPriority={0}'.format(minPriority))
         sql0 = "SELECT computingSite,cloud,jobStatus,workQueue_ID,COUNT(*) FROM %s "
@@ -2296,6 +2296,68 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return False,{}
 
+    # get job statistics by global share
+    def getJobStatisticsByGlobalShare(self, vo):
+        # TODO: Ask Tadashi to review/confirm the logic!!!
+        comment = ' /* DBProxy.getJobStatisticsByGlobalShare */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < vo={0} >'.format(vo)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start minPriority={0}'.format(minPriority))
+
+        # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
+        sql_jt = """
+               SELECT computingSite, jobStatus, gShare, COUNT(*) FROM %s
+               WHERE vo=:vo
+               GROUP BY computingSite, jobStatus, gshare
+               """
+
+        # sql to query on the jobs_share_stats table with already aggregated data
+        sql_jss = sql_jt
+        sql_jss = re.sub('COUNT\(\*\)', 'SUM(njobs)', sql_jss)
+        sql_jss = re.sub('SELECT ', 'SELECT /*+ RESULT_CACHE */ ', sql_jss)
+
+        tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
+                  '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
+
+        var_map = {':vo': vo}
+
+        return_map = {}
+        try:
+            for table in tables:
+
+                # run the transaction
+                self.conn.begin()
+                self.cur.arraysize = 10000
+                if table == '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA):
+                    stats_table = '{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA)
+                    sql_exe = (sql_jss + comment) % stats_table
+                else:
+                    sql_exe = (sql_jt + comment) % table
+                self.cur.execute(sql_exe, var_map)
+                res = self.cur.fetchall()
+                if not self._commit(): # TODO: Do I need a transaction if we are only querying?
+                    raise RuntimeError, 'Commit error'
+
+                # create map
+                for panda_site, status, gshare, n_count in res:
+                    # add site
+                    return_map.setdefault(panda_site, {})
+                    # add global share
+                    return_map[panda_site].setdefault(gshare, {})
+                    # add job status
+                    return_map[panda_site][gshare].setdefault(status, 0)
+                    # increase count
+                    return_map[panda_site][gshare][status] += n_count
+
+            tmpLog.debug('done')
+            return True, return_map
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False, {}
 
 
     # generate output files for task, and instantiate template datasets if necessary
