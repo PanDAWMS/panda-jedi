@@ -138,3 +138,10 @@ class WorkQueueMapper:
                 if wq.queue_name == queue_name:
                     return wq
         return None
+
+
+    # get queue list with VO and type
+    def getQueueListWithVo(self, vo):
+        if self.workQueueMap.has_key(vo):
+            return self.workQueueMap[vo]
+        return []

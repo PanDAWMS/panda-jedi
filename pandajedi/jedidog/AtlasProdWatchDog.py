@@ -61,11 +61,12 @@ class AtlasProdWatchDog (WatchDogBase):
         # get work queue mapper
         workQueueMapper = self.taskBufferIF.getWorkQueueMap()
         # get list of work queues
-        workQueueList = workQueueMapper.getQueueListWithVoType(self.vo,self.prodSourceLabel)
+        workQueueList = workQueueMapper.getQueueListWithVo(self.vo)
         # loop over all work queues
         for workQueue in workQueueList:
             gTmpLog.debug('start workQueue={0}'.format(workQueue.queue_name))
             # get tasks to be boosted
+            # TODO: we need to see how to filter the tasks that belong to global shares managed and test
             taskVarList = self.taskBufferIF.getTasksWithCriteria_JEDI(self.vo,self.prodSourceLabel,['running'],
                                                                       taskCriteria={'workQueue_ID':workQueue.queue_id},
                                                                       datasetCriteria={'masterID':None,'type':['input','pseudo_input']},
