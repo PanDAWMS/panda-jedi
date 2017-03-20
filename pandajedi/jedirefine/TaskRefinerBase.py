@@ -280,10 +280,11 @@ class TaskRefinerBase (object):
         workQueue = None
         if 'workQueueName' in taskParamMap:
             # work queue is specified
-            workQueue = workQueueMapper.getQueueByName(taskSpec.vo, taskParamMap['workQueueName'])
+            workQueue = workQueueMapper.getQueueByName(taskSpec.vo, taskSpec.prodSourceLabel, taskParamMap['workQueueName'])
         if workQueue is None:
             # get work queue based on task attributes
             workQueue,tmpStr = workQueueMapper.getQueueWithSelParams(taskSpec.vo,
+                                                                     taskSpec.prodSourceLabel,
                                                                      prodSourceLabel=taskSpec.prodSourceLabel,
                                                                      processingType=taskSpec.processingType,
                                                                      workingGroup=taskSpec.workingGroup,

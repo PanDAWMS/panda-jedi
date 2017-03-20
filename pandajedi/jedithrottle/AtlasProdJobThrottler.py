@@ -39,6 +39,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         msgHeader = '{0}:{1} cloud={2} queue={3}:'.format(vo, prodSourceLabel, cloudName, workQueue.queue_name)
         tmpLog.debug(msgHeader+' start workQueueID={0}'.format(str(workQueueIDs)))
         # change threashold
+        # TODO: need to review the thresholds for global shares
         if workQueue.queue_name in ['mcore']:
             threshold = 5.0
         # check cloud status
@@ -61,6 +62,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 tmpLog.debug(msgHeader+" "+msgBody)
                 return self.retThrottled
         # check if unthrottled
+        #TODO: this section probably is obsolete and needs to be removed
         if workQueue.queue_share == None:
             msgBody = "PASS unthrottled since share=None"
             tmpLog.debug(msgHeader+" "+msgBody)
@@ -74,6 +76,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             if jobStat.has_key(cloudName) and \
                    jobStat[cloudName].has_key(workQueueID):
                 tmpLog.debug(msgHeader+" "+str(jobStat[cloudName][workQueueID]))
+                # TODO: jobstat format needs to be reviewed. Or do the if is_global_share switch
                 for pState,pNumber in jobStat[cloudName][workQueueID].iteritems():
                     if pState in ['running']:
                         nRunning += pNumber
@@ -84,12 +87,11 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                     elif pState in ['waiting']:
                         nWaiting += pNumber
         # check if higher prio tasks are waiting
-        tmpStat,highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI('managed',cloudName,workQueue)
+        tmpStat,highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI('managed', cloudName, workQueue)
         highestPrioInPandaDB = highestPrioJobStat['highestPrio']
         nNotRunHighestPrio   = highestPrioJobStat['nNotRun']
         # the highest priority of waiting tasks 
-        highestPrioWaiting = self.taskBufferIF.checkWaitingTaskPrio_JEDI(vo,workQueue,
-                                                                         'managed',cloudName)
+        highestPrioWaiting = self.taskBufferIF.checkWaitingTaskPrio_JEDI(vo, workQueue, 'managed', cloudName)
         if highestPrioWaiting == None:
             msgBody = 'failed to get the highest priority of waiting tasks'
             tmpLog.error(msgHeader+" "+msgBody)
@@ -109,6 +111,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             # use the lower limit to avoid creating too many _sub/_dis datasets
             nJobsInBunch = nJobsInBunchMin
         else:
+            # TODO: review this case
             if workQueue.queue_name in ['evgensimul']:
                 # use higher limit for evgensimul
                 if tmpRemainingSlot < nJobsInBunchMaxES:
@@ -125,7 +128,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         tmpVal = self.taskBufferIF.getConfigValue(compName, 'NQUEUELIMIT_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
         if tmpVal is not None:
             nQueueLimit = tmpVal
-        # use nPrestage for reprocessing   
+        # use nPrestage for reprocessing
+        # TODO: review this case
         if workQueue.queue_name in ['reprocessing','mcore_repro']:
             # reset nJobsInBunch
             if nQueueLimit > (nNotRun+nDefine):
@@ -137,6 +141,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 else:
                     nJobsInBunch = nJobsInBunchMax
         # get cap
+        # TODO: review the values in the central configuration
         nRunningCap = self.taskBufferIF.getConfigValue(compName, 'NRUNNINGCAP_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
         nQueueCap = self.taskBufferIF.getConfigValue(compName, 'NQUEUECAP_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
         # set number of jobs to be submitted
