@@ -47,11 +47,12 @@ class TaskBroker (JediKnight,FactoryBase):
                     # loop over all sourceLabels
                     for prodSourceLabel in self.prodSourceLabels:
                         # loop over all work queues
-                        for workQueue in workQueueMapper.getQueueListWithVoType(vo,prodSourceLabel):
-                            msgLabel = 'vo={0} label={1} queue={2}: '.format(vo,prodSourceLabel,workQueue.queue_name)
+                        for workQueue in workQueueMapper.getQueueListWithVoType(vo, prodSourceLabel):
+                            # TODO: Iterate over cores and memory
+                            msgLabel = 'vo={0} label={1} queue={2}: '.format(vo, prodSourceLabel, workQueue.queue_name)
                             tmpLog.debug(msgLabel+'start')
                             # get the list of tasks to check
-                            tmpList = self.taskBufferIF.getTasksToCheckAssignment_JEDI(vo,prodSourceLabel,workQueue)
+                            tmpList = self.taskBufferIF.getTasksToCheckAssignment_JEDI(vo, prodSourceLabel, workQueue)
                             if tmpList == None:
                                 # failed
                                 tmpLog.error(msgLabel+'failed to get the list of tasks to check')
@@ -72,7 +73,7 @@ class TaskBroker (JediKnight,FactoryBase):
                                 # join
                                 threadPool.join()
                             # get the list of tasks to assign
-                            tmpList = self.taskBufferIF.getTasksToAssign_JEDI(vo,prodSourceLabel,workQueue)
+                            tmpList = self.taskBufferIF.getTasksToAssign_JEDI(vo, prodSourceLabel, workQueue)
                             if tmpList == None:
                                 # failed
                                 tmpLog.error(msgLabel+'failed to get the list of tasks to assign')
@@ -190,8 +191,8 @@ class TaskCheckerThread (WorkerThread):
 class TaskBrokerThread (WorkerThread):
 
     # constructor
-    def __init__(self,taskList,threadPool,taskbufferIF,ddmIF,implFactory,
-                 vo,prodSourceLabel,workQueue):
+    def __init__(self, taskList, threadPool, taskbufferIF, ddmIF, implFactory,
+                 vo, prodSourceLabel, workQueue):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -249,8 +250,8 @@ class TaskBrokerThread (WorkerThread):
                 if tmpStat == Interaction.SC_SUCCEEDED:
                     tmpLog.info('brokerage with {0} for {1} tasks '.format(impl.__class__.__name__,len(tmpListToAssign)))
                     try:
-                        tmpStat = impl.doBrokerage(tmpListToAssign,self.vo,
-                                                   self.prodSourceLabel,self.workQueue)
+                        tmpStat = impl.doBrokerage(tmpListToAssign, self.vo,
+                                                   self.prodSourceLabel, self.workQueue)
                     except:
                         errtype,errvalue = sys.exc_info()[:2]
                         tmpLog.error('doBrokerage failed with {0}:{1}'.format(errtype.__name__,errvalue))
@@ -266,7 +267,7 @@ class TaskBrokerThread (WorkerThread):
         
 
 
-########## lauch 
+########## launch
                 
 def launcher(commuChannel,taskBufferIF,ddmIF,vos=None,prodSourceLabels=None):
     p = TaskBroker(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels)

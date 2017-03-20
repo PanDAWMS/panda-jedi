@@ -22,7 +22,8 @@ class WorkQueue(object):
 
     # correspondence with Global Shares attributes and parameters
     _attributes_gs_conversion_dic = {'name': 'queue_name',
-                                     'value': 'queue_share'}
+                                     'value': 'queue_share',
+                                     'prodsourcelabel': 'queue_type'}
 
     _params_gs_conversion_dic = {'prodsourcelabel': 'prodSourceLabel',
                                  'workinggroup': 'workingGroup',
@@ -147,6 +148,7 @@ class WorkQueue(object):
         self.is_global_share = True
         try:
             tmp_map = {}
+            setattr(self, 'queue_id', -1) # dummy queue id. TODO: Think if we need also IDs in global shares
             for i, attr in enumerate(gshare._attributes):
                 # global share attributes can be mapped to a wq attribute(1), to a wq param(2), or to none of both
                 # 1. if the gs attribute is mapped to a wq attribute, do a get and a set

@@ -61,18 +61,24 @@ class AtlasProdWatchDog (WatchDogBase):
         # get work queue mapper
         workQueueMapper = self.taskBufferIF.getWorkQueueMap()
         # get list of work queues
-        workQueueList = workQueueMapper.getQueueListWithVo(self.vo)
+        workQueueList = workQueueMapper.getQueueListWithVoType(self.vo, self.prodSourceLabel)
         # loop over all work queues
         for workQueue in workQueueList:
+            # TODO: we probably need another 2 loops for memory and cores
             gTmpLog.debug('start workQueue={0}'.format(workQueue.queue_name))
             # get tasks to be boosted
-            # TODO: we need to see how to filter the tasks that belong to global shares managed and test
-            taskVarList = self.taskBufferIF.getTasksWithCriteria_JEDI(self.vo,self.prodSourceLabel,['running'],
-                                                                      taskCriteria={'workQueue_ID':workQueue.queue_id},
-                                                                      datasetCriteria={'masterID':None,'type':['input','pseudo_input']},
-                                                                      taskParamList=['jediTaskID','taskPriority','currentPriority'],
-                                                                      datasetParamList=['nFiles','nFilesUsed','nFilesTobeUsed',
-                                                                                        'nFilesFinished','nFilesFailed'])
+            if workQueue.is_global_share:
+                task_criteria = {'gshare': workQueue.queue_name}
+            else:
+                task_criteria = {'workQueue_ID': workQueue.queue_id}
+            dataset_criteria = {'masterID': None, 'type': ['input', 'pseudo_input']}
+            task_param_list = ['jediTaskID', 'taskPriority', 'currentPriority']
+            dataset_param_list = ['nFiles', 'nFilesUsed', 'nFilesTobeUsed', 'nFilesFinished', 'nFilesFailed']
+            taskVarList = self.taskBufferIF.getTasksWithCriteria_JEDI(self.vo, self.prodSourceLabel, ['running'],
+                                                                      taskCriteria= task_criteria,
+                                                                      datasetCriteria=dataset_criteria,
+                                                                      taskParamList=task_param_list,
+                                                                      datasetParamList=dataset_param_list)
             boostedPrio = 900
             toBoostRatio = 0.95 
             for taskParam,datasetParam in taskVarList:
