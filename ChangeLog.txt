@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/27/2017
+  * changed AtlasAPP to extend lifetime of user output datasets
+
 * 3/2/2017
   * added esFraction
 
