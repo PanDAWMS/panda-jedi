@@ -399,6 +399,8 @@ class TaskRefinerBase (object):
                     datasetSpec.setNumRecords(tmpItem['num_records'])
                 if 'transient' in tmpItem:
                     datasetSpec.setTransient(tmpItem['transient'])
+                if 'pseudo' in tmpItem:
+                    datasetSpec.setPseudo()
                 datasetSpec.vo = self.taskSpec.vo
                 datasetSpec.nFiles = 0
                 datasetSpec.nFilesUsed = 0

@@ -51,6 +51,7 @@ class JediDatasetSpec(object):
         'num_records'      : 'nr',
         'offset'           : 'of',
         'objectStore'      : 'os',
+        'pseudo'           : 'ps',
         'random'           : 'rd',
         'reusable'         : 'ru',
         'transient'        : 'tr',
@@ -314,8 +315,9 @@ class JediDatasetSpec(object):
         if self.datasetName in ['pseudo_dataset','seq_number'] \
                 or self.type in ['pp_input']:
             return True
-        else:
-            return False
+        if self.attributes != None and self.attrToken['pseudo'] in self.attributes.split(','):
+            return True
+        return False
 
 
 
@@ -612,3 +614,15 @@ class JediDatasetSpec(object):
                     except:
                         pass
         return None
+
+
+
+    # set pseudo
+    def setPseudo(self):
+        if self.attributes in [None,'']:
+            items = []
+        else:
+            items = self.attributes.split(',')
+        if not self.attrToken['pseudo'] in items:
+            items.append(self.attrToken['pseudo'])
+            self.attributes = ','.join(items)
