@@ -68,7 +68,7 @@ class TaskRefiner (JediKnight,FactoryBase):
                                 thr = TaskRefinerThread(taskList,threadPool,
                                                         self.taskBufferIF,
                                                         self.ddmIF,
-                                                        self,workQueueMapper)
+                                                        self, workQueueMapper)
                                 thr.start()
                             # join
                             threadPool.join()
@@ -90,7 +90,7 @@ class TaskRefiner (JediKnight,FactoryBase):
 class TaskRefinerThread (WorkerThread):
 
     # constructor
-    def __init__(self,taskList,threadPool,taskbufferIF,ddmIF,implFactory,workQueueMapper):
+    def __init__(self, taskList, threadPool, taskbufferIF, ddmIF, implFactory, workQueueMapper):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -163,7 +163,7 @@ class TaskRefinerThread (WorkerThread):
                             impl.initializeRefiner(tmpLog)
                             impl.oldTaskStatus = taskStatus
                             # extract common parameters
-                            impl.extractCommon(jediTaskID,taskParamMap,self.workQueueMapper,splitRule)
+                            impl.extractCommon(jediTaskID, taskParamMap, self.workQueueMapper, splitRule)
                             # set parent tid
                             if not parent_tid in [None,jediTaskID]:
                                 impl.taskSpec.parent_tid = parent_tid
