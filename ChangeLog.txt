@@ -1,5 +1,11 @@
 Release Notes
 
+* 4/11/2017
+  * added throttleJobsInPausedTasks
+
+* 4/5/2017
+  * added pseudo output dataset
+
 * 3/27/2017
   * changed AtlasAPP to extend lifetime of user output datasets
 

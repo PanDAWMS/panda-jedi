@@ -44,6 +44,8 @@ class AtlasProdWatchDog (WatchDogBase):
                 self.doActionForHighPrioPending(tmpLog,minPriority,timeoutVal)
             # action to set scout job data w/o scouts
             self.doActionToSetScoutJobData(tmpLog)
+            # action to throttle jobs in paused tasks
+            self.doActionToThrottleJobInPausedTasks(tmpLog)
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('failed with {0}:{1} {2}'.format(errtype.__name__,errvalue,
@@ -222,3 +224,14 @@ class AtlasProdWatchDog (WatchDogBase):
             gTmpLog.error('failed to set scout job data')
         else:
             gTmpLog.info('set scout job data successfully')
+
+
+
+    # action to throttle jobs in paused tasks
+    def doActionToThrottleJobInPausedTasks(self,gTmpLog):
+        tmpRet = self.taskBufferIF.throttleJobsInPausedTasks_JEDI(self.vo,self.prodSourceLabel)
+        if tmpRet is False:
+            # failed                                                                                                             
+            gTmpLog.error('failed to thottle jobs in paused tasks')
+        else:
+            gTmpLog.info('thottled jobs in paused tasks successfully')

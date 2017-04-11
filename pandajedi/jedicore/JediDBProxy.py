@@ -10374,3 +10374,69 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False
+
+
+
+    # throttle jobs in pauses tasks
+    def throttleJobsInPausedTasks_JEDI(self,vo,prodSourceLabel):
+        comment = ' /* JediDBProxy.throttleJobsInPausedTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1}>".format(vo,prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get tasks
+            varMap = {}
+            varMap[':status'] = 'paused'
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+            sqlTL  = "SELECT jediTaskID "
+            sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlTL += "AND tabT.status=:status AND tabT.modificationTime<:timeLimit AND tabT.lockedBy IS NULL "
+            if not vo in [None,'any']:
+                varMap[':vo'] = vo
+                sqlTL += "AND vo=:vo "
+            if not prodSourceLabel in [None,'any']:
+                varMap[':prodSourceLabel'] = prodSourceLabel
+                sqlTL += "AND prodSourceLabel=:prodSourceLabel "
+            # sql to update tasks    
+            sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTU += "SET modificationtime=CURRENT_DATE "
+            sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL "
+            # sql to throttle jobs
+            sqlJT  = 'UPDATE {0}.jobsActive4 '.format(jedi_config.db.schemaPANDA)
+            sqlJT += 'SET jobStatus=:newJobStatus '
+            sqlJT += 'WHERE jediTaskID=:jediTaskID AND jobStatus=:oldJobStatus '
+            # start transaction
+            self.conn.begin()
+            tmpLog.debug(sqlTL+comment+str(varMap))
+            self.cur.execute(sqlTL+comment,varMap)
+            resTL = self.cur.fetchall()
+            # loop over all tasks
+            for jediTaskID, in resTL:
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':status'] = 'paused'
+                self.cur.execute(sqlTU+comment,varMap)
+                iRow = self.cur.rowcount
+                if iRow > 0:
+                    # throttle jobs
+                    varMap = {}
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':newJobStatus'] = 'throttled'
+                    varMap[':oldJobStatus'] = 'activated'
+                    self.cur.execute(sqlJT+comment,varMap)
+                    iRow = self.cur.rowcount
+                    tmpLog.debug('throttled {0} jobs for jediTaskID={1}'.format(iRow,jediTaskID))
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done")
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False

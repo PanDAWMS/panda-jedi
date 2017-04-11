@@ -1462,3 +1462,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # throttle jobs in pauses tasks
+    def throttleJobsInPausedTasks_JEDI(self,vo,prodSourceLabel):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.throttleJobsInPausedTasks_JEDI(vo,prodSourceLabel)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
