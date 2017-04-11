@@ -1523,3 +1523,35 @@ class AtlasDDMClient(DDMClientBase):
             return errCode,'{0} : {1}'.format(methodName,errMsg)
         tmpLog.debug('done with {0}'.format(isDDS))
         return self.SC_SUCCEEDED,isDDS
+
+
+    # update replication rules
+    def updateReplicationRules(self,datasetName,dataMap):
+        methodName = 'updateReplicationRules'
+        methodName = '{0} datasetName={1}'.format(methodName,datasetName)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        isOK = True
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(datasetName)
+            # get rules
+            for rule in client.list_did_rules(scope=scope, name=dsn):
+                for dataKey,data in dataMap.iteritems():
+                    if rule['rse_expression'] == dataKey or re.search(dataKey,rule['rse_expression']) is not None:
+                        tmpLog.debug('set data={0} on {1}'.format(str(data),rule['rse_expression']))
+                        client.update_replication_rule(rule['id'],data)
+        except DataIdentifierNotFound:
+            pass
+        except:
+            isOK = False
+        if not isOK:
+            errtype,errvalue = sys.exc_info()[:2]
+            errCode = self.checkError(errtype)
+            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            tmpLog.error(errMsg)
+            return errCode,'{0} : {1}'.format(methodName,errMsg)
+        tmpLog.debug('done')
+        return self.SC_SUCCEEDED,True

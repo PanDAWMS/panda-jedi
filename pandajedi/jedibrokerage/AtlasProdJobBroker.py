@@ -978,7 +978,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if availableFileMap[datasetSpec.datasetName].has_key(tmpSiteName):
                     availableFiles = availableFileMap[datasetSpec.datasetName][tmpSiteName]
                     for tmpFileSpec in \
-                            availableFiles['localdisk']+availableFiles['localtape']+availableFiles['cache']:
+                            availableFiles['localdisk']+availableFiles['cache']:
                         if not tmpFileSpec.fileID in siteFilesMap[tmpSiteName]:
                             siteSizeMap[tmpSiteName] += tmpFileSpec.fsize
                         siteFilesMap[tmpSiteName].add(tmpFileSpec.fileID)

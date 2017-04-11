@@ -133,9 +133,7 @@ class ContentsFeederThread (WorkerThread):
                     if taskParamMap.has_key('nEventsPerInputFile'):
                         taskParamMap['nEventsPerFile'] = taskParamMap['nEventsPerInputFile']
                     # the number of files per job
-                    nFilesPerJob = None
-                    if taskParamMap.has_key('nFilesPerJob'):
-                        nFilesPerJob = taskParamMap['nFilesPerJob']
+                    nFilesPerJob = taskSpec.getNumFilesPerJob()
                     # the number of chunks used by scout 
                     nChunksForScout = 10
                     # load XML
@@ -267,8 +265,8 @@ class ContentsFeederThread (WorkerThread):
                                             elif 'nEvents' in taskParamMap and 'nEventsPerJob' in taskParamMap:
                                                 nPFN = taskParamMap['nEvents'] / taskParamMap['nEventsPerJob']
                                             elif 'nEvents' in taskParamMap and 'nEventsPerFile' in taskParamMap \
-                                                    and 'nFilesPerJob' in taskParamMap:
-                                                nPFN = taskParamMap['nEvents'] / taskParamMap['nEventsPerFile'] / taskParamMap['nFilesPerJob']
+                                                    and taskSpec.getNumFilesPerJob() is not None:
+                                                nPFN = taskParamMap['nEvents'] / taskParamMap['nEventsPerFile'] / taskSpec.getNumFilesPerJob()
                                             else:
                                                 # the default number of records for seq_number
                                                 seqDefNumRecords = 10000

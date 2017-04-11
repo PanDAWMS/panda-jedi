@@ -63,6 +63,9 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     if not tmpStat:
                         tmpLog.error('failed to get output and log datasets')
                         return retFatal
+                    if datasetSpec.isPseudo():
+                        tmpLog.info('skip pseudo dataset')
+                        continue
                     # DDM backend
                     ddmBackEnd = taskSpec.getDdmBackEnd()
                     tmpLog.info('checking {0}'.format(datasetSpec.datasetName)) 

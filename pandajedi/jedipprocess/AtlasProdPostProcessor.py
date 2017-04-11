@@ -31,6 +31,9 @@ class AtlasProdPostProcessor (PostProcessorBase):
         ddmIF = self.ddmIF.getInterface(taskSpec.vo)
         # loop over all datasets
         for datasetSpec in taskSpec.datasetSpecList:
+            # skip pseudo output datasets
+            if datasetSpec.type in ['output'] and datasetSpec.isPseudo():
+                continue
             try:
                 # remove wrong files
                 if datasetSpec.type in ['output']:

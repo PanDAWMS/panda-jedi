@@ -876,7 +876,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # respect split rule
                         enoughPendingWithSL = False
                         numFilesWithSL = 0
-                        if datasetSpec.isMaster() and taskSpec.respectSplitRule():
+                        if datasetSpec.isMaster() and taskSpec.respectSplitRule() and useScout:
                             tmpDatasetSpec = copy.copy(datasetSpec)
                             # read files
                             sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
@@ -919,7 +919,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # activate all files except master dataset
                                 toActivateFID = pendingFID
                             else:
-                                if datasetSpec.isMaster() and taskSpec.respectSplitRule():
+                                if datasetSpec.isMaster() and taskSpec.respectSplitRule() and useScout:
                                     # enough pending
                                     if enoughPendingWithSL:
                                         toActivateFID = pendingFID[:numFilesWithSL]
@@ -1003,7 +1003,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':datasetID'] = datasetSpec.datasetID
                         varMap[':nFiles'] = nInsert + len(existingFiles) - nLost
                         varMap[':nEvents'] = nEventsInsert + nEventsExist
-                        if datasetSpec.isMaster() and taskSpec.respectSplitRule():
+                        if datasetSpec.isMaster() and taskSpec.respectSplitRule() and useScout:
                             if isMutableDataset:
                                 varMap[':nFilesTobeUsed'] = nReady + nUsed
                             else:
