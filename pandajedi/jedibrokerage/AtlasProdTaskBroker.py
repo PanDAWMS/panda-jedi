@@ -592,6 +592,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 for tmpMsg in skipMsgList:
                                     tmpLog.info(tmpMsg)
                             else:
+                                availableData = {}
                                 tmpLog.info('  disable data locality check since no nucleus has input data')
                             tmpLog.info('{0} candidates passed data check'.format(len(nucleusList)))
                             if nucleusList == {}:
@@ -628,16 +629,16 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     if availableData[tmpNucleus]['ava_size_any'] > availableData[tmpNucleus]['ava_size_disk']:
                                         weight *= negWeightTape
                                         wStr += '*( weight_TAPE={0} )'.format(negWeightTape)
-                                # fraction of free space
-                                if tmpNucleus in fractionFreeSpace:
-                                    try:
-                                        tmpFrac = float(fractionFreeSpace[tmpNucleus]['free']) / \
-                                            float(fractionFreeSpace[tmpNucleus]['total'])
-                                        weight *= tmpFrac
-                                        wStr += '*( free_space={0} )/( total_space={1} )'.format(fractionFreeSpace[tmpNucleus]['free'],
-                                                                                             fractionFreeSpace[tmpNucleus]['total'])
-                                    except:
-                                        pass
+                            # fraction of free space
+                            if tmpNucleus in fractionFreeSpace:
+                                try:
+                                    tmpFrac = float(fractionFreeSpace[tmpNucleus]['free']) / \
+                                        float(fractionFreeSpace[tmpNucleus]['total'])
+                                    weight *= tmpFrac
+                                    wStr += '*( free_space={0} )/( total_space={1} )'.format(fractionFreeSpace[tmpNucleus]['free'],
+                                                                                         fractionFreeSpace[tmpNucleus]['total'])
+                                except:
+                                    pass
                             tmpLog.info('  use nucleus={0} weight={1} {2} criteria=+use'.format(tmpNucleus,weight,wStr))
                             totalWeight += weight
                             nucleusweights.append((tmpNucleus,weight))
