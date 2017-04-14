@@ -1009,6 +1009,9 @@ class JobGeneratorThread (WorkerThread):
                     # log to OS
                     if taskSpec.putLogToOS():
                         jobSpec.setToPutLogToOS()
+                    # suppress execute string conversion
+                    if taskSpec.noExecStrCnv():
+                        jobSpec.setNoExecStrCnv()
                     # write input to file
                     if taskSpec.writeInputToFile():
                         jobSpec.setToWriteInputToFile()
