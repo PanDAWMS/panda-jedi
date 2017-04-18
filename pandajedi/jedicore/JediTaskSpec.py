@@ -24,7 +24,7 @@ class JediTaskSpec(object):
         'mergeCoreCount','goal','assessmentTime','cpuTime','cpuTimeUnit',
         'cpuEfficiency','baseWalltime','nucleus','baseRamCount',
         'ttcRequested', 'ttcPredicted', 'ttcPredictionDate','rescueTime',
-        'requestType', 'gshare'
+        'requestType', 'gshare', 'resource_type'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
@@ -144,8 +144,8 @@ class JediTaskSpec(object):
         object.__setattr__(self,'datasetSpecList',[])
 
 
-    # override __setattr__ to collecte the changed attributes
-    def __setattr__(self,name,value):
+    # override __setattr__ to collect the changed attributes
+    def __setattr__(self, name, value):
         oldVal = getattr(self,name)
         object.__setattr__(self,name,value)
         newVal = getattr(self,name)
