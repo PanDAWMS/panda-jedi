@@ -9958,7 +9958,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         latest_validity = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
 
-        nqueued_cap = self.getConfigValue('taskbroker', 'NQUEUED_NUC_CAP', 'jedi')
+        nqueued_cap = self.getConfigValue('taskbrokerage', 'NQUEUED_NUC_CAP', 'jedi')
         if nqueued_cap is None:
             nqueued_cap = 2000
 
