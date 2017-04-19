@@ -63,6 +63,7 @@ class JediTaskSpec(object):
         'mergeEsOnOS'        : 'ME',
         'nMaxFilesPerJob'    : 'MF',
         'mergeOutput'        : 'MO',
+        'noExecStrCnv'       : 'NC',
         'nEventsPerJob'      : 'NE',
         'nFilesPerJob'       : 'NF',
         'nGBPerJob'          : 'NG',
@@ -1321,3 +1322,12 @@ class JediTaskSpec(object):
                 return True
         return False
 
+
+
+    # suppress execute string conversion
+    def noExecStrCnv(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['noExecStrCnv']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
