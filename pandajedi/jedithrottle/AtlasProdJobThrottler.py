@@ -158,7 +158,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             limitPriority = True
             if not highPrioQueued:
                 # pilot is not running or DDM has a problem
-                msgBody = "SKIP no running and enough nQueued({0})>{1} totWalltime({2})>{3} ".format(nNotRun+nDefine,nQueueLimit,
+                msgBody = "SKIP no running and enough nQueued={0} > {1} totWalltime({2})>{3} ".format(nNotRun+nDefine,nQueueLimit,
                                                                                                      totWalltime,minTotalWalltime)
                 tmpLog.warning(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
@@ -168,7 +168,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             limitPriority = True
             if not highPrioQueued:
                 # enough jobs in Panda
-                msgBody = "SKIP nQueued({0})/nRunning({1})>{2} & nQueued({3})>{4} totWalltime({5})>{6}".format(nNotRun+nDefine,nRunning,
+                msgBody = "SKIP nQueued={0} / nRunning={1} > {2} & nQueued={3} > {4} totWalltime={5} > {6}".format(nNotRun+nDefine,nRunning,
                                                                                                                threshold,nNotRun+nDefine,
                                                                                                                nQueueLimit,
                                                                                                                totWalltime,minTotalWalltime)
@@ -204,7 +204,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             limitPriority = True
             if not highPrioQueued:
                 # cap on queued
-                msgBody = "SKIP nQueue({0})>nQueueCap({1})".format(nNotRun+nDefine,nQueueCap)
+                msgBody = "SKIP nQueued={0} > nQueueCap={1}".format(nNotRun+nDefine,nQueueCap)
                 tmpLog.warning(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
