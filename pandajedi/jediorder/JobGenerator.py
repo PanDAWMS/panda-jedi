@@ -858,7 +858,6 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.lockedby         = 'jedi'
                     jobSpec.workQueue_ID     = taskSpec.workQueue_ID
                     jobSpec.gshare           = taskSpec.gshare
-                    jobSpec.resource_type    = self.taskBufferIF.get_resource_type_job(jobSpec)
 
                     # disable reassign
                     if taskSpec.disableReassign():
@@ -1130,6 +1129,10 @@ class JobGeneratorThread (WorkerThread):
                             jobSpec.maxCpuCount = 0
                         if jobSpec.minRamCount != [None,'NULL']:
                             jobSpec.minRamCount = 0
+
+                    jobSpec.resource_type = self.taskBufferIF.get_resource_type_job(jobSpec)
+                    tmpLog.debug('set resource_type to {0}'.format(jobSpec.resource_type))
+
                     # XML config
                     xmlConfigJob = None
                     if xmlConfig != None:
