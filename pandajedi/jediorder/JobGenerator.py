@@ -1130,8 +1130,12 @@ class JobGeneratorThread (WorkerThread):
                         if jobSpec.minRamCount != [None,'NULL']:
                             jobSpec.minRamCount = 0
 
-                    jobSpec.resource_type = self.taskBufferIF.get_resource_type_job(jobSpec)
-                    tmpLog.debug('set resource_type to {0}'.format(jobSpec.resource_type))
+                    try:
+                        jobSpec.resource_type = self.taskBufferIF.get_resource_type_job(jobSpec)
+                        tmpLog.debug('set resource_type to {0}'.format(jobSpec.resource_type))
+                    except:
+                        jobSpec.resource_type = 'Undefined'
+                        tmpLog.error('set resource_type excepted with {0}'.format(traceback.format_exc()))
 
                     # XML config
                     xmlConfigJob = None

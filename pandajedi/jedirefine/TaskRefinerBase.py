@@ -324,12 +324,10 @@ class TaskRefinerBase (object):
             self.taskSpec.gshare = gshare
 
         # Initialize the resource type
-        resource_type = None
-        resource_type = self.taskBufferIF.get_resource_type_task(self.taskSpec)
-        if resource_type is None:
-            resource_type = 'Undefined'
-
-        self.taskSpec.resource_type = resource_type
+        try:
+            self.taskSpec.resource_type = self.taskBufferIF.get_resource_type_task(self.taskSpec)
+        except:
+            self.taskSpec.resource_type = 'Undefined'
 
         # return
         return
