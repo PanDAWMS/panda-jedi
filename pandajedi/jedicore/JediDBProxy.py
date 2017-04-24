@@ -5289,7 +5289,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskSpec.status = 'exhausted'
         # reset the task resource type
         try:
-            self.reset_resource_type_task(jediTaskID)
+            self.reset_resource_type_task(jediTaskID, useCommit)
         except:
             tmpLog.error('reset_resource_type_task excepted with: {0}'.format(traceback.format_exc()))
 
