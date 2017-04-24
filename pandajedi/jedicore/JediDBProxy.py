@@ -5287,6 +5287,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
+        # reset the task resource type
+        try:
+            self.reset_resource_type_task(jediTaskID)
+        except:
+            tmpLog.error('reset_resource_type_task excepted with: {0}'.format(traceback.format_exc()))
+
         return scoutSucceeded,mergeScoutSucceeded
 
 
@@ -10440,3 +10446,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False
+
+
+
+
+
+        

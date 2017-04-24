@@ -318,12 +318,18 @@ class TaskRefinerBase (object):
             # get share based on definition
             gshare = self.taskBufferIF.get_share_for_task(self.taskSpec)
             if gshare is None:
-                gshare = 'No match'
+                gshare = 'Undefined'
                 # errStr  = 'share is undefined for vo={0} label={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
                 # errStr += 'workingGroup={0} campaign={1} '.format(taskSpec.workingGroup, taskSpec.campaign)
                 # raise RuntimeError,errStr
 
             self.taskSpec.gshare = gshare
+
+        # Initialize the resource type
+        try:
+            self.taskSpec.resource_type = self.taskBufferIF.get_resource_type_task(self.taskSpec)
+        except:
+            self.taskSpec.resource_type = 'Undefined'
 
         # return
         return

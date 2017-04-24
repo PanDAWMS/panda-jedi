@@ -1,4 +1,4 @@
-The core package for JEDI
+Core package for JEDI
 
 
 ** Documentation

@@ -41,8 +41,8 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 class JobGenerator (JediKnight):
 
     # constructor
-    def __init__(self,commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels,cloudList,
-                 withThrottle=True,execJobs=True):
+    def __init__(self, commuChannel, taskBufferIF, ddmIF, vos, prodSourceLabels, cloudList,
+                 withThrottle=True, execJobs=True):
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
         self.vos = self.parseInit(vos)
         self.prodSourceLabels = self.parseInit(prodSourceLabels)
@@ -858,6 +858,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.lockedby         = 'jedi'
                     jobSpec.workQueue_ID     = taskSpec.workQueue_ID
                     jobSpec.gshare           = taskSpec.gshare
+
                     # disable reassign
                     if taskSpec.disableReassign():
                         jobSpec.relocationFlag = 2
@@ -1131,6 +1132,14 @@ class JobGeneratorThread (WorkerThread):
                             jobSpec.maxCpuCount = 0
                         if jobSpec.minRamCount != [None,'NULL']:
                             jobSpec.minRamCount = 0
+
+                    try:
+                        jobSpec.resource_type = self.taskBufferIF.get_resource_type_job(jobSpec)
+                        tmpLog.debug('set resource_type to {0}'.format(jobSpec.resource_type))
+                    except:
+                        jobSpec.resource_type = 'Undefined'
+                        tmpLog.error('set resource_type excepted with {0}'.format(traceback.format_exc()))
+
                     # XML config
                     xmlConfigJob = None
                     if xmlConfig != None:
