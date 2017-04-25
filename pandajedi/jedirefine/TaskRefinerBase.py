@@ -222,11 +222,13 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'t1Weight',         JediTaskSpec.splitRuleToken['t1Weight'])
         self.setSplitRule(taskParamMap,'maxAttemptES',     JediTaskSpec.splitRuleToken['maxAttemptES'])
         self.setSplitRule(taskParamMap,'nSitesPerJob',     JediTaskSpec.splitRuleToken['nSitesPerJob'])
-        self.setSplitRule(taskParamMap,'nJumboJobs',       JediTaskSpec.splitRuleToken['nJumboJobs'])
         self.setSplitRule(taskParamMap,'nEventsPerMergeJob',   JediTaskSpec.splitRuleToken['nEventsPerMergeJob'])
         self.setSplitRule(taskParamMap,'nFilesPerMergeJob',    JediTaskSpec.splitRuleToken['nFilesPerMergeJob'])
         self.setSplitRule(taskParamMap,'nGBPerMergeJob',       JediTaskSpec.splitRuleToken['nGBPerMergeJob'])
         self.setSplitRule(taskParamMap,'nMaxFilesPerMergeJob', JediTaskSpec.splitRuleToken['nMaxFilesPerMergeJob'])
+        if 'nJumboJobs' in taskParamMap:
+            self.setSplitRule(taskParamMap,'nJumboJobs',JediTaskSpec.splitRuleToken['nJumboJobs'])
+            taskSpec.useJumbo = JediTaskSpec.enum_useJumbo['waiting']
         if taskParamMap.has_key('loadXML'):
             self.setSplitRule(None,3,JediTaskSpec.splitRuleToken['loadXML'])
             self.setSplitRule(None,4,JediTaskSpec.splitRuleToken['groupBoundaryID'])
@@ -415,6 +417,7 @@ class TaskRefinerBase (object):
                 datasetSpec.nFilesFinished = 0
                 datasetSpec.nFilesFailed = 0
                 datasetSpec.nFilesOnHold = 0
+                datasetSpec.nFilesWaiting = 0
                 datasetSpec.nEvents = 0
                 datasetSpec.nEventsUsed = 0
                 datasetSpec.nEventsToBeUsed = 0

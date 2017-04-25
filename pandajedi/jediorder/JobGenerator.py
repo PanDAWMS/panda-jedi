@@ -151,6 +151,17 @@ class JobGenerator (JediKnight):
                                 nTasksToGetTasks = tmpParamsToGetTasks['nTasks']
                                 nFilesToGetTasks = tmpParamsToGetTasks['nFiles']
                                 tmpLog.debug('nTasks={0} nFiles={1} to get tasks'.format(nTasksToGetTasks,nFilesToGetTasks))
+                                # get number of tasks to generate new jumbo jobs
+                                numTasksWithRunningJumbo = self.taskBufferIF.getNumTasksWithRunningJumbo_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id)
+                                if not self.withThrottle:
+                                    numTasksWithRunningJumbo = 0
+                                maxNumasksWithRunningJumbo = 5
+                                if numTasksWithRunningJumbo < maxNumasksWithRunningJumbo:
+                                    numNewTaskWithJumbo = maxNumasksWithRunningJumbo - numTasksWithRunningJumbo
+                                    if numNewTaskWithJumbo < 0:
+                                        numNewTaskWithJumbo = 0
+                                else:
+                                    numNewTaskWithJumbo = 0
                                 # release lock when lack of jobs
                                 lackOfJobs = False
                                 if thrFlag == False:
@@ -169,7 +180,8 @@ class JobGenerator (JediKnight):
                                                                                        minPriority=throttle.minPriority,
                                                                                        maxNumJobs=throttle.maxNumJobs,
                                                                                        typicalNumFilesMap=typicalNumFilesMap,
-                                                                                       mergeUnThrottled=mergeUnThrottled
+                                                                                       mergeUnThrottled=mergeUnThrottled,
+                                                                                       numNewTaskWithJumbo=numNewTaskWithJumbo
                                                                                        )
                                 if tmpList == None:
                                     # failed
@@ -616,9 +628,15 @@ class JobGeneratorThread (WorkerThread):
                                 tmpLog.info(tmpMsg)
                                 tmpLog.sendMsg(tmpMsg,self.msgType)
                                 if self.execJobs:
-                                    statExe,retExe = PandaClient.reassignJobs(pandaIDs,forPending=True,
+                                    # skip fake co-jumbo
+                                    pandaIDsForExec = []
+                                    for pandaID,pandaJob in zip(pandaIDs,pandaJobs):
+                                        if pandaJob.computingSite == EventServiceUtils.siteIdForWaitingCoJumboJobs:
+                                            continue
+                                        pandaIDsForExec.append(pandaID)
+                                    statExe,retExe = PandaClient.reassignJobs(pandaIDsForExec,forPending=True,
                                                                               firstSubmission=firstSubmission)
-                                    tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDs),retExe))
+                                    tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDsForExec),retExe))
                                 jobsSubmitted = True
                                 if inputChunk.isMerging:
                                     # don't change task status by merging
@@ -806,7 +824,10 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.reqID            = taskSpec.reqID
                     jobSpec.workingGroup     = taskSpec.workingGroup
                     jobSpec.countryGroup     = taskSpec.countryGroup
-                    jobSpec.computingSite    = siteName
+                    if inputChunk.useJumbo == 'fake':
+                        jobSpec.computingSite = EventServiceUtils.siteIdForWaitingCoJumboJobs
+                    else:
+                        jobSpec.computingSite = siteName
                     jobSpec.cloud            = cloudName
                     jobSpec.nucleus          = taskSpec.nucleus
                     jobSpec.VO               = taskSpec.vo
@@ -880,7 +901,7 @@ class JobGeneratorThread (WorkerThread):
                     # set specialHandling for Event Service
                     if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
                         specialHandling += EventServiceUtils.getHeaderForES(esIndex)
-                        if taskSpec.getNumJumboJobs() == None:
+                        if taskSpec.useJumbo is None:
                             # normal ES job
                             jobSpec.eventService = EventServiceUtils.esJobFlagNumber
                         else:
@@ -1254,6 +1275,9 @@ class JobGeneratorThread (WorkerThread):
                                                                    serialNr,paramList,jobSpec,simul,
                                                                    taskParamMap,inputChunk.isMerging,
                                                                    jobSpec.Files,useEStoMakeJP)
+                    # set destinationSE for fake co-jumbo
+                    if inputChunk.useJumbo == 'fake':
+                        jobSpec.destinationSE = DataServiceUtils.checkJobDestinationSE(jobSpec)
                     # add
                     tmpJobSpecList.append(jobSpec)
                     oldPandaIDs.append(subOldPandaIDs)
@@ -1277,8 +1301,14 @@ class JobGeneratorThread (WorkerThread):
             if taskSpec.useEventService() and taskSpec.getNumSitesPerJob():
                 jobSpecList,oldPandaIDs = self.sortParallelJobsBySite(jobSpecList,oldPandaIDs)
             # make jumbo jobs
-            if taskSpec.getNumJumboJobs() != None and self.taskBufferIF.isApplicableTaskForJumbo(taskSpec.jediTaskID):
-                jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul)
+            if taskSpec.getNumJumboJobs() is not None and inputChunk.useJumbo is not None:
+                if self.taskBufferIF.isApplicableTaskForJumbo(taskSpec.jediTaskID):
+                    jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul)
+                    # set running to useJumbo
+                    self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'running')
+                else:
+                    # disable useJumbo
+                    self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'disabled')
             # return
             return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap
         except:

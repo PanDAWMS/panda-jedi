@@ -15,7 +15,8 @@ class JediFileSpec(object):
                    'lfn','GUID','type','status','fsize','checksum','scope',
                    'attemptNr','maxAttempt','nEvents','keepTrack',
                    'startEvent','endEvent','firstEvent','boundaryID','PandaID',
-                   'failedAttempt','lumiBlockNr','outPandaID','maxFailure', 'ramCount')
+                   'failedAttempt','lumiBlockNr','outPandaID','maxFailure', 'ramCount',
+                   'is_waiting')
     # attributes which have 0 by default
     _zeroAttrs = ('fsize','attemptNr','failedAttempt','ramCount')
     # mapping between sequence and attr

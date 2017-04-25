@@ -24,7 +24,7 @@ class JediTaskSpec(object):
         'mergeCoreCount','goal','assessmentTime','cpuTime','cpuTimeUnit',
         'cpuEfficiency','baseWalltime','nucleus','baseRamCount',
         'ttcRequested', 'ttcPredicted', 'ttcPredictionDate','rescueTime',
-        'requestType', 'gshare', 'resource_type'
+        'requestType', 'gshare', 'resource_type', 'useJumbo'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
@@ -127,6 +127,10 @@ class JediTaskSpec(object):
     # world cloud name
     worldCloudName = 'WORLD'
 
+    # enum for useJumbo
+    enum_useJumbo = {'waiting': 'W',
+                     'running': 'R',
+                     'disabled': 'D'}
 
 
     # constructor
@@ -319,10 +323,18 @@ class JediTaskSpec(object):
         return None
 
 
+    
+    # check if using jumbo
+    def usingJumboJobs(self):
+        if self.useJumbo in [None, self.enum_useJumbo['disabled']]:
+            return False
+        return True
+
+
 
     # get the number of jumbo jobs if defined
     def getNumJumboJobs(self):
-        if self.splitRule != None:
+        if self.usingJumboJobs() and self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['nJumboJobs']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))

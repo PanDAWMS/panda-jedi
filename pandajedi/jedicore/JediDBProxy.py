@@ -2614,7 +2614,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nTasks=50,nFiles=100,isPeeking=False,simTasks=None,
                                    minPriority=None,maxNumJobs=None,typicalNumFilesMap=None,
                                    fullSimulation=False,simDatasets=None,
-                                   mergeUnThrottled=None,readMinFiles=False):
+                                   mergeUnThrottled=None,readMinFiles=False,
+                                   numNewTaskWithJumbo=0):
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
         if simTasks != None:
@@ -2628,6 +2629,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                     nFiles,minPriority))
         tmpLog.debug('maxNumJobs={0} typicalNumFilesMap={1}'.format(maxNumJobs,str(typicalNumFilesMap)))
         tmpLog.debug('simTasks={0} mergeUnThrottled={1}'.format(str(simTasks),str(mergeUnThrottled)))
+        tmpLog.debug('numNewTaskWithJumbo={0}'.format(numNewTaskWithJumbo))
         memStart = JediCoreUtils.getMemoryUsage()
         tmpLog.debug('memUsage start {0} MB pid={1}'.format(memStart,os.getpid()))
         # return value for failure
@@ -2664,7 +2666,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':dsOKStatus4']     = 'registered'
                 varMap[':dsOKStatus5']     = 'failed'
                 varMap[':timeLimit']       = timeLimit
-                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.{0},nFiles,nEvents ".format(attrNameForGroupBy)
+                sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,"
+                sql += "tabT.{0},nFiles,nEvents,nFilesWaiting,tabT.useJumbo ".format(attrNameForGroupBy)
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
                 sql += "AND tabT.vo=:vo AND workQueue_ID IN ("
@@ -2687,7 +2690,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += ') '
                 sql += "AND tabT.lockedBy IS NULL "
                 sql += "AND tabT.modificationTime<:timeLimit "
-                sql += "AND nFilesToBeUsed > nFilesUsed AND type IN ("
+                sql += "AND "
+                if mergeUnThrottled == True:
+                    sql += "((tabT.useJumbo IS NOT NULL AND nFilesWaiting IS NOT NULL AND nFilesToBeUsed>(nFilesUsed+nFilesWaiting) AND type IN ("
+                    for tmpType in JediDatasetSpec.getInputTypes(): 
+                        mapKey = ':type_'+tmpType
+                        sql += '{0},'.format(mapKey)
+                        varMap[mapKey] = tmpType
+                    sql  = sql[:-1]
+                    sql += ')) OR ('
+                sql += "nFilesToBeUsed > nFilesUsed AND type IN ("
                 if mergeUnThrottled == True:
                     for tmpType in JediDatasetSpec.getMergeProcessTypes():
                         mapKey = ':type_'+tmpType
@@ -2699,7 +2711,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         sql += '{0},'.format(mapKey)
                         varMap[mapKey] = tmpType
                 sql  = sql[:-1]
-                sql += ') AND tabD.status IN (:dsStatus1,:dsStatus2) '
+                sql += ')'
+                if mergeUnThrottled == True:
+                    sql += ')) '
+                sql += 'AND tabD.status IN (:dsStatus1,:dsStatus2) '
                 sql += 'AND masterID IS NULL '
                 if minPriority != None:
                     varMap[':minPriority'] = minPriority
@@ -2722,9 +2737,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 varMap = {}
                 if not fullSimulation:
-                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,tabT.{0},nFiles,nEvents ".format(attrNameForGroupBy)
+                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,"
+                    sql += "tabT.{0},nFiles,nEvents,nFilesWaiting,tabT.useJumbo ".format(attrNameForGroupBy)
                 else:
-                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed,tabD.type,tabT.status,tabT.{0},nFiles,nEvents ".format(attrNameForGroupBy)
+                    sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed,tabD.type,tabT.status,"
+                    sql += "tabT.{0},nFiles,nEvents,nFilesWaiting,tabT.useJumbo ".format(attrNameForGroupBy)
                 sql += "FROM {0}.JEDI_Tasks tabT,{1}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI,
                                                                                  jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ("
@@ -2773,10 +2790,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             taskUserPrioMap = {}
             taskPrioMap = {}
             for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,\
-                    taskStatus,groupByAttr,tmpNumInputFiles,tmpNumInputEvents in resList:
-                tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3} prio={4}'.format(jediTaskID,datasetID,
-                                                                                                     tmpNumFiles,datasetType,
-                                                                                                     currentPriority))
+                    taskStatus,groupByAttr,tmpNumInputFiles,tmpNumInputEvents,\
+                    tmpNumFilesWaiting,useJumbo in resList:
+                tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3} prio={4} useJumbo={5}'.format(jediTaskID,datasetID,
+                                                                                                                  tmpNumFiles,datasetType,
+                                                                                                                  currentPriority,
+                                                                                                                  useJumbo))
                 # just return the max priority
                 if isPeeking:
                     return currentPriority
@@ -2786,7 +2805,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not taskDatasetMap.has_key(jediTaskID):
                     taskDatasetMap[jediTaskID] = []
                  
-                taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents))
+                taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,
+                                                   tmpNumInputEvents,tmpNumFilesWaiting,useJumbo))
                 # use single value if WQ has a share
                 if workQueue != None and workQueue.queue_share != None and not setGroupByAttr:
                     groupByAttr = ''
@@ -2857,7 +2877,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlFR += "AND ramCount=:ramCount "
             sqlFR += "ORDER BY {0}) "
             sqlFR += "WHERE rownum <= {1}"
-            
+            # sql to read files for fake co-jumbo
+            sqlCJ_FR = re.sub('jediTaskID=:jediTaskID AND datasetID=:datasetID ',
+                              'jediTaskID=:jediTaskID AND datasetID=:datasetID AND is_waiting IS NULL ',
+                              sqlFR)
             #For the cases where the ram count is not set
             sqlFR_RCNull  = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
             sqlFR_RCNull += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
@@ -2868,7 +2891,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlFR_RCNull += "AND (ramCount IS NULL OR ramCount=0) "
             sqlFR_RCNull += "ORDER BY {0}) "
             sqlFR_RCNull += "WHERE rownum <= {1}"
-            
+            # sql to read files for fake co-jumbo for the cases where the ram count is not set
+            sqlCJ_FR_RCNull = re.sub('jediTaskID=:jediTaskID AND datasetID=:datasetID ',
+                                     'jediTaskID=:jediTaskID AND datasetID=:datasetID AND is_waiting IS NULL ',
+                                     sqlFR_RCNull)
             # sql to read files without ramcount
             sqlFRNR  = "SELECT * FROM (SELECT {0} ".format(JediFileSpec.columnNames())
             sqlFRNR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
@@ -2878,18 +2904,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlFRNR += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
             sqlFRNR += "ORDER BY {0}) "
             sqlFRNR += "WHERE rownum <= {1}"
-            #sql to read memory requirements of files in dataset
+            # sql to read files for fake co-jumbo without ramcount
+            sqlCJ_FRNR = re.sub('jediTaskID=:jediTaskID AND datasetID=:datasetID ',
+                                'jediTaskID=:jediTaskID AND datasetID=:datasetID AND is_waiting IS NULL ',
+                                sqlFRNR)
+            # sql to read memory requirements of files in dataset
             sqlRM = """SELECT ramCount FROM {0}.JEDI_Dataset_Contents 
                        WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID """.format(jedi_config.db.schemaJEDI)
             if not fullSimulation:
                 sqlRM += """AND status=:status AND (maxAttempt IS NULL OR attemptNr<maxAttempt) 
                             AND (maxFailure IS NULL OR failedAttempt<maxFailure) """
             sqlRM += "GROUP BY ramCount "
+            # sql to read memory requirements for fake co-jumbo
+            sqlCJ_RM = re.sub('jediTaskID=:jediTaskID AND datasetID=:datasetID ',
+                              'jediTaskID=:jediTaskID AND datasetID=:datasetID AND is_waiting IS NULL ',
+                              sqlRM)
             # sql to update file status
-            sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
+            sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus,is_waiting=NULL ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
             # sql to update file usage info in dataset
-            sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
+            sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed,nFilesWaiting=:nFilesWaiting ".format(jedi_config.db.schemaJEDI)
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             sqlDU += "RETURNING nFilesUsed,nFilesTobeUsed INTO :newnFilesUsed,:newnFilesTobeUsed "
             # sql to read DN
@@ -2909,16 +2943,27 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             memoryExceed = False
             for tmpIdxTask,jediTaskID in enumerate(jediTaskIDList):
                 # process only merging if enough jobs are already generated
-                if maxNumJobs != None and maxNumJobs <= 0:
-                    containMergeing = False
-                    for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents in taskDatasetMap[jediTaskID]:
+                dsWithfakeCoJumbo = set()
+                containMerging = False
+                if (maxNumJobs != None and maxNumJobs <= 0) or mergeUnThrottled:
+                    for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents,\
+                            tmpNumFilesWaiting,useJumbo in taskDatasetMap[jediTaskID]:
                         if datasetType in JediDatasetSpec.getMergeProcessTypes():
-                            containMergeing = True
-                            break
-                    if not containMergeing:
-                        tmpLog.debug('skipping jediTaskID={0} {1}/{2}/{3} prio={4}'.format(jediTaskID,tmpIdxTask,
-                                                                                           len(jediTaskIDList),iTasks,
-                                                                                           taskPrioMap[jediTaskID]))
+                            # pmerge
+                            containMerging = True
+                            if useJumbo is None or useJumbo == JediTaskSpec.enum_useJumbo['disabled']:
+                                break
+                        elif useJumbo is None or useJumbo == JediTaskSpec.enum_useJumbo['disabled'] or tmpNumFiles-tmpNumFilesWaiting <= 0:
+                            # no jumbo or no more co-jumbo
+                            pass
+                        elif useJumbo == JediTaskSpec.enum_useJumbo['running'] or \
+                                (useJumbo == JediTaskSpec.enum_useJumbo['waiting'] and numNewTaskWithJumbo > 0):
+                            # jumbo with fake co-jumbo
+                            dsWithfakeCoJumbo.add(datasetID)
+                    if not containMerging and len(dsWithfakeCoJumbo) == 0:
+                        tmpLog.debug('skipping no pmerge or jumbo jediTaskID={0} {1}/{2}/{3} prio={4}'.format(jediTaskID,tmpIdxTask,
+                                                                                                              len(jediTaskIDList),iTasks,
+                                                                                                              taskPrioMap[jediTaskID]))
                         continue
                 tmpLog.debug('getting jediTaskID={0} {1}/{2}/{3} prio={4}'.format(jediTaskID,tmpIdxTask,
                                                                                   len(jediTaskIDList),iTasks,
@@ -2932,7 +2977,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # read task
                 toSkip = False
                 try:
-                    # select
+                    # read task
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
                     varMap[':statusInDB'] = taskStatusMap[jediTaskID]
@@ -2955,6 +3000,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         origTaskSpec = JediTaskSpec()
                         origTaskSpec.pack(resRT)
+                    # skip fake co-jumbo for scouting
+                    if not containMerging and len(dsWithfakeCoJumbo) > 0 and origTaskSpec.useScout() and not origTaskSpec.isPostScout():
+                        toSkip = True
+                        tmpLog.debug('skip scouting jumbo jediTaskID={0}'.format(jediTaskID))
+                        if not self._commit():
+                            raise RuntimeError, 'Commit error'
+                        continue
                     # lock task
                     if simTasks == None and not jediTaskID in lockedTasks:
                         varMap = {}
@@ -3031,13 +3083,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not toSkip:
                     iDsPerTask = 0
                     nDsPerTask = 10
-                    for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents in taskDatasetMap[jediTaskID]:
+                    taskWithNewJumbo = False
+                    for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents,\
+                            tmpNumFilesWaiting,useJumbo in taskDatasetMap[jediTaskID]:
                         
                         primaryDatasetID = datasetID
                         datasetIDs = [datasetID]
                         taskSpec = copy.copy(origTaskSpec)
                         
-                        #See if there are different memory requirements that need to be mapped to different chuncks
+                        # See if there are different memory requirements that need to be mapped to different chuncks
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
                         varMap[':datasetID'] = datasetID
@@ -3045,7 +3099,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':status'] = 'ready'
                         self.cur.arraysize = 1000000
                         # figure out if there are different memory requirements in the dataset
-                        self.cur.execute(sqlRM+comment, varMap)
+                        if datasetID not in dsWithfakeCoJumbo:
+                            self.cur.execute(sqlRM+comment, varMap)
+                        else:
+                            self.cur.execute(sqlCJ_RM+comment, varMap)
                         memReqs = map (lambda req: req[0], self.cur.fetchall()) #Unpack resultset
                         
                         #Group 0 and NULL memReqs
@@ -3064,8 +3121,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if datasetType in JediDatasetSpec.getMergeProcessTypes():
                                 for inputChunk in inputChunks:
                                     inputChunk.isMerging = True
+                            elif (useJumbo == JediTaskSpec.enum_useJumbo['running'] or \
+                                    (useJumbo == JediTaskSpec.enum_useJumbo['waiting'] and numNewTaskWithJumbo > 0)) and \
+                                    tmpNumFiles > tmpNumFilesWaiting:
+                                # set jumbo flag only to the first chunk
+                                if datasetID in dsWithfakeCoJumbo:
+                                    if origTaskSpec.useScout() and not origTaskSpec.isPostScout():
+                                        tmpLog.debug('skip jediTaskID={0} datasetID={1} due to jumbo for scouting'.format(jediTaskID,
+                                                                                                                          primaryDatasetID)) 
+                                        continue
+                                    inputChunks[0].useJumbo = 'fake'
+                                else:
+                                    inputChunks[0].useJumbo = 'full'
+                                # overwrite tmpNumFiles
+                                tmpNumFiles -= tmpNumFilesWaiting
+                                if useJumbo == JediTaskSpec.enum_useJumbo['waiting']:
+                                    taskWithNewJumbo = True
                             else:
-                                # only process merging if enough jobs are already generated
+                                # only process merging or jumbo if enough jobs are already generated
                                 if maxNumJobs != None and maxNumJobs <= 0:
                                     tmpLog.debug('skip jediTaskID={0} datasetID={1} due to non-merge + enough jobs'.format(jediTaskID,
                                                                                                                            primaryDatasetID)) 
@@ -3239,6 +3312,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                                                                    orderBy))
                                     # read files to make FileSpec
                                     iFiles_tmp = 0
+                                    iFilesWaiting = 0
                                     for iDup in range(100): # avoid infinite loop just in case
                                         varMap = {}
                                         varMap[':datasetID']  = datasetID
@@ -3246,16 +3320,25 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         if not tmpDatasetSpec.toKeepTrack():
                                             if not fullSimulation:
                                                 varMap[':status'] = 'ready'
-                                            self.cur.execute(sqlFRNR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
+                                            if datasetID not in dsWithfakeCoJumbo:
+                                                self.cur.execute(sqlFRNR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
+                                            else:
+                                                self.cur.execute(sqlCJ_FRNR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
                                         else:
                                             if not fullSimulation:
                                                 varMap[':status'] = 'ready'
                                                 if inputChunk.ramCount not in (None, 0):
                                                     varMap[':ramCount'] = inputChunk.ramCount
                                             if inputChunk.ramCount not in (None, 0):
-                                                self.cur.execute(sqlFR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
+                                                if datasetID not in dsWithfakeCoJumbo:
+                                                    self.cur.execute(sqlFR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
+                                                else:
+                                                    self.cur.execute(sqlCJ_FR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
                                             else: #We goup inputChunk.ramCount None and 0 together
-                                                self.cur.execute(sqlFR_RCNull.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
+                                                if datasetID not in dsWithfakeCoJumbo:
+                                                    self.cur.execute(sqlFR_RCNull.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
+                                                else:
+                                                    self.cur.execute(sqlCJ_FR_RCNull.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
                                         resFileList = self.cur.fetchall()
                                         for resFile in resFileList:
                                             # make FileSpec
@@ -3279,6 +3362,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                             iFiles[datasetID] += 1
                                             iFiles_tmp += 1
                                             totalEvents[datasetID].append(tmpFileSpec.getEffectiveNumEvents())
+                                            if tmpFileSpec.is_waiting == 'Y':
+                                                iFilesWaiting += 1
                                         # no reuse
                                         if not taskSpec.reuseSecOnDemand() or tmpDatasetSpec.isMaster() or taskSpec.useLoadXML() or \
                                                 tmpDatasetSpec.isSeqNumber() or tmpDatasetSpec.isNoSplit() or tmpDatasetSpec.toMerge() or \
@@ -3339,10 +3424,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         # update nFilesUsed in DatasetSpec
                                         nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles[datasetID]
                                         tmpDatasetSpec.nFilesUsed = nFilesUsed
+                                        if tmpDatasetSpec.nFilesWaiting is not None:
+                                            tmpDatasetSpec.nFilesWaiting -= iFilesWaiting
                                         varMap = {}
                                         varMap[':jediTaskID'] = jediTaskID
                                         varMap[':datasetID']  = datasetID
                                         varMap[':nFilesUsed'] = nFilesUsed
+                                        varMap[':nFilesWaiting'] = tmpDatasetSpec.nFilesWaiting
                                         varMap[':newnFilesUsed'] = self.cur.var(cx_Oracle.NUMBER)
                                         varMap[':newnFilesTobeUsed'] = self.cur.var(cx_Oracle.NUMBER)
                                         self.cur.execute(sqlDU+comment,varMap)
@@ -3390,6 +3478,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 break
                         except:
                             pass
+                    if taskWithNewJumbo:
+                        numNewTaskWithJumbo -= 1
                 if not toSkip:        
                     # commit
                     if not self._commit():
@@ -10449,6 +10539,72 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
+    # set useJumbo flag
+    def setUseJumboFlag_JEDI(self,jediTaskID,statusStr):
+        comment = ' /* JediDBProxy.setUseJumboFlag_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0} status={1}>".format(jediTaskID,statusStr)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # disable jumbo
+            sqlDJ  = "UPDATE {0}.JEDI_Tasks SET useJumbo=:status ".format(jedi_config.db.schemaJEDI)
+            sqlDJ += "WHERE jediTaskID=:jediTaskID "
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':status'] = JediTaskSpec.enum_useJumbo[statusStr]
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sqlDJ+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("set {0}".format(varMap[':status']))
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
 
 
-        
+
+    # get number of tasks with running jumbo jobs
+    def getNumTasksWithRunningJumbo_JEDI(self,vo,prodSourceLabel,cloudName,queue_id):
+        comment = ' /* JediDBProxy.getNumTasksWithRunningJumbo_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1} cloud={2} queue={3}>".format(vo,prodSourceLabel,cloudName,queue_id)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # get tasks
+            sqlDJ  = "SELECT COUNT(*) FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlDJ += "WHERE vo=:vo AND prodSourceLabel=:label AND cloud=:cloud AND workQueue_ID=:queue "
+            sqlDJ += "AND useJumbo=:useJumbo AND status IN (:st1,:st2,:st3) "
+            varMap = {}
+            varMap[':vo']  = vo
+            varMap[':label'] = prodSourceLabel
+            varMap[':cloud'] = cloudName
+            varMap['queue'] = queue_id 
+            varMap[':st1'] = 'running'
+            varMap[':st2'] = 'pending'
+            varMap[':st3'] = 'ready'
+            varMap[':useJumbo'] = JediTaskSpec.enum_useJumbo['running']
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sqlDJ+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            nTasks, = self.cur.fetchone()
+            # return
+            tmpLog.debug("got {0} tasks".format(nTasks))
+            return nTasks
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return 0

@@ -51,7 +51,8 @@ tmpListList = tbIF.getTasksToBeProcessed_JEDI(None,vo,workQueue,
                                               cloudName,nFiles=10,simTasks=[jediTaskID],
                                               fullSimulation=True,
                                               typicalNumFilesMap=typicalNumFilesMap,
-                                              simDatasets=datasetID)
+                                              simDatasets=datasetID,
+                                              numNewTaskWithJumbo=5)
 
 taskSetupper = TaskSetupper(vo,prodSourceLabel)
 taskSetupper.initializeMods(tbIF,ddmIF)

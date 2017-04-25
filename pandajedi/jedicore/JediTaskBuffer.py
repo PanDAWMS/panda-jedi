@@ -323,7 +323,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                    nTasks=50,nFiles=100,simTasks=None,minPriority=None,
                                    maxNumJobs=None,typicalNumFilesMap=None,
                                    fullSimulation=False,simDatasets=None,
-                                   mergeUnThrottled=None,readMinFiles=False):
+                                   mergeUnThrottled=None,readMinFiles=False,
+                                   numNewTaskWithJumbo=0):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -335,7 +336,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
                                                   fullSimulation=fullSimulation,
                                                   simDatasets=simDatasets,
                                                   mergeUnThrottled=mergeUnThrottled,
-                                                  readMinFiles=readMinFiles)
+                                                  readMinFiles=readMinFiles,
+                                                  numNewTaskWithJumbo=numNewTaskWithJumbo)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1471,6 +1473,32 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.throttleJobsInPausedTasks_JEDI(vo,prodSourceLabel)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # set useJumbo flag
+    def setUseJumboFlag_JEDI(self,jediTaskID,statusStr):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.setUseJumboFlag_JEDI(jediTaskID,statusStr)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+    # get number of tasks with running jumbo jobs
+    def getNumTasksWithRunningJumbo_JEDI(self,vo,prodSourceLabel,cloudName,queue_id):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getNumTasksWithRunningJumbo_JEDI(vo,prodSourceLabel,cloudName,queue_id)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

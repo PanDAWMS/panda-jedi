@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/25/2017
+  * fake co-jumbo
+
 * 4/14/2017
   * added noExecStrCnv
 

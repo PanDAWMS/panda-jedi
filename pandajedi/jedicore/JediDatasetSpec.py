@@ -33,7 +33,7 @@ class JediDatasetSpec(object):
         'nFilesFinished','nFilesFailed','nFilesOnHold',
         'nEvents','nEventsToBeUsed','nEventsUsed',
         'lockedBy','lockedTime','attributes','streamName',
-        'storageToken','destination','templateID'
+        'storageToken','destination','templateID','nFilesWaiting'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()
