@@ -1366,11 +1366,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         return retVal
 
     # get network metrics for brokerage
-    def getPandaSiteToAtlasSiteMapping(self):
+    def getPandaSiteToStorageSiteMapping(self):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getPandaSiteToAtlasSiteMapping()
+        retVal = proxy.getPandaSiteToStorageSiteMapping()
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
