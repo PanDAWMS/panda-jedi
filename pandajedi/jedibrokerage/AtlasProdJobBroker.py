@@ -76,48 +76,6 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.bulkSendMsg('prod_brokerage')
         tmpLog.debug('sent')
 
-    # sends a json message to ES. QUICK HACK FOR EXPERIMENTATION. SHOULD BE INCLUDED IN PANDA-COMMON
-    def sendNetworkMessage(self, taskID, src, dst, weight, weightNw, weightNwThroughput,
-                           weightNwQueued, mbps, closeness, nqueued, tmpLog):
-        name = 'panda.mon.jedi'
-        module = 'network_brokerage'
-
-        try:
-            import requests
-            import json
-            import time
-
-            url = 'http://{0}:8081'.format(logger_config.daemon['loghost_new'])
-
-            headers = {'Content-type':'application/json; charset=UTF-8'}
-
-            body = {'name': name,
-                    'module': module,
-                    'jeditaskID': taskID,
-                    'src': src,
-                    'dst': dst,
-                    'weight': weight,
-                    'weightNw': weightNw,
-                    'weightNwThroughput': weightNwThroughput,
-                    'weightNwQueued': weightNwQueued,
-                    'mbps': mbps,
-                    'closeness': closeness,
-                    'nqueued': nqueued,
-                    'msg': 'network data'}
-
-            arr=[{
-              "headers" : {
-                         "timestamp" : int(time.time())*1000,
-                         "host" : url
-              },
-              "body": "{0}".format(json.dumps(body))
-             }
-            ]
-            r=requests.post(url, data=json.dumps(arr), headers=headers, timeout=0.2)
-        except:
-            tmpLog.warning('Failed to send network message to panda logger: {0}'.format(sys.exc_info()[1]))
-
-
     def convertMBpsToWeight(self, mbps):
         """
         Takes MBps value and converts to a weight between 1 and 2
@@ -1130,10 +1088,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                             'weightNwThroughput={5} weightNwQueued={6} mbps={7} closeness={8} nqueued={9}'
                             .format(taskSpec.jediTaskID, tmpAtlasSiteName, nucleus, weight, weightNw,
                                     weightNwThroughput, weightNwQueue, mbps, closeness, nFilesInQueue))
-
-                self.sendNetworkMessage(taskSpec.jediTaskID, tmpAtlasSiteName, nucleus, weight, weightNw,
-                                        weightNwThroughput, weightNwQueue, mbps, closeness,
-                                        nFilesInQueue, tmpLog)
 
             # make candidate
             siteCandidateSpec = SiteCandidate(tmpSiteName)
