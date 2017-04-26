@@ -3,6 +3,9 @@ Release Notes
 * 4/25/2017
   * fake co-jumbo
 
+* 4/24/2017
+  * resource_type tagging
+
 * 4/14/2017
   * added noExecStrCnv
 
