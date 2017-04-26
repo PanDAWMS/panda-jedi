@@ -10090,7 +10090,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
 
         sql = """
-        SELECT panda_site_name, storage_site_name FROM {0}.panda_site
+        SELECT panda_site_name, site_name FROM {0}.panda_site
         """.format(jedi_config.db.schemaJEDI)
 
         self.cur.execute(sql+comment)
