@@ -10082,15 +10082,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
-    # get a  mapping of panda sites to sites
-    def getPandaSiteToAtlasSiteMapping(self):
-        comment = ' /* JediDBProxy.getPandaSiteToSiteMapping */'
+    # get a  mapping of panda sites to their storage site
+    def getPandaSiteToStorageSiteMapping(self):
+        comment = ' /* JediDBProxy.getPandaSiteToStorageSiteMapping */'
         methodName = self.getMethodName(comment)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
 
         sql = """
-        SELECT panda_site_name, site_name FROM {0}.panda_site
+        SELECT panda_site_name, storage_site_name FROM {0}.panda_site
         """.format(jedi_config.db.schemaJEDI)
 
         self.cur.execute(sql+comment)
@@ -10104,7 +10104,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         tmpLog.debug('done')
         return mapping
-
 
 
 

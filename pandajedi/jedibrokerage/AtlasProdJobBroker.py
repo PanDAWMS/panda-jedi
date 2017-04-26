@@ -76,6 +76,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.bulkSendMsg('prod_brokerage')
         tmpLog.debug('sent')
 
+
     def convertMBpsToWeight(self, mbps):
         """
         Takes MBps value and converts to a weight between 1 and 2
@@ -247,7 +248,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         #################################################
         # WORLD CLOUD: get the nucleus and the network map
         nucleus = taskSpec.nucleus
-        siteMapping = self.taskBufferIF.getPandaSiteToAtlasSiteMapping()
+        storageMapping = self.taskBufferIF.getPandaSiteToStorageSiteMapping()
 
         if taskSpec.useWorldCloud() and nucleus:
             # get connectivity stats to the nucleus in case of WORLD cloud
@@ -268,7 +269,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             newScanSiteList = []
             for tmpPandaSiteName in scanSiteList:
                 try:
-                    tmpAtlasSiteName = siteMapping[tmpPandaSiteName]
+                    tmpAtlasSiteName = storageMapping[tmpPandaSiteName]
                     if nucleus == tmpAtlasSiteName or \
                                     (networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK and \
                                     networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold):
@@ -607,6 +608,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for available space in SE
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # don't check for T1
             if tmpSiteName in t1Sites:
                 pass
@@ -1031,7 +1033,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
                 tmpAtlasSiteName = None
                 try:
-                    tmpAtlasSiteName = siteMapping[tmpSiteName]
+                    tmpAtlasSiteName = storageMapping[tmpSiteName]
                 except KeyError:
                     tmpLog.debug('Panda site {0} was not in site mapping. Default network values will be given'.
                                  format(tmpSiteName))
