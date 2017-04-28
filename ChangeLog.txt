@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/28/2017
+  * fixed brokerage for git rel
+
 * 4/25/2017
   * fake co-jumbo
 

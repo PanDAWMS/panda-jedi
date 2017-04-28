@@ -467,12 +467,13 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for release
         if taskSpec.transHome != None:
-            if re.search('AtlasOffline-\d+\.\d+\.\d+$',taskSpec.transHome) != None:
+            if re.search('-\d+\.\d+\.\d+$',taskSpec.transHome) is not None:
                 # 3 digits base release
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
                                                                          releases=taskSpec.transHome.split('-')[-1],
                                                                          cmtConfig=taskSpec.architecture)
-            elif re.search('rel_\d+(\n|$)',taskSpec.transHome) == None:
+            elif re.search('rel_\d+(\n|$)',taskSpec.transHome) is None and \
+                    re.search('\d{4}-\d{2}-\d{2}T\d{4}$',taskSpec.transHome) is None:
                 # only cache is checked for normal tasks
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
                                                                          caches=taskSpec.transHome,

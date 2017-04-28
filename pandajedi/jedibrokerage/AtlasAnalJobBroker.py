@@ -169,12 +169,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 transHome = re.sub('^[^-]+-*','',taskSpec.transHome)
                 transHome = re.sub('_','-',transHome)
                 if re.search('rel_\d+(\n|$)',taskSpec.transHome) == None and taskSpec.transHome != 'AnalysisTransforms' and \
-                        re.search('\d{4}-\d{2}-\d{2}T\d{4}$',taskSpec.transHome) == None :
+                        re.search('\d{4}-\d{2}-\d{2}T\d{4}$',taskSpec.transHome) == None and \
+                        re.search('_\d+\.\d+\.\d+$',taskSpec.transHome) is None:
                     # cache is checked 
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
                                                                              caches=transHome,
                                                                              cmtConfig=taskSpec.architecture)
-                elif transHome == '' and taskSpec.transUses != None:
+                elif (transHome == '' and taskSpec.transUses != None) or \
+                        re.search('_\d+\.\d+\.\d+$',taskSpec.transHome) is not None:
                     # remove Atlas-
                     transUses = taskSpec.transUses.split('-')[-1]
                     # release is checked 
