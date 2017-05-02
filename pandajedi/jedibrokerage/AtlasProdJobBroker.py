@@ -76,6 +76,65 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.bulkSendMsg('prod_brokerage')
         tmpLog.debug('sent')
 
+    # get list of parent sites
+    def get_parent_sites(self, scan_site_list):
+        parent_list = set()
+        for tmpSiteName in scan_site_list:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            parentName = tmpSiteSpec.get_parent_name()
+            parent_list.add(parentName)
+        return tuple(parent_list)
+
+    # get list of child sites
+    def get_child_sites(self, parent_list, scan_site_list):
+        parent_list = set(parent_list)
+        child_list = set()
+        for tmpSiteName in scan_site_list:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            if tmpSiteSpec.get_parent_name() in parent_list:
+                child_list.add(tmpSiteName)
+        return tuple(child_list)
+        
+    # sends a json message to ES. QUICK HACK FOR EXPERIMENTATION. SHOULD BE INCLUDED IN PANDA-COMMON
+    def sendNetworkMessage(self, taskID, src, dst, weight, weightNw, weightNwThroughput,
+                           weightNwQueued, mbps, closeness, nqueued, tmpLog):
+        name = 'panda.mon.jedi'
+        module = 'network_brokerage'
+
+        try:
+            import requests
+            import json
+            import time
+
+            url = 'http://{0}:8081'.format(logger_config.daemon['loghost_new'])
+
+            headers = {'Content-type':'application/json; charset=UTF-8'}
+
+            body = {'name': name,
+                    'module': module,
+                    'jeditaskID': taskID,
+                    'src': src,
+                    'dst': dst,
+                    'weight': weight,
+                    'weightNw': weightNw,
+                    'weightNwThroughput': weightNwThroughput,
+                    'weightNwQueued': weightNwQueued,
+                    'mbps': mbps,
+                    'closeness': closeness,
+                    'nqueued': nqueued,
+                    'msg': 'network data'}
+
+            arr=[{
+              "headers" : {
+                         "timestamp" : int(time.time())*1000,
+                         "host" : url
+              },
+              "body": "{0}".format(json.dumps(body))
+             }
+            ]
+            r=requests.post(url, data=json.dumps(arr), headers=headers, timeout=0.2)
+        except:
+            tmpLog.warning('Failed to send network message to panda logger: {0}'.format(sys.exc_info()[1]))
 
     def convertMBpsToWeight(self, mbps):
         """
@@ -229,6 +288,10 @@ class AtlasProdJobBroker (JobBrokerBase):
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # skip merged queues
+                if tmpSiteSpec.is_parent:
+                    tmpLog.info('  skip site=%s due to is_parent=%s criteria=-parent' % (tmpSiteName,tmpSiteSpec.is_parent))
+                    continue
                 # check site status
                 skipFlag = False
                 if tmpSiteSpec.status != 'online':
@@ -267,7 +330,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # filtering out blacklisted or links with long queues
         if taskSpec.useWorldCloud() and nucleus and not sitePreAssigned and not siteListPreAssigned:
             newScanSiteList = []
-            for tmpPandaSiteName in scanSiteList:
+            for tmpPandaSiteName in self.get_parent_sites(scanSiteList):
                 try:
                     tmpAtlasSiteName = storageMapping[tmpPandaSiteName]
                     if nucleus == tmpAtlasSiteName or \
@@ -289,7 +352,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     # default to the worst connectivity and will be penalized.
                     newScanSiteList.append(tmpPandaSiteName)
 
-            scanSiteList = newScanSiteList
+            scanSiteList = self.get_child_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed site status check'.format(len(scanSiteList)))
             if not scanSiteList:
                 tmpLog.error('no candidates')
@@ -331,9 +394,10 @@ class AtlasProdJobBroker (JobBrokerBase):
             inactiveSites = self.taskBufferIF.getInactiveSites_JEDI('production',inactiveTimeLimit)
             newScanSiteList = []
             tmpMsgList = []
-            for tmpSiteName in scanSiteList:
-                nToGetAll = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'activated') + \
-                    AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'starting')
+            for tmpSiteName in self.get_parent_sites(scanSiteList):
+                tmpSiteSpec = self.siteMapper.getSite(tmpPandaSiteName)
+                nToGetAll = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteSpec.get_parent_name(),'activated') + \
+                    AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteSpec.get_parent_name(),'starting')
                 if tmpSiteName in ['BNL_CLOUD','BNL_CLOUD_MCORE','ATLAS_OPP_OSG']:
                     tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid slow sites '.format(tmpSiteName)
                     tmpMsg += 'criteria=-slow'
@@ -346,7 +410,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 else:
                     newScanSiteList.append(tmpSiteName)
             if newScanSiteList != []:
-                scanSiteList = newScanSiteList
+                scanSiteList = self.get_child_sites(newScanSiteList, scanSiteList)
                 for tmpMsg in tmpMsgList:
                     tmpLog.info(tmpMsg)
             tmpLog.info('{0} candidates passed for slowness/inactive check'.format(len(scanSiteList)))
@@ -467,25 +531,26 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for release
         if taskSpec.transHome != None:
+            parent_site_list = self.get_parent_sites(scanSiteList)
             if re.search('-\d+\.\d+\.\d+$',taskSpec.transHome) is not None:
                 # 3 digits base release
-                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(parent_site_list,
                                                                          releases=taskSpec.transHome.split('-')[-1],
                                                                          cmtConfig=taskSpec.architecture)
             elif re.search('rel_\d+(\n|$)',taskSpec.transHome) is None and \
                     re.search('\d{4}-\d{2}-\d{2}T\d{4}$',taskSpec.transHome) is None:
                 # only cache is checked for normal tasks
-                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(parent_site_list,
                                                                          caches=taskSpec.transHome,
                                                                          cmtConfig=taskSpec.architecture)
             else:
                 # nightlies
-                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(parent_site_list,
                                                                          releases='CVMFS')
                 #                                                         releases='nightlies',
                 #                                                         cmtConfig=taskSpec.architecture)
             newScanSiteList = []
-            for tmpSiteName in scanSiteList:
+            for tmpSiteName in parent_site_list:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # release check is disabled or release is available
                 if tmpSiteSpec.releases == ['ANY'] or \
@@ -497,7 +562,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     # release is unavailable
                     tmpLog.info('  skip site=%s due to missing cache=%s:%s criteria=-cache' % \
                                  (tmpSiteName,taskSpec.transHome,taskSpec.architecture))
-            scanSiteList = newScanSiteList        
+            scanSiteList = self.get_child_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed for ATLAS release {1}:{2}'.format(len(scanSiteList),
                                                                                   taskSpec.transHome,
                                                                                   taskSpec.architecture))
@@ -573,7 +638,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         minDiskCountL  = minDiskCountL / 1024 / 1024
         minDiskCountD  = minDiskCountD / 1024 / 1024
         newScanSiteList = []
-        for tmpSiteName in scanSiteList:
+        for tmpSiteName in self.get_parent_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check remote access
             if taskSpec.allowInputLAN() == 'only' and not tmpSiteSpec.direct_access_lan:
@@ -597,7 +662,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpLog.info(tmpMsg)
                     continue
             newScanSiteList.append(tmpSiteName)
-        scanSiteList = newScanSiteList
+        scanSiteList = self.get_child_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed scratch disk check minDiskCount>{1}MB'.format(len(scanSiteList),
                                                                                           minDiskCount))
         if scanSiteList == []:
@@ -608,7 +673,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for available space in SE
         newScanSiteList = []
-        for tmpSiteName in scanSiteList:
+        for tmpSiteName in self.get_parent_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # don't check for T1
             if tmpSiteName in t1Sites:
@@ -633,7 +698,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         tmpLog.info('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm))
                         continue
             newScanSiteList.append(tmpSiteName)
-        scanSiteList = newScanSiteList
+        scanSiteList = self.get_child_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed SE space check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
@@ -814,7 +879,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for transferring
         newScanSiteList = []
-        for tmpSiteName in scanSiteList:
+        for tmpSiteName in self.get_parent_sites(scanSiteList):
             if not tmpSiteName in t1Sites+sitesShareSeT1:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # limit
@@ -832,7 +897,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                      (tmpSiteName,nTraJobs,def_maxTransferring,nRunJobs))
                     continue
             newScanSiteList.append(tmpSiteName)
-        scanSiteList = newScanSiteList        
+        scanSiteList = self.get_child_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed transferring check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
@@ -872,7 +937,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not sitePreAssigned:
             nWNmap = self.taskBufferIF.getCurrentSiteData()
             newScanSiteList = []
-            for tmpSiteName in scanSiteList:
+            for tmpSiteName in self.get_parent_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
                 nPilot = 0
@@ -885,7 +950,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     continue
                 newScanSiteList.append(tmpSiteName)
                 nPilotMap[tmpSiteName] = nPilot
-            scanSiteList = newScanSiteList        
+            scanSiteList = self.get_child_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
@@ -930,7 +995,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
             # loop over all sites to get the size of available files
-            for tmpSiteName in scanSiteList:
+            for tmpSiteName in self.get_parent_sites(scanSiteList):
                 if not siteSizeMap.has_key(tmpSiteName):
                     siteSizeMap[tmpSiteName] = 0
                 if not tmpSiteName in siteFilesMap:
@@ -961,7 +1026,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         moveSizeCutoffGB = 10
         if not sitePreAssigned and totalSize > 0 and not inputChunk.isMerging and taskSpec.ioIntensity is not None and taskSpec.ioIntensity > ioIntensityCutoff:
             newScanSiteList = []
-            for tmpSiteName in scanSiteList:
+            for tmpSiteName in self.get_parent_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # file size to move in MB
                 mbToMove = long((totalSize-siteSizeMap[tmpSiteName])/(1024*1024))
@@ -974,7 +1039,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpLog.info(tmpMsg)
                     continue
                 newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList
+            scanSiteList = self.get_child_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed IO check'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
@@ -995,8 +1060,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         weightMapSecondary = {}
         weightMapJumbo = {}
         newScanSiteList = []
-        for tmpSiteName in scanSiteList:
-            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+        for tmpChildSiteName in scanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpChildSiteName)
+            tmpSiteName = tmpSiteSpec.get_parent_name()
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
             nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',None,taskSpec.workQueue_ID) + self.getLiveCount(tmpSiteName)
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',None,taskSpec.workQueue_ID)
@@ -1093,7 +1159,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                     weightNwThroughput, weightNwQueue, mbps, closeness, nFilesInQueue))
 
             # make candidate
-            siteCandidateSpec = SiteCandidate(tmpSiteName)
+            siteCandidateSpec = SiteCandidate(tmpChildSiteName)
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning
@@ -1115,7 +1181,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             lockedByBrokerage = False
             if taskSpec.useWorldCloud():
                 lockedByBrokerage = self.checkSiteLock(taskSpec.vo,taskSpec.prodSourceLabel,
-                                                       tmpSiteName,taskSpec.workQueue_ID)
+                                                       tmpChildSiteName,taskSpec.workQueue_ID)
             # check cap with nRunning
             cutOffValue = 20
             cutOffFactor = 2 
@@ -1127,18 +1193,18 @@ class AtlasProdJobBroker (JobBrokerBase):
                 forJumbo = True
             # OK message. Use jumbo as primary by default
             if not forJumbo:
-                okMsg = '  use site={0} with weight={1} {2} criteria=+use'.format(tmpSiteName,weight,weightStr)
+                okMsg = '  use site={0} with weight={1} {2} criteria=+use'.format(tmpChildSiteName,weight,weightStr)
                 okAsPrimay = False
             else:
-                okMsg = '  use site={0} for jumbo jobs with weight={1} {2} criteria=+usejumbo'.format(tmpSiteName,weight,weightStr)
+                okMsg = '  use site={0} for jumbo jobs with weight={1} {2} criteria=+usejumbo'.format(tmpChildSiteName,weight,weightStr)
                 okAsPrimay = True
             # checks
             if lockedByBrokerage:
-                ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpSiteName)
+                ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpChildSiteName)
                 ngMsg += 'criteria=-lock'
             elif (not tmpSiteName in siteSizeMap or siteSizeMap[tmpSiteName] >= totalSize) and \
                     (nActivated+nStarting) > nRunningCap:
-                ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpSiteName,
+                ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpChildSiteName,
                                                                                              weight,
                                                                                              nActivated+nStarting)
                 ngMsg += 'greater than max({0},{1}*nRun,nPilot) '.format(cutOffValue, cutOffFactor)
@@ -1146,7 +1212,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 ngMsg += 'criteria=-cap'
             elif tmpSiteName in siteSizeMap and siteSizeMap[tmpSiteName] < totalSize and \
                     (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
-                ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} '.format(tmpSiteName,
+                ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} '.format(tmpChildSiteName,
                                                                                                                 weight,
                                                                                                                 nDefined+nActivated+nAssigned+nStarting)
                 ngMsg += 'greater than max({0},{1}*nRun,nPilot) '.format(cutOffValue, cutOffFactor)
@@ -1155,11 +1221,11 @@ class AtlasProdJobBroker (JobBrokerBase):
             elif taskSpec.useWorldCloud() and self.nwActive and inputChunk.isExpress() \
                     and weightNw < self.nw_threshold * self.nw_weight_multiplier:
                 ngMsg = '  skip site={0} due to low network weight for express task weightNw={1} threshold={2} '\
-                    .format(tmpSiteName, weightNw, self.nw_threshold)
+                    .format(tmpChildSiteName, weightNw, self.nw_threshold)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-lowNetworkWeight'
             else:
-                ngMsg = '  skip site={0} due to low weight '.format(tmpSiteName)
+                ngMsg = '  skip site={0} due to low weight '.format(tmpChildSiteName)
                 ngMsg += 'weight={0} {1} '.format(weight, weightStr)
                 ngMsg += 'criteria=-loweigh'
                 okAsPrimay = True

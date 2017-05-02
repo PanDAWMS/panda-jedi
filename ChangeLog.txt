@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/2/2017
+  * changed AtlasPJB for unified PQs
+
 * 4/28/2017
   * fixed brokerage for git rel
 
