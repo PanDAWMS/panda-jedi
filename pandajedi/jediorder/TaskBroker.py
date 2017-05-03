@@ -42,59 +42,64 @@ class TaskBroker (JediKnight,FactoryBase):
                 tmpLog.debug('start TaskBroker')
                 # get work queue mapper
                 workQueueMapper = self.taskBufferIF.getWorkQueueMap()
+                resource_types = self.taskBufferIF.load_resource_types()
                 # loop over all vos
                 for vo in self.vos:
                     # loop over all sourceLabels
                     for prodSourceLabel in self.prodSourceLabels:
                         # loop over all work queues
                         for workQueue in workQueueMapper.getQueueListWithVoType(vo, prodSourceLabel):
-                            # TODO: Iterate over cores and memory
-                            msgLabel = 'vo={0} label={1} queue={2}: '.format(vo, prodSourceLabel, workQueue.queue_name)
-                            tmpLog.debug(msgLabel+'start')
-                            # get the list of tasks to check
-                            tmpList = self.taskBufferIF.getTasksToCheckAssignment_JEDI(vo, prodSourceLabel, workQueue)
-                            if tmpList == None:
-                                # failed
-                                tmpLog.error(msgLabel+'failed to get the list of tasks to check')
-                            else:
-                                tmpLog.debug(msgLabel+'got {0} tasks to check'.format(len(tmpList)))
-                                # put to a locked list
-                                taskList = ListWithLock(tmpList)
-                                # make thread pool
-                                threadPool = ThreadPool()
-                                # make workers
-                                nWorker = jedi_config.taskbroker.nWorkers
-                                for iWorker in range(nWorker):
-                                    thr = TaskCheckerThread(taskList,threadPool,
-                                                            self.taskBufferIF,
-                                                            self.ddmIF,self,
-                                                            vo,prodSourceLabel)
-                                    thr.start()
-                                # join
-                                threadPool.join()
-                            # get the list of tasks to assign
-                            tmpList = self.taskBufferIF.getTasksToAssign_JEDI(vo, prodSourceLabel, workQueue)
-                            if tmpList == None:
-                                # failed
-                                tmpLog.error(msgLabel+'failed to get the list of tasks to assign')
-                            else:
-                                tmpLog.debug(msgLabel+'got {0} tasks to assign'.format(len(tmpList)))
-                                # put to a locked list
-                                taskList = ListWithLock(tmpList)
-                                # make thread pool
-                                threadPool = ThreadPool()
-                                # make workers
-                                nWorker = jedi_config.taskbroker.nWorkers
-                                for iWorker in range(nWorker):
-                                    thr = TaskBrokerThread(taskList,threadPool,
-                                                           self.taskBufferIF,
-                                                           self.ddmIF,self,
-                                                           vo,prodSourceLabel,
-                                                           workQueue)
-                                    thr.start()
-                                # join
-                                threadPool.join()
-                            tmpLog.debug(msgLabel+'done')
+                            for resource_type in resource_types:
+                                msgLabel = 'vo={0} label={1} queue={2} resource_type={3}: '.\
+                                    format(vo, prodSourceLabel, workQueue.queue_name, resource_type.resource_name)
+                                tmpLog.debug(msgLabel+'start')
+                                # get the list of tasks to check
+                                tmpList = self.taskBufferIF.getTasksToCheckAssignment_JEDI(vo, prodSourceLabel,
+                                                                                           workQueue,
+                                                                                           resource_type.resource_name)
+                                if tmpList == None:
+                                    # failed
+                                    tmpLog.error(msgLabel+'failed to get the list of tasks to check')
+                                else:
+                                    tmpLog.debug(msgLabel+'got {0} tasks to check'.format(len(tmpList)))
+                                    # put to a locked list
+                                    taskList = ListWithLock(tmpList)
+                                    # make thread pool
+                                    threadPool = ThreadPool()
+                                    # make workers
+                                    nWorker = jedi_config.taskbroker.nWorkers
+                                    for iWorker in range(nWorker):
+                                        thr = TaskCheckerThread(taskList,threadPool,
+                                                                self.taskBufferIF,
+                                                                self.ddmIF,self,
+                                                                vo,prodSourceLabel)
+                                        thr.start()
+                                    # join
+                                    threadPool.join()
+                                # get the list of tasks to assign
+                                tmpList = self.taskBufferIF.getTasksToAssign_JEDI(vo, prodSourceLabel,
+                                                                                  workQueue, resource_type.resource_name)
+                                if tmpList == None:
+                                    # failed
+                                    tmpLog.error(msgLabel+'failed to get the list of tasks to assign')
+                                else:
+                                    tmpLog.debug(msgLabel+'got {0} tasks to assign'.format(len(tmpList)))
+                                    # put to a locked list
+                                    taskList = ListWithLock(tmpList)
+                                    # make thread pool
+                                    threadPool = ThreadPool()
+                                    # make workers
+                                    nWorker = jedi_config.taskbroker.nWorkers
+                                    for iWorker in range(nWorker):
+                                        thr = TaskBrokerThread(taskList,threadPool,
+                                                               self.taskBufferIF,
+                                                               self.ddmIF,self,
+                                                               vo,prodSourceLabel,
+                                                               workQueue, resource_type.resource_name)
+                                        thr.start()
+                                    # join
+                                    threadPool.join()
+                                tmpLog.debug(msgLabel+'done')
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
@@ -192,7 +197,7 @@ class TaskBrokerThread (WorkerThread):
 
     # constructor
     def __init__(self, taskList, threadPool, taskbufferIF, ddmIF, implFactory,
-                 vo, prodSourceLabel, workQueue):
+                 vo, prodSourceLabel, workQueue, resource_name):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -203,7 +208,7 @@ class TaskBrokerThread (WorkerThread):
         self.vo = vo
         self.prodSourceLabel = prodSourceLabel
         self.workQueue = workQueue
-
+        self.resource_name = resource_name
 
     # main
     def runImpl(self):
@@ -224,7 +229,7 @@ class TaskBrokerThread (WorkerThread):
                 # get TaskSpecs
                 tmpListToAssign = []
                 for tmpTaskItem in taskList:
-                    tmpListItem = self.taskBufferIF.getTasksToBeProcessed_JEDI(None,None,None,None,None,
+                    tmpListItem = self.taskBufferIF.getTasksToBeProcessed_JEDI(None, None, None, None, None,
                                                                                simTasks=[tmpTaskItem],
                                                                                readMinFiles=True)
                     if tmpListItem == None:
@@ -251,7 +256,7 @@ class TaskBrokerThread (WorkerThread):
                     tmpLog.info('brokerage with {0} for {1} tasks '.format(impl.__class__.__name__,len(tmpListToAssign)))
                     try:
                         tmpStat = impl.doBrokerage(tmpListToAssign, self.vo,
-                                                   self.prodSourceLabel, self.workQueue)
+                                                   self.prodSourceLabel, self.workQueue, self.resource_name)
                     except:
                         errtype,errvalue = sys.exc_info()[:2]
                         tmpLog.error('doBrokerage failed with {0}:{1}'.format(errtype.__name__,errvalue))

@@ -154,16 +154,16 @@ class WorkQueueMapper:
         return None
 
     # get queue list with VO and type
-    def getQueueListWithVoType(self,vo,queueType):
+    def getQueueListWithVoType(self, vo, queue_type):
         if self.workQueueMap.has_key(vo):
-            if not queueType in ['',None,'any']:
-                if self.workQueueMap[vo].has_key(queueType):
-                    return self.workQueueMap[vo][queueType]
+            if not queue_type in ['', None, 'any']:
+                if self.workQueueMap[vo].has_key(queue_type):
+                    return self.workQueueMap[vo][queue_type]
             else:
                 # for any
-                retList = []
-                for tmpType,tmpList in self.workQueueMap[vo].iteritems():
-                    retList += self.workQueueMap[vo][tmpType]
-                return retList
+                ret_list = []
+                for tmp_type, tmp_list in self.workQueueMap[vo].iteritems():
+                    ret_list += self.workQueueMap[vo][tmp_type]
+                return ret_list
         # not found
         return []

@@ -5866,10 +5866,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get tasks to be assigned
-    def getTasksToAssign_JEDI(self, vo, prodSourceLabel, workQueue):
+    def getTasksToAssign_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):
         comment = ' /* JediDBProxy.getTasksToAssign_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' <vo={0} label={1} queue={2}>'.format(vo, prodSourceLabel, workQueue.queue_name)
+        methodName += ' < vo={0} label={1} queue={2} resource_name={3} >'.format(vo, prodSourceLabel,
+                                                                                 workQueue.queue_name,
+                                                                                 resource_name)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         retJediTaskIDs = []
@@ -5898,8 +5900,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':dsType1'] = 'output'
             varMap[':dsType2'] = 'log'
             if workQueue.is_global_share:
-                sqlSCF += "AND gshare=:wq_name "
+                sqlSCF += "AND gshare=:wq_name AND resource_type=:resource_name "
                 varMap[':wq_name'] = workQueue.queue_name
+                varMap[':resource_name'] = workQueue.resource_name
             else:
                 sqlSCF += "AND workQueue_ID=:wq_id "
                 varMap[':wq_id'] = workQueue.queue_id
@@ -5936,7 +5939,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get tasks to check task assignment
-    def getTasksToCheckAssignment_JEDI(self, vo, prodSourceLabel, workQueue):
+    def getTasksToCheckAssignment_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):
         comment = ' /* JediDBProxy.getTasksToCheckAssignment_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <vo={0} label={1} queue={2}>'.format(vo, prodSourceLabel, workQueue.queue_name)
@@ -5967,8 +5970,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':dsType1'] = 'output'
             varMap[':dsType2'] = 'log'
             if workQueue.is_global_share:
-                sqlSCF += "AND gshare=:wq_name "
+                sqlSCF += "AND gshare=:wq_name AND resource_type=:resource_name "
                 varMap[':wq_name'] = workQueue.queue_name
+                varMap[':resource_name'] = resource_name
             else:
                 sqlSCF += "AND workQueue_ID=:wq_id "
                 varMap[':wq_id'] = workQueue.queue_id
