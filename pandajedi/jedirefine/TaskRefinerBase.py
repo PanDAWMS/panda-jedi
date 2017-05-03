@@ -285,6 +285,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['ignoreMissingInDS'])
         if 'noExecStrCnv' in taskParamMap and taskParamMap['noExecStrCnv'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noExecStrCnv'])
+        if 'inFilePosEvtNum' in taskParamMap and taskParamMap['inFilePosEvtNum'] == True:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['inFilePosEvtNum'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:

@@ -52,6 +52,7 @@ class JediTaskSpec(object):
         'firstEvent'         : 'FT',
         'groupBoundaryID'    : 'GB',
         'instantiateTmplSite': 'IA',
+        'inFilePosEvtNum'    : 'IF',
         'allowInputLAN'      : 'IL',
         'ignoreMissingInDS'  : 'IM',
         'ipConnectivity'     : 'IP',
@@ -1340,6 +1341,16 @@ class JediTaskSpec(object):
     def noExecStrCnv(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['noExecStrCnv']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # in-file positional event number
+    def inFilePosEvtNum(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['inFilePosEvtNum']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

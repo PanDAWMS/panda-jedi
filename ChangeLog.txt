@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/3/2017
+  * added inFilePosEvtNum
+
 * 5/2/2017
   * changed AtlasPJB for unified PQs
 

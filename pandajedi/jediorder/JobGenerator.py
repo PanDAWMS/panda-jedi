@@ -975,13 +975,20 @@ class JobGeneratorThread (WorkerThread):
                                             tmpEndEvent = 1
                                     if tmpEndEvent < tmpStartEvent:
                                         tmpEndEvent = tmpStartEvent
+                                    # first event number and offset without/with in-file positional event numbers
+                                    if not taskSpec.inFilePosEvtNum():
+                                        tmpFirstEventOffset = taskSpec.getFirstEventOffset()
+                                        tmpFirstEvent = tmpFileSpec.firstEvent
+                                    else:
+                                        tmpFirstEventOffset = None
+                                        tmpFirstEvent = None
                                     specialHandling += EventServiceUtils.encodeFileInfo(tmpFileSpec.lfn,
                                                                                         tmpStartEvent,
                                                                                         tmpEndEvent,
                                                                                         nEventsPerWorker,
                                                                                         taskSpec.getMaxAttemptES(),
-                                                                                        taskSpec.getFirstEventOffset(),
-                                                                                        tmpFileSpec.firstEvent
+                                                                                        tmpFirstEventOffset,
+                                                                                        tmpFirstEvent
                                                                                         )
                             # calcurate total master size
                             if tmpDatasetSpec.isMaster():
@@ -1033,6 +1040,9 @@ class JobGeneratorThread (WorkerThread):
                     # suppress execute string conversion
                     if taskSpec.noExecStrCnv():
                         jobSpec.setNoExecStrCnv()
+                    # in-file positional event number
+                    if taskSpec.inFilePosEvtNum():
+                        jobSpec.setInFilePosEvtNum()
                     # write input to file
                     if taskSpec.writeInputToFile():
                         jobSpec.setToWriteInputToFile()
