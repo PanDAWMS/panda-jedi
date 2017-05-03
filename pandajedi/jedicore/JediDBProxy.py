@@ -6,6 +6,7 @@ import math
 import types
 import numpy
 import random
+import logging
 import datetime
 import traceback
 import cx_Oracle
@@ -32,6 +33,13 @@ import JediCoreUtils
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 taskbuffer.OraDBProxy._logger = logger
+
+# add handlers of filtered logger
+tmpLoggerFiltered = PandaLogger().getLogger(__name__.split('.')[-1]+'Filtered')
+for tmpHdr in tmpLoggerFiltered.handlers:
+    tmpHdr.setLevel(logging.INFO)
+    logger.addHandler(tmpHdr)
+    tmpLoggerFiltered.removeHandler(tmpHdr)
 
 
 class DBProxy(taskbuffer.OraDBProxy.DBProxy):
@@ -5291,6 +5299,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
+        # filtered dump
+        if scoutSucceeded and not mergeScout and len(returnMap) > 0:
+            tmpMsg = "scouts got for jediTaskID={0} ".format(jediTaskID)
+            tmpKeys = returnMap.keys()
+            tmpKeys.sort()
+            for tmpKey in tmpKeys:
+                tmpMsg += '{0}={1} '.format(tmpKey,returnMap[tmpKey])
+            for tmpPandaID, tmpTags in jobTagMap.iteritems():
+                for tmpTag in tmpTags:
+                    tmpMsg += '{0}_by={1} '.format(tmpTag,tmpPandaID)
+            tmpLog.info(tmpMsg[:-1])
         # return    
         tmpLog.debug('succeeded={0} data={1} extra={2} tag={3}'.format(scoutSucceeded,str(returnMap),str(extraInfo),
                                                                        jobTagMap))
