@@ -395,7 +395,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             newScanSiteList = []
             tmpMsgList = []
             for tmpSiteName in self.get_parent_sites(scanSiteList):
-                tmpSiteSpec = self.siteMapper.getSite(tmpPandaSiteName)
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 nToGetAll = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteSpec.get_parent_name(),'activated') + \
                     AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteSpec.get_parent_name(),'starting')
                 if tmpSiteName in ['BNL_CLOUD','BNL_CLOUD_MCORE','ATLAS_OPP_OSG']:
