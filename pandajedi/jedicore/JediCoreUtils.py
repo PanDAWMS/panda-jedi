@@ -130,6 +130,9 @@ def percentile(inList,percent,idMap):
     k = (len(inList)-1) * float(percent)/100
     f = math.floor(k)
     c = math.ceil(k)
+    if f == c:
+        retVal = inList[int(f)]
+        return retVal,[retVal]
     val0 = inList[int(f)]
     val1 = inList[int(c)]
     d0 = val0 * (c-k)
