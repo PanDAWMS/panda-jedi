@@ -92,7 +92,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
 
 
     # main to assign
-    def doBrokerage(self,inputList,vo,prodSourceLabel,workQueue):
+    def doBrokerage(self, inputList, vo, prodSourceLabel, workQueue, resource_name):
         # list with a lock
         inputListWorld = ListWithLock([])
         # variables for submission
@@ -103,8 +103,8 @@ class AtlasProdTaskBroker (TaskBrokerBase):
         # return for failure
         retFatal    = self.SC_FATAL
         retTmpError = self.SC_FAILED
-        tmpLog.debug('vo={0} label={1} queue={2} nTasks={3}'.format(vo,prodSourceLabel,
-                                                                    workQueue.queue_name,
+        tmpLog.debug('vo={0} label={1} queue={2} resource_name={3} nTasks={4}'.format(vo,prodSourceLabel,
+                                                                    workQueue.queue_name, resource_name,
                                                                     len(inputList)))
         # loop over all tasks
         allRwMap    = {}

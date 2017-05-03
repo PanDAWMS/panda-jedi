@@ -658,11 +658,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get tasks to be assigned
-    def getTasksToAssign_JEDI(self,vo,prodSourceLabel,workQueue):
+    def getTasksToAssign_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTasksToAssign_JEDI(vo,prodSourceLabel,workQueue)
+        retVal = proxy.getTasksToAssign_JEDI(vo, prodSourceLabel, workQueue, resource_name)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -671,11 +671,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
 
 
     # get tasks to check task assignment
-    def getTasksToCheckAssignment_JEDI(self,vo,prodSourceLabel,workQueue):
+    def getTasksToCheckAssignment_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTasksToCheckAssignment_JEDI(vo,prodSourceLabel,workQueue)
+        retVal = proxy.getTasksToCheckAssignment_JEDI(vo, prodSourceLabel, workQueue)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
