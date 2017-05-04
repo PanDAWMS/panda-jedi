@@ -413,11 +413,10 @@ class AtlasDDMClient(DDMClientBase):
                         tmpLog.error('faild to extract SE from %s for %s:%s' % \
                                      (seStr,siteName,tmpEndPoint))
                     # get SE + path
-                    tmpMatch = re.search('([^/]+://.+)$',seStr)
-                    if tmpMatch == None:
-                        tmpLog.error('faild to extract SE+PATH from %s for %s:%s' % \
-                                     (seStr,siteName,tmpEndPoint))
-                        continue
+                    tmpStat,endpointStr = self.getSiteProperty(tmpEndPoint, 'endpoint')
+                    if tmpStat != self.SC_SUCCEEDED:
+                        tmpLog.error('faild to get endpoint from for {0} with {1}'.format(tmpEndPoint,endpointStr))
+                        return tmpStat,endpointStr
                     # check token
                     if not storageToken in [None,'','NULL']:
                         try:
@@ -426,7 +425,7 @@ class AtlasDDMClient(DDMClientBase):
                         except:
                             pass
                     # add full path to storage map
-                    tmpSePath = tmpMatch.group(1)
+                    tmpSePath = seStr+endpointStr
                     if not tmpSePath in tmpStoragePathMap:
                         tmpStoragePathMap[tmpSePath] = []
                     tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType,'endPoint':tmpEndPoint})
