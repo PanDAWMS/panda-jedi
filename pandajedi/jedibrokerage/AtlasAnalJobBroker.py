@@ -159,7 +159,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
                                                                          cmtConfig=tmpCmtConfig,
                                                                          onlyCmtConfig=True)
-            elif 'AthAnalysis' in taskSpec.transHome or re.search('Ath[a-zA-Z]+Base',taskSpec.transHome) != None:
+            elif 'AthAnalysis' in taskSpec.transHome or re.search('Ath[a-zA-Z]+Base',taskSpec.transHome) != None \
+                    or 'AnalysisBase' in taskSpec.transHome:
                 # AthAnalysis
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
                                                                          cmtConfig=taskSpec.architecture,
