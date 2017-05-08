@@ -177,7 +177,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                              caches=transHome,
                                                                              cmtConfig=taskSpec.architecture)
                 elif (transHome == '' and taskSpec.transUses != None) or \
-                        re.search('_\d+\.\d+\.\d+$',taskSpec.transHome) is not None:
+                        (re.search('_\d+\.\d+\.\d+$',taskSpec.transHome) is not None and \
+                             (taskSpec.transUses is None or re.search('-\d+\.\d+$',taskSpec.transUses) is None)):
                     # remove Atlas-
                     transUses = taskSpec.transUses.split('-')[-1]
                     # release is checked 
