@@ -93,7 +93,6 @@ class JediTaskSpec(object):
         'writeInputToFile'   : 'WF',
         'waitInput'          : 'WI',
         'maxAttemptES'       : 'XA',
-        'maxEventRangesPerJob' : 'YE',
         'nEventsPerMergeJob'   : 'ZE',
         'nFilesPerMergeJob'    : 'ZF',
         'nGBPerMergeJob'       : 'ZG',
@@ -315,16 +314,6 @@ class JediTaskSpec(object):
 
 
 
-    # get the max number of event ranges per job if defined
-    def getMaxEventRangesPerJob(self):
-        if self.splitRule != None:
-            tmpMatch = re.search(self.splitRuleToken['maxEventRangesPerJob']+'=(\d+)',self.splitRule)
-            if tmpMatch != None:
-                return int(tmpMatch.group(1))
-        return None
-
-
-    
     # check if using jumbo
     def usingJumboJobs(self):
         if self.useJumbo in [None, self.enum_useJumbo['disabled']]:
@@ -1244,6 +1233,16 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # get min granularity for dynamic number of events
+    def get_min_granularity(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['dynamicNumEvents']+'=(\d+)',self.splitRule)
+            if tmpMatch is not None:
+                return int(tmpMatch.group(1))
+        return None
 
 
 

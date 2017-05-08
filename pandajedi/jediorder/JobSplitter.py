@@ -57,7 +57,7 @@ class JobSplitter:
             # dynamic number of events
             dynNumEvents = taskSpec.dynamicNumEvents()
             # max number of event ranges
-            maxNumEventRanges = taskSpec.getMaxEventRangesPerJob()
+            maxNumEventRanges = None
             # multiplicity of jobs
             if taskSpec.useJobCloning():
                 multiplicity = 1
@@ -159,10 +159,16 @@ class JobSplitter:
                     coreCount = 1
                 # core power
                 corePower = siteSpec.corepower
+                # max num of event ranges for dynNumEvents
+                if dynNumEvents:
+                    maxNumEventRanges = int(siteSpec.get_n_sim_events() / taskSpec.get_min_granularity())
+                    if maxNumEventRanges == 0:
+                        maxNumEventRanges = 1
                 tmpLog.debug('chosen {0}'.format(siteName))
                 tmpLog.debug('new weight {0}'.format(siteCandidate.weight))
-                tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2} corePower={3}'.format(maxSize,maxWalltime,
-                                                                                              coreCount,corePower))
+                tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2} corePower={3} maxNumEventRanges={4}'.format(maxSize,maxWalltime,
+                                                                                                                    coreCount,corePower,
+                                                                                                                    maxNumEventRanges))
 
             # get sub chunk
             subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,

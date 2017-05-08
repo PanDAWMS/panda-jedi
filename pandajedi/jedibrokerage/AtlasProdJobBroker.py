@@ -877,6 +877,35 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
+        # selection for dynamic number of events
+        if not sitePreAssigned and taskSpec.dynamicNumEvents():
+            newScanSiteList = []
+            minGranularity = taskSpec.get_min_granularity()
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                nSimEvents = tmpSiteSpec.get_n_sim_events()
+                # check nSimEvents
+                if nSimEvents is None:
+                    tmpMsg = '  skip site={0} since not allowed to run jobs with dynamic number of events '.format(tmpSiteName)
+                    tmpMsg += 'criteria=-dyn'
+                    tmpLog.info(tmpMsg)
+                    continue
+                elif nSimEvents < minGranularity:
+                    tmpMsg = '  skip site={0} since num of simulated events {1} is less than min granuality {2} '.format(tmpSiteName,
+                                                                                                                         nSimEvents,
+                                                                                                                         minGranularity)
+                    tmpMsg += 'criteria=-dyn'
+                    tmpLog.info(tmpMsg)
+                    continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList
+            tmpLog.info('{0} candidates passed DynNumEvents check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+        ######################################
         # selection for transferring
         newScanSiteList = []
         for tmpSiteName in self.get_parent_sites(scanSiteList):

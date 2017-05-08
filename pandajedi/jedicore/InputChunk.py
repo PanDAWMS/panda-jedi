@@ -485,10 +485,14 @@ class InputChunk:
                 # sum
                 inputNumFiles += 1
                 if self.taskSpec.outputScaleWithEvents():
-                    fileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveNumEvents)
+                    fileSize += long(sizeGradients * effectiveNumEvents)
+                    if not dynNumEvents or tmpFileSpec.lfn not in inputFileSet:
+                        fileSize += long(tmpFileSpec.fsize)    
                     outSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveNumEvents)
                 else:
-                    fileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
+                    fileSize += long(sizeGradients * effectiveFsize)
+                    if not dynNumEvents or tmpFileSpec.lfn not in inputFileSet:
+                        fileSize += long(tmpFileSpec.fsize)
                     outSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveFsize)
                 if sizeGradientsPerInSize != None:
                     fileSize += long(effectiveFsize * sizeGradientsPerInSize)
@@ -688,10 +692,14 @@ class InputChunk:
                 newNumMaster += 1
                 newInputFileSet.add(tmpFileSpec.lfn)
                 if self.taskSpec.outputScaleWithEvents():
-                    newFileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveNumEvents)
+                    newFileSize += long(sizeGradients * effectiveNumEvents)
+                    if not dynNumEvents or tmpFileSpec.lfn not in inputFileSet:
+                        newFileSize += long(tmpFileSpec.fsize)
                     newOutSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveNumEvents)
                 else:
-                    newFileSize += long(tmpFileSpec.fsize + sizeGradients * effectiveFsize)
+                    newFileSize += long(sizeGradients * effectiveFsize)
+                    if not dynNumEvents or tmpFileSpec.lfn not in inputFileSet:
+                        newFileSize += long(tmpFileSpec.fsize)
                     newOutSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveFsize)
                 if sizeGradientsPerInSize != None:
                     newFileSize += long(effectiveFsize * sizeGradientsPerInSize)
