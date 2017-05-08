@@ -861,7 +861,7 @@ class JobGeneratorThread (WorkerThread):
                         jobSpec.coreCount    = taskSpec.coreCount
                     # calculate the hs06 occupied by the job
                     if siteSpec.corepower:
-                        jobSpec.hs06 = jobSpec.coreCount * siteSpec.corepower
+                        jobSpec.hs06 = (siteSpec.coreCount or 1) * siteSpec.corepower # default 0 and None corecount to 1
                     jobSpec.ipConnectivity   = 'yes'
                     jobSpec.metadata         = ''
                     if inputChunk.isMerging:
