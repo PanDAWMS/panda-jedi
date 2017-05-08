@@ -78,14 +78,20 @@ class WorkQueueMapper:
             work_queue_gs = WorkQueue()
             work_queue_gs.pack_gs(gs)
 
-            if work_queue_gs.VO not in self.workQueueMap:
-                self.workQueueMap[work_queue_gs.VO] = {}
+            # TODO: add vo field in global shares
+            if work_queue_gs.VO is None:
+                vo = 'atlas'
+            else:
+                vo = work_queue_gs.VO
 
-            if not self.workQueueMap[work_queue.VO].has_key(work_queue_gs.queue_type):
-                self.workQueueMap[work_queue_gs.VO][work_queue_gs.queue_type] = []
+            if vo not in self.workQueueMap:
+                self.workQueueMap[vo] = {}
+
+            if not self.workQueueMap[vo].has_key(work_queue_gs.queue_type):
+                self.workQueueMap[vo][work_queue_gs.queue_type] = []
 
             # for the moment we don't care about the order
-            self.workQueueMap[work_queue_gs.VO][work_queue_gs.queue_type].append(work_queue_gs)
+            self.workQueueMap[vo][work_queue_gs.queue_type].append(work_queue_gs)
 
         # return
         return

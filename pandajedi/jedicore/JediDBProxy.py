@@ -6148,10 +6148,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
             if workQueue != None:
                 if workQueue.is_global_share:
-                    sqlSCF += "AND gshare=:wq_name "
+                    sql += "AND gshare=:wq_name "
                     varMap[':wq_name'] = workQueue.queue_name
                 else:
-                    sqlSCF += "AND workQueue_ID=:wq_id "
+                    sql += "AND workQueue_ID=:wq_id "
                     varMap[':wq_id'] = workQueue.queue_id
 
             sql += "AND tabT.status IN (:status1,:status2,:status3,:status4) "
