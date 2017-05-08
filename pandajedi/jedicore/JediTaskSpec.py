@@ -1228,6 +1228,8 @@ class JediTaskSpec(object):
 
     # dynamic number of events
     def dynamicNumEvents(self):
+        if self.getNumEventsPerJob() is not None:
+            return False
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['dynamicNumEvents']+'=(\d+)',self.splitRule)
             if tmpMatch != None:

@@ -524,7 +524,8 @@ class JobGeneratorThread (WorkerThread):
                                         self.liveCounter.add(tmpSubChunk['siteName'],len(tmpSubChunk['subChunks']))
                             except:
                                 errtype,errvalue = sys.exc_info()[:2]
-                                tmpLog.error('splitter crashed with {0}:{1}'.format(errtype.__name__,errvalue))
+                                tmpLog.error('splitter crashed with {0}:{1} {2}'.format(errtype.__name__,errvalue,
+                                                                                        traceback.format_exc()))
                                 tmpStat = Interaction.SC_FAILED
                             if tmpStat != Interaction.SC_SUCCEEDED:
                                 tmpErrStr = 'splitting failed'
