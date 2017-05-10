@@ -97,7 +97,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 # extend lifetime
                 if datasetSpec.type in ['output'] and datasetSpec.datasetName.startswith('user'):
                     tmpLog.debug('extend lifetime datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
-                    ddmIF.updateReplicationRules(datasetSpec.datasetName,{'type=.+':{'lifetime':7*24*60*60},
+                    ddmIF.updateReplicationRules(datasetSpec.datasetName,{'type=.+':{'lifetime':14*24*60*60},
                                                                           '(SCRATCH|USER)DISK':{'lifetime':14*24*60*60}})
                 # update dataset in DB
                 self.taskBufferIF.updateDatasetAttributes_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID,
