@@ -275,7 +275,7 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['allowInputWAN'])
         if 'putLogToOS' in taskParamMap and taskParamMap['putLogToOS'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['putLogToOS'])
-        if 'mergeEsOnOS' not in taskParamMap or taskParamMap['mergeEsOnOS'] == True:
+        if 'mergeEsOnOS' in taskParamMap and taskParamMap['mergeEsOnOS'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['mergeEsOnOS'])
         if 'writeInputToFile' in taskParamMap and taskParamMap['writeInputToFile'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['writeInputToFile'])

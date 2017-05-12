@@ -1,7 +1,7 @@
 Release Notes
 
 * 5/12/2017
-  * setting nEsConsumers=1 for esFraction
+  * setting nEsConsumers=1 etc for esFraction
 
 * 5/8/2017
   * added nSimEvents
