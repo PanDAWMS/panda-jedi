@@ -30,6 +30,8 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                                                   'value':tmpStr})
             if 'nEventsPerWorker' not in taskParamMap and taskParamMap['esFraction'] > random.random():
                 taskParamMap['nEventsPerWorker'] = 1
+                if 'nEsConsumers' not in taskParamMap:
+                    taskParamMap['nEsConsumers'] = 1
         TaskRefinerBase.extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule)
 
 
