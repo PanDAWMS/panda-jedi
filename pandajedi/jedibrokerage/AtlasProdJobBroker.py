@@ -280,7 +280,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             # not use MCORE
             useMP = 'unuse'
         # get workQueue
-        workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithID(taskSpec.workQueue_ID)
+        workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
 
         ######################################
         # selection for status

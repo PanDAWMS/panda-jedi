@@ -129,10 +129,10 @@ class JobGenerator (JediKnight):
                                     try:
                                         # TODO: throttler adaptation has not been done yet. Call to be reviewed later
                                         tmpSt,thrFlag = throttle.toBeThrottled(vo, workQueue.queue_type, cloudName,
-                                                                               workQueue, jobStat)
+                                                                               workQueue, jobStat, )
                                     except:
                                         errtype, errvalue = sys.exc_info()[:2]
-                                        tmpLog.error('throttler failed with {0} {1}'.format(errtype,errvalue))
+                                        tmpLog.error('throttler failed with {0} {1}'.format(errtype, errvalue))
                                         raise RuntimeError,'crashed when checking throttle'
                                     if tmpSt != self.SC_SUCCEEDED:
                                         raise RuntimeError,'failed to check throttle'
@@ -141,7 +141,7 @@ class JobGenerator (JediKnight):
                                         if flagLocked:
                                             tmpLog.debug('throttled')
                                             self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
-                                                                                 workQueue.queue_name, self.pid)
+                                                                                 workQueue.queue_id, self.pid)
                                             continue
                                     elif thrFlag == False:
                                         pass
@@ -288,7 +288,7 @@ class JobGenerator (JediKnight):
                                             tmpLog.debug('dump one-time pool : {0} remTasks={1}'.format(threadPool.dump(),inputList.dump()))
                                     # unlock
                                     self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
-                                                                         workQueue.queue_name, self.pid)
+                                                                         workQueue.queue_id, self.pid)
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1}:{2} {3}'.format(self.__class__.__name__,
@@ -301,7 +301,7 @@ class JobGenerator (JediKnight):
                         for cloudName in self.cloudList:
                             for workQueue in workQueueList:
                                 self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
-                                                                     workQueue.queue_name, self.pid)
+                                                                     workQueue.queue_id, self.pid)
             except:
                 pass 
             try:
