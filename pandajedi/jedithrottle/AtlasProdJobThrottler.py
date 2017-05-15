@@ -16,7 +16,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
 
 
     # check if throttled
-    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, jobStat, gshare):
+    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, jobStat):
         # component name
         compName = 'prod_job_throttler'
         # params
