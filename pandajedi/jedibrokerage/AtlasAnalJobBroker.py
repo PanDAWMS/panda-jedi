@@ -586,7 +586,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         currentPriority -= 500
         tmpLog.debug('currentPriority={0}'.format(currentPriority))
         """
-        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec, vo)
+        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

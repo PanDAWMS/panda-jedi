@@ -2298,7 +2298,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # get job statistics by global share
     def getJobStatisticsByGlobalShare(self, vo):
-        # TODO: Ask Tadashi to review/confirm the logic!!!
         comment = ' /* DBProxy.getJobStatisticsByGlobalShare */'
         methodName = self.getMethodName(comment)
         methodName += ' < vo={0} >'.format(vo)
