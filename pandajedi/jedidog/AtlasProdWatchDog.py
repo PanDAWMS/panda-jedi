@@ -59,7 +59,7 @@ class AtlasProdWatchDog (WatchDogBase):
         # get work queue mapper
         workQueueMapper = self.taskBufferIF.getWorkQueueMap()
         # get list of work queues
-        workQueueList = workQueueMapper.getQueueListWithVoType(self.vo, self.prodSourceLabel)
+        workQueueList = workQueueMapper.getAlignedQueueList(self.vo, self.prodSourceLabel)
         resource_types = self.taskBufferIF.load_resource_types()
         # loop over all work queues
         for workQueue in workQueueList:

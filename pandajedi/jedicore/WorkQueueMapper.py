@@ -178,16 +178,25 @@ class WorkQueueMapper:
         return None
 
     # get queue list with VO and type
-    def getQueueListWithVoType(self, vo, queue_type):
+    def getAlignedQueueList(self, vo, queue_type):
+        """
+        NOTE: Returns ONLY resource queues and global shares (old non-resource queues are skipped)
+        """
+        ret_list = []
+
         if self.work_queue_map.has_key(vo):
-            if not queue_type in ['', None, 'any']:
+            # if queue type was specified
+            if queue_type not in ['', None, 'any']:
                 if self.work_queue_map[vo].has_key(queue_type):
-                    return self.work_queue_map[vo][queue_type]
+                    for tmp_wq in self.work_queue_map[vo][queue_type]:
+                        if tmp_wq.isAligned():
+                            ret_list.append(tmp_wq)
+
+            # include all queue types
             else:
-                # for any
-                ret_list = []
-                for tmp_type, tmp_list in self.work_queue_map[vo].iteritems():
-                    ret_list += self.work_queue_map[vo][tmp_type]
-                return ret_list
-        # not found
-        return []
+                for tmp_type, tmp_wq_list in self.work_queue_map[vo].iteritems():
+                    for tmp_wq in tmp_wq_list:
+                        if tmp_wq.isAligned():
+                            ret_list.append(tmp_wq)
+
+        return ret_list

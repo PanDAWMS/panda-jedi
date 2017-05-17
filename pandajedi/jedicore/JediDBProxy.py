@@ -2217,7 +2217,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         returnMap[computingSite] = {}
                     # add workQueue
                     if not returnMap[computingSite].has_key(workQueue_ID):
-                        returnMap[computingSite]workQueue_ID] = {}
+                        returnMap[computingSite][workQueue_ID] = {}
                     # add jobstatus
                     if not returnMap[computingSite][workQueue_ID].has_key(jobStatus):
                         returnMap[computingSite][workQueue_ID][jobStatus] = 0
@@ -5889,7 +5889,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if workQueue.is_global_share:
                 sqlSCF += "AND gshare=:wq_name AND resource_type=:resource_name "
                 varMap[':wq_name'] = workQueue.queue_name
-                varMap[':resource_name'] = workQueue.resource_name
+                varMap[':resource_name'] = resource_name
             else:
                 sqlSCF += "AND workQueue_ID=:wq_id "
                 varMap[':wq_id'] = workQueue.queue_id
