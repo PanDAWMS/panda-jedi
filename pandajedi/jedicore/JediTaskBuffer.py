@@ -379,38 +379,6 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
         return retVal
 
 
-    # get job statistics with work queue per cloud
-    def getJobStatWithWorkQueuePerCloud_JEDI(self, vo, prodSourceLabel, cloud=None):
-        # get DBproxy
-        proxy = self.proxyPool.getProxy()
-        # exec
-        retVal = proxy.getJobStatisticsWithWorkQueue_JEDI(vo, prodSourceLabel, cloud=cloud)
-        # release proxy
-        self.proxyPool.putProxy(proxy)
-        if retVal[0] == False:
-            return retVal
-        # make per-cloud map
-        retMap = {}
-        for computingSite,siteMap in retVal[1].iteritems():
-            for cloud,cloudMap in siteMap.iteritems():
-                # add cloud
-                if not retMap.has_key(cloud):
-                    retMap[cloud] = {}
-                for workQueue_ID,workQueueMap in cloudMap.iteritems():
-                    # add work queue
-                    if not retMap[cloud].has_key(workQueue_ID):
-                        retMap[cloud][workQueue_ID] = {}
-                    for jobStatus,nCount in workQueueMap.iteritems():
-                        # add job status
-                        if not retMap[cloud][workQueue_ID].has_key(jobStatus):
-                            retMap[cloud][workQueue_ID][jobStatus] = 0
-                        # add
-                        retMap[cloud][workQueue_ID][jobStatus] += nCount
-        # return
-        return retVal[0],retMap
-
-
-
     # generate output files for task
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None,
                             isUnMerging=False,isPrePro=False,xmlConfigJob=None,siteDsMap=None,middleName='',

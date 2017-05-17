@@ -146,7 +146,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     taskSpec.setToRegisterDatasets()
                     self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
                                                       setOldModTime=True)
-                    tmpLog.debug('set task.status={0} to trigger task brokerage again'.format(taskSpec.status))
+                    tmpLog.debug('set task_status={0} to trigger task brokerage again'.format(taskSpec.status))
                     continue
                 # get nucleus
                 nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)

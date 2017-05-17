@@ -68,4 +68,4 @@ class JobBrokerBase (object):
 
 
 
-Interaction.installSC(JobBrokerBase)                        
+Interaction.installSC(JobBrokerBase)

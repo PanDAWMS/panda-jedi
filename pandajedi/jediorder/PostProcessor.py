@@ -153,7 +153,7 @@ class PostProcessorThread (WorkerThread):
                         taskSpec.setErrDiag(tmpErrStr,True)
                         taskSpec.lockedBy = None
                         self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
-                        tmpLog.info('set task.status={0} since {1}'.format(taskSpec.status,taskSpec.errorDialog))
+                        tmpLog.info('set task_status={0} since {1}'.format(taskSpec.status,taskSpec.errorDialog))
                         continue
                     # final procedure
                     try:
