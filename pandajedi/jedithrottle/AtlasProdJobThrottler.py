@@ -193,13 +193,11 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
         elif nRunningCap is not None and nRunning > nRunningCap:
-            limitPriority = True
-            if not highPrioQueued:
-                # cap on running
-                msgBody = "SKIP nRunning({0})>nRunningCap({1})".format(nRunning,nRunningCap)
-                tmpLog.warning(msgHeader+" "+msgBody)
-                tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
-                return self.retMergeUnThr
+            # cap on running
+            msgBody = "SKIP nRunning({0})>nRunningCap({1})".format(nRunning,nRunningCap)
+            tmpLog.warning(msgHeader+" "+msgBody)
+            tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
+            return self.retMergeUnThr
         elif nQueueCap is not None and nNotRun+nDefine > nQueueCap:
             limitPriority = True
             if not highPrioQueued:
