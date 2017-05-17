@@ -502,7 +502,7 @@ class ContentsFeederThread (WorkerThread):
                     if taskBroken:
                         # task is broken
                         taskSpec.status = 'tobroken'
-                        tmpMsg = 'set task.status={0}'.format(taskSpec.status)
+                        tmpMsg = 'set task_status={0}'.format(taskSpec.status)
                         tmpLog.info(tmpMsg)
                         tmpLog.sendMsg(tmpMsg,self.msgType)
                         allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,pid=self.pid)
@@ -512,7 +512,7 @@ class ContentsFeederThread (WorkerThread):
                             # go to pending state
                             if not taskSpec.status in ['broken','tobroken']:
                                 taskSpec.setOnHold()
-                            tmpMsg = 'set task.status={0}'.format(taskSpec.status)
+                            tmpMsg = 'set task_status={0}'.format(taskSpec.status)
                             tmpLog.info(tmpMsg)
                             tmpLog.sendMsg(tmpMsg,self.msgType)
                             allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,pid=self.pid,setFrozenTime=setFrozenTime)
@@ -520,7 +520,7 @@ class ContentsFeederThread (WorkerThread):
                             # all OK
                             allRet,newTaskStatus = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,getTaskStatus=True,pid=self.pid,
                                                                                                        useWorldCloud=taskSpec.useWorldCloud())
-                            tmpMsg = 'set task.status={0}'.format(newTaskStatus)
+                            tmpMsg = 'set task_status={0}'.format(newTaskStatus)
                             tmpLog.info(tmpMsg)
                             tmpLog.sendMsg(tmpMsg,self.msgType)
                         # just unlock

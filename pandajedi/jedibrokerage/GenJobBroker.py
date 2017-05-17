@@ -250,4 +250,3 @@ class GenJobBroker (JobBrokerBase):
         # return
         tmpLog.debug('done')        
         return self.SC_SUCCEEDED,inputChunk
-    

@@ -15,4 +15,4 @@ class TaskBrokerBase (object):
 
 
 
-Interaction.installSC(TaskBrokerBase)                        
+Interaction.installSC(TaskBrokerBase)

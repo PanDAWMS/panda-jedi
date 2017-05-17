@@ -2215,17 +2215,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # add site
                     if not returnMap.has_key(computingSite):
                         returnMap[computingSite] = {}
-                    # add cloud
-                    if not returnMap[computingSite].has_key(cloud):
-                        returnMap[computingSite][cloud] = {}
                     # add workQueue
-                    if not returnMap[computingSite][cloud].has_key(workQueue_ID):
-                        returnMap[computingSite][cloud][workQueue_ID] = {}
+                    if not returnMap[computingSite].has_key(workQueue_ID):
+                        returnMap[computingSite]workQueue_ID] = {}
                     # add jobstatus
-                    if not returnMap[computingSite][cloud][workQueue_ID].has_key(jobStatus):
-                        returnMap[computingSite][cloud][workQueue_ID][jobStatus] = 0
+                    if not returnMap[computingSite][workQueue_ID].has_key(jobStatus):
+                        returnMap[computingSite][workQueue_ID][jobStatus] = 0
                     # add    
-                    returnMap[computingSite][cloud][workQueue_ID][jobStatus] += nCount
+                    returnMap[computingSite][workQueue_ID][jobStatus] += nCount
             # return
             tmpLog.debug('done')
             return True,returnMap

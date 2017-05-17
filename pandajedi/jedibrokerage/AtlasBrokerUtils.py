@@ -350,20 +350,15 @@ def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_ID=No
     if not jobStatMap.has_key(computingSite):
         return 0
     nJobs = 0
-    # loop over all clouds
-    for tmpCloud,tmpCloudVal in jobStatMap[computingSite].iteritems():
-        # cloud is specified
-        if cloud is not None and cloud != tmpCloud:
+    # loop over all workQueues
+    for tmpWorkQueue, tmpWorkQueueVal in jobStatMap[computingSite].iteritems():
+        # workQueue is defined
+        if workQueue_ID is not None and workQueue_ID != tmpWorkQueue:
             continue
-        # loop over all workQueues
-        for tmpWorkQueue, tmpWorkQueueVal in tmpCloudVal.iteritems():
-            # workQueue is defined
-            if workQueue_ID is not None and workQueue_ID != tmpWorkQueue:
-                continue
-            # loop over all job status
-            for tmpJobStatus, tmpCount in tmpWorkQueueVal.iteritems():
-                if tmpJobStatus == jobStatus:
-                    nJobs += tmpCount
+        # loop over all job status
+        for tmpJobStatus, tmpCount in tmpWorkQueueVal.iteritems():
+            if tmpJobStatus == jobStatus:
+                nJobs += tmpCount
     # return
     return nJobs
 

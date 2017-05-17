@@ -657,7 +657,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     tmpLog.info('  set nucleus={0} with {1} criteria=+set'.format(candidateNucleus,tmpRet))
                     self.sendLogMessage(tmpLog)
                     if tmpRet:
-                        tmpMsg = 'set task.status=ready'
+                        tmpMsg = 'set task_status=ready'
                         tmpLog.sendMsg(tmpMsg,self.msgType)
                     # update RW table
                     self.prioRW.acquire()

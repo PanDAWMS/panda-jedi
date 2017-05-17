@@ -682,7 +682,7 @@ class JobGeneratorThread (WorkerThread):
                         retDB = self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
                                                                   oldStatus=JediTaskSpec.statusForJobGenerator()+['pending'],
                                                                   setOldModTime=setOldModTime)
-                        tmpMsg = 'set task.status={0} oldTask={2} with {1}'.format(taskSpec.status,str(retDB),setOldModTime)
+                        tmpMsg = 'set task_status={0} oldTask={2} with {1}'.format(taskSpec.status,str(retDB),setOldModTime)
                         tmpLog.info(tmpMsg)
                         if not taskSpec.errorDialog in ['',None]:
                             tmpMsg += ' ' + taskSpec.errorDialog

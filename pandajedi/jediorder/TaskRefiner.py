@@ -297,7 +297,7 @@ class TaskRefinerThread (WorkerThread):
                                     impl.taskSpec.setErrDiag(tmpErrStr,True)
                                     self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
                                                                       oldStatus=[taskStatus])
-                                tmpMsg = 'set task.status={0}'.format(newTaskStatus)
+                                tmpMsg = 'set task_status={0}'.format(newTaskStatus)
                                 tmpLog.info(tmpMsg)
                                 tmpLog.sendMsg(tmpMsg,self.msgType)
                             else:
