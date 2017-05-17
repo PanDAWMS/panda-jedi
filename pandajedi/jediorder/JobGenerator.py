@@ -89,7 +89,7 @@ class JobGenerator (JediKnight):
                         random.shuffle(self.cloudList)
                         for cloudName in self.cloudList:
                             # loop over all work queues
-                            workQueueList = workQueueMapper.getQueueListWithVoType(vo, prodSourceLabel)
+                            workQueueList = workQueueMapper.getAlignedQueueList(vo, prodSourceLabel)
                             resource_types = self.taskBufferIF.load_resource_types()
                             tmpLog.debug("{0} workqueues for vo:{1} label:{2}".format(len(workQueueList),vo,prodSourceLabel))
                             for workQueue in workQueueList:
@@ -118,9 +118,8 @@ class JobGenerator (JediKnight):
                                         tmpSt, jobStat = self.taskBufferIF.getJobStatisticsByGlobalShare(vo)
                                     else:
                                         # TODO: check it makes sense to sometimes use WQ stats and sometimes GS
-                                        tmpSt, jobStat = self.taskBufferIF.getJobStatWithWorkQueuePerCloud_JEDI(vo,
-                                                                                                                prodSourceLabel,
-                                                                                                                cloudName)
+                                        tmpSt, jobStat = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(vo,
+                                                                                                              prodSourceLabel)
                                     if not tmpSt:
                                         raise RuntimeError,'failed to get job statistics'
                                     # throttle

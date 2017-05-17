@@ -195,6 +195,12 @@ class WorkQueue(object):
             return True
         return False
 
+    # check if its eligible after global share alignment
+    def isAligned(self):
+        if self.queue_function == RESOURCE or self.is_global_share:
+            return True
+        return False
+
     # check if there is workload
     def hasWorkload(self, queue_list):
         # inactive

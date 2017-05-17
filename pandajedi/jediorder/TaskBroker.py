@@ -48,7 +48,7 @@ class TaskBroker (JediKnight,FactoryBase):
                     # loop over all sourceLabels
                     for prodSourceLabel in self.prodSourceLabels:
                         # loop over all work queues
-                        for workQueue in workQueueMapper.getQueueListWithVoType(vo, prodSourceLabel):
+                        for workQueue in workQueueMapper.getAlignedQueueList(vo, prodSourceLabel):
                             for resource_type in resource_types:
                                 msgLabel = 'vo={0} label={1} queue={2} resource_type={3}: '.\
                                     format(vo, prodSourceLabel, workQueue.queue_name, resource_type.resource_name)
