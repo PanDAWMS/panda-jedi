@@ -33,6 +33,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nWaitingLimit = 4
         nWaitingBunchLimit = 2
         nParallel = 2
+        nParallelCap = 5
         # make logger
         tmpLog = MsgWrapper(logger)
         workQueueIDs = workQueue.getIDs()
@@ -140,7 +141,10 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nRunningCap = self.taskBufferIF.getConfigValue(compName, 'NRUNNINGCAP_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
         nQueueCap = self.taskBufferIF.getConfigValue(compName, 'NQUEUECAP_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
         # set number of jobs to be submitted
-        self.setMaxNumJobs(nJobsInBunch/nParallel)
+        if nQueueCap is None:
+            self.setMaxNumJobs(nJobsInBunch/nParallel)
+        else:
+            self.setMaxNumJobs(nQueueCap/nParallelCap)
         # get total walltime
         totWalltime = self.taskBufferIF.getTotalWallTime_JEDI(vo,prodSourceLabel,workQueue,cloudName)
         # check number of jobs when high priority jobs are not waiting. test jobs are sent without throttling
@@ -217,6 +221,6 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 tmpLog.debug(msgHeader+" not enough jobs queued")
                 self.notEnoughJobsQueued()
                 self.setMaxNumJobs(max(self.maxNumJobs,nQueueLimit/20))
-        msgBody = "PASS - priority limit={0}".format(limitPriorityValue)
+        msgBody = "PASS - priority limit={0} maxNumJobs={1}".format(limitPriorityValue, self.maxNumJobs)
         tmpLog.debug(msgHeader+" "+msgBody)
         return self.retUnThrottled
