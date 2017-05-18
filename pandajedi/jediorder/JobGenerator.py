@@ -122,13 +122,24 @@ class JobGenerator (JediKnight):
                                                                                                               prodSourceLabel)
                                     if not tmpSt:
                                         raise RuntimeError,'failed to get job statistics'
+
+                                    # aggregate statistics by work queue
+                                    jobStat_agg = {}
+                                    for computingSite, siteMap in jobStat.iteritems():
+                                        for workQueue_ID, workQueueMap in siteMap.iteritems():
+                                            # add work queue
+                                            jobStat_agg.setdefault(workQueue_ID, {})
+                                            for jobStatus, nCount in workQueueMap.iteritems():
+                                                jobStat_agg[workQueue_ID].setdefault(jobStatus, 0)
+                                                jobStat_agg[workQueue_ID][jobStatus] += nCount
+
                                     # throttle
                                     tmpLog.debug('check throttle with {0}'.format(throttle.getClassName(vo,
                                                                                                         workQueue.queue_type)))
                                     try:
                                         # TODO: throttler adaptation has not been done yet. Call to be reviewed later
                                         tmpSt,thrFlag = throttle.toBeThrottled(vo, workQueue.queue_type, cloudName,
-                                                                               workQueue, jobStat, )
+                                                                               workQueue, jobStat_agg)
                                     except:
                                         errtype, errvalue = sys.exc_info()[:2]
                                         tmpLog.error('throttler failed with {0} {1}'.format(errtype, errvalue))
