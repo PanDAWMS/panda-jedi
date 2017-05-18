@@ -65,12 +65,12 @@ class WorkQueue(object):
 
         return dump_str
 
-    def getIDs(self):
+    def getID(self):
         """
-        get IDs
+        get ID
         :return: returns a list with the ID of the work queue
         """
-        return [self.queue_id]
+        return self.queue_id
 
     def pack(self, values):
         """

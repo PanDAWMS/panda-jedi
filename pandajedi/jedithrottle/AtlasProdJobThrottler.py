@@ -16,7 +16,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
 
 
     # check if throttled
-    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, jobStat):
+    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, jobStat_agg):
         # component name
         compName = 'prod_job_throttler'
         # params
@@ -36,9 +36,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nParallelCap = 5
         # make logger
         tmpLog = MsgWrapper(logger)
-        workQueueIDs = workQueue.getIDs() # get ids of queue and sub_queues
+        workQueueID = workQueue.getID()
         msgHeader = '{0}:{1} cloud={2} queue={3}:'.format(vo, prodSourceLabel, cloudName, workQueue.queue_name)
-        tmpLog.debug(msgHeader+' start workQueueID={0}'.format(str(workQueueIDs)))
+        tmpLog.debug(msgHeader+' start workQueueID={0}'.format(workQueueID))
         # change threashold
         # TODO: need to review the thresholds for global shares
         if workQueue.queue_name in ['mcore']:
@@ -63,32 +63,34 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 tmpLog.warning(msgHeader+" "+msgBody)
                 return self.retThrottled
         # check if unthrottled
-        #TODO: this section probably is obsolete and needs to be removed
+        # TODO: this section will be obsolete and needs to be reimplemented
         if workQueue.queue_share == None:
             msgBody = "PASS unthrottled since share=None"
             tmpLog.debug(msgHeader+" "+msgBody)
             return self.retUnThrottled
+
         # count number of jobs in each status
         nRunning = 0
         nNotRun  = 0
         nDefine  = 0
         nWaiting = 0
-        for workQueueID in workQueueIDs:
-            if jobStat.has_key(cloudName) and \
-                   jobStat[cloudName].has_key(workQueueID):
-                tmpLog.debug(msgHeader+" "+str(jobStat[cloudName][workQueueID]))
-                # TODO: jobstat format needs to be reviewed. Or do the if is_global_share switch
-                for pState,pNumber in jobStat[cloudName][workQueueID].iteritems():
-                    if pState in ['running']:
-                        nRunning += pNumber
-                    elif pState in ['assigned','activated','starting']:
-                        nNotRun  += pNumber
-                    elif pState in ['defined']:
-                        nDefine  += pNumber
-                    elif pState in ['waiting']:
-                        nWaiting += pNumber
+
+        if jobStat_agg.has_key(workQueueID):
+            tmpLog.debug(msgHeader+" "+str(jobStat_agg[workQueueID]))
+            # TODO: Needs to be tested!
+            for pState,pNumber in jobStat_agg[workQueueID].iteritems():
+                if pState in ['running']:
+                    nRunning += pNumber
+                elif pState in ['assigned','activated','starting']:
+                    nNotRun  += pNumber
+                elif pState in ['defined']:
+                    nDefine  += pNumber
+                elif pState in ['waiting']:
+                    nWaiting += pNumber
+
         # check if higher prio tasks are waiting
-        tmpStat,highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI('managed', cloudName, workQueue)
+        # TODO: Needs to be tested!
+        tmpStat, highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI('managed', cloudName, workQueue)
         highestPrioInPandaDB = highestPrioJobStat['highestPrio']
         nNotRunHighestPrio   = highestPrioJobStat['nNotRun']
         # the highest priority of waiting tasks 
