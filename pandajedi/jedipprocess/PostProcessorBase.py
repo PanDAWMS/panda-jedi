@@ -53,7 +53,7 @@ class PostProcessorBase (object):
                 taskSpec.setErrDiag('Preprocessing step failed',True)
         tmpMsg = 'set task_status={0}'.format(taskSpec.status)
         tmpLog.info(tmpMsg)
-        tmpLog.sendMsg(tmpMsg, self.msgType)
+        tmpLog.sendMsg('set task_status={0}'.format(taskSpec.status),self.msgType)
         # update dataset
         for datasetSpec in taskSpec.datasetSpecList:
             if taskSpec.status in ['failed','broken','aborted']:

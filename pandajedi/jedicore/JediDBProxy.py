@@ -2677,6 +2677,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    fullSimulation=False, simDatasets=None,
                                    mergeUnThrottled=None, readMinFiles=False,
                                    numNewTaskWithJumbo=0):
+
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
         if simTasks != None:
@@ -2872,6 +2873,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                  
                 taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,
                                                    tmpNumInputEvents,tmpNumFilesWaiting,useJumbo))
+
                 # use single value if WQ has a share
                 # TODO: ask Tadashi what this is
                 if workQueue != None and workQueue.queue_share != None and not setGroupByAttr:
@@ -2995,6 +2997,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
             # sql to update file usage info in dataset
             sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed,nFilesWaiting=:nFilesWaiting ".format(jedi_config.db.schemaJEDI)
+
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             sqlDU += "RETURNING nFilesUsed,nFilesTobeUsed INTO :newnFilesUsed,:newnFilesTobeUsed "
             # sql to read DN
@@ -3035,6 +3038,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug('skipping no pmerge or jumbo jediTaskID={0} {1}/{2}/{3} prio={4}'.format(jediTaskID,tmpIdxTask,
                                                                                                               len(jediTaskIDList),iTasks,
                                                                                                               taskPrioMap[jediTaskID]))
+
                         continue
                 tmpLog.debug('getting jediTaskID={0} {1}/{2}/{3} prio={4}'.format(jediTaskID, tmpIdxTask,
                                                                                   len(jediTaskIDList), iTasks,
@@ -3162,7 +3166,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         datasetIDs = [datasetID]
                         taskSpec = copy.copy(origTaskSpec)
                         
-
                         # See if there are different memory requirements that need to be mapped to different chuncks
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID

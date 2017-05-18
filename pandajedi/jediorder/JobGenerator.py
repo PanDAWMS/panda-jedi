@@ -702,6 +702,7 @@ class JobGeneratorThread (WorkerThread):
                                 tmpLog.info(tmpMsg)
                                 tmpLog.sendMsg(tmpMsg,self.msgType)
                                 if self.execJobs:
+<<<<<<< HEAD
                                     # skip fake co-jumbo
                                     pandaIDsForExec = []
                                     for pandaID,pandaJob in zip(pandaIDs,pandaJobs):
@@ -709,6 +710,9 @@ class JobGeneratorThread (WorkerThread):
                                             continue
                                         pandaIDsForExec.append(pandaID)
                                     statExe,retExe = PandaClient.reassignJobs(pandaIDsForExec,forPending=True,
+=======
+                                    statExe,retExe = PandaClient.reassignJobs(pandaIDs, forPending=True,
+>>>>>>> 2335814af039128a373f8544fd056170da56493d
                                                                               firstSubmission=firstSubmission)
                                     tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDsForExec),retExe))
                                 jobsSubmitted = True
@@ -754,7 +758,7 @@ class JobGeneratorThread (WorkerThread):
                                                                   oldStatus=JediTaskSpec.statusForJobGenerator()+['pending'],
                                                                   setOldModTime=setOldModTime)
                         tmpMsg = 'set task_status={0} oldTask={2} with {1}'.format(taskSpec.status,str(retDB),setOldModTime)
-
+                        tmpLog.info(tmpMsg)
                         if not taskSpec.errorDialog in ['',None]:
                             tmpMsg += ' ' + taskSpec.errorDialog
                         tmpLog.sendMsg(tmpMsg,self.msgType)
