@@ -25,11 +25,11 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 class TaskRefiner (JediKnight,FactoryBase):
 
     # constructor
-    def __init__(self,commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels):
+    def __init__(self, commuChannel, taskBufferIF, ddmIF, vos, prodSourceLabels):
         self.vos = self.parseInit(vos)
         self.prodSourceLabels = self.parseInit(prodSourceLabels)
         JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
-        FactoryBase.__init__(self,self.vos,self.prodSourceLabels,logger,
+        FactoryBase.__init__(self, self.vos, self.prodSourceLabels, logger,
                              jedi_config.taskrefine.modConfig)
 
 
@@ -37,7 +37,7 @@ class TaskRefiner (JediKnight,FactoryBase):
     def start(self):
         # start base classes
         JediKnight.start(self)
-        FactoryBase.initializeMods(self,self.taskBufferIF,self.ddmIF)
+        FactoryBase.initializeMods(self, self.taskBufferIF, self.ddmIF)
         # go into main loop
         while True:
             startTime = datetime.datetime.utcnow()
@@ -50,7 +50,7 @@ class TaskRefiner (JediKnight,FactoryBase):
                     # loop over all sourceLabels
                     for prodSourceLabel in self.prodSourceLabels:
                         # get the list of tasks to refine
-                        tmpList = self.taskBufferIF.getTasksToRefine_JEDI(vo,prodSourceLabel)
+                        tmpList = self.taskBufferIF.getTasksToRefine_JEDI(vo, prodSourceLabel)
                         if tmpList == None:
                             # failed
                             tmpLog.error('failed to get the list of tasks to refine')
@@ -65,7 +65,7 @@ class TaskRefiner (JediKnight,FactoryBase):
                             # make workers
                             nWorker = jedi_config.taskrefine.nWorkers
                             for iWorker in range(nWorker):
-                                thr = TaskRefinerThread(taskList,threadPool,
+                                thr = TaskRefinerThread(taskList, threadPool,
                                                         self.taskBufferIF,
                                                         self.ddmIF,
                                                         self, workQueueMapper)
@@ -73,8 +73,10 @@ class TaskRefiner (JediKnight,FactoryBase):
                             # join
                             threadPool.join()
             except:
-                errtype,errvalue = sys.exc_info()[:2]
-                tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
+                errtype, errvalue = sys.exc_info()[:2]
+                tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
+                                                                         errtype.__name__, errvalue))
+                tmpLog.error('Traceback: {0}'.format(traceback.format_exc()))
             # sleep if needed
             loopCycle = jedi_config.taskrefine.loopCycle
             timeDelta = datetime.datetime.utcnow() - startTime

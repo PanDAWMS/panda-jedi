@@ -41,6 +41,8 @@ class WorkQueue(object):
 
         # global share is by default false
         self.is_global_share = False
+        # throttled is set to True by default. Some Global Shares will overwrite it to False
+        self.throttled = True
 
     def __str__(self):
         """
@@ -162,6 +164,11 @@ class WorkQueue(object):
                     param_wq = self._params_gs_conversion_dic[attr]
                     val = getattr(gshare, attr)
                     tmp_map[':{0}'.format(param_wq)] = val
+
+                # 3. Special case for throttled. This is defined additionally, since it's not present in WQs
+                if attr == 'throttled' and gshare.throttled == 'N':
+                    self.throttled = False
+
             self.variables = tmp_map
         except:
             pass

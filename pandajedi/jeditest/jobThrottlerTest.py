@@ -20,4 +20,6 @@ jt = JobThrottler(vo,prodSourceLabel)
 jt.initializeMods(tbIF)
 
 workQueue = wqMap.getQueueWithID(1)
-print jt.toBeThrottled(vo,workQueue.queue_type,'ND',workQueue,jobStat)
+resourceType = 'MCORE'
+
+print jt.toBeThrottled(vo, workQueue.queue_type, 'ND', workQueue, jobStat, resourceType)

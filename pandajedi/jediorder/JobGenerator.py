@@ -139,7 +139,7 @@ class JobGenerator (JediKnight):
                                     try:
                                         # TODO: throttler adaptation has not been done yet. Call to be reviewed later
                                         tmpSt,thrFlag = throttle.toBeThrottled(vo, workQueue.queue_type, cloudName,
-                                                                               workQueue, jobStat_agg)
+                                                                               workQueue, jobStat_agg, resource_type)
                                     except:
                                         errtype, errvalue = sys.exc_info()[:2]
                                         tmpLog.error('throttler failed with {0} {1}'.format(errtype, errvalue))

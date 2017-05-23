@@ -17,13 +17,13 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 TaskBuffer.DBProxyPool = JediDBProxyPool.DBProxyPool
 
 
-class JediTaskBuffer(TaskBuffer.TaskBuffer,CommandReceiveInterface):
+class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
     # constructor
     def __init__(self,conn):
         CommandReceiveInterface.__init__(self,conn)
         TaskBuffer.TaskBuffer.__init__(self)
-        TaskBuffer.TaskBuffer.init(self,jedi_config.db.dbhost,
+        TaskBuffer.TaskBuffer.init(self, jedi_config.db.dbhost,
                                    jedi_config.db.dbpasswd,
                                    nDBConnection=1)
         # site mapper

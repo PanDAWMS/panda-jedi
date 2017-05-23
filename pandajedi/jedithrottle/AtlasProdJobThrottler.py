@@ -14,11 +14,50 @@ class AtlasProdJobThrottler (JobThrottlerBase):
     def __init__(self,taskBufferIF):
         JobThrottlerBase.__init__(self,taskBufferIF)
 
+    def __getConfiguration(self, queue_name, resource_type):
 
-    # check if throttled
-    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, jobStat_agg):
         # component name
         compName = 'prod_job_throttler'
+        app = 'jedi'
+        vo = 'atlas'
+
+        # Avoid memory fragmentation
+        if resource_type.startswith('MCORE'):
+            resource_type = 'MCORE'
+        elif resource_type.startswith('SCORE'):
+            resource_type = 'SCORE'
+
+        # QUEUE LIMIT
+        # First try to get a wq + resource_type specific limit
+        nQueueLimit = self.taskBufferIF.getConfigValue(compName, 'NQUEUELIMIT_{0}_{1}'.format(queue_name, resource_type),
+                                                  app, vo)
+        # Otherwise try to get a wq only specific limit
+        if nQueueLimit is None:
+            nQueueLimit = self.taskBufferIF.getConfigValue(compName, 'NQUEUELIMIT_{0}'.format(queue_name),
+                                                      app, vo)
+
+        # RUNNING CAP
+        # First try to get a wq + resource_type specific limit
+        nRunningCap = self.taskBufferIF.getConfigValue(compName, 'NRUNNINGCAP_{0}_{1}'.format(queue_name, resource_type),
+                                                       app, vo)
+        # Otherwise try to get a wq only specific limit
+        if nRunningCap is None:
+            nRunningCap = self.taskBufferIF.getConfigValue(compName, 'NRUNNINGCAP_{0}'.format(queue_name),
+                                                           app, vo)
+
+        # QUEUE CAP
+        # First try to get a wq + resource_type specific limit
+        nQueueCap = self.taskBufferIF.getConfigValue(compName, 'NQUEUECAP_{0}_{1}'.format(queue_name, resource_type),
+                                                     app, vo)
+        # Otherwise try to get a wq only specific limit
+        if nQueueCap is None:
+            nQueueCap = self.taskBufferIF.getConfigValue(compName, 'NQUEUECAP_{0}'.format(queue_name),
+                                                         app, vo)
+
+        return nQueueLimit, nRunningCap, nQueueCap
+
+    # check if throttled
+    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, jobStat_agg, resource_type):
         # params
         nBunch = 4
         threshold = 2.0
@@ -38,8 +77,12 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         tmpLog = MsgWrapper(logger)
         workQueueID = workQueue.getID()
         msgHeader = '{0}:{1} cloud={2} queue={3}:'.format(vo, prodSourceLabel, cloudName, workQueue.queue_name)
+
+        # get central configuration values
+        configQueueLimit, configQueueCap, configRunningCap = self.__getConfiguration(self, workQueue.queue_name, resource_type)
+
         tmpLog.debug(msgHeader+' start workQueueID={0}'.format(workQueueID))
-        # change threashold
+        # change threshold
         # TODO: need to review the thresholds for global shares
         if workQueue.queue_name in ['mcore']:
             threshold = 5.0
@@ -63,9 +106,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 tmpLog.warning(msgHeader+" "+msgBody)
                 return self.retThrottled
         # check if unthrottled
-        # TODO: this section will be obsolete and needs to be reimplemented
-        if workQueue.queue_share == None:
-            msgBody = "PASS unthrottled since share=None"
+        if not workQueue.throttled:
+            msgBody = "PASS unthrottled since GS_throttled is False"
             tmpLog.debug(msgHeader+" "+msgBody)
             return self.retUnThrottled
 
@@ -114,29 +156,27 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             # use the lower limit to avoid creating too many _sub/_dis datasets
             nJobsInBunch = nJobsInBunchMin
         else:
-            # TODO: review this case
-            if workQueue.queue_name in ['evgensimul']:
-                # use higher limit for evgensimul
-                if tmpRemainingSlot < nJobsInBunchMaxES:
-                    nJobsInBunch = tmpRemainingSlot
-                else:
-                    nJobsInBunch = nJobsInBunchMaxES
+        #    # TODO: review this case
+        #    if workQueue.queue_name in ['evgensimul']:
+        #        # use higher limit for evgensimul
+        #        if tmpRemainingSlot < nJobsInBunchMaxES:
+        #            nJobsInBunch = tmpRemainingSlot
+        #        else:
+        #            nJobsInBunch = nJobsInBunchMaxES
+        #    else:
+            if tmpRemainingSlot < nJobsInBunchMax:
+                nJobsInBunch = tmpRemainingSlot
             else:
-                if tmpRemainingSlot < nJobsInBunchMax:
-                    nJobsInBunch = tmpRemainingSlot
-                else:
-                    nJobsInBunch = nJobsInBunchMax
+                nJobsInBunch = nJobsInBunchMax
+
         nQueueLimit = nJobsInBunch*nBunch
-        # use special nQueueLimit
-        tmpVal = self.taskBufferIF.getConfigValue(compName, 'NQUEUELIMIT_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
-        if tmpVal is not None:
-            nQueueLimit = tmpVal
+        if configQueueLimit is not None:
+            nQueueLimit = configQueueLimit
         # use nPrestage for reprocessing
-        # TODO: review this case
-        if workQueue.queue_name in ['reprocessing','mcore_repro']:
+        if workQueue.queue_name in ['Heavy Ion', 'Reprocessing default']:
             # reset nJobsInBunch
-            if nQueueLimit > (nNotRun+nDefine):
-                tmpRemainingSlot = nQueueLimit - (nNotRun+nDefine)
+            if nQueueLimit > (nNotRun + nDefine):
+                tmpRemainingSlot = nQueueLimit - (nNotRun + nDefine)
                 if tmpRemainingSlot < nJobsInBunch:
                     pass
                 elif tmpRemainingSlot < nJobsInBunchMax:
@@ -145,13 +185,12 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                     nJobsInBunch = nJobsInBunchMax
         # get cap
         # TODO: review the values in the central configuration
-        nRunningCap = self.taskBufferIF.getConfigValue(compName, 'NRUNNINGCAP_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
-        nQueueCap = self.taskBufferIF.getConfigValue(compName, 'NQUEUECAP_{0}'.format(workQueue.queue_name), 'jedi', 'atlas')
+
         # set number of jobs to be submitted
-        if nQueueCap is None:
+        if configQueueCap is None:
             self.setMaxNumJobs(nJobsInBunch/nParallel)
         else:
-            self.setMaxNumJobs(nQueueCap/nParallelCap)
+            self.setMaxNumJobs(configQueueCap/nParallelCap)
         # get total walltime
         totWalltime = self.taskBufferIF.getTotalWallTime_JEDI(vo,prodSourceLabel,workQueue,cloudName)
         # check number of jobs when high priority jobs are not waiting. test jobs are sent without throttling
@@ -163,7 +202,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                                    nRunning,
                                    totWalltime,
                                    nRunningCap,
-                                   nQueueCap))
+                                   configQueueCap))
         # check
         if nRunning == 0 and (nNotRun+nDefine) > nQueueLimit and (totWalltime == None or totWalltime > minTotalWalltime):
             limitPriority = True
@@ -203,17 +242,17 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 tmpLog.warning(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
-        elif nRunningCap is not None and nRunning > nRunningCap:
+        elif configRunningCap is not None and nRunning > configRunningCap:
             # cap on running
-            msgBody = "SKIP nRunning({0})>nRunningCap({1})".format(nRunning,nRunningCap)
-            tmpLog.warning(msgHeader+" "+msgBody)
-            tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
+            msgBody = "SKIP nRunning({0})>nRunningCap({1})".format(nRunning, configRunningCap)
+            tmpLog.warning('{0} {1}'.format(msgHeader, msgBody))
+            tmpLog.sendMsg('{0} {1}'.format(msgHeader, msgBody), self.msgType, msgLevel='warning', escapeChar=True)
             return self.retMergeUnThr
-        elif nQueueCap is not None and nNotRun+nDefine > nQueueCap:
+        elif configQueueCap is not None and nNotRun+nDefine > nQueueCap:
             limitPriority = True
             if not highPrioQueued:
                 # cap on queued
-                msgBody = "SKIP nQueue({0})>nQueueCap({1})".format(nNotRun+nDefine,nQueueCap)
+                msgBody = "SKIP nQueue({0})>nQueueCap({1})".format(nNotRun+nDefine,configQueueCap)
                 tmpLog.warning(msgHeader+" "+msgBody)
                 tmpLog.sendMsg(msgHeader+' '+msgBody,self.msgType,msgLevel='warning',escapeChar=True)
                 return self.retMergeUnThr
