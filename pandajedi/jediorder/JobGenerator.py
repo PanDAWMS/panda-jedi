@@ -702,17 +702,13 @@ class JobGeneratorThread (WorkerThread):
                                 tmpLog.info(tmpMsg)
                                 tmpLog.sendMsg(tmpMsg,self.msgType)
                                 if self.execJobs:
-<<<<<<< HEAD
                                     # skip fake co-jumbo
                                     pandaIDsForExec = []
                                     for pandaID,pandaJob in zip(pandaIDs,pandaJobs):
                                         if pandaJob.computingSite == EventServiceUtils.siteIdForWaitingCoJumboJobs:
                                             continue
                                         pandaIDsForExec.append(pandaID)
-                                    statExe,retExe = PandaClient.reassignJobs(pandaIDsForExec,forPending=True,
-=======
-                                    statExe,retExe = PandaClient.reassignJobs(pandaIDs, forPending=True,
->>>>>>> 2335814af039128a373f8544fd056170da56493d
+                                    statExe,retExe = PandaClient.reassignJobs(pandaIDsForExec, forPending=True,
                                                                               firstSubmission=firstSubmission)
                                     tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDsForExec),retExe))
                                 jobsSubmitted = True
