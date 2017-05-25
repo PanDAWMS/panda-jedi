@@ -160,7 +160,17 @@ class JobGenerator (JediKnight):
                                     elif thrFlag == False:
                                         pass
                                     else:
-                                        tmpLog.debug('only merge is unthrottled')
+                                        # leveled flag
+                                        mergeUnThrottled = not throttle.mergeThrottled(vo, workQueue.queue_type,
+                                                                                       thrFlag)
+                                        if not mergeUnThrottled:
+                                            tmpLog.debug('throttled including merge')
+                                            if flagLocked:
+                                                self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
+                                                                                     workQueue.queue_id, self.pid)
+                                                continue
+                                        else:
+                                            tmpLog.debug('only merge is unthrottled')
 
                                     tmpLog.debug('minPriority={0} maxNumJobs={1}'.format(throttle.minPriority,throttle.maxNumJobs))
                                     # get typical number of files

@@ -43,6 +43,19 @@ class JobBrokerBase (object):
             return self.baseLockID
         return None
 
+    def releaseSiteLock(self, vo, prodSourceLabel, queue_id):
+        if self.useLock:
+            self.taskBufferIF.unlockProcessWithPID_JEDI(vo, prodSourceLabel, queue_id, self.lockID, False)
+
+
+    def lockSite(self, vo, prodSourceLabel, siteName, queue_id):
+        if not self.useLock:
+            self.useLock = True
+        self.taskBufferIF.lockProcess_JEDI(vo, prodSourceLabel, siteName, queue_id, self.lockID, True)
+
+
+    def checkSiteLock(self, vo, prodSourceLabel, siteName, queue_id):
+        return self.taskBufferIF.checkProcessLock_JEDI(vo, prodSourceLabel, siteName, queue_id, self.baseLockID, True)
 
 
     def setTestMode(self):

@@ -9628,8 +9628,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def unlockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid):
         comment = ' /* JediDBProxy.unlockProcess_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} cloud={2} queue={3} pid={4}>".format(vo, prodSourceLabel,
-                                                                               cloud, workqueue_id, pid)
+        methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} pid={5}>".format(vo, prodSourceLabel,
+                                                                                                 cloud, workqueue_id,
+                                                                                                 resource_name, pid)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -9672,8 +9673,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def unlockProcessWithPID_JEDI(self, vo, prodSourceLabel, workqueue_id, resource_name, pid, useBase):
         comment = ' /* JediDBProxy.unlockProcessWithPID_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} queue={2} pid={3} useBase={4}>".format(vo, prodSourceLabel,
-                                                                                 workqueue_id, pid, useBase)
+        methodName += " <vo={0} label={1} queue={2} resource_type={3} pid={4} useBase={5}>".format(vo, prodSourceLabel,
+                                                                                                   workqueue_id, resource_name,
+                                                                                                   pid, useBase)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -9711,6 +9713,64 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
+            return retVal
+
+
+
+    # check process lock
+    def checkProcessLock_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid, checkBase):
+        comment = ' /* JediDBProxy.checkProcessLock_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} pid={5}>".format(vo, prodSourceLabel,
+                                                                                                 cloud, workqueue_id,
+                                                                                                 resource_name, pid)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = False
+            # use non-null for cloud
+            if cloud == None:
+                cloud = "NULL"
+            # sql to check
+            sqlCT = "SELECT lockedBy "
+            sqlCT += "FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
+            sqlCT += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud AND workqueue_id=:workqueue_id "
+            sqlCT += "AND resource_name=:resource_name "
+            sqlCT += "AND lockedTime>:timeLimit "
+            # start transaction
+            self.conn.begin()
+            # check
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':cloud'] = cloud
+            varMap[':workqueue_id'] = workqueue_id
+            varMap[':resource_name'] = resource_name
+            varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
+            self.cur.execute(sqlCT + comment, varMap)
+            resCT = self.cur.fetchone()
+            if resCT != None:
+                lockedBy, = resCT
+                if checkBase:
+                    # check only base part
+                    if not lockedBy.startswith(pid):
+                        retVal = True
+                else:
+                    # check whole string
+                    if lockedBy != pid:
+                        retVal = True
+                if retVal == True:
+                    tmpLog.debug('skipped locked by {0}'.format(lockedBy))
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            tmpLog.debug('done with {0}'.format(retVal))
+            return retVal
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog, msgType='debug')
             return retVal
 
 
