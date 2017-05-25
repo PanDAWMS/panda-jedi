@@ -1203,11 +1203,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # lock process
-    def lockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, pid, forceOption=False, timeLimit=5):
+    def lockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid, forceOption=False, timeLimit=5):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.lockProcess_JEDI(vo, prodSourceLabel, cloud, workqueue_id, pid, forceOption, timeLimit)
+        retVal = proxy.lockProcess_JEDI(vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid, forceOption, timeLimit)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1216,11 +1216,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # unlock process
-    def unlockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, pid):
+    def unlockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.unlockProcess_JEDI(vo, prodSourceLabel, cloud, workqueue_id, pid)
+        retVal = proxy.unlockProcess_JEDI(vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1229,24 +1229,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # unlock process with PID
-    def unlockProcessWithPID_JEDI(self, vo, prodSourceLabel, workqueue_id, pid, useBase):
+    def unlockProcessWithPID_JEDI(self, vo, prodSourceLabel, workqueue_id, resource_name, pid, useBase):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.unlockProcessWithPID_JEDI(vo, prodSourceLabel, workqueue_id, pid, useBase)
-        # release proxy
-        self.proxyPool.putProxy(proxy)
-        # return
-        return retVal
-
-
-
-    # check process lock
-    def checkProcessLock_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, pid, checkBase):
-        # get DBproxy
-        proxy = self.proxyPool.getProxy()
-        # exec
-        retVal = proxy.checkProcessLock_JEDI(vo, prodSourceLabel, cloud, workqueue_id, pid, checkBase)
+        retVal = proxy.unlockProcessWithPID_JEDI(vo, prodSourceLabel, workqueue_id, resource_name, pid, useBase)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1469,11 +1456,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # get number of tasks with running jumbo jobs
-    def getNumTasksWithRunningJumbo_JEDI(self,vo,prodSourceLabel,cloudName,queue_id):
+    def getNumTasksWithRunningJumbo_JEDI(self,vo,prodSourceLabel,cloudName,workqueue):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getNumTasksWithRunningJumbo_JEDI(vo,prodSourceLabel,cloudName,queue_id)
+        retVal = proxy.getNumTasksWithRunningJumbo_JEDI(vo,prodSourceLabel,cloudName,workqueue)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

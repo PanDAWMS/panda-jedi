@@ -43,6 +43,7 @@ class TaskBroker (JediKnight,FactoryBase):
                 # get work queue mapper
                 workQueueMapper = self.taskBufferIF.getWorkQueueMap()
                 resource_types = self.taskBufferIF.load_resource_types()
+
                 # loop over all vos
                 for vo in self.vos:
                     # loop over all sourceLabels

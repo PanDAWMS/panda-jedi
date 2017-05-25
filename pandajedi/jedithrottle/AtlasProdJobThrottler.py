@@ -14,7 +14,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
     def __init__(self,taskBufferIF):
         JobThrottlerBase.__init__(self,taskBufferIF)
 
-    def __getConfiguration(self, queue_name, resource_type):
+    def __getConfiguration(self, queue_name, resource_name):
 
         # component name
         compName = 'prod_job_throttler'
@@ -22,14 +22,14 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         vo = 'atlas'
 
         # Avoid memory fragmentation
-        if resource_type.startswith('MCORE'):
-            resource_type = 'MCORE'
-        elif resource_type.startswith('SCORE'):
-            resource_type = 'SCORE'
+        if resource_name.startswith('MCORE'):
+            resource_name = 'MCORE'
+        elif resource_name.startswith('SCORE'):
+            resource_name = 'SCORE'
 
         # QUEUE LIMIT
-        # First try to get a wq + resource_type specific limit
-        nQueueLimit = self.taskBufferIF.getConfigValue(compName, 'NQUEUELIMIT_{0}_{1}'.format(queue_name, resource_type),
+        # First try to get a wq + resource_name specific limit
+        nQueueLimit = self.taskBufferIF.getConfigValue(compName, 'NQUEUELIMIT_{0}_{1}'.format(queue_name, resource_name),
                                                   app, vo)
         # Otherwise try to get a wq only specific limit
         if nQueueLimit is None:
@@ -37,8 +37,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                                                       app, vo)
 
         # RUNNING CAP
-        # First try to get a wq + resource_type specific limit
-        nRunningCap = self.taskBufferIF.getConfigValue(compName, 'NRUNNINGCAP_{0}_{1}'.format(queue_name, resource_type),
+        # First try to get a wq + resource_name specific limit
+        nRunningCap = self.taskBufferIF.getConfigValue(compName, 'NRUNNINGCAP_{0}_{1}'.format(queue_name, resource_name),
                                                        app, vo)
         # Otherwise try to get a wq only specific limit
         if nRunningCap is None:
@@ -46,8 +46,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                                                            app, vo)
 
         # QUEUE CAP
-        # First try to get a wq + resource_type specific limit
-        nQueueCap = self.taskBufferIF.getConfigValue(compName, 'NQUEUECAP_{0}_{1}'.format(queue_name, resource_type),
+        # First try to get a wq + resource_name specific limit
+        nQueueCap = self.taskBufferIF.getConfigValue(compName, 'NQUEUECAP_{0}_{1}'.format(queue_name, resource_name),
                                                      app, vo)
         # Otherwise try to get a wq only specific limit
         if nQueueCap is None:
@@ -57,7 +57,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         return nQueueLimit, nRunningCap, nQueueCap
 
     # check if throttled
-    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, jobStat_agg, resource_type):
+    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, jobStat_agg, resource_name):
         # params
         nBunch = 4
         threshold = 2.0
@@ -65,23 +65,23 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nJobsInBunchMax = 600
         nJobsInBunchMin = 500
         nJobsInBunchMaxES = 1000
-        if workQueue.criteria != None and 'site' in workQueue.criteria:
-            minTotalWalltime = 10*1000*1000
-        else:
-            minTotalWalltime = 50*1000*1000
+        minTotalWalltime = 50*1000*1000
         nWaitingLimit = 4
         nWaitingBunchLimit = 2
         nParallel = 2
         nParallelCap = 5
         # make logger
         tmpLog = MsgWrapper(logger)
+
         workQueueID = workQueue.getID()
         msgHeader = '{0}:{1} cloud={2} queue={3}:'.format(vo, prodSourceLabel, cloudName, workQueue.queue_name)
+        tmpLog.debug(msgHeader+' start workQueueID={0}'.format(workQueueID))
 
         # get central configuration values
-        configQueueLimit, configQueueCap, configRunningCap = self.__getConfiguration(self, workQueue.queue_name, resource_type)
+        configQueueLimit, configQueueCap, configRunningCap = self.__getConfiguration(workQueue.queue_name, resource_name)
+        tmpLog.debug(msgHeader + ' got configuration configQueueLimit {0}, configQueueCap {1}, configRunningCap {2}'
+                     .format(configQueueLimit, configQueueCap, configRunningCap))
 
-        tmpLog.debug(msgHeader+' start workQueueID={0}'.format(workQueueID))
         # change threshold
         # TODO: need to review the thresholds for global shares
         if workQueue.queue_name in ['mcore']:
@@ -196,13 +196,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         # check number of jobs when high priority jobs are not waiting. test jobs are sent without throttling
         limitPriority = False
         tmpStr = msgHeader+" nQueueLimit={0} nQueued={1} nDefine={2} nRunning={3} totWalltime={4} nRunCap={5} nQueueCap={6}"
-        tmpLog.info(tmpStr.format(nQueueLimit,
-                                   nNotRun+nDefine,
-                                   nDefine,
-                                   nRunning,
-                                   totWalltime,
-                                   nRunningCap,
-                                   configQueueCap))
+        tmpLog.info(tmpStr.format(nQueueLimit, nNotRun+nDefine, nDefine, nRunning, totWalltime, configRunningCap, configQueueCap))
         # check
         if nRunning == 0 and (nNotRun+nDefine) > nQueueLimit and (totWalltime == None or totWalltime > minTotalWalltime):
             limitPriority = True

@@ -97,9 +97,9 @@ class AtlasAnalWatchDog (WatchDogBase):
         try:
             tmpLog = MsgWrapper(logger,'doForPreStaging')
             # lock
-            flagLocked = self.taskBufferIF.lockProcess_JEDI(self.vo,self.prodSourceLabel,
+            flagLocked = self.taskBufferIF.lockProcess_JEDI(self.vo, self.prodSourceLabel,
                                                             self.cronActions['forPrestage'],
-                                                            0,self.pid,timeLimit=5)
+                                                            0, 'NULL', self.pid, timeLimit=5)
             if not flagLocked:
                 return
             tmpLog.debug('start')

@@ -4,7 +4,7 @@ mapper to map task/job to a work queue
 """
 
 from WorkQueue import WorkQueue, RESOURCE, ACTIVE_FUNCTIONS
-
+import re
 
 class WorkQueueMapper:
 
@@ -187,10 +187,11 @@ class WorkQueueMapper:
         if self.work_queue_map.has_key(vo):
             # if queue type was specified
             if queue_type not in ['', None, 'any']:
-                if self.work_queue_map[vo].has_key(queue_type):
-                    for tmp_wq in self.work_queue_map[vo][queue_type]:
-                        if tmp_wq.isAligned():
-                            ret_list.append(tmp_wq)
+                for map_queue_type in self.work_queue_map[vo]:
+                    if re.match(map_queue_type, queue_type):
+                        for tmp_wq in self.work_queue_map[vo][map_queue_type]:
+                            if tmp_wq.isAligned():
+                                ret_list.append(tmp_wq)
 
             # include all queue types
             else:
