@@ -54,8 +54,8 @@ class JobBrokerBase (object):
         self.taskBufferIF.lockProcess_JEDI(vo, prodSourceLabel, siteName, queue_id, self.lockID, True)
 
 
-    def checkSiteLock(self, vo, prodSourceLabel, siteName, queue_id):
-        return self.taskBufferIF.checkProcessLock_JEDI(vo, prodSourceLabel, siteName, queue_id, self.baseLockID, True)
+    def checkSiteLock(self, vo, prodSourceLabel, siteName, queue_id, resource_name):
+        return self.taskBufferIF.checkProcessLock_JEDI(vo, prodSourceLabel, siteName, queue_id, resource_name, self.baseLockID, True)
 
 
     def setTestMode(self):
