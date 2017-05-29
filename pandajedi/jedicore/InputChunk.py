@@ -445,7 +445,7 @@ class InputChunk:
             primaryHasEvents = False
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
                 # check start event to keep continuity
-                if maxNumEvents != None and tmpFileSpec.startEvent != None:
+                if (maxNumEvents != None or dynNumEvents) and tmpFileSpec.startEvent != None:
                     if nextStartEvent != None and nextStartEvent != tmpFileSpec.startEvent:
                         eventJump = True
                         break
@@ -756,7 +756,8 @@ class InputChunk:
                 break
             # check
             newOutSize = self.getOutSize(newOutSizeMap)
-            if (maxNumFiles != None and ((not dynNumEvents and newInputNumFiles > maxNumFiles) or (dynNumEvents and len(newInputFileSet) > maxNumFiles))) \
+            if (maxNumFiles != None and ((not dynNumEvents and newInputNumFiles > maxNumFiles) \
+                                             or (dynNumEvents and (len(newInputFileSet) > maxNumFiles or newInputNumFiles > maxNumEventRanges)))) \
                     or (maxSize != None and newFileSize > maxSize) \
                     or (maxSize != None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize) \
                     or (maxWalltime > 0 and newExpWalltime > maxWalltime) \
