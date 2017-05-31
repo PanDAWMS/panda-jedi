@@ -505,6 +505,23 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
+        # selection for jumbo jobs
+        if not sitePreAssigned and taskSpec.getNumJumboJobs() is None:
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                if tmpSiteSpec.useJumboJobs():
+                    tmpLog.info('  skip site={0} since it is only for jumbo jobs criteria=-jumbo'.format(tmpSiteName))
+                    continue
+                newScanSiteList.append(tmpSiteName)                
+            scanSiteList = newScanSiteList        
+            tmpLog.info('{0} candidates passed jumbo job check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+        ######################################
         # selection for I/O intensive tasks
         # FIXME
         pass
