@@ -1135,7 +1135,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['maxAttemptEsJob']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
-        return None    
+        return self.getMaxAttemptES()
 
 
 

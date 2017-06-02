@@ -10,6 +10,7 @@ from pandajedi.jedicore import JediCoreUtils
 from JobBrokerBase import JobBrokerBase
 import AtlasBrokerUtils
 from pandaserver.dataservice import DataServiceUtils
+from pandaserver.taskbuffer import EventServiceUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -724,11 +725,16 @@ class AtlasProdJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # selection for walltime
-        if taskSpec.useEventService() and not taskSpec.getNumEventServiceConsumer() in [1,None] \
-                and not taskSpec.useJobCloning():
+        if taskSpec.useEventService() and not taskSpec.useJobCloning():
             nEsConsumers = taskSpec.getNumEventServiceConsumer()
+            if nEsConsumers is None:
+                nEsConsumers = 1
+            maxAttemptEsJob = taskSpec.getMaxAttemptEsJob()
+            if maxAttemptEsJob is None:
+                maxAttemptEsJob = EventServiceUtils.defMaxAttemptEsJob
         else:
             nEsConsumers = 1
+            maxAttemptEsJob = 1
         if not taskSpec.useHS06():
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(effectiveSize=True)
             if taskSpec.walltime != None:
@@ -736,12 +742,13 @@ class AtlasProdJobBroker (JobBrokerBase):
             else:
                 minWalltime = None
             # take # of consumers into account
-            if not taskSpec.useEventService():
+            if not taskSpec.useEventService() or taskSpec.useJobCloning():
                 strMinWalltime = 'walltime*inputSize={0}*{1}'.format(taskSpec.walltime,tmpMaxAtomSize)
             else:
-                strMinWalltime = 'walltime*inputSize/nEsConsumers={0}*{1}/{2}'.format(taskSpec.walltime,
-                                                                                      tmpMaxAtomSize,
-                                                                                      nEsConsumers)
+                strMinWalltime = 'walltime*inputSize/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}'.format(taskSpec.walltime,
+                                                                                                          tmpMaxAtomSize,
+                                                                                                          nEsConsumers,
+                                                                                                          maxAttemptEsJob)
         else:
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
             if taskSpec.cpuTime != None:
@@ -749,14 +756,15 @@ class AtlasProdJobBroker (JobBrokerBase):
             else:
                 minWalltime = None
             # take # of consumers into account
-            if not taskSpec.useEventService():
+            if not taskSpec.useEventService() or taskSpec.useJobCloning():
                 strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.cpuTime,tmpMaxAtomSize)
             else:
-                strMinWalltime = 'cpuTime*nEventsPerJob/nEsConsumers={0}*{1}/{2}'.format(taskSpec.cpuTime,
-                                                                                         tmpMaxAtomSize,
-                                                                                         nEsConsumers)
+                strMinWalltime = 'cpuTime*nEventsPerJob/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}'.format(taskSpec.cpuTime,
+                                                                                                             tmpMaxAtomSize,
+                                                                                                             nEsConsumers,
+                                                                                                             maxAttemptEsJob)
         if minWalltime != None:
-            minWalltime /= nEsConsumers
+            minWalltime /= (nEsConsumers * maxAttemptEsJob)
         if minWalltime != None or inputChunk.useScout():
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
