@@ -834,10 +834,10 @@ class JobGeneratorThread (WorkerThread):
                         jobSpec.maxAttempt   = -1
                     elif taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
                         # set max attempt for event service
-                        if taskSpec.getMaxAttemptES() == None:
-                            jobSpec.maxAttempt = jobSpec.attemptNr + 3
+                        if taskSpec.getMaxAttemptEsJob() is None:
+                            jobSpec.maxAttempt = jobSpec.attemptNr + EventServiceUtils.defMaxAttemptEsJob
                         else:
-                            jobSpec.maxAttempt = jobSpec.attemptNr + taskSpec.getMaxAttemptES()
+                            jobSpec.maxAttempt = jobSpec.attemptNr + taskSpec.getMaxAttemptEsJob()
                     else:
                         jobSpec.maxAttempt   = jobSpec.attemptNr
                     jobSpec.jobName          = taskSpec.taskName + '.$ORIGINPANDAID'

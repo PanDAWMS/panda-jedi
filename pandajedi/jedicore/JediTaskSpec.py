@@ -93,6 +93,7 @@ class JediTaskSpec(object):
         'writeInputToFile'   : 'WF',
         'waitInput'          : 'WI',
         'maxAttemptES'       : 'XA',
+        'maxAttemptEsJob'    : 'XJ',
         'nEventsPerMergeJob'   : 'ZE',
         'nFilesPerMergeJob'    : 'ZF',
         'nGBPerMergeJob'       : 'ZG',
@@ -1118,13 +1119,23 @@ class JediTaskSpec(object):
 
 
 
-    # get the max number of attempts for ES
+    # get the max number of attempts for ES events
     def getMaxAttemptES(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['maxAttemptES']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
+
+
+
+    # get the max number of attempts for ES jobs
+    def getMaxAttemptEsJob(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['maxAttemptEsJob']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return self.getMaxAttemptES()
 
 
 
