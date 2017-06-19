@@ -202,7 +202,7 @@ class JobGenerator (JediKnight):
                                         if flagLocked and throttle.lackOfJobs:
                                             tmpLog.debug('unlock {0} for multiple processes to quickly fill the queue until nQueueLimit is reached'.format(cycleStr))
                                             self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
-                                                                                 workQueue.queue_name, resource_type.resource_name,
+                                                                                 workQueue.queue_id, resource_type.resource_name,
                                                                                  self.pid)
                                             lackOfJobs = True
                                             flagLocked = True

@@ -359,7 +359,7 @@ def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_ID=No
 
 
 
-# get mapping between sites and storage endpoints 
+# get mapping between sites and storage endpoints
 def getSiteStorageEndpointMap(siteList,siteMapper,ignoreCC=False):
     # get T1s
     t1Map = {}
