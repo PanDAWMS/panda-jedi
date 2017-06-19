@@ -770,7 +770,7 @@ class JobGeneratorThread (WorkerThread):
                     break
                 # make build job
                 elif taskSpec.useBuild():
-                    tmpStat,buildJobSpec,buildFileSpec,tmpToRegister = self.doGenerateBuild(taskSpec,cloudName,siteName,
+                    tmpStat,buildJobSpec,buildFileSpec,tmpToRegister = self.doGenerateBuild(taskSpec,cloudName,siteName,siteSpec,
                                                                                             taskParamMap,tmpLog,simul)
                     if tmpStat != Interaction.SC_SUCCEEDED:
                         tmpLog.error('failed to generate build job')
@@ -827,7 +827,7 @@ class JobGeneratorThread (WorkerThread):
                     if inputChunk.useJumbo == 'fake':
                         jobSpec.computingSite = EventServiceUtils.siteIdForWaitingCoJumboJobs
                     else:
-                        jobSpec.computingSite = siteName
+                        jobSpec.computingSite = siteSpec.get_parent_name()
                     jobSpec.cloud            = cloudName
                     jobSpec.nucleus          = taskSpec.nucleus
                     jobSpec.VO               = taskSpec.vo
@@ -1329,7 +1329,7 @@ class JobGeneratorThread (WorkerThread):
 
 
     # generate build jobs
-    def doGenerateBuild(self,taskSpec,cloudName,siteName,taskParamMap,tmpLog,simul=False):
+    def doGenerateBuild(self,taskSpec,cloudName,siteName,siteSpec,taskParamMap,tmpLog,simul=False):
         # return for failure
         failedRet = Interaction.SC_FAILED,None,None,None
         try:
@@ -1381,7 +1381,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.reqID            = taskSpec.reqID
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.countryGroup     = taskSpec.countryGroup
-            jobSpec.computingSite    = siteName
+            jobSpec.computingSite    = siteSpec.get_parent_name()
             jobSpec.nucleus          = taskSpec.nucleus
             jobSpec.cloud            = cloudName
             jobSpec.VO               = taskSpec.vo
@@ -1499,7 +1499,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.reqID            = taskSpec.reqID
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.countryGroup     = taskSpec.countryGroup
-            jobSpec.computingSite    = siteName
+            jobSpec.computingSite    = siteSpec.get_parent_name()
             jobSpec.nucleus          = taskSpec.nucleus
             jobSpec.cloud            = cloudName
             jobSpec.VO               = taskSpec.vo
