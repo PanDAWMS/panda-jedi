@@ -10721,11 +10721,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':label'] = prodSourceLabel
             varMap[':cloud'] = cloudName
             if workqueue.is_global_share:
-                sqlDJ += "AND gshare =:gshare"
-                varMap['gshare'] = workqueue.queue_name
+                sqlDJ += "AND gshare =:gshare "
+                varMap[':gshare'] = workqueue.queue_name
             else:
-                sqlDJ += "AND workQueue_ID =:queue"
-                varMap['queue_id'] = workqueue.queue_id
+                sqlDJ += "AND workQueue_ID =:queue_id "
+                varMap[':queue_id'] = workqueue.queue_id
             varMap[':st1'] = 'running'
             varMap[':st2'] = 'pending'
             varMap[':st3'] = 'ready'
