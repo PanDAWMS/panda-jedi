@@ -51,8 +51,9 @@ class TaskBroker (JediKnight,FactoryBase):
                         # loop over all work queues
                         for workQueue in workQueueMapper.getAlignedQueueList(vo, prodSourceLabel):
                             for resource_type in resource_types:
+                                wq_name = '_'.join(workQueue.queue_name.split(' '))
                                 msgLabel = 'vo={0} label={1} queue={2} resource_type={3}: '.\
-                                    format(vo, prodSourceLabel, workQueue.queue_name, resource_type.resource_name)
+                                    format(vo, prodSourceLabel, wq_name, resource_type.resource_name)
                                 tmpLog.debug(msgLabel+'start')
                                 # get the list of tasks to check
                                 tmpList = self.taskBufferIF.getTasksToCheckAssignment_JEDI(vo, prodSourceLabel,
