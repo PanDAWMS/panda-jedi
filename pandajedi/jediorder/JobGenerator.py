@@ -94,10 +94,10 @@ class JobGenerator (JediKnight):
                             tmpLog.debug("{0} workqueues for vo:{1} label:{2}".format(len(workQueueList),vo,prodSourceLabel))
                             for workQueue in workQueueList:
                                 for resource_type in resource_types:
-                                    cycleStr = 'pid={0} vo={1} cloud={2} queue={3}(id={4}) label={5} resource_type={6}'.\
-                                        format(self.pid, vo, cloudName,
-                                               workQueue.queue_name, workQueue.queue_id, prodSourceLabel,
-                                               resource_type.resource_name)
+                                    workqueue_name = '_'.join(workQueue.queue_name.split(' '))
+                                    cycleStr = 'pid={0} vo={1} cloud={2} queue={3} ( id={4} ) label={5} resource_type={6}'.\
+                                        format(self.pid, vo, cloudName, workqueue_name, workQueue.queue_id,
+                                               prodSourceLabel, resource_type.resource_name)
                                     tmpLog.debug('start {0}'.format(cycleStr))
                                     # check if to lock
                                     lockFlag = self.toLockProcess(vo, prodSourceLabel, workQueue.queue_name, cloudName)
