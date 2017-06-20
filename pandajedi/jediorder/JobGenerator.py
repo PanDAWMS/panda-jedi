@@ -115,11 +115,9 @@ class JobGenerator (JediKnight):
 
                                     # get job statistics
                                     if workQueue.is_global_share:
-                                        # TODO: check the output format is correct. Otherwise implement wrapper funtion in taskbuffer
                                         # TODO: job statistics should probably be done by resource_type
                                         tmpSt, jobStat = self.taskBufferIF.getJobStatisticsByGlobalShare(vo)
                                     else:
-                                        # TODO: check it makes sense to sometimes use WQ stats and sometimes GS
                                         tmpSt, jobStat = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(vo,
                                                                                                               prodSourceLabel)
                                     if not tmpSt:
@@ -128,18 +126,17 @@ class JobGenerator (JediKnight):
                                     # aggregate statistics by work queue
                                     jobStat_agg = {}
                                     for computingSite, siteMap in jobStat.iteritems():
-                                        for workQueue_ID, workQueueMap in siteMap.iteritems():
+                                        for workQueue_tag, workQueueMap in siteMap.iteritems():
                                             # add work queue
-                                            jobStat_agg.setdefault(workQueue_ID, {})
+                                            jobStat_agg.setdefault(workQueue_tag, {})
                                             for jobStatus, nCount in workQueueMap.iteritems():
-                                                jobStat_agg[workQueue_ID].setdefault(jobStatus, 0)
-                                                jobStat_agg[workQueue_ID][jobStatus] += nCount
+                                                jobStat_agg[workQueue_tag].setdefault(jobStatus, 0)
+                                                jobStat_agg[workQueue_tag][jobStatus] += nCount
 
                                     # throttle
                                     tmpLog.debug('check throttle with {0}'.format(throttle.getClassName(vo,
                                                                                                         prodSourceLabel)))
                                     try:
-                                        # TODO: throttler adaptation has not been done yet. Call to be reviewed later
                                         tmpSt,thrFlag = throttle.toBeThrottled(vo, prodSourceLabel, cloudName,
                                                                                workQueue, jobStat_agg,
                                                                                resource_type.resource_name)

@@ -74,13 +74,20 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         tmpLog = MsgWrapper(logger)
 
         workQueueID = workQueue.getID()
+        workQueueName = workQueue.queue_name
+
+        if workQueue.is_global_share:
+            workQueueTag = workQueueName
+        else:
+            workQueueTag = workQueueID
+
         workQueueName = '_'.join(workQueue.queue_name.split(' '))
         msgHeader = '{0}:{1} cloud={2} queue={3} :'.format(vo, prodSourceLabel, cloudName, workQueueName)
         tmpLog.debug(msgHeader+' start workQueueID={0}'.format(workQueueID))
 
         # get central configuration values
         configQueueLimit, configQueueCap, configRunningCap = self.__getConfiguration(workQueue.queue_name, resource_name)
-        tmpLog.debug(msgHeader + ' got configuration configQueueLimit {0}, configQueueCap {1}, configRunningCap {2}'
+        tmpLog.debug(msgHeader + ' got configuration configQueueLimit={0}, configQueueCap={1}, configRunningCap={2}'
                      .format(configQueueLimit, configQueueCap, configRunningCap))
 
         # change threshold
@@ -118,10 +125,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nDefine  = 0
         nWaiting = 0
 
-        if jobStat_agg.has_key(workQueueID):
-            tmpLog.debug(msgHeader+" "+str(jobStat_agg[workQueueID]))
-            # TODO: Needs to be tested!
-            for pState,pNumber in jobStat_agg[workQueueID].iteritems():
+        if jobStat_agg.has_key(workQueueTag):
+            tmpLog.debug(msgHeader+" "+str(jobStat_agg[workQueueTag]))
+            for pState,pNumber in jobStat_agg[workQueueTag].iteritems():
                 if pState in ['running']:
                     nRunning += pNumber
                 elif pState in ['assigned','activated','starting']:
@@ -132,7 +138,6 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                     nWaiting += pNumber
 
         # check if higher prio tasks are waiting
-        # TODO: Needs to be tested!
         tmpStat, highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI('managed', cloudName, workQueue)
         highestPrioInPandaDB = highestPrioJobStat['highestPrio']
         nNotRunHighestPrio   = highestPrioJobStat['nNotRun']
