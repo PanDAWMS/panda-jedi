@@ -1075,12 +1075,12 @@ class AtlasProdJobBroker (JobBrokerBase):
         for tmpChildSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpChildSiteName)
             tmpSiteName = tmpSiteSpec.get_parent_name()
-            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
-            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',None,taskSpec.workQueue_ID) + self.getLiveCount(tmpSiteName)
-            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',None,taskSpec.workQueue_ID)
-            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,taskSpec.workQueue_ID) + \
-                         AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,taskSpec.workQueue_ID)
-            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting',None,taskSpec.workQueue_ID)
+            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'running', None, workQueue.queue_name)
+            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'defined', None, workQueue.queue_name) + self.getLiveCount(tmpSiteName)
+            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'assigned', None, workQueue.queue_name)
+            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'activated', None, workQueue.queue_name) + \
+                         AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'throttled', None, workQueue.queue_name)
+            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'starting', None, workQueue.queue_name)
             if tmpSiteName in nPilotMap:
                 nPilot = nPilotMap[tmpSiteName]
             else:
