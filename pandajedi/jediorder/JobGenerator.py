@@ -94,9 +94,9 @@ class JobGenerator (JediKnight):
                             tmpLog.debug("{0} workqueues for vo:{1} label:{2}".format(len(workQueueList),vo,prodSourceLabel))
                             for workQueue in workQueueList:
                                 for resource_type in resource_types:
-                                    workqueue_name = '_'.join(workQueue.queue_name.split(' '))
+                                    workqueue_name_nice = '_'.join(workQueue.queue_name.split(' '))
                                     cycleStr = 'pid={0} vo={1} cloud={2} queue={3} ( id={4} ) label={5} resource_type={6}'.\
-                                        format(self.pid, vo, cloudName, workqueue_name, workQueue.queue_id,
+                                        format(self.pid, vo, cloudName, workqueue_name_nice, workQueue.queue_id,
                                                prodSourceLabel, resource_type.resource_name)
                                     tmpLog.debug('start {0}'.format(cycleStr))
                                     # check if to lock
@@ -440,6 +440,7 @@ class JobGeneratorThread (WorkerThread):
 
     # main
     def runImpl(self):
+        workqueue_name_nice = '_'.join(self.workQueue.queue_name.split(' '))
         while True:
             try:
                 lastJediTaskID = None
@@ -454,7 +455,7 @@ class JobGeneratorThread (WorkerThread):
                         prefix = '<VO={0} queue_type={1} cloud={2} queue={3}>'.format(self.workQueue.VO,
                                                                                       self.workQueue.queue_type,
                                                                                       self.cloud,
-                                                                                      self.workQueue.queue_name)
+                                                                                      workqueue_name_nice)
                         tmpMsg = ": submitted {0} jobs".format(self.numGenJobs)
                         tmpLog = MsgWrapper(self.logger,monToken=prefix)
                         tmpLog.info(prefix + tmpMsg)
@@ -475,7 +476,7 @@ class JobGeneratorThread (WorkerThread):
                                                                                                 inputChunk.masterIndexName),
                                             monToken='<jediTaskID={0}>'.format(taskSpec.jediTaskID))
                         tmpLog.info('start to generate with VO={0} cloud={1} queue={2}'.format(taskSpec.vo,cloudName,
-                                                                                               self.workQueue.queue_name))
+                                                                                               workqueue_name_nice))
                         tmpLog.sendMsg('start to generate jobs',self.msgType)
                         readyToSubmitJob = False
                         jobsSubmitted = False
@@ -650,10 +651,10 @@ class JobGeneratorThread (WorkerThread):
                             # check if submission was successful
                             if len(pandaIDs) == len(pandaJobs):
                                 tmpMsg = 'successfully submitted '
-                                tmpMsg += 'jobs_submitted={0}/jobs_possible={1} for VO={2} cloud={3} queue={4} status={5} nucleus={6}'.format(len(pandaIDs),
+                                tmpMsg += 'jobs_submitted={0} / jobs_possible={1} for VO={2} cloud={3} queue={4} status={5} nucleus={6}'.format(len(pandaIDs),
                                                                                                                                               len(pandaJobs),
                                                                                                                                               taskSpec.vo,cloudName,
-                                                                                                                                              self.workQueue.queue_name,
+                                                                                                                                              workqueue_name_nice,
                                                                                                                                               oldStatus,
                                                                                                                                               taskSpec.nucleus)
                                 if inputChunk.isMerging:
