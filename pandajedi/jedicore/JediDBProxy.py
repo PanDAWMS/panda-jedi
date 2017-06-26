@@ -6639,6 +6639,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if nRow != 1:
                             tmpLog.debug('skip updated jediTaskID={0}'.format(jediTaskID))
                             toSkip = True
+                        else:
+                            # update T_TASK
+                            if newTaskStatus in ['paused'] or \
+                                    (newTaskStatus in ['running', 'ready', 'scouting'] and taskStatus in ['paused', 'exhausted']):
+                                if newTaskStatus == 'scouting':
+                                    deftStatus = 'submitting'
+                                else:
+                                    deftStatus = newTaskStatus
+                                sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                                sqlTT += "SET status=:status,timeStamp=CURRENT_DATE "
+                                sqlTT += " WHERE taskID=:jediTaskID "
+                                varMap = dict()
+                                varMap[':jediTaskID'] = taskSpec.jediTaskID
+                                varMap[':status'] = taskSpec.status
+                                self.cur.execute(sqlTT+comment, varMap)
+                                self.setSuperStatus_JEDI(jediTaskID,deftStatus)
                     # update command table
                     if not toSkip:
                         varMap = {}
@@ -9735,7 +9751,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlCT = "SELECT lockedBy "
             sqlCT += "FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
             sqlCT += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud AND workqueue_id=:workqueue_id "
-            sqlCT += "AND resource_name=:resource_name "
+            sqlCT += "AND resource_type=:resource_name "
             sqlCT += "AND lockedTime>:timeLimit "
             # start transaction
             self.conn.begin()

@@ -863,7 +863,12 @@ class JobGeneratorThread (WorkerThread):
                     if inputChunk.useJumbo == 'fake':
                         jobSpec.computingSite = EventServiceUtils.siteIdForWaitingCoJumboJobs
                     else:
-                        jobSpec.computingSite = siteSpec.get_parent_name()
+                        if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging and \
+                                taskSpec.getNumEventServiceConsumer() is not None:
+                            # keep concatenated site names which are converted when increasing consumers
+                            jobSpec.computingSite = siteName
+                        else:
+                            jobSpec.computingSite = siteSpec.get_unified_name()
                     jobSpec.cloud            = cloudName
                     jobSpec.nucleus          = taskSpec.nucleus
                     jobSpec.VO               = taskSpec.vo
@@ -894,7 +899,10 @@ class JobGeneratorThread (WorkerThread):
                     if inputChunk.isMerging and taskSpec.mergeCoreCount != None:
                         jobSpec.coreCount    = taskSpec.mergeCoreCount
                     else:
-                        jobSpec.coreCount    = taskSpec.coreCount
+                        if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:
+                            jobSpec.coreCount = 1
+                        else:
+                            jobSpec.coreCount = siteSpec.coreCount
                     # calculate the hs06 occupied by the job
                     if siteSpec.corepower:
                         jobSpec.hs06 = (siteSpec.coreCount or 1) * siteSpec.corepower # default 0 and None corecount to 1
@@ -1004,18 +1012,20 @@ class JobGeneratorThread (WorkerThread):
                                     # set start and end events
                                     tmpStartEvent = tmpFileSpec.startEvent
                                     if tmpStartEvent is None:
-                                        tmpStartEvent = 1
+                                        tmpStartEvent = 0
                                     tmpEndEvent = tmpFileSpec.endEvent
                                     if tmpEndEvent is None:
-                                        tmpEndEvent = tmpFileSpec.nEvents
+                                        tmpEndEvent = tmpFileSpec.nEvents - 1
                                         if tmpEndEvent is None:
-                                            tmpEndEvent = 1
+                                            tmpEndEvent = 0
                                     if tmpEndEvent < tmpStartEvent:
                                         tmpEndEvent = tmpStartEvent
                                     # first event number and offset without/with in-file positional event numbers
                                     if not taskSpec.inFilePosEvtNum():
                                         tmpFirstEventOffset = taskSpec.getFirstEventOffset()
                                         tmpFirstEvent = tmpFileSpec.firstEvent
+                                        if tmpFirstEvent is None:
+                                            tmpFirstEvent = tmpFirstEventOffset
                                     else:
                                         tmpFirstEventOffset = None
                                         tmpFirstEvent = None
@@ -1417,7 +1427,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.reqID            = taskSpec.reqID
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.countryGroup     = taskSpec.countryGroup
-            jobSpec.computingSite    = siteSpec.get_parent_name()
+            jobSpec.computingSite    = siteSpec.get_unified_name()
             jobSpec.nucleus          = taskSpec.nucleus
             jobSpec.cloud            = cloudName
             jobSpec.VO               = taskSpec.vo
@@ -1428,6 +1438,10 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.workQueue_ID     = taskSpec.workQueue_ID
             jobSpec.gshare           = taskSpec.gshare
             jobSpec.metadata         = ''
+            if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:
+                jobSpec.coreCount = 1
+            else:
+                jobSpec.coreCount = siteSpec.coreCount
             # make libDS name
             if datasetSpec == None or datasetSpec.state == 'closed' or fileSpec == None:
                 # make new libDS
@@ -1535,7 +1549,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.reqID            = taskSpec.reqID
             jobSpec.workingGroup     = taskSpec.workingGroup
             jobSpec.countryGroup     = taskSpec.countryGroup
-            jobSpec.computingSite    = siteSpec.get_parent_name()
+            jobSpec.computingSite    = siteSpec.get_unified_name()
             jobSpec.nucleus          = taskSpec.nucleus
             jobSpec.cloud            = cloudName
             jobSpec.VO               = taskSpec.vo
@@ -1926,6 +1940,10 @@ class JobGeneratorThread (WorkerThread):
         nSites = len(sites)
         # set site for parallel jobs
         newPandaJob.computingSite = sites[index % nSites]
+        siteSpec = self.siteMapper.getSite(newPandaJob.computingSite)
+        newPandaJob.computingSite = siteSpec.get_unified_name()
+        if newPandaJob.coreCount > 1:
+            newPandaJob.coreCount = siteSpec.coreCount
         datasetList = set()
         # reset SH for jumbo
         if forJumbo:
@@ -1964,7 +1982,6 @@ class JobGeneratorThread (WorkerThread):
                 datasetSpec = outDsMap[newFileSpec.datasetID]
                 tmpDistributedDestination = DataServiceUtils.getDistributedDestination(datasetSpec.storageToken)
                 if tmpDistributedDestination != None:
-                    siteSpec = self.siteMapper.getSite(newPandaJob.computingSite)
                     tmpDestination = siteSpec.ddm_endpoints.getAssoicatedEndpoint(tmpDistributedDestination)
                     # change destination
                     newFileSpec.destinationSE = newPandaJob.computingSite

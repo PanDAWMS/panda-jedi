@@ -36,6 +36,8 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                     taskParamMap['mergeEsOnOS'] = True
                 if 'maxAttemptES' not in taskParamMap:
                     taskParamMap['maxAttemptES'] = 10
+                if 'skipScout' not in taskParamMap:
+                    taskParamMap['skipScout'] = True
         TaskRefinerBase.extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule)
 
 
