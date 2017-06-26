@@ -95,47 +95,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             if tmpSiteSpec.get_parent_name() in parent_list:
                 child_list.add(tmpSiteName)
         return tuple(child_list)
-        
-    # sends a json message to ES. QUICK HACK FOR EXPERIMENTATION. SHOULD BE INCLUDED IN PANDA-COMMON
-    def sendNetworkMessage(self, taskID, src, dst, weight, weightNw, weightNwThroughput,
-                           weightNwQueued, mbps, closeness, nqueued, tmpLog):
-        name = 'panda.mon.jedi'
-        module = 'network_brokerage'
-
-        try:
-            import requests
-            import json
-            import time
-
-            url = 'http://{0}:8081'.format(logger_config.daemon['loghost_new'])
-
-            headers = {'Content-type':'application/json; charset=UTF-8'}
-
-            body = {'name': name,
-                    'module': module,
-                    'jeditaskID': taskID,
-                    'src': src,
-                    'dst': dst,
-                    'weight': weight,
-                    'weightNw': weightNw,
-                    'weightNwThroughput': weightNwThroughput,
-                    'weightNwQueued': weightNwQueued,
-                    'mbps': mbps,
-                    'closeness': closeness,
-                    'nqueued': nqueued,
-                    'msg': 'network data'}
-
-            arr=[{
-              "headers" : {
-                         "timestamp" : int(time.time())*1000,
-                         "host" : url
-              },
-              "body": "{0}".format(json.dumps(body))
-             }
-            ]
-            r=requests.post(url, data=json.dumps(arr), headers=headers, timeout=0.2)
-        except:
-            tmpLog.warning('Failed to send network message to panda logger: {0}'.format(sys.exc_info()[1]))
 
     def convertMBpsToWeight(self, mbps):
         """
@@ -228,7 +187,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpLog.info('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
 
         # get job statistics
-        tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,taskSpec.prodSourceLabel)
+        tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
         if not tmpSt:
             tmpLog.error('failed to get job statistics')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -281,7 +240,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             # not use MCORE
             useMP = 'unuse'
         # get workQueue
-        workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithID(taskSpec.workQueue_ID)
+        workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
 
         ######################################
         # selection for status
@@ -944,8 +903,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 else:
                     maxTransferring = tmpSiteSpec.transferringlimit
                 # check at the site
-                nTraJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'transferring',cloud=cloudName)
-                nRunJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running',cloud=cloudName)
+                nTraJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'transferring')
+                nRunJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running')
                 if max(maxTransferring,2*nRunJobs) < nTraJobs and not tmpSiteSpec.cloud in ['ND']:
                     tmpLog.info('  skip site=%s due to too many transferring=%s greater than max(%s,2x%s) criteria=-transferring' % \
                                      (tmpSiteName,nTraJobs,def_maxTransferring,nRunJobs))
@@ -1102,8 +1061,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # calculate weight
-        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
-                                                                                    taskSpec.prodSourceLabel)
+        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -1117,12 +1075,12 @@ class AtlasProdJobBroker (JobBrokerBase):
         for tmpChildSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpChildSiteName)
             tmpSiteName = tmpSiteSpec.get_parent_name()
-            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',None,taskSpec.workQueue_ID)
-            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',None,taskSpec.workQueue_ID) + self.getLiveCount(tmpSiteName)
-            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned',None,taskSpec.workQueue_ID)
-            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,taskSpec.workQueue_ID) + \
-                         AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,taskSpec.workQueue_ID)
-            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting',None,taskSpec.workQueue_ID)
+            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'running', None, workQueue.queue_name)
+            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'defined', None, workQueue.queue_name) + self.getLiveCount(tmpSiteName)
+            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'assigned', None, workQueue.queue_name)
+            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'activated', None, workQueue.queue_name) + \
+                         AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'throttled', None, workQueue.queue_name)
+            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'starting', None, workQueue.queue_name)
             if tmpSiteName in nPilotMap:
                 nPilot = nPilotMap[tmpSiteName]
             else:
@@ -1234,8 +1192,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             # check if site is locked for WORLD
             lockedByBrokerage = False
             if taskSpec.useWorldCloud():
-                lockedByBrokerage = self.checkSiteLock(taskSpec.vo,taskSpec.prodSourceLabel,
-                                                       tmpChildSiteName,taskSpec.workQueue_ID)
+                lockedByBrokerage = self.checkSiteLock(taskSpec.vo, taskSpec.prodSourceLabel,
+                                                       tmpChildSiteName, taskSpec.workQueue_ID, taskSpec.resource_type)
             # check cap with nRunning
             cutOffValue = 20
             cutOffFactor = 2 

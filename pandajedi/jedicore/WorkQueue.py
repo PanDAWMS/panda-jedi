@@ -5,85 +5,91 @@ work queue specification
 
 import re
 import types
+from pandaserver.taskbuffer.GlobalShares import Share
+
+RESOURCE = 'Resource'
+ACTIVE_FUNCTIONS = [RESOURCE]
+
 
 class WorkQueue(object):
     # attributes
-    _attributes = ('queue_id','queue_name','queue_type','VO','queue_share','queue_order',
-                   'criteria','variables','partitionID','stretchable','status')
+    _attributes = ('queue_id', 'queue_name', 'queue_type', 'VO', 'queue_share', 'queue_order',
+                   'criteria', 'variables', 'partitionID', 'stretchable', 'status', 'queue_function')
+
     # parameters for selection criteria
-    _paramsForSelection = ('prodSourceLabel','workingGroup','processingType','coreCount',
-                           'site','eventService','splitRule','campaign')
-    
-    # constructor
+    _paramsForSelection = ('prodSourceLabel', 'workingGroup', 'processingType', 'coreCount',
+                           'site', 'eventService', 'splitRule', 'campaign')
+
+    # correspondence with Global Shares attributes and parameters
+    _attributes_gs_conversion_dic = {'name': 'queue_name',
+                                     'value': 'queue_share',
+                                     'prodsourcelabel': 'queue_type',
+                                     'queue_id': 'queue_id'}
+
+    _params_gs_conversion_dic = {'prodsourcelabel': 'prodSourceLabel',
+                                 'workinggroup': 'workingGroup',
+                                 'campaign': 'campaign',
+                                 'processingtype': 'processingType'}
+
     def __init__(self):
+        """
+        Constructor
+        """
         # install attributes
         for attr in self._attributes:
-            setattr(self,attr,None)
-        # sub queues    
-        self.subQueues = []
+            setattr(self, attr, None)
 
+        # global share is by default false
+        self.is_global_share = False
+        # throttled is set to True by default. Some Global Shares will overwrite it to False
+        self.throttled = True
 
-    # string presentation
     def __str__(self):
+        """
+        String representation of a workqueue
+        :return: string with the representation of the work queue
+        """
         return str(self.queue_name)
 
-
-    # dump
     def dump(self):
-        dumpStr = 'id:%s order:%s name:%s share:%s ' % \
-                  (self.queue_id,self.queue_order,self.queue_name,self.queue_share)
-        if self.subQueues == []:
-            # normal queue
-            dumpStr += 'criteria:%s var:%s eval:%s' % \
-                       (self.criteria,str(self.variables),self.evalString)
-        else:
-            # sub queues
-            dumpStr += '\n'
-            for subQueue in self.subQueues: 
-                dumpStr += '        %s\n' % subQueue.dump()
-            dumpStr = dumpStr[:-1]    
-        return dumpStr
+        """
+        Creates a human-friendly string with the work queue information
+        :return: string representation of the work queue
+        """
+        dump_str = 'id:{0} order:{1} name:{2} share:{3} '.format(self.queue_id, self.queue_order,
+                                                                 self.queue_name, self.queue_share)
 
-
-    # get IDs 
-    def getIDs(self):
-        if self.subQueues == []:
-            return [self.queue_id]
+        # normal queue
+        if self.is_global_share:
+            dump_str += 'gs_name:{0} (global share)'.format(self.queue_name)
         else:
-            tmpIDs = []
-            for subQueue in self.subQueues:
-                tmpIDs.append(subQueue.queue_id)
-            return tmpIDs
-        
-            
-    # add sub queues
-    def addSubQueue(self,subQueue):
-        # disallow non-throttle in throttled partition
-        if self.queue_share != None:
-            if subQueue.queue_share == None:
-                subQueue.queue_share = 0
-        # set non-throttle in non-throttle partition
-        if self.queue_share == None:
-            if subQueue.queue_share != None:
-                subQueue.queue_share = None
-        # sort by queue_order
-        idx = 0
-        for tmpIdx,tmpQueue in enumerate(self.subQueues):
-            if tmpQueue.queue_order < subQueue.queue_order:
-                idx = tmpIdx + 1
-        self.subQueues.insert(idx,subQueue)
-            
-        
-    # pack tuple into obj
-    def pack(self,values):
-        for i,attr in enumerate(self._attributes):
+            dump_str += 'criteria:{0} var:{1} eval:{2}'.format(self.criteria, str(self.variables), self.evalString)
+
+        return dump_str
+
+    def getID(self):
+        """
+        get ID
+        :return: returns a list with the ID of the work queue
+        """
+        return self.queue_id
+
+    def pack(self, values):
+        """
+        Packs tuple into the object
+        :param values: list with the values in the order declared in the attributes section
+        :return: nothing
+        """
+        for i, attr in enumerate(self._attributes):
             val = values[i]
-            setattr(self,attr,val)
+            setattr(self, attr, val)
+
         # disallow negative share
-        if self.queue_share != None and self.queue_share < 0:
+        if self.queue_share is not None and self.queue_share < 0:
             self.queue_share = 0
-        # convert variables string to a map of bind-variables 
-        tmpMap = {}        
+
+        # convert variables string to a map of bind-variables
+        tmp_map = {}
         try:
             for item in self.variables.split(','):
                 # look for key: value
@@ -92,189 +98,134 @@ class WorkQueue(object):
                 if len(items) != 2:
                     continue
                 # add
-                tmpMap[':%s' % items[0]] = items[1]
+                tmp_map[':%s' % items[0]] = items[1]
         except:
             pass
         # assign map
-        self.variables = tmpMap
+        self.variables = tmp_map
         # make a python statement for eval
-        if self.criteria in ['',None]:
+        if self.criteria in ['', None]:
             # catch all
             self.evalString = 'True'
         else:
-            tmpEvalStr = self.criteria
+            tmp_eval_str = self.criteria
             # replace IN/OR/AND to in/or/and
-            tmpEvalStr = re.sub(' IN ', ' in ', tmpEvalStr,re.I)
-            tmpEvalStr = re.sub(' OR ', ' or ', tmpEvalStr,re.I)
-            tmpEvalStr = re.sub(' AND ',' and ',tmpEvalStr,re.I)
+            tmp_eval_str = re.sub(' IN ', ' in ', tmp_eval_str, re.I)
+            tmp_eval_str = re.sub(' OR ', ' or ', tmp_eval_str, re.I)
+            tmp_eval_str = re.sub(' AND ', ' and ', tmp_eval_str, re.I)
             # replace = to ==
-            tmpEvalStr = tmpEvalStr.replace('=','==')
+            tmp_eval_str = tmp_eval_str.replace('=', '==')
             # replace LIKE
-            tmpEvalStr = re.sub('(?P<var>[^ \(]+)\s+LIKE\s+(?P<pat>[^ \(]+)',
-                                "re.search(\g<pat>,\g<var>,re.I) != None",
-                                tmpEvalStr,re.I)
+            tmp_eval_str = re.sub('(?P<var>[^ \(]+)\s+LIKE\s+(?P<pat>[^ \(]+)',
+                                  "re.search(\g<pat>,\g<var>,re.I) != None",
+                                  tmp_eval_str, re.I)
             # NULL
-            tmpEvalStr = re.sub(' IS NULL','==None',tmpEvalStr)
-            tmpEvalStr = re.sub(' IS NOT NULL',"!=None",tmpEvalStr)
+            tmp_eval_str = re.sub(' IS NULL', '==None', tmp_eval_str)
+            tmp_eval_str = re.sub(' IS NOT NULL', "!=None", tmp_eval_str)
             # replace NOT to not
-            tmpEvalStr = re.sub(' NOT ',' not ',tmpEvalStr,re.I)
+            tmp_eval_str = re.sub(' NOT ', ' not ', tmp_eval_str, re.I)
             # fomat cases
-            for tmpParam in self._paramsForSelection:
-                tmpEvalStr = re.sub(tmpParam,tmpParam,tmpEvalStr,re.I)            
+            for tmp_param in self._paramsForSelection:
+                tmp_eval_str = re.sub(tmp_param, tmp_param, tmp_eval_str, re.I)
             # replace bind-variables
-            for tmpKey,tmpVal in self.variables.iteritems():
-                if '%' in tmpVal:
+            for tmp_key, tmp_val in self.variables.iteritems():
+                if '%' in tmp_val:
                     # wildcard
-                    tmpVal = tmpVal.replace('%','.*')
-                    tmpVal = "'^%s$'" % tmpVal
+                    tmp_val = tmp_val.replace('%', '.*')
+                    tmp_val = "'^%s$'" % tmp_val
                 else:
                     # normal variable
-                    tmpVal = "'%s'" % tmpVal
-                tmpEvalStr = tmpEvalStr.replace(tmpKey,tmpVal)
-            # assign    
-            self.evalString = tmpEvalStr
+                    tmp_val = "'%s'" % tmp_val
+                tmp_eval_str = tmp_eval_str.replace(tmp_key, tmp_val)
+            # assign
+            self.evalString = tmp_eval_str
 
+    def pack_gs(self, gshare):
+        """
+        Packs tuple into the object
+        :param gshare: global share
+        :return: nothing
+        """
+
+        # the object becomes a global share wq
+        self.is_global_share = True
+        try:
+            tmp_map = {}
+            for i, attr in enumerate(gshare._attributes):
+                # global share attributes can be mapped to a wq attribute(1), to a wq param(2), or to none of both
+                # 1. if the gs attribute is mapped to a wq attribute, do a get and a set
+                if attr in self._attributes_gs_conversion_dic:
+                    attr_wq = self._attributes_gs_conversion_dic[attr]
+                    val = getattr(gshare, attr)
+                    setattr(self, attr_wq, val)
+                # 2. if the gs attribute is mapped to a wq param, add it to the bind variables dictionary
+                # Probably we don't need this, we just care about matching the gs name
+                if attr in self._params_gs_conversion_dic:
+                    param_wq = self._params_gs_conversion_dic[attr]
+                    val = getattr(gshare, attr)
+                    tmp_map[':{0}'.format(param_wq)] = val
+
+                # 3. Special case for throttled. This is defined additionally, since it's not present in WQs
+                if attr == 'throttled' and gshare.throttled == 'N':
+                    self.throttled = False
+
+            self.variables = tmp_map
+        except:
+            pass
 
     # evaluate in python
-    def evaluate(self,paramMap):
+    def evaluate(self, param_map):
         # only active queues are evaluated
         if self.isActive():
             # normal queue
-            if self.subQueues == []:
-                # expand parameters to local namespace
-                for tmpParamKey,tmpParamVal in paramMap.iteritems():
-                    if isinstance(tmpParamVal,types.StringType):
-                        # add quotes for string
-                        exec '%s="%s"' % (tmpParamKey,tmpParamVal)
-                    else:
-                        exec '%s=%s' % (tmpParamKey,tmpParamVal)
-                # add default parameters if missing
-                for tmpParam in self._paramsForSelection:
-                    if not paramMap.has_key(tmpParam):
-                        exec '%s=None' % tmpParam
-                # evaluate
-                exec "retVar = " + self.evalString
-                return self,retVar
-            else:
-                # loop over sub queues
-                for tmpQueue in self.subQueues:
-                    retQueue,retVar = tmpQueue.evaluate(paramMap)
-                    if retVar == True:
-                        return retQueue,retVar
-        # return False
-        return self,False
+            # expand parameters to local namespace
+            for tmp_param_key, tmp_param_val in param_map.iteritems():
+                if isinstance(tmp_param_val, types.StringType):
+                    # add quotes for string
+                    exec '{0}="{1}"'.format(tmp_param_key, tmp_param_val)
+                else:
+                    exec '{0}={1}'.format(tmp_param_key, tmp_param_val)
+            # add default parameters if missing
+            for tmp_param in self._paramsForSelection:
+                if tmp_param not in param_map:
+                    exec '{0}=None'.format(tmp_param)
+            # evaluate
+            exec "ret_var = {0}".format(self.evalString)
+            return self, ret_var
 
+        # return False
+        return self, False
 
     # check if active
     def isActive(self):
-        if self.status != 'inactive':
+        if self.status != 'inactive':  # and self.queue_function in ACTIVE_FUNCTIONS:
             return True
         return False
 
-
-    # check if stretchable
-    def isStretchable(self):
-        if self.stretchable == 1:
+    # check if its eligible after global share alignment
+    def isAligned(self):
+        if self.queue_function == RESOURCE or self.is_global_share:
             return True
         return False
 
-    
     # check if there is workload
-    def hasWorkload(self,queueList):
+    def hasWorkload(self, queue_list):
         # inactive
         if not self.isActive():
             return False
-        # normal queue
-        if self.subQueues == []:
-            if self.queue_id in queueList:
-                return True
-            else:
-                return False
-        # partition
-        for subQueue in self.subQueues:
-            if subQueue.queue_id in queueList:
-                return True
-        # not found    
+
+        if self.queue_id in queue_list:
+            return True
+
+        # not found
         return False
 
-
-    # get normalized shares
-    def getNormalizedShares(self,queueList,offset,normalization):
-        # skip inactive
-        if not self.isActive():
-            return {}
-        # normal queue
-        if self.subQueues == []:
-            # no workload
-            if not self.queue_id in queueList:
-                return {}
-            # no throttle
-            if self.queue_share == None:
-                return {self.queue_id:None}
-            else:
-                # normal share
-                normalizedShare = (float(self.queue_share) + offset) * normalization
-                return {self.queue_id:normalizedShare}
-        # partition
-        queuesWithWork = []
-        queuesWithWorkStretchable = []
-        nQueuesNoWorkLoad = 0
-        unUsedShare = 0
-        totalShare = 0
-        for subQueue in self.subQueues:
-            # skip inactive
-            if not subQueue.isActive():
-                continue
-            # check if it has workload
-            if subQueue.queue_id in queueList:
-                # total share
-                if subQueue.queue_share != None:
-                    totalShare += subQueue.queue_share
-                # with workload
-                queuesWithWork.append(subQueue)
-                # stretchable
-                if subQueue.isStretchable():
-                    queuesWithWorkStretchable.append(subQueue)
-            else:
-                # skip no throttle
-                if subQueue.queue_share == None:
-                    continue
-                # no workload
-                nQueuesNoWorkLoad += 1
-                unUsedShare += subQueue.queue_share
-        # calcurate offset
-        newOffset = 0
-        nStretchable = len(queuesWithWorkStretchable)
-        if nStretchable != 0:
-            newOffset = float(unUsedShare) / float(nStretchable)
-            totalShare += unUsedShare
-        # calculate normalization factor
-        if totalShare == 0 or self.queue_share == None:
-            # use dummy factor
-            newNormalization = 1.0
-        else:
-            newNormalization = float(normalization) * float(self.queue_share+offset) / float(totalShare)
-        # get normalized shares for all sub queues
-        retMap = {}
-        for subQueue in self.subQueues:
-            tmpOffset = 0
-            if subQueue in queuesWithWorkStretchable:
-                tmpOffset = newOffset
-            tmpRet = subQueue.getNormalizedShares(queueList,tmpOffset,newNormalization)
-            # add
-            for tmpRetKey,tmpRetVal in tmpRet.iteritems():
-                retMap[tmpRetKey] = tmpRetVal
-        # return
-        return retMap
-    
-
     # return column names for INSERT
-    def columnNames(cls):
+    def column_names(cls):
         ret = ""
         for attr in cls._attributes:
             if ret != "":
                 ret += ','
             ret += attr
         return ret
-    columnNames = classmethod(columnNames)
-    
+    column_names = classmethod(column_names)

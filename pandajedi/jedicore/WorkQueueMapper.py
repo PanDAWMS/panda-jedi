@@ -3,199 +3,201 @@ mapper to map task/job to a work queue
 
 """
 
-from WorkQueue import WorkQueue
+from WorkQueue import WorkQueue, RESOURCE, ACTIVE_FUNCTIONS
+import re
 
 class WorkQueueMapper:
 
     # constructor
     def __init__(self):
-        self.workQueueMap = {}
-        self.workQueueGlobalMap = {}
+        # Initialize maps
+        self.work_queue_map = {}
+        self.work_queue_global_dic_by_name = {}
+        self.work_queue_global_dic_by_id = {}
 
-
-    # get SQL query
     def getSqlQuery(self):
-        sql = "SELECT %s FROM ATLAS_PANDA.JEDI_Work_Queue" % WorkQueue.columnNames()
+        """
+        Generates the SQL to get all work queues
+        """
+        sql = "SELECT {0} FROM ATLAS_PANDA.JEDI_Work_Queue".format(WorkQueue.column_names())
+
         return sql
 
-        
-    # make map    
-    def makeMap(self,records):
-        self.workQueueMap = {}
-        self.workQueueGlobalMap = {}
-        subQueuesMap = {}
-        # loop over all records
-        for record in records:
+    def makeMap(self, work_queues, global_leave_shares):
+        """
+        Creates the mapping with work queues and global shares
+        :param work_queues: work queues
+        :param global_leave_shares: global leave shares
+        :return
+        """
+
+        # 1. add all workqueues to the map
+        for wq in work_queues:
             # pack
-            workQueue = WorkQueue()
-            workQueue.pack(record)
-            # add to global map
-            self.workQueueGlobalMap[workQueue.queue_id] = workQueue
+            work_queue = WorkQueue()
+            work_queue.pack(wq)
+
             # skip inactive queues
-            if not workQueue.isActive():
+            if not work_queue.isActive():
                 continue
-            # normal queue or sub queue
-            if workQueue.partitionID in [None,-1]:
-                targetMap = self.workQueueMap
-            else:
-                targetMap = subQueuesMap
+
             # add VO
-            if not targetMap.has_key(workQueue.VO):
-                targetMap[workQueue.VO] = {}
+            if work_queue.VO not in self.work_queue_map:
+                self.work_queue_map[work_queue.VO] = {}
+
             # add type
-            if not targetMap[workQueue.VO].has_key(workQueue.queue_type):
-                targetMap[workQueue.VO][workQueue.queue_type] = []
-            # add to list
-            targetMap[workQueue.VO][workQueue.queue_type].append(workQueue)
-        # add sub queues
-        for VO,typeQueueMap in subQueuesMap.iteritems():
-            for queue_type,subQueues in typeQueueMap.iteritems():
-                for subQueue in subQueues:
-                    try:
-                        # look for partition
-                        for normalQueue in self.workQueueMap[VO][queue_type]:
-                            if normalQueue.queue_id == subQueue.partitionID:
-                                normalQueue.addSubQueue(subQueue)
-                                break
-                    except:
-                        pass
+            if not self.work_queue_map[work_queue.VO].has_key(work_queue.queue_type):
+                self.work_queue_map[work_queue.VO][work_queue.queue_type] = []
+
+            self.work_queue_map[work_queue.VO][work_queue.queue_type].append(work_queue)
+            self.work_queue_global_dic_by_name[work_queue.queue_name] = work_queue
+            self.work_queue_global_dic_by_id[work_queue.queue_id] = work_queue
+
         # sort the queue list by order
-        for VO,typeQueueMap in self.workQueueMap.iteritems():
-            for queueType,queueMap in typeQueueMap.iteritems():
+        for vo in self.work_queue_map:
+            for type in self.work_queue_map[vo]:
                 # make ordered map
-                orderedMap = {}
-                for workQueue in queueMap:
-                    if not orderedMap.has_key(workQueue.queue_order):
-                        orderedMap[workQueue.queue_order] = []
+                ordered_map = {}
+                queue_map = self.work_queue_map[vo][type]
+                for wq in queue_map:
+                    if wq.queue_order not in ordered_map:
+                        ordered_map[wq.queue_order] = []
                     # append
-                    orderedMap[workQueue.queue_order].append(workQueue)
-                # make orderd list
-                orderList = orderedMap.keys()
-                orderList.sort()
-                newList = []
-                for orderVal in orderList:
-                    newList += orderedMap[orderVal]
-                # set new list    
-                self.workQueueMap[VO][queueType] = newList    
+                    ordered_map[wq.queue_order].append(wq)
+                # make sorted list
+                ordered_list = ordered_map.keys()
+                ordered_list.sort()
+                new_list = []
+                for order_val in ordered_list:
+                    new_list += ordered_map[order_val]
+                # set new list
+                self.work_queue_map[vo][type] = new_list
+
+        # 2. add all the global shares
+        for gs in global_leave_shares:
+            work_queue_gs = WorkQueue()
+            work_queue_gs.pack_gs(gs)
+
+            if work_queue_gs.VO is None:
+                vo = 'atlas'
+            else:
+                vo = work_queue_gs.VO
+
+            if vo not in self.work_queue_map:
+                self.work_queue_map[vo] = {}
+
+            if not self.work_queue_map[vo].has_key(work_queue_gs.queue_type):
+                self.work_queue_map[vo][work_queue_gs.queue_type] = []
+
+            self.work_queue_map[vo][work_queue_gs.queue_type].append(work_queue_gs)
+            self.work_queue_global_dic_by_name[work_queue_gs.queue_name] = work_queue_gs
+            self.work_queue_global_dic_by_id[work_queue_gs.queue_id] = work_queue_gs
+
         # return
         return
-    
 
-    # dump
     def dump(self):
-        dumpStr = 'WorkQueue mapping\n'
-        for VO,typeQueueMap in self.workQueueMap.iteritems():
-            dumpStr += '  VO=%s\n' % VO           
-            for queueType,queueMap in typeQueueMap.iteritems():
-                dumpStr += '    type=%s\n' % queueType
-                for workQueue in queueMap:
-                    dumpStr += '      %s\n' % workQueue.dump()
+        """
+        Creates a human-friendly string showing the work queue mappings
+        :return: string representation of the work queue mappings
+        """
+        dump_str = 'WorkQueue mapping\n'
+        for VO in self.work_queue_map:
+            dump_str += '  VO=%s\n' % VO
+            for type in self.work_queue_map[VO]:
+                dump_str += '    type=%s\n' % type
+                for workQueue in self.work_queue_map[VO]:
+                    dump_str += '    %s\n' % workQueue.dump()
         # return
-        return dumpStr
+        return dump_str
 
-
-    # get queue with selection parameters
-    def getQueueWithSelParams(self,vo,queueType,**paramMap):
-        retStr = ''
-        if not self.workQueueMap.has_key(vo):
-            # check VO 
-            retStr = 'queues for vo=%s are undefined' % vo
-        elif not self.workQueueMap[vo].has_key(queueType):
+    def getQueueWithSelParams(self, vo, type, **param_map):
+        """
+        Used for tagging of work queues in task refiner. Get a work queue based on the selection parameters
+        :param vo: vo
+        :param type: type (in practice equivalent to prodsourcelabel)
+        :param param_map: parameter selection map
+        :return: work queue object and explanation in case no queue was found
+        """
+        ret_str = ''
+        if vo not in self.work_queue_map:
+            ret_str = 'queues for vo=%s are undefined' % vo
+        elif not self.work_queue_map[vo].has_key(type):
             # check type
-            retStr = 'queues for type=%s are undefined in vo=%s' % (queueType,vo)
+            ret_str = 'queues for type=%s are undefined in vo=%s' % (type, vo)
         else:
-            # check queues in order
-            for workQueue in self.workQueueMap[vo][queueType]:
+            for wq in self.work_queue_map[vo][type]:
+
+                # don't return global share IDs for work queues
+                if wq.is_global_share:
+                    continue
+
                 # evaluate
                 try:
-                    retQueue,result = workQueue.evaluate(paramMap)
-                    if result == True:
-                        return retQueue,retStr
+                    ret_queue, result = wq.evaluate(param_map)
+                    if result:
+                        return ret_queue, ret_str
                 except:
-                    retStr += '%s,' % workQueue.queue_name
-            retStr = retStr[:-1]
-            if retStr != '':
-                newRetStr = 'eval with VO=%s queuetype=%s ' % (vo,queueType)
-                for tmpParamKey,tmpParamVal in paramMap.iteritems():
-                    newRetStr += '%s=%s ' % (tmpParamKey,tmpParamVal)
-                newRetStr += 'failed for %s' % retStr
-                retStr = newRetStr
-        # no matching
-        return None,retStr
+                    ret_str += '{0},'.format(wq.queue_name)
 
+            ret_str = ret_str[:-1]
+            if ret_str != '':
+                new_ret_str = 'eval with VO={0} '.format(vo)
+                for tmp_param_key, tmp_param_val in param_map.iteritems():
+                    new_ret_str += '{0}={1} failed for {0}'.format(tmp_param_key, tmp_param_val, ret_str)
+                ret_str = new_ret_str
+
+        # no queue matched to selection parameters
+        return None, ret_str
+
+    def getQueueByName(self, vo, type, queue_name):
+        """
+        # get queue by name
+        :param queue_name: name of the queue
+        :param vo: vo
+        :param type: type
+        :return: queue object or None if not found
+        """
+        if vo in self.work_queue_map and type in self.work_queue_map[vo]:
+            for wq in self.work_queue_map[vo][type]:
+                if wq.queue_name == queue_name:
+                    return wq
+        return None
 
     # get queue with ID
-    def getQueueWithID(self,queueID):
-        if self.workQueueGlobalMap.has_key(queueID):
-            return self.workQueueGlobalMap[queueID]
+    def getQueueWithIDGshare(self, queue_id, gshare_name):
+        # 1. Check for a Resource queue
+        if self.work_queue_global_dic_by_id.has_key(queue_id) and self.work_queue_global_dic_by_id[queue_id].queue_function == 'Resource':
+            return self.work_queue_global_dic_by_id[queue_id]
+
+        # 2. If it wasn't a resource queue, return the global share work queue
+        if self.work_queue_global_dic_by_name.has_key(gshare_name):
+            return self.work_queue_global_dic_by_name[gshare_name]
+
         # not found
         return None
-
 
     # get queue list with VO and type
-    def getQueueListWithVoType(self,vo,queueType):
-        if self.workQueueMap.has_key(vo):
-            if not queueType in ['',None,'any']:
-                if self.workQueueMap[vo].has_key(queueType):
-                    return self.workQueueMap[vo][queueType]
+    def getAlignedQueueList(self, vo, queue_type):
+        """
+        NOTE: Returns ONLY resource queues and global shares (old non-resource queues are skipped)
+        """
+        ret_list = []
+
+        if self.work_queue_map.has_key(vo):
+            # if queue type was specified
+            if queue_type not in ['', None, 'any']:
+                for map_queue_type in self.work_queue_map[vo]:
+                    if re.match(map_queue_type, queue_type):
+                        for tmp_wq in self.work_queue_map[vo][map_queue_type]:
+                            if tmp_wq.isAligned():
+                                ret_list.append(tmp_wq)
+
+            # include all queue types
             else:
-                # for any
-                retList = []
-                for tmpType,tmpList in self.workQueueMap[vo].iteritems():
-                    retList += self.workQueueMap[vo][tmpType]
-                return retList
-        # not found
-        return []
+                for tmp_type, tmp_wq_list in self.work_queue_map[vo].iteritems():
+                    for tmp_wq in tmp_wq_list:
+                        if tmp_wq.isAligned():
+                            ret_list.append(tmp_wq)
 
-
-    # get shares
-    def getShares(self,vo,queueType,queueList):
-        # get queue list with VO and type
-        queuesWithVoType = self.getQueueListWithVoType(vo,queueType)
-        # get list of queues with workload
-        sharesMap = {}
-        queuesWithWork = []
-        queuesWithWorkStretchable = []
-        nQueuesNoWorkLoad = 0
-        unUsedShare = 0
-        for workQueue in self.getQueueListWithVoType(vo,queueType):
-            # check if it has workload
-            if workQueue.hasWorkload(queueList):
-                queuesWithWork.append(workQueue)
-                # stretchable
-                if workQueue.isStretchable():
-                    queuesWithWorkStretchable.append(workQueue)
-            else:
-                # no throttle
-                if workQueue.queue_share == None:
-                    continue
-                # no workload
-                nQueuesNoWorkLoad += 1
-                unUsedShare += workQueue.queue_share
-        # calcurate offset
-        offset = 0
-        nStretchable = len(queuesWithWorkStretchable)
-        if nStretchable != 0:
-            offset = float(unUsedShare) / float(nStretchable)
-        # get normalized shares for all queues
-        retMap = {}
-        for workQueue in queuesWithWork:
-            tmpOffset = 0
-            if workQueue in queuesWithWorkStretchable:
-                tmpOffset = offset
-            tmpRet = workQueue.getNormalizedShares(queueList,tmpOffset,1.0)
-            # add
-            for tmpRetKey,tmpRetVal in tmpRet.iteritems():
-                retMap[tmpRetKey] = tmpRetVal
-        # return
-        return retMap
-
-
-    # get queue with name
-    def getQueueWithName(self,vo,queueType,queueName):
-        queueList = self.getQueueListWithVoType(vo,queueType)
-        for tmpQueue in queueList:
-            if tmpQueue.queue_name == queueName:
-                return tmpQueue
-        # not found
-        return None
+        return ret_list

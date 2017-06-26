@@ -172,7 +172,7 @@ class TaskCommandoThread (WorkerThread):
                                         tmpTaskSpec.unsetFailGoalUnreached()
                                     if updateTaskStatus:
                                         tmpTaskSpec.status = JediTaskSpec.commandStatusMap()[commandStr]['done']
-                                    tmpMsg = 'set task.status={0}'.format(tmpTaskSpec.status)
+                                    tmpMsg = 'set task_status={0}'.format(tmpTaskSpec.status)
                                     tmpLog.sendMsg(tmpMsg,self.msgType)
                                     tmpLog.info(tmpMsg)
                                     tmpRet = self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':jediTaskID},
@@ -257,7 +257,7 @@ class TaskCommandoThread (WorkerThread):
                         # retry failed files
                         tmpRet,newTaskStatus = self.taskBufferIF.retryTask_JEDI(jediTaskID,commandStr)
                         if tmpRet == True:
-                            tmpMsg = 'set task.status={0}'.format(newTaskStatus)
+                            tmpMsg = 'set task_status={0}'.format(newTaskStatus)
                             tmpLog.sendMsg(tmpMsg,self.msgType)
                             tmpLog.info(tmpMsg)
                         tmpLog.info('done with {0}'.format(tmpRet))

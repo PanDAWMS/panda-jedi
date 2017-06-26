@@ -190,9 +190,7 @@ class GenJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # calculate weight
-        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
-                                                                                    taskSpec.prodSourceLabel,
-                                                                                    taskSpec.currentPriority)
+        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -252,4 +250,3 @@ class GenJobBroker (JobBrokerBase):
         # return
         tmpLog.debug('done')        
         return self.SC_SUCCEEDED,inputChunk
-    

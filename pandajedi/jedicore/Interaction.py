@@ -180,7 +180,7 @@ class MethodClass(object):
                 stepIdx = 4
                 timeoutPeriod = 600
                 if not pipe.poll(timeoutPeriod):
-                    raise JEDITimeoutError,"didn not get response for %ssec" % timeoutPeriod
+                    raise JEDITimeoutError,"did not get response for %ssec" % timeoutPeriod
                 # get response
                 stepIdx = 5
                 ret = pipe.recv()

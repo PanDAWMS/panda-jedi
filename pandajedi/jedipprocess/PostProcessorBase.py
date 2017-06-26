@@ -51,9 +51,9 @@ class PostProcessorBase (object):
             # set dialog for preprocess
             if taskSpec.usePrePro() and not taskSpec.checkPreProcessed():
                 taskSpec.setErrDiag('Preprocessing step failed',True)
-        tmpMsg = 'set task.status={0}'.format(taskSpec.status)
+        tmpMsg = 'set task_status={0}'.format(taskSpec.status)
         tmpLog.info(tmpMsg)
-        tmpLog.sendMsg(tmpMsg, self.msgType)
+        tmpLog.sendMsg('set task_status={0}'.format(taskSpec.status),self.msgType)
         # update dataset
         for datasetSpec in taskSpec.datasetSpecList:
             if taskSpec.status in ['failed','broken','aborted']:
@@ -225,7 +225,7 @@ class PostProcessorBase (object):
             taskSpec.lockedBy = None
             taskSpec.lockedTime = None
             # update task
-            tmpLog.info('set task.status={0}'.format(taskSpec.status))
+            tmpLog.info('set task_status={0}'.format(taskSpec.status))
             self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
                                               updateDEFT=True)
             # kick child tasks

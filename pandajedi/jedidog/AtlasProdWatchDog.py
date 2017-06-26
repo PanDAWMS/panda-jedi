@@ -21,7 +21,7 @@ class AtlasProdWatchDog (WatchDogBase):
 
     # constructor
     def __init__(self,ddmIF,taskBufferIF):
-        WatchDogBase.__init__(self,ddmIF,taskBufferIF)
+        WatchDogBase.__init__(self, ddmIF, taskBufferIF)
 
 
 
@@ -61,36 +61,50 @@ class AtlasProdWatchDog (WatchDogBase):
         # get work queue mapper
         workQueueMapper = self.taskBufferIF.getWorkQueueMap()
         # get list of work queues
-        workQueueList = workQueueMapper.getQueueListWithVoType(self.vo,self.prodSourceLabel)
+        workQueueList = workQueueMapper.getAlignedQueueList(self.vo, self.prodSourceLabel)
+        resource_types = self.taskBufferIF.load_resource_types()
         # loop over all work queues
         for workQueue in workQueueList:
-            gTmpLog.debug('start workQueue={0}'.format(workQueue.queue_name))
-            # get tasks to be boosted
-            taskVarList = self.taskBufferIF.getTasksWithCriteria_JEDI(self.vo,self.prodSourceLabel,['running'],
-                                                                      taskCriteria={'workQueue_ID':workQueue.queue_id},
-                                                                      datasetCriteria={'masterID':None,'type':['input','pseudo_input']},
-                                                                      taskParamList=['jediTaskID','taskPriority','currentPriority'],
-                                                                      datasetParamList=['nFiles','nFilesUsed','nFilesTobeUsed',
-                                                                                        'nFilesFinished','nFilesFailed'])
-            boostedPrio = 900
-            toBoostRatio = 0.95 
-            for taskParam,datasetParam in taskVarList:
-                jediTaskID = taskParam['jediTaskID']
-                taskPriority = taskParam['taskPriority']
-                currentPriority = taskParam['currentPriority']
-                # high enough
-                if currentPriority >= boostedPrio:
-                    continue
-                nFiles = datasetParam['nFiles']
-                nFilesFinished = datasetParam['nFilesFinished']
-                nFilesFailed = datasetParam['nFilesFailed']
-                gTmpLog.info('jediTaskID={0} nFiles={1} nFilesFinishedFailed={2}'.format(jediTaskID,nFiles,nFilesFinished+nFilesFailed))
-                try:
-                    if float(nFilesFinished+nFilesFailed) / float(nFiles) >= toBoostRatio:
-                        gTmpLog.info('>>> boost jediTaskID={0}'.format(jediTaskID))
-                        self.taskBufferIF. changeTaskPriorityPanda(jediTaskID,boostedPrio)
-                except:
-                    pass
+            break_loop = False # for special workqueues we only need to iterate once
+            for resource_type in resource_types:
+                gTmpLog.debug('start workQueue={0}'.format(workQueue.queue_name))
+                # get tasks to be boosted
+                if workQueue.is_global_share:
+                    task_criteria = {'gshare': workQueue.queue_name,
+                                     'resource_type': resource_type.resource_name}
+                else:
+                    break_loop = True
+                    task_criteria = {'workQueue_ID': workQueue.queue_id}
+                dataset_criteria = {'masterID': None, 'type': ['input', 'pseudo_input']}
+                task_param_list = ['jediTaskID', 'taskPriority', 'currentPriority']
+                dataset_param_list = ['nFiles', 'nFilesUsed', 'nFilesTobeUsed', 'nFilesFinished', 'nFilesFailed']
+                taskVarList = self.taskBufferIF.getTasksWithCriteria_JEDI(self.vo, self.prodSourceLabel, ['running'],
+                                                                          taskCriteria= task_criteria,
+                                                                          datasetCriteria=dataset_criteria,
+                                                                          taskParamList=task_param_list,
+                                                                          datasetParamList=dataset_param_list)
+                boostedPrio = 900
+                toBoostRatio = 0.95
+                for taskParam,datasetParam in taskVarList:
+                    jediTaskID = taskParam['jediTaskID']
+                    taskPriority = taskParam['taskPriority']
+                    currentPriority = taskParam['currentPriority']
+                    # high enough
+                    if currentPriority >= boostedPrio:
+                        continue
+                    nFiles = datasetParam['nFiles']
+                    nFilesFinished = datasetParam['nFilesFinished']
+                    nFilesFailed = datasetParam['nFilesFailed']
+                    gTmpLog.info('jediTaskID={0} nFiles={1} nFilesFinishedFailed={2}'.format(jediTaskID,nFiles,nFilesFinished+nFilesFailed))
+                    try:
+                        if float(nFilesFinished+nFilesFailed) / float(nFiles) >= toBoostRatio:
+                            gTmpLog.info('>>> boost jediTaskID={0}'.format(jediTaskID))
+                            self.taskBufferIF. changeTaskPriorityPanda(jediTaskID,boostedPrio)
+                    except:
+                        pass
+
+                if break_loop:
+                    break
 
 
         
@@ -132,7 +146,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     taskSpec.setToRegisterDatasets()
                     self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
                                                       setOldModTime=True)
-                    tmpLog.debug('set task.status={0} to trigger task brokerage again'.format(taskSpec.status))
+                    tmpLog.debug('set task_status={0} to trigger task brokerage again'.format(taskSpec.status))
                     continue
                 # get nucleus
                 nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)

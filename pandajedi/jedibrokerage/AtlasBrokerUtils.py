@@ -341,30 +341,25 @@ def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,t
 
 
 # get the number of jobs in a status
-def getNumJobs(jobStatMap,computingSite,jobStatus,cloud=None,workQueue_ID=None):
+def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_name=None):
     if not jobStatMap.has_key(computingSite):
         return 0
     nJobs = 0
-    # loop over all clouds
-    for tmpCloud,tmpCloudVal in jobStatMap[computingSite].iteritems():
-        # cloud is specified
-        if cloud != None and cloud != tmpCloud:
+    # loop over all workQueues
+    for tmpWorkQueue, tmpWorkQueueVal in jobStatMap[computingSite].iteritems():
+        # workQueue is defined
+        if workQueue_name is not None and workQueue_name != tmpWorkQueue:
             continue
-        # loop over all workQueues
-        for tmpWorkQueue,tmpWorkQueueVal in tmpCloudVal.iteritems():
-            # workQueue is defined
-            if workQueue_ID != None and workQueue_ID != tmpWorkQueue:
-                continue
-            # loop over all job status
-            for tmpJobStatus,tmpCount in tmpWorkQueueVal.iteritems():
-                if tmpJobStatus == jobStatus:
-                    nJobs += tmpCount
+        # loop over all job status
+        for tmpJobStatus, tmpCount in tmpWorkQueueVal.iteritems():
+            if tmpJobStatus == jobStatus:
+                nJobs += tmpCount
     # return
     return nJobs
 
 
 
-# get mapping between sites and storage endpoints 
+# get mapping between sites and storage endpoints
 def getSiteStorageEndpointMap(siteList,siteMapper,ignoreCC=False):
     # get T1s
     t1Map = {}
@@ -398,7 +393,7 @@ def getSiteStorageEndpointMap(siteList,siteMapper,ignoreCC=False):
 
 
 # check if the queue is suppressed
-def hasZeroShare(siteSpec,taskSpec,ignorePrio,tmpLog):
+def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
     # per-site share is undefined
     if siteSpec.fairsharePolicy in ['',None]:
         return False

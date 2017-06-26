@@ -35,8 +35,9 @@ cloudName = taskSpec.cloud
 vo = taskSpec.vo
 prodSourceLabel = taskSpec.prodSourceLabel 
 queueID = taskSpec.workQueue_ID
+gshare_name = taskSpec.gshare
 
-workQueue = tbIF.getWorkQueueMap().getQueueWithID(queueID)
+workQueue = tbIF.getWorkQueueMap().getQueueWithIDGshare(queueID, gshare_name)
 
 brokerageLockIDs = ListWithLock([])
 

@@ -74,7 +74,7 @@ class JobGenerator (JediKnight):
                 workQueueMapper = self.taskBufferIF.getWorkQueueMap()
                 tmpLog.debug('got workQueueMapper')
                 # get Throttle
-                throttle = JobThrottler(self.vos,self.prodSourceLabels)
+                throttle = JobThrottler(self.vos, self.prodSourceLabels)
                 throttle.initializeMods(self.taskBufferIF)
                 tmpLog.debug('got Throttle')
                 # get TaskSetupper
@@ -89,143 +89,176 @@ class JobGenerator (JediKnight):
                         random.shuffle(self.cloudList)
                         for cloudName in self.cloudList:
                             # loop over all work queues
-                            workQueueList = workQueueMapper.getQueueListWithVoType(vo,prodSourceLabel)
+                            workQueueList = workQueueMapper.getAlignedQueueList(vo, prodSourceLabel)
+                            resource_types = self.taskBufferIF.load_resource_types()
                             tmpLog.debug("{0} workqueues for vo:{1} label:{2}".format(len(workQueueList),vo,prodSourceLabel))
                             for workQueue in workQueueList:
-                                cycleStr = 'pid={5} vo={0} cloud={1} queue={2}(id={3}) label={4}'.format(vo,cloudName,
-                                                                                                         workQueue.queue_name,
-                                                                                                         workQueue.queue_id,
-                                                                                                         workQueue.queue_type,
-                                                                                                         self.pid)
-                                tmpLog.debug('start {0}'.format(cycleStr))
-                                # check if to lock
-                                lockFlag = self.toLockProcess(vo,prodSourceLabel,workQueue.queue_name,cloudName)
-                                flagLocked = False
-                                if lockFlag:
-                                    tmpLog.debug('check if to lock')
-                                    # lock
-                                    flagLocked = self.taskBufferIF.lockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
-                                    if not flagLocked:
-                                        tmpLog.debug('skip since locked by another process')    
-                                        continue
-                                # get job statistics
-                                tmpSt,jobStat = self.taskBufferIF.getJobStatWithWorkQueuePerCloud_JEDI(vo,prodSourceLabel,cloudName)
-                                if not tmpSt:
-                                    raise RuntimeError,'failed to get job statistics'
-                                # throttle
-                                tmpLog.debug('check throttle with {0}'.format(throttle.getClassName(vo,workQueue.queue_type)))
-                                try:
-                                    tmpSt,thrFlag = throttle.toBeThrottled(vo,workQueue.queue_type,cloudName,workQueue,jobStat)
-                                except:
-                                    errtype,errvalue = sys.exc_info()[:2]
-                                    tmpLog.error('throttler failed with {0} {1}'.format(errtype,errvalue))
-                                    raise RuntimeError,'crashed when checking throttle'
-                                if tmpSt != self.SC_SUCCEEDED:
-                                    raise RuntimeError,'failed to check throttle'
-                                mergeUnThrottled = None
-                                if thrFlag == True:
-                                    if flagLocked:
-                                        tmpLog.debug('throttled')
-                                        self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
-                                        continue
-                                elif thrFlag == False:
-                                    pass
-                                else:
-                                    # leveled flag
-                                    mergeUnThrottled = not throttle.mergeThrottled(vo,workQueue.queue_type,thrFlag)
-                                    if not mergeUnThrottled:
-                                        tmpLog.debug('throttled including merge')
-                                        if flagLocked:
-                                            self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
+                                for resource_type in resource_types:
+                                    workqueue_name_nice = '_'.join(workQueue.queue_name.split(' '))
+                                    cycleStr = 'pid={0} vo={1} cloud={2} queue={3} ( id={4} ) label={5} resource_type={6}'.\
+                                        format(self.pid, vo, cloudName, workqueue_name_nice, workQueue.queue_id,
+                                               prodSourceLabel, resource_type.resource_name)
+                                    tmpLog.debug('start {0}'.format(cycleStr))
+                                    # check if to lock
+                                    lockFlag = self.toLockProcess(vo, prodSourceLabel, workQueue.queue_name, cloudName)
+                                    flagLocked = False
+                                    if lockFlag:
+                                        tmpLog.debug('check if to lock')
+                                        # lock
+                                        flagLocked = self.taskBufferIF.lockProcess_JEDI(vo, prodSourceLabel, cloudName,
+                                                                                        workQueue.queue_id,
+                                                                                        resource_type.resource_name,
+                                                                                        self.pid)
+                                        if not flagLocked:
+                                            tmpLog.debug('skip since locked by another process')
                                             continue
+
+                                    # get job statistics
+                                    if workQueue.is_global_share:
+                                        # TODO: job statistics should probably be done by resource_type
+                                        tmpSt, jobStat = self.taskBufferIF.getJobStatisticsByGlobalShare(vo)
                                     else:
-                                        tmpLog.debug('only merge is unthrottled')
-                                tmpLog.debug('minPriority={0} maxNumJobs={1}'.format(throttle.minPriority,throttle.maxNumJobs))
-                                # get typical number of files
-                                typicalNumFilesMap = self.taskBufferIF.getTypicalNumInput_JEDI(vo,workQueue.queue_type,workQueue,
-                                                                                               useResultCache=600)
-                                if typicalNumFilesMap == None:
-                                    raise RuntimeError,'failed to get typical number of files'
-                                # get params
-                                tmpParamsToGetTasks = self.getParamsToGetTasks(vo,prodSourceLabel,workQueue.queue_name,cloudName)
-                                nTasksToGetTasks = tmpParamsToGetTasks['nTasks']
-                                nFilesToGetTasks = tmpParamsToGetTasks['nFiles']
-                                tmpLog.debug('nTasks={0} nFiles={1} to get tasks'.format(nTasksToGetTasks,nFilesToGetTasks))
-                                # get number of tasks to generate new jumbo jobs
-                                numTasksWithRunningJumbo = self.taskBufferIF.getNumTasksWithRunningJumbo_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id)
-                                if not self.withThrottle:
-                                    numTasksWithRunningJumbo = 0
-                                maxNumasksWithRunningJumbo = 5
-                                if numTasksWithRunningJumbo < maxNumasksWithRunningJumbo:
-                                    numNewTaskWithJumbo = maxNumasksWithRunningJumbo - numTasksWithRunningJumbo
-                                    if numNewTaskWithJumbo < 0:
-                                        numNewTaskWithJumbo = 0
-                                else:
-                                    numNewTaskWithJumbo = 0
-                                # release lock when lack of jobs
-                                lackOfJobs = False
-                                if thrFlag == False:
-                                    if flagLocked and throttle.lackOfJobs:
-                                        tmpLog.debug('unlock {0} for multiple processes to quickly fill the queue until nQueueLimit is reached'.format(cycleStr))
-                                        self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
-                                        lackOfJobs = True
-                                        flagLocked = True
-                                # get the list of input 
-                                tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,vo,
-                                                                                       workQueue,
-                                                                                       workQueue.queue_type,
-                                                                                       cloudName,
-                                                                                       nTasks=nTasksToGetTasks,
-                                                                                       nFiles=nFilesToGetTasks,
-                                                                                       minPriority=throttle.minPriority,
-                                                                                       maxNumJobs=throttle.maxNumJobs,
-                                                                                       typicalNumFilesMap=typicalNumFilesMap,
-                                                                                       mergeUnThrottled=mergeUnThrottled,
-                                                                                       numNewTaskWithJumbo=numNewTaskWithJumbo
-                                                                                       )
-                                if tmpList == None:
-                                    # failed
-                                    tmpLog.error('failed to get the list of input chunks to generate jobs')
-                                else:
-                                    tmpLog.debug('got {0} input tasks'.format(len(tmpList)))
-                                    if len(tmpList) != 0: 
-                                        # put to a locked list
-                                        inputList = ListWithLock(tmpList)
-                                        # make thread pool
-                                        threadPool = ThreadPool() 
-                                        # make lock if nessesary
-                                        if lockFlag:
-                                            liveCounter = MapWithLock()
+                                        tmpSt, jobStat = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(vo,
+                                                                                                              prodSourceLabel)
+                                    if not tmpSt:
+                                        raise RuntimeError,'failed to get job statistics'
+
+                                    # aggregate statistics by work queue
+                                    jobStat_agg = {}
+                                    for computingSite, siteMap in jobStat.iteritems():
+                                        for workQueue_tag, workQueueMap in siteMap.iteritems():
+                                            # add work queue
+                                            jobStat_agg.setdefault(workQueue_tag, {})
+                                            for jobStatus, nCount in workQueueMap.iteritems():
+                                                jobStat_agg[workQueue_tag].setdefault(jobStatus, 0)
+                                                jobStat_agg[workQueue_tag][jobStatus] += nCount
+
+                                    # throttle
+                                    tmpLog.debug('check throttle with {0}'.format(throttle.getClassName(vo,
+                                                                                                        prodSourceLabel)))
+                                    try:
+                                        tmpSt,thrFlag = throttle.toBeThrottled(vo, prodSourceLabel, cloudName,
+                                                                               workQueue, jobStat_agg,
+                                                                               resource_type.resource_name)
+                                    except:
+                                        errtype, errvalue = sys.exc_info()[:2]
+                                        tmpLog.error('throttler failed with {0} {1}'.format(errtype, errvalue))
+                                        raise RuntimeError,'crashed when checking throttle'
+                                    if tmpSt != self.SC_SUCCEEDED:
+                                        raise RuntimeError,'failed to check throttle'
+                                    mergeUnThrottled = None
+                                    if thrFlag == True:
+                                        if flagLocked:
+                                            tmpLog.debug('throttled')
+                                            self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
+                                                                                 workQueue.queue_id, resource_type.resource_name,
+                                                                                 self.pid)
+                                            continue
+                                    elif thrFlag == False:
+                                        pass
+                                    else:
+                                        # leveled flag
+                                        mergeUnThrottled = not throttle.mergeThrottled(vo, workQueue.queue_type,
+                                                                                       thrFlag)
+                                        if not mergeUnThrottled:
+                                            tmpLog.debug('throttled including merge')
+                                            if flagLocked:
+                                                self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
+                                                                                     workQueue.queue_id, self.pid)
+                                                continue
                                         else:
-                                            liveCounter = None
-                                        # make list for brokerage lock
-                                        brokerageLockIDs = ListWithLock([])
-                                        # make workers
-                                        nWorker = jedi_config.jobgen.nWorkers
-                                        for iWorker in range(nWorker):
-                                            thr = JobGeneratorThread(inputList,threadPool,
-                                                                     self.taskBufferIF,self.ddmIF,
-                                                                     siteMapper,self.execJobs,
-                                                                     taskSetupper,
-                                                                     self.pid,
-                                                                     workQueue,
-                                                                     cloudName,
-                                                                     liveCounter,
-                                                                     brokerageLockIDs,
-                                                                     lackOfJobs)
-                                            globalThreadPool.add(thr)
-                                            thr.start()
-                                        # join
-                                        tmpLog.debug('try to join')
-                                        threadPool.join(60*10)
-                                        # unlock locks made by brokerage
-                                        for brokeragelockID in brokerageLockIDs:
-                                            self.taskBufferIF.unlockProcessWithPID_JEDI(vo,prodSourceLabel,workQueue.queue_id,
-                                                                                        brokeragelockID,True)
-                                        # dump
-                                        tmpLog.debug('dump one-time pool : {0} remTasks={1}'.format(threadPool.dump(),inputList.dump()))
-                                # unlock
-                                self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
+                                            tmpLog.debug('only merge is unthrottled')
+
+                                    tmpLog.debug('minPriority={0} maxNumJobs={1}'.format(throttle.minPriority,throttle.maxNumJobs))
+                                    # get typical number of files
+                                    typicalNumFilesMap = self.taskBufferIF.getTypicalNumInput_JEDI(vo, prodSourceLabel,
+                                                                                                   workQueue,
+                                                                                                   useResultCache=600)
+                                    if typicalNumFilesMap == None:
+                                        raise RuntimeError,'failed to get typical number of files'
+                                    # get params
+                                    tmpParamsToGetTasks = self.getParamsToGetTasks(vo, prodSourceLabel,
+                                                                                   workQueue.queue_name, cloudName)
+                                    nTasksToGetTasks = tmpParamsToGetTasks['nTasks']
+                                    nFilesToGetTasks = tmpParamsToGetTasks['nFiles']
+                                    tmpLog.debug('nTasks={0} nFiles={1} to get tasks'.format(nTasksToGetTasks,nFilesToGetTasks))
+                                    # get number of tasks to generate new jumbo jobs
+                                    numTasksWithRunningJumbo = self.taskBufferIF.getNumTasksWithRunningJumbo_JEDI(vo,prodSourceLabel,cloudName,workQueue)
+                                    if not self.withThrottle:
+                                        numTasksWithRunningJumbo = 0
+                                    maxNumasksWithRunningJumbo = 5
+                                    if numTasksWithRunningJumbo < maxNumasksWithRunningJumbo:
+                                        numNewTaskWithJumbo = maxNumasksWithRunningJumbo - numTasksWithRunningJumbo
+                                        if numNewTaskWithJumbo < 0:
+                                            numNewTaskWithJumbo = 0
+                                    else:
+                                        numNewTaskWithJumbo = 0
+                                    # release lock when lack of jobs
+                                    lackOfJobs = False
+                                    if thrFlag == False:
+                                        if flagLocked and throttle.lackOfJobs:
+                                            tmpLog.debug('unlock {0} for multiple processes to quickly fill the queue until nQueueLimit is reached'.format(cycleStr))
+                                            self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
+                                                                                 workQueue.queue_id, resource_type.resource_name,
+                                                                                 self.pid)
+                                            lackOfJobs = True
+                                            flagLocked = True
+                                    # get the list of input
+                                    tmpList = self.taskBufferIF.getTasksToBeProcessed_JEDI(self.pid,vo,
+                                                                                           workQueue,
+                                                                                           prodSourceLabel,
+                                                                                           cloudName,
+                                                                                           nTasks=nTasksToGetTasks,
+                                                                                           nFiles=nFilesToGetTasks,
+                                                                                           minPriority=throttle.minPriority,
+                                                                                           maxNumJobs=throttle.maxNumJobs,
+                                                                                           typicalNumFilesMap=typicalNumFilesMap,
+                                                                                           mergeUnThrottled=mergeUnThrottled,
+                                                                                           numNewTaskWithJumbo=numNewTaskWithJumbo
+                                                                                           )
+                                    if tmpList == None:
+                                        # failed
+                                        tmpLog.error('failed to get the list of input chunks to generate jobs')
+                                    else:
+                                        tmpLog.debug('got {0} input tasks'.format(len(tmpList)))
+                                        if len(tmpList) != 0:
+                                            # put to a locked list
+                                            inputList = ListWithLock(tmpList)
+                                            # make thread pool
+                                            threadPool = ThreadPool()
+                                            # make lock if nessesary
+                                            if lockFlag:
+                                                liveCounter = MapWithLock()
+                                            else:
+                                                liveCounter = None
+                                            # make list for brokerage lock
+                                            brokerageLockIDs = ListWithLock([])
+                                            # make workers
+                                            nWorker = jedi_config.jobgen.nWorkers
+                                            for iWorker in range(nWorker):
+                                                thr = JobGeneratorThread(inputList, threadPool, self.taskBufferIF,
+                                                                         self.ddmIF, siteMapper, self.execJobs,
+                                                                         taskSetupper, self.pid, workQueue,
+                                                                         cloudName, liveCounter, brokerageLockIDs,
+                                                                         lackOfJobs)
+                                                globalThreadPool.add(thr)
+                                                thr.start()
+                                            # join
+                                            tmpLog.debug('try to join')
+                                            threadPool.join(60*10)
+                                            # unlock locks made by brokerage
+                                            for brokeragelockID in brokerageLockIDs:
+                                                self.taskBufferIF.unlockProcessWithPID_JEDI(vo, prodSourceLabel,
+                                                                                            workQueue.queue_name,
+                                                                                            resource_type.resource_name,
+                                                                                            brokeragelockID, True)
+                                            # dump
+                                            tmpLog.debug('dump one-time pool : {0} remTasks={1}'.format(threadPool.dump(),
+                                                                                                        inputList.dump()))
+                                    # unlock
+                                    self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
+                                                                         workQueue.queue_id, resource_type.resource_name,
+                                                                         self.pid)
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1}:{2} {3}'.format(self.__class__.__name__,
@@ -237,7 +270,9 @@ class JobGenerator (JediKnight):
                     for prodSourceLabel in self.prodSourceLabels:
                         for cloudName in self.cloudList:
                             for workQueue in workQueueList:
-                                self.taskBufferIF.unlockProcess_JEDI(vo,prodSourceLabel,cloudName,workQueue.queue_id,self.pid)
+                                self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
+                                                                     workQueue.queue_id, resource_type.resource_name,
+                                                                     self.pid)
             except:
                 pass 
             try:
@@ -275,7 +310,7 @@ class JobGenerator (JediKnight):
 
 
     # get parameters to get tasks
-    def getParamsToGetTasks(self,vo,prodSourceLabel,queueName,cloudName):
+    def getParamsToGetTasks(self, vo, prodSourceLabel, queueName, cloudName):
         paramsList = ['nFiles','nTasks']
         # get group specified params
         if self.paramsToGetTasks == None:
@@ -353,12 +388,12 @@ class JobGenerator (JediKnight):
 
 
     # check if lock process
-    def toLockProcess(self,vo,prodSourceLabel,queueName,cloudName):
+    def toLockProcess(self, vo, prodSourceLabel, queueName, cloudName):
         try:
             # check if param is defined in config
             if hasattr(jedi_config.jobgen,'lockProcess'):
                 for item in jedi_config.jobgen.lockProcess.split(','):
-                    tmpVo,tmpProdSourceLabel,tmpQueueName,tmpCloudName = item.split(':')
+                    tmpVo, tmpProdSourceLabel, tmpQueueName, tmpCloudName = item.split(':')
                     if not tmpVo in ['','any',None] and not vo in tmpVo.split('|'):
                         continue
                     if not tmpProdSourceLabel in ['','any',None] and not prodSourceLabel in tmpProdSourceLabel.split('|'):
@@ -379,10 +414,9 @@ class JobGenerator (JediKnight):
 class JobGeneratorThread (WorkerThread):
 
     # constructor
-    def __init__(self,inputList,threadPool,taskbufferIF,ddmIF,siteMapper,
-                 execJobs,taskSetupper,pid,workQueue,cloud,liveCounter,
-                 brokerageLockIDs,
-                 lackOfJobs):
+    def __init__(self, inputList, threadPool, taskbufferIF, ddmIF, siteMapper,
+                 execJobs, taskSetupper, pid, workQueue, cloud, liveCounter,
+                 brokerageLockIDs, lackOfJobs):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -406,6 +440,7 @@ class JobGeneratorThread (WorkerThread):
 
     # main
     def runImpl(self):
+        workqueue_name_nice = '_'.join(self.workQueue.queue_name.split(' '))
         while True:
             try:
                 lastJediTaskID = None
@@ -420,7 +455,7 @@ class JobGeneratorThread (WorkerThread):
                         prefix = '<VO={0} queue_type={1} cloud={2} queue={3}>'.format(self.workQueue.VO,
                                                                                       self.workQueue.queue_type,
                                                                                       self.cloud,
-                                                                                      self.workQueue.queue_name)
+                                                                                      workqueue_name_nice)
                         tmpMsg = ": submitted {0} jobs".format(self.numGenJobs)
                         tmpLog = MsgWrapper(self.logger,monToken=prefix)
                         tmpLog.info(prefix + tmpMsg)
@@ -441,7 +476,7 @@ class JobGeneratorThread (WorkerThread):
                                                                                                 inputChunk.masterIndexName),
                                             monToken='<jediTaskID={0}>'.format(taskSpec.jediTaskID))
                         tmpLog.info('start to generate with VO={0} cloud={1} queue={2}'.format(taskSpec.vo,cloudName,
-                                                                                               self.workQueue.queue_name))
+                                                                                               workqueue_name_nice))
                         tmpLog.sendMsg('start to generate jobs',self.msgType)
                         readyToSubmitJob = False
                         jobsSubmitted = False
@@ -616,10 +651,10 @@ class JobGeneratorThread (WorkerThread):
                             # check if submission was successful
                             if len(pandaIDs) == len(pandaJobs):
                                 tmpMsg = 'successfully submitted '
-                                tmpMsg += 'jobs_submitted={0}/jobs_possible={1} for VO={2} cloud={3} queue={4} status={5} nucleus={6}'.format(len(pandaIDs),
+                                tmpMsg += 'jobs_submitted={0} / jobs_possible={1} for VO={2} cloud={3} queue={4} status={5} nucleus={6}'.format(len(pandaIDs),
                                                                                                                                               len(pandaJobs),
                                                                                                                                               taskSpec.vo,cloudName,
-                                                                                                                                              self.workQueue.queue_name,
+                                                                                                                                              workqueue_name_nice,
                                                                                                                                               oldStatus,
                                                                                                                                               taskSpec.nucleus)
                                 if inputChunk.isMerging:
@@ -635,7 +670,7 @@ class JobGeneratorThread (WorkerThread):
                                         if pandaJob.computingSite == EventServiceUtils.siteIdForWaitingCoJumboJobs:
                                             continue
                                         pandaIDsForExec.append(pandaID)
-                                    statExe,retExe = PandaClient.reassignJobs(pandaIDsForExec,forPending=True,
+                                    statExe,retExe = PandaClient.reassignJobs(pandaIDsForExec, forPending=True,
                                                                               firstSubmission=firstSubmission)
                                     tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDsForExec),retExe))
                                 jobsSubmitted = True
@@ -680,7 +715,8 @@ class JobGeneratorThread (WorkerThread):
                         retDB = self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
                                                                   oldStatus=JediTaskSpec.statusForJobGenerator()+['pending'],
                                                                   setOldModTime=setOldModTime)
-                        tmpMsg = 'set task.status={0} oldTask={2} with {1}'.format(taskSpec.status,str(retDB),setOldModTime)
+                        tmpMsg = 'set task_status={0} oldTask={2} with {1}'.format(taskSpec.status,str(retDB),setOldModTime)
+                        tmpLog.info(tmpMsg)
                         if not taskSpec.errorDialog in ['',None]:
                             tmpMsg += ' ' + taskSpec.errorDialog
                         tmpLog.sendMsg(tmpMsg,self.msgType)

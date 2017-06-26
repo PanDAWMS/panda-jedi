@@ -16,14 +16,14 @@ class AtlasAnalJobThrottler (JobThrottlerBase):
 
 
     # check if throttled
-    def toBeThrottled(self,vo,prodSourceLabel,cloudName,workQueue,jobStat):
+    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, jobStat, resourceType):
         # make logger
         tmpLog = MsgWrapper(logger)
         tmpLog.debug('start vo={0} label={1} cloud={2} workQueue={3}'.format(vo,prodSourceLabel,cloudName,
                                                                              workQueue.queue_name))
         # check if unthrottled
-        if workQueue.queue_share == None:
-            tmpLog.debug("  done : unthrottled since share=None")
+        if not workQueue.throttled:
+            tmpLog.debug("  done : unthrottled since throttled is False")
             return self.retUnThrottled
         tmpLog.debug("  done : SKIP")
         return self.retThrottled

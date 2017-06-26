@@ -11,14 +11,14 @@ class JobThrottler (FactoryBase):
 
     # constructor
     def __init__(self,vo,sourceLabel):
-        FactoryBase.__init__(self,vo,sourceLabel,logger,
+        FactoryBase.__init__(self, vo, sourceLabel, logger,
                              jedi_config.jobthrottle.modConfig)
 
 
     # main
-    def toBeThrottled(self,vo,sourceLabel,cloudName,workQueue,jobStat):
-        impl = self.getImpl(vo,sourceLabel)
-        retVal = impl.toBeThrottled(vo,sourceLabel,cloudName,workQueue,jobStat)
+    def toBeThrottled(self, vo, sourceLabel, cloudName, workQueue, jobStat, resourceType):
+        impl = self.getImpl(vo, sourceLabel)
+        retVal = impl.toBeThrottled(vo, sourceLabel, cloudName, workQueue, jobStat, resourceType)
         # retrieve min priority and max number of jobs from concrete class
         self.minPriority = impl.minPriority
         self.maxNumJobs = impl.maxNumJobs
@@ -28,6 +28,6 @@ class JobThrottler (FactoryBase):
 
 
     # check throttle level
-    def mergeThrottled(self,vo,sourceLabel,thrLevel):
-        impl = self.getImpl(vo,sourceLabel)
+    def mergeThrottled(self, vo, sourceLabel, thrLevel):
+        impl = self.getImpl(vo, sourceLabel)
         return impl.mergeThrottled(thrLevel)

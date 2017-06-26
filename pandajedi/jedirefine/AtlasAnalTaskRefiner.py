@@ -12,8 +12,8 @@ from pandaserver.dataservice import DataServiceUtils
 class AtlasAnalTaskRefiner (TaskRefinerBase):
 
     # constructor
-    def __init__(self,taskBufferIF,ddmIF):
-        TaskRefinerBase.__init__(self,taskBufferIF,ddmIF)
+    def __init__(self, taskBufferIF, ddmIF):
+        TaskRefinerBase.__init__(self, taskBufferIF, ddmIF)
 
 
     # extract common parameters
