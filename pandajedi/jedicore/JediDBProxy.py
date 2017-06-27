@@ -10762,3 +10762,54 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return 0
+
+
+
+    # get number of unprocessed events
+    def getNumUnprocessedEvents_JEDI(self, vo, prodSourceLabel, criteria):
+        comment = ' /* JediDBProxy.getNumUnprocessedEvents_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start with criteria={0}'.format(str(criteria)))
+        try:
+            # get num events
+            varMap = {}
+            varMap[':vo']  = vo
+            varMap[':label'] = prodSourceLabel
+            varMap[':type']  = 'input'
+            sqlDJ = "SELECT SUM(nEvents),MAX(creationDate) FROM ("
+            sqlDJ += "SELECT CASE tabD.nFiles WHEN 0 THEN 0 ELSE tabD.nEvents*(tabD.nFiles-tabD.nFilesUsed)/tabD.nFiles END nEvents,"
+            sqlDJ += "tabT.creationDate creationDate "
+            sqlDJ += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlDJ += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlDJ += "AND tabT.jediTaskID=tabD.jediTaskID "
+            sqlDJ += "AND tabT.vo=:vo AND tabT.prodSourceLabel=:label "
+            sqlDJ += "AND tabT.status IN (:st1,:st2,:st3,:st4,:st5,:st6) AND tabD.type=:type AND tabD.masterID IS NULL "
+            for key, val in criteria.iteritems():
+                sqlDJ += "AND tabT.{0}=:{0} ".format(key)
+                varMap[':{0}'.format(key)] = val
+            sqlDJ += ") "
+            varMap[':st1'] = 'running'
+            varMap[':st2'] = 'pending'
+            varMap[':st3'] = 'ready'
+            varMap[':st4'] = 'scouting'
+            varMap[':st5'] = 'registered'
+            varMap[':st6'] = 'defined'
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sqlDJ+comment, varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            nEvents, lastTaskTime = self.cur.fetchone()
+            # return
+            tmpLog.debug("got nEvents={0} lastTaskTime={1}".format(nEvents,lastTaskTime))
+            return nEvents, lastTaskTime
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None, None
+

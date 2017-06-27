@@ -2,6 +2,7 @@ import re
 import sys
 import shlex
 import random
+import datetime
 
 from pandajedi.jedicore import Interaction
 from TaskRefinerBase import TaskRefinerBase
@@ -20,15 +21,37 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
 
     # extract common parameters
     def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule):
+        tmpLog = self.tmpLog
         # set ddmBackEnd
         if not 'ddmBackEnd' in taskParamMap:
             taskParamMap['ddmBackEnd'] = 'rucio'
+        # get number of unprocessed events for event service
+        autoEsConversion = False
+        if 'esConvertible' in taskParamMap and taskParamMap['esConvertible'] == True:
+            maxPrio = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_MAXTASKPRIORITY', 'jedi', 'atlas')
+            minPrio = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_MINTASKPRIORITY', 'jedi', 'atlas')
+            if maxPrio is not None and maxPrio < taskParamMap['taskPriority']:
+                pass
+            elif minPrio is not None and minPrio > taskParamMap['taskPriority']:
+                pass
+            else:
+                nEvents, lastTaskTime = self.taskBufferIF.getNumUnprocessedEvents_JEDI('atlas', 'managed',
+                                                                                       {'processingType': 'simul',
+                                                                                        'eventService': 1})
+                tmpLog.debug('check for ES nUnprocessedEvents={0} lastTaskTime={1}'.format(nEvents, lastTaskTime))
+                # not chane many tasks at once
+                if lastTaskTime is not None and lastTaskTime < datetime.datetime.utcnow() - datetime.timedelta(minutes=5):
+                    # get threshold
+                    minNumEvents = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_EVENTPOOLSIZE', 'jedi', 'atlas')
+                    if minNumEvents is not None and nEvents < minNumEvents:
+                        #autoEsConversion = True
+                        tmpLog.debug('converted to ES')
         # add ES paramsters
-        if 'esFraction' in taskParamMap and taskParamMap['esFraction'] > 0:
+        if ('esFraction' in taskParamMap and taskParamMap['esFraction'] > 0) or autoEsConversion:
             tmpStr  = '<PANDA_ES_ONLY>--eventService=True</PANDA_ES_ONLY>'
             taskParamMap['jobParameters'].append({'type':'constant',
                                                   'value':tmpStr})
-            if 'nEventsPerWorker' not in taskParamMap and taskParamMap['esFraction'] > random.random():
+            if 'nEventsPerWorker' not in taskParamMap and (taskParamMap['esFraction'] > random.random() or autoEsConversion):
                 taskParamMap['nEventsPerWorker'] = 1
                 if 'nEsConsumers' not in taskParamMap:
                     taskParamMap['nEsConsumers'] = 1

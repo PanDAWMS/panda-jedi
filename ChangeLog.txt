@@ -1,5 +1,8 @@
 Release Notes
 
+* 6/27/2017
+  * added getNumUnprocessedEvents_JEDI
+
 * 6/26/2017
   * skip scouts for ES
   * ES without ueRealNumEvt or nEventsPerFile
