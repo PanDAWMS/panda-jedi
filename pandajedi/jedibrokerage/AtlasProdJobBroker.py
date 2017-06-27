@@ -186,19 +186,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
             tmpLog.info('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
 
-        # get workQueue
-        workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
-        if workQueue.is_global_share:
-            workQueueTag = workQueue.queue_name
-        else:
-            workQueueTag = workQueue.queue_id
-
         # get job statistics
-        if workQueue.is_global_share:
-            tmpSt, jobStatMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
-        else:
-            tmpSt, jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
-                                                                                     taskSpec.prodSourceLabel)
+        tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
         if not tmpSt:
             tmpLog.error('failed to get job statistics')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -250,7 +239,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             # not use MCORE
             useMP = 'unuse'
-
+        # get workQueue
+        workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
 
         ######################################
         # selection for status
@@ -1071,7 +1061,14 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # calculate weight
-        tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
+        if workQueue.is_global_share:
+            wq_tag = workQueue.queue_name
+            tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
+        else:
+            wq_tag = workQueue.queue_id
+            tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
+                                                                                         taskSpec.prodSourceLabel)
+
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -1085,12 +1082,12 @@ class AtlasProdJobBroker (JobBrokerBase):
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
-            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'running', None, workQueueTag)
-            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'defined', None, workQueueTag) + self.getLiveCount(tmpSiteName)
-            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'assigned', None, workQueueTag)
-            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'activated', None, workQueueTag) + \
-                         AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'throttled', None, workQueueTag)
-            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'starting', None, workQueueTag)
+            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', None, wq_tag)
+            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'defined', None, wq_tag) + self.getLiveCount(tmpSiteName)
+            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'assigned', None, wq_tag)
+            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'activated', None, wq_tag) + \
+                         AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'throttled', None, wq_tag)
+            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'starting', None, wq_tag)
             if tmpSiteName in nPilotMap:
                 nPilot = nPilotMap[tmpSiteName]
             else:
