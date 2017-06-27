@@ -6,6 +6,7 @@ Release Notes
 * 6/26/2017
   * skip scouts for ES
   * ES without ueRealNumEvt or nEventsPerFile
+  * WQ-GS alignment
 
 * 5/17/2017
   * changed nRunningCap to ignore highPrioWaiting in AtlasPJT
