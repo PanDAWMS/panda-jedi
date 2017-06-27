@@ -186,8 +186,19 @@ class AtlasProdJobBroker (JobBrokerBase):
             scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
             tmpLog.info('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
 
+        # get workQueue
+        workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
+        if workQueue.is_global_share:
+            workQueueTag = workQueue.queue_name
+        else:
+            workQueueTag = workQueue.queue_id
+
         # get job statistics
-        tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
+        if workQueue.is_global_share:
+            tmpSt, jobStatMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
+        else:
+            tmpSt, jobStatMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
+                                                                                     taskSpec.prodSourceLabel)
         if not tmpSt:
             tmpLog.error('failed to get job statistics')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -239,8 +250,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             # not use MCORE
             useMP = 'unuse'
-        # get workQueue
-        workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
+
 
         ######################################
         # selection for status
@@ -1075,12 +1085,12 @@ class AtlasProdJobBroker (JobBrokerBase):
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
-            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'running', None, workQueue.queue_name)
-            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'defined', None, workQueue.queue_name) + self.getLiveCount(tmpSiteName)
-            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'assigned', None, workQueue.queue_name)
-            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'activated', None, workQueue.queue_name) + \
-                         AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'throttled', None, workQueue.queue_name)
-            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'starting', None, workQueue.queue_name)
+            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'running', None, workQueueTag)
+            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'defined', None, workQueueTag) + self.getLiveCount(tmpSiteName)
+            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'assigned', None, workQueueTag)
+            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'activated', None, workQueueTag) + \
+                         AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'throttled', None, workQueueTag)
+            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName, 'starting', None, workQueueTag)
             if tmpSiteName in nPilotMap:
                 nPilot = nPilotMap[tmpSiteName]
             else:

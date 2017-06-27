@@ -341,14 +341,14 @@ def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,t
 
 
 # get the number of jobs in a status
-def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_name=None):
+def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_tag=None):
     if not jobStatMap.has_key(computingSite):
         return 0
     nJobs = 0
     # loop over all workQueues
     for tmpWorkQueue, tmpWorkQueueVal in jobStatMap[computingSite].iteritems():
         # workQueue is defined
-        if workQueue_name is not None and workQueue_name != tmpWorkQueue:
+        if workQueue_tag is not None and workQueue_tag != tmpWorkQueue:
             continue
         # loop over all job status
         for tmpJobStatus, tmpCount in tmpWorkQueueVal.iteritems():
