@@ -6678,8 +6678,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 sqlTT += "SET status=:status,timeStamp=CURRENT_DATE "
                                 sqlTT += " WHERE taskID=:jediTaskID "
                                 varMap = dict()
-                                varMap[':jediTaskID'] = taskSpec.jediTaskID
-                                varMap[':status'] = taskSpec.status
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':status'] = deftStatus
                                 self.cur.execute(sqlTT+comment, varMap)
                                 self.setSuperStatus_JEDI(jediTaskID,deftStatus)
                     # update command table
