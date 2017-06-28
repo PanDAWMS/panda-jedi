@@ -114,13 +114,20 @@ class ContentsFeederThread (WorkerThread):
                     runningTask = False
                     missingMap = {}
                     datasetsIdxConsistency = []
-                    # make logger
-                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(jediTaskID))
+
                     # get task
                     tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID,False,True,self.pid,10)
                     if not tmpStat or taskSpec == None:
-                        tmpLog.error('failed to get taskSpec for jediTaskID={0}'.format(jediTaskID))
+                        self.logger.error('failed to get taskSpec for jediTaskID={0}'.format(jediTaskID))
                         continue
+
+                    # make logger
+                    try:
+                        gshare = '_'.join(taskSpec.gshare.split(' '))
+                    except:
+                        gshare = 'Undefined'
+                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0} gshare={1}>'.format(jediTaskID, gshare))
+
                     try:
                         # get task parameters
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
