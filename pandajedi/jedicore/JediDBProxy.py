@@ -2294,7 +2294,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False,{}
 
     # get job statistics by global share
-    def getJobStatisticsByGlobalShare(self, vo):
+    def getJobStatisticsByGlobalShare(self, vo, exclude_rwq):
+        """        
+        :param vo: Virtual Organization 
+        :param exclude_rwq: True/False. Indicates whether we want to indicate special workqueues from the statistics
+        """
         comment = ' /* DBProxy.getJobStatisticsByGlobalShare */'
         methodName = self.getMethodName(comment)
         methodName += ' < vo={0} >'.format(vo)
@@ -2305,6 +2309,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sql_jt = """
                SELECT computingSite, jobStatus, gShare, COUNT(*) FROM %s
                WHERE vo=:vo
+               """
+
+        if exclude_rwq:
+            sql_jt += """
+               AND workqueue_id NOT IN 
+               (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource')
+               """.format(jedi_config.db.schemaPANDA)
+
+        sql_jt += """
                GROUP BY computingSite, jobStatus, gshare
                """
 
@@ -2315,7 +2328,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
                   '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
-
         var_map = {':vo': vo}
 
         return_map = {}
@@ -2737,6 +2749,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "AND tabT.vo=:vo "
                 if workQueue.is_global_share:
                     sql += "AND gshare=:wq_name "
+                    sql += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
                     varMap[':wq_name'] =workQueue.queue_name
                 else:
                     sql += "AND workQueue_ID=:wq_id "
@@ -4280,6 +4293,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql += "WHERE prodSourceLabel=:prodSourceLabel and vo=:vo "
             if workQueue.is_global_share:
                 sql += "AND gshare=:wq_name "
+                sql += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
                 varMap[':wq_name'] = workQueue.queue_name
             else:
                 sql += "AND workQueue_ID=:wq_id "
@@ -4335,22 +4349,31 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         varMapO = {}
         varMapO[':cloud'] = cloudName
         varMapO[':prodSourceLabel'] = prodSourceLabel
-        sql0  = "SELECT max(currentPriority) FROM {0} "
+
+        # sqlS has the where conditions
         sqlS  = "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
         sqlS += "AND processingType<>:pmerge "
         sqlS += "AND cloud=:cloud "
         if workQueue.is_global_share:
             sqlS += "AND gshare=:wq_name "
+            sqlS += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
             varMapO[':wq_name'] = workQueue.queue_name
         else:
             sqlS += "AND workQueue_ID=:wq_id "
             varMapO[':wq_id'] = workQueue.queue_id
+
+        # sql for highest current priority
+        sql0  = "SELECT max(currentPriority) FROM {0} "
         sql0 += sqlS
+
+        # sqlC counts the jobs with highest priority
         sqlC  = "SELECT COUNT(*) FROM {0} "
         sqlC += sqlS
         sqlC += "AND currentPriority=:currentPriority"
+
         tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
                   '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
+
         # make return map
         prioKey = 'highestPrio'
         nNotRunKey = 'nNotRun'
@@ -6051,6 +6074,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':dsType2'] = 'log'
             if workQueue.is_global_share:
                 sqlSCF += "AND gshare=:wq_name AND resource_type=:resource_name "
+                sqlSCF += "AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaJEDI)
                 varMap[':wq_name'] = workQueue.queue_name
                 varMap[':resource_name'] = resource_name
             else:
@@ -6121,6 +6145,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':dsType2'] = 'log'
             if workQueue.is_global_share:
                 sqlSCF += "AND gshare=:wq_name AND resource_type=:resource_name "
+                sqlSCF += "AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaJEDI)
                 varMap[':wq_name'] = workQueue.queue_name
                 varMap[':resource_name'] = resource_name
             else:
@@ -6299,6 +6324,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if workQueue != None:
                 if workQueue.is_global_share:
                     sql += "AND gshare=:wq_name "
+                    sql += "AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaJEDI)
                     varMap[':wq_name'] = workQueue.queue_name
                 else:
                     sql += "AND workQueue_ID=:wq_id "
@@ -6398,6 +6424,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if workQueue != None:
                 if workQueue.is_global_share:
                     sql += "AND gshare=:wq_name "
+                    sql += "AND tabT.workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaJEDI)
                     varMap[':wq_name'] = workQueue.queue_name
                 else:
                     sql += "AND workQueue_ID=:wq_id "
@@ -10000,6 +10027,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
             if workQueue.is_global_share:
                 sql += "AND gshare=:wq_name "
+                sql += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
                 varMap[':wq_name'] = workQueue.queue_name
             else:
                 sql += "AND workQueue_ID=:wq_id "
@@ -10738,6 +10766,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':cloud'] = cloudName
             if workqueue.is_global_share:
                 sqlDJ += "AND gshare =:gshare "
+                sqlDJ += "AND workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaJEDI)
                 varMap[':gshare'] = workqueue.queue_name
             else:
                 sqlDJ += "AND workQueue_ID =:queue_id "

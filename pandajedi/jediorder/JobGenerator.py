@@ -116,7 +116,7 @@ class JobGenerator (JediKnight):
                                     # get job statistics
                                     if workQueue.is_global_share:
                                         # TODO: job statistics should probably be done by resource_type
-                                        tmpSt, jobStat = self.taskBufferIF.getJobStatisticsByGlobalShare(vo)
+                                        tmpSt, jobStat = self.taskBufferIF.getJobStatisticsByGlobalShare(vo, exclude_rwq=True)
                                     else:
                                         tmpSt, jobStat = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(vo,
                                                                                                               prodSourceLabel)
