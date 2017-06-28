@@ -115,7 +115,7 @@ class ContentsFeederThread (WorkerThread):
                     missingMap = {}
                     datasetsIdxConsistency = []
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'< jediTaskID={0} >'.format(jediTaskID))
+                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(jediTaskID))
                     # get task
                     tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID,False,True,self.pid,10)
                     if not tmpStat or taskSpec == None:
