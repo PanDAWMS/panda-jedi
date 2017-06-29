@@ -91,7 +91,6 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                      .format(configQueueLimit, configQueueCap, configRunningCap))
 
         # change threshold
-        # TODO: need to review the thresholds for global shares
         if workQueue.queue_name in ['mcore']:
             threshold = 5.0
         # check cloud status
@@ -190,8 +189,6 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 else:
                     nJobsInBunch = nJobsInBunchMax
         # get cap
-        # TODO: review the values in the central configuration
-
         # set number of jobs to be submitted
         if configQueueCap is None:
             self.setMaxNumJobs(nJobsInBunch/nParallel)

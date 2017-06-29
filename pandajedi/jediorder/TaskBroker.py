@@ -63,7 +63,7 @@ class TaskBroker (JediKnight,FactoryBase):
                                     # failed
                                     tmpLog.error(msgLabel+'failed to get the list of tasks to check')
                                 else:
-                                    tmpLog.debug(msgLabel+'got {0} tasks to check'.format(len(tmpList)))
+                                    tmpLog.debug(msgLabel+'got tasks_to_check={0}'.format(len(tmpList)))
                                     # put to a locked list
                                     taskList = ListWithLock(tmpList)
                                     # make thread pool
@@ -85,7 +85,7 @@ class TaskBroker (JediKnight,FactoryBase):
                                     # failed
                                     tmpLog.error(msgLabel+'failed to get the list of tasks to assign')
                                 else:
-                                    tmpLog.debug(msgLabel+'got {0} tasks to assign'.format(len(tmpList)))
+                                    tmpLog.debug(msgLabel+'got tasks_to_assign={0}'.format(len(tmpList)))
                                     # put to a locked list
                                     taskList = ListWithLock(tmpList)
                                     # make thread pool

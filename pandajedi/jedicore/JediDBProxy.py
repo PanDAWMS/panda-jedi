@@ -2688,7 +2688,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    minPriority=None, maxNumJobs=None, typicalNumFilesMap=None,
                                    fullSimulation=False, simDatasets=None,
                                    mergeUnThrottled=None, readMinFiles=False,
-                                   numNewTaskWithJumbo=0):
+                                   numNewTaskWithJumbo=0, resource_name=None):
 
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
@@ -2754,6 +2754,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 else:
                     sql += "AND workQueue_ID=:wq_id "
                     varMap[':wq_id'] = workQueue.queue_id
+                if resource_type:
+                    sql += "AND resource_type=:resource_name "
+                    varMap[':resource_name'] = resource_name
                 if not prodSourceLabel in [None, '', 'any']:
                     sql += "AND prodSourceLabel=:prodSourceLabel "
                 if not cloudName in [None, '', 'any']:
@@ -2888,7 +2891,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                    tmpNumInputEvents,tmpNumFilesWaiting,useJumbo))
 
                 # use single value if WQ has a share
-                # TODO: ask Tadashi what this is
                 if workQueue != None and workQueue.queue_share != None and not setGroupByAttr:
                     groupByAttr = ''
                 # increase priority so that scouts do not wait behind the bulk
