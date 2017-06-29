@@ -2754,7 +2754,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 else:
                     sql += "AND workQueue_ID=:wq_id "
                     varMap[':wq_id'] = workQueue.queue_id
-                if resource_type:
+                if resource_name:
                     sql += "AND resource_type=:resource_name "
                     varMap[':resource_name'] = resource_name
                 if not prodSourceLabel in [None, '', 'any']:
