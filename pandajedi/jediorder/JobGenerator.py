@@ -215,7 +215,7 @@ class JobGenerator (JediKnight):
                                                                                            typicalNumFilesMap=typicalNumFilesMap,
                                                                                            mergeUnThrottled=mergeUnThrottled,
                                                                                            numNewTaskWithJumbo=numNewTaskWithJumbo,
-                                                                                           resource_type=resource_type.resource_name)
+                                                                                           resource_name=resource_type.resource_name)
                                     if tmpList == None:
                                         # failed
                                         tmpLog.error('failed to get the list of input chunks to generate jobs')
