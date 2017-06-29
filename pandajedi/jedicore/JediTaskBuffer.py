@@ -338,7 +338,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
                                                   mergeUnThrottled=mergeUnThrottled,
                                                   readMinFiles=readMinFiles,
                                                   numNewTaskWithJumbo=numNewTaskWithJumbo,
-                                                  resource_type=resource_name)
+                                                  resource_name=resource_name)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
