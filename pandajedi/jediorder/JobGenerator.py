@@ -239,8 +239,8 @@ class JobGenerator (JediKnight):
                                                 thr = JobGeneratorThread(inputList, threadPool, self.taskBufferIF,
                                                                          self.ddmIF, siteMapper, self.execJobs,
                                                                          taskSetupper, self.pid, workQueue,
-                                                                         cloudName, liveCounter, brokerageLockIDs,
-                                                                         lackOfJobs)
+                                                                         resource_type.resource_name, cloudName,
+                                                                         liveCounter, brokerageLockIDs, lackOfJobs)
                                                 globalThreadPool.add(thr)
                                                 thr.start()
                                             # join
@@ -415,7 +415,7 @@ class JobGeneratorThread (WorkerThread):
 
     # constructor
     def __init__(self, inputList, threadPool, taskbufferIF, ddmIF, siteMapper,
-                 execJobs, taskSetupper, pid, workQueue, cloud, liveCounter,
+                 execJobs, taskSetupper, pid, workQueue, resource_name, cloud, liveCounter,
                  brokerageLockIDs, lackOfJobs):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
@@ -431,6 +431,7 @@ class JobGeneratorThread (WorkerThread):
         self.pid          = pid
         self.buildSpecMap = {}
         self.workQueue    = workQueue
+        self.resource_name = resource_name
         self.cloud        = cloud
         self.liveCounter  = liveCounter
         self.brokerageLockIDs = brokerageLockIDs
@@ -452,10 +453,11 @@ class JobGeneratorThread (WorkerThread):
                     self.logger.debug('{0} terminating after generating {1} jobs since no more inputs '.format(self.__class__.__name__,
                                                                                                                self.numGenJobs))
                     if self.numGenJobs > 0:
-                        prefix = '<VO={0} queue_type={1} cloud={2} queue={3}>'.format(self.workQueue.VO,
+                        prefix = '<VO={0} queue_type={1} cloud={2} queue={3} resource_type={4}>'.format(self.workQueue.VO,
                                                                                       self.workQueue.queue_type,
                                                                                       self.cloud,
-                                                                                      workqueue_name_nice)
+                                                                                      workqueue_name_nice,
+                                                                                      self.resource_name)
                         tmpMsg = ": submitted {0} jobs".format(self.numGenJobs)
                         tmpLog = MsgWrapper(self.logger,monToken=prefix)
                         tmpLog.info(prefix + tmpMsg)
@@ -475,8 +477,8 @@ class JobGeneratorThread (WorkerThread):
                         tmpLog = MsgWrapper(self.logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,
                                                                                                 inputChunk.masterIndexName),
                                             monToken='<jediTaskID={0}>'.format(taskSpec.jediTaskID))
-                        tmpLog.info('start to generate with VO={0} cloud={1} queue={2}'.format(taskSpec.vo,cloudName,
-                                                                                               workqueue_name_nice))
+                        tmpLog.info('start to generate with VO={0} cloud={1} queue={2} resource_type={3}'.format(taskSpec.vo,cloudName,
+                                                                                               workqueue_name_nice, self.resource_name))
                         tmpLog.sendMsg('start to generate jobs',self.msgType)
                         readyToSubmitJob = False
                         jobsSubmitted = False
@@ -651,10 +653,11 @@ class JobGeneratorThread (WorkerThread):
                             # check if submission was successful
                             if len(pandaIDs) == len(pandaJobs):
                                 tmpMsg = 'successfully submitted '
-                                tmpMsg += 'jobs_submitted={0} / jobs_possible={1} for VO={2} cloud={3} queue={4} status={5} nucleus={6}'.format(len(pandaIDs),
+                                tmpMsg += 'jobs_submitted={0} / jobs_possible={1} for VO={2} cloud={3} queue={4} resource_type={5} status={6} nucleus={7}'.format(len(pandaIDs),
                                                                                                                                               len(pandaJobs),
                                                                                                                                               taskSpec.vo,cloudName,
                                                                                                                                               workqueue_name_nice,
+                                                                                                                                              self.resource_name,
                                                                                                                                               oldStatus,
                                                                                                                                               taskSpec.nucleus)
                                 if inputChunk.isMerging:

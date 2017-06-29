@@ -82,7 +82,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             workQueueTag = workQueueID
 
         workQueueName = '_'.join(workQueue.queue_name.split(' '))
-        msgHeader = '{0}:{1} cloud={2} queue={3}:'.format(vo, prodSourceLabel, cloudName, workQueueName)
+        msgHeader = '{0}:{1} cloud={2} queue={3} resource_type={4}:'.format(vo, prodSourceLabel, cloudName,
+                                                                            workQueueName, resource_name)
         tmpLog.debug(msgHeader+' start workQueueID={0}'.format(workQueueID))
 
         # get central configuration values

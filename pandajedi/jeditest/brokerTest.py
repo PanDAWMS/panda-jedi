@@ -62,7 +62,7 @@ for dummyID,tmpList in tmpListList:
         jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
         tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo),tbIF)
         splitter = JobSplitter()
-        gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper,None,None,None,None)
+        gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper,None,None,'dummy',None,None)
 
         taskParamMap = None
         if taskSpec.useLimitedSites():
