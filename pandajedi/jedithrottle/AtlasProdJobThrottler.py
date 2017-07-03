@@ -246,7 +246,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             tmpLog.warning('{0} {1}'.format(msgHeader, msgBody))
             tmpLog.sendMsg('{0} {1}'.format(msgHeader, msgBody), self.msgType, msgLevel='warning', escapeChar=True)
             return self.retMergeUnThr
-        elif configQueueCap is not None and nNotRun+nDefine > nQueueCap:
+        elif configQueueCap is not None and nNotRun+nDefine > configQueueCap:
             limitPriority = True
             if not highPrioQueued:
                 # cap on queued
