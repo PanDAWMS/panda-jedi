@@ -280,11 +280,16 @@ class InputChunk:
         respectLB = self.taskSpec.respectLumiblock()
         maxAtomSize = 0    
         while True:
+            if not self.isMerging:
+                maxNumFiles = self.taskSpec.getMaxNumFilesPerJob()
+            else:
+                maxNumFiles = self.taskSpec.getMaxNumFilesPerMergeJob()
             # get one subchunk
             subChunk = self.getSubChunk(None,nFilesPerJob=nFilesPerJob,
                                         nEventsPerJob=nEventsPerJob,
                                         useBoundary=useBoundary,
-                                        respectLB=respectLB)
+                                        respectLB=respectLB,
+                                        maxNumFiles=maxNumFiles)
             if subChunk == None:
                 break
             # get size

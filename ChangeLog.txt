@@ -1,6 +1,7 @@
 Release Notes
 
 * 7/3/2017
+  * considering maxNumFiles in getAtom
   * added AES_NESCONSUMERS and AES_NESCONSUMERS
   * changed AtlasPJB to skip opportunistic sites for high prio jobs
   * enabled automatic AES task conversion

@@ -71,8 +71,6 @@ class JobSplitter:
         else:
             # set parameters for merging
             maxNumFiles = taskSpec.getMaxNumFilesPerMergeJob()
-            if maxNumFiles == None:
-                maxNumFiles = 50
             sizeGradients = 0
             walltimeGradient = 0
             nFilesPerJob = taskSpec.getNumFilesPerMergeJob()

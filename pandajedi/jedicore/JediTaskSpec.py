@@ -301,7 +301,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['nMaxFilesPerMergeJob']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
-        return None
+        return 50
 
 
 
