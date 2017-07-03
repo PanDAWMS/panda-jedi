@@ -323,27 +323,25 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for high priorities
         t1WeightForHighPrio = 1
         if (taskSpec.currentPriority >= 900 or inputChunk.useScout()) \
-                and not sitePreAssigned and not siteListPreAssigned \
-                and not taskSpec.useEventService():
-            t1WeightForHighPrio = 100
-            """
+                and not sitePreAssigned and not siteListPreAssigned:
+            if not taskSpec.useEventService():
+                t1WeightForHighPrio = 100
             newScanSiteList = []
-            for tmpSiteName in scanSiteList:            
-                if tmpSiteName in t1Sites+sitesShareSeT1+allT1Sites:
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                if not tmpSiteSpec.is_opportunistic():
                     newScanSiteList.append(tmpSiteName)
                 else:
-                    tmpMsg = '  skip site={0} due to highPrio/scouts which needs to run at T1 or sites associated with {1} T1 SE '.format(tmpSiteName,
-                                                                                                                                          cloudName)
-                    tmpMsg += 'criteria=-scoutprio'
+                    tmpMsg = '  skip site={0} to avoid opportunistic for high priority jobs '.format(tmpSiteName)
+                    tmpMsg += 'criteria=-opportunistic'
                     tmpLog.info(tmpMsg)
             scanSiteList = newScanSiteList
-            tmpLog.info('{0} candidates passed for highPrio/scouts'.format(len(scanSiteList)))
+            tmpLog.info('{0} candidates passed for opportunistic check'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError
-            """    
         ######################################
         # selection to avoid slow or inactive sites
         if (taskSpec.currentPriority >= 800 or inputChunk.useScout() or \
