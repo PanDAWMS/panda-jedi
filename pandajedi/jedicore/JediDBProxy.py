@@ -10816,7 +10816,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDJ += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlDJ += "AND tabT.jediTaskID=tabD.jediTaskID "
             sqlDJ += "AND tabT.vo=:vo AND tabT.prodSourceLabel=:label "
-            sqlDJ += "AND tabT.status IN (:st1,:st2,:st3,:st4,:st5,:st6) AND tabD.type=:type AND tabD.masterID IS NULL "
+            sqlDJ += "AND tabT.status IN (:st1,:st2,:st3,:st4,:st5,:st6,:st7) AND tabD.type=:type AND tabD.masterID IS NULL "
             for key, val in criteria.iteritems():
                 sqlDJ += "AND tabT.{0}=:{0} ".format(key)
                 varMap[':{0}'.format(key)] = val
@@ -10827,6 +10827,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':st4'] = 'scouting'
             varMap[':st5'] = 'registered'
             varMap[':st6'] = 'defined'
+            varMap[':st7'] = 'assigning'
             # start transaction
             self.conn.begin()
             self.cur.execute(sqlDJ+comment, varMap)
@@ -10834,6 +10835,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             nEvents, lastTaskTime = self.cur.fetchone()
+            if nEvents is None:
+                nEvents = 0
             # return
             tmpLog.debug("got nEvents={0} lastTaskTime={1}".format(nEvents,lastTaskTime))
             return nEvents, lastTaskTime
