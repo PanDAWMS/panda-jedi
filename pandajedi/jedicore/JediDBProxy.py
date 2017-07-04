@@ -2202,7 +2202,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return failedRet
 
 
-
     # get job statistics with work queue
     def getJobStatisticsWithWorkQueue_JEDI(self, vo, prodSourceLabel, minPriority=None, cloud=None):
         comment = ' /* DBProxy.getJobStatisticsWithWorkQueue_JEDI */'
@@ -2294,7 +2293,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False,{}
 
     # get job statistics by global share
-    def getJobStatisticsByGlobalShare(self, vo, exclude_rwq):
+    def getJobStatisticsByGlobalShare(self, vo, resource_name, exclude_rwq):
         """        
         :param vo: Virtual Organization 
         :param exclude_rwq: True/False. Indicates whether we want to indicate special workqueues from the statistics
@@ -2304,6 +2303,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += ' < vo={0} >'.format(vo)
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
+
+        # define the var map of query parameters
+        var_map = {':vo': vo}
 
         # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
         sql_jt = """
@@ -2317,6 +2319,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource')
                """.format(jedi_config.db.schemaPANDA)
 
+        if resource_name:
+            sql_jt += """
+               AND resource_type=:resource_type
+               """
+            var_map[':resource_type'] = resource_name
+
         sql_jt += """
                GROUP BY computingSite, jobStatus, gshare
                """
@@ -2328,7 +2336,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
                   '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
-        var_map = {':vo': vo}
+
 
         return_map = {}
         try:
