@@ -45,13 +45,14 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                     minNumEvents = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_EVENTPOOLSIZE', 'jedi', 'atlas')
                     if minNumEvents is not None and nEvents < minNumEvents:
                         autoEsConversion = True
-                        tmpLog.debug('converted to ES for eventPool={0}'.format(minNumEvents))
+                        tmpLog.info('converted to ES for eventPool={0}'.format(minNumEvents))
         # add ES paramsters
         if ('esFraction' in taskParamMap and taskParamMap['esFraction'] > 0) or autoEsConversion:
             tmpStr  = '<PANDA_ES_ONLY>--eventService=True</PANDA_ES_ONLY>'
             taskParamMap['jobParameters'].append({'type':'constant',
                                                   'value':tmpStr})
-            if 'nEventsPerWorker' not in taskParamMap and (taskParamMap['esFraction'] > random.random() or autoEsConversion):
+            if 'nEventsPerWorker' not in taskParamMap and \
+                    (('esFraction' in taskParamMap and taskParamMap['esFraction'] > random.random()) or autoEsConversion):
                 taskParamMap['nEventsPerWorker'] = 1
                 if 'nEsConsumers' not in taskParamMap:
                     tmpVal = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_NESCONSUMERS', 'jedi', 'atlas')
