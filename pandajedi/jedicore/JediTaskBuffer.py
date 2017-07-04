@@ -373,9 +373,9 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # get job statistics by global share
-    def getJobStatisticsByGlobalShare(self, vo, resource_name=None, exclude_rwq=False):
+    def getJobStatisticsByGlobalShare(self, vo, exclude_rwq=False):
         proxy = self.proxyPool.getProxy()
-        retVal = proxy.getJobStatisticsByGlobalShare(vo, resource_name, exclude_rwq)
+        retVal = proxy.getJobStatisticsByGlobalShare(vo, exclude_rwq)
         self.proxyPool.putProxy(proxy)
         return retVal
 
