@@ -382,6 +382,13 @@ class JobGenerator (JediKnight):
                     tmpCloudName = 'any'
                 # set
                 retMap[paramName] = self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel][tmpQueueName][tmpCloudName]
+        # get from config table
+        nFiles = self.taskBufferIF.getConfigValue('jobgen', 'NFILES_{0}'.format(queueName), 'jedi', vo)
+        if nFiles is not None:
+            retMap['nFiles'] = nFiles
+        nTasks = self.taskBufferIF.getConfigValue('jobgen', 'NTASKS_{0}'.format(queueName), 'jedi', vo)
+        if nTasks is not None:
+            retMap['nTasks'] = nTasks
         # return
         return retMap
 

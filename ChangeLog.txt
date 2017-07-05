@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/5/2017
+  * getting nTasks and nFiles from config
+
 * 7/3/2017
   * considering maxNumFiles in getAtom
   * added AES_NESCONSUMERS and AES_NESCONSUMERS
