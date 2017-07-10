@@ -563,7 +563,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             # dump
             for tmpSiteName in oldScanSiteList:
                 if tmpSiteName not in scanSiteList:
-                    tmpLog.info('  skip site={0} not included criteria=-input'.format(tmpSiteName))
+                    tmpLog.info('  skip site={0} data is unavailable criteria=-input'.format(tmpSiteName))
             tmpLog.info('{0} candidates have input data'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
