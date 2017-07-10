@@ -4420,7 +4420,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlS  = "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
         sqlS += "AND processingType<>:pmerge "
         sqlS += "AND cloud=:cloud "
-        sqlS += "AND resource_type=:resource_type"
+        sqlS += "AND resource_type=:resource_type "
         if workQueue.is_global_share:
             sqlS += "AND gshare=:wq_name "
             sqlS += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
