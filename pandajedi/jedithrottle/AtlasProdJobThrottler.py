@@ -107,7 +107,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         tmpLog.debug(msgHeader+' start workQueueID={0}'.format(workQueueID))
 
         # get central configuration values
-        configQueueLimit, configQueueCap, configRunningCap = self.__getConfiguration(workQueue.queue_name, resource_name)
+        configQueueLimit, configQueueCap, configRunningCap = self.__getConfiguration(vo, workQueue.queue_name, resource_name)
         tmpLog.debug(msgHeader + ' got configuration configQueueLimit={0}, configQueueCap={1}, configRunningCap={2}'
                      .format(configQueueLimit, configQueueCap, configRunningCap))
 
