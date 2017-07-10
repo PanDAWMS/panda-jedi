@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/10/2017
+  * fixed cloneJobs to set correct ramCount for each PQ
+
 * 7/5/2017
   * getting nTasks and nFiles from config
 
