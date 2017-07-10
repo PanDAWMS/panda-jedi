@@ -122,6 +122,7 @@ class JobGenerator (JediKnight):
                                     except:
                                         errtype, errvalue = sys.exc_info()[:2]
                                         tmpLog.error('throttler failed with {0} {1}'.format(errtype, errvalue))
+                                        tmpLog.error('throttler failed with traceback {0}'.format(traceback.format_exc()))
                                         raise RuntimeError,'crashed when checking throttle'
                                     if tmpSt != self.SC_SUCCEEDED:
                                         raise RuntimeError,'failed to check throttle'
