@@ -8,7 +8,9 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 LEVEL_None = 0 # There is no configuration defined
 LEVEL_GS = 1 # There is a configuration defined at global share level
-LEVEL_RT = 2 # There is a configuration defined at resource type level
+LEVEL_MS = 2 # There is a configuration defined at MCORE/SCORE level
+LEVEL_RT = 3 # There is a configuration defined at resource type level
+
 NQUEUELIMIT = 'NQUEUELIMIT'
 NRUNNINGCAP = 'NRUNNINGCAP'
 NQUEUECAP = 'NQUEUECAP'
@@ -38,17 +40,28 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                         NRUNNINGCAP: {'value': None, 'level': LEVEL_None},
                         NQUEUECAP: {'value': None, 'level': LEVEL_None}
                       }
+
         for tag in (NQUEUELIMIT, NRUNNINGCAP, NQUEUECAP):
             # First try to get a wq + resource_name specific limit
-            value = self.taskBufferIF.getConfigValue(compName, '{0}_{1}_{2}'.format(tag, queue_name, resource_name), app, vo)
+            value = self.taskBufferIF.getConfigValue(compName, '{0}_{1}_{2}'.format(tag, queue_name, resource_name),
+                                                     app, vo)
             if value:
                 config_map[tag] = {'value': value, 'level': LEVEL_RT}
             # Otherwise try to get a wq only specific limit
             else:
+                value = self.taskBufferIF.getConfigValue(compName,
+                                                         '{0}_{1}_{2}*'.format(tag, queue_name, resource_name), app, vo)
+                if value:
+                    config_map[tag] = {'value': value, 'level': LEVEL_MS}
+                    # Otherwise try to get a wq only specific limit
+
                 value = self.taskBufferIF.getConfigValue(compName, '{0}_{1}'.format(tag, queue_name), app, vo)
                 if value:
                     config_map[tag] = {'value': value, 'level': LEVEL_GS}
 
+        tmpLog.debug('{0} got configuration configQueueLimit={0}, configQueueCap={1}, configRunningCap={2}'
+                     .format(msgHeader, config_map[NQUEUELIMIT][value], config_map[NQUEUECAP][value],
+                             config_map[NRUNNINGCAP][value]))
         return config_map
 
 
@@ -62,9 +75,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         """
         # SCORE vs MCORE
         if resource_name.startswith('MCORE'):
-            resource_level = 'MCORE'
+            ms = 'MCORE'
         else:
-            resource_level = 'SCORE'
+            ms = 'SCORE'
 
         # get job statistics
         status, wq_stats = self.taskBufferIF.getJobStatisticsByResourceType(workQueue)
@@ -74,81 +87,78 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         # Count number of jobs in each status
         # We want to generate one value for the total, one value for the relevant MCORE/SCORE level
         # and one value for the full global share
-        nRunning, nRunning_level, nRunning_gs = 0, 0, 0
-        nNotRun, nNotRun_level, nNotRun_gs = 0, 0, 0
-        nDefine, nDefine_level, nDefine_gs = 0, 0, 0
-        nWaiting, nWaiting_level, nWaiting_gs = 0, 0, 0
+        nRunning_rt, nRunning_ms, nRunning_gs = 0, 0, 0
+        nNotRun_rt, nNotRun_ms, nNotRun_gs = 0, 0, 0
+        nDefine_rt, nDefine_ms, nDefine_gs = 0, 0, 0
+        nWaiting_rt = 0
 
         for status in wq_stats:
-            nJobs, nJobs_level, nJobs_gs = 0, 0, 0
+            nJobs_rt, nJobs_ms, nJobs_gs = 0, 0, 0
             for resource_type, count in wq_stats[status].items():
                 if resource_type == resource_name:
                     nJobs = count
-                if resource_type.startswith(resource_level):
-                    nJobs_level += count
+                if resource_type.startswith(ms):
+                    nJobs_ms += count
                 nJobs_gs += count
 
             if status == 'running':
-                nRunning = nJobs
-                nRunning_level = nJobs_level
+                nRunning_rt = nJobs
+                nRunning_ms = nJobs_ms
                 nRunning_gs = nJobs_gs
             elif status == 'defined':
-                nDefine = nJobs
-                nDefine_level = nJobs_level
+                nDefine_rt = nJobs
+                nDefine_ms = nJobs_ms
                 nDefine_gs = nJobs_gs
             elif status == 'waiting':
-                nWaiting = nJobs
-                nWaiting_level = nJobs_level
-                nWaiting_gs = nJobs_gs
-            elif status in ['assigned','activated','starting']:
-                nNotRun = nJobs
-                nNotRun_level += nJobs_level
+                nWaiting_rt = nJobs
+            elif status in ['assigned', 'activated', 'starting']:
+                nNotRun_rt = nJobs
+                nNotRun_ms += nJobs_ms
                 nNotRun_gs += nJobs_gs
 
         # Get the job stats at the same level as the configured parameters
         # nRunning is compared with the nRunningCap
-        if config_map[NRUNNINGCAP]['level']==LEVEL_GS:
+        if config_map[NRUNNINGCAP]['level'] == LEVEL_GS:
             nRunning_runningcap = nRunning_gs
-        elif config_map[NRUNNINGCAP]['level']==LEVEL_RT:
-            nRunning_runningcap = nRunning_level
+        elif config_map[NRUNNINGCAP]['level'] == LEVEL_RT:
+            nRunning_runningcap = nRunning_ms
         else:
-            nRunning_runningcap = nRunning
+            nRunning_runningcap = nRunning_rt
 
         # nNotRun and nDefine is compared with the nQueueLimit
-        if config_map[NQUEUELIMIT]['level']==LEVEL_GS:
+        if config_map[NQUEUELIMIT]['level'] == LEVEL_GS:
             nNotRun_queuelimit = nNotRun_gs
             nDefine_queuelimit = nDefine_gs
-        elif config_map[NQUEUELIMIT]['level']==LEVEL_RT:
-            nNotRun_queuelimit = nNotRun_level
-            nDefine_queuelimit = nDefine_level
+        elif config_map[NQUEUELIMIT]['level'] == LEVEL_RT:
+            nNotRun_queuelimit = nNotRun_ms
+            nDefine_queuelimit = nDefine_ms
         else:
-            nNotRun_queuelimit = nNotRun
-            nDefine_queuelimit = nDefine
+            nNotRun_queuelimit = nNotRun_rt
+            nDefine_queuelimit = nDefine_rt
 
         # nNotRun and nDefine is compared with the nQueueCap
-        if config_map[NQUEUECAP]['level']==LEVEL_GS:
+        if config_map[NQUEUECAP]['level'] == LEVEL_GS:
             nNotRun_queuecap = nNotRun_gs
             nDefine_queuecap = nDefine_gs
-        elif config_map[NQUEUECAP]['level']==LEVEL_RT:
+        elif config_map[NQUEUECAP]['level'] == LEVEL_RT:
             nNotRun_queuecap = nNotRun_gs
             nDefine_queuecap = nDefine_gs
         else:
             nNotRun_queuecap = nNotRun_gs
             nDefine_queuecap = nDefine_gs
 
-        return_map = {'nRunning': nRunning,
+        return_map = {'nRunning': nRunning_rt,
                       'nRunning_runningcap': nRunning_runningcap,
-                      'nNotRun': nNotRun,
+                      'nNotRun': nNotRun_rt,
                       'nNotRun_queuelimit': nNotRun_queuelimit,
                       'nNotRun_queuecap': nNotRun_queuecap,
-                      'nDefine': nDefine,
+                      'nDefine': nDefine_rt,
                       'nDefine_queuelimit': nDefine_queuelimit,
                       'nDefine_queuecap': nDefine_queuecap,
-                      'nWaiting': nWaiting
+                      'nWaiting': nWaiting_rt
                       }
 
         return return_map
-
 
 
     # check if throttled
