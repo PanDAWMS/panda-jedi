@@ -29,4 +29,4 @@ jt.initializeMods(tbIF)
 
 workQueues = wqMap.getAlignedQueueList(vo, prodSourceLabel)
 for workQueue in workQueues:
-    print jt.toBeThrottled(vo, prodSourceLabel, cloud, workQueue, jobStat_agg, resourceType)
+    print jt.toBeThrottled(vo, prodSourceLabel, cloud, workQueue, resourceType)

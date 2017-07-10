@@ -118,8 +118,7 @@ class JobGenerator (JediKnight):
                                                                                                         prodSourceLabel)))
                                     try:
                                         tmpSt,thrFlag = throttle.toBeThrottled(vo, prodSourceLabel, cloudName,
-                                                                               workQueue, jobStat_agg,
-                                                                               resource_type.resource_name)
+                                                                               workQueue, resource_type.resource_name)
                                     except:
                                         errtype, errvalue = sys.exc_info()[:2]
                                         tmpLog.error('throttler failed with {0} {1}'.format(errtype, errvalue))
