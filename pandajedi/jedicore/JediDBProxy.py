@@ -2319,6 +2319,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource')
                """.format(jedi_config.db.schemaPANDA)
 
+        sql_jt += """
+               GROUP BY computingSite, jobStatus, gshare
+               """
+
         # sql to query on the jobs_share_stats table with already aggregated data
         sql_jss = sql_jt
         sql_jss = re.sub('COUNT\(\*\)', 'SUM(njobs)', sql_jss)
