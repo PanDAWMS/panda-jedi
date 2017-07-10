@@ -182,14 +182,13 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         tmpLog.debug('{0} start workQueueID={1}'.format(msgHeader, workQueueID))
 
         # get central configuration values
-        configQueueLimit, configQueueCap, configRunningCap = self.__getConfiguration(vo, workQueue.queue_name, resource_name)
+        config_map = self.__getConfiguration(vo, workQueue.queue_name, resource_name)
+
+        configQueueLimit = config_map[NQUEUELIMIT]['value']
+        configQueueCap = config_map[NQUEUECAP]['value']
+        configRunningCap = config_map[NRUNNINGCAP]['value']
         tmpLog.debug(msgHeader + ' got configuration configQueueLimit={0}, configQueueCap={1}, configRunningCap={2}'
                      .format(configQueueLimit, configQueueCap, configRunningCap))
-
-        # change threshold
-        # OBSOLETE WITH GS-WQ ALIGNMENT
-        # if workQueue.queue_name in ['mcore']:
-        #    threshold = 5.0
 
         # check cloud status
         if not self.siteMapper.checkCloud(cloudName):
@@ -217,7 +216,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             return self.retUnThrottled
 
         # get the jobs statistics for our wq/gs and expand the stats map
-        jobstats_map = self.__getJobStats(workQueue, resource_name)
+        jobstats_map = self.__prepareJobStats(workQueue, resource_name, config_map)
         nRunning = jobstats_map['nRunning']
         nRunning_runningcap = jobstats_map['nRunning_runningcap']
         nNotRun = jobstats_map['nNotRun']
