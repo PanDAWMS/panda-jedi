@@ -88,7 +88,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                     nJobs_level += count
                 nJobs_gs += count
 
-            if status == 'running'
+            if status == 'running':
                 nRunning = nJobs
                 nRunning_level = nJobs_level
                 nRunning_gs = nJobs_gs
