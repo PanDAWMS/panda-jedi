@@ -2374,21 +2374,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         var_map = {':vo': workqueue.VO}
 
         # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
-        sql_jt = "SELECT resource_type, jobstatus, COUNT(*) FROM %s WHERE vo=:vo "
+        sql_jt = "SELECT jobstatus, resource_type, COUNT(*) FROM %s WHERE vo=:vo "
 
         if workqueue.is_global_share:
             sql_jt += "AND gshare=:gshare "
-            sql_jt += "AND workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource')".format(jedi_config.db.schemaPANDA)
+            sql_jt += "AND workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaPANDA)
             var_map[':gshare'] = workqueue.queue_name
         else:
             sql_jt += "AND workqueue_id=:workqueue_id "
             var_map[':workqueue_id'] = workqueue.queue_id
 
-
-        sql += """
-               GROUP BY resource_type, jobstatus
-               """
-
+        sql_jt += "GROUP BY jobstatus, resource_type "
 
         # sql to query on the jobs_share_stats table with already aggregated data
         sql_jss = sql_jt
@@ -2411,15 +2407,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 res = self.cur.fetchall()
 
                 # create map
-                for panda_site, status, gshare, n_count in res:
-                    # add site
-                    return_map.setdefault(panda_site, {})
-                    # add global share
-                    return_map[panda_site].setdefault(gshare, {})
-                    # add job status
-                    return_map[panda_site][gshare].setdefault(status, 0)
-                    # increase count
-                    return_map[panda_site][gshare][status] += n_count
+                for status, resource_type, n_count in res:
+                    return_map.setdefault(status, {})
+                    return_map[status][resource_type] = n_count
 
             tmpLog.debug('done')
             return True, return_map
@@ -4411,7 +4401,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get highest prio jobs with workQueueID
-    def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue):
+    def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name):
         comment = ' /* JediDBProxy.getHighestPrioJobStat_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += " <cloud={0} queue={1}>".format(cloudName,workQueue.queue_name)
@@ -4420,11 +4410,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         varMapO = {}
         varMapO[':cloud'] = cloudName
         varMapO[':prodSourceLabel'] = prodSourceLabel
+        varMapO[':resource_type'] = resource_name
 
         # sqlS has the where conditions
         sqlS  = "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
         sqlS += "AND processingType<>:pmerge "
         sqlS += "AND cloud=:cloud "
+        sqlS += "AND resource_type=:resource_type"
         if workQueue.is_global_share:
             sqlS += "AND gshare=:wq_name "
             sqlS += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
@@ -10080,7 +10072,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get total walltime
-    def getTotalWallTime_JEDI(self, vo, prodSourceLabel, workQueue, cloud=None):
+    def getTotalWallTime_JEDI(self, vo, prodSourceLabel, workQueue, resource_name, cloud=None):
         comment = ' /* JediDBProxy.getTotalWallTime_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <vo={0} label={1} queue={2} cloud={3}>'.format(vo, prodSourceLabel, workQueue.queue_name, cloud)
@@ -10103,6 +10095,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 sql += "AND workQueue_ID=:wq_id "
                 varMap[':wq_id'] = workQueue.queue_id
+            sql += "AND resource_type=:resource_name"
 
             sqlA = "AND jobStatus IN (:jobStatus1,:jobStatus2) "
             # start transaction
@@ -10110,6 +10103,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # get from jobsDefined
             varMap[':vo'] = vo
             varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':resource_name'] = resource_name
             self.cur.execute(sql.format('jobsDefined4')+comment,varMap)
             totWalltime,nHasVal,nNoVal = 0,0,0
             tmpTotWalltime,tmpHasVal,tmpNoVal = self.cur.fetchone()

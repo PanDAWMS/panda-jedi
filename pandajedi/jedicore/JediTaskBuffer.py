@@ -380,6 +380,14 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         return retVal
 
 
+    # get job statistics by global share
+    def getJobStatisticsByResourceType(self, workqueue):
+        proxy = self.proxyPool.getProxy()
+        retVal = proxy.getJobStatisticsByResourceType(workqueue)
+        self.proxyPool.putProxy(proxy)
+        return retVal
+
+
     # generate output files for task
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None,
                             isUnMerging=False,isPrePro=False,xmlConfigJob=None,siteDsMap=None,middleName='',
@@ -541,11 +549,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # get highest prio jobs with workQueueID
-    def getHighestPrioJobStat_JEDI(self,prodSourceLabel,cloudName,workQueueID):
+    def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getHighestPrioJobStat_JEDI(prodSourceLabel,cloudName,workQueueID)
+        retVal = proxy.getHighestPrioJobStat_JEDI(prodSourceLabel, cloudName, workQueue, resource_name)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1282,28 +1290,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # get total walltime
-    def getTotalWallTime_JEDI(self,vo,prodSourceLabel,workQueue,cloud=None):
+    def getTotalWallTime_JEDI(self, vo, prodSourceLabel, workQueue, resource_name, cloud=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTotalWallTime_JEDI(vo,prodSourceLabel,workQueue,cloud)
+        retVal = proxy.getTotalWallTime_JEDI(vo, prodSourceLabel, workQueue, resource_name, cloud)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
 
-
-
-    # get total walltime
-    def getTotalWallTime_JEDI(self,vo,prodSourceLabel,workQueue,cloud=None):
-        # get DBproxy
-        proxy = self.proxyPool.getProxy()
-        # exec
-        retVal = proxy.getTotalWallTime_JEDI(vo,prodSourceLabel,workQueue,cloud)
-        # release proxy
-        self.proxyPool.putProxy(proxy)
-        # return
-        return retVal
 
 
 
