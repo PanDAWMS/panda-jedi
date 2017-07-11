@@ -5,24 +5,13 @@ tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()
 
 vo = 'atlas'
-prodSourceLabel = 'test'
-resourceType = 'MCORE'
+prodSourceLabel = 'managed'
+resourceType = 'SCORE_HIMEM'
 cloud = 'WORLD'
 
 # get SiteMapper
 siteMapper = tbIF.getSiteMapper()
 wqMap = tbIF.getWorkQueueMap()
-
-tmpSt, jobStat = tbIF.getJobStatisticsWithWorkQueue_JEDI(vo, prodSourceLabel)
-# aggregate statistics by work queue
-jobStat_agg = {}
-for computingSite, siteMap in jobStat.iteritems():
-    for workQueue_ID, workQueueMap in siteMap.iteritems():
-        # add work queue
-        jobStat_agg.setdefault(workQueue_ID, {})
-        for jobStatus, nCount in workQueueMap.iteritems():
-            jobStat_agg[workQueue_ID].setdefault(jobStatus, 0)
-            jobStat_agg[workQueue_ID][jobStatus] += nCount
 
 jt = JobThrottler(vo, prodSourceLabel)
 jt.initializeMods(tbIF)
