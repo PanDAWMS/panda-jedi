@@ -10099,7 +10099,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 sql += "AND workQueue_ID=:wq_id "
                 varMap[':wq_id'] = workQueue.queue_id
-            sql += "AND resource_type=:resource_name"
+            sql += "AND resource_type=:resource_name "
 
             sqlA = "AND jobStatus IN (:jobStatus1,:jobStatus2) "
             # start transaction
