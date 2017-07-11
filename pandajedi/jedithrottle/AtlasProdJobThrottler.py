@@ -88,7 +88,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nRunning_rt, nRunning_ms, nRunning_gs = 0, 0, 0
         nNotRun_rt, nNotRun_ms, nNotRun_gs = 0, 0, 0
         nDefine_rt, nDefine_ms, nDefine_gs = 0, 0, 0
-        nWaiting_rt = 0
+        nWaiting_rt, nWaiting_gs = 0, 0
 
         for status in wq_stats:
             nJobs_rt, nJobs_ms, nJobs_gs = 0, 0, 0
