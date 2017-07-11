@@ -184,10 +184,10 @@ class AtlasProdJobThrottler (JobThrottlerBase):
 
         # get central configuration values
         config_map = self.__getConfiguration(vo, workQueue.queue_name, resource_name)
-
         configQueueLimit = config_map[NQUEUELIMIT]['value']
         configQueueCap = config_map[NQUEUECAP]['value']
         configRunningCap = config_map[NRUNNINGCAP]['value']
+
         tmpLog.debug(msgHeader + ' got configuration configQueueLimit={0}, configQueueCap={1}, configRunningCap={2}'
                      .format(configQueueLimit, configQueueCap, configRunningCap))
 

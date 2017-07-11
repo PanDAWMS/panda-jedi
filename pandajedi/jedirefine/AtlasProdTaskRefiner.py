@@ -35,23 +35,26 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             elif minPrio is not None and minPrio > taskParamMap['taskPriority']:
                 pass
             else:
-                nEvents, lastTaskTime = self.taskBufferIF.getNumUnprocessedEvents_JEDI('atlas', 'managed',
-                                                                                       {'processingType': 'simul',
-                                                                                        'eventService': 1})
-                tmpLog.debug('check for ES nUnprocessedEvents={0} lastTaskTime={1}'.format(nEvents, lastTaskTime))
+                # get threshold
+                minNumEvents = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_EVENTPOOLSIZE', 'jedi', 'atlas')
+                nEvents, lastTaskTime = self.taskBufferIF.getNumUnprocessedEvents_JEDI(taskParamMap['vo'],
+                                                                                       taskParamMap['prodSourceLabel'],
+                                                                                       {'eventService': 1})
+                tmpLog.info('check for ES tot_num_unprocessed_events_AES={0} target_num_events_AES={1} last_AES_task_time={2}'.format(nEvents,
+                                                                                                                                      minNumEvents,
+                                                                                                                                      lastTaskTime))
                 # not chane many tasks at once
-                if lastTaskTime is not None and lastTaskTime < datetime.datetime.utcnow() - datetime.timedelta(minutes=5):
-                    # get threshold
-                    minNumEvents = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_EVENTPOOLSIZE', 'jedi', 'atlas')
+                if lastTaskTime is None or (lastTaskTime < datetime.datetime.utcnow() - datetime.timedelta(minutes=5)):
                     if minNumEvents is not None and nEvents < minNumEvents:
                         autoEsConversion = True
-                        tmpLog.debug('converted to ES for eventPool={0}'.format(minNumEvents))
+                        tmpLog.info('converted to AES')
         # add ES paramsters
         if ('esFraction' in taskParamMap and taskParamMap['esFraction'] > 0) or autoEsConversion:
             tmpStr  = '<PANDA_ES_ONLY>--eventService=True</PANDA_ES_ONLY>'
             taskParamMap['jobParameters'].append({'type':'constant',
                                                   'value':tmpStr})
-            if 'nEventsPerWorker' not in taskParamMap and (taskParamMap['esFraction'] > random.random() or autoEsConversion):
+            if 'nEventsPerWorker' not in taskParamMap and \
+                    (('esFraction' in taskParamMap and taskParamMap['esFraction'] > random.random()) or autoEsConversion):
                 taskParamMap['nEventsPerWorker'] = 1
                 if 'nEsConsumers' not in taskParamMap:
                     tmpVal = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_NESCONSUMERS', 'jedi', 'atlas')

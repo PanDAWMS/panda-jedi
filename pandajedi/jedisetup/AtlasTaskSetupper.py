@@ -150,19 +150,22 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                             return retFatal
                                         # double copy
                                         if userSetup and datasetSpec.type == 'output':
-                                            locForDouble = 'type=SCRATCHDISK'
-                                            tmpMsg  = 'registering double copy '
-                                            tmpMsg += 'location="{0}" lifetime={1}days activity={2} for dataset={3}'.format(locForDouble,lifetime,
-                                                                                                                            activity,targetName)
-                                            tmpLog.info(tmpMsg)
-                                            tmpStat = ddmIF.registerDatasetLocation(targetName,locForDouble,copies=2,owner=userName,
-                                                                                    lifetime=lifetime,activity=activity,
-                                                                                    grouping='NONE',weight='freespace')
-                                            if not tmpStat:
-                                                tmpLog.error('failed to register double copylocation {0} for {1}'.format(locForDouble,
-                                                                                                                       targetName))
-                                                return retFatal
-                                            
+                                            if datasetSpec.destination != datasetSpec.site:
+                                                tmpLog.info('skip making double copy as destination={0} is not site={1}'.format(datasetSpec.destination,
+                                                                                                                                datasetSpec.site))
+                                            else:
+                                                locForDouble = 'type=SCRATCHDISK'
+                                                tmpMsg  = 'registering double copy '
+                                                tmpMsg += 'location="{0}" lifetime={1}days activity={2} for dataset={3}'.format(locForDouble,lifetime,
+                                                                                                                                activity,targetName)
+                                                tmpLog.info(tmpMsg)
+                                                tmpStat = ddmIF.registerDatasetLocation(targetName,locForDouble,copies=2,owner=userName,
+                                                                                        lifetime=lifetime,activity=activity,
+                                                                                        grouping='NONE',weight='freespace')
+                                                if not tmpStat:
+                                                    tmpLog.error('failed to register double copylocation {0} for {1}'.format(locForDouble,
+                                                                                                                           targetName))
+                                                    return retFatal
                                 avDatasetList.append(targetName)
                             else:
                                 tmpLog.info('{0} already registered'.format(targetName))

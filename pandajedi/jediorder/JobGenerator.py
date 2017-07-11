@@ -362,6 +362,13 @@ class JobGenerator (JediKnight):
                     tmpCloudName = 'any'
                 # set
                 retMap[paramName] = self.paramsToGetTasks[paramName][tmpVO][tmpProdSourceLabel][tmpQueueName][tmpCloudName]
+        # get from config table
+        nFiles = self.taskBufferIF.getConfigValue('jobgen', 'NFILES_{0}'.format(queueName), 'jedi', vo)
+        if nFiles is not None:
+            retMap['nFiles'] = nFiles
+        nTasks = self.taskBufferIF.getConfigValue('jobgen', 'NTASKS_{0}'.format(queueName), 'jedi', vo)
+        if nTasks is not None:
+            retMap['nTasks'] = nTasks
         # return
         return retMap
 
@@ -865,20 +872,6 @@ class JobGeneratorThread (WorkerThread):
                     else:
                         jobSpec.maxDiskCount = taskSpec.getOutDiskSize()
                     jobSpec.maxDiskUnit      = 'MB'
-                    jobSpec.minRamCount      = inputChunk.getMaxRamCount()
-                    if inputChunk.isMerging:
-                        jobSpec.minRamUnit   = 'MB'
-                    else:
-                        jobSpec.minRamUnit   = taskSpec.ramUnit
-                        if taskSpec.ramPerCore():
-                            if not siteSpec.coreCount in [None,0]:
-                                jobSpec.minRamCount *= siteSpec.coreCount
-                            jobSpec.minRamCount += taskSpec.baseRamCount
-                            jobSpec.minRamUnit   = re.sub('PerCore.*$','',jobSpec.minRamUnit)
-                    # round up with chunks
-                    jobSpec.minRamCount = JediCoreUtils.compensateRamCount(jobSpec.minRamCount)
-                    if jobSpec.minRamUnit in [None,'','NULL']:
-                        jobSpec.minRamUnit   = 'MB'
                     if inputChunk.isMerging and taskSpec.mergeCoreCount != None:
                         jobSpec.coreCount    = taskSpec.mergeCoreCount
                     else:
@@ -886,6 +879,7 @@ class JobGeneratorThread (WorkerThread):
                             jobSpec.coreCount = 1
                         else:
                             jobSpec.coreCount = siteSpec.coreCount
+                    jobSpec.minRamCount, jobSpec.minRamUnit = JediCoreUtils.getJobMinRamCount(taskSpec, inputChunk, siteSpec, jobSpec.coreCount)
                     # calculate the hs06 occupied by the job
                     if siteSpec.corepower:
                         jobSpec.hs06 = (siteSpec.coreCount or 1) * siteSpec.corepower # default 0 and None corecount to 1
@@ -1332,7 +1326,8 @@ class JobGeneratorThread (WorkerThread):
                     if nConsumers != None:
                         tmpJobSpecList,incOldPandaIDs = self.increaseEventServiceConsumers(tmpJobSpecList,nConsumers,
                                                                                            taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap,
-                                                                                           oldPandaIDs[len(jobSpecList):])
+                                                                                           oldPandaIDs[len(jobSpecList):],
+                                                                                           taskSpec, inputChunk)
                         oldPandaIDs = oldPandaIDs[:len(jobSpecList)] + incOldPandaIDs
                 # add to all list
                 jobSpecList += tmpJobSpecList
@@ -1902,12 +1897,14 @@ class JobGeneratorThread (WorkerThread):
 
 
     # increase event service consumers
-    def increaseEventServiceConsumers(self,pandaJobs,nConsumers,nSitesPerJob,parallelOutMap,outDsMap,oldPandaIDs):
+    def increaseEventServiceConsumers(self,pandaJobs,nConsumers,nSitesPerJob,parallelOutMap,outDsMap,oldPandaIDs,
+                                      taskSpec,inputChunk):
         newPandaJobs = []
         newOldPandaIDs = []
         for pandaJob,oldPandaID in zip(pandaJobs,oldPandaIDs):
             for iConsumers in range (nConsumers):
-                newPandaJob = self.clonePandaJob(pandaJob,iConsumers,parallelOutMap,outDsMap)
+                newPandaJob = self.clonePandaJob(pandaJob,iConsumers,parallelOutMap,outDsMap,
+                                                 taskSpec=taskSpec,inputChunk=inputChunk)
                 newPandaJobs.append(newPandaJob)
                 newOldPandaIDs.append(oldPandaID)
         # return
@@ -1916,7 +1913,8 @@ class JobGeneratorThread (WorkerThread):
 
 
     # close panda job with new specialHandling
-    def clonePandaJob(self,pandaJob,index,parallelOutMap,outDsMap,sites=None,forJumbo=False):
+    def clonePandaJob(self,pandaJob,index,parallelOutMap,outDsMap,sites=None,forJumbo=False,
+                      taskSpec=None, inputChunk=None):
         newPandaJob = copy.copy(pandaJob)
         if sites == None:
             sites = newPandaJob.computingSite.split(',')
@@ -1927,6 +1925,9 @@ class JobGeneratorThread (WorkerThread):
         newPandaJob.computingSite = siteSpec.get_unified_name()
         if newPandaJob.coreCount > 1:
             newPandaJob.coreCount = siteSpec.coreCount
+        if taskSpec is not None and inputChunk is not None:
+            newPandaJob.minRamCount, newPandaJob.minRamUnit = JediCoreUtils.getJobMinRamCount(taskSpec, inputChunk,
+                                                                                              siteSpec, newPandaJob.coreCount)
         datasetList = set()
         # reset SH for jumbo
         if forJumbo:
@@ -2007,7 +2008,8 @@ class JobGeneratorThread (WorkerThread):
             jobParams = self.taskBufferIF.getJobParamsOfFirstJob_JEDI(taskSpec.jediTaskID)
         # make jumbo jobs
         for iJumbo in range(nJumbo):
-            newJumboJob = self.clonePandaJob(pandaJobs[0],iJumbo,{},{},newSites,True)
+            newJumboJob = self.clonePandaJob(pandaJobs[0],iJumbo,{},{},newSites,True,
+                                             taskSpec=taskSpec,inputChunk=inputChunk)
             newJumboJob.eventService = EventServiceUtils.jumboJobFlagNumber
             # job params inherit from the first job since first_event etc must be the first value
             if jobParams != '':
