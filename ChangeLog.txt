@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/11/2017
+  * disabled second copy when --destSE
+
 * 7/10/2017
   * fixed cloneJobs to set correct ramCount for each PQ
 
