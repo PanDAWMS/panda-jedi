@@ -24,7 +24,8 @@ class WorkQueue(object):
     _attributes_gs_conversion_dic = {'name': 'queue_name',
                                      'value': 'queue_share',
                                      'prodsourcelabel': 'queue_type',
-                                     'queue_id': 'queue_id'}
+                                     'queue_id': 'queue_id',
+                                     'vo': 'VO'}
 
     _params_gs_conversion_dic = {'prodsourcelabel': 'prodSourceLabel',
                                  'workinggroup': 'workingGroup',

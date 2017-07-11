@@ -113,36 +113,16 @@ class JobGenerator (JediKnight):
                                             tmpLog.debug('skip since locked by another process')
                                             continue
 
-                                    # get job statistics
-                                    if workQueue.is_global_share:
-                                        # TODO: job statistics should probably be done by resource_type
-                                        tmpSt, jobStat = self.taskBufferIF.getJobStatisticsByGlobalShare(vo, exclude_rwq=True)
-                                    else:
-                                        tmpSt, jobStat = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(vo,
-                                                                                                              prodSourceLabel)
-                                    if not tmpSt:
-                                        raise RuntimeError,'failed to get job statistics'
-
-                                    # aggregate statistics by work queue
-                                    jobStat_agg = {}
-                                    for computingSite, siteMap in jobStat.iteritems():
-                                        for workQueue_tag, workQueueMap in siteMap.iteritems():
-                                            # add work queue
-                                            jobStat_agg.setdefault(workQueue_tag, {})
-                                            for jobStatus, nCount in workQueueMap.iteritems():
-                                                jobStat_agg[workQueue_tag].setdefault(jobStatus, 0)
-                                                jobStat_agg[workQueue_tag][jobStatus] += nCount
-
                                     # throttle
                                     tmpLog.debug('check throttle with {0}'.format(throttle.getClassName(vo,
                                                                                                         prodSourceLabel)))
                                     try:
                                         tmpSt,thrFlag = throttle.toBeThrottled(vo, prodSourceLabel, cloudName,
-                                                                               workQueue, jobStat_agg,
-                                                                               resource_type.resource_name)
+                                                                               workQueue, resource_type.resource_name)
                                     except:
                                         errtype, errvalue = sys.exc_info()[:2]
                                         tmpLog.error('throttler failed with {0} {1}'.format(errtype, errvalue))
+                                        tmpLog.error('throttler failed with traceback {0}'.format(traceback.format_exc()))
                                         raise RuntimeError,'crashed when checking throttle'
                                     if tmpSt != self.SC_SUCCEEDED:
                                         raise RuntimeError,'failed to check throttle'

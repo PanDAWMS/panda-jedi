@@ -16,7 +16,7 @@ class GenJobThrottler (JobThrottlerBase):
 
 
     # check if throttled
-    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, jobStat, resourceType):
+    def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, resourceType):
         # make logger
         tmpLog = MsgWrapper(logger)
         tmpLog.debug('start vo={0} label={1} cloud={2} workQueue={3}'.format(vo,prodSourceLabel,cloudName,
