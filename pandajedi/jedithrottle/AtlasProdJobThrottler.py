@@ -42,22 +42,22 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                       }
 
         for tag in (NQUEUELIMIT, NRUNNINGCAP, NQUEUECAP):
-            # First try to get a wq + resource_name specific limit
-            value = self.taskBufferIF.getConfigValue(compName, '{0}_{1}_{2}'.format(tag, queue_name, resource_name),
-                                                     app, vo)
+            # 1. try to get a wq + resource_type specific limit
+            value = self.taskBufferIF.getConfigValue(compName, '{0}_{1}_{2}'.format(tag, queue_name, resource_name), app, vo)
             if value:
                 config_map[tag] = {'value': value, 'level': LEVEL_RT}
-            # Otherwise try to get a wq only specific limit
-            else:
-                value = self.taskBufferIF.getConfigValue(compName,
-                                                         '{0}_{1}_{2}*'.format(tag, queue_name, resource_ms), app, vo)
-                if value:
-                    config_map[tag] = {'value': value, 'level': LEVEL_MS}
-                    # Otherwise try to get a wq only specific limit
+                continue
 
-                value = self.taskBufferIF.getConfigValue(compName, '{0}_{1}'.format(tag, queue_name), app, vo)
-                if value:
-                    config_map[tag] = {'value': value, 'level': LEVEL_GS}
+            # 2. try to get a wq + MCORE/SCORE specific limit
+            value = self.taskBufferIF.getConfigValue(compName, '{0}_{1}_{2}*'.format(tag, queue_name, resource_ms), app, vo)
+            if value:
+                config_map[tag] = {'value': value, 'level': LEVEL_MS}
+                continue
+
+            # 3. try to get a wq specific limit
+            value = self.taskBufferIF.getConfigValue(compName, '{0}_{1}'.format(tag, queue_name), app, vo)
+            if value:
+                config_map[tag] = {'value': value, 'level': LEVEL_GS}
 
         return config_map
 
