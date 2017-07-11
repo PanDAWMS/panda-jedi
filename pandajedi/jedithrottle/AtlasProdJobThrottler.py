@@ -94,24 +94,24 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             nJobs_rt, nJobs_ms, nJobs_gs = 0, 0, 0
             for resource_type, count in wq_stats[status].items():
                 if resource_type == resource_name:
-                    nJobs = count
+                    nJobs_rt = count
                 if resource_type.startswith(ms):
                     nJobs_ms += count
                 nJobs_gs += count
 
             if status == 'running':
-                nRunning_rt = nJobs
+                nRunning_rt = nJobs_rt
                 nRunning_ms = nJobs_ms
                 nRunning_gs = nJobs_gs
             elif status == 'defined':
-                nDefine_rt = nJobs
+                nDefine_rt = nJobs_rt
                 nDefine_ms = nJobs_ms
                 nDefine_gs = nJobs_gs
             elif status == 'waiting':
-                nWaiting_rt = nJobs
+                nWaiting_rt = nJobs_rt
                 nWaiting_gs = nJobs_gs
             elif status in ['assigned', 'activated', 'starting']:
-                nNotRun_rt += nJobs
+                nNotRun_rt += nJobs_rt
                 nNotRun_ms += nJobs_ms
                 nNotRun_gs += nJobs_gs
 
@@ -237,7 +237,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         highestPrioInPandaDB = highestPrioJobStat['highestPrio']
         nNotRunHighestPrio   = highestPrioJobStat['nNotRun']
         # the highest priority of waiting tasks 
-        highestPrioWaiting = self.taskBufferIF.checkWaitingTaskPrio_JEDI(vo, workQueue, 'managed', cloudName)
+        highestPrioWaiting = self.taskBufferIF.checkWaitingTaskPrio_JEDI(vo, workQueue, 'managed', cloudName, resource_name)
         if highestPrioWaiting is None:
             msgBody = 'failed to get the highest priority of waiting tasks'
             tmpLog.error("{0} {1}".format(msgHeader, msgBody))

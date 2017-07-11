@@ -6,7 +6,7 @@ tbIF.setupInterface()
 
 vo = 'atlas'
 prodSourceLabel = 'managed'
-resourceType = 'SCORE_HIMEM'
+resourceType = 'MCORE'
 cloud = 'WORLD'
 
 # get SiteMapper
