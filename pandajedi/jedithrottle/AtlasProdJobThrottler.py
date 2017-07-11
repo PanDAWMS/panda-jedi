@@ -109,6 +109,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 nDefine_gs = nJobs_gs
             elif status == 'waiting':
                 nWaiting_rt = nJobs
+                nWaiting_gs = nJobs_gs
             elif status in ['assigned', 'activated', 'starting']:
                 nNotRun_rt += nJobs
                 nNotRun_ms += nJobs_ms
@@ -145,15 +146,14 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             nNotRun_queuecap = nNotRun_rt
             nDefine_queuecap = nDefine_rt
 
-        return_map = {'nRunning_rt': nRunning_rt,
+        return_map = {'nRunning_rt': nRunning_rt, 'nRunning_gs': nRunning_gs,
                       'nRunning_runningcap': nRunning_runningcap,
-                      'nNotRun_rt': nNotRun_rt,
-                      'nNotRun_queuelimit': nNotRun_queuelimit,
-                      'nNotRun_queuecap': nNotRun_queuecap,
-                      'nDefine_rt': nDefine_rt,
+                      'nNotRun_rt': nNotRun_rt, 'nNotRun_gs': nNotRun_gs,
+                      'nNotRun_queuelimit': nNotRun_queuelimit, 'nNotRun_queuecap': nNotRun_queuecap,
+                      'nDefine_rt': nDefine_rt, 'nDefine_gs': nDefine_gs,
                       'nDefine_queuelimit': nDefine_queuelimit,
                       'nDefine_queuecap': nDefine_queuecap,
-                      'nWaiting_rt': nWaiting_rt
+                      'nWaiting_rt': nWaiting_rt, 'nWaiting_gs': nWaiting_gs
                       }
 
         return return_map
@@ -218,15 +218,19 @@ class AtlasProdJobThrottler (JobThrottlerBase):
 
         # get the jobs statistics for our wq/gs and expand the stats map
         jobstats_map = self.__prepareJobStats(workQueue, resource_name, config_map)
-        nRunning_rt = jobstats_map['nRunning']
+        nRunning_rt = jobstats_map['nRunning_rt']
+        nRunning_gs = jobstats_map['nRunning_gs']
         nRunning_runningcap = jobstats_map['nRunning_runningcap']
-        nNotRun_rt = jobstats_map['nNotRun']
+        nNotRun_rt = jobstats_map['nNotRun_rt']
+        nNotRun_gs = jobstats_map['nNotRun_gs']
         nNotRun_queuelimit = jobstats_map['nNotRun_queuelimit']
         nNotRun_queuecap = jobstats_map['nNotRun_queuecap']
-        nDefine_rt = jobstats_map['nDefine']
+        nDefine_rt = jobstats_map['nDefine_rt']
+        nDefine_gs = jobstats_map['nDefine_gs']
         nDefine_queuelimit = jobstats_map['nDefine_queuelimit']
         nDefine_queuecap = jobstats_map['nDefine_queuecap']
-        nWaiting_rt = jobstats_map['nWaiting']
+        nWaiting_rt = jobstats_map['nWaiting_rt']
+        nWaiting_gs = jobstats_map['nWaiting_gs']
 
         # check if higher prio tasks are waiting
         tmpStat, highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI('managed', cloudName, workQueue, resource_name)
@@ -279,8 +283,13 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         # log the current situation and limits
         tmpLog.info("{0} nQueueLimit={1} nRunCap={2} nQueueCap={3}".format(msgHeader, nQueueLimit,
                                                                            configRunningCap, configQueueCap))
-        tmpLog.info("{0} nQueued={1} nDefine={2} nRunning={3} totWalltime={4}".format(msgHeader, nNotRun_gs + nDefine_gs,
-                                                                                      nDefine_gs, nRunning_gs, totWalltime))
+        tmpLog.info("{0} at global share level: nQueued={1} nDefine={2} nRunning={3}".format(msgHeader,
+                                                                                             nNotRun_gs + nDefine_gs,
+                                                                                             nDefine_gs, nRunning_gs))
+        tmpLog.info("{0} at resource type level: nQueued_rt={1} nDefine_rt={2} nRunning_rt={3} totWalltime={4}".format(msgHeader,
+                                                                                                                nNotRun_rt + nDefine_rt,
+                                                                                                                nDefine_rt, nRunning_rt,
+                                                                                                                totWalltime))
 
         # check number of jobs when high priority jobs are not waiting. test jobs are sent without throttling
         limitPriority = False
