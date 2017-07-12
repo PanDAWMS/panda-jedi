@@ -1943,6 +1943,17 @@ class JobGeneratorThread (WorkerThread):
                 newFileSpec = parallelOutMap[fileSpec.fileID][index % nSites]
                 datasetSpec = outDsMap[newFileSpec.datasetID]
                 newFileSpec = newFileSpec.convertToJobFileSpec(datasetSpec,useEventService=True)
+            # set locality
+            if inputChunk is not None and newFileSpec.type == 'input':
+                siteCandidate = inputChunk.getSiteCandidate(newPandaJob.computingSite)
+                if siteCandidate is not None:
+                    locality = siteCandidate.getFileLocality(newFileSpec)
+                    if locality in ['localdisk','remote']:
+                        newFileSpec.status = 'ready'
+                    elif locality == 'cache':
+                        newFileSpec.status = 'cached'
+                    else:
+                        newFileSpec.status = None
             # use log/output files and only one input file per dataset for jumbo jobs
             if forJumbo:
                 # reset fileID to avoid updating JEDI tables

@@ -849,3 +849,8 @@ class InputChunk:
             return max (self.taskSpec.ramCount,self.ramCount)
 
 
+    # get site candidate
+    def getSiteCandidate(self, name):
+        if name in self.siteCandidates:
+            return self.siteCandidates[name]
+        return None
