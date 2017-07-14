@@ -514,24 +514,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # splitting with XML
                     fileSpec.boundaryID = listBoundaryID[tmpIdx]
                     tmpFileSpecList.append(fileSpec)
-                elif givenFileList != []:
-                    # given file list
-                    if fileSpec.lfn in givenFileMap:
-                        fileItem = givenFileMap[fileSpec.lfn]
-                        if not fileItem['lfn'] in foundFileList:
-                            foundFileList.append(fileItem['lfn'])
-                        copiedFileSpec = copy.copy(fileSpec)
-                        if fileItem.has_key('firstEvent'):
-                            copiedFileSpec.firstEvent = fileItem['firstEvent']
-                        if fileItem.has_key('startEvent'):
-                            copiedFileSpec.startEvent = fileItem['startEvent']
-                        if fileItem.has_key('endEvent'):
-                            copiedFileSpec.endEvent = fileItem['endEvent']
-                        if fileItem.has_key('boundaryID'):
-                            copiedFileSpec.boundaryID = fileItem['boundaryID']
-                        if fileItem.has_key('keepTrack'):
-                            copiedFileSpec.keepTrack = fileItem['keepTrack']
-                        tmpFileSpecList.append(copiedFileSpec)
                 elif ((nEventsPerJob == None or nEventsPerJob <= 0) and \
                           (tgtNumEventsPerJob == None or tgtNumEventsPerJob <= 0)) or \
                        fileSpec.nEvents == None or fileSpec.nEvents <= 0 or \

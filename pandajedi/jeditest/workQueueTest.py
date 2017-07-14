@@ -21,7 +21,7 @@ taskBuffer= JediTaskBuffer.JediTaskBuffer(None)
 proxy = taskBuffer.proxyPool.getProxy()
 proxy.refreshWorkQueueMap()
 
-print proxy.workQueueMap.dump()
+#print proxy.workQueueMap.dump()
 """
 print proxy.workQueueMap.getQueueWithSelParams('atlas','managed',
                                   prodSourceLabel='managed',
