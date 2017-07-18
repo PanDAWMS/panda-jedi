@@ -1488,3 +1488,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get storage endpoint map for panda sites in site_list
+    def getSiteStorageEndpointMap(site_list, site_mapper, ignore_cc=False):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getSiteStorageEndpointMap(site_list, site_mapper, ignore_cc=False)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

@@ -359,39 +359,6 @@ def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_tag=N
 
 
 
-# get mapping between sites and storage endpoints
-def getSiteStorageEndpointMap(siteList,siteMapper,ignoreCC=False):
-    # get T1s
-    t1Map = {}
-    for tmpCloudName in siteMapper.getCloudList():
-        # get cloud
-        tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
-        # get T1
-        tmpT1Name = tmpCloudSpec['source']
-        # append
-        t1Map[tmpT1Name] = tmpCloudName
-    # loop over all sites
-    retMap = {}
-    for siteName in siteList:
-        tmpSiteSpec = siteMapper.getSite(siteName)
-        # use schedconfig.ddm
-        retMap[siteName] = [tmpSiteSpec.ddm]
-        for tmpEP in tmpSiteSpec.setokens.values():
-            if tmpEP != '' and not tmpEP in retMap[siteName]:
-                retMap[siteName].append(tmpEP)
-        # use cloudconfig.tier1SE for T1       
-        if not ignoreCC and t1Map.has_key(siteName):
-            tmpCloudName = t1Map[siteName]
-            # get cloud
-            tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
-            for tmpEP in tmpCloudSpec['tier1SE']:
-                if tmpEP != '' and not tmpEP in retMap[siteName]:
-                    retMap[siteName].append(tmpEP)
-    # return
-    return retMap
-
-
-
 # check if the queue is suppressed
 def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
     # per-site share is undefined

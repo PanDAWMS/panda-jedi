@@ -10902,3 +10902,40 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return None, None
 
+
+
+    # get mapping between sites and storage endpoints
+    def getSiteStorageEndpointMap(site_list, site_mapper, ignore_cc=False):
+
+        # make a map of the t1 to its respective cloud
+        t1_map = {}
+        for tmp_cloud_name in site_mapper.getCloudList():
+            # get cloud
+            tmp_cloud_spec = site_mapper.getCloud(tmp_cloud_name)
+            # get T1
+            tmp_t1_name = tmp_cloud_spec['source']
+            # append
+            t1_map[tmp_t1_name] = tmp_cloud_name
+
+        # make a map of panda sites to ddm endpoints
+        ret_map = {}
+        for site_name in site_list:
+            tmp_site_spec = site_mapper.getSite(site_name)
+
+            # add the schedconfig.ddm endpoints
+            ret_map[site_name] = [tmp_site_spec.ddm]
+
+            # add the schedconfig.setokens (space token names)
+            for tmp_endpoint in tmp_site_spec.setokens.values():
+                if tmp_endpoint and tmp_endpoint not in ret_map[site_name]:
+                    ret_map[site_name].append(tmp_endpoint)
+
+            # add the cloudconfig.tier1SE for T1s
+            if not ignore_cc and t1_map.has_key(site_name):
+                tmp_cloud_name = t1_map[site_name]
+                tmp_cloud_spec = site_mapper.getCloud(tmp_cloud_name)
+                for tmp_endpoint in tmp_cloud_spec['tier1SE']:
+                    if tmp_endpoint and tmp_endpoint not in ret_map[site_name]:
+                        ret_map[site_name].append(tmp_endpoint)
+        # return
+        return ret_map
