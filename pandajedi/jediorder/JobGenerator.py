@@ -1264,7 +1264,7 @@ class JobGeneratorThread (WorkerThread):
                         if tmpDistributedDestination != None:
                             tmpDddKey = (siteName,tmpDistributedDestination)
                             if not tmpDddKey in dddMap:
-                                dddMap[tmpDddKey] = siteSpec.ddm_endpoints.getAssoicatedEndpoint(tmpDistributedDestination)
+                                dddMap[tmpDddKey] = siteSpec.ddm_endpoints.getAssociatedEndpoint(tmpDistributedDestination)
                             if dddMap[tmpDddKey] != None:
                                 tmpOutFileSpec.destinationSE = siteName
                                 tmpOutFileSpec.destinationDBlockToken = 'ddd:{0}'.format(dddMap[tmpDddKey]['ddm_endpoint_name'])
@@ -1977,7 +1977,7 @@ class JobGeneratorThread (WorkerThread):
                 datasetSpec = outDsMap[newFileSpec.datasetID]
                 tmpDistributedDestination = DataServiceUtils.getDistributedDestination(datasetSpec.storageToken)
                 if tmpDistributedDestination != None:
-                    tmpDestination = siteSpec.ddm_endpoints.getAssoicatedEndpoint(tmpDistributedDestination)
+                    tmpDestination = siteSpec.ddm_endpoints.getAssociatedEndpoint(tmpDistributedDestination)
                     # change destination
                     newFileSpec.destinationSE = newPandaJob.computingSite
                     if tmpDestination != None:

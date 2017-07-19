@@ -264,7 +264,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                 return retError
             # mapping between sites and storage endpoints
             checkedSites = [self.siteMapper.getCloud(cloudName)['source']]+dataSiteMap[cloudName]['t2']
-            siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(checkedSites,self.siteMapper)
+            siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(checkedSites,self.siteMapper)
             # get available files per site/endpoint                                                                                     
             tmpAvFileMap = ddmIF.getAvailableFiles(datasetSpec,
                                                    siteStorageEP,
@@ -438,7 +438,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 if DataServiceUtils.getDistributedDestination(tmpDatasetSpec.storageToken) != None:
                                     continue
                                 # get endpoint with the pattern
-                                tmpEP = tmpNucleusSpec.getAssoicatedEndpoint(tmpDatasetSpec.storageToken)
+                                tmpEP = tmpNucleusSpec.getAssociatedEndpoint(tmpDatasetSpec.storageToken)
                                 if tmpEP == None:
                                     tmpLog.info('  skip nucleus={0} since no endpoint with {1} criteria=-match'.format(tmpNucleus,
                                                                                                                         tmpDatasetSpec.storageToken))

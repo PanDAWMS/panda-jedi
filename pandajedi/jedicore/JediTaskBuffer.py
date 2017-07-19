@@ -1338,11 +1338,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         return retVal
 
     # get network metrics for brokerage
-    def getPandaSiteToStorageSiteMapping(self):
+    def getPandaSiteToOutputStorageSiteMapping(self):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getPandaSiteToStorageSiteMapping()
+        retVal = proxy.getPandaSiteToOutputStorageSiteMapping()
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1484,19 +1484,6 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getNumUnprocessedEvents_JEDI(vo, prodSourceLabel, criteria)
-        # release proxy
-        self.proxyPool.putProxy(proxy)
-        # return
-        return retVal
-
-
-
-    # get storage endpoint map for panda sites in site_list
-    def getSiteStorageEndpointMap(site_list, site_mapper, ignore_cc=False):
-        # get DBproxy
-        proxy = self.proxyPool.getProxy()
-        # exec
-        retVal = proxy.getSiteStorageEndpointMap(site_list, site_mapper, ignore_cc=False)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

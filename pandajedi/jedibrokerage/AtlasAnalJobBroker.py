@@ -709,8 +709,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         for tmpRemoteSite in remoteSourceList[tmpSiteName][datasetSpec.datasetName]:
                             if not tmpRemoteSite in fileScanSiteList:
                                 fileScanSiteList.append(tmpRemoteSite)
-                # mapping between sites and storage endpoints
-                siteStorageEP = taskBufferIF.getSiteStorageEndpointMap(fileScanSiteList, self.siteMapper)
+                # mapping between sites and input storage endpoints
+                siteStorageEP = taskBufferIF.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper)
                 # disable file lookup for merge jobs
                 if inputChunk.isMerging:
                     checkCompleteness = False

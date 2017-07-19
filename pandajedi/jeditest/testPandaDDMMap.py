@@ -1,4 +1,3 @@
-import AtlasBrokerUtils
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 
 # Set up the task buffer interface
@@ -13,5 +12,15 @@ panda_sites = ['ANALY_DESY-HH', 'ANALY_DESY-HH_TEST', 'WT2_Install', 'BNL_Test_2
                'UKI-SOUTHGRID-OX-HEP_SL6', 'RU-Protvino-IHEP', 'ANALY_NICS_Kraken', 'ANALY_TRIUMF_HIMEM',
                'TESTGLEXEC', 'ANALY_GRIF-LPNHE', 'UKI-SCOTGRID-GLASGOW_MCORE', 'BNL_PROD', 'RAL-LCG2_SL6']
 
-# Test the
-print tb_if.getSiteStorageEndpointMap(panda_sites, site_mapper)
+# Test the getSiteInputStorageEndpointMap function
+print tb_if.getSiteInputStorageEndpointMap(panda_sites, site_mapper)
+
+for panda_site in panda_sites:
+    print panda_site
+    tmp_site_spec = site_mapper.getSite('ANALY_DESY-HH')
+    print '------------------- ddm -------------------'
+    print tmp_site_spec.ddm
+    print '------------------- setokens values -------------------'
+    print tmp_site_spec.setokens.values()
+    print '------------------- setokens -------------------'
+    print tmp_site_spec.setokens

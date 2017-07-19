@@ -271,7 +271,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         #################################################
         # WORLD CLOUD: get the nucleus and the network map
         nucleus = taskSpec.nucleus
-        storageMapping = self.taskBufferIF.getPandaSiteToStorageSiteMapping()
+        storageMapping = self.taskBufferIF.getPandaSiteToOutputStorageSiteMapping()
 
         if taskSpec.useWorldCloud() and nucleus:
             # get connectivity stats to the nucleus in case of WORLD cloud
@@ -978,8 +978,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         siteFilesMap = {}
         for datasetSpec in inputChunk.getDatasets():
             try:
-                # mapping between sites and storage endpoints
-                siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(scanSiteList,self.siteMapper,
+                # mapping between sites and input storage endpoints
+                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(scanSiteList,self.siteMapper,
                                                                            ignoreCC=True)
                 # disable file lookup for merge jobs or secondary datasets
                 checkCompleteness = True
