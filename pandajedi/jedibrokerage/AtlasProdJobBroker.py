@@ -980,7 +980,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             try:
                 # mapping between sites and input storage endpoints
                 siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(scanSiteList,self.siteMapper,
-                                                                           ignoreCC=True)
+                                                                           ignore_cc=True)
                 # disable file lookup for merge jobs or secondary datasets
                 checkCompleteness = True
                 useCompleteOnly = False
