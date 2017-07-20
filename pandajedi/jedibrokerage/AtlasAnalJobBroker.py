@@ -299,7 +299,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         for tmpSiteName in scanSiteList:
             # check endpoint
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            tmpEndPoint = tmpSiteSpec.ddm_endpoints.getEndPoint(tmpSiteSpec.ddm)
+            tmpEndPoint = tmpSiteSpec.ddm_endpoints_input.getEndPoint(tmpSiteSpec.ddm)
             if tmpEndPoint is not None:
                 # free space must be >= 200GB
                 diskThreshold = 200

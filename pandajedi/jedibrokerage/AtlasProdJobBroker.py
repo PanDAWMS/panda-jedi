@@ -655,7 +655,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 pass
             else:
                 # check endpoint
-                tmpEndPoint = tmpSiteSpec.ddm_endpoints.getEndPoint(tmpSiteSpec.ddm)
+                tmpEndPoint = tmpSiteSpec.ddm_endpoints_input.getEndPoint(tmpSiteSpec.ddm)
                 if tmpEndPoint != None:
                     # check free size
                     tmpSpaceSize = 0

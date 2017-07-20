@@ -228,7 +228,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
         tmpSiteSpec = siteMapper.getSite(tmpSiteName)
         # loop over all DDM endpoints
         checkedEndPoints = []
-        for tmpDDM in tmpSiteSpec.ddm_endpoints.all.keys():
+        for tmpDDM in tmpSiteSpec.ddm_endpoints_input.all.keys():
             # skip empty
             if tmpDDM == '':
                 continue
@@ -569,7 +569,7 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, ignore_cc=False):
         tmp_site_spec = site_mapper.getSite(site_name)
 
         # add the schedconfig.ddm endpoints
-        ret_map[site_name] = [tmp_site_spec.ddm_endpoints.all.keys()]
+        ret_map[site_name] = [tmp_site_spec.ddm_endpoints_input.all.keys()]
 
         # add the cloudconfig.tier1SE for T1s
         if not ignore_cc and t1_map.has_key(site_name):
