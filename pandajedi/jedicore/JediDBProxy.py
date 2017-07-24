@@ -3070,6 +3070,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlAV += '{0},'.format(mapKey)
             sqlAV = sqlAV[:-1]
             sqlAV += ') AND masterID IS NULL '
+            # sql to check datasets with empty requirements
+            sqlCER = "SELECT status,attemptNr,maxAttempt FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCER += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # sql to update datasets with empty requirements
+            sqlUER = "UPDATE {0}.JEDI_Datasets SET status=:status ".format(jedi_config.db.schemaJEDI)
+            sqlUER+= "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # loop over all tasks
             iTasks = 0
             lockedTasks = []
@@ -3247,7 +3253,33 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug("memory requirements for files in jediTaskID=%s datasetID=%s are: %s" % (
                         jediTaskID, datasetID, memReqs))
                         if not memReqs:
-                            toSkip = True
+                            tmpLog.debug('skip jediTaskID={0} datasetID={1} since memory requirements are empty'.format(jediTaskID,
+                                                                                                                        primaryDatasetID)) 
+                            varMap = dict()
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID'] = primaryDatasetID
+                            self.cur.execute(sqlCER+comment, varMap)
+                            resCER = self.cur.fetchall()
+                            nDone = 0
+                            nActive = 0
+                            for cer_status, cer_pattemptNr, cer_maxAttempt in resCER:
+                                if cer_status in ['finished', 'failed', 'cancelled'] or \
+                                        cer_status == 'ready' and cer_pattemptNr == cer_maxAttempt:
+                                    nDone += 1
+                                else:
+                                    nActive += 1
+                            tmpLog.debug('check jediTaskID={0} datasetID={1} due to empty memory requirements : nDone={2} nActive={3}'.format(jediTaskID,
+                                                                                                                                              primaryDatasetID,
+                                                                                                                                              nDone, nActive))
+                            if nActive == 0:
+                                varMap = dict()
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID'] = primaryDatasetID
+                                varMap[':status'] = 'finished'
+                                self.cur.execute(sqlUER+comment, varMap)
+                                tmpLog.debug('set status=finished to jediTaskID={0} datasetID={1}'.format(jediTaskID,
+                                                                                                       primaryDatasetID))
+                            continue
                         else:
                             # make InputChunks by ram count
                             inputChunks = []
