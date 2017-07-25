@@ -2786,6 +2786,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':dsOKStatus3']     = 'defined'
                 varMap[':dsOKStatus4']     = 'registered'
                 varMap[':dsOKStatus5']     = 'failed'
+                varMap[':dsOKStatus6']     = 'finished'
                 varMap[':timeLimit']       = timeLimit
                 sql  = "SELECT tabT.jediTaskID,datasetID,currentPriority,nFilesToBeUsed-nFilesUsed,tabD.type,tabT.status,"
                 sql += "tabT.{0},nFiles,nEvents,nFilesWaiting,tabT.useJumbo ".format(attrNameForGroupBy)
@@ -2858,7 +2859,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         mapKey = ':type_' + tmpType
                         sql += '{0},'.format(mapKey)
                 sql = sql[:-1]
-                sql += ') AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3,:dsOKStatus4,:dsOKStatus5)) '
+                sql += ') AND NOT status IN (:dsOKStatus1,:dsOKStatus2,:dsOKStatus3,:dsOKStatus4,:dsOKStatus5,:dsOKStatus6)) '
                 sql += "ORDER BY currentPriority DESC,jediTaskID "
             else:
                 varMap = {}
