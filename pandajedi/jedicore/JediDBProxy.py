@@ -4137,13 +4137,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
-            tmpLog.debug('got {0} tasks'.format(len(resTaskList)))
+            taskDsMap = dict()
+            for jediTaskID, datasetID in resTaskList:
+                if jediTaskID not in taskDsMap:
+                    taskDsMap[jediTaskID] = []
+                taskDsMap[jediTaskID].append(datasetID)
+            tmpLog.debug('got {0} tasks'.format(len(taskDsMap)))
             # loop over all tasks
             ngTasks = set()
-            for jediTaskID,datasetID in resTaskList:
-                if jediTaskID in ngTasks:
-                    continue
-                tmpLog.debug('[jediTaskID={0} datasetID={1}] to check'.format(jediTaskID,datasetID))
+            for jediTaskID, datasetIDs in taskDsMap.iteritems():
                 self.conn.begin()
                 # lock task
                 toSkip = False
@@ -4154,41 +4156,52 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sqlNW+comment,varMap)
                     resNW = self.cur.fetchone()
                     if resNW == None:
-                        tmpLog.debug('[jediTaskID={0} datasetID] skip since checked by another'.format(jediTaskID,
-                                                                                                       datasetID))
+                        tmpLog.debug('[jediTaskID={0} datasetID={1}] skip since checked by another'.format(jediTaskID,
+                                                                                                           datasetID))
                         toSkip = True
                 except:
                     errType,errValue = sys.exc_info()[:2]
                     if self.isNoWaitException(errValue):
-                        tmpLog.debug('[jediTaskID={0} datasetID] skip since locked by another'.format(jediTaskID,
-                                                                                                      datasetID))
+                        tmpLog.debug('[jediTaskID={0} datasetID={1}] skip since locked by another'.format(jediTaskID,
+                                                                                                          datasetID))
                         toSkip = True
                     else:
                         # failed with something else
                         raise errType,errValue
                 if not toSkip:
-                    # check if there is picked file
-                    varMap = {}
-                    varMap[':jediTaskID'] = jediTaskID
-                    varMap[':datasetID']  = datasetID
-                    varMap[':fileStatus'] = 'picked'
-                    self.cur.execute(sqlDP+comment,varMap)
-                    resDP = self.cur.fetchone()
+                    # loop over all datasets
+                    allOK = True
+                    for datasetID in datasetIDs:
+                        tmpLog.debug('[jediTaskID={0} datasetID={1}] to check'.format(jediTaskID,datasetID))
+                        # check if there is picked file
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':datasetID']  = datasetID
+                        varMap[':fileStatus'] = 'picked'
+                        self.cur.execute(sqlDP+comment,varMap)
+                        resDP = self.cur.fetchone()
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':timeLimit'] = timeToCheck
+                        if resDP is not None:
+                            allOK = False
+                            break
+                    # set lock
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
                     varMap[':timeLimit'] = timeToCheck
-                    if resDP == None:
+                    if allOK:
                         # OK
                         varMap[':lockedBy'] = None
                         varMap[':lockedTime'] = None
                     else:
                         varMap[':lockedBy'] = pid
                         varMap[':lockedTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=24)
-                        tmpLog.debug('[jediTaskID={0} datasetID={1}] set dummy lock to trigger rescue'.format(jediTaskID,datasetID))
+                        tmpLog.debug('[jediTaskID={0} datasetID={1}] set dummy lock to trigger rescue'.format(jediTaskID, datasetID))
                         ngTasks.add(jediTaskID)
                     self.cur.execute(sqlTU+comment,varMap)
                     nRow = self.cur.rowcount
-                    tmpLog.debug('[jediTaskID={0} datasetID={1}] done with {2}'.format(jediTaskID,datasetID,nRow))
+                    tmpLog.debug('[jediTaskID={0}] done with {1}'.format(jediTaskID, nRow))
                 # commit
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
