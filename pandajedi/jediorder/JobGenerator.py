@@ -1258,7 +1258,7 @@ class JobGeneratorThread (WorkerThread):
                         # stay output on site
                         if taskSpec.stayOutputOnSite():
                             tmpOutFileSpec.destinationSE = siteName
-                            tmpOutFileSpec.destinationDBlockToke = 'dst:{0}'.format(siteSpec.ddm)
+                            tmpOutFileSpec.destinationDBlockToke = 'dst:{0}'.format(siteSpec.ddm_output)
                         # distributed dataset
                         tmpDistributedDestination = DataServiceUtils.getDistributedDestination(tmpOutFileSpec.destinationDBlockToken)
                         if tmpDistributedDestination != None:

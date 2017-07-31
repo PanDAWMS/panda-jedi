@@ -27,7 +27,7 @@ def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
             tmpT1Name = siteInNucleus
         tmpT1Spec = siteMapper.getSite(tmpT1Name)
         # skip if DDM is undefined
-        if tmpT1Spec.ddm == []:
+        if tmpT1Spec.ddm_output == []: # TODO: check with Tadashi
             continue
         # loop over all sites
         for tmpSiteName in tmpCloudSpec['sites']:
@@ -47,7 +47,7 @@ def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
                 continue
             tmpSiteSpec = siteMapper.getSite(tmpSiteName)
             # check DDM
-            if tmpT1Spec.ddm == tmpSiteSpec.ddm:
+            if tmpT1Spec.ddm_output == tmpSiteSpec.ddm_output: # TODO: check with Tadashi
                 # append
                 if not retMap.has_key(tmpCloudName):
                     retMap[tmpCloudName] = []

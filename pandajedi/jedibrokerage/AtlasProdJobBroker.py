@@ -655,7 +655,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 pass
             else:
                 # check endpoint
-                tmpEndPoint = tmpSiteSpec.ddm_endpoints_input.getEndPoint(tmpSiteSpec.ddm)
+                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output.getEndPoint(tmpSiteSpec.ddm_output)
                 if tmpEndPoint != None:
                     # check free size
                     tmpSpaceSize = 0
@@ -665,12 +665,12 @@ class AtlasProdJobBroker (JobBrokerBase):
                         tmpSpaceSize += tmpEndPoint['space_expired']
                     diskThreshold = 200
                     if tmpSpaceSize < diskThreshold:
-                        tmpLog.info('  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName,tmpSiteSpec.ddm,
+                        tmpLog.info('  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName,tmpSiteSpec.ddm_output,
                                                                                                                     tmpSpaceSize,diskThreshold))
                         continue
                     # check if blacklisted
                     if tmpEndPoint['blacklisted'] == 'Y':
-                        tmpLog.info('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm))
+                        tmpLog.info('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm_output))
                         continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)

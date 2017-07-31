@@ -72,10 +72,10 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                         if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
                             continue
                         # get token
-                        token = ddmIF.convertTokenToEndpoint(siteSpec.ddm,datasetSpec.storageToken)
+                        token = ddmIF.convertTokenToEndpoint(siteSpec.ddm_output,datasetSpec.storageToken)
                         # use default endpoint
                         if token == None:
-                            token = siteSpec.ddm
+                            token = siteSpec.ddm_output
                         # add origianl token
                         if not datasetSpec.storageToken in ['',None]:
                             token += '/{0}'.format(datasetSpec.storageToken)

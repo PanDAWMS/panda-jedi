@@ -19,8 +19,10 @@ for panda_site in panda_sites:
     print panda_site
     tmp_site_spec = site_mapper.getSite('ANALY_DESY-HH')
     print '------------------- ddm -------------------'
-    print tmp_site_spec.ddm
+    print 'ddm_input: {0}, ddm_output: {1}'.format(tmp_site_spec.ddm_input, tmp_site_spec.ddm_output)
     print '------------------- setokens values -------------------'
-    print tmp_site_spec.setokens.values()
+    print 'setokens_input: {0}, setokens_output: {1}'.format(tmp_site_spec.setokens_input.values(),
+                                                             tmp_site_spec.setokens_output.values())
     print '------------------- setokens -------------------'
-    print tmp_site_spec.setokens
+    print 'setokens_input: {0}, setokens_output: {1}'.format(tmp_site_spec.setokens_input,
+                                                             tmp_site_spec.setokens_output)
