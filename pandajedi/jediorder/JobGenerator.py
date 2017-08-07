@@ -1923,7 +1923,9 @@ class JobGeneratorThread (WorkerThread):
         newPandaJob.computingSite = sites[index % nSites]
         siteSpec = self.siteMapper.getSite(newPandaJob.computingSite)
         newPandaJob.computingSite = siteSpec.get_unified_name()
-        if newPandaJob.coreCount > 1:
+        if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:
+            newPandaJob.coreCount = 1
+        else:
             newPandaJob.coreCount = siteSpec.coreCount
         if taskSpec is not None and inputChunk is not None:
             newPandaJob.minRamCount, newPandaJob.minRamUnit = JediCoreUtils.getJobMinRamCount(taskSpec, inputChunk,
