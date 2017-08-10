@@ -8215,7 +8215,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to reset running files
             sqlRR  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlRR += "SET status=:newStatus,attemptNr=attemptNr+1,maxAttempt=maxAttempt+:maxAttempt " 
-            sqlRR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status IN (:oldStatus1,:oldStatus2) "
+            sqlRR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oldStatus "
             sqlRR += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL "
             # sql to update output/lib/log datasets
             sqlUO  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
@@ -8342,8 +8342,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':datasetID']  = datasetID
-                            varMap[':oldStatus1'] = 'running'
-                            varMap[':oldStatus2'] = 'picked'
+                            varMap[':oldStatus'] = 'picked'
                             varMap[':newStatus']  = 'ready'
                             varMap[':keepTrack']  = 1
                             varMap[':maxAttempt'] = maxAttempt

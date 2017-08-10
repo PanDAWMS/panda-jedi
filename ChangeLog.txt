@@ -1,5 +1,8 @@
 Release Notes
 
+* 8/10/2017
+  * fixed retryTask not to change running files
+
 * 8/9/2017
   * fixed AF when tasks are re-refined
 
