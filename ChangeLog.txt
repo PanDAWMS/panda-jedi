@@ -1,5 +1,9 @@
 Release Notes
 
+* 8/11/2017
+  * added AES_MAXPENDIG
+  * added SCOUT_CPUTIME_RANK, SCOUT_RAMCOUNT_RANK, SCOUT_RAMCOUNT_MARGIN
+
 * 8/10/2017
   * fixed retryTask not to change running files
 

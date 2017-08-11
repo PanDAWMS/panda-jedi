@@ -5106,6 +5106,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start mergeScout={0}'.format(mergeScout))
         returnMap = {}
         extraInfo = {}
+        # get percentile rank and margin for memory
+        ramCountRank = self.getConfigValue('dbproxy','SCOUT_RAMCOUNT_RANK','jedi')
+        if ramCountRank is None:
+            ramCountRank = 75
+        ramCountMargin = self.getConfigValue('dbproxy','SCOUT_RAMCOUNT_MARGIN','jedi')
+        if ramCountMargin is None:
+            ramCountMargin = 10
+        # get percentile rank for cpuTime
+        cpuTimeRank = self.getConfigValue('dbproxy','SCOUT_CPUTIME_RANK','jedi')
+        if cpuTimeRank is None:
+            cpuTimeRank = 95
         # sql to get preset values
         if not mergeScout:
             sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
@@ -5398,7 +5409,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     if not preBaseRamCount in [0,None]:
                                         tmpPSS -= preBaseRamCount*1024
                                     tmpPSS = float(tmpPSS)/float(coreCount)
-                                    tmpPSS = long(math.ceil(tmpPSS*1.1))
+                                    tmpPSS = long(math.ceil(tmpPSS))
                                     memSizeList.append(tmpPSS)
                                     memSizeDict[tmpPSS] = pandaID
                             else:
@@ -5460,7 +5471,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if returnMap['walltime'] > limitWallTime:
                 returnMap['walltime'] = limitWallTime
         if cpuTimeList != []:
-            maxCpuTime,origValues = JediCoreUtils.percentile(cpuTimeList,95,cpuTimeDict)
+            maxCpuTime,origValues = JediCoreUtils.percentile(cpuTimeList, cpuTimeRank, cpuTimeDict)
             for origValue in origValues:
                 addTag(jobTagMap,cpuTimeDict,origValue,'cpuTime')
                 try:
@@ -5477,7 +5488,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap['ioIntensityUnit'] = 'kBPerS'
         if memSizeList != []:
             memVal = max(memSizeList)
-            addTag(jobTagMap,memSizeDict,memVal,'ramCount')
+            memVal, origValues = JediCoreUtils.percentile(memSizeList, ramCountRank, memSizeDict)
+            for origValue in origValues:
+                addTag(jobTagMap,memSizeDict,origValue,'ramCount')
+            memVal = memVal * (100 + ramCountMargin) / 100
             memVal /= 1024
             memVal = long(memVal)
             if memVal < 0:
@@ -10922,22 +10936,40 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':st5'] = 'registered'
             varMap[':st6'] = 'defined'
             varMap[':st7'] = 'assigning'
-            # start transaction
+            # sql to get pending tasks
+            sqlPD = "SELECT COUNT(1) "
+            sqlPD += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlPD += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlPD += "AND tabT.vo=:vo AND tabT.prodSourceLabel=:label "
+            sqlPD += "AND tabT.status IN (:st1,:st2) "
+            for key, val in criteria.iteritems():
+                sqlPD += "AND tabT.{0}=:{0} ".format(key)
+            # get num events
             self.conn.begin()
             self.cur.execute(sqlDJ+comment, varMap)
-            # commit
-            if not self._commit():
-                raise RuntimeError, 'Commit error'
             nEvents, lastTaskTime = self.cur.fetchone()
             if nEvents is None:
                 nEvents = 0
+            # get num of pending tasks
+            varMap = dict()
+            varMap[':vo']  = vo
+            varMap[':label'] = prodSourceLabel
+            varMap[':st1'] = 'pending'
+            varMap[':st2'] = 'registered'
+            for key, val in criteria.iteritems():
+                varMap[':{0}'.format(key)] = val
+            self.cur.execute(sqlPD+comment, varMap)
+            nPending, = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
             # return
-            tmpLog.debug("got nEvents={0} lastTaskTime={1}".format(nEvents,lastTaskTime))
-            return nEvents, lastTaskTime
+            tmpLog.debug("got nEvents={0} lastTaskTime={1} nPendingTasks={2}".format(nEvents,lastTaskTime,nPending))
+            return nEvents, lastTaskTime, nPending
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return None, None
+            return None, None, None
 
