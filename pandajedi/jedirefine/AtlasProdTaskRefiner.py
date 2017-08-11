@@ -37,7 +37,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             else:
                 # get threshold
                 minNumEvents = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_EVENTPOOLSIZE', 'jedi', 'atlas')
-                maxPending = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_MAXPENDIG', 'jedi', 'atlas')
+                maxPending = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_MAXPENDING', 'jedi', 'atlas')
                 nEvents, lastTaskTime, nPendingTasks = self.taskBufferIF.getNumUnprocessedEvents_JEDI(taskParamMap['vo'],
                                                                                                       taskParamMap['prodSourceLabel'],
                                                                                                       {'eventService': 1})
