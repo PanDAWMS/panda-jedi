@@ -1,5 +1,8 @@
 Release Notes
 
+* 8/14/2015
+  * added skipShortInput
+
 * 8/11/2017
   * added AES_MAXPENDIG
   * added SCOUT_CPUTIME_RANK, SCOUT_RAMCOUNT_RANK, SCOUT_RAMCOUNT_MARGIN

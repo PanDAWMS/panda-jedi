@@ -277,7 +277,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nMaxFiles,nMaxEvents,useScout,givenFileList,useFilesWithNewAttemptNr,
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
                                    xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents,
-                                   respectLB,tgtNumEventsPerJob,skipFilesUsedBy,ramCount,taskSpec):
+                                   respectLB,tgtNumEventsPerJob,skipFilesUsedBy,ramCount,taskSpec,
+                                   skipShortInput):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -300,7 +301,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('datasetState={0} dataset.state={1}'.format(datasetState,datasetSpec.state))
         tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1} skipFilesUsedBy={2} ramCount={3}'.format(respectLB,tgtNumEventsPerJob,
                                                                                        skipFilesUsedBy, ramCount))
-
+        tmpLog.debug('skipShortInput={0}'.format(skipShortInput))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -494,7 +495,28 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.maxAttempt = maxAttempt
                 fileSpec.maxFailure = maxFailure
                 fileSpec.ramCount = ramCount
-                if nEventsPerFile != None:
+                tmpNumEvents = None
+                if 'events' in fileVal:
+                    try:
+                        tmpNumEvents = long(fileVal['events'])
+                    except:
+                        pass
+                if skipShortInput and tmpNumEvents is not None:
+                    # set multiples of nEventsPerJob if actual nevents is small
+                    if tmpNumEvents >= nEventsPerFile:
+                        fileSpec.nEvents = nEventsPerFile
+                    else:
+                        fileSpec.nEvents = long(tmpNumEvents / nEventsPerJob) * nEventsPerJob
+                        if fileSpec.nEvents == 0:
+                            tmpLog.debug('skip {0} due to nEvents {1} < nEventsPerJob {2}'.format(fileSpec.lfn,
+                                                                                                  tmpNumEvents,
+                                                                                                  nEventsPerJob))
+                            continue
+                        else:
+                            tmpLog.debug('set nEvents to {0} from {1} for {2} to skip short input'.format(fileSpec.nEvents,
+                                                                                                          tmpNumEvents,
+                                                                                                          fileSpec.lfn))
+                elif nEventsPerFile != None:
                     fileSpec.nEvents = nEventsPerFile
                 elif fileVal.has_key('events') and not fileVal['events'] in ['None',None]:
                     try:
