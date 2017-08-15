@@ -10324,7 +10324,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sql = """
         SELECT pdr.panda_site_name, de.site_name
         FROM atlas_panda.panda_ddm_relation pdr, atlas_panda.ddm_endpoint de
-        WHERE is_default = 'Y'
+        WHERE pdr.default_write = 'Y'
         AND pdr.ddm_endpoint_name = de.ddm_endpoint_name
         """.format(jedi_config.db.schemaJEDI)
 

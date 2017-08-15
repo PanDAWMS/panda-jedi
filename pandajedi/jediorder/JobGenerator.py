@@ -1258,13 +1258,13 @@ class JobGeneratorThread (WorkerThread):
                         # stay output on site
                         if taskSpec.stayOutputOnSite():
                             tmpOutFileSpec.destinationSE = siteName
-                            tmpOutFileSpec.destinationDBlockToke = 'dst:{0}'.format(siteSpec.ddm_output)
+                            tmpOutFileSpec.destinationDBlockToken = 'dst:{0}'.format(siteSpec.ddm_output)
                         # distributed dataset
                         tmpDistributedDestination = DataServiceUtils.getDistributedDestination(tmpOutFileSpec.destinationDBlockToken)
                         if tmpDistributedDestination != None:
                             tmpDddKey = (siteName,tmpDistributedDestination)
                             if not tmpDddKey in dddMap:
-                                dddMap[tmpDddKey] = siteSpec.ddm_endpoints_input.getAssociatedEndpoint(tmpDistributedDestination)
+                                dddMap[tmpDddKey] = siteSpec.ddm_endpoints_output.getAssociatedEndpoint(tmpDistributedDestination)
                             if dddMap[tmpDddKey] != None:
                                 tmpOutFileSpec.destinationSE = siteName
                                 tmpOutFileSpec.destinationDBlockToken = 'ddd:{0}'.format(dddMap[tmpDddKey]['ddm_endpoint_name'])
@@ -1977,7 +1977,7 @@ class JobGeneratorThread (WorkerThread):
                 datasetSpec = outDsMap[newFileSpec.datasetID]
                 tmpDistributedDestination = DataServiceUtils.getDistributedDestination(datasetSpec.storageToken)
                 if tmpDistributedDestination != None:
-                    tmpDestination = siteSpec.ddm_endpoints_input.getAssociatedEndpoint(tmpDistributedDestination)
+                    tmpDestination = siteSpec.ddm_endpoints_output.getAssociatedEndpoint(tmpDistributedDestination)
                     # change destination
                     newFileSpec.destinationSE = newPandaJob.computingSite
                     if tmpDestination != None:

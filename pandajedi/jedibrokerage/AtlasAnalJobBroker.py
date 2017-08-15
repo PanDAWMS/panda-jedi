@@ -314,7 +314,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     continue
                 # check if blacklisted
                 if tmpEndPoint['blacklisted'] == 'Y':
-                    tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm_output))
+                    tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output))
                     continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
