@@ -8425,8 +8425,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':datasetID']  = datasetID
-                            varMap[':oldStatus1'] = 'running'
-                            varMap[':oldStatus2'] = 'picked'
+                            varMap[':oldStatus'] = 'picked'
                             varMap[':newStatus']  = 'ready'
                             varMap[':keepTrack']  = 1
                             varMap[':maxAttempt'] = maxAttempt
