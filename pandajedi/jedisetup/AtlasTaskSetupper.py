@@ -190,34 +190,34 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     datasetSpec.status = 'registered'
                     self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'jediTaskID':taskSpec.jediTaskID,
                                                                       'datasetID':datasetID})
-                    # register ES datasets
-                    if False: # FIXME taskSpec.useEventService() and not taskSpec.useJobCloning() and datasetSpec.type == 'output':
-                        targetName = datasetSpec.datasetName +  EventServiceUtils.esSuffixDDM
-                        location = None
-                        metaData = {}
-                        metaData['task_id'] = taskSpec.jediTaskID
-                        metaData['hidden']  = True
-                        tmpLog.info('registering ES dataset {0} with location={1} meta={2}'.format(targetName,
-                                                                                                   location,
-                                                                                                   str(metaData)))
-                        tmpStat = ddmIF.registerNewDataset(targetName,location=location,metaData=metaData)
-                        if not tmpStat:
-                            tmpLog.error('failed to register ES dataset {0}'.format(targetName))
-                            return retFatal
-                        # register rule
-                        location = 'type=ES' 
-                        activity = DataServiceUtils.getActivityForOut(taskSpec.prodSourceLabel)
-                        grouping = 'NONE'
-                        tmpLog.info('registering location={0} activity={1} grouping={2}'.format(location,
-                                                                                                activity,
-                                                                                                grouping))
-                        tmpStat = ddmIF.registerDatasetLocation(targetName,location,activity=activity,
-                                                                grouping=grouping)
-                        if not tmpStat:
-                            tmpLog.error('failed to register location {0} with {2} for {1}'.format(location,
-                                                                                                   targetName,
-                                                                                                   activity))
-                            return retFatal
+                # register ES datasets
+                if taskSpec.registerEsFiles():
+                    targetName = EventServiceUtils.getEsDatasetName(taskSpec.jediTaskID)
+                    location = None
+                    metaData = {}
+                    metaData['task_id'] = taskSpec.jediTaskID
+                    metaData['hidden']  = True
+                    tmpLog.info('registering ES dataset {0} with location={1} meta={2}'.format(targetName,
+                                                                                               location,
+                                                                                               str(metaData)))
+                    tmpStat = ddmIF.registerNewDataset(targetName,location=location,metaData=metaData)
+                    if not tmpStat:
+                        tmpLog.error('failed to register ES dataset {0}'.format(targetName))
+                        return retFatal
+                    # register rule
+                    location = 'type=ES' 
+                    activity = DataServiceUtils.getActivityForOut(taskSpec.prodSourceLabel)
+                    grouping = 'NONE'
+                    tmpLog.info('registering location={0} activity={1} grouping={2}'.format(location,
+                                                                                            activity,
+                                                                                            grouping))
+                    tmpStat = ddmIF.registerDatasetLocation(targetName,location,activity=activity,
+                                                            grouping=grouping)
+                    if not tmpStat:
+                        tmpLog.error('failed to register location {0} with {2} for {1}'.format(location,
+                                                                                               targetName,
+                                                                                               activity))
+                        return retFatal
             # open datasets
             if taskSpec.prodSourceLabel in ['managed','test']:
                 # get the list of output/log datasets

@@ -75,6 +75,7 @@ class JediTaskSpec(object):
         'putLogToOS'         : 'PO',
         'runUntilClosed'     : 'RC',
         'registerDatasets'   : 'RD',
+        'registerEsFiles'    : 'RE',
         'respectLB'          : 'RL',
         'reuseSecOnDemand'   : 'RO',
         'respectSplitRule'   : 'RR',
@@ -1363,6 +1364,16 @@ class JediTaskSpec(object):
     def inFilePosEvtNum(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['inFilePosEvtNum']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # register event service files
+    def registerEsFiles(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['registerEsFiles']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

@@ -1,6 +1,9 @@
 Release Notes
 
-* 8/14/2015
+* 8/18/2017
+  * added registerEsFiles
+
+* 8/14/2017
   * added skipShortInput
 
 * 8/11/2017

@@ -1067,6 +1067,9 @@ class JobGeneratorThread (WorkerThread):
                     # in-file positional event number
                     if taskSpec.inFilePosEvtNum():
                         jobSpec.setInFilePosEvtNum()
+                    # register event service files
+                    if taskSpec.registerEsFiles():
+                        jobSpec.setRegisterEsFiles()
                     # write input to file
                     if taskSpec.writeInputToFile():
                         jobSpec.setToWriteInputToFile()

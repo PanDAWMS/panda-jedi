@@ -288,6 +288,9 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noExecStrCnv'])
         if 'inFilePosEvtNum' in taskParamMap and taskParamMap['inFilePosEvtNum'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['inFilePosEvtNum'])
+        if self.taskSpec.useEventService() and not taskSpec.useJobCloning():
+            if 'registerEsFiles' in taskParamMap and taskParamMap['registerEsFiles'] == True:
+                self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['registerEsFiles'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
