@@ -307,6 +307,7 @@ class AtlasDDMClient(DDMClientBase):
                                '_DAQ$','_TMPDISK$','_GRIDFTP$','MOCKTEST$']
             # get all associated endpoints
             siteAllEndPointsMap = {}
+
             for siteName,endPointPattList in siteEndPointMap.iteritems():
                 # get all endpoints matching with patterns 
                 allEndPointList = []
