@@ -154,7 +154,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                                 tmpLog.info('skip making double copy as destination={0} is not site={1}'.format(datasetSpec.destination,
                                                                                                                                 datasetSpec.site))
                                             else:
-                                                locForDouble = '(type=SCRATCHDISK)\notforextracopy=1'
+                                                locForDouble = '(type=SCRATCHDISK)\\notforextracopy=1'
                                                 tmpMsg  = 'registering double copy '
                                                 tmpMsg += 'location="{0}" lifetime={1}days activity={2} for dataset={3}'.format(locForDouble,lifetime,
                                                                                                                                 activity,targetName)
