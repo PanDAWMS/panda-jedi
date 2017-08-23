@@ -206,7 +206,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                         tmpLog.error('failed to register ES dataset {0}'.format(targetName))
                         return retFatal
                     # register rule
-                    location = 'type=ES' 
+                    location = 'type=DATADISK' 
                     activity = DataServiceUtils.getActivityForOut(taskSpec.prodSourceLabel)
                     grouping = 'NONE'
                     tmpLog.info('registering location={0} activity={1} grouping={2}'.format(location,
