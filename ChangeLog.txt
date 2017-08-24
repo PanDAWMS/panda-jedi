@@ -1,5 +1,24 @@
 Release Notes
 
+* 8/23/2017
+  * using (type=SCRATCHDISK)\notforextracopy=1 for secondary copy of user output
+
+* 8/18/2017
+  * added registerEsFiles
+
+* 8/14/2017
+  * added skipShortInput
+
+* 8/11/2017
+  * added AES_MAXPENDIG
+  * added SCOUT_CPUTIME_RANK, SCOUT_RAMCOUNT_RANK, SCOUT_RAMCOUNT_MARGIN
+
+* 8/10/2017
+  * fixed retryTask not to change running files
+
+* 8/9/2017
+  * fixed AF when tasks are re-refined
+
 * 7/11/2017
   * disabled second copy when --destSE
 

@@ -420,9 +420,16 @@ class ContentsFeederThread (WorkerThread):
                                     useFilesWithNewAttemptNr = False
                                     if not datasetSpec.isPseudo() and fileList != [] and taskParamMap.has_key('useInFilesWithNewAttemptNr'):
                                         useFilesWithNewAttemptNr = True
-                                    #ramCount
+                                    # ramCount
                                     ramCount = 0
-
+                                    # skip short input
+                                    if datasetSpec.isMaster() and not datasetSpec.isPseudo() \
+                                            and nEventsPerFile is not None and nEventsPerJob is not None \
+                                            and nEventsPerFile >= nEventsPerJob \
+                                            and 'skipShortInput' in taskParamMap and taskParamMap['skipShortInput'] == True:
+                                        skipShortInput = True
+                                    else:
+                                        skipShortInput = False
                                     # feed files to the contents table
                                     tmpLog.debug('update contents')
                                     retDB,missingFileList,nFilesUnique,diagMap = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
@@ -452,7 +459,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               tgtNumEventsPerJob,
                                                                                                                               skipFilesUsedBy,
                                                                                                                               ramCount,
-                                                                                                                              taskSpec)
+                                                                                                                              taskSpec,
+                                                                                                                              skipShortInput)
                                     if retDB == False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))

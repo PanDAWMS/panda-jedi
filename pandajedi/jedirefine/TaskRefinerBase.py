@@ -288,6 +288,9 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noExecStrCnv'])
         if 'inFilePosEvtNum' in taskParamMap and taskParamMap['inFilePosEvtNum'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['inFilePosEvtNum'])
+        if self.taskSpec.useEventService() and not taskSpec.useJobCloning():
+            if 'registerEsFiles' in taskParamMap and taskParamMap['registerEsFiles'] == True:
+                self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['registerEsFiles'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
@@ -719,15 +722,13 @@ class TaskRefinerBase (object):
         if self.taskSpec.splitRule in [None,'']:
             self.taskSpec.splitRule = tmpStr
         else:
-            tmpMatch = re.search(valName+'=(-*\d+)',self.taskSpec.splitRule)
+            tmpMatch = re.search(valName+'=(-*\d+)(,-*\d+)*',self.taskSpec.splitRule)
             if tmpMatch == None:
                 # append
                 self.taskSpec.splitRule += ',{0}'.format(tmpStr)
             else:
                 # replace
-                self.taskSpec.splitRule = re.sub(valName+'=(-*\d+)',
-                                                 tmpStr,
-                                                 self.taskSpec.splitRule)
+                self.taskSpec.splitRule = self.taskSpec.splitRule.replace(tmpMatch.group(0), tmpStr)
         return    
 
 

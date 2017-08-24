@@ -37,15 +37,20 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             else:
                 # get threshold
                 minNumEvents = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_EVENTPOOLSIZE', 'jedi', 'atlas')
-                nEvents, lastTaskTime = self.taskBufferIF.getNumUnprocessedEvents_JEDI(taskParamMap['vo'],
-                                                                                       taskParamMap['prodSourceLabel'],
-                                                                                       {'eventService': 1})
-                tmpLog.info('check for ES tot_num_unprocessed_events_AES={0} target_num_events_AES={1} last_AES_task_time={2}'.format(nEvents,
-                                                                                                                                      minNumEvents,
-                                                                                                                                      lastTaskTime))
+                maxPending = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_MAXPENDING', 'jedi', 'atlas')
+                nEvents, lastTaskTime, nPendingTasks = self.taskBufferIF.getNumUnprocessedEvents_JEDI(taskParamMap['vo'],
+                                                                                                      taskParamMap['prodSourceLabel'],
+                                                                                                      {'eventService': 1})
+                tmpStr = 'check for ES '
+                tmpStr += 'tot_num_unprocessed_events_AES={0} target_num_events_AES={1} last_AES_task_time={2} '.format(nEvents,
+                                                                                                                        minNumEvents,
+                                                                                                                        lastTaskTime)
+                tmpStr += 'num_pending_tasks_AES={0} max_pending_tasks_AES={1} '.format(nPendingTasks, maxPending)
+                tmpLog.info(tmpStr)
                 # not chane many tasks at once
                 if lastTaskTime is None or (lastTaskTime < datetime.datetime.utcnow() - datetime.timedelta(minutes=5)):
-                    if minNumEvents is not None and nEvents < minNumEvents:
+                    if minNumEvents is not None and nEvents < minNumEvents and \
+                            maxPending is not None and (maxPending is None or maxPending > nPendingTasks):
                         autoEsConversion = True
                         tmpLog.info('converted to AES')
         # add ES paramsters
