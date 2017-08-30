@@ -513,6 +513,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                          releases=taskSpec.transHome.split('-')[-1],
                                                                          cmtConfig=taskSpec.architecture)
+                siteListWithSW += self.taskBufferIF.checkSitesWithRelease(unified_site_list,
+                                                                          caches=taskSpec.transHome,
+                                                                          cmtConfig=taskSpec.architecture)
             elif re.search('rel_\d+(\n|$)',taskSpec.transHome) is None and \
                     re.search('\d{4}-\d{2}-\d{2}T\d{4}$',taskSpec.transHome) is None:
                 # only cache is checked for normal tasks

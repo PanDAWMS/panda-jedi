@@ -185,6 +185,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
                                                                              releases=transUses,
                                                                              cmtConfig=taskSpec.architecture)
+                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                                                                              caches=transHome,
+                                                                              cmtConfig=taskSpec.architecture)
                 else:
                     # nightlies
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
