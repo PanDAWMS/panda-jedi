@@ -291,6 +291,8 @@ class TaskRefinerBase (object):
         if self.taskSpec.useEventService() and not taskSpec.useJobCloning():
             if 'registerEsFiles' in taskParamMap and taskParamMap['registerEsFiles'] == True:
                 self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['registerEsFiles'])
+        if 'disableAutoFinish' in taskParamMap and taskParamMap['disableAutoFinish'] == True:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['disableAutoFinish'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:

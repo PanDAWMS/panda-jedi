@@ -201,7 +201,8 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     tmpLog.info('registering ES dataset {0} with location={1} meta={2}'.format(targetName,
                                                                                                location,
                                                                                                str(metaData)))
-                    tmpStat = ddmIF.registerNewDataset(targetName,location=location,metaData=metaData)
+                    tmpStat = ddmIF.registerNewDataset(targetName,location=location,metaData=metaData,
+                                                       resurrect=True)
                     if not tmpStat:
                         tmpLog.error('failed to register ES dataset {0}'.format(targetName))
                         return retFatal

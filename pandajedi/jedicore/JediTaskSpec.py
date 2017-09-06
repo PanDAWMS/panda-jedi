@@ -43,6 +43,7 @@ class JediTaskSpec(object):
         'allowPartialFinish' : 'AP',
         'altStageOut'        : 'AT',
         'ddmBackEnd'         : 'DE',
+        'disableAutoFinish'  : 'DF',
         'disableReassign'    : 'DI',
         'disableAutoRetry'   : 'DR',
         'dynamicNumEvents'   : 'DY',
@@ -1374,6 +1375,16 @@ class JediTaskSpec(object):
     def registerEsFiles(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['registerEsFiles']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # disable auto finish
+    def disableAutoFinish(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['disableAutoFinish']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False

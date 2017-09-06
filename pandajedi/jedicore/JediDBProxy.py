@@ -1018,7 +1018,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':datasetID'] = datasetSpec.datasetID
                         varMap[':nFiles'] = nInsert + len(existingFiles) - nLost
                         varMap[':nEvents'] = nEventsInsert + nEventsExist
-                        if datasetSpec.isMaster() and taskSpec.respectSplitRule() and (useScout and isMutableDataset):
+                        if datasetSpec.isMaster() and taskSpec.respectSplitRule() and useScout:
                             if isMutableDataset:
                                 varMap[':nFilesTobeUsed'] = nReady + nUsed
                             else:
@@ -9960,7 +9960,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':status1'] = 'running'
             varMap[':status2'] = 'pending'
-            sqlRT  = "SELECT tabT.jediTaskID,tabT.status,tabT.goal "
+            sqlRT  = "SELECT tabT.jediTaskID,tabT.status,tabT.goal,tabT.splitRule "
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlRT += "AND tabT.status IN (:status1,:status2) "
@@ -9994,16 +9994,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':timeLimit'] = timeToCheck
             tmpLog.debug(sqlRT+comment+str(varMap))
             self.cur.execute(sqlRT+comment,varMap)
-            resList = self.cur.fetchall()
+            taskStatList = self.cur.fetchall()
             retTasks = []
-            taskStatList = []
-            for jediTaskID,taskStatus,taskGoal in resList:
-                taskStatList.append((jediTaskID,taskStatus,taskGoal))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             # get tasks and datasets    
-            for jediTaskID,taskStatus,taskGoal in taskStatList:
+            for jediTaskID,taskStatus,taskGoal,splitRule in taskStatList:
                 # begin transaction
                 self.conn.begin()
                 # lock task
@@ -10017,6 +10014,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not self._commit():
                     raise RuntimeError, 'Commit error'
                 if nRow == 1:
+                    # make a task spec to check if auto finish is disabled
+                    taskSpec = JediTaskSpec()
+                    taskSpec.splitRule = splitRule
+                    if taskSpec.disableAutoFinish():
+                        tmpLog.debug('skip jediTaskID={0} as auto-finish is disabled'.format(jediTaskID))
+                        continue
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
                     for tmpType in JediDatasetSpec.getInputTypes():
