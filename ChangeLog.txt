@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/11/2017
+  * disabled IO check for event service in AtlasPJB
+
 * 9/6/2017
   * added disableAutoFinish
   * deleting event service datasets
