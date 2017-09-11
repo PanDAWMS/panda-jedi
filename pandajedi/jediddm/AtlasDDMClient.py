@@ -694,7 +694,7 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # register new dataset/container
-    def registerNewDataset(self,datasetName,backEnd='rucio',location=None,lifetime=None,metaData=None):
+    def registerNewDataset(self,datasetName,backEnd='rucio',location=None,lifetime=None,metaData=None,resurrect=False):
         methodName = 'registerNewDataset'
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
@@ -710,19 +710,30 @@ class AtlasDDMClient(DDMClientBase):
             # register
             if not datasetName.endswith('/'):
                 # register dataset
-                client.add_dataset(scope,dsn,meta=metaData,lifetime=lifetime,rse=location)
+                name = dsn
+                client.add_dataset(scope,name,meta=metaData,lifetime=lifetime,rse=location)
             else:
                 # register container
-                client.add_container(scope=scope,name=dsn[:-1])
+                name = dsn[:-1]
+                client.add_container(scope=scope,name=name)
         except DataIdentifierAlreadyExists: 
             pass
         except:
             errtype,errvalue = sys.exc_info()[:2]
             if not 'DataIdentifierAlreadyExists' in str(errvalue):
-                errCode = self.checkError(errtype)
-                errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
-                tmpLog.error(errMsg)
-                return errCode,'{0} : {1}'.format(methodName,errMsg)
+                resurrected = False
+                # try to resurrect
+                if 'DELETED_DIDS_PK violated' in str(errvalue) and resurrect:
+                    try:
+                        client.resurrect([{'scope': scope, 'name': name}])
+                        resurrected = True
+                    except:
+                        pass
+                if not resurrected:
+                    errCode = self.checkError(errtype)
+                    errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+                    tmpLog.error(errMsg)
+                    return errCode,'{0} : {1}'.format(methodName,errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
             

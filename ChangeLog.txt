@@ -1,5 +1,10 @@
 Release Notes
 
+* 9/6/2017
+  * added disableAutoFinish
+  * deleting event service datasets
+  * fixed respectSplutRule to set nFilesTobeUsed properly
+
 * 8/28/2017
   * fixed AtlasAJB/PJB for 3 digtis caches
 

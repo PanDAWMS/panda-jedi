@@ -79,16 +79,6 @@ class AtlasProdPostProcessor (PostProcessorBase):
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.warning('failed to delete datasets with {0}:{1}'.format(errtype.__name__,errvalue))
-            try:
-                # delete ES datasets
-                if taskSpec.useEventService() and not taskSpec.useJobCloning() and datasetSpec.type == 'output':
-                    targetName = datasetSpec.datasetName +  EventServiceUtils.esSuffixDDM
-                    tmpLog.debug('deleting ES DS dataName={0}'.format(targetName))
-                    retStr = ddmIF.deleteDataset(targetName,False,ignoreUnknown=True)
-                    tmpLog.debug(retStr)
-            except:
-                errtype,errvalue = sys.exc_info()[:2]
-                tmpLog.warning('failed to delete ES DS with {0}:{1}'.format(errtype.__name__,errvalue))
         # check duplication
         if self.getFinalTaskStatus(taskSpec) in ['finished','done']:
             nDup = self.taskBufferIF.checkDuplication_JEDI(taskSpec.jediTaskID)
@@ -99,12 +89,16 @@ class AtlasProdPostProcessor (PostProcessorBase):
                 taskSpec.status = 'paused'
                 taskSpec.setErrDiag(errStr)
                 tmpLog.debug(errStr)
-        # set del flag to event ranges
-        """ temporarily disabled until Oracle migrates to new RAC
-        if taskSpec.useEventService() and not taskSpec.useJobCloning():
-            nDel = self.taskBufferIF.setDelFlagToEvents_JEDI(taskSpec.jediTaskID)
-            tmpLog.info('set DEL flag to {0} event ranges'.format(nDel))
-        """
+        # delete ES datasets
+        if taskSpec.registerEsFiles():
+            try:
+                targetName = EventServiceUtils.getEsDatasetName(taskSpec.jediTaskID)
+                tmpLog.debug('deleting ES dataset name={0}'.format(targetName))
+                retStr = ddmIF.deleteDataset(targetName,False,ignoreUnknown=True)
+                tmpLog.debug(retStr)
+            except:
+                errtype,errvalue = sys.exc_info()[:2]
+                tmpLog.warning('failed to delete ES dataset with {0}:{1}'.format(errtype.__name__,errvalue))
         try:
             self.doBasicPostProcess(taskSpec,tmpLog)
         except:
