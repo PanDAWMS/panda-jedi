@@ -200,6 +200,8 @@ class TaskRefinerThread (WorkerThread):
                                         impl.taskSpec.status = taskStatus
                                         impl.taskSpec.setOnHold()
                                         impl.taskSpec.setErrDiag(errStr)
+                                        # not to update some task attributes
+                                        impl.taskSpec.resetRefinedAttrs()
                                         tmpLog.info(errStr)
                                         self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
                                                                           oldStatus=[taskStatus],setFrozenTime=False)
@@ -241,6 +243,8 @@ class TaskRefinerThread (WorkerThread):
                                 impl.taskSpec.status = taskStatus
                                 impl.taskSpec.setOnHold()
                                 impl.taskSpec.setErrDiag(tmpErrStr)
+                                # not to update some task attributes
+                                impl.taskSpec.resetRefinedAttrs()
                                 tmpLog.info(tmpErrStr)
                                 self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
                                                                   oldStatus=[taskStatus],
