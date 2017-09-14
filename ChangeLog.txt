@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/14/2017
+  * fixed flip-flop of AES flag in refiner
+
 * 9/11/2017
   * disabled IO check for event service in AtlasPJB
 

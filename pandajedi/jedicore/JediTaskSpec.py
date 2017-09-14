@@ -1388,3 +1388,10 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # reset refined attributes which may confuse they system
+    def resetRefinedAttrs(self):
+        self.resetChangedAttr('splitRule')
+        self.resetChangedAttr('eventService')
