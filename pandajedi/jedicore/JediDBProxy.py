@@ -5167,23 +5167,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlSCF += "AND tabF.PandaID=:usePandaID "
         # sql to get normal scout job data from Panda 
         sqlSCDN  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents "
+        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES "
         sqlSCDN += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "UNION "
         sqlSCDN += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents "
+        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES "
         sqlSCDN += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "AND modificationTime>(CURRENT_DATE-14) "
         # sql to get ES scout job data from Panda 
         sqlSCDE  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents "
+        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES "
         sqlSCDE += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "UNION "
         sqlSCDE += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents "
+        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES "
         sqlSCDE += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "AND modificationTime>(CURRENT_DATE-14) "
@@ -5274,7 +5274,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.cur.execute(sqlSCF+comment,varMap)
         resList = self.cur.fetchall()
         # scout scceeded or not
-        if resList == [] or (scoutSuccessRate != None and len(scoutSucceeded) < scoutSuccessRate):
+        if resList == [] or (scoutSuccessRate != None and len(resList) < scoutSuccessRate):
             scoutSucceeded = False
         else:
             scoutSucceeded = True
@@ -5299,6 +5299,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         corePowerMap = {}
         jMetricsMap  = {}
         execTimeMap  = {}
+        diskIoList   = []
         for pandaID,fsize,startEvent,endEvent,nEvents in resList:
             if not inFSizeMap.has_key(pandaID):
                 inFSizeMap[pandaID] = 0
@@ -5335,7 +5336,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # loop over all jobs
                 for oneResData in resDataList:
                     eventServiceJob,jobsetID,pandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,\
-                        defCoreCount,startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents = oneResData
+                        defCoreCount,startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES = oneResData
                     # add inputSize and nEvents
                     if not pandaID in inFSizeMap:
                         inFSizeMap[pandaID] = totalFSize
@@ -5418,6 +5419,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpVal /= float(coreCount)
                             ioIntentList.append(tmpVal)
                             ioIntentDict[tmpVal] = pandaID
+                        except:
+                            pass
+                    # disk IO
+                    if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
+                        try:
+                            tmpTimeDelta = endTime-startTime
+                            tmpVal = (totRBYTES + totWBYTES)
+                            tmpVal /= float(tmpTimeDelta.seconds+tmpTimeDelta.days*24*3600)
+                            diskIoList.append(tmpVal)
                         except:
                             pass
                     # RAM size
@@ -5508,6 +5518,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             maxIoIntent = long(math.ceil(maxIoIntent))
             returnMap['ioIntensity'] = maxIoIntent
             returnMap['ioIntensityUnit'] = 'kBPerS'
+        if diskIoList != []:
+            aveDiskIo = sum(diskIoList) / len(diskIoList)
+            aveDiskIo = long(math.ceil(aveDiskIo))
+            returnMap['diskIO'] = aveDiskIo
+            returnMap['diskIOUnit'] = 'kBPerS'
         if memSizeList != []:
             memVal = max(memSizeList)
             memVal, origValues = JediCoreUtils.percentile(memSizeList, ramCountRank, memSizeDict)

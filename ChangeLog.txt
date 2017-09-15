@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/15/2017
+  * added task.diskIO
+
 * 9/14/2017
   * fixed flip-flop of AES flag in refiner
 
