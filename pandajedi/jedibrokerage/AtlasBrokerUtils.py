@@ -27,7 +27,7 @@ def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
             tmpT1Name = siteInNucleus
         tmpT1Spec = siteMapper.getSite(tmpT1Name)
         # skip if DDM is undefined
-        if tmpT1Spec.ddm == []:
+        if tmpT1Spec.ddm_output == []: # TODO: check with Tadashi
             continue
         # loop over all sites
         for tmpSiteName in tmpCloudSpec['sites']:
@@ -47,7 +47,7 @@ def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
                 continue
             tmpSiteSpec = siteMapper.getSite(tmpSiteName)
             # check DDM
-            if tmpT1Spec.ddm == tmpSiteSpec.ddm:
+            if tmpT1Spec.ddm_output == tmpSiteSpec.ddm_output: # TODO: check with Tadashi
                 # append
                 if not retMap.has_key(tmpCloudName):
                     retMap[tmpCloudName] = []
@@ -228,7 +228,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
         tmpSiteSpec = siteMapper.getSite(tmpSiteName)
         # loop over all DDM endpoints
         checkedEndPoints = []
-        for tmpDDM in [tmpSiteSpec.ddm] + tmpSiteSpec.setokens.values():
+        for tmpDDM in tmpSiteSpec.ddm_endpoints_input.all.keys():
             # skip empty
             if tmpDDM == '':
                 continue
@@ -242,7 +242,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
                 # no replica check since it is cached 
                 if not retMap.has_key(tmpSiteName):
                     retMap[tmpSiteName] = {}
-                retMap[tmpSiteName][tmpDDM] = {'tape':False,'state':'complete'}
+                retMap[tmpSiteName][tmpDDM] = {'tape': False, 'state': 'complete'}
                 checkedEndPoints.append(tmpPrefix)
                 continue
             checkedEndPoints.append(tmpPrefix)
@@ -356,39 +356,6 @@ def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_tag=N
                 nJobs += tmpCount
     # return
     return nJobs
-
-
-
-# get mapping between sites and storage endpoints
-def getSiteStorageEndpointMap(siteList,siteMapper,ignoreCC=False):
-    # get T1s
-    t1Map = {}
-    for tmpCloudName in siteMapper.getCloudList():
-        # get cloud
-        tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
-        # get T1
-        tmpT1Name = tmpCloudSpec['source']
-        # append
-        t1Map[tmpT1Name] = tmpCloudName
-    # loop over all sites
-    retMap = {}
-    for siteName in siteList:
-        tmpSiteSpec = siteMapper.getSite(siteName)
-        # use schedconfig.ddm
-        retMap[siteName] = [tmpSiteSpec.ddm]
-        for tmpEP in tmpSiteSpec.setokens.values():
-            if tmpEP != '' and not tmpEP in retMap[siteName]:
-                retMap[siteName].append(tmpEP)
-        # use cloudconfig.tier1SE for T1       
-        if not ignoreCC and t1Map.has_key(siteName):
-            tmpCloudName = t1Map[siteName]
-            # get cloud
-            tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
-            for tmpEP in tmpCloudSpec['tier1SE']:
-                if tmpEP != '' and not tmpEP in retMap[siteName]:
-                    retMap[siteName].append(tmpEP)
-    # return
-    return retMap
 
 
 
@@ -507,7 +474,7 @@ def getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs):
         if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
             continue
         # get token
-        endPoint = nucleusSpec.getAssoicatedEndpoint(datasetSpec.storageToken)
+        endPoint = nucleusSpec.getAssociatedEndpoint(datasetSpec.storageToken)
         if endPoint == None:
             continue
         token = endPoint['ddm_endpoint_name']
@@ -580,3 +547,36 @@ def skipProblematicSites(candidateSpecList,ngSites,sitesUsedByTask,preSetSiteSpe
     for skippedSite in skippedSites:
         tmpLog.debug('  skip {0} too many closed or failed for last {1}hr'.format(skippedSite,timeWindow))
     return newcandidateSpecList
+
+
+
+# get mapping between sites and input storage endpoints
+def getSiteInputStorageEndpointMap(site_list, site_mapper, ignore_cc=False):
+
+    # make a map of the t1 to its respective cloud
+    t1_map = {}
+    for tmp_cloud_name in site_mapper.getCloudList():
+        # get cloud
+        tmp_cloud_spec = site_mapper.getCloud(tmp_cloud_name)
+        # get T1
+        tmp_t1_name = tmp_cloud_spec['source']
+        # append
+        t1_map[tmp_t1_name] = tmp_cloud_name
+
+    # make a map of panda sites to ddm endpoints
+    ret_map = {}
+    for site_name in site_list:
+        tmp_site_spec = site_mapper.getSite(site_name)
+
+        # add the schedconfig.ddm endpoints
+        ret_map[site_name] = tmp_site_spec.ddm_endpoints_input.all.keys()
+
+        # add the cloudconfig.tier1SE for T1s
+        if not ignore_cc and t1_map.has_key(site_name):
+            tmp_cloud_name = t1_map[site_name]
+            tmp_cloud_spec = site_mapper.getCloud(tmp_cloud_name)
+            for tmp_endpoint in tmp_cloud_spec['tier1SE']:
+                if tmp_endpoint and tmp_endpoint not in ret_map[site_name]:
+                    ret_map[site_name].append(tmp_endpoint)
+    # return
+    return ret_map

@@ -302,7 +302,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         for tmpSiteName in scanSiteList:
             # check endpoint
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            tmpEndPoint = tmpSiteSpec.ddm_endpoints.getEndPoint(tmpSiteSpec.ddm)
+            tmpEndPoint = tmpSiteSpec.ddm_endpoints_output.getEndPoint(tmpSiteSpec.ddm_output)
             if tmpEndPoint is not None:
                 # free space must be >= 200GB
                 diskThreshold = 200
@@ -312,12 +312,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if tmpEndPoint['space_free'] is not None:
                     tmpSpaceSize += tmpEndPoint['space_free']
                 if tmpSpaceSize < diskThreshold:
-                    tmpLog.info('  skip site={0} due to disk shortage in SE {1} < {2}GB criteria=-disk'.format(tmpSiteName,tmpSpaceSize,
-                                                                                            diskThreshold))
+                    tmpLog.info('  skip site={0} due to disk shortage in SE {1} < {2}GB criteria=-disk'.format(tmpSiteName, tmpSpaceSize,
+                                                                                                               diskThreshold))
                     continue
                 # check if blacklisted
                 if tmpEndPoint['blacklisted'] == 'Y':
-                    tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm))
+                    tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output))
                     continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
@@ -712,8 +712,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         for tmpRemoteSite in remoteSourceList[tmpSiteName][datasetSpec.datasetName]:
                             if not tmpRemoteSite in fileScanSiteList:
                                 fileScanSiteList.append(tmpRemoteSite)
-                # mapping between sites and storage endpoints
-                siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(fileScanSiteList,self.siteMapper)
+                # mapping between sites and input storage endpoints
+                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper)
+
+
                 # disable file lookup for merge jobs
                 if inputChunk.isMerging:
                     checkCompleteness = False

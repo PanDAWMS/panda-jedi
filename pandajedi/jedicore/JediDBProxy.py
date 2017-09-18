@@ -10409,15 +10409,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
-    # get a  mapping of panda sites to their storage site
-    def getPandaSiteToStorageSiteMapping(self):
-        comment = ' /* JediDBProxy.getPandaSiteToStorageSiteMapping */'
+    def getPandaSiteToOutputStorageSiteMapping(self):
+        """
+        Get a  mapping of panda sites to their storage site. We consider the storage site of the default ddm endpoint
+        :return: dictionary with panda_site_name keys and site_name values
+        """
+        comment = ' /* JediDBProxy.getPandaSiteToOutputStorageSiteMapping */'
         methodName = self.getMethodName(comment)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
 
         sql = """
-        SELECT panda_site_name, storage_site_name FROM {0}.panda_site
+        SELECT pdr.panda_site_name, de.site_name
+        FROM atlas_panda.panda_ddm_relation pdr, atlas_panda.ddm_endpoint de
+        WHERE pdr.default_write = 'Y'
+        AND pdr.ddm_endpoint_name = de.ddm_endpoint_name
         """.format(jedi_config.db.schemaJEDI)
 
         self.cur.execute(sql+comment)
@@ -10427,7 +10433,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             pandaSiteName, siteName = res
             mapping[pandaSiteName] = siteName
 
-        tmpLog.debug('panda site to ATLAS site mapping is: {0}'.format(mapping))
+        # tmpLog.debug('panda site to ATLAS site mapping is: {0}'.format(mapping))
 
         tmpLog.debug('done')
         return mapping
@@ -11011,4 +11017,3 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None, None, None
-

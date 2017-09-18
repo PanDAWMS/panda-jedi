@@ -307,6 +307,7 @@ class AtlasDDMClient(DDMClientBase):
                                '_DAQ$','_TMPDISK$','_GRIDFTP$','MOCKTEST$']
             # get all associated endpoints
             siteAllEndPointsMap = {}
+
             for siteName,endPointPattList in siteEndPointMap.iteritems():
                 # get all endpoints matching with patterns 
                 allEndPointList = []
@@ -1279,7 +1280,7 @@ class AtlasDDMClient(DDMClientBase):
                 if tmpSiteSpec.status == 'offline':
                     continue
                 # end point
-                tmpAltNameList = self.getSiteAlternateName(tmpSiteSpec.ddm)
+                tmpAltNameList = self.getSiteAlternateName(tmpSiteSpec.ddm_output) # TODO: check with Tadashi, this function is never called - delete it?
                 if tmpAltNameList == None or tmpAltNameList == [''] or len(tmpAltNameList) == 0:
                     continue
                 if altName != tmpAltNameList[0]:

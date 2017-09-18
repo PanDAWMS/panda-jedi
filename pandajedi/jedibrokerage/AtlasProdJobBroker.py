@@ -271,7 +271,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         #################################################
         # WORLD CLOUD: get the nucleus and the network map
         nucleus = taskSpec.nucleus
-        storageMapping = self.taskBufferIF.getPandaSiteToStorageSiteMapping()
+        storageMapping = self.taskBufferIF.getPandaSiteToOutputStorageSiteMapping()
 
         if taskSpec.useWorldCloud() and nucleus:
             # get connectivity stats to the nucleus in case of WORLD cloud
@@ -659,7 +659,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 pass
             else:
                 # check endpoint
-                tmpEndPoint = tmpSiteSpec.ddm_endpoints.getEndPoint(tmpSiteSpec.ddm)
+                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output.getEndPoint(tmpSiteSpec.ddm_output)
                 if tmpEndPoint != None:
                     # check free size
                     tmpSpaceSize = 0
@@ -669,12 +669,12 @@ class AtlasProdJobBroker (JobBrokerBase):
                         tmpSpaceSize += tmpEndPoint['space_expired']
                     diskThreshold = 200
                     if tmpSpaceSize < diskThreshold:
-                        tmpLog.info('  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName,tmpSiteSpec.ddm,
-                                                                                                                    tmpSpaceSize,diskThreshold))
+                        tmpLog.info('  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName, tmpSiteSpec.ddm_output,
+                                                                                                                    tmpSpaceSize, diskThreshold))
                         continue
                     # check if blacklisted
                     if tmpEndPoint['blacklisted'] == 'Y':
-                        tmpLog.info('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName,tmpSiteSpec.ddm))
+                        tmpLog.info('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output))
                         continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
@@ -982,9 +982,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         siteFilesMap = {}
         for datasetSpec in inputChunk.getDatasets():
             try:
-                # mapping between sites and storage endpoints
-                siteStorageEP = AtlasBrokerUtils.getSiteStorageEndpointMap(scanSiteList,self.siteMapper,
-                                                                           ignoreCC=True)
+                # mapping between sites and input storage endpoints
+                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(scanSiteList,self.siteMapper,
+                                                                           ignore_cc=True)
                 # disable file lookup for merge jobs or secondary datasets
                 checkCompleteness = True
                 useCompleteOnly = False
