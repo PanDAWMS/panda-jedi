@@ -46,7 +46,7 @@ class AtlasDDMClient(DDMClientBase):
         # how frequently update endpoint dict
         self.timeIntervalEP = datetime.timedelta(seconds=60*10)
         # NG endpoint types
-        self.ngEndPointTypes = ['TEST','SPECIAL']
+        # self.ngEndPointTypes = ['TEST','SPECIAL']
 
 
 
@@ -240,7 +240,7 @@ class AtlasDDMClient(DDMClientBase):
         self.updateEndPointDict()
         epList = []
         for seName,seVal in self.endPointDict.iteritems():
-            if seVal['site'] == altName and not seVal['type'] in self.ngEndPointTypes:
+            if seVal['site'] == altName: # and not seVal['type'] in self.ngEndPointTypes:
                 epList.append(seName)
         return epList
 
@@ -253,7 +253,7 @@ class AtlasDDMClient(DDMClientBase):
             altName = self.getSiteAlternateName(baseSeName)[0]
             if altName != None:
                 for seName,seVal in self.endPointDict.iteritems():
-                    if seVal['site'] == altName and not seVal['type'] in self.ngEndPointTypes:
+                    if seVal['site'] == altName: # and not seVal['type'] in self.ngEndPointTypes:
                         # space token
                         if seVal['token'] == token:
                             return seName
