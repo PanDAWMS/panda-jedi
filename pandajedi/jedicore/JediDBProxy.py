@@ -5470,8 +5470,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # calculate values
         jobTagMap = {}
         if outSizeList != []:
-            median = max(outSizeList) 
-            addTag(jobTagMap,outSizeDict,median,'outDiskCount')
+            median,origValues = JediCoreUtils.percentile(outSizeList, 75, outSizeDict)
+            for origValue in origValues:
+                addTag(jobTagMap,outSizeDict,origValue,'outDiskCount')
             median /= 1024
             # upper limit 10MB output per 1MB input
             upperLimit = 10 * 1024
