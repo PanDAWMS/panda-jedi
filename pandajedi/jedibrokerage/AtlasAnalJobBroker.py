@@ -476,6 +476,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                     tmpLog.debug(' {0} is distributed'.format(datasetName))
                 # check if the data is available at somewhere
                 if self.dataSiteMap[datasetName] == {}:
+                    for tmpSiteName in scanSiteList:
+                        tmpLog.info('  skip site={0} data is unavailable criteria=-input'.format(tmpSiteName))
                     tmpLog.error('{0} is unavailable at any site'.format(datasetName))
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     # send info to logger
