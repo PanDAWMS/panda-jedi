@@ -5483,10 +5483,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 returnMap['outDiskUnit']  = 'kBPerEvent'
             else:
                 returnMap['outDiskUnit']  = 'kB'
-            # use preset value if larger
-            if preOutDiskCount != None and \
-                    (preOutDiskCount > returnMap['outDiskCount'] or preOutDiskCount < 0):
-                returnMap['outDiskCount'] = preOutDiskCount
         if walltimeList != []:
             maxWallTime = max(walltimeList)
             addTag(jobTagMap,walltimeDict,maxWallTime,'walltime')
