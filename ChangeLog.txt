@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/26/2017
+  * removed splitrule check in reactivatePending
+
 * 9/15/2017
   * added task.diskIO
 

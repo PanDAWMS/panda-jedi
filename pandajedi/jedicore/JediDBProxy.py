@@ -7342,10 +7342,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # if parent is running
                     if tmpStat == 'running':
                         parentRunning = True
-                        if not JediTaskSpec.noWaitParentSL(splitRule):
-                            # keep pending 
-                            sql = sqlTK
-                            keepFlag = True
                 if not keepFlag:
                     # if timeout
                     if not parentRunning and timeoutDate != None and frozenTime != None and frozenTime < timeoutDate:
