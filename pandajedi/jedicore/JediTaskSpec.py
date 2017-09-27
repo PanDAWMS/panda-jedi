@@ -81,6 +81,7 @@ class JediTaskSpec(object):
         'reuseSecOnDemand'   : 'RO',
         'respectSplitRule'   : 'RR',
         'randomSeed'         : 'RS',
+        'resurrectConsumers' : 'SC',
         'switchEStoNormal'   : 'SE',
         'stayOutputOnSite'   : 'SO',
         'scoutSuccessRate'   : 'SS',
@@ -1395,3 +1396,13 @@ class JediTaskSpec(object):
     def resetRefinedAttrs(self):
         self.resetChangedAttr('splitRule')
         self.resetChangedAttr('eventService')
+
+
+
+    # resurrect consumers
+    def resurrectConsumers(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['resurrectConsumers']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False

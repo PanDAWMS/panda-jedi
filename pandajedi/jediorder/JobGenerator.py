@@ -1043,6 +1043,9 @@ class JobGeneratorThread (WorkerThread):
                     # merge ES on ObjectStore
                     if taskSpec.mergeEsOnOS():
                         specialHandling = EventServiceUtils.setHeaderForMergeAtOS(specialHandling)
+                    # resurrect consumers
+                    if taskSpec.resurrectConsumers():
+                        specialHandling = EventServiceUtils.setHeaderToResurrectConsumers(specialHandling)
                     # set specialHandling
                     if specialHandling != '':
                         jobSpec.specialHandling = specialHandling

@@ -293,6 +293,8 @@ class TaskRefinerBase (object):
                 self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['registerEsFiles'])
         if 'disableAutoFinish' in taskParamMap and taskParamMap['disableAutoFinish'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['disableAutoFinish'])
+        if 'resurrectConsumers' in taskParamMap and taskParamMap['resurrectConsumers'] == True:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['resurrectConsumers'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
