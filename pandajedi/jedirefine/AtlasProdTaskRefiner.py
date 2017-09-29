@@ -61,6 +61,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             if 'nEventsPerWorker' not in taskParamMap and \
                     (('esFraction' in taskParamMap and taskParamMap['esFraction'] > random.random()) or autoEsConversion):
                 taskParamMap['nEventsPerWorker'] = 1
+                taskParamMap['registerEsFiles'] = True
                 if 'nEsConsumers' not in taskParamMap:
                     tmpVal = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_NESCONSUMERS', 'jedi', 'atlas')
                     if tmpVal is None:
