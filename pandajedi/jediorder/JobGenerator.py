@@ -1073,6 +1073,9 @@ class JobGeneratorThread (WorkerThread):
                     # register event service files
                     if taskSpec.registerEsFiles():
                         jobSpec.setRegisterEsFiles()
+                    # use prefetcher
+                    if taskSpec.usePrefetcher():
+                        jobSpec.setUsePrefetcher()
                     # write input to file
                     if taskSpec.writeInputToFile():
                         jobSpec.setToWriteInputToFile()

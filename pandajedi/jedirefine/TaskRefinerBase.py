@@ -295,6 +295,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['disableAutoFinish'])
         if 'resurrectConsumers' in taskParamMap and taskParamMap['resurrectConsumers'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['resurrectConsumers'])
+        if 'usePrefetcher' in taskParamMap and taskParamMap['usePrefetcher'] == True:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['usePrefetcher'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:

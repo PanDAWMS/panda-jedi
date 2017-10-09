@@ -92,6 +92,7 @@ class JediTaskSpec(object):
         'useFileAsSourceLFN' : 'UF',
         'usePrePro'          : 'UP',
         'useScout'           : 'US',
+        'usePrefetcher'      : 'UT',
         'useExhausted'       : 'UX',
         'writeInputToFile'   : 'WF',
         'waitInput'          : 'WI',
@@ -1403,6 +1404,16 @@ class JediTaskSpec(object):
     def resurrectConsumers(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['resurrectConsumers']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # use prefetcher
+    def usePrefetcher(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['usePrefetcher']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False
