@@ -1,4 +1,5 @@
 from pandajedi.jedicore import Interaction
+from pandajedi.jedicore.InputChunk import InputChunk
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 # logger
@@ -54,6 +55,8 @@ class JobSplitter:
             maxOutSize = None
             # max size per job
             maxSizePerJob = taskSpec.getMaxSizePerJob()
+            if maxSizePerJob is not None:
+                maxSizePerJob += InputChunk.defaultOutputSize
             # dynamic number of events
             dynNumEvents = taskSpec.dynamicNumEvents()
             # max number of event ranges

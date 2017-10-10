@@ -8,7 +8,10 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 # class for input
 class InputChunk:
-    
+
+    # default output size 2G + 500MB (safety merging) 
+    defaultOutputSize = 2500 * 1024 * 1024
+
     def __str__(self):
         sb = []
         for key in self.__dict__:
@@ -385,8 +388,8 @@ class InputChunk:
         if maxSize == None and nFilesPerJob == None and nEventsPerJob == None:
             # 20 GB at most by default
             maxSize = 20 * 1024 * 1024 * 1024
-        # set default output size 2G + 500MB (safety merging)
-        minOutSize = 2500 * 1024 * 1024
+        # set default output size
+        minOutSize = self.defaultOutputSize 
         # set default max number of events
         maxNumEvents = None
         # ignore negative walltime gradient

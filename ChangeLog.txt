@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/10/2017
+  * adding the offset to nGBPerJob
+
 * 10/09/2017
   * added usePrefetcher
 
