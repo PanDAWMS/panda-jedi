@@ -219,7 +219,6 @@ class PostProcessorBase (object):
         # send task to exhausted
         if taskSpec.useExhausted() and not taskSpec.status in ['passed'] \
                 and self.getFinalTaskStatus(taskSpec) in ['finished'] \
-                and not self.getFinalTaskStatus(taskSpec,checkParent=False) in ['done'] \
                 and not self.getFinalTaskStatus(taskSpec,checkGoal=True):
             taskSpec.status = 'exhausted'
             taskSpec.lockedBy = None
