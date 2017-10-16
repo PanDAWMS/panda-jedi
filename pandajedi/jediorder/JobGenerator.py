@@ -1425,10 +1425,15 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.workQueue_ID     = taskSpec.workQueue_ID
             jobSpec.gshare           = taskSpec.gshare
             jobSpec.metadata         = ''
-            if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:
+            if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0] or siteSpec.sitename != siteSpec.get_unified_name():
                 jobSpec.coreCount = 1
             else:
                 jobSpec.coreCount = siteSpec.coreCount
+            try:
+                jobSpec.resource_type = self.taskBufferIF.get_resource_type_job(jobSpec)
+            except:
+                jobSpec.resource_type = 'Undefined'
+                tmpLog.error('set resource_type excepted with {0}'.format(traceback.format_exc()))
             # make libDS name
             if datasetSpec == None or datasetSpec.state == 'closed' or fileSpec == None:
                 # make new libDS

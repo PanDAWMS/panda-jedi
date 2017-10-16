@@ -7579,7 +7579,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':taskStatus'] = 'exhausted'
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(hours=timeLimit)
-            sqlTL  = "SELECT tabT.jediTaskID "
+            sqlTL  = "SELECT tabT.jediTaskID,tabT.splitRule "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlTL += "AND tabT.status=:taskStatus AND tabT.modificationTime<:timeLimit "
@@ -7600,11 +7600,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resTL = self.cur.fetchall()
             # loop over all tasks
             nTasks = 0
-            for jediTaskID, in resTL:
+            for jediTaskID, splitRule in resTL:
+                taskSpec = JediTaskSpec()
+                taskSpec.splitRule = splitRule
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 varMap[':oldStatus'] = 'exhausted'
-                varMap[':newStatus'] = 'finishing'
+                if taskSpec.disableAutoFinish():
+                    # to keep it exhausted since auto finish is disabled
+                    varMap[':newStatus'] = 'exhausted'
+                else:
+                    varMap[':newStatus'] = 'finishing'
                 self.cur.execute(sqlTO+comment,varMap)
                 nRow = self.cur.rowcount
                 tmpLog.debug('jediTaskID={0} to {1} with {2}'.format(jediTaskID,

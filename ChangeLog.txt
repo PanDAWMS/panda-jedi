@@ -2,6 +2,9 @@ Release Notes
 
 * 10/16/2017
   * unified PQ for analysis
+  * disable timeout for exhausted when auto finish is disabled
+  * setting resource_type for buildJob
+  * fixed AtlasAJB to unified PQ
 
 * 10/10/2017
   * adding the offset to nGBPerJob

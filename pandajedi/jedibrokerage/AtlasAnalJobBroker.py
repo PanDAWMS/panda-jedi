@@ -132,25 +132,24 @@ class AtlasAnalJobBroker (JobBrokerBase):
             return retTmpError
         ######################################
         # selection for MP
-        if not sitePreAssigned:
-            newScanSiteList = []
-            for tmpSiteName in scanSiteList:
-                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                # check at the site
-                if useMP == 'any' or (useMP == 'only' and tmpSiteSpec.coreCount > 1) or \
-                        (useMP =='unuse' and tmpSiteSpec.coreCount in [0,1,None]):
-                        newScanSiteList.append(tmpSiteName)
-                else:
-                    tmpLog.info('  skip site=%s due to core mismatch cores_site=%s <> cores_task=%s criteria=-cpucore' % \
-                                 (tmpSiteName,tmpSiteSpec.coreCount,taskSpec.coreCount))
-            scanSiteList = newScanSiteList        
-            tmpLog.info('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
-            if scanSiteList == []:
-                tmpLog.error('no candidates')
-                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                # send info to logger
-                self.sendLogMessage(tmpLog)
-                return retTmpError
+        newScanSiteList = []
+        for tmpSiteName in scanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            # check at the site
+            if useMP == 'any' or (useMP == 'only' and tmpSiteSpec.coreCount > 1) or \
+                    (useMP =='unuse' and tmpSiteSpec.coreCount in [0,1,None]):
+                newScanSiteList.append(tmpSiteName)
+            else:
+                tmpLog.info('  skip site=%s due to core mismatch cores_site=%s <> cores_task=%s criteria=-cpucore' % \
+                                (tmpSiteName,tmpSiteSpec.coreCount,taskSpec.coreCount))
+        scanSiteList = newScanSiteList        
+        tmpLog.info('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            # send info to logger
+            self.sendLogMessage(tmpLog)
+            return retTmpError
         ######################################
         # selection for release
         if taskSpec.transHome != None:
@@ -249,9 +248,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                                                          minRamCount))
                     continue
                 newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList        
-            tmpLog.info('{0} candidates passed memory check ={1}{2}'.format(len(scanSiteList),
-                                                                             minRamCount,taskSpec.ramUnit))
+            scanSiteList = newScanSiteList
+            ramUnit = taskSpec.ramUnit
+            if ramUnit is None:
+                ramUnit = 'MB'
+            tmpLog.info('{0} candidates passed memory check = {1} {2}'.format(len(scanSiteList),
+                                                                              minRamCount, ramUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -612,7 +614,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             self.sendLogMessage(tmpLog)
             return retTmpError
         # check for preassigned
-        if sitePreAssigned and not taskSpec.site in scanSiteList:
+        if sitePreAssigned and (taskSpec.site not in scanSiteList and taskSpec.site not in self.get_unified_sites(scanSiteList)):
             tmpLog.info("preassigned site {0} did not pass all tests".format(taskSpec.site))
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
