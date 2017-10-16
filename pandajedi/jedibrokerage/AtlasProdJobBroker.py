@@ -77,25 +77,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         tmpLog.bulkSendMsg('prod_brokerage')
         tmpLog.debug('sent')
 
-    # get list of unified sites
-    def get_unified_sites(self, scan_site_list):
-        unified_list = set()
-        for tmpSiteName in scan_site_list:
-            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            unifiedName = tmpSiteSpec.get_unified_name()
-            unified_list.add(unifiedName)
-        return tuple(unified_list)
-
-    # get list of pseudo sites
-    def get_pseudo_sites(self, unified_list, scan_site_list):
-        unified_list = set(unified_list)
-        pseudo_list = set()
-        for tmpSiteName in scan_site_list:
-            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            if tmpSiteSpec.get_unified_name() in unified_list:
-                pseudo_list.add(tmpSiteName)
-        return tuple(pseudo_list)
-        
+       
     def convertMBpsToWeight(self, mbps):
         """
         Takes MBps value and converts to a weight between 1 and 2
@@ -248,7 +230,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                # skip merged queues
+                # skip unified queues
                 if tmpSiteSpec.is_unified:
                     tmpLog.info('  skip site=%s due to is_unified=%s criteria=-unified' % (tmpSiteName,tmpSiteSpec.is_unified))
                     continue
@@ -983,8 +965,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         for datasetSpec in inputChunk.getDatasets():
             try:
                 # mapping between sites and input storage endpoints
-                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(scanSiteList,self.siteMapper,
-                                                                           ignore_cc=True)
+                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(self.get_unified_sites(scanSiteList),
+                                                                                self.siteMapper, ignore_cc=True)
                 # disable file lookup for merge jobs or secondary datasets
                 checkCompleteness = True
                 useCompleteOnly = False

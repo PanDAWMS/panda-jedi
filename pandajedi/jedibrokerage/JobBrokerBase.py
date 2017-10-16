@@ -62,5 +62,25 @@ class JobBrokerBase (object):
         self.testMode = True
 
 
+    # get list of unified sites
+    def get_unified_sites(self, scan_site_list):
+        unified_list = set()
+        for tmpSiteName in scan_site_list:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            unifiedName = tmpSiteSpec.get_unified_name()
+            unified_list.add(unifiedName)
+        return tuple(unified_list)
+
+
+    # get list of pseudo sites
+    def get_pseudo_sites(self, unified_list, scan_site_list):
+        unified_list = set(unified_list)
+        pseudo_list = set()
+        for tmpSiteName in scan_site_list:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            if tmpSiteSpec.get_unified_name() in unified_list:
+                pseudo_list.add(tmpSiteName)
+        return tuple(pseudo_list)
+
 
 Interaction.installSC(JobBrokerBase)

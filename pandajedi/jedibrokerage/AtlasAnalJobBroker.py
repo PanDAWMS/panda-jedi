@@ -105,6 +105,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            # skip unified queues
+            if tmpSiteSpec.is_unified:
+                tmpLog.info('  skip site=%s due to is_unified=%s criteria=-unified' % (tmpSiteName,tmpSiteSpec.is_unified))
+                continue
             # check site status
             skipFlag = False
             if tmpSiteSpec.status in ['offline']:
@@ -150,19 +154,20 @@ class AtlasAnalJobBroker (JobBrokerBase):
         ######################################
         # selection for release
         if taskSpec.transHome != None:
+            unified_site_list = self.get_unified_sites(scanSiteList)
             if taskSpec.transHome.startswith('ROOT'):
                 # hack until x86_64-slc6-gcc47-opt is published in installedsw
                 if taskSpec.architecture == 'x86_64-slc6-gcc47-opt':
                     tmpCmtConfig = 'x86_64-slc6-gcc46-opt'
                 else:
                     tmpCmtConfig = taskSpec.architecture
-                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                          cmtConfig=tmpCmtConfig,
                                                                          onlyCmtConfig=True)
             elif 'AthAnalysis' in taskSpec.transHome or re.search('Ath[a-zA-Z]+Base',taskSpec.transHome) != None \
                     or 'AnalysisBase' in taskSpec.transHome:
                 # AthAnalysis
-                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                          cmtConfig=taskSpec.architecture,
                                                                          onlyCmtConfig=True)
             else:    
@@ -173,7 +178,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         re.search('\d{4}-\d{2}-\d{2}T\d{4}$',taskSpec.transHome) == None and \
                         re.search('_\d+\.\d+\.\d+$',taskSpec.transHome) is None:
                     # cache is checked 
-                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                              caches=transHome,
                                                                              cmtConfig=taskSpec.architecture)
                 elif (transHome == '' and taskSpec.transUses != None) or \
@@ -182,18 +187,18 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     # remove Atlas-
                     transUses = taskSpec.transUses.split('-')[-1]
                     # release is checked 
-                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                              releases=transUses,
                                                                              cmtConfig=taskSpec.architecture)
-                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                               caches=transHome,
                                                                               cmtConfig=taskSpec.architecture)
                 else:
                     # nightlies
-                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(scanSiteList,
+                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                              releases='CVMFS')
             newScanSiteList = []
-            for tmpSiteName in scanSiteList:
+            for tmpSiteName in unified_site_list:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # release check is disabled or release is available
                 if tmpSiteSpec.releases == ['ANY']:
@@ -204,7 +209,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     # release is unavailable
                     tmpLog.info('  skip site=%s due to missing rel/cache %s:%s:%s criteria=-cache' % \
                                  (tmpSiteName,taskSpec.transUses,taskSpec.transHome,taskSpec.architecture))
-            scanSiteList = newScanSiteList        
+            scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed for SW {1}:{2}:{3}'.format(len(scanSiteList),
                                                                            taskSpec.transUses,
                                                                            taskSpec.transHome,
@@ -274,7 +279,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         tmpLog.info('minDiskCountScratch={0} minDiskCountRemote={1}'.format(minDiskCountS,
                                                                              minDiskCountR))
         newScanSiteList = []
-        for tmpSiteName in scanSiteList:
+        for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check at the site
             if tmpSiteSpec.maxwdir != 0:
@@ -288,7 +293,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                                          minDiskCount))
                     continue
             newScanSiteList.append(tmpSiteName)
-        scanSiteList = newScanSiteList
+        scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed scratch disk check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
@@ -299,7 +304,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         ######################################
         # selection for available space in SE
         newScanSiteList = []
-        for tmpSiteName in scanSiteList:
+        for tmpSiteName in self.get_unified_sites(scanSiteList):
             # check endpoint
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             tmpEndPoint = tmpSiteSpec.ddm_endpoints_output.getEndPoint(tmpSiteSpec.ddm_output)
@@ -320,7 +325,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output))
                     continue
             newScanSiteList.append(tmpSiteName)
-        scanSiteList = newScanSiteList
+        scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed SE space check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
@@ -360,7 +365,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         # selection for nPilot
         nWNmap = self.taskBufferIF.getCurrentSiteData()
         newScanSiteList = []
-        for tmpSiteName in scanSiteList:
+        for tmpSiteName in self.get_unified_sites(scanSiteList):
             # check at the site
             nPilot = 0
             if nWNmap.has_key(tmpSiteName):
@@ -370,7 +375,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if not self.testMode:
                     continue
             newScanSiteList.append(tmpSiteName)
-        scanSiteList = newScanSiteList        
+        scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
@@ -382,7 +387,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         # check inclusion and exclusion
         newScanSiteList = []
         sitesForANY = []
-        for tmpSiteName in scanSiteList:
+        for tmpSiteName in self.get_unified_sites(scanSiteList):
             autoSite = False
             # check exclusion
             if AtlasBrokerUtils.isMatched(tmpSiteName,excludeList):
@@ -416,7 +421,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         else:
             for tmpSiteName in sitesForANY:
                 tmpLog.info('  skip site={0} not included criteria=-notincluded'.format(tmpSiteName))
-        scanSiteList = newScanSiteList        
+        scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed inclusion/exclusion/cloud'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
@@ -431,12 +436,13 @@ class AtlasAnalJobBroker (JobBrokerBase):
         remoteSourceList = {}
         if inputChunk.getDatasets() != []:
             oldScanSiteList = copy.copy(scanSiteList)
+            oldScanUnifiedSiteList = self.get_unified_sites(oldScanSiteList)
             for datasetSpec in inputChunk.getDatasets():
                 datasetName = datasetSpec.datasetName
                 if not self.dataSiteMap.has_key(datasetName):
                     # get the list of sites where data is available
                     tmpLog.debug('getting the list of sites where {0} is available'.format(datasetName))
-                    tmpSt,tmpRet = AtlasBrokerUtils.getAnalSitesWithData(scanSiteList,
+                    tmpSt,tmpRet = AtlasBrokerUtils.getAnalSitesWithData(self.get_unified_sites(scanSiteList),
                                                                          self.siteMapper,
                                                                          self.ddmIF,datasetName)
                     if tmpSt in [Interaction.JEDITemporaryError,Interaction.JEDITimeoutError]: 
@@ -497,7 +503,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     # disable remote access for merging
                     tmpSatelliteSites = {}
                 elif (not sitePreAssigned) or (sitePreAssigned and not taskSpec.site in tmpSiteList):
-                    tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpDiskSiteList,self.taskBufferIF,
+                    tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpDiskSiteList,
+                                                                           self.taskBufferIF,
                                                                            self.siteMapper,nSites=50,
                                                                            protocol=allowedRemoteProtocol)
                 else:
@@ -534,13 +541,13 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if scanSiteList == None:
                     scanSiteList = []
                     for tmpSiteName in tmpSiteList + tmpSatelliteSites.keys():
-                        if not tmpSiteName in oldScanSiteList:
+                        if not tmpSiteName in oldScanUnifiedSiteList:
                             continue
                         if not tmpSiteName in scanSiteList:
                             scanSiteList.append(tmpSiteName)
                     scanSiteListOnDisk = set()
                     for tmpSiteName in tmpDiskSiteList + tmpSatelliteSites.keys():
-                        if not tmpSiteName in oldScanSiteList:
+                        if not tmpSiteName in oldScanUnifiedSiteList:
                             continue
                         scanSiteListOnDisk.add(tmpSiteName)
                     continue
@@ -565,6 +572,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             elif len(scanSiteListOnDisk) > 0:
                 # use only disk sites
                 scanSiteList = list(scanSiteListOnDisk)
+            scanSiteList = self.get_pseudo_sites(scanSiteList, oldScanSiteList)
             # dump
             for tmpSiteName in oldScanSiteList:
                 if tmpSiteName not in scanSiteList:
@@ -585,6 +593,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             # send info to logger
             self.sendLogMessage(tmpLog)
             return retTmpError
+        sitesUsedByTask = self.get_unified_sites(sitesUsedByTask)
         ######################################
         # calculate weight
         """
@@ -619,7 +628,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
         preSiteCandidateSpec = None
         failureCounts = self.taskBufferIF.getFailureCountsForTask_JEDI(taskSpec.jediTaskID,timeWindowForFC)
         problematicSites = set()
-        for tmpSiteName in scanSiteList:
+        for tmpPseudoSiteName in scanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+            tmpSiteName = tmpSiteSpec.get_unified_name()
             # get number of jobs in each job status. Using workQueueID=None to include non-JEDI jobs
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',  None,None)
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',  None,None)
@@ -651,13 +662,13 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 weight = weight * dataWeight[tmpSiteName]
                 tmpDataWeight = dataWeight[tmpSiteName]
             # make candidate
-            siteCandidateSpec = SiteCandidate(tmpSiteName)
+            siteCandidateSpec = SiteCandidate(tmpPseudoSiteName)
             # preassigned
             if sitePreAssigned and tmpSiteName == taskSpec.site:
                 preSiteCandidateSpec = siteCandidateSpec
             # set weight
             siteCandidateSpec.weight = weight
-            tmpStr  = '  site={0} nRun={1} nDef={2} nAct={3} nStart={4} '.format(tmpSiteName,
+            tmpStr  = '  site={0} nRun={1} nDef={2} nAct={3} nStart={4} '.format(tmpPseudoSiteName,
                                                                                  nRunning,        
                                                                                  nAssigned,       
                                                                                  nActivated,      
@@ -708,7 +719,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
             try:
                 # get list of site to be scanned
                 fileScanSiteList = []
-                for tmpSiteName in scanSiteList:
+                for tmpPseudoSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+                    tmpSiteName = tmpSiteSpec.get_unified_name()
+                    if tmpSiteName in fileScanSiteList:
+                        continue
                     fileScanSiteList.append(tmpSiteName)
                     if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(datasetSpec.datasetName):
                         for tmpRemoteSite in remoteSourceList[tmpSiteName][datasetSpec.datasetName]:
@@ -742,10 +757,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
         # append candidates
         newScanSiteList = []
         for siteCandidateSpec in candidateSpecList:
-            tmpSiteName = siteCandidateSpec.siteName
+            tmpPseudoSiteName = siteCandidateSpec.siteName
+            tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+            tmpSiteName = tmpSiteSpec.get_unified_name()
             # preassigned
             if sitePreAssigned and tmpSiteName != taskSpec.site:
-                tmpLog.info('  skip site={0} non pre-assigned site criteria=-nonpreassigned'.format(tmpSiteName))
+                tmpLog.info('  skip site={0} non pre-assigned site criteria=-nonpreassigned'.format(tmpPseudoSiteName))
                 continue
             # set available files
             if inputChunk.getDatasets() == []: 
@@ -783,7 +800,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     else:
                         tmpMsg = '{0} is incomplete at {1} : nFiles={2} nLocal={3} nCached={4} nTape={5}'
                         tmpLog.debug(tmpMsg.format(tmpDatasetName,
-                                                   tmpSiteName,
+                                                   tmpPseudoSiteName,
                                                    len(tmpDatasetSpec.Files),
                                                    len(availableFiles[tmpSiteName]['localdisk']),
                                                    len(availableFiles[tmpSiteName]['cache']),

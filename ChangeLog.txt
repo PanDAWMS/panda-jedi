@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/16/2017
+  * unified PQ for analysis
+
 * 10/10/2017
   * adding the offset to nGBPerJob
 
