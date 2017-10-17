@@ -882,7 +882,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.minRamCount, jobSpec.minRamUnit = JediCoreUtils.getJobMinRamCount(taskSpec, inputChunk, siteSpec, jobSpec.coreCount)
                     # calculate the hs06 occupied by the job
                     if siteSpec.corepower:
-                        jobSpec.hs06 = (siteSpec.coreCount or 1) * siteSpec.corepower # default 0 and None corecount to 1
+                        jobSpec.hs06 = (jobSpec.coreCount or 1) * siteSpec.corepower # default 0 and None corecount to 1
                     jobSpec.ipConnectivity   = 'yes'
                     jobSpec.metadata         = ''
                     if inputChunk.isMerging:
@@ -1434,6 +1434,9 @@ class JobGeneratorThread (WorkerThread):
             except:
                 jobSpec.resource_type = 'Undefined'
                 tmpLog.error('set resource_type excepted with {0}'.format(traceback.format_exc()))
+            # calculate the hs06 occupied by the job
+            if siteSpec.corepower:
+                jobSpec.hs06 = (jobSpec.coreCount or 1) * siteSpec.corepower # default 0 and None corecount to 1
             # make libDS name
             if datasetSpec == None or datasetSpec.state == 'closed' or fileSpec == None:
                 # make new libDS
