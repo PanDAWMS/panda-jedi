@@ -874,6 +874,8 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.maxDiskUnit      = 'MB'
                     if inputChunk.isMerging and taskSpec.mergeCoreCount != None:
                         jobSpec.coreCount    = taskSpec.mergeCoreCount
+                    elif inputChunk.isMerging and siteSpec.sitename != siteSpec.get_unified_name():
+                        jobSpec.coreCount = 1
                     else:
                         if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:
                             jobSpec.coreCount = 1
