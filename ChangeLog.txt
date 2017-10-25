@@ -2,6 +2,8 @@ Release Notes
 
 * 10/25/2017
   * fixed AtlasTS to resurrect ES datasets when tasks are retried
+  * getSURLsFromLFC to also check for gsiftp copies
+  * change regex to accept se's not ending with /
 
 * 10/16/2017
   * unified PQ for analysis

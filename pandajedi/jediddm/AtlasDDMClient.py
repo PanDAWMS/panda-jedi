@@ -405,7 +405,7 @@ class AtlasDDMClient(DDMClientBase):
                     if tmpStat != self.SC_SUCCEEDED:
                         tmpLog.error('faild to get SE from for {0} with {1}'.format(tmpEndPoint,seStr))
                         return tmpStat,seStr
-                    tmpMatch = re.search('://([^:/]+):*\d*/',seStr)
+                    tmpMatch = re.search('://([^:/]+):*\d*',seStr)
                     if tmpMatch != None:
                         se = tmpEndPoint
                         if not se in tmpLfcSeMap[lfc]:
@@ -593,7 +593,7 @@ class AtlasDDMClient(DDMClientBase):
                 scope = scopes[lfn]
                 dids.append({'scope':scope,'name':lfn})
                 if len(dids) % nGUID == 0 or iGUID == len(files):
-                    for tmpDict in client.list_replicas(dids,['srm']):
+                    for tmpDict in client.list_replicas(dids,['srm','gsiftp']):
                         tmpLFN = str(tmpDict['name'])
                         surls = []
                         for tmpRSE,tmpSURLs in tmpDict['rses'].iteritems():
@@ -1236,7 +1236,7 @@ class AtlasDDMClient(DDMClientBase):
                 if tmpStat != self.SC_SUCCEEDED:
                     tmpLog.error('faild to get SE for {0} with {0}'.format(tmpEndPoint,seStr))
                     return tmpStat,seStr
-                tmpMatch = re.search('://([^:/]+):*\d*/',seStr)
+                tmpMatch = re.search('://([^:/]+):*\d*',seStr)
                 if tmpMatch != None:
                     se = tmpEndPoint
                     if not se in lfcSeMap[lfc]:
