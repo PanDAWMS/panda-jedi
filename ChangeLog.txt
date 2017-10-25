@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/25/2017
+  * fixed AtlasTS to resurrect ES datasets when tasks are retried
+
 * 10/16/2017
   * unified PQ for analysis
   * disable timeout for exhausted when auto finish is disabled
