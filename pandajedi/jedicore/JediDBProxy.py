@@ -5350,6 +5350,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         resCore = self.cur.fetchone()
                         if resCore != None:
                             corePower, = resCore
+                        else:
+                            corePower = None
                         corePowerMap[computingSite] = corePower
                     corePower = corePowerMap[computingSite]
                     if corePower in [0,None]:
