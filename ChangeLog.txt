@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/6/2017
+  * sending analysis tasks with short scouts to exhausted
+
 * 10/25/2017
   * fixed AtlasTS to resurrect ES datasets when tasks are retried
   * getSURLsFromLFC to also check for gsiftp copies

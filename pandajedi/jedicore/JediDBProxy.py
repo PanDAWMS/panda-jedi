@@ -5141,9 +5141,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             cpuTimeRank = 95
         # sql to get preset values
         if not mergeScout:
-            sqlGPV  = "SELECT outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
+            sqlGPV  = "SELECT "
+            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
         else:
-            sqlGPV  = "SELECT outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
+            sqlGPV  = "SELECT "
+            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data from JEDI
@@ -5195,6 +5197,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # get core power
         sqlCore  = "SELECT corepower FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
         sqlCore += "WHERE siteID=:site "
+        # get nJobs
+        sqlNumJobs = "SELECT SUM(nFiles),SUM(nFilesFinished) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+        sqlNumJobs += "WHERE jediTaskID=:jediTaskID AND type IN ("
+        for tmpType in JediDatasetSpec.getInputTypes():
+            mapKey = ':type_'+tmpType
+            sqlNumJobs += '{0},'.format(mapKey)
+        sqlNumJobs = sqlNumJobs[:-1]
+        sqlNumJobs += ") AND masterID IS NULL "
         if useTransaction:
             # begin transaction
             self.conn.begin()
@@ -5205,7 +5215,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.cur.execute(sqlGPV+comment,varMap)
         resGPV = self.cur.fetchone()
         if resGPV != None:
-            preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,\
+            prodSourceLabel,preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,\
                 preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime \
                 = resGPV
             # get preOutDiskCount in kB
@@ -5220,6 +5230,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         preOutDiskCount = preOutDiskCount / 1024
         else:
+            prodSourceLabel = None
             preOutDiskCount = 0
             preOutDiskUnit = None
             preWalltime = 0
@@ -5243,6 +5254,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preBaseRamCount = 0
         extraInfo['oldCpuTime'] = preCpuTime
         extraInfo['oldRamCount'] = preRamCount
+        # get limit for short jobs
+        shortExecTime = self.getConfigValue('dbproxy','SCOUT_SHORT_EXECTIME_{0}'.format(prodSourceLabel), 'jedi')
+        if shortExecTime is None:
+            shortExecTime = 0
+        extraInfo['shortExecTime'] = shortExecTime
         # get the size of lib 
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
@@ -5300,7 +5316,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         jMetricsMap  = {}
         execTimeMap  = {}
         diskIoList   = []
+        pandaIDList  = set()
         for pandaID,fsize,startEvent,endEvent,nEvents in resList:
+            pandaIDList.add(pandaID)
             if not inFSizeMap.has_key(pandaID):
                 inFSizeMap[pandaID] = 0
             # get effective file size
@@ -5310,6 +5328,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not pandaID in inEventsMap:
                 inEventsMap[pandaID] = 0
             inEventsMap[pandaID] += JediCoreUtils.getEffectiveNumEvents(startEvent,endEvent,nEvents)
+        # get nFiles
+        totalJobs = 0
+        totFiles = 0
+        totFinished = 0
+        if not mergeScout:
+            varMap = dict()
+            varMap[':jediTaskID'] = jediTaskID
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                varMap[mapKey] = tmpType
+            self.cur.execute(sqlNumJobs+comment,varMap)
+            resNumJobs = self.cur.fetchone()
+            if resNumJobs is not None:
+                totFiles, totFinished = resNumJobs
+                if totFinished > 0:
+                    totalJobs = int(totFiles * len(pandaIDList) / totFinished)
+        extraInfo['expectedNumJobs'] = totalJobs
+        extraInfo['numFinishedJobs'] = len(pandaIDList)
+        extraInfo['nFiles'] = totFiles
+        extraInfo['nFilesFinished'] = totFinished
         # loop over all jobs
         loopPandaIDs = inFSizeMap.keys()
         for loopPandaID in loopPandaIDs:
@@ -5551,6 +5589,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # use preset value if larger
             if preWorkDiskCount != None and preWorkDiskCount > returnMap['workDiskCount']:
                 returnMap['workDiskCount'] = preWorkDiskCount
+        nShortJobs = 0
+        for tmpExecTime in execTimeMap.values():
+            if tmpExecTime <= datetime.timedelta(minutes=shortExecTime):
+                nShortJobs += 1
+        extraInfo['nShortJobs'] = nShortJobs
         # tag jobs
         if flagJob:
             for tmpPandaID,tmpTags in jobTagMap.iteritems():
@@ -5653,6 +5696,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                    ramThr)
                     errMsg += 'while task_ramCount {0} MB is less than {1} MB'.format(extraInfo['oldRamCount'],
                                                                                       ramThr)
+                    tmpLog.debug(errMsg)
+                    taskSpec.setErrDiag(errMsg)
+                    taskSpec.status = 'exhausted'
+        # short job check 
+        if scoutSucceeded:
+            # check execution time
+            if taskSpec.status != 'exhausted':
+                # get exectime threshold for exausted
+                maxShortJobs = self.getConfigValue('dbproxy','SCOUT_NUM_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
+                shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
+                if maxShortJobs is not None and 'nShortJobs' in extraInfo and extraInfo['nShortJobs'] >= maxShortJobs and \
+                        shortJobCutoff is not None and 'expectedNumJobs' in extraInfo and extraInfo['expectedNumJobs'] > shortJobCutoff:
+                    errMsg = 'exhausted since many shorter jobs ({0}>={1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
+                                                                                                                                                           shortJobThr,
+                                                                                                                                                           extraInfo['shortExecTime'],
+                                                                                                                                                           extraInfo['expectedNumJobs'],
+                                                                                                                                                           shortJobCutoff)
                     tmpLog.debug(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
