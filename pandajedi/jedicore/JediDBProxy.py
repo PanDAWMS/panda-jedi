@@ -5709,7 +5709,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if maxShortJobs is not None and 'nShortJobs' in extraInfo and extraInfo['nShortJobs'] >= maxShortJobs and \
                         shortJobCutoff is not None and 'expectedNumJobs' in extraInfo and extraInfo['expectedNumJobs'] > shortJobCutoff:
                     errMsg = 'exhausted since many shorter jobs ({0}>={1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
-                                                                                                                                                           shortJobThr,
+                                                                                                                                                           maxShortJobs,
                                                                                                                                                            extraInfo['shortExecTime'],
                                                                                                                                                            extraInfo['expectedNumJobs'],
                                                                                                                                                            shortJobCutoff)
