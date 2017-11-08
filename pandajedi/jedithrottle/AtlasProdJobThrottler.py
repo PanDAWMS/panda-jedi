@@ -213,7 +213,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         # check if unthrottled
         if not workQueue.throttled:
             msgBody = "PASS unthrottled since GS_throttled is False"
-            tmpLog.debug(msgHeader+" "+msgBody)
+            tmpLog.info(msgHeader+" "+msgBody)
             return self.retUnThrottled
 
         # get the jobs statistics for our wq/gs and expand the stats map
@@ -365,5 +365,5 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 self.setMaxNumJobs(max(self.maxNumJobs, nQueueLimit/20))
 
         msgBody = "PASS - priority limit={0} maxNumJobs={1}".format(limitPriorityValue, self.maxNumJobs)
-        tmpLog.debug(msgHeader+" "+msgBody)
+        tmpLog.info(msgHeader+" "+msgBody)
         return self.retUnThrottled
