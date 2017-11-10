@@ -5441,7 +5441,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # CPU time
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
-                            tmpVal = JobUtils.getHS06sec(startTime,endTime,preBaseWalltime,preCpuEfficiency,corePower,coreCount)
+                            tmpVal = JobUtils.getHS06sec(startTime,endTime,corePower,coreCount,
+                                                         baseWalltime=preBaseWalltime, cpuEfficiency=preCpuEfficiency)
                             if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
                                 tmpVal /= float(inEventsMap[pandaID])
                             if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10 or \
