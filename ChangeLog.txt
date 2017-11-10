@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/10/2017
+  * Changed call to getHS06sec to new mode
+
 * 11/6/2017
   * sending analysis tasks with short scouts to exhausted
 
