@@ -117,6 +117,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                 (taskSpec.status == 'paused' and taskSpec.oldStatus in ['done','finished']):
             trnLifeTime = 14*24*60*60
             trnLifeTimeLong = 28*24*60*60
+            trnLifeTimeMerge = 60*24*60*60
             ddmIF = self.ddmIF.getInterface(taskSpec.vo)
             # set lifetime to transient datasets
             metaData = {'lifetime':trnLifeTime}
@@ -138,7 +139,9 @@ class AtlasProdPostProcessor (PostProcessorBase):
                     elif datasetSpec.type == 'output':
                         datasetTypeListO.add(datasetType)
             # set lifetime to parent transient datasets
-            if taskSpec.processingType in ['merge']:
+            if taskSpec.processingType in ['merge'] and \
+                    (taskSpec.status == 'done' or \
+                         (taskSpec.status == 'paused' and taskSpec.oldStatus == 'done')):
                 # get parent task
                 if not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
                     # get parent
@@ -151,12 +154,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                                 datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
                                 if not datasetType in datasetTypeListI or not datasetType in datasetTypeListO:
                                     continue
-                                # use longer lifetime for finished AOD merge with success rate < 90%
-                                if taskSpec.status == 'finished' and datasetType == 'AOD' \
-                                        and self.getTaskCompleteness(taskSpec)[-1] < 900:
-                                    metaData = {'lifetime':trnLifeTimeLong}
-                                else:
-                                    metaData = {'lifetime':trnLifeTime}
+                                metaData = {'lifetime': trnLifeTimeMerge}
                                 tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
                                 if tmpMetadata['transient'] == True:
                                     tmpLog.debug('set metadata={0} to parent jediTaskID={1}:datasetID={2}:Name={3}'.format(str(metaData),
