@@ -1391,6 +1391,7 @@ class JobGeneratorThread (WorkerThread):
             if fileSpec != None:
                 pandaFileSpec = fileSpec.convertToJobFileSpec(datasetSpec,setType='input')
                 pandaFileSpec.dispatchDBlock = pandaFileSpec.dataset
+                pandaFileSpec.prodDBlockToken = 'local'
                 if fileSpec.status == 'finished':
                     pandaFileSpec.status = 'ready'
                 # make dummy jobSpec
