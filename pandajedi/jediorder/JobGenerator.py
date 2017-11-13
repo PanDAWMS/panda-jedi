@@ -1516,6 +1516,7 @@ class JobGeneratorThread (WorkerThread):
             runFileSpec.dispatchDBlock = fileSpec.dataset
             runFileSpec.destinationDBlock = None
             runFileSpec.type = 'input'
+            runFileSpec.prodDBlockToken = 'local'
             # return
             return Interaction.SC_SUCCEEDED,jobSpec,runFileSpec,datasetToRegister
         except:

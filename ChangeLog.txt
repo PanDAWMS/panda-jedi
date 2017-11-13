@@ -1,6 +1,7 @@
 Release Notes
 
 * 11/13/2017
+  * setting prodDBlockToken=local to lib.tgz
   * using 60d of lifetime for merged parent datasets
 
 * 11/10/2017
