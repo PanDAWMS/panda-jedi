@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/14/2017
+  * fixed double counting of input files in AtlasPJB
+
 * 11/13/2017
   * setting prodDBlockToken=local to lib.tgz
   * using 60d of lifetime for merged parent datasets

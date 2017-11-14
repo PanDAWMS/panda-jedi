@@ -1002,9 +1002,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                     availableFiles = availableFileMap[datasetSpec.datasetName][tmpSiteName]
                     for tmpFileSpec in \
                             availableFiles['localdisk']+availableFiles['cache']:
-                        if not tmpFileSpec.fileID in siteFilesMap[tmpSiteName]:
+                        if not tmpFileSpec.lfn in siteFilesMap[tmpSiteName]:
                             siteSizeMap[tmpSiteName] += tmpFileSpec.fsize
-                        siteFilesMap[tmpSiteName].add(tmpFileSpec.fileID)
+                        siteFilesMap[tmpSiteName].add(tmpFileSpec.lfn)
         # get max total size
         tmpTotalSizes = siteSizeMap.values()
         tmpTotalSizes.sort()
