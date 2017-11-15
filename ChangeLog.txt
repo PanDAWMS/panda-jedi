@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/15/2017
+  * added noInputPooling
+
 * 11/14/2017
   * fixed double counting of input files in AtlasPJB
 

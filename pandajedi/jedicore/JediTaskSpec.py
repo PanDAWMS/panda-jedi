@@ -69,6 +69,7 @@ class JediTaskSpec(object):
         'nEventsPerJob'      : 'NE',
         'nFilesPerJob'       : 'NF',
         'nGBPerJob'          : 'NG',
+        'noInputPooling'     : 'NI',
         'nJumboJobs'         : 'NJ',
         'nSitesPerJob'       : 'NS',
         'noWaitParent'       : 'NW',
@@ -1414,6 +1415,16 @@ class JediTaskSpec(object):
     def usePrefetcher(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['usePrefetcher']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # no input pooling
+    def noInputPooling(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['noInputPooling']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False
