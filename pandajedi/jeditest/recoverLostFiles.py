@@ -143,4 +143,4 @@ line = sys.argv[1]
 datasetName,lostFiles = line.split(':')
 lostFiles = set(lostFiles.split(','))
 
-#resetStatusForLostFileRecovery(datasetName,lostFiles)
+resetStatusForLostFileRecovery(datasetName,lostFiles)
