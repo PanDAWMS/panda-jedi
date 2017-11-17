@@ -93,7 +93,6 @@ def resetStatusForLostFileRecovery(datasetName,lostFiles):
         varMap[':PandaID'] = lostPandaID
         varMap[':type1'] = 'input'
         varMap[':type2'] = 'pseudo_input'
-        print sqlAI+str(varMap)
         res = taskBufferIF.querySQLS(sqlAI,varMap)
         for fileID,datasetID,lfn,outPandaID in res[1]:
             # skip if dataset was already deleted
