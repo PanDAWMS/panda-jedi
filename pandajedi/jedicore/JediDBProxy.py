@@ -917,18 +917,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 tmpDatasetSpec.addFile(tmpFileSpec)
                             tmpInputChunk = InputChunk(taskSpec)
                             tmpInputChunk.addMasterDS(tmpDatasetSpec)
+                            maxSizePerJob = taskSpec.getMaxSizePerJob()
+                            if maxSizePerJob is not None:
+                                maxSizePerJob += InputChunk.defaultOutputSize
                             # make sub chunks
                             for i in range(nChunks):
                                 tmpInputChunk.getSubChunk(None,nFilesPerJob=taskSpec.getNumFilesPerJob(),
                                                           sizeGradients=taskSpec.getOutDiskSize(),
                                                           sizeIntercepts=taskSpec.getWorkDiskSize(),
-                                                          maxSize=taskSpec.getMaxSizePerJob(),
+                                                          maxSize=maxSizePerJob,
                                                           nEventsPerJob=taskSpec.getNumEventsPerJob(),
                                                           respectLB=taskSpec.respectLumiblock())
                                 enoughPendingWithSL = tmpInputChunk.checkUnused()
                                 if not enoughPendingWithSL:
                                     break
                             numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                            tmpLog.debug('respecting SL nFiles={0} isEnough={1} nFilesPerJob={2} maxSize={3}'.format(numFilesWithSL, enoughPendingWithSL,
+                                                                                                                     taskSpec.getNumFilesPerJob(),
+                                                                                                                     maxSizePerJob))
                         # activate pending
                         tmpLog.debug('activate pending')
                         toActivateFID = []

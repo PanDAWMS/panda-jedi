@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/17/2017
+  * using NG as tot size of input when pooing input files in child tasks
+
 * 11/15/2017
   * added noInputPooling
 
