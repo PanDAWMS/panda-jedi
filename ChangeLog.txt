@@ -1,5 +1,9 @@
 Release Notes
 
+* 11/27/2017
+  * using resurrectConsumers for ES tasks by default
+  * changed InputChunk to ignore input size for directIO sites
+
 * 11/17/2017
   * using NG as tot size of input when pooing input files in child tasks
 

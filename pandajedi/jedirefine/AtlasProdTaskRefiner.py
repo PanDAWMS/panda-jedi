@@ -76,6 +76,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                 if 'maxAttemptES' not in taskParamMap:
                     taskParamMap['maxAttemptES'] = 10
                 taskParamMap['coreCount'] = 0
+                taskParamMap['resurrectConsumers'] = True
         TaskRefinerBase.extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule)
 
 

@@ -114,7 +114,8 @@ class JobSplitter:
                                                                                                        maxOutSize,
                                                                                                        respectLB,
                                                                                                        dynNumEvents))
-        tmpLog.debug('multiplicity={0} splitByFields={1}'.format(multiplicity,str(splitByFields)))
+        tmpLog.debug('multiplicity={0} splitByFields={1} nFiles={2}'.format(multiplicity,str(splitByFields),
+                                                                            inputChunk.getNumFilesInMaster()))
         # split
         returnList = []
         subChunks  = []
@@ -165,12 +166,17 @@ class JobSplitter:
                     maxNumEventRanges = int(siteSpec.get_n_sim_events() / taskSpec.get_min_granularity())
                     if maxNumEventRanges == 0:
                         maxNumEventRanges = 1
+                # directIO
+                if taskSpec.useLocalIO() or not siteSpec.isDirectIO() or inputChunk.isMerging:
+                    useDirectIO = False
+                else:
+                    useDirectIO = True
                 tmpLog.debug('chosen {0}'.format(siteName))
                 tmpLog.debug('new weight {0}'.format(siteCandidate.weight))
                 tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2} corePower={3} maxNumEventRanges={4}'.format(maxSize,maxWalltime,
                                                                                                                     coreCount,corePower,
                                                                                                                     maxNumEventRanges))
-
+                tmpLog.debug('useDirectIO={0}'.format(useDirectIO))
             # get sub chunk
             subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
                                               maxNumFiles=maxNumFiles,
@@ -190,7 +196,8 @@ class JobSplitter:
                                               maxNumEventRanges=maxNumEventRanges,
                                               multiplicity=multiplicity,
                                               splitByFields=splitByFields,
-                                              tmpLog=tmpLog)
+                                              tmpLog=tmpLog,
+                                              useDirectIO=useDirectIO)
             if subChunk == None:
                 break
             if subChunk != []:
