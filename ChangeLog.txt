@@ -1,6 +1,7 @@
 Release Notes
 
 * 11/29/2017
+  * setting allowAccessLAN to analysis tasks
   * changed InputChunk not to ignore input size for directIO sites if NG is used
 
 * 11/27/2017

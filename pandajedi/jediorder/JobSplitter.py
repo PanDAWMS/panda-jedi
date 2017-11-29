@@ -147,9 +147,15 @@ class JobSplitter:
                     break
                 siteName = siteCandidate.siteName
                 siteSpec = siteMapper.getSite(siteName)
+                # directIO
+                if taskSpec.useLocalIO() or not siteSpec.isDirectIO() or taskSpec.allowInputLAN() is None \
+                        or inputChunk.isMerging or maxSizePerJob is not None:
+                    useDirectIO = False
+                else:
+                    useDirectIO = True
                 # get maxSize if it is set in taskSpec
                 maxSize = maxSizePerJob
-                if maxSize == None or maxSize > (siteSpec.maxwdir * 1024 * 1024):
+                if maxSize == None or maxSize > (siteSpec.maxwdir * 1024 * 1024) or not useDirectIO:
                     # use maxwdir as the default maxSize
                     maxSize = siteSpec.maxwdir * 1024 * 1024
                 # max walltime      
@@ -166,11 +172,6 @@ class JobSplitter:
                     maxNumEventRanges = int(siteSpec.get_n_sim_events() / taskSpec.get_min_granularity())
                     if maxNumEventRanges == 0:
                         maxNumEventRanges = 1
-                # directIO
-                if taskSpec.useLocalIO() or not siteSpec.isDirectIO() or inputChunk.isMerging or taskSpec.getMaxSizePerJob() is not None:
-                    useDirectIO = False
-                else:
-                    useDirectIO = True
                 tmpLog.debug('chosen {0}'.format(siteName))
                 tmpLog.debug('new weight {0}'.format(siteCandidate.weight))
                 tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2} corePower={3} maxNumEventRanges={4}'.format(maxSize,maxWalltime,
