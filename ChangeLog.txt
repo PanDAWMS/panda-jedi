@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/29/2017
+  * changed InputChunk not to ignore input size for directIO sites if NG is used
+
 * 11/27/2017
   * using resurrectConsumers for ES tasks by default
   * changed InputChunk to ignore input size for directIO sites

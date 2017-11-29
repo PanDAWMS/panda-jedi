@@ -167,7 +167,7 @@ class JobSplitter:
                     if maxNumEventRanges == 0:
                         maxNumEventRanges = 1
                 # directIO
-                if taskSpec.useLocalIO() or not siteSpec.isDirectIO() or inputChunk.isMerging:
+                if taskSpec.useLocalIO() or not siteSpec.isDirectIO() or inputChunk.isMerging or taskSpec.getMaxSizePerJob() is not None:
                     useDirectIO = False
                 else:
                     useDirectIO = True
