@@ -192,7 +192,7 @@ class TaskRefinerBase (object):
         if 'goal' in taskParamMap:
             try:
                 taskSpec.goal = int(float(taskParamMap['goal'])*10)
-                if taskSpec.goal >= 1000:
+                if taskSpec.goal > 1000:
                     taskSpec.goal = None
             except:
                 pass
