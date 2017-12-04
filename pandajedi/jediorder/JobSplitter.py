@@ -155,7 +155,7 @@ class JobSplitter:
                     useDirectIO = True
                 # get maxSize if it is set in taskSpec
                 maxSize = maxSizePerJob
-                if maxSize == None or maxSize > (siteSpec.maxwdir * 1024 * 1024) or not useDirectIO:
+                if maxSize == None or (maxSize > (siteSpec.maxwdir * 1024 * 1024) and not useDirectIO):
                     # use maxwdir as the default maxSize
                     maxSize = siteSpec.maxwdir * 1024 * 1024
                 # max walltime      
