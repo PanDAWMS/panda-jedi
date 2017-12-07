@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/7/2017
+  * checking maxattempt when retryTask_JEDI
+
 * 11/29/2017
   * setting allowAccessLAN to analysis tasks
   * changed InputChunk not to ignore input size for directIO sites if NG is used

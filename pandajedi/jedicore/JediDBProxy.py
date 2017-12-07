@@ -8382,162 +8382,185 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     newTaskStatus = taskOldStatus
                     newErrorDialog = msgStr
                 else:
-                    # get input datasets
+                    # check max attempts
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
-                    sqlDS  = "SELECT datasetID,masterID,nFiles,nFilesFinished,status,state "
-                    sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI) 
-                    sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
+                    sqlMAX  = "SELECT MAX(c.maxAttempt) "
+                    sqlMAX += "FROM {0}.JEDI_Datasets d, {0}.JEDI_Dataset_Contents c ".format(jedi_config.db.schemaJEDI) 
+                    sqlMAX += "WHERE c.jediTaskID=d.jediTaskID AND c.datasetID=d.datasetID "
+                    sqlMAX += "AND d.jediTaskID=:jediTaskID AND d.type IN ("
                     for tmpType in JediDatasetSpec.getInputTypes():
                         mapKey = ':type_'+tmpType
-                        sqlDS += '{0},'.format(mapKey)
+                        sqlMAX += '{0},'.format(mapKey)
                         varMap[mapKey] = tmpType
-                    sqlDS  = sqlDS[:-1]
-                    sqlDS += ") "
-                    self.cur.execute(sqlDS+comment,varMap)
-                    resDS = self.cur.fetchall()
-                    changedMasterList = []
-                    secMap  = {}
-                    for datasetID,masterID,nFiles,nFilesFinished,status,state in resDS:
-                        if masterID != None:
-                            if not state in [None,'']:
-                                # keep secondary dataset info
-                                if not secMap.has_key(masterID):
-                                    secMap[masterID] = []
-                                secMap[masterID].append((datasetID,nFilesFinished,status,state))
-                                # update dataset
-                                varMap = {}
-                                varMap[':jediTaskID'] = jediTaskID
-                                varMap[':datasetID']  = datasetID
-                                varMap[':nDiff'] = 0
-                                varMap[':nRun'] = 0
-                                varMap[':status'] = 'ready'
-                                tmpLog.debug('set status={0} for 2nd datasetID={1}'.format(varMap[':status'],datasetID))
-                                self.cur.execute(sqlRD+comment,varMap)
-                            else:
-                                # set dataset status to defined to trigger file lookup when state is not set
-                                varMap = {}
-                                varMap[':jediTaskID'] = jediTaskID
-                                varMap[':datasetID']  = datasetID
-                                varMap[':nDiff'] = 0
-                                varMap[':nRun'] = 0
-                                varMap[':status'] = 'defined'
-                                tmpLog.debug('set status={0} for 2nd datasetID={1}'.format(varMap[':status'],datasetID))
-                                self.cur.execute(sqlRD+comment,varMap)
-                        else:
-                            # set done if no more try is needed
-                            if nFiles == nFilesFinished and status == 'failed':
-                                # update dataset
-                                varMap = {}
-                                varMap[':jediTaskID'] = jediTaskID
-                                varMap[':datasetID']  = datasetID
-                                varMap[':nDiff'] = 0
-                                varMap[':nRun'] = 0
-                                varMap[':status'] = 'done'
-                                tmpLog.debug('set status={0} for datasetID={1}'.format(varMap[':status'],datasetID))
-                                self.cur.execute(sqlRD+comment,varMap)
-                            # no retry if master dataset successfully finished
-                            if commStr == 'retry' and nFiles == nFilesFinished:
-                                tmpLog.debug('no {0} for datasetID={1} : nFiles==nFilesFinished'.format(commStr,datasetID))
-                                continue
-                            # count unprocessed files
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID']  = datasetID
-                            varMap[':status']     = 'ready'
-                            varMap[':keepTrack']  = 1
-                            self.cur.execute(sqlCU+comment,varMap)
-                            nUnp, = self.cur.fetchone()
-                            # update files 
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID']  = datasetID
-                            varMap[':status']     = 'ready'
-                            varMap[':maxAttempt'] = maxAttempt
-                            varMap[':keepTrack']  = 1
-                            nDiff = 0
-                            self.cur.execute(sqlRFO+comment,varMap)
-                            nDiff += self.cur.rowcount
-                            self.cur.execute(sqlRFF+comment,varMap)
-                            nDiff += self.cur.rowcount
-                            # reset running files
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID']  = datasetID
-                            varMap[':oldStatus'] = 'picked'
-                            varMap[':newStatus']  = 'ready'
-                            varMap[':keepTrack']  = 1
-                            varMap[':maxAttempt'] = maxAttempt
-                            self.cur.execute(sqlRR+comment,varMap)
-                            nRun = self.cur.rowcount
-                            # no retry if no failed files
-                            if commStr == 'retry' and nDiff == 0 and nUnp == 0 and nRun == 0:
-                                tmpLog.debug('no {0} for datasetID={1} : nDiff/nReady/nRun=0'.format(commStr,datasetID))
-                                continue
-                            # update dataset
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID']  = datasetID
-                            varMap[':nDiff'] = nDiff
-                            varMap[':nRun'] = nRun
-                            if commStr == 'retry':
-                                varMap[':status'] = 'ready'
-                            elif commStr == 'incexec':
-                                varMap[':status'] = 'toupdate'
-                            tmpLog.debug('set status={0} for datasetID={1} diff={2}'.format(varMap[':status'],datasetID,nDiff))
-                            self.cur.execute(sqlRD+comment,varMap)
-                            # collect masterIDs
-                            changedMasterList.append(datasetID)
-                    # update secondary
-                    for masterID in changedMasterList:
-                        # no seconday
-                        if not secMap.has_key(masterID):
-                            continue
-                        # loop over all datasets
-                        for datasetID,nFilesFinished,status,state in secMap[masterID]:
-                            # update files
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID']  = datasetID
-                            varMap[':status']     = 'ready'
-                            varMap[':maxAttempt'] = maxAttempt
-                            varMap[':keepTrack']  = 1
-                            nDiff = 0
-                            self.cur.execute(sqlRFO+comment,varMap)
-                            nDiff += self.cur.rowcount
-                            self.cur.execute(sqlRFF+comment,varMap)
-                            nDiff += self.cur.rowcount
-                            # reset running files
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID']  = datasetID
-                            varMap[':oldStatus'] = 'picked'
-                            varMap[':newStatus']  = 'ready'
-                            varMap[':keepTrack']  = 1
-                            varMap[':maxAttempt'] = maxAttempt
-                            self.cur.execute(sqlRR+comment,varMap)
-                            nRun = self.cur.rowcount
-                            # update dataset
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID']  = datasetID
-                            varMap[':nDiff'] = nDiff
-                            varMap[':nRun'] = nRun
-                            varMap[':status'] = 'ready'
-                            self.cur.execute(sqlRD+comment,varMap)
-                    # update task
-                    if commStr == 'retry':
-                        if changedMasterList != []:
-                            newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
-                        else:
-                            # to finalization since no files left in ready status
-                            msgStr = 'no {0} since no new/unprocessed files available'.format(commStr)
-                            tmpLog.debug(msgStr)
-                            newTaskStatus = taskOldStatus
-                            newErrorDialog = msgStr
+                    sqlMAX  = sqlMAX[:-1]
+                    sqlMAX += ") "
+                    self.cur.execute(sqlMAX+comment,varMap)
+                    resMAX = self.cur.fetchone()
+                    maxRetry = 1000
+                    if resMAX is not None and resMAX[0] + maxAttempt >= maxRetry:
+                        # only tasks in a relevant final status 
+                        msgStr = 'no {0} since too many attempts (~{1}) in the past'.format(commStr,maxRetry)
+                        tmpLog.debug(msgStr)
+                        newTaskStatus = taskOldStatus
+                        newErrorDialog = msgStr
                     else:
-                        # for incremental execution
-                        newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
+                        # get input datasets
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        sqlDS  = "SELECT datasetID,masterID,nFiles,nFilesFinished,status,state "
+                        sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI) 
+                        sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
+                        for tmpType in JediDatasetSpec.getInputTypes():
+                            mapKey = ':type_'+tmpType
+                            sqlDS += '{0},'.format(mapKey)
+                            varMap[mapKey] = tmpType
+                        sqlDS  = sqlDS[:-1]
+                        sqlDS += ") "
+                        self.cur.execute(sqlDS+comment,varMap)
+                        resDS = self.cur.fetchall()
+                        changedMasterList = []
+                        secMap  = {}
+                        for datasetID,masterID,nFiles,nFilesFinished,status,state in resDS:
+                            if masterID != None:
+                                if not state in [None,'']:
+                                    # keep secondary dataset info
+                                    if not secMap.has_key(masterID):
+                                        secMap[masterID] = []
+                                    secMap[masterID].append((datasetID,nFilesFinished,status,state))
+                                    # update dataset
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    varMap[':datasetID']  = datasetID
+                                    varMap[':nDiff'] = 0
+                                    varMap[':nRun'] = 0
+                                    varMap[':status'] = 'ready'
+                                    tmpLog.debug('set status={0} for 2nd datasetID={1}'.format(varMap[':status'],datasetID))
+                                    self.cur.execute(sqlRD+comment,varMap)
+                                else:
+                                    # set dataset status to defined to trigger file lookup when state is not set
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    varMap[':datasetID']  = datasetID
+                                    varMap[':nDiff'] = 0
+                                    varMap[':nRun'] = 0
+                                    varMap[':status'] = 'defined'
+                                    tmpLog.debug('set status={0} for 2nd datasetID={1}'.format(varMap[':status'],datasetID))
+                                    self.cur.execute(sqlRD+comment,varMap)
+                            else:
+                                # set done if no more try is needed
+                                if nFiles == nFilesFinished and status == 'failed':
+                                    # update dataset
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    varMap[':datasetID']  = datasetID
+                                    varMap[':nDiff'] = 0
+                                    varMap[':nRun'] = 0
+                                    varMap[':status'] = 'done'
+                                    tmpLog.debug('set status={0} for datasetID={1}'.format(varMap[':status'],datasetID))
+                                    self.cur.execute(sqlRD+comment,varMap)
+                                # no retry if master dataset successfully finished
+                                if commStr == 'retry' and nFiles == nFilesFinished:
+                                    tmpLog.debug('no {0} for datasetID={1} : nFiles==nFilesFinished'.format(commStr,datasetID))
+                                    continue
+                                # count unprocessed files
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                varMap[':status']     = 'ready'
+                                varMap[':keepTrack']  = 1
+                                self.cur.execute(sqlCU+comment,varMap)
+                                nUnp, = self.cur.fetchone()
+                                # update files 
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                varMap[':status']     = 'ready'
+                                varMap[':maxAttempt'] = maxAttempt
+                                varMap[':keepTrack']  = 1
+                                nDiff = 0
+                                self.cur.execute(sqlRFO+comment,varMap)
+                                nDiff += self.cur.rowcount
+                                self.cur.execute(sqlRFF+comment,varMap)
+                                nDiff += self.cur.rowcount
+                                # reset running files
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                varMap[':oldStatus'] = 'picked'
+                                varMap[':newStatus']  = 'ready'
+                                varMap[':keepTrack']  = 1
+                                varMap[':maxAttempt'] = maxAttempt
+                                self.cur.execute(sqlRR+comment,varMap)
+                                nRun = self.cur.rowcount
+                                # no retry if no failed files
+                                if commStr == 'retry' and nDiff == 0 and nUnp == 0 and nRun == 0:
+                                    tmpLog.debug('no {0} for datasetID={1} : nDiff/nReady/nRun=0'.format(commStr,datasetID))
+                                    continue
+                                # update dataset
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                varMap[':nDiff'] = nDiff
+                                varMap[':nRun'] = nRun
+                                if commStr == 'retry':
+                                    varMap[':status'] = 'ready'
+                                elif commStr == 'incexec':
+                                    varMap[':status'] = 'toupdate'
+                                tmpLog.debug('set status={0} for datasetID={1} diff={2}'.format(varMap[':status'],datasetID,nDiff))
+                                self.cur.execute(sqlRD+comment,varMap)
+                                # collect masterIDs
+                                changedMasterList.append(datasetID)
+                        # update secondary
+                        for masterID in changedMasterList:
+                            # no seconday
+                            if not secMap.has_key(masterID):
+                                continue
+                            # loop over all datasets
+                            for datasetID,nFilesFinished,status,state in secMap[masterID]:
+                                # update files
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                varMap[':status']     = 'ready'
+                                varMap[':maxAttempt'] = maxAttempt
+                                varMap[':keepTrack']  = 1
+                                nDiff = 0
+                                self.cur.execute(sqlRFO+comment,varMap)
+                                nDiff += self.cur.rowcount
+                                self.cur.execute(sqlRFF+comment,varMap)
+                                nDiff += self.cur.rowcount
+                                # reset running files
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                varMap[':oldStatus'] = 'picked'
+                                varMap[':newStatus']  = 'ready'
+                                varMap[':keepTrack']  = 1
+                                varMap[':maxAttempt'] = maxAttempt
+                                self.cur.execute(sqlRR+comment,varMap)
+                                nRun = self.cur.rowcount
+                                # update dataset
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID']  = datasetID
+                                varMap[':nDiff'] = nDiff
+                                varMap[':nRun'] = nRun
+                                varMap[':status'] = 'ready'
+                                self.cur.execute(sqlRD+comment,varMap)
+                        # update task
+                        if commStr == 'retry':
+                            if changedMasterList != []:
+                                newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
+                            else:
+                                # to finalization since no files left in ready status
+                                msgStr = 'no {0} since no new/unprocessed files available'.format(commStr)
+                                tmpLog.debug(msgStr)
+                                newTaskStatus = taskOldStatus
+                                newErrorDialog = msgStr
+                        else:
+                            # for incremental execution
+                            newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
                 # update task
                 varMap = {}
                 varMap[':jediTaskID']  = jediTaskID
