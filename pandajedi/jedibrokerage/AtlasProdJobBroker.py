@@ -1178,7 +1178,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
             # add files as remote since WAN access is allowed
             if taskSpec.allowInputWAN() and tmpSiteSpec.allowWanInputAccess():
-                siteCandidateSpec.remoteProtocol = 'fax'
+                siteCandidateSpec.remoteProtocol = 'direct'
                 for datasetSpec in inputChunk.getDatasets(): 
                     siteCandidateSpec.remoteFiles += datasetSpec.Files
             # check if site is locked for WORLD
