@@ -91,9 +91,6 @@ class AtlasProdWatchDog (WatchDogBase):
                     currentPriority = taskParam['currentPriority']
                     parent_tid = taskParam['parent_tid']
                     gshare = taskParam['gshare']
-                    # high enough
-                    if currentPriority >= boostedPrio:
-                        continue
                     # check parent
                     parentState = None
                     if parent_tid not in [None, jediTaskID]:
@@ -117,11 +114,15 @@ class AtlasProdWatchDog (WatchDogBase):
                     gTmpLog.debug(tmpStr)
                     try:
                         if nRemJobs is not None and float(nFilesFinished+nFilesFailed) / float(nFiles) >= toBoostRatio and nRemJobs <= 100:
-                            gTmpLog.info('>>> boosting priority of jediTaskID={0}'.format(jediTaskID))
-                            self.taskBufferIF.changeTaskPriorityPanda(jediTaskID,boostedPrio)
+                            # skip high enough
+                            if currentPriority < boostedPrio:
+                                gTmpLog.info('>>> boosting priority of jediTaskID={0}'.format(jediTaskID))
+                                self.taskBufferIF.changeTaskPriorityPanda(jediTaskID,boostedPrio)
+                            # skip express
                             newShare = 'Express'
-                            gTmpLog.info('>>> changing gshare of jediTaskID={0} to {1} from {2}'.format(jediTaskID, newShare, gshare))
-                            self.taskBufferIF.reassignShare([jediTaskID], newShare)
+                            if gshare != newShare:
+                                gTmpLog.info('>>> changing gshare of jediTaskID={0} to {1} from {2}'.format(jediTaskID, newShare, gshare))
+                                self.taskBufferIF.reassignShare([jediTaskID], newShare)
                             gTmpLog.info('>>> done jediTaskID={0}'.format(jediTaskID))
                     except:
                         pass
