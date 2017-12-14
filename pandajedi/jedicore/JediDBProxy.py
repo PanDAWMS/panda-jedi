@@ -9497,7 +9497,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':taskStatus'] = 'running'
             varMap[':fileStat1']  = 'ready'
             varMap[':fileStat2']  = 'running'
-            sqlRT  = "SELECT tabT.jediTaskID,tabT.numThrottled,AVG(tabC.attemptNr) "
+            sqlRT  = "SELECT tabT.jediTaskID,tabT.numThrottled,AVG(tabC.failedAttempt) "
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,".format(jedi_config.db.schemaJEDI)
             sqlRT += "{0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC ".format(jedi_config.db.schemaJEDI)
             sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
