@@ -76,7 +76,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     break_loop = True
                     task_criteria = {'workQueue_ID': workQueue.queue_id}
                 dataset_criteria = {'masterID': None, 'type': ['input', 'pseudo_input']}
-                task_param_list = ['jediTaskID', 'taskPriority', 'currentPriority']
+                task_param_list = ['jediTaskID', 'taskPriority', 'currentPriority', 'parent_tid', 'gshare']
                 dataset_param_list = ['nFiles', 'nFilesUsed', 'nFilesTobeUsed', 'nFilesFinished', 'nFilesFailed']
                 taskVarList = self.taskBufferIF.getTasksWithCriteria_JEDI(self.vo, self.prodSourceLabel, ['running'],
                                                                           taskCriteria= task_criteria,
@@ -89,17 +89,40 @@ class AtlasProdWatchDog (WatchDogBase):
                     jediTaskID = taskParam['jediTaskID']
                     taskPriority = taskParam['taskPriority']
                     currentPriority = taskParam['currentPriority']
+                    parent_tid = taskParam['parent_tid']
+                    gshare = taskParam['gshare']
                     # high enough
                     if currentPriority >= boostedPrio:
                         continue
+                    # check parent
+                    parentState = None
+                    if parent_tid not in [None, jediTaskID]:
+                        parentState = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
+                        if parentState != 'completed': 
+                            gTmpLog.info('jediTaskID={0} skip prio boost for since parent={1} is in {2}'.format(jediTaskID, parent_tid,
+                                                                                                                parentState))
                     nFiles = datasetParam['nFiles']
                     nFilesFinished = datasetParam['nFilesFinished']
                     nFilesFailed = datasetParam['nFilesFailed']
-                    gTmpLog.info('jediTaskID={0} nFiles={1} nFilesFinishedFailed={2}'.format(jediTaskID,nFiles,nFilesFinished+nFilesFailed))
+                    # get num jobs
+                    nJobs = self.taskBufferIF.getNumJobsForTask_JEDI(jediTaskID)
+                    nRemJobs = None
+                    if nJobs is not None:
+                        try:
+                            nRemJobs = int(float(nFiles-nFilesFinished-nFilesFailed) * float(nJobs) / float(nFiles))
+                        except:
+                            pass
+                    tmpStr = 'jediTaskID={0} nFiles={1} nFilesFinishedFailed={2} '.format(jediTaskID,nFiles,nFilesFinished+nFilesFailed)
+                    tmpStr += 'nJobs={0} nRemJobs={1} parent_tid={2} parentStatus={3}'.format(nJobs, nRemJobs, parent_tid, parentState)
+                    gTmpLog.debug(tmpStr)
                     try:
-                        if float(nFilesFinished+nFilesFailed) / float(nFiles) >= toBoostRatio:
-                            gTmpLog.info('>>> boost jediTaskID={0}'.format(jediTaskID))
-                            self.taskBufferIF. changeTaskPriorityPanda(jediTaskID,boostedPrio)
+                        if nRemJobs is not None and float(nFilesFinished+nFilesFailed) / float(nFiles) >= toBoostRatio and nRemJobs <= 100:
+                            gTmpLog.info('>>> boosting priority of jediTaskID={0}'.format(jediTaskID))
+                            self.taskBufferIF.changeTaskPriorityPanda(jediTaskID,boostedPrio)
+                            newShare = 'Express'
+                            gTmpLog.info('>>> changing gshare of jediTaskID={0} to {1} from {2}'.format(jediTaskID, newShare, gshare))
+                            self.taskBufferIF.reassignShare([jediTaskID], newShare)
+                            gTmpLog.info('>>> done jediTaskID={0}'.format(jediTaskID))
                     except:
                         pass
 

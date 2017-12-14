@@ -11111,3 +11111,46 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None, None, None
+
+
+
+    # get number of jobs for a task
+    def getNumJobsForTask_JEDI(self, jediTaskID):
+        comment = ' /* JediDBProxy.getNumJobsForTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # get num of done jobs
+            varMap = dict()
+            varMap[':jediTaskID'] = jediTaskID
+            sql  = "SELECT COUNT(*) FROM ("
+            sql += "SELECT distinct c.PandaID "
+            sql += "FROM {0}.JEDI_Datasets d,{0}.JEDI_Dataset_Contents c ".format(jedi_config.db.schemaJEDI)
+            sql += "WHERE c.jediTaskID=d.jediTaskID AND c.datasetID=d.datasetID "
+            sql += "AND d.jediTaskID=:jediTaskID AND d.masterID IS NULL "
+            sql += 'AND d.type IN ('
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sql += '{0},'.format(mapKey)
+                varMap[mapKey] = tmpType
+            sql  = sql[:-1]    
+            sql += ') '
+            sql += ') '
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sql+comment,varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            nDone, = self.cur.fetchone()
+            # return
+            tmpLog.debug("got {0} tasks".format(nDone))
+            return nDone
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None

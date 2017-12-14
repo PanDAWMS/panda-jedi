@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/14/2017
+  * changing gshare of prod tasks when 95% done
+
 * 12/7/2017
   * checking maxattempt when retryTask_JEDI
 
