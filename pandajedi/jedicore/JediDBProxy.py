@@ -9566,7 +9566,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':errorDialog']  = errorDialog
                     tmpLog.debug(sqlTH+comment+str(varMap))
                     self.cur.execute(sqlTH+comment,varMap)
-                    tmpLog.debug(errorDialog)
+                    tmpLog.info(errorDialog)
                     nTasks += 1
                 except:
                     tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
