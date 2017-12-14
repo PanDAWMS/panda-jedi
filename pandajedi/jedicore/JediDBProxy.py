@@ -2174,6 +2174,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     nRows = self.cur.rowcount
                     tmpLog.debug("changed status to {0} for jediTaskID={1} with {2}".format(varMap[':newStatus'],
                                                                                             jediTaskID,nRows))
+                    if nRows > 0:
+                        self.setSuperStatus_JEDI(jediTaskID, 'running')
                 else:
                     # lock task
                     varMap = {}
