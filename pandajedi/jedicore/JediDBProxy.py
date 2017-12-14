@@ -6095,7 +6095,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         raise errType,errValue
                 # update dataset
                 if not toSkip:
-                    if taskSpec.status == 'scouting':
+                    tmpLog.debug('jediTaskID={0} status={1} useScout={2} isPostScout={3}'.format(jediTaskID,taskSpec.status,
+                                                                                                 taskSpec.useScout(),
+                                                                                                 taskSpec.isPostScout()))
+                    if taskSpec.status == 'scouting' or \
+                            (taskSpec.status == 'ready' and taskSpec.useScout() and not taskSpec.isPostScout()):
                         # reset walltimeUnit
                         if jediTaskID in toAvalancheTasks:
                             varMap = {}
