@@ -793,7 +793,8 @@ class InputChunk:
         for tmpDatasetID,datasetUsage in self.datasetMap.iteritems():
             tmpDatasetSpec = datasetUsage['datasetSpec']
             if tmpDatasetSpec.isRepeated():
-                datasetUsage['used'] %= len(tmpDatasetSpec.Files)
+                if len(tmpDatasetSpec.Files) > 0:
+                    datasetUsage['used'] %= len(tmpDatasetSpec.Files)
         # make copy to return
         returnList = []
         for tmpDatasetID,inputFileList in inputFileMap.iteritems():

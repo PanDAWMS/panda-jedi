@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/15/2017
+  * changed to exclude workDirSize from NG
+
 * 12/14/2017
   * changing gshare of prod tasks when 95% done
 
