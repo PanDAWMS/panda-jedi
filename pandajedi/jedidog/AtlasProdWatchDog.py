@@ -98,6 +98,7 @@ class AtlasProdWatchDog (WatchDogBase):
                         if parentState != 'completed': 
                             gTmpLog.info('jediTaskID={0} skip prio boost for since parent={1} is in {2}'.format(jediTaskID, parent_tid,
                                                                                                                 parentState))
+                            continue
                     nFiles = datasetParam['nFiles']
                     nFilesFinished = datasetParam['nFilesFinished']
                     nFilesFailed = datasetParam['nFilesFailed']
