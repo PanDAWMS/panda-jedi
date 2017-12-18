@@ -8557,7 +8557,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 self.cur.execute(sqlRD+comment,varMap)
                         # update task
                         if commStr == 'retry':
-                            if changedMasterList != []:
+                            if changedMasterList != [] or taskOldStatus == 'exhausted':
                                 newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
                             else:
                                 # to finalization since no files left in ready status
