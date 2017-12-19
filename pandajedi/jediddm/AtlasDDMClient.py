@@ -48,8 +48,6 @@ class AtlasDDMClient(DDMClientBase):
         # NG endpoint types
         # self.ngEndPointTypes = ['TEST','SPECIAL']
 
-
-
     # get a parsed certificate DN
     def parse_dn(self,tmpDN):
         if tmpDN is not None:
@@ -57,11 +55,9 @@ class AtlasDDMClient(DDMClientBase):
             tmpDN = re.sub('(/CN=proxy)+$', '', tmpDN)
             #tmpDN = re.sub('(/CN=\d+)+$', '', tmpDN)
         return tmpDN
-        
-
 
     # get files in dataset
-    def getFilesInDataset(self,datasetName,getNumEvents=False,skipDuplicate=True,ignoreUnknown=False,longFormat=False):
+    def getFilesInDataset(self, datasetName, getNumEvents=False, skipDuplicate=True, ignoreUnknown=False, longFormat=False):
         methodName = 'getFilesInDataset'
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
@@ -117,7 +113,7 @@ class AtlasDDMClient(DDMClientBase):
                                            'attNr':attNr}
                 fileMap[guid] = attrs
             tmpLog.debug('done')
-            return self.SC_SUCCEEDED,fileMap
+            return self.SC_SUCCEEDED, fileMap
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
@@ -227,10 +223,10 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # get site alternateName
-    def getSiteAlternateName(self,seName):
+    def getSiteAlternateName(self,se_name):
         self.updateEndPointDict()
-        if seName in self.endPointDict:
-            return [self.endPointDict[seName]['site']]
+        if se_name in self.endPointDict:
+            return [self.endPointDict[se_name]['site']]
         return None
 
 
@@ -278,339 +274,272 @@ class AtlasDDMClient(DDMClientBase):
     # check if endpoint is NG
     def checkNGEndPoint(self,endPoint,ngList):
         for ngPatt in ngList:
-            if re.search(ngPatt,endPoint) != None:
+            if re.search(ngPatt, endPoint) is not None:
                 return True
         return False    
-        
 
-                        
-    # get available files
-    def getAvailableFiles(self,datasetSpec,siteEndPointMap,siteMapper,ngGroup=[],checkLFC=False,
-                          checkCompleteness=True,storageToken=None,useCompleteOnly=False):
-        # make logger
-        methodName = 'getAvailableFiles'
-        methodName += ' <datasetID={0}>'.format(datasetSpec.datasetID)
-        tmpLog = MsgWrapper(logger,methodName)
+
+    def generateCompleteMap(self, site_endpoint_map, ng_group):
+
+        # map of panda sites and ddm endpoints
+        site_endpoints_map_complete = {}
+
+        # list of NG endpoints
+        # TODO: what is NG? task broker and prod job broker don't use 1
+        # TODO: analysis job broker doesn't use 2
+        ng_endpoints = []
+        if 1 in ng_group:
+            ng_endpoints += ['_SCRATCHDISK$', '_LOCALGROUPDISK$', '_LOCALGROUPTAPE$', '_USERDISK$',
+                             '_DAQ$', '_TMPDISK$', '_TZERO$', '_GRIDFTP$', 'MOCKTEST$']
+        if 2 in ng_group:
+            ng_endpoints += ['_LOCALGROUPTAPE$', '_DAQ$', '_TMPDISK$', '_GRIDFTP$', 'MOCKTEST$']
+
+        for site_name, endpoint_pattern_list in site_endpoint_map.iteritems():
+
+            # expand all endpoints
+            all_endpoints_list = []
+            for endpoint_pattern in endpoint_pattern_list:
+                if '*' in endpoint_pattern:
+                    # find all endpoints that match a wildcard
+                    endpoint_pattern = endpoint_pattern.replace('*', '.*')
+                    for endpoint_AGIS in self.endPointDict:
+                        if re.search('^' + endpoint_pattern + '$', endpoint_AGIS) is not None:
+                            if endpoint_AGIS not in all_endpoints_list:
+                                all_endpoints_list.append(endpoint_AGIS)
+                else:
+                    # normal endpoint, check it exists and it's not already added
+                    if endpoint_pattern in self.endPointDict and not endpoint_pattern in all_endpoints_list:
+                        all_endpoints_list.append(endpoint_pattern)
+
+            # re-generate the panda site to DDM endpoint map with expanded endpoints
+            site_endpoints_map_complete[site_name] = []
+            for endpoint in all_endpoints_list:
+                # if the endpoint is not NG add it to the map
+                if not self.checkNGEndPoint(endpoint, ng_endpoints) \
+                        and endpoint not in site_endpoints_map_complete[site_name]:
+                    site_endpoints_map_complete[site_name].append(endpoint)
+                else:
+                    continue
+
+                # add endpoints associated to the alternate name to the site
+                alternate_name = self.getSiteAlternateName(endpoint)
+                if alternate_name is not None and alternate_name != ['']:
+                    for associated_endpoint in self.getAssociatedEndpoints(alternate_name[0]):
+                        if associated_endpoint not in site_endpoints_map_complete[site_name] \
+                                and not self.checkNGEndPoint(associated_endpoint, ng_endpoints):
+                            site_endpoints_map_complete[site_name].append(associated_endpoint)
+
+        return site_endpoints_map_complete
+
+    def SiteHasCompleteReplica(self, dataset_replica_map, endpoint, total_files_in_dataset):
+        """
+        Checks the #found files at site == #total files at site == #files in dataset
+        :return: True or False
+        """
         try:
-            tmpLog.debug('start datasetName={0} checkCompleteness={1} nFiles={2}'.format(datasetSpec.datasetName,
-                                                                                         checkCompleteness,
-                                                                                         len(datasetSpec.Files)))
-            # update endpoints
+            found_tmp = dataset_replica_map[endpoint][-1]['found']
+            total_tmp = dataset_replica_map[endpoint][-1]['total']
+            if found_tmp is not None and total_tmp == found_tmp and total_tmp >= total_files_in_dataset:
+                return True
+        except KeyError:
+            pass
+
+        return False
+
+    def getAvailableFiles(self, dataset_spec, site_endpoint_map, site_mapper, ng_group=[], check_LFC=False,
+                          check_completeness=True, storage_token=None, complete_only=False):
+        """
+        :param dataset_spec: dataset spec object
+        :param site_endpoint_map: panda sites to ddm endpoints map. The list of panda sites includes the ones to scan
+        :param site_mapper: site mapper object
+        :param ng_group: ask Tadashi
+        :param check_LFC: check/ask Tadashi/probably obsolete
+        :param check_completeness:
+        :param storage_token:
+        :param complete_only: check only for complete replicas
+
+        TODO: do we need NG, do we need alternate names
+        TODO: the storage_token is not used anymore
+        :return:
+        """
+        # make logger
+        method_name = 'getAvailableFiles'
+        method_name += ' <datasetID={0}>'.format(dataset_spec.datasetID)
+        tmp_log = MsgWrapper(logger, method_name)
+
+        try:
+            tmp_log.debug('start datasetName={0} check_completeness={1} nFiles={2}'.format(dataset_spec.datasetName,
+                                                                                         check_completeness,
+                                                                                         len(dataset_spec.Files)))
+            # update the definition of all endpoints from AGIS
             self.updateEndPointDict()
-            # list of NG endpoints
-            ngEndPoints = []
-            if 1 in ngGroup:
-                ngEndPoints += ['_SCRATCHDISK$','_LOCALGROUPDISK$','_LOCALGROUPTAPE$','_USERDISK$',
-                               '_DAQ$','_TMPDISK$','_TZERO$','_GRIDFTP$','MOCKTEST$']
-            if 2 in ngGroup:
-                ngEndPoints += ['_LOCALGROUPTAPE$',
-                               '_DAQ$','_TMPDISK$','_GRIDFTP$','MOCKTEST$']
-            # get all associated endpoints
-            siteAllEndPointsMap = {}
 
-            for siteName,endPointPattList in siteEndPointMap.iteritems():
-                # get all endpoints matching with patterns 
-                allEndPointList = []
-                for endPointPatt in endPointPattList:
-                    if '*' in endPointPatt:
-                        # wildcard
-                        endPointPatt = endPointPatt.replace('*','.*')
-                        for endPointToA in self.endPointDict.keys():
-                            if re.search('^'+endPointPatt+'$',endPointToA) != None:
-                                if not endPointToA in allEndPointList:
-                                    allEndPointList.append(endPointToA)
-                    else:
-                        # normal endpoint
-                        if endPointPatt in self.endPointDict.keys() and \
-                               not endPointPatt in allEndPointList:
-                            allEndPointList.append(endPointPatt)
-                # get associated endpoints
-                siteAllEndPointsMap[siteName] = []
-                for endPoint in allEndPointList:
-                    # append
-                    if not self.checkNGEndPoint(endPoint,ngEndPoints) and \
-                            not endPoint in siteAllEndPointsMap[siteName]:
-                        siteAllEndPointsMap[siteName].append(endPoint)
-                    else:
-                        # already checked
-                        continue
-                    # get alternate name
-                    altName = self.getSiteAlternateName(endPoint)
-                    if altName != None and altName != ['']:
-                        for assEndPoint in self.getAssociatedEndpoints(altName[0]):
-                            if not assEndPoint in siteAllEndPointsMap[siteName] and \
-                                   not self.checkNGEndPoint(assEndPoint,ngEndPoints):
-                                siteAllEndPointsMap[siteName].append(assEndPoint)
-            # get files
-            tmpStat,tmpOut = self.getFilesInDataset(datasetSpec.datasetName)
-            if tmpStat != self.SC_SUCCEEDED:
-                tmpLog.error('faild to get file list with {0}'.format(tmpOut))
-                return tmpStat,tmpOut
-            totalNumFiles = len(tmpOut)
-            # get replica map
-            tmpStat,tmpOut = self.listDatasetReplicas(datasetSpec.datasetName)
-            if tmpStat != self.SC_SUCCEEDED:
-                tmpLog.error('faild to get dataset replicas with {0}'.format(tmpOut))
-                return tmpStat,tmpOut
-            datasetReplicaMap = tmpOut
-            # collect SE, LFC hosts, storage path, storage type
-            lfcSeMap = {}
-            storagePathMap = {}
-            completeReplicaMap = {}
-            cloudLocCheckDst = {}
-            cloudLocCheckSrc = {}
-            for siteName,allEndPointList in siteAllEndPointsMap.iteritems():
-                tmpLfcSeMap = {}
-                tmpStoragePathMap = {}
-                tmpSiteSpec = siteMapper.getSite(siteName)
-                siteHasCompleteReplica = False
-                # cloud locality check 
-                if tmpSiteSpec.hasValueInCatchall('cloudLocCheck'):
-                    tmpCheckCloud = tmpSiteSpec.cloud
-                    if not tmpCheckCloud in cloudLocCheckDst:
-                        cloudLocCheckDst[tmpCheckCloud] = set()
-                    cloudLocCheckDst[tmpCheckCloud].add(siteName) 
+            # generate the complete map, expanding wildcards, removing NG sites, etc.
+            site_endpoints_map_complete = self.generateCompleteMap(site_endpoint_map, ng_group)
+
+            # get the file map
+            tmp_status, tmp_output = self.getFilesInDataset(dataset_spec.datasetName)
+            if tmp_status != self.SC_SUCCEEDED:
+                tmp_log.error('failed to get file list with {0}'.format(tmp_output))
+                return tmp_status, tmp_output
+            total_files_in_dataset = len(tmp_output)
+
+            # get the dataset replica map
+            tmp_status, tmp_output = self.listDatasetReplicas(dataset_spec.datasetName)
+            if tmp_status != self.SC_SUCCEEDED:
+                tmp_log.error('failed to get dataset replicas with {0}'.format(tmp_output))
+                return tmp_status, tmp_output
+            dataset_replica_map = tmp_output
+
+            complete_replica_map = {}
+            endpoint_storagetype_map = {}
+            rse_list = []
+
+            # figure out complete replicas and storage types
+            for site_name, endpoint_list in site_endpoints_map_complete.iteritems():
+                tmp_site_spec = site_mapper.getSite(site_name)
+
                 # loop over all endpoints
-                for tmpEndPoint in allEndPointList:
-                    # cloud locality check
-                    tmpCheckCloud = self.getCloudForEndPoint(tmpEndPoint)
-                    if not siteName in cloudLocCheckSrc:
-                        cloudLocCheckSrc[siteName] = set()
-                    cloudLocCheckSrc[siteName].add(tmpCheckCloud)
+                for endpoint in endpoint_list:
+
                     # storage type
-                    tmpStat,isTape = self.getSiteProperty(tmpEndPoint,'is_tape')
-                    if isTape == True:
-                        storageType = 'localtape'
+                    tmp_status, is_tape = self.getSiteProperty(endpoint, 'is_tape')
+                    if is_tape:
+                        storage_type = 'localtape'
                     else:
-                        storageType = 'localdisk'
-                    # no scan when site has complete replicas
-                    if (datasetReplicaMap.has_key(tmpEndPoint) and datasetReplicaMap[tmpEndPoint][-1]['found'] != None \
-                            and datasetReplicaMap[tmpEndPoint][-1]['total'] == datasetReplicaMap[tmpEndPoint][-1]['found'] \
-                            and datasetReplicaMap[tmpEndPoint][-1]['total'] >= totalNumFiles) \
-                            or (not checkCompleteness and datasetReplicaMap.has_key(tmpEndPoint)) \
-                            or DataServiceUtils.isCachedFile(datasetSpec.datasetName,tmpSiteSpec):
-                        completeReplicaMap[tmpEndPoint] = storageType
-                        siteHasCompleteReplica = True
-                    # no LFC scan for many-time datasets or disabled completeness check
-                    if datasetSpec.isManyTime() or (not checkCompleteness and not datasetReplicaMap.has_key(tmpEndPoint)) \
-                            or useCompleteOnly:
+                        storage_type = 'localdisk'
+
+                    if self.SiteHasCompleteReplica(self, dataset_replica_map, endpoint, total_files_in_dataset) \
+                        or (endpoint in dataset_replica_map and not check_completeness) \
+                            or DataServiceUtils.isCachedFile(dataset_spec.datasetName, tmp_site_spec):
+                        complete_replica_map[endpoint] = storage_type
+
+                    # no scan for many-time datasets or disabled completeness check
+                    # TODO: what is this?
+                    if dataset_spec.isManyTime() \
+                       or (not check_completeness and endpoint not in dataset_replica_map) \
+                       or complete_only:
                         continue
-                    # get LFC
-                    lfc = 'rucio://atlas-rucio.cern.ch:/grid/atlas'
-                    # add map
-                    if not tmpLfcSeMap.has_key(lfc):
-                        tmpLfcSeMap[lfc] = []
-                    # get SE
-                    tmpStat,seStr = self.getSiteProperty(tmpEndPoint, 'se')
-                    if tmpStat != self.SC_SUCCEEDED:
-                        tmpLog.error('faild to get SE from for {0} with {1}'.format(tmpEndPoint,seStr))
-                        return tmpStat,seStr
-                    tmpMatch = re.search('://([^:/]+):*\d*',seStr)
-                    if tmpMatch != None:
-                        se = tmpEndPoint
-                        if not se in tmpLfcSeMap[lfc]:
-                            tmpLfcSeMap[lfc].append(se)
-                    if tmpMatch == None:
-                        tmpLog.error('faild to extract SE from %s for %s:%s' % \
-                                     (seStr,siteName,tmpEndPoint))
-                    # get SE + path
-                    tmpStat,endpointStr = self.getSiteProperty(tmpEndPoint, 'endpoint')
-                    if tmpStat != self.SC_SUCCEEDED:
-                        tmpLog.error('faild to get endpoint from for {0} with {1}'.format(tmpEndPoint,endpointStr))
-                        return tmpStat,endpointStr
-                    # check token
-                    if not storageToken in [None,'','NULL']:
-                        try:
-                            if seStr.split(':')[1] != storageToken:
-                                continue
-                        except:
-                            pass
-                    # add full path to storage map
-                    tmpSePath = seStr+endpointStr
-                    if not tmpSePath in tmpStoragePathMap:
-                        tmpStoragePathMap[tmpSePath] = []
-                    tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType,'endPoint':tmpEndPoint})
-                    # add compact path
-                    tmpSePathBack = tmpSePath
-                    tmpSePath = re.sub('(:\d+)*/srm/[^\?]+\?SFN=','',tmpSePath)
-                    if tmpSePathBack != tmpSePath:
-                        if not tmpSePath in tmpStoragePathMap:
-                            tmpStoragePathMap[tmpSePath] = []
-                        tmpStoragePathMap[tmpSePath].append({'siteName':siteName,'storageType':storageType,'endPoint':tmpEndPoint})
-                # add to map to trigger LFC scan if complete replica is missing at the site
-                if DataServiceUtils.isCachedFile(datasetSpec.datasetName,tmpSiteSpec):
-                    pass
-                elif not siteHasCompleteReplica or checkLFC:
-                    for tmpKey,tmpVal in tmpLfcSeMap.iteritems():
-                        if not lfcSeMap.has_key(tmpKey):
-                            lfcSeMap[tmpKey] = []
-                        lfcSeMap[tmpKey] += tmpVal
-                    for tmpKey,tmpVal in tmpStoragePathMap.iteritems():
-                        if not tmpKey in storagePathMap:
-                            storagePathMap[tmpKey] = []
-                        storagePathMap[tmpKey] += tmpVal
+
+                    if endpoint not in rse_list:
+                        rse_list.append(endpoint)
+
+                    endpoint_storagetype_map[endpoint] = storage_type
+
             # collect GUIDs and LFNs
-            fileMap        = {}
-            lfnMap         = {}
-            lfnFileSpecMap = {}
-            scopeMap       = {}
-            for tmpFile in datasetSpec.Files:
-                fileMap[tmpFile.GUID] = tmpFile.lfn
-                lfnMap[tmpFile.lfn] = tmpFile
-                if not tmpFile.lfn in lfnFileSpecMap:
-                    lfnFileSpecMap[tmpFile.lfn] = []
-                lfnFileSpecMap[tmpFile.lfn].append(tmpFile)
-                scopeMap[tmpFile.lfn] = tmpFile.scope
-            # get SURLs
-            surlMap = {}
-            for lfcHost,seList in lfcSeMap.iteritems():
-                tmpLog.debug('lookup in LFC:{0} for {1}'.format(lfcHost,str(seList)))               
-                tmpStat,tmpRetMap = self.getSURLsFromLFC(fileMap,lfcHost,seList,scopes=scopeMap)
-                tmpLog.debug(str(tmpStat))
-                if tmpStat != self.SC_SUCCEEDED:
-                    raise RuntimeError,tmpRetMap
-                for lfn,surls in tmpRetMap.iteritems():
-                    if not surlMap.has_key(lfn):
-                        surlMap[lfn] = surls
-                    else:
-                        surlMap[lfn] += surls
-            # make return
-            returnMap = {}
-            checkedDst = set()
-            for siteName,allEndPointList in siteAllEndPointsMap.iteritems():
-                # set default return values
-                if not returnMap.has_key(siteName):
-                    returnMap[siteName] = {'localdisk':[],'localtape':[],'cache':[],'remote':[]}
-                # loop over all files    
-                tmpSiteSpec = siteMapper.getSite(siteName)                
-                # check if the file is cached
-                if DataServiceUtils.isCachedFile(datasetSpec.datasetName,tmpSiteSpec):
-                    for tmpFileSpec in datasetSpec.Files:
-                        # add to cached file list
-                        returnMap[siteName]['cache'].append(tmpFileSpec)
+            file_map = {} # GUID to LFN
+            lfn_filespec_map = {} # LFN to file spec
+            scope_map = {} # LFN to scope list
+            for tmp_file in dataset_spec.Files:
+                file_map[tmp_file.GUID] = tmp_file.lfn
+                lfn_filespec_map.setdefault(tmp_file.lfn, [])
+                lfn_filespec_map[tmp_file.lfn].append(tmp_file)
+                scope_map[tmp_file.lfn] = tmp_file.scope
+
+            # get the file locations from Rucio
+            tmp_log.debug('lookup file replicas in Rucio for RSEs: {1}'.format(rse_list))
+            tmp_status, rucio_lfn_to_rse_map = self.jedi_list_replicas(file_map, rse_list, scopes=scope_map)
+            tmp_log.debug(str(tmp_status))
+            if tmp_status != self.SC_SUCCEEDED:
+                raise RuntimeError, rucio_lfn_to_rse_map
+
+            # initialize the return map and add complete/cached replicas
+            return_map = {}
+            checked_dst = set()
+            for site_name, tmp_endpoints in site_endpoints_map_complete.iteritems():
+
+                return_map.setdefault(site_name, {'localdisk': [], 'localtape': [], 'cache': []})
+                tmp_site_spec = site_mapper.getSite(site_name)
+
+                # check if the dataset is cached
+                if DataServiceUtils.isCachedFile(dataset_spec.datasetName, tmp_site_spec):
+                    # add to cached file list
+                    return_map[site_name]['cache'] += dataset_spec.Files
+
                 # complete replicas
-                if not checkLFC:        
-                    for tmpEndPoint in allEndPointList:
-                        if completeReplicaMap.has_key(tmpEndPoint):
-                            storageType = completeReplicaMap[tmpEndPoint]
-                            returnMap[siteName][storageType] += datasetSpec.Files
-                            checkedDst.add(siteName)
-                            # add for cloud locality check
-                            if siteName in cloudLocCheckSrc:
-                                # loop over possible endpoint clouds associated to the site
-                                for tmpCheckCloud in cloudLocCheckSrc[siteName]:
-                                    # use only cloud matching to the endpoint
-                                    if tmpCheckCloud == self.getCloudForEndPoint(tmpEndPoint):
-                                        dstSiteNameList = set()
-                                        # sites using cloud locality check
-                                        if tmpCheckCloud in cloudLocCheckDst:
-                                            dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst[tmpCheckCloud])
-                                        # skip if no sites
-                                        if len(dstSiteNameList) == 0:
-                                            continue
-                                        for dstSiteName in dstSiteNameList:
-                                            if dstSiteName in returnMap and not dstSiteName in checkedDst:
-                                                returnMap[dstSiteName][storageType] += datasetSpec.Files
-                                                checkedDst.add(dstSiteName)
+                if not check_LFC:
+                    for tmp_endpoint in tmp_endpoints:
+                        if complete_replica_map.has_key(tmp_endpoint):
+                            storage_type = complete_replica_map[tmp_endpoint]
+                            return_map[site_name][storage_type] += dataset_spec.Files
+                            checked_dst.add(site_name)
+
             # loop over all available LFNs
-            avaLFNs = surlMap.keys()
-            avaLFNs.sort()
-            for tmpLFN in avaLFNs:
-                tmpFileSpecList = lfnFileSpecMap[tmpLFN]
-                tmpFileSpec = tmpFileSpecList[0]
-                # loop over all SURLs
-                for tmpSURL in surlMap[tmpLFN]:
-                    for tmpSePath in storagePathMap.keys():
-                        # check SURL
-                        if tmpSURL.startswith(tmpSePath):
-                            # add
-                            for tmpSiteDict in storagePathMap[tmpSePath]:
-                                siteName = tmpSiteDict['siteName']
-                                storageType = tmpSiteDict['storageType']
-                                tmpEndPoint = tmpSiteDict['endPoint']
-                                if not tmpFileSpec in returnMap[siteName][storageType]:
-                                    returnMap[siteName][storageType] += tmpFileSpecList
-                                checkedDst.add(siteName)
-                                # add for cloud locality check
-                                if siteName in cloudLocCheckSrc:
-                                    # loop over possible endpoint clouds associated to the site
-                                    for tmpCheckCloud in cloudLocCheckSrc[siteName]:
-                                        # use only cloud matching to the endpoint
-                                        if tmpCheckCloud == self.getCloudForEndPoint(tmpEndPoint):
-                                            dstSiteNameList = set()
-                                            # sites using cloud locality check
-                                            if tmpCheckCloud in cloudLocCheckDst:
-                                                dstSiteNameList = dstSiteNameList.union(cloudLocCheckDst[tmpCheckCloud])
-                                            # skip if no sites
-                                            if len(dstSiteNameList) == 0:
-                                                continue
-                                            for dstSiteName in dstSiteNameList:
-                                                if not dstSiteName in checkedDst:
-                                                    if not tmpFileSpec in returnMap[dstSiteName][storageType]:
-                                                        returnMap[dstSiteName][storageType] += tmpFileSpecList
-                            break
-            # all
-            for siteName in returnMap.keys():
-                siteAllFileList = set()
-                storageTypeFile = returnMap[siteName]
-                for storageType,fileList in storageTypeFile.iteritems():
-                    for tmpFileSpec in fileList:
-                        siteAllFileList.add(tmpFileSpec)
-                storageTypeFile['all'] = siteAllFileList
-            # dump
-            dumpStr = ''
-            for siteName,storageTypeFile in returnMap.iteritems():
-                dumpStr += '{0}:('.format(siteName)
-                for storageType,fileList in storageTypeFile.iteritems():
-                    dumpStr += '{0}:{1},'.format(storageType,len(fileList))
-                dumpStr = dumpStr[:-1]
-                dumpStr += ') '
-            dumpStr= dumpStr[:-1]
-            tmpLog.debug(dumpStr)
+            available_lfns = rucio_lfn_to_rse_map.keys()
+            available_lfns.sort()
+            for tmp_lfn in available_lfns:
+
+                tmp_filespec_list = lfn_filespec_map[tmp_lfn]
+                tmp_filespec = lfn_filespec_map[tmp_lfn][0]
+                for site in site_endpoint_map:
+                    for endpoint in site_endpoints_map_complete[site]:
+                        if endpoint in rucio_lfn_to_rse_map[tmp_lfn]:
+                            storage_type = endpoint_storagetype_map[endpoint]
+                            if not tmp_filespec in return_map[site][storage_type]:
+                                return_map[site][storage_type] += tmp_filespec_list
+                            checked_dst.add(site)
+                        break
+
+            # aggregate all types of storage types into the 'all' key
+            for site, storage_type_files in return_map.iteritems():
+                site_all_file_list = set()
+                for storage_type, file_list in storage_type_files.iteritems():
+                    for tmp_file_spec in file_list:
+                        site_all_file_list.add(tmp_file_spec)
+                storage_type_files['all'] = site_all_file_list
+
+            # dump for logging
+            logging_str = ''
+            for site, storage_type_file in return_map.iteritems():
+                logging_str += '{0}:('.format(site)
+                for storage_type, file_list in storage_type_file.iteritems():
+                    logging_str += '{0}:{1},'.format(storage_type, len(file_list))
+                logging_str = logging_str[:-1]
+                logging_str += ') '
+            logging_str = logging_str[:-1]
+            tmp_log.debug(logging_str)
+
             # return
-            tmpLog.debug('done')            
-            return self.SC_SUCCEEDED,returnMap
+            tmp_log.debug('done')
+            return self.SC_SUCCEEDED, return_map
         except:
-            errtype,errvalue = sys.exc_info()[:2]
-            errMsg = 'failed with {0} {1} '.format(errtype.__name__,errvalue)
-            errMsg += traceback.format_exc()
-            tmpLog.error(errMsg)
-            return self.SC_FAILED,'{0}.{1} {2}'.format(self.__class__.__name__,methodName,errMsg)
+            error_type, error_value = sys.exc_info()[:2]
+            error_message = 'failed with {0} {1} '.format(error_type.__name__, error_value)
+            error_message += traceback.format_exc()
+            tmp_log.error(error_message)
+            return self.SC_FAILED, '{0}.{1} {2}'.format(self.__class__.__name__, method_name, error_message)
 
-        
-
-    # get SURLs from LFC
-    def getSURLsFromLFC(self,files,lfcHost,storages,verbose=False,scopes={}):
+    def jedi_list_replicas(self, files, storages, scopes={}):
         try:
             client = RucioClient()
-            # get PFN
-            iGUID = 0
-            nGUID = 1000
-            retVal = {}
-            dids   = []
-            for guid,lfn in files.iteritems():
-                iGUID += 1
+            i_guid = 0
+            max_guid = 1000 # do 1000 guids in each Rucio call
+            lfn_to_rses_map = {}
+            dids = []
+
+            for guid, lfn in files.iteritems():
+                i_guid += 1
                 scope = scopes[lfn]
-                dids.append({'scope':scope,'name':lfn})
-                if len(dids) % nGUID == 0 or iGUID == len(files):
-                    for tmpDict in client.list_replicas(dids,['srm','gsiftp']):
-                        tmpLFN = str(tmpDict['name'])
-                        surls = []
-                        for tmpRSE,tmpSURLs in tmpDict['rses'].iteritems():
+                dids.append({'scope': scope, 'name': lfn})
+
+                if len(dids) % max_guid == 0 or i_guid == len(files):
+                    for tmp_dict in client.list_replicas(dids, ['srm', 'gsiftp']):
+                        tmp_LFN = str(tmp_dict['name'])
+                        rses = []
+                        for tmp_RSE in tmp_dict['rses']:
                             # rse selection
-                            if len(storages) > 0 and not tmpRSE in storages:
-                                continue
-                            surls += tmpSURLs
-                        if len(surls) > 0:
-                            retVal[tmpLFN] = surls
+                            if tmp_RSE in storages:
+                                rses.append(tmpRSE)
+
+                        lfn_to_rses_map[tmp_LFN] = rses
+
+                    # reset the dids list for the next bulk for Rucio
                     dids = []
         except:
-            errType,errValue = sys.exc_info()[:2]
-            return self.SC_FAILED,"file lookup failed with {0}:{1} {2}".format(errType,errValue,traceback.format_exc())
-        # return
-        return self.SC_SUCCEEDED,retVal
+            err_type, err_value = sys.exc_info()[:2]
+            return self.SC_FAILED, "file lookup failed with {0}:{1} {2}".format(err_type, err_value, traceback.format_exc())
 
-
+        return self.SC_SUCCEEDED, lfn_to_rses_map
 
     # get dataset metadata
     def getDatasetMetaData(self,datasetName):
@@ -1190,7 +1119,7 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # find lost files
-    def findLostFiles(self,datasetName,fileMap):
+    def findLostFiles(self, datasetName, fileMap):
         methodName = 'findLostFiles'
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
@@ -1220,39 +1149,19 @@ class AtlasDDMClient(DDMClientBase):
                 tmpLFN = fileMap[tmpGUID]['lfn']
                 lfnMap[tmpGUID] = tmpLFN
                 scopeMap[tmpLFN] = fileMap[tmpGUID]['scope']
-            # get LFC and SE
-            lfcSeMap = {}
-            for tmpEndPoint in datasetReplicaMap.keys():
-                # get LFC
-                tmpStat,lfc = self.getSiteProperty(tmpEndPoint,'servedlfc')
-                if tmpStat != self.SC_SUCCEEDED:
-                    tmpLog.error('faild to get catalog for {0} with {0}'.format(tmpEndPoint,lfc))
-                    return tmpStat,lfc
-                # add map
-                if not lfcSeMap.has_key(lfc):
-                    lfcSeMap[lfc] = []
-                # get SE
-                tmpStat,seStr = self.getSiteProperty(tmpEndPoint,'se')
-                if tmpStat != self.SC_SUCCEEDED:
-                    tmpLog.error('faild to get SE for {0} with {0}'.format(tmpEndPoint,seStr))
-                    return tmpStat,seStr
-                tmpMatch = re.search('://([^:/]+):*\d*',seStr)
-                if tmpMatch != None:
-                    se = tmpEndPoint
-                    if not se in lfcSeMap[lfc]:
-                        lfcSeMap[lfc].append(se)
+
             # get SURLs
-            for lfcHost,seList in lfcSeMap.iteritems():
-                tmpStat,tmpRetMap = self.getSURLsFromLFC(lfnMap,lfcHost,seList,scopes=scopeMap)
-                if tmpStat != self.SC_SUCCEEDED:
-                    tmpLog.error('faild to get SURLs with {0}'.format(tmpRetMap))
-                    return tmpStat,tmpRetMap
-                # look for missing files
-                newLfnMap = {}
-                for tmpGUID,tmpLFN in lfnMap.iteritems():
-                    if not tmpLFN in tmpRetMap:
-                        newLfnMap[tmpGUID] = tmpLFN
-                lfnMap = newLfnMap
+            seList = datasetReplicaMap.keys()
+            tmpStat, tmpRetMap = self.jedi_list_replicas(lfnMap, seList, scopes=scopeMap)
+            if tmpStat != self.SC_SUCCEEDED:
+                tmpLog.error('failed to get SURLs with {0}'.format(tmpRetMap))
+                return tmpStat,tmpRetMap
+            # look for missing files
+            lfnMap = {}
+            for tmpGUID,tmpLFN in lfnMap.iteritems():
+                if not tmpLFN in tmpRetMap:
+                    lfnMap[tmpGUID] = tmpLFN
+
             tmpLog.debug('done with lost '+','.join(str(tmpLFN) for tmpLFN in lfnMap.values()))
             return self.SC_SUCCEEDED,lfnMap
         except:
@@ -1261,8 +1170,6 @@ class AtlasDDMClient(DDMClientBase):
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
             return errCode,'{0} : {1}'.format(methodName,errMsg)
-
-
 
     # get sites associated to a DDM endpoint
     def getSitesWithEndPoint(self,endPoint,siteMapper,siteType):
@@ -1480,7 +1387,7 @@ class AtlasDDMClient(DDMClientBase):
     def updateEndPointDict(self):
         methodName  = 'updateEndPointDict'
         tmpLog = MsgWrapper(logger,methodName)
-        # check freashness
+        # check freshness
         timeNow = datetime.datetime.utcnow()
         if self.lastUpdateEP != None and timeNow-self.lastUpdateEP < self.timeIntervalEP:
             return
