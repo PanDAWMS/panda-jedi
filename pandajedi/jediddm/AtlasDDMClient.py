@@ -448,7 +448,7 @@ class AtlasDDMClient(DDMClientBase):
             checked_dst = set()
             for site_name, tmp_endpoints in site_endpoints_map_complete.iteritems():
 
-                return_map.setdefault(site_name, {'localdisk': [], 'localtape': [], 'cache': []})
+                return_map.setdefault(site_name, {'localdisk': [], 'localtape': [], 'cache': [], 'remote': []})
                 tmp_site_spec = site_mapper.getSite(site_name)
 
                 # check if the dataset is cached
@@ -529,7 +529,7 @@ class AtlasDDMClient(DDMClientBase):
                         for tmp_RSE in tmp_dict['rses']:
                             # rse selection
                             if tmp_RSE in storages:
-                                rses.append(tmpRSE)
+                                rses.append(tmp_RSE)
 
                         lfn_to_rses_map[tmp_LFN] = rses
 
