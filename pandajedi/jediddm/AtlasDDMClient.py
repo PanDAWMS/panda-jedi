@@ -45,15 +45,13 @@ class AtlasDDMClient(DDMClientBase):
         self.lastUpdateEP = None
         # how frequently update endpoint dict
         self.timeIntervalEP = datetime.timedelta(seconds=60*10)
-        # NG endpoint types
-        # self.ngEndPointTypes = ['TEST','SPECIAL']
 
     # get a parsed certificate DN
-    def parse_dn(self,tmpDN):
+    def parse_dn(self, tmpDN):
         if tmpDN is not None:
             tmpDN = re.sub('/CN=limited proxy','',tmpDN)
             tmpDN = re.sub('(/CN=proxy)+$', '', tmpDN)
-            #tmpDN = re.sub('(/CN=\d+)+$', '', tmpDN)
+            # tmpDN = re.sub('(/CN=\d+)+$', '', tmpDN)
         return tmpDN
 
     # get files in dataset
@@ -123,8 +121,6 @@ class AtlasDDMClient(DDMClientBase):
                 return self.SC_SUCCEEDED,{}
             return errCode,'{0} : {1}'.format(methodName,errStr)
 
-
-
     # list dataset replicas
     def listDatasetReplicas(self,datasetName):
         methodName = 'listDatasetReplicas'
@@ -172,8 +168,6 @@ class AtlasDDMClient(DDMClientBase):
             tmpLog.error(errStr)
             return errCode,'{0} : {1}'.format(methodName,errStr)
 
-
-
     # list replicas per dataset
     def listReplicasPerDataset(self,datasetName,deepScan=False):
         methodName = 'listReplicasPerDataset'
@@ -204,8 +198,6 @@ class AtlasDDMClient(DDMClientBase):
             tmpLog.error(errStr)
             return errCode,'{0} : {1}'.format(methodName,errStr)
 
-
-
     # get site property
     def getSiteProperty(self,seName,attribute):
         methodName = 'getSiteProperty'
@@ -220,8 +212,6 @@ class AtlasDDMClient(DDMClientBase):
             errCode = self.checkError(errtype)
             return errCode,'%s : %s %s' % (methodName,errtype.__name__,errvalue)
 
-
-
     # get site alternateName
     def getSiteAlternateName(self,se_name):
         self.updateEndPointDict()
@@ -229,18 +219,14 @@ class AtlasDDMClient(DDMClientBase):
             return [self.endPointDict[se_name]['site']]
         return None
 
-
-
     # get associated endpoints
     def getAssociatedEndpoints(self,altName):
         self.updateEndPointDict()
         epList = []
         for seName,seVal in self.endPointDict.iteritems():
-            if seVal['site'] == altName: # and not seVal['type'] in self.ngEndPointTypes:
+            if seVal['site'] == altName:
                 epList.append(seName)
         return epList
-
-
 
     # convert token to endpoint
     def convertTokenToEndpoint(self,baseSeName,token):
@@ -249,7 +235,7 @@ class AtlasDDMClient(DDMClientBase):
             altName = self.getSiteAlternateName(baseSeName)[0]
             if altName != None:
                 for seName,seVal in self.endPointDict.iteritems():
-                    if seVal['site'] == altName: # and not seVal['type'] in self.ngEndPointTypes:
+                    if seVal['site'] == altName:
                         # space token
                         if seVal['token'] == token:
                             return seName
@@ -260,16 +246,12 @@ class AtlasDDMClient(DDMClientBase):
             pass
         return None
 
-
-
     # get cloud for an endpoint
     def getCloudForEndPoint(self,endPoint):
         self.updateEndPointDict()
         if endPoint in self.endPointDict:
             return self.endPointDict[endPoint]['cloud']
         return None
-
-
 
     # check if endpoint is NG
     def checkNGEndPoint(self,endPoint,ngList):
@@ -278,21 +260,10 @@ class AtlasDDMClient(DDMClientBase):
                 return True
         return False    
 
-
     def generateCompleteMap(self, site_endpoint_map, ng_group):
 
         # map of panda sites and ddm endpoints
         site_endpoints_map_complete = {}
-
-        # list of NG endpoints
-        # TODO: what is NG? task broker and prod job broker don't use 1
-        # TODO: analysis job broker doesn't use 2
-        ng_endpoints = []
-        if 1 in ng_group:
-            ng_endpoints += ['_SCRATCHDISK$', '_LOCALGROUPDISK$', '_LOCALGROUPTAPE$', '_USERDISK$',
-                             '_DAQ$', '_TMPDISK$', '_TZERO$', '_GRIDFTP$', 'MOCKTEST$']
-        if 2 in ng_group:
-            ng_endpoints += ['_LOCALGROUPTAPE$', '_DAQ$', '_TMPDISK$', '_GRIDFTP$', 'MOCKTEST$']
 
         for site_name, endpoint_pattern_list in site_endpoint_map.iteritems():
 
@@ -315,19 +286,10 @@ class AtlasDDMClient(DDMClientBase):
             site_endpoints_map_complete[site_name] = []
             for endpoint in all_endpoints_list:
                 # if the endpoint is not NG add it to the map
-                if not self.checkNGEndPoint(endpoint, ng_endpoints) \
-                        and endpoint not in site_endpoints_map_complete[site_name]:
+                if endpoint not in site_endpoints_map_complete[site_name]:
                     site_endpoints_map_complete[site_name].append(endpoint)
                 else:
                     continue
-
-                # add endpoints associated to the alternate name to the site
-                alternate_name = self.getSiteAlternateName(endpoint)
-                if alternate_name is not None and alternate_name != ['']:
-                    for associated_endpoint in self.getAssociatedEndpoints(alternate_name[0]):
-                        if associated_endpoint not in site_endpoints_map_complete[site_name] \
-                                and not self.checkNGEndPoint(associated_endpoint, ng_endpoints):
-                            site_endpoints_map_complete[site_name].append(associated_endpoint)
 
         return site_endpoints_map_complete
 
@@ -1172,6 +1134,7 @@ class AtlasDDMClient(DDMClientBase):
             return errCode,'{0} : {1}'.format(methodName,errMsg)
 
     # get sites associated to a DDM endpoint
+    # TODO: check with Tadashi, this function is never called - delete it?
     def getSitesWithEndPoint(self,endPoint,siteMapper,siteType):
         retList = []
         # get alternate name
@@ -1187,7 +1150,7 @@ class AtlasDDMClient(DDMClientBase):
                 if tmpSiteSpec.status == 'offline':
                     continue
                 # end point
-                tmpAltNameList = self.getSiteAlternateName(tmpSiteSpec.ddm_output) # TODO: check with Tadashi, this function is never called - delete it?
+                tmpAltNameList = self.getSiteAlternateName(tmpSiteSpec.ddm_output)
                 if tmpAltNameList == None or tmpAltNameList == [''] or len(tmpAltNameList) == 0:
                     continue
                 if altName != tmpAltNameList[0]:
@@ -1197,8 +1160,6 @@ class AtlasDDMClient(DDMClientBase):
                     retList.append(tmpSiteName)
         # return
         return retList
-
-
 
     # convert output of listDatasetReplicas
     def convertOutListDatasetReplicas(self,datasetName,usefileLookup=False):
