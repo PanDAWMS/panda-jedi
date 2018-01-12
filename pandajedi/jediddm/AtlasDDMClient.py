@@ -260,7 +260,7 @@ class AtlasDDMClient(DDMClientBase):
                 return True
         return False    
 
-    def generateCompleteMap(self, site_endpoint_map, ng_group):
+    def generateCompleteMap(self, site_endpoint_map):
 
         # map of panda sites and ddm endpoints
         site_endpoints_map_complete = {}
@@ -308,13 +308,12 @@ class AtlasDDMClient(DDMClientBase):
 
         return False
 
-    def getAvailableFiles(self, dataset_spec, site_endpoint_map, site_mapper, ng_group=[], check_LFC=False,
+    def getAvailableFiles(self, dataset_spec, site_endpoint_map, site_mapper, check_LFC=False,
                           check_completeness=True, storage_token=None, complete_only=False):
         """
         :param dataset_spec: dataset spec object
         :param site_endpoint_map: panda sites to ddm endpoints map. The list of panda sites includes the ones to scan
         :param site_mapper: site mapper object
-        :param ng_group: ask Tadashi
         :param check_LFC: check/ask Tadashi/probably obsolete
         :param check_completeness:
         :param storage_token:
@@ -331,13 +330,13 @@ class AtlasDDMClient(DDMClientBase):
 
         try:
             tmp_log.debug('start datasetName={0} check_completeness={1} nFiles={2}'.format(dataset_spec.datasetName,
-                                                                                         check_completeness,
-                                                                                         len(dataset_spec.Files)))
+                                                                                           check_completeness,
+                                                                                           len(dataset_spec.Files)))
             # update the definition of all endpoints from AGIS
             self.updateEndPointDict()
 
             # generate the complete map, expanding wildcards, removing NG sites, etc.
-            site_endpoints_map_complete = self.generateCompleteMap(site_endpoint_map, ng_group)
+            site_endpoints_map_complete = self.generateCompleteMap(site_endpoint_map)
 
             # get the file map
             tmp_status, tmp_output = self.getFilesInDataset(dataset_spec.datasetName)
@@ -371,7 +370,7 @@ class AtlasDDMClient(DDMClientBase):
                     else:
                         storage_type = 'localdisk'
 
-                    if self.SiteHasCompleteReplica(self, dataset_replica_map, endpoint, total_files_in_dataset) \
+                    if self.SiteHasCompleteReplica(dataset_replica_map, endpoint, total_files_in_dataset) \
                         or (endpoint in dataset_replica_map and not check_completeness) \
                             or DataServiceUtils.isCachedFile(dataset_spec.datasetName, tmp_site_spec):
                         complete_replica_map[endpoint] = storage_type
@@ -399,9 +398,9 @@ class AtlasDDMClient(DDMClientBase):
                 scope_map[tmp_file.lfn] = tmp_file.scope
 
             # get the file locations from Rucio
-            tmp_log.debug('lookup file replicas in Rucio for RSEs: {1}'.format(rse_list))
+            tmp_log.debug('lookup file replicas in Rucio for RSEs: {0}'.format(rse_list))
             tmp_status, rucio_lfn_to_rse_map = self.jedi_list_replicas(file_map, rse_list, scopes=scope_map)
-            tmp_log.debug(str(tmp_status))
+            tmp_log.debug('lookup file replicas return status" {0}'.format(str(tmp_status)))
             if tmp_status != self.SC_SUCCEEDED:
                 raise RuntimeError, rucio_lfn_to_rse_map
 
@@ -460,6 +459,8 @@ class AtlasDDMClient(DDMClientBase):
                 logging_str += ') '
             logging_str = logging_str[:-1]
             tmp_log.debug(logging_str)
+
+            tmp_log.debug(return_map)
 
             # return
             tmp_log.debug('done')
@@ -1133,33 +1134,6 @@ class AtlasDDMClient(DDMClientBase):
             tmpLog.error(errMsg)
             return errCode,'{0} : {1}'.format(methodName,errMsg)
 
-    # get sites associated to a DDM endpoint
-    # TODO: check with Tadashi, this function is never called - delete it?
-    def getSitesWithEndPoint(self,endPoint,siteMapper,siteType):
-        retList = []
-        # get alternate name
-        altNameList = self.getSiteAlternateName(endPoint)
-        if altNameList != None and altNameList != [''] and len(altNameList) > 0:
-            altName = altNameList[0]
-            # loop over all sites
-            for tmpSiteName,tmpSiteSpec in siteMapper.siteSpecList.iteritems():
-                # check type
-                if tmpSiteSpec.type != siteType:
-                    continue
-                # check status
-                if tmpSiteSpec.status == 'offline':
-                    continue
-                # end point
-                tmpAltNameList = self.getSiteAlternateName(tmpSiteSpec.ddm_output)
-                if tmpAltNameList == None or tmpAltNameList == [''] or len(tmpAltNameList) == 0:
-                    continue
-                if altName != tmpAltNameList[0]:
-                    continue
-                # append
-                if not tmpSiteName in retList:
-                    retList.append(tmpSiteName)
-        # return
-        return retList
 
     # convert output of listDatasetReplicas
     def convertOutListDatasetReplicas(self,datasetName,usefileLookup=False):
