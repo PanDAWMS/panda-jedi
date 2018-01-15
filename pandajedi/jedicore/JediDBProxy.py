@@ -920,6 +920,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             maxSizePerJob = taskSpec.getMaxSizePerJob()
                             if maxSizePerJob is not None:
                                 maxSizePerJob += InputChunk.defaultOutputSize
+                                maxSizePerJob += taskSpec.getWorkDiskSize()
                             # make sub chunks
                             for i in range(nChunks):
                                 tmpInputChunk.getSubChunk(None,nFilesPerJob=taskSpec.getNumFilesPerJob(),
@@ -8556,7 +8557,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 self.cur.execute(sqlRD+comment,varMap)
                         # update task
                         if commStr == 'retry':
-                            if changedMasterList != []:
+                            if changedMasterList != [] or taskOldStatus == 'exhausted':
                                 newTaskStatus = JediTaskSpec.commandStatusMap()[commStr]['done']
                             else:
                                 # to finalization since no files left in ready status
