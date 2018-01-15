@@ -364,7 +364,7 @@ class AtlasDDMClient(DDMClientBase):
             # get the file locations from Rucio
             tmp_log.debug('lookup file replicas in Rucio for RSEs: {0}'.format(rse_list))
             tmp_status, rucio_lfn_to_rse_map = self.jedi_list_replicas(file_map, rse_list, scopes=scope_map)
-            tmp_log.debug('lookup file replicas return status" {0}'.format(str(tmp_status)))
+            tmp_log.debug('lookup file replicas return status: {0}'.format(str(tmp_status)))
             if tmp_status != self.SC_SUCCEEDED:
                 raise RuntimeError, rucio_lfn_to_rse_map
 
@@ -423,8 +423,6 @@ class AtlasDDMClient(DDMClientBase):
                 logging_str += ') '
             logging_str = logging_str[:-1]
             tmp_log.debug(logging_str)
-
-            tmp_log.debug(return_map)
 
             # return
             tmp_log.debug('done')
