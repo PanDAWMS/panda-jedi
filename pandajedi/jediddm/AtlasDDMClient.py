@@ -258,40 +258,7 @@ class AtlasDDMClient(DDMClientBase):
         for ngPatt in ngList:
             if re.search(ngPatt, endPoint) is not None:
                 return True
-        return False    
-
-    def generateCompleteMap(self, site_endpoint_map):
-
-        # map of panda sites and ddm endpoints
-        site_endpoints_map_complete = {}
-
-        for site_name, endpoint_pattern_list in site_endpoint_map.iteritems():
-
-            # expand all endpoints
-            all_endpoints_list = []
-            for endpoint_pattern in endpoint_pattern_list:
-                if '*' in endpoint_pattern:
-                    # find all endpoints that match a wildcard
-                    endpoint_pattern = endpoint_pattern.replace('*', '.*')
-                    for endpoint_AGIS in self.endPointDict:
-                        if re.search('^' + endpoint_pattern + '$', endpoint_AGIS) is not None:
-                            if endpoint_AGIS not in all_endpoints_list:
-                                all_endpoints_list.append(endpoint_AGIS)
-                else:
-                    # normal endpoint, check it exists and it's not already added
-                    if endpoint_pattern in self.endPointDict and not endpoint_pattern in all_endpoints_list:
-                        all_endpoints_list.append(endpoint_pattern)
-
-            # re-generate the panda site to DDM endpoint map with expanded endpoints
-            site_endpoints_map_complete[site_name] = []
-            for endpoint in all_endpoints_list:
-                # if the endpoint is not NG add it to the map
-                if endpoint not in site_endpoints_map_complete[site_name]:
-                    site_endpoints_map_complete[site_name].append(endpoint)
-                else:
-                    continue
-
-        return site_endpoints_map_complete
+        return False
 
     def SiteHasCompleteReplica(self, dataset_replica_map, endpoint, total_files_in_dataset):
         """
@@ -335,9 +302,6 @@ class AtlasDDMClient(DDMClientBase):
             # update the definition of all endpoints from AGIS
             self.updateEndPointDict()
 
-            # generate the complete map, expanding wildcards, removing NG sites, etc.
-            site_endpoints_map_complete = self.generateCompleteMap(site_endpoint_map)
-
             # get the file map
             tmp_status, tmp_output = self.getFilesInDataset(dataset_spec.datasetName)
             if tmp_status != self.SC_SUCCEEDED:
@@ -357,7 +321,7 @@ class AtlasDDMClient(DDMClientBase):
             rse_list = []
 
             # figure out complete replicas and storage types
-            for site_name, endpoint_list in site_endpoints_map_complete.iteritems():
+            for site_name, endpoint_list in site_endpoint_map.iteritems():
                 tmp_site_spec = site_mapper.getSite(site_name)
 
                 # loop over all endpoints
@@ -407,7 +371,7 @@ class AtlasDDMClient(DDMClientBase):
             # initialize the return map and add complete/cached replicas
             return_map = {}
             checked_dst = set()
-            for site_name, tmp_endpoints in site_endpoints_map_complete.iteritems():
+            for site_name, tmp_endpoints in site_endpoint_map.iteritems():
 
                 return_map.setdefault(site_name, {'localdisk': [], 'localtape': [], 'cache': [], 'remote': []})
                 tmp_site_spec = site_mapper.getSite(site_name)
@@ -433,7 +397,7 @@ class AtlasDDMClient(DDMClientBase):
                 tmp_filespec_list = lfn_filespec_map[tmp_lfn]
                 tmp_filespec = lfn_filespec_map[tmp_lfn][0]
                 for site in site_endpoint_map:
-                    for endpoint in site_endpoints_map_complete[site]:
+                    for endpoint in site_endpoint_map[site]:
                         if endpoint in rucio_lfn_to_rse_map[tmp_lfn]:
                             storage_type = endpoint_storagetype_map[endpoint]
                             if not tmp_filespec in return_map[site][storage_type]:
