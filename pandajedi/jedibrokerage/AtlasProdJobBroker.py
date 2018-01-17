@@ -223,6 +223,10 @@ class AtlasProdJobBroker (JobBrokerBase):
             useMP = 'unuse'
         # get workQueue
         workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
+        if workQueue.is_global_share:
+            wq_tag = workQueue.queue_name
+        else:
+            wq_tag = workQueue.queue_id
 
         ######################################
         # selection for status
@@ -236,7 +240,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     continue
                 # check site status
                 skipFlag = False
-                if tmpSiteSpec.status != 'online':
+                if tmpSiteSpec.status not in ['online', 'standby']:
                     skipFlag = True
                 if not skipFlag:    
                     newScanSiteList.append(tmpSiteName)
@@ -940,9 +944,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                 nPilot = 0
                 if nWNmap.has_key(tmpSiteName):
                     nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
-                # skip no pilot sites unless the task and the site use jumbo jobs
+                # skip no pilot sites unless the task and the site use jumbo jobs or the site is standby
                 if nPilot == 0 and not 'test' in taskSpec.prodSourceLabel and \
-                        (taskSpec.getNumJumboJobs() == None or not tmpSiteSpec.useJumboJobs()):
+                        (taskSpec.getNumJumboJobs() == None or not tmpSiteSpec.useJumboJobs()) and \
+                        tmpSiteSpec.getNumStandby(wq_tag, taskSpec.resource_type) is None:
                     tmpLog.info('  skip site=%s due to no pilot criteria=-nopilot' % tmpSiteName)
                     continue
                 newScanSiteList.append(tmpSiteName)
@@ -1046,10 +1051,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # calculate weight
         if workQueue.is_global_share:
-            wq_tag = workQueue.queue_name
             tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
         else:
-            wq_tag = workQueue.queue_id
             tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
                                                                                          taskSpec.prodSourceLabel)
 
@@ -1076,6 +1079,17 @@ class AtlasProdJobBroker (JobBrokerBase):
                 nPilot = nPilotMap[tmpSiteName]
             else:
                 nPilot = 0
+            # take into account the number of standby jobs
+            numStandby = tmpSiteSpec.getNumStandby(wq_tag, taskSpec.resource_type)
+            if numStandby is None:
+                pass
+            elif numStandby == 0:
+                # use the number of starting jobs as the number of standby jobs
+                nRunning = nStarting
+                nStarting = 0
+            else:
+                # the number of standby jobs is defined
+                nRunning = numStandby
             manyAssigned = float(nAssigned + 1) / float(nActivated + 1)
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)

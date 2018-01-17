@@ -454,6 +454,8 @@ class JobGeneratorThread (WorkerThread):
                 for tmpJediTaskID,inputList in taskInputList:
                     lastJediTaskID = tmpJediTaskID
                     # loop over all inputs
+                    nBrokergeFailed = 0
+                    nBrokergeSucceeded = 0
                     for idxInputList,tmpInputItem in enumerate(inputList):
                         taskSpec,cloudName,inputChunk = tmpInputItem
                         # reset error dialog
@@ -513,12 +515,15 @@ class JobGeneratorThread (WorkerThread):
                                 tmpLog.error('brokerage crashed with {0}:{1} {2}'.format(errtype.__name__,errvalue,traceback.format_exc()))
                                 tmpStat = Interaction.SC_FAILED
                             if tmpStat != Interaction.SC_SUCCEEDED:
-                                tmpErrStr = 'brokerage failed'
+                                nBrokergeFailed += 1
+                                tmpErrStr = 'brokerage failed for {0} input datasets when trying {1} datasets'.format(nBrokergeFailed, len(inputList))
                                 tmpLog.error(tmpErrStr)
-                                taskSpec.setOnHold()
+                                if nBrokergeSucceeded == 0:
+                                    taskSpec.setOnHold()
                                 taskSpec.setErrDiag(tmpErrStr,True)
                                 goForward = False
                             else:
+                                nBrokergeSucceeded += 1
                                 # collect brokerage lock ID
                                 brokerageLockID = jobBroker.getBaseLockID(taskSpec.vo,taskSpec.prodSourceLabel)
                                 if brokerageLockID != None:

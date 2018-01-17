@@ -858,10 +858,13 @@ class JediTaskSpec(object):
             
             
     # set error dialog
-    def setErrDiag(self,diag,append=False):
+    def setErrDiag(self,diag,append=False,prepend=False):
         # set error dialog
         if append == True and self.errorDialog != None:
-            self.errorDialog = "{0} {1}".format(self.errorDialog,diag)
+            if not prepend:
+                self.errorDialog = "{0} {1}".format(self.errorDialog,diag)
+            else:
+                self.errorDialog = "{0} {1}".format(diag,self.errorDialog)
         elif append == None:
             # keep old log
             if self.errorDialog == None:

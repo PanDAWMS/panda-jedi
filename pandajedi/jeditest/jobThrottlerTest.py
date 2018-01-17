@@ -6,7 +6,6 @@ tbIF.setupInterface()
 
 vo = 'atlas'
 prodSourceLabel = 'managed'
-resourceType = 'MCORE'
 cloud = 'WORLD'
 
 # get SiteMapper
@@ -17,5 +16,7 @@ jt = JobThrottler(vo, prodSourceLabel)
 jt.initializeMods(tbIF)
 
 workQueues = wqMap.getAlignedQueueList(vo, prodSourceLabel)
+resource_types = tbIF.load_resource_types()
 for workQueue in workQueues:
-    print jt.toBeThrottled(vo, prodSourceLabel, cloud, workQueue, resourceType)
+    for resource_type in resource_types:
+        print jt.toBeThrottled(vo, prodSourceLabel, cloud, workQueue, resource_type.resource_name)

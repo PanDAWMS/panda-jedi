@@ -11161,3 +11161,76 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+
+    # get number map for standby jobs
+    def getNumMapForStandbyJobs_JEDI(self, workqueue):
+        comment = ' /* JediDBProxy.getNumMapForStandbyJobs_JEDI */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            retMapStatic = dict()
+            retMapDynamic = dict()
+            # get num of done jobs
+            varMap = dict()
+            varMap[':status'] = 'standby'
+            sql  = "SELECT siteid,catchall FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
+            sql += "WHERE status=:status "
+            self.conn.begin()
+            self.cur.execute(sql+comment,varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # sum per gshare/workqueue and resource type
+            for siteid, catchall in resList:
+                numMap = JobUtils.parseNumStandby(catchall)
+                if numMap is not None:
+                    for wq_tag, resource_num in numMap.iteritems():
+                        if workqueue.is_global_share:
+                            if workqueue.queue_name != wq_tag:
+                                continue
+                        else:
+                            if str(workqueue.queue_id) != wq_tag:
+                                continue
+                        for resource_type, num in resource_num.iteritems():
+                            if num == 0:
+                                retMap = retMapDynamic
+                                # dynamic : use # of starting jobs as # of standby jobs
+                                varMap = dict()
+                                varMap[':vo'] = workqueue.VO
+                                varMap[':status'] = 'starting'
+                                varMap[':resource_type'] = resource_type
+                                varMap[':computingsite'] = siteid
+                                sql = "SELECT /*+ RESULT_CACHE */ njobs FROM {0}.JOBS_SHARE_STATS ".format(jedi_config.db.schemaPANDA) 
+                                sql += "WHERE vo=:vo AND resource_type=:resource_type AND jobstatus=:status AND computingsite=:computingsite "
+                                if workqueue.is_global_share:
+                                    sql += "AND gshare=:gshare "
+                                    sql += "AND workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function=:func) ".format(jedi_config.db.schemaPANDA)
+                                    varMap[':gshare'] = workqueue.queue_name
+                                    varMap[':func'] = 'Resource'
+                                else:
+                                    sql += "AND workqueue_id=:workqueue_id "
+                                    varMap[':workqueue_id'] = workqueue.queue_id
+                                self.cur.execute(sql, varMap)
+                                res = self.cur.fetchone()
+                                if res is None:
+                                    num = 0
+                                else:
+                                    num, = res
+                            else:
+                                retMap = retMapStatic
+                            if resource_type not in retMap:
+                                retMap[resource_type] = 0
+                            retMap[resource_type] += num
+            # return
+            tmpLog.debug("got static={0} dynamic={1}".format(str(retMapStatic), str(retMapDynamic)))
+            return retMapStatic, retMapDynamic
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return {}, {}

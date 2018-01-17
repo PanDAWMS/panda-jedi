@@ -1501,3 +1501,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get number map for standby jobs
+    def getNumMapForStandbyJobs_JEDI(self, workqueue):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getNumMapForStandbyJobs_JEDI(workqueue)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
