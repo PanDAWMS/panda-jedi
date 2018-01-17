@@ -978,10 +978,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
                                                             siteStorageEP,
                                                             self.siteMapper,
-                                                            ngGroup=[1],
-                                                            checkCompleteness=checkCompleteness,
-                                                            storageToken=datasetSpec.storageToken,
-                                                            useCompleteOnly=useCompleteOnly)
+                                                            check_completeness=checkCompleteness,
+                                                            storage_token=datasetSpec.storageToken,
+                                                            complete_only=useCompleteOnly)
                 if tmpAvFileMap == None:
                     raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
