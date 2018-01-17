@@ -1951,6 +1951,12 @@ class JobGeneratorThread (WorkerThread):
         if taskSpec is not None and inputChunk is not None:
             newPandaJob.minRamCount, newPandaJob.minRamUnit = JediCoreUtils.getJobMinRamCount(taskSpec, inputChunk,
                                                                                               siteSpec, newPandaJob.coreCount)
+
+        try:
+            newPandaJob.resource_type = self.taskBufferIF.get_resource_type_job(newPandaJob)
+        except:
+            newPandaJob.resource_type = 'Undefined'
+
         datasetList = set()
         # reset SH for jumbo
         if forJumbo:
