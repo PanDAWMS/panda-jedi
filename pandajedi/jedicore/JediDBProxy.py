@@ -1647,14 +1647,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # update DEFT task status
                     taskStatus = varMap[':status']
                     if taskStatus in ['broken','assigning']:
-                        sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-                        sqlD += "SET status=:status,timeStamp=CURRENT_DATE "
-                        sqlD += "WHERE taskID=:jediTaskID "
-                        varMap = {}
-                        varMap[':status'] = taskStatus
-                        varMap[':jediTaskID'] = jediTaskID
-                        tmpLog.debug(sqlD+comment+str(varMap))
-                        self.cur.execute(sqlD+comment,varMap)
+                        self.setDeftStatus_JEDI(jediTaskID, taskStatus)
                         self.setSuperStatus_JEDI(jediTaskID,taskStatus)
                     tmpLog.debug('set to {0}'.format(taskStatus))
             # commit
@@ -5770,10 +5763,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTU += "SET status=:newStatus,modificationTime=CURRENT_DATE,"
             sqlTU += "errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus "
-            # sql to update DEFT task status
-            sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-            sqlTT += "SET status=:status,timeStamp=CURRENT_DATE "
-            sqlTT += "WHERE taskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
             # get tasks
@@ -5804,10 +5793,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         nRow = self.cur.rowcount
                         # update DEFT task
                         if nRow > 0:
-                            varMap = dict()
-                            varMap[':jediTaskID'] = taskSpec.jediTaskID
-                            varMap[':status'] = taskSpec.status
-                            self.cur.execute(sqlTT+comment,varMap)
+                            self.setDeftStatus_JEDI(taskSpec.jediTaskID, taskSpec.status)
+                            self.setSuperStatus_JEDI(taskSpec.jediTaskID, taskSpec.status)
                         # commit
                         if not self._commit():
                             raise RuntimeError, 'Commit error'
@@ -6245,6 +6232,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlTU+comment,varMap)
                         tmpLog.debug('done new status={0} for jediTaskID={1} since {2}'.format(newTaskStatus,jediTaskID,errorDialog))
                         if newTaskStatus == 'exhausted':
+                            self.setDeftStatus_JEDI(jediTaskID, newTaskStatus)
                             self.setSuperStatus_JEDI(jediTaskID,newTaskStatus)
                 # commit    
                 if not self._commit():
@@ -6405,10 +6393,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             if taskCloudMap != {}:
-                # sql to update DEFT
-                sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-                sqlD += "SET status=:status,timeStamp=CURRENT_DATE"
-                sqlD += " WHERE taskID=:jediTaskID "
                 for jediTaskID,tmpVal in taskCloudMap.iteritems():
                     # begin transaction
                     self.conn.begin()
@@ -6455,11 +6439,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # update DEFT
                     if nRow > 0:
                         deftStatus = 'ready'
+                        self.setDeftStatus_JEDI(jediTaskID, deftStatus)
                         self.setSuperStatus_JEDI(jediTaskID,deftStatus)
-                        varMap = {}
-                        varMap[':jediTaskID'] = jediTaskID
-                        varMap[':status']     = deftStatus
-                        self.cur.execute(sqlD+comment,varMap)
                     # commit
                     if not self._commit():
                         raise RuntimeError, 'Commit error'
@@ -6896,13 +6877,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     deftStatus = 'submitting'
                                 else:
                                     deftStatus = newTaskStatus
-                                sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-                                sqlTT += "SET status=:status,timeStamp=CURRENT_DATE "
-                                sqlTT += " WHERE taskID=:jediTaskID "
-                                varMap = dict()
-                                varMap[':jediTaskID'] = jediTaskID
-                                varMap[':status'] = deftStatus
-                                self.cur.execute(sqlTT+comment, varMap)
+                                self.setDeftStatus_JEDI(jediTaskID, deftStatus)
                                 self.setSuperStatus_JEDI(jediTaskID,deftStatus)
                     # update command table
                     if not toSkip:
@@ -7391,10 +7366,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTK  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTK += "SET modificationtime=CURRENT_DATE,frozenTime=CURRENT_DATE "
             sqlTK += "WHERE jediTaskID=:jediTaskID "
-            # sql to update DEFT task status
-            sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-            sqlTT += "SET status=:status,timeStamp=CURRENT_DATE "
-            sqlTT += "WHERE taskID=:jediTaskID "
             # sql to check the number of finished files
             sqlND  = "SELECT SUM(nFilesFinished) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlND += "WHERE jediTaskID=:jediTaskID AND type IN ("
@@ -7462,10 +7433,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # update DEFT for timeout
                 if timeoutFlag and abortingFlag:
                     deftStatus = 'aborted'
-                    varMap = {}
-                    varMap[':jediTaskID'] = jediTaskID
-                    varMap[':status'] = deftStatus
-                    self.cur.execute(sqlTT+comment,varMap)
+                    self.setDeftStatus_JEDI(jediTaskID, deftStatus)
                     self.setSuperStatus_JEDI(jediTaskID,deftStatus)
             # commit
             if not self._commit():
@@ -9363,6 +9331,29 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':jediTaskID'] = jediTaskID
             varMap[':superStatus'] = superStatus
             self.cur.execute(sqlCT+comment,varMap)
+            return True
+        except:
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
+
+
+
+    # set DEFT status
+    def setDeftStatus_JEDI(self,jediTaskID, taskStatus):
+        comment = ' /* JediDBProxy.setDeftStatus_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskID={0}>".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        try:
+            sqlD  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+            sqlD += "SET status=:status,timeStamp=CURRENT_DATE "
+            sqlD += "WHERE taskID=:jediTaskID "
+            varMap = {}
+            varMap[':status'] = taskStatus
+            varMap[':jediTaskID'] = jediTaskID
+            tmpLog.debug(sqlD+comment+str(varMap))
+            self.cur.execute(sqlD+comment,varMap)
             return True
         except:
             # error
