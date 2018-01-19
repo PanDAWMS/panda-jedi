@@ -8373,7 +8373,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sqlMAX+comment,varMap)
                     resMAX = self.cur.fetchone()
                     maxRetry = 1000
-                    if resMAX is not None and resMAX[0] + maxAttempt >= maxRetry:
+                    if resMAX is not None and resMAX[0] is not None and resMAX[0] + maxAttempt >= maxRetry:
                         # only tasks in a relevant final status 
                         msgStr = 'no {0} since too many attempts (~{1}) in the past'.format(commStr,maxRetry)
                         tmpLog.debug(msgStr)
