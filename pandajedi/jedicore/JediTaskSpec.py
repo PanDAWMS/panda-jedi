@@ -136,6 +136,7 @@ class JediTaskSpec(object):
     # enum for useJumbo
     enum_useJumbo = {'waiting': 'W',
                      'running': 'R',
+                     'pending': 'P',
                      'disabled': 'D'}
 
 

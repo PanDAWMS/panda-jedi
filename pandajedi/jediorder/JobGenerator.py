@@ -516,11 +516,16 @@ class JobGeneratorThread (WorkerThread):
                                 tmpStat = Interaction.SC_FAILED
                             if tmpStat != Interaction.SC_SUCCEEDED:
                                 nBrokergeFailed += 1
-                                tmpErrStr = 'brokerage failed for {0} input datasets when trying {1} datasets'.format(nBrokergeFailed, len(inputList))
-                                tmpLog.error(tmpErrStr)
-                                if nBrokergeSucceeded == 0:
-                                    taskSpec.setOnHold()
-                                taskSpec.setErrDiag(tmpErrStr,True)
+                                if inputChunk is not None and inputChunk.hasCandidatesForJumbo():
+                                    self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'pending')
+                                    tmpErrStr = 'brokerage failed for jumbo and real co-jumbo'
+                                    tmpLog.debug(tmpErrStr)
+                                else:
+                                    tmpErrStr = 'brokerage failed for {0} input datasets when trying {1} datasets'.format(nBrokergeFailed, len(inputList))
+                                    tmpLog.error(tmpErrStr)
+                                    if nBrokergeSucceeded == 0:
+                                        taskSpec.setOnHold()
+                                    taskSpec.setErrDiag(tmpErrStr,True)
                                 goForward = False
                             else:
                                 nBrokergeSucceeded += 1

@@ -133,6 +133,12 @@ class InputChunk:
 
 
 
+    # has candidate for jumbo jobs
+    def hasCandidatesForJumbo(self):
+        return len(self.siteCandidatesJumbo) > 0
+
+
+
     # get one site candidate randomly
     def getOneSiteCandidate(self,nSubChunks=0,ngSites=None):
         retSiteCandidate = None

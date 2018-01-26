@@ -1,5 +1,8 @@
 Release Notes
 
+* 1/26/2017
+  * added useJumbo=pending
+
 * 1/19/2017
   * setting superStatus and T_TASK.status consistently
 

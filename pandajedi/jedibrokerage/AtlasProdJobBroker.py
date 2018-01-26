@@ -1298,7 +1298,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                         # use site for jumbo jobs
                         tmpLog.info(tmpOkMsg)
                         inputChunk.addSiteCandidateForJumbo(siteCandidateSpec)
-                        continue
+                        if inputChunk.useJumbo != 'fake':
+                            continue
                 # candidates for normal jobs
                 if (weightRank == None or weightIdx < weightRank) and \
                         (maxSiteCandidates == None or len(newScanSiteList) < maxSiteCandidates):

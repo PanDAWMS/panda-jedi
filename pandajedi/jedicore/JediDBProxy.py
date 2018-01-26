@@ -2943,6 +2943,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             taskAvalancheMap = {}
             taskUserPrioMap = {}
             taskPrioMap = {}
+            taskUseJumboMap = {}
             for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,\
                     taskStatus,groupByAttr,tmpNumInputFiles,tmpNumInputEvents,\
                     tmpNumFilesWaiting,useJumbo in resList:
@@ -2956,6 +2957,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     return currentPriority
                 # make task-status mapping
                 taskStatusMap[jediTaskID] = taskStatus
+                # make task-useJumbo mapping
+                taskUseJumboMap[jediTaskID] = useJumbo
                 # make task-dataset mapping
                 if not taskDatasetMap.has_key(jediTaskID):
                     taskDatasetMap[jediTaskID] = []
@@ -3113,7 +3116,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # process only merging if enough jobs are already generated
                 dsWithfakeCoJumbo = set()
                 containMerging = False
-                if (maxNumJobs != None and maxNumJobs <= 0) or mergeUnThrottled:
+                if (maxNumJobs != None and maxNumJobs <= 0) or \
+                        (maxNumJobs is not None and maxNumJobs > 0 and taskUseJumboMap[jediTaskID] == JediTaskSpec.enum_useJumbo['pending']) or \
+                        mergeUnThrottled:
                     for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents,\
                             tmpNumFilesWaiting,useJumbo in taskDatasetMap[jediTaskID]:
                         if datasetType in JediDatasetSpec.getMergeProcessTypes():
@@ -3124,7 +3129,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         elif useJumbo is None or useJumbo == JediTaskSpec.enum_useJumbo['disabled'] or tmpNumFiles-tmpNumFilesWaiting <= 0:
                             # no jumbo or no more co-jumbo
                             pass
-                        elif useJumbo == JediTaskSpec.enum_useJumbo['running'] or \
+                        elif useJumbo in [JediTaskSpec.enum_useJumbo['running'], JediTaskSpec.enum_useJumbo['pending']] or \
                                 (useJumbo == JediTaskSpec.enum_useJumbo['waiting'] and numNewTaskWithJumbo > 0):
                             # jumbo with fake co-jumbo
                             dsWithfakeCoJumbo.add(datasetID)
@@ -3317,7 +3322,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if datasetType in JediDatasetSpec.getMergeProcessTypes():
                                 for inputChunk in inputChunks:
                                     inputChunk.isMerging = True
-                            elif (useJumbo == JediTaskSpec.enum_useJumbo['running'] or \
+                            elif (useJumbo in [JediTaskSpec.enum_useJumbo['running'], JediTaskSpec.enum_useJumbo['pending']] or \
                                     (useJumbo == JediTaskSpec.enum_useJumbo['waiting'] and numNewTaskWithJumbo > 0)) and \
                                     tmpNumFiles > tmpNumFilesWaiting:
                                 # set jumbo flag only to the first chunk
@@ -11006,7 +11011,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # get tasks
             sqlDJ  = "SELECT COUNT(*) FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlDJ += "WHERE vo=:vo AND prodSourceLabel=:label AND cloud=:cloud "
-            sqlDJ += "AND useJumbo=:useJumbo AND status IN (:st1,:st2,:st3) "
+            sqlDJ += "AND useJumbo in (:useJumbo1,:useJumbo2) AND status IN (:st1,:st2,:st3) "
             varMap = {}
             varMap[':vo']  = vo
             varMap[':label'] = prodSourceLabel
@@ -11021,7 +11026,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':st1'] = 'running'
             varMap[':st2'] = 'pending'
             varMap[':st3'] = 'ready'
-            varMap[':useJumbo'] = JediTaskSpec.enum_useJumbo['running']
+            varMap[':useJumbo1'] = JediTaskSpec.enum_useJumbo['running']
+            varMap[':useJumbo2'] = JediTaskSpec.enum_useJumbo['pending']
             # start transaction
             self.conn.begin()
             self.cur.execute(sqlDJ+comment,varMap)
