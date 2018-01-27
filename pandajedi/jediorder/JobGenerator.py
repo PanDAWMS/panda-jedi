@@ -1342,7 +1342,7 @@ class JobGeneratorThread (WorkerThread):
                     if not simul and len(jobSpecList+tmpJobSpecList) % 50 == 0:
                         self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
                 # increase event service consumers
-                if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
+                if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging and inputChunk.useJumbo != 'fake':
                     nConsumers = taskSpec.getNumEventServiceConsumer()
                     if nConsumers != None:
                         tmpJobSpecList,incOldPandaIDs = self.increaseEventServiceConsumers(tmpJobSpecList,nConsumers,

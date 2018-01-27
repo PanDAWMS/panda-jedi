@@ -128,7 +128,7 @@ class JobSplitter:
                 # append to return map
                 if subChunks != []:
                     # get site names for parallel execution
-                    if taskSpec.getNumSitesPerJob() > 1 and not inputChunk.isMerging:
+                    if taskSpec.getNumSitesPerJob() > 1 and not inputChunk.isMerging and inputChunk.useJumbo != 'fake':
                         siteName = inputChunk.getParallelSites(taskSpec.getNumSitesPerJob(),
                                                                nSubChunks,[siteName])
                     returnList.append({'siteName':siteName,
