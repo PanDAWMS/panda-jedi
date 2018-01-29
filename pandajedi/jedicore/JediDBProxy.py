@@ -3117,7 +3117,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 dsWithfakeCoJumbo = set()
                 containMerging = False
                 if (maxNumJobs != None and maxNumJobs <= 0) or \
-                        (maxNumJobs is not None and maxNumJobs > 0 and taskUseJumboMap[jediTaskID] == JediTaskSpec.enum_useJumbo['pending']) or \
+                        taskUseJumboMap[jediTaskID] == JediTaskSpec.enum_useJumbo['pending'] or \
                         mergeUnThrottled:
                     for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents,\
                             tmpNumFilesWaiting,useJumbo in taskDatasetMap[jediTaskID]:
