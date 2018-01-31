@@ -3084,10 +3084,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                               'jediTaskID=:jediTaskID AND datasetID=:datasetID AND is_waiting IS NULL ',
                               sqlRM)
             # sql to update file status
-            sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus,is_waiting=NULL ".format(jedi_config.db.schemaJEDI)
+            sqlFU  = "UPDATE {0}.JEDI_Dataset_Contents SET status=:nStatus ".format(jedi_config.db.schemaJEDI)
             sqlFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID AND status=:oStatus "
             # sql to update file usage info in dataset
-            sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed,nFilesWaiting=:nFilesWaiting ".format(jedi_config.db.schemaJEDI)
+            sqlDU  = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
 
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             sqlDU += "RETURNING nFilesUsed,nFilesTobeUsed INTO :newnFilesUsed,:newnFilesTobeUsed "
@@ -3642,13 +3642,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         # update nFilesUsed in DatasetSpec
                                         nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles[datasetID]
                                         tmpDatasetSpec.nFilesUsed = nFilesUsed
-                                        if tmpDatasetSpec.nFilesWaiting is not None:
-                                            tmpDatasetSpec.nFilesWaiting -= iFilesWaiting
                                         varMap = {}
                                         varMap[':jediTaskID'] = jediTaskID
                                         varMap[':datasetID'] = datasetID
                                         varMap[':nFilesUsed'] = nFilesUsed
-                                        varMap[':nFilesWaiting'] = tmpDatasetSpec.nFilesWaiting
                                         varMap[':newnFilesUsed'] = self.cur.var(cx_Oracle.NUMBER)
                                         varMap[':newnFilesTobeUsed'] = self.cur.var(cx_Oracle.NUMBER)
                                         self.cur.execute(sqlDU + comment, varMap)
@@ -8551,10 +8548,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # set old update time to trigger subsequent process
                     varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     self.cur.execute(sqlUTN+comment,varMap)
+                    deftStatus = 'ready'
+                    self.setSuperStatus_JEDI(jediTaskID, deftStatus)
                     # update DEFT
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
-                    varMap[':status']     = 'ready'
+                    varMap[':status'] = deftStatus
                     self.cur.execute(sqlTT+comment,varMap)
                 else:
                     tmpLog.debug('back to taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
@@ -10976,21 +10975,55 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # disable jumbo
+            # check current flag
+            sqlCF = "SELECT useJumbo FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlCF += "WHERE jediTaskID=:jediTaskID "
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sqlCF+comment,varMap)
+            curStr, = self.cur.fetchone()
+            # check files
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            sqlFF = "SELECT nFilesToBeUsed-nFilesUsed-nFilesWaiting FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlFF += "WHERE jediTaskID=:jediTaskID AND type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sqlFF += '{0},'.format(mapKey)
+                varMap[mapKey] = tmpType
+            sqlFF = sqlFF[:-1]
+            sqlFF += ') AND masterID IS NULL '
+            self.cur.execute(sqlFF+comment,varMap)
+            nFiles, = self.cur.fetchone()
+            # disallow some transition
+            retVal = True
+            if statusStr == 'running' and curStr == JediTaskSpec.enum_useJumbo['pending']:
+                # to running from pending only when all files are used
+                if nFiles != 0:
+                    statusStr = 'pending'
+                    tmpLog.debug("changed to {0} since nFiles={1}".format(statusStr, nFiles))
+                    retVal = False
+            elif statusStr == 'pending' and curStr == JediTaskSpec.enum_useJumbo['running']:
+                # to pending from running only when some files are available
+                if nFiles == 0:
+                    statusStr = 'running'
+                    tmpLog.debug("changed to {0} since nFiles == 0".format(statusStr))
+                    retVal = False
+            # set jumbo
             sqlDJ  = "UPDATE {0}.JEDI_Tasks SET useJumbo=:status ".format(jedi_config.db.schemaJEDI)
             sqlDJ += "WHERE jediTaskID=:jediTaskID "
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
             varMap[':status'] = JediTaskSpec.enum_useJumbo[statusStr]
-            # start transaction
-            self.conn.begin()
             self.cur.execute(sqlDJ+comment,varMap)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             # return
-            tmpLog.debug("set {0}".format(varMap[':status']))
-            return True
+            tmpLog.debug("set {0} -> {1}".format(curStr, varMap[':status']))
+            return retVal
         except:
             # roll back
             self._rollback()
@@ -11150,7 +11183,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 raise RuntimeError, 'Commit error'
             nDone, = self.cur.fetchone()
             # return
-            tmpLog.debug("got {0} tasks".format(nDone))
+            tmpLog.debug("got {0} jobs".format(nDone))
             return nDone
         except:
             # roll back

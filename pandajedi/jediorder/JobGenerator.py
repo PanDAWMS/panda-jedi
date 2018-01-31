@@ -500,6 +500,7 @@ class JobGeneratorThread (WorkerThread):
                                 goForward = False
                         # run brokerage
                         lockCounter = False
+                        pendingJumbo = False
                         if goForward:
                             if self.liveCounter != None and not inputChunk.isMerging and not self.lackOfJobs:
                                 tmpLog.debug('trying to lock counter')
@@ -517,9 +518,7 @@ class JobGeneratorThread (WorkerThread):
                             if tmpStat != Interaction.SC_SUCCEEDED:
                                 nBrokergeFailed += 1
                                 if inputChunk is not None and inputChunk.hasCandidatesForJumbo():
-                                    self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'pending')
-                                    tmpErrStr = 'brokerage failed for jumbo and real co-jumbo'
-                                    tmpLog.debug(tmpErrStr)
+                                    pendingJumbo = True
                                 else:
                                     tmpErrStr = 'brokerage failed for {0} input datasets when trying {1} datasets'.format(nBrokergeFailed, len(inputList))
                                     tmpLog.error(tmpErrStr)
@@ -701,6 +700,18 @@ class JobGeneratorThread (WorkerThread):
                             continue
                         # reset unused files
                         nFileReset = self.taskBufferIF.resetUnusedFiles_JEDI(taskSpec.jediTaskID,inputChunk)
+                        # set jumbo flag
+                        if pendingJumbo:
+                            tmpFlagStat = self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'pending')
+                            tmpErrStr = 'brokerage failed for jumbo and real co-jumbo'
+                            tmpLog.debug(tmpErrStr)
+                            if tmpFlagStat:
+                                taskSpec.setErrDiag(None)
+                            else:
+                                taskSpec.setOnHold()
+                                taskSpec.setErrDiag(tmpErrStr,True)
+                        elif jobsSubmitted and taskSpec.getNumJumboJobs() is not None and inputChunk.useJumbo is not None:
+                            self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'running')
                         # unset lockedBy when all inputs are done for a task
                         setOldModTime = False
                         if idxInputList+1 == len(inputList):
@@ -1359,8 +1370,6 @@ class JobGeneratorThread (WorkerThread):
             if taskSpec.getNumJumboJobs() is not None and inputChunk.useJumbo is not None:
                 if self.taskBufferIF.isApplicableTaskForJumbo(taskSpec.jediTaskID):
                     jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul)
-                    # set running to useJumbo
-                    self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'running')
                 else:
                     # disable useJumbo
                     self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'disabled')
