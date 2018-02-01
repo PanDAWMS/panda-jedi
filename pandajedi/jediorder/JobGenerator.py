@@ -1775,8 +1775,11 @@ class JobGeneratorThread (WorkerThread):
                             longLFNs += ' '
                         else:
                             longLFNs += ','
-                    longLFNs = longLFNs[:-1]
-                    parTemplate = parTemplate.replace('${'+placeHolder+'}',longLFNs)
+                    if taskSpec.usingJumboJobs():
+                        parTemplate = parTemplate.replace('${'+placeHolder+'}','tmpin__cnt_'+streamDsMap[streamName])
+                    else:
+                        longLFNs = longLFNs[:-1]
+                        parTemplate = parTemplate.replace('${'+placeHolder+'}',longLFNs)
                     continue
                 # list to string
                 if '/T' in decorators:

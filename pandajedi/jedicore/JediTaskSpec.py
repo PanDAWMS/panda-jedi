@@ -324,9 +324,9 @@ class JediTaskSpec(object):
 
     # check if using jumbo
     def usingJumboJobs(self):
-        if self.useJumbo in [None, self.enum_useJumbo['disabled']]:
-            return False
-        return True
+        if self.useJumbo in self.enum_useJumbo.values() and self.useJumbo != self.enum_useJumbo['disabled']:
+            return True
+        return False
 
 
 
