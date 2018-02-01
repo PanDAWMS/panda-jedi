@@ -894,7 +894,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # respect split rule
                         enoughPendingWithSL = False
                         numFilesWithSL = 0
-                        if datasetSpec.isMaster() and taskSpec.respectSplitRule() and (useScout or isMutableDataset):
+                        if datasetSpec.isMaster() and taskSpec.respectSplitRule() and \
+                                (useScout or isMutableDataset or datasetSpec.state == 'mutable'):
                             tmpDatasetSpec = copy.copy(datasetSpec)
                             # read files
                             sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
@@ -904,7 +905,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap = {}
                             varMap[':datasetID']  = datasetSpec.datasetID
                             varMap[':jediTaskID'] = datasetSpec.jediTaskID
-                            if isMutableDataset:
+                            if isMutableDataset or datasetSpec.state == 'mutable':
                                 varMap[':status'] = 'pending'
                             else:
                                 varMap[':status'] = 'ready'
