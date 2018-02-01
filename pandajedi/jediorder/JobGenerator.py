@@ -870,7 +870,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.reqID            = taskSpec.reqID
                     jobSpec.workingGroup     = taskSpec.workingGroup
                     jobSpec.countryGroup     = taskSpec.countryGroup
-                    if inputChunk.useJumbo == 'fake':
+                    if inputChunk.useJumbo in ['fake', 'only']:
                         jobSpec.computingSite = EventServiceUtils.siteIdForWaitingCoJumboJobs
                     else:
                         if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging and \
@@ -1340,7 +1340,7 @@ class JobGeneratorThread (WorkerThread):
                                                                    taskParamMap,inputChunk.isMerging,
                                                                    jobSpec.Files,useEStoMakeJP)
                     # set destinationSE for fake co-jumbo
-                    if inputChunk.useJumbo == 'fake':
+                    if inputChunk.useJumbo in ['fake', 'only']:
                         jobSpec.destinationSE = DataServiceUtils.checkJobDestinationSE(jobSpec)
                     # add
                     tmpJobSpecList.append(jobSpec)
@@ -1352,7 +1352,8 @@ class JobGeneratorThread (WorkerThread):
                     if not simul and len(jobSpecList+tmpJobSpecList) % 50 == 0:
                         self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
                 # increase event service consumers
-                if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging and inputChunk.useJumbo != 'fake':
+                if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging and \
+                        inputChunk.useJumbo not in ['fake', 'only']:
                     nConsumers = taskSpec.getNumEventServiceConsumer()
                     if nConsumers != None:
                         tmpJobSpecList,incOldPandaIDs = self.increaseEventServiceConsumers(tmpJobSpecList,nConsumers,
@@ -1368,7 +1369,10 @@ class JobGeneratorThread (WorkerThread):
             # make jumbo jobs
             if taskSpec.getNumJumboJobs() is not None and inputChunk.useJumbo is not None:
                 if self.taskBufferIF.isApplicableTaskForJumbo(taskSpec.jediTaskID):
-                    jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul)
+                    if inputChunk.useJumbo == 'only':
+                        jobSpecList = self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul)
+                    else:
+                        jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul)
                 else:
                     # disable useJumbo
                     self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'disabled')

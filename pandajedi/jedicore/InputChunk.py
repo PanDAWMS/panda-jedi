@@ -1,6 +1,7 @@
 import copy
 import random
 
+from JediTaskSpec import JediTaskSpec
 import JediCoreUtils
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
