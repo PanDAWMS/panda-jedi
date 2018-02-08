@@ -9270,7 +9270,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             for cJediTaskID,cTaskStatus in resList:
                 # not to retry if child task is aborted/broken
-                if cTaskStatus in ['aborted','toabort','aborting','broken','tobroken']:
+                if cTaskStatus in ['aborted','toabort','aborting','broken','tobroken','failed']:
                     tmpLog.debug('not to retry child jediTaskID={0} in {1}'.format(cJediTaskID,cTaskStatus))
                     continue
                 # get input datasets of child task

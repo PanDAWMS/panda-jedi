@@ -1,12 +1,15 @@
 Release Notes
 
-* 1/26/2017
+* 2/8/2018
+  * changed not to retry failed child tasks
+
+* 1/26/2018
   * added useJumbo=pending
 
-* 1/19/2017
+* 1/19/2018
   * setting superStatus and T_TASK.status consistently
 
-* 1/17/2017
+* 1/17/2018
   * added nStandby
 
 * 12/15/2017
