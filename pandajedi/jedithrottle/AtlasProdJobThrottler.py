@@ -331,7 +331,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             limitPriority = True
             if not highPrioQueued:
                 # enough jobs in Panda
-                msgBody = "SKIP nQueued_gs({0})/nRunning_gs({1})>{2} & nQueued_queuelimit({3})>{4}".format(nNotRun_rt + nDefine_rt, nRunning_rt,
+                msgBody = "SKIP nQueued_gs({0})/nRunning_gs({1})>{2} & nQueued_queuelimit({3})>{4}".format(nNotRun_gs + nDefine_gs, nRunning_gs,
                                                                                                                threshold, nNotRun_queuelimit + nDefine_queuelimit,
                                                                                                                nQueueLimit)
                 tmpLog.warning("{0} {1}".format(msgHeader, msgBody))
