@@ -212,25 +212,6 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         tmpLog.debug(msgHeader + ' got configuration configQueueLimit={0}, configQueueCap={1}, configRunningCap={2}'
                      .format(configQueueLimit, configQueueCap, configRunningCap))
 
-        # check cloud status
-        if not self.siteMapper.checkCloud(cloudName):
-            msgBody = "SKIP cloud={0} undefined".format(cloudName)
-            tmpLog.warning("{0} {1}".format(msgHeader, msgBody))
-            tmpLog.sendMsg("{0} {1}".format(msgHeader, msgBody),self.msgType,msgLevel='warning')
-            return self.retThrottled
-        cloudSpec = self.siteMapper.getCloud(cloudName)
-        if cloudSpec['status'] in ['offline']:
-            msgBody = "SKIP cloud.status={0}".format(cloudSpec['status'])
-            tmpLog.warning("{0} {1}".format(msgHeader, msgBody))
-            tmpLog.sendMsg("{0} {1}".format(msgHeader, msgBody),self.msgType,msgLevel='warning')
-            return self.retThrottled
-        if cloudSpec['status'] in ['test']:
-            if workQueue.queue_name != 'test':
-                msgBody = "SKIP cloud.status={0} for non test queue ({1})".format(cloudSpec['status'],
-                                                                                  workQueue.queue_name)
-                tmpLog.sendMsg("{0} {1}".format(msgHeader, msgBody), self.msgType, msgLevel='warning')
-                tmpLog.warning("{0} {1}".format(msgHeader, msgBody))
-                return self.retThrottled
         # check if unthrottled
         if not workQueue.throttled:
             msgBody = "PASS unthrottled since GS_throttled is False"
@@ -274,7 +255,12 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                                                                                                           nNotRunHighestPrio,
                                                                                                           highPrioQueued))
         # set maximum number of jobs to be submitted
-        tmpRemainingSlot = int(nRunning_rt * threshold - nNotRun_rt)
+        if workQueue.queue_name == 'eventservice':
+            # event service is a special case, since MCORE tasks generate SCORE jobs. Therefore we can't work at
+            # resource type level and need to go to the global level, in order to avoid over-generating jobs
+            tmpRemainingSlot = int(nRunning_gs * threshold - nNotRun_gs)
+        else:
+            tmpRemainingSlot = int(nRunning_rt * threshold - nNotRun_rt)
         # use the lower limit to avoid creating too many _sub/_dis datasets
         nJobsInBunch = min(max(nJobsInBunchMin, tmpRemainingSlot), nJobsInBunchMax)
 
@@ -338,6 +324,20 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 tmpLog.sendMsg("{0} {1}".format(msgHeader, msgBody), self.msgType, msgLevel='warning', escapeChar=True)
                 return self.retMergeUnThr
 
+        elif workQueue.queue_name == 'eventservice' and nRunning_gs != 0 and float(nNotRun_gs + nDefine_gs) / float(nRunning_gs) > threshold and \
+                (nNotRun_queuelimit + nDefine_queuelimit) > nQueueLimit:
+            # event service is a special case, since MCORE tasks generate SCORE jobs. Therefore we can't work at
+            # resource type level and need to go to the global level, in order to avoid over-generating jobs
+            limitPriority = True
+            if not highPrioQueued:
+                # enough jobs in Panda
+                msgBody = "SKIP nQueued_gs({0})/nRunning_gs({1})>{2} & nQueued_queuelimit({3})>{4}".format(nNotRun_rt + nDefine_rt, nRunning_rt,
+                                                                                                               threshold, nNotRun_queuelimit + nDefine_queuelimit,
+                                                                                                               nQueueLimit)
+                tmpLog.warning("{0} {1}".format(msgHeader, msgBody))
+                tmpLog.sendMsg("{0} {1}".format(msgHeader, msgBody), self.msgType, msgLevel='warning', escapeChar=True)
+                return self.retMergeUnThr
+
         elif nDefine_queuelimit > nQueueLimit:
             limitPriority = True
             if not highPrioQueued:
@@ -380,7 +380,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             self.setMinPriority(limitPriorityValue)
         else:
             # not enough jobs are queued
-            if nNotRun_queuelimit + nDefine_queuelimit < nQueueLimit * 0.9 or nNotRun_rt + nDefine_rt < nRunning_rt:
+            if (nNotRun_queuelimit + nDefine_queuelimit < nQueueLimit * 0.9) \
+                    or (workQueue.queue_name == 'eventservice' and nNotRun_gs + nDefine_gs < nRunning_gs) \
+                    or (workQueue.queue_name != 'eventservice' and nNotRun_rt + nDefine_rt < nRunning_rt):
                 tmpLog.debug(msgHeader+" not enough jobs queued")
                 self.notEnoughJobsQueued()
                 self.setMaxNumJobs(max(self.maxNumJobs, nQueueLimit/20))
