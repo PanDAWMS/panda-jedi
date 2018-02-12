@@ -347,12 +347,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # get tasks to be processed
-    def checkWaitingTaskPrio_JEDI(self,vo,workQueue,prodSourceLabel,cloudName,resource_name):
+    def checkWaitingTaskPrio_JEDI(self, vo, workQueue, prodSourceLabel, cloudName, resource_name=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTasksToBeProcessed_JEDI(None,vo,workQueue,prodSourceLabel,
-                                                  cloudName,isPeeking=True,resource_name=resource_name)
+        retVal = proxy.getTasksToBeProcessed_JEDI(None, vo, workQueue, prodSourceLabel,
+                                                  cloudName, isPeeking=True, resource_name=resource_name)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -549,7 +549,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # get highest prio jobs with workQueueID
-    def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name):
+    def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec

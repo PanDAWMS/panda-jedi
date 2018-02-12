@@ -235,19 +235,31 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nWaiting_gs = jobstats_map['nWaiting_gs']
 
         # check if higher prio tasks are waiting
-        tmpStat, highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI('managed', cloudName, workQueue, resource_name)
+        if workQueue.queue_name == 'eventservice':
+            # event service is a special case, since MCORE tasks generate SCORE jobs. Therefore we can't work at
+            # resource type level and need to go to the global level, in order to avoid over-generating jobs
+
+            # find highest priority of currently defined jobs
+            tmpStat, highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI('managed', cloudName, workQueue)
+            # the highest priority of waiting tasks
+            highestPrioWaiting = self.taskBufferIF.checkWaitingTaskPrio_JEDI(vo, workQueue, 'managed', cloudName)
+        else:
+            # find highest priority of currently defined jobs
+            tmpStat, highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI('managed', cloudName, workQueue, resource_name)
+            # the highest priority of waiting tasks
+            highestPrioWaiting = self.taskBufferIF.checkWaitingTaskPrio_JEDI(vo, workQueue, 'managed', cloudName, resource_name)
+
         highestPrioInPandaDB = highestPrioJobStat['highestPrio']
         nNotRunHighestPrio   = highestPrioJobStat['nNotRun']
-        # the highest priority of waiting tasks 
-        highestPrioWaiting = self.taskBufferIF.checkWaitingTaskPrio_JEDI(vo, workQueue, 'managed', cloudName, resource_name)
         if highestPrioWaiting is None:
             msgBody = 'failed to get the highest priority of waiting tasks'
             tmpLog.error("{0} {1}".format(msgHeader, msgBody))
             return self.retTmpError
+
         # high priority tasks are waiting
         highPrioQueued = False
-        if highestPrioWaiting > highestPrioInPandaDB or (highestPrioWaiting == highestPrioInPandaDB and \
-                                                         nNotRunHighestPrio < nJobsInBunchMin):
+        if highestPrioWaiting > highestPrioInPandaDB \
+                or (highestPrioWaiting == highestPrioInPandaDB and nNotRunHighestPrio < nJobsInBunchMin):
             highPrioQueued = True
         tmpLog.debug("{0} highestPrio waiting:{1} inPanda:{2} numNotRun:{3} -> highPrioQueued={4}".format(msgHeader,
                                                                                                           highestPrioWaiting,

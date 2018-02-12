@@ -4466,7 +4466,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get highest prio jobs with workQueueID
-    def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name):
+    def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
         comment = ' /* JediDBProxy.getHighestPrioJobStat_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += " <cloud={0} queue={1}>".format(cloudName,workQueue.queue_name)
@@ -4475,13 +4475,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         varMapO = {}
         varMapO[':cloud'] = cloudName
         varMapO[':prodSourceLabel'] = prodSourceLabel
-        varMapO[':resource_type'] = resource_name
 
         # sqlS has the where conditions
         sqlS  = "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
         sqlS += "AND processingType<>:pmerge "
         sqlS += "AND cloud=:cloud "
-        sqlS += "AND resource_type=:resource_type "
+        if resource_name:
+            sqlS += "AND resource_type=:resource_type "
+            varMapO[':resource_type'] = resource_name
         if workQueue.is_global_share:
             sqlS += "AND gshare=:wq_name "
             sqlS += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
