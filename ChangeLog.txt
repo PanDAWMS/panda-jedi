@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/14/2018
+  * fixed retryTask to go through when input is mutable
+
 * 2/8/2018
   * changed not to retry failed child tasks
 
