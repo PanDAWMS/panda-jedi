@@ -405,10 +405,10 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         else:
             # not enough jobs are queued
             if (nNotRun_queuelimit + nDefine_queuelimit < nQueueLimit * 0.9) \
-                    or (workQueue.queue_name == 'eventservice' and nNotRun_gs + nDefine_gs < nRunning_gs) \
-                    or (workQueue.queue_name != 'eventservice' and nNotRun_rt + nDefine_rt < nRunning_rt):
+                    or (workQueue.queue_name in non_rt_wqs and nNotRun_gs + nDefine_gs < nRunning_gs) \
+                    or (workQueue.queue_name not in non_rt_wqs and nNotRun_rt + nDefine_rt < nRunning_rt):
                 tmpLog.debug(msgHeader+" not enough jobs queued")
-                if not workQueue.queue_name == 'eventservice':
+                if not workQueue.queue_name in  non_rt_wqs:
                     self.notEnoughJobsQueued()
                 self.setMaxNumJobs(max(self.maxNumJobs, nQueueLimit/20))
 
