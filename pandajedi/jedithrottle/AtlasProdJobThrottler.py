@@ -14,6 +14,11 @@ NQUEUELIMIT = 'NQUEUELIMIT'
 NRUNNINGCAP = 'NRUNNINGCAP'
 NQUEUECAP = 'NQUEUECAP'
 
+# workqueues that do not work at resource type level.
+# E.g. event service is a special case, since MCORE tasks generate SCORE jobs. Therefore we can't work at
+# resource type level and need to go to the global level, in order to avoid over-generating jobs
+non_rt_wqs = ['eventservice']
+
 # class to throttle ATLAS production jobs
 class AtlasProdJobThrottler (JobThrottlerBase):
 
@@ -235,10 +240,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         nWaiting_gs = jobstats_map['nWaiting_gs']
 
         # check if higher prio tasks are waiting
-        if workQueue.queue_name == 'eventservice':
-            # event service is a special case, since MCORE tasks generate SCORE jobs. Therefore we can't work at
-            # resource type level and need to go to the global level, in order to avoid over-generating jobs
-
+        if workQueue.queue_name in non_rt_wqs:
             # find highest priority of currently defined jobs
             tmpStat, highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI('managed', cloudName, workQueue)
             # the highest priority of waiting tasks
@@ -267,9 +269,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                                                                                                           nNotRunHighestPrio,
                                                                                                           highPrioQueued))
         # set maximum number of jobs to be submitted
-        if workQueue.queue_name == 'eventservice':
-            # event service is a special case, since MCORE tasks generate SCORE jobs. Therefore we can't work at
-            # resource type level and need to go to the global level, in order to avoid over-generating jobs
+        if workQueue.queue_name in non_rt_wqs:
             tmpRemainingSlot = int(nRunning_gs * threshold - nNotRun_gs)
         else:
             tmpRemainingSlot = int(nRunning_rt * threshold - nNotRun_rt)
@@ -312,7 +312,8 @@ class AtlasProdJobThrottler (JobThrottlerBase):
 
         # check number of jobs when high priority jobs are not waiting. test jobs are sent without throttling
         limitPriority = False
-        if nRunning_rt == 0 and (nNotRun_queuelimit + nDefine_queuelimit) > nQueueLimit \
+        if workQueue.queue_name not in non_rt_wqs \
+                and nRunning_rt == 0 and (nNotRun_queuelimit + nDefine_queuelimit) > nQueueLimit \
                 and (totWalltime is None or totWalltime > minTotalWalltime):
             limitPriority = True
             if not highPrioQueued:
@@ -323,7 +324,19 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 tmpLog.sendMsg("{0} {1}".format(msgHeader, msgBody),self.msgType, msgLevel='warning', escapeChar=True)
                 return self.retMergeUnThr
 
-        elif nRunning_rt != 0 and float(nNotRun_rt + nDefine_rt) / float(nRunning_rt) > threshold and \
+        elif workQueue.queue_name in non_rt_wqs \
+                and nRunning_gs == 0 and (nNotRun_queuelimit + nDefine_queuelimit) > nQueueLimit:
+            limitPriority = True
+            if not highPrioQueued:
+                # pilot is not running or DDM has a problem
+                msgBody = "SKIP no running and enough nQueued_queuelimit({0})>{1} totWalltime({2})>{3} ".format(nNotRun_queuelimit + nDefine_queuelimit,
+                                                                                                     nQueueLimit, totWalltime, minTotalWalltime)
+                tmpLog.warning("{0} {1}".format(msgHeader, msgBody))
+                tmpLog.sendMsg("{0} {1}".format(msgHeader, msgBody),self.msgType, msgLevel='warning', escapeChar=True)
+                return self.retMergeUnThr
+
+        elif workQueue.queue_name not in non_rt_wqs and  nRunning_rt != 0 \
+                and float(nNotRun_rt + nDefine_rt) / float(nRunning_rt) > threshold and \
                 (nNotRun_queuelimit + nDefine_queuelimit) > nQueueLimit and (totWalltime is None or totWalltime > minTotalWalltime):
             limitPriority = True
             if not highPrioQueued:
@@ -336,10 +349,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 tmpLog.sendMsg("{0} {1}".format(msgHeader, msgBody), self.msgType, msgLevel='warning', escapeChar=True)
                 return self.retMergeUnThr
 
-        elif workQueue.queue_name == 'eventservice' and nRunning_gs != 0 and float(nNotRun_gs + nDefine_gs) / float(nRunning_gs) > threshold and \
+        elif workQueue.queue_name in non_rt_wqs and nRunning_gs != 0 \
+                and float(nNotRun_gs + nDefine_gs) / float(nRunning_gs) > threshold and \
                 (nNotRun_queuelimit + nDefine_queuelimit) > nQueueLimit:
-            # event service is a special case, since MCORE tasks generate SCORE jobs. Therefore we can't work at
-            # resource type level and need to go to the global level, in order to avoid over-generating jobs
             limitPriority = True
             if not highPrioQueued:
                 # enough jobs in Panda
