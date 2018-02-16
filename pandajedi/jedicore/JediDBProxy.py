@@ -8475,7 +8475,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 self.cur.execute(sqlRR+comment,varMap)
                                 nRun = self.cur.rowcount
                                 # no retry if no failed files
-                                if commStr == 'retry' and nDiff == 0 and nUnp == 0 and nRun == 0:
+                                if commStr == 'retry' and nDiff == 0 and nUnp == 0 and nRun == 0 and state != 'mutable':
                                     tmpLog.debug('no {0} for datasetID={1} : nDiff/nReady/nRun=0'.format(commStr,datasetID))
                                     continue
                                 # update dataset
