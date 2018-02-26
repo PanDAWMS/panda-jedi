@@ -384,7 +384,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     # 0.25GB per cpuTime/corePower/day
                                     tmpSpaceToUse = long(self.fullRW[tmpNucleus]/10/24/3600*0.25)
                                 if tmpSpaceSize-tmpSpaceToUse < diskThreshold:
-                                    tmpLog.info('  skip nucleus={0} since disk shortage (free {1} - reserved {2} < thr {3}) at endpoint {4} criteria=-space'.format(tmpNucleus,
+                                    tmpLog.info('  skip nucleus={0} since disk shortage (free {1} GB - reserved {2} GB < thr {3} GB) at endpoint {4} criteria=-space'.format(tmpNucleus,
                                                                                                                                                                      tmpSpaceSize,
                                                                                                                                                                      tmpSpaceToUse,
                                                                                                                                                                      diskThreshold,
