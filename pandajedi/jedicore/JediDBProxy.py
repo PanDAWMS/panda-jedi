@@ -5638,7 +5638,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         comment = ' /* JediDBProxy.setScoutJobData_JEDI */'
         methodName = self.getMethodName(comment)
         jediTaskID = taskSpec.jediTaskID
-        methodName += ' <jediTaskID={0}>'.format(jediTaskID)
+        methodName += ' < jediTaskID={0} >'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         # get memory threshold for exausted
@@ -5696,20 +5696,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 minExecTime = 24
                 if not extraInfo['oldCpuTime'] in [0,None] and scoutData['cpuTime'] > 2*extraInfo['oldCpuTime'] \
                         and extraInfo['execTime'] > datetime.timedelta(hours=minExecTime):
-                    errMsg = 'exhausted since scout_cpuTime ({0}) is larger than 2*task_cpuTime ({1})'.format(scoutData['cpuTime'],
-                                                                                                              extraInfo['oldCpuTime'])
-                    tmpLog.debug(errMsg)
+                    errMsg = 'status=exhausted since reason=scout_cpuTime ({0}) is larger than 2*task_cpuTime ({1})'.format(scoutData['cpuTime'],
+                                                                                                                            extraInfo['oldCpuTime'])
+                    tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
             # check ramCount
             if taskSpec.status != 'exhausted':
                 if taskSpec.ramPerCore() and 'ramCount' in scoutData and extraInfo['oldRamCount'] is not None \
                         and extraInfo['oldRamCount'] < ramThr and scoutData['ramCount'] > ramThr:
-                    errMsg = 'exhausted since scout_ramCount {0} MB is larger than {1} MB '.format(scoutData['ramCount'],
-                                                                                                   ramThr)
+                    errMsg = 'status=exhausted since reason=scout_ramCount {0} MB is larger than {1} MB '.format(scoutData['ramCount'],
+                                                                                                                 ramThr)
                     errMsg += 'while task_ramCount {0} MB is less than {1} MB'.format(extraInfo['oldRamCount'],
                                                                                       ramThr)
-                    tmpLog.debug(errMsg)
+                    tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
         # short job check 
@@ -5721,12 +5721,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
                 if maxShortJobs is not None and 'nShortJobs' in extraInfo and extraInfo['nShortJobs'] >= maxShortJobs and \
                         shortJobCutoff is not None and 'expectedNumJobs' in extraInfo and extraInfo['expectedNumJobs'] > shortJobCutoff:
-                    errMsg = 'exhausted since many shorter jobs ({0}>={1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
-                                                                                                                                                           maxShortJobs,
-                                                                                                                                                           extraInfo['shortExecTime'],
-                                                                                                                                                           extraInfo['expectedNumJobs'],
-                                                                                                                                                           shortJobCutoff)
-                    tmpLog.debug(errMsg)
+                    errMsg = 'status=exhausted since reason=many_shorter_jobs '
+                    errMsg += '({0} is grather than {1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
+                                                                                                                                         maxShortJobs,
+                                                                                                                                         extraInfo['shortExecTime'],
+                                                                                                                                         extraInfo['expectedNumJobs'],
+                                                                                                                                         shortJobCutoff)
+                    tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
         # reset the task resource type

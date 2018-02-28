@@ -1,6 +1,7 @@
 Release Notes
 
 * 2/28/2018
+  * changed exhausted messages to INFO
   * fixed finished tasks with mutable datasets
 
 * 2/14/2018
