@@ -184,9 +184,20 @@ class PostProcessorBase (object):
             status = 'paused'
         elif nFiles == nFilesFinished and nFiles > 0:
             # check parent status
-            if checkParent and not taskSpec.parent_tid in [None,taskSpec.jediTaskID] and \
-                    self.taskBufferIF.getTaskStatus_JEDI(taskSpec.parent_tid) != 'done':
-                status = 'finished'
+            if checkParent and not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
+                if self.taskBufferIF.getTaskStatus_JEDI(taskSpec.parent_tid) != 'done':
+                    status = 'finished'
+                else:
+                    # check if input is mutable
+                    inputMutable = False
+                    for datasetSpec in taskSpec.datasetSpecList:
+                        if datasetSpec.isMasterInput() and datasetSpec.state == 'mutable':
+                            inputMutable = True
+                            break
+                    if inputMutable:
+                        status = 'finished'
+                    else:
+                        status = 'done'    
             else:
                 status = 'done'
         elif nFilesFinished == 0:

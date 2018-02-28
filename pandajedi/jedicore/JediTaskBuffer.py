@@ -1514,3 +1514,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # update datasets to finish a task
+    def updateDatasetsToFinishTask_JEDI(self, jediTaskID, lockedBy):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.updateDatasetsToFinishTask_JEDI(jediTaskID, lockedBy)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

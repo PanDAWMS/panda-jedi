@@ -11268,3 +11268,93 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return {}, {}
+
+
+
+    # update datasets to finish a task
+    def updateDatasetsToFinishTask_JEDI(self, jediTaskID, lockedBy):
+        comment = ' /* JediDBProxy.updateDatasetsToFinishTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to lock task
+            sqlLK  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlLK += "WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL "
+            # sql to get datasets
+            sqlAV = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlAV += "WHERE jediTaskID=:jediTaskID AND type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_' + tmpType
+                sqlAV += '{0},'.format(mapKey)
+            sqlAV = sqlAV[:-1]
+            sqlAV += ') AND masterID IS NULL '
+            # sql to update attemptNr for files
+            sqlFR = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlFR += "SET attemptNr=maxAttempt "
+            sqlFR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            sqlFR += "AND status=:status AND keepTrack=:keepTrack "
+            sqlFR += "AND maxAttempt IS NOT NULL AND attemptNr<maxAttempt "
+            sqlFR += "AND (maxFailure IS NULL OR failedAttempt<maxFailure) "
+            # sql to update output/lib/log datasets
+            sqlUO  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlUO += "SET nFilesFailed=nFilesFailed+:nDiff "
+            sqlUO += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # sql to release task
+            sqlRT  = "UPDATE {0}.JEDI_Tasks SET lockedBy=NULL,lockedTime=NULL ".format(jedi_config.db.schemaJEDI)
+            sqlRT += "WHERE jediTaskID=:jediTaskID AND lockedBy=:lockedBy "
+            # lock task
+            self.conn.begin()
+            varMap = dict()
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':lockedBy'] = lockedBy
+            self.cur.execute(sqlLK+comment, varMap)
+            iRow = self.cur.rowcount
+            if iRow == 0:
+                # commit
+                if not self._commit():
+                    raise RuntimeError, 'Commit error'
+                tmpLog.debug('cannot lock')
+                return False
+            # get datasets
+            varMap = dict()
+            varMap[':jediTaskID'] = jediTaskID
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                varMap[mapKey] = tmpType
+            self.cur.execute(sqlAV+comment, varMap)
+            resAV = self.cur.fetchall()
+            for datasetID, in resAV:
+                # update files
+                varMap = dict()
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':datasetID'] = datasetID
+                varMap[':status'] = 'ready'
+                varMap[':keepTrack'] = 1
+                self.cur.execute(sqlFR+comment, varMap)
+                nDiff = self.cur.rowcount
+                if nDiff > 0:
+                    varMap = dict()
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':datasetID'] = datasetID
+                    varMap[':nDiff'] = nDiff
+                    tmpLog.debug(sqlUO+comment+str(varMap))
+                    self.cur.execute(sqlUO+comment, varMap)
+            # relase task
+            varMap = dict()
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':lockedBy'] = lockedBy
+            self.cur.execute(sqlLK+comment, varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done")
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False

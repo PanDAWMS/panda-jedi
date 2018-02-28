@@ -62,7 +62,8 @@ class TaskCommando (JediKnight):
                             for iWorker in range(nWorker):
                                 thr = TaskCommandoThread(taskList,threadPool,
                                                          self.taskBufferIF,
-                                                         self.ddmIF)
+                                                         self.ddmIF,
+                                                         self.pid)
                                 thr.start()
                             # join
                             threadPool.join()
@@ -85,7 +86,7 @@ class TaskCommando (JediKnight):
 class TaskCommandoThread (WorkerThread):
 
     # constructor
-    def __init__(self,taskList,threadPool,taskbufferIF,ddmIF):
+    def __init__(self,taskList,threadPool,taskbufferIF,ddmIF,pid):
         # initialize woker with no semaphore
         WorkerThread.__init__(self,None,threadPool,logger)
         # attributres
@@ -93,6 +94,8 @@ class TaskCommandoThread (WorkerThread):
         self.taskBufferIF = taskbufferIF
         self.ddmIF = ddmIF
         self.msgType = 'taskcommando'
+        self.pid     = pid
+
 
 
     # main
@@ -166,6 +169,11 @@ class TaskCommandoThread (WorkerThread):
                                     if commandStr == 'reassign':
                                         tmpTaskSpec.forceUpdate('errorDialog')
                                     if commandStr == 'finish':
+                                        # update datasets
+                                        tmpLog.info('updating datasets to finish')
+                                        tmpStat = self.taskBufferIF.updateDatasetsToFinishTask_JEDI(jediTaskID, self.pid)
+                                        if not tmpStat:
+                                            tmpLog.info('wait until datasets are updated to finish')
                                         # ignore failGoalUnreached when manually finished
                                         tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID)
                                         tmpTaskSpec.splitRule = taskSpec.splitRule
