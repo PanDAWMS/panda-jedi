@@ -621,7 +621,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to check if task is locked
             sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE NOWAIT ".format(jedi_config.db.schemaJEDI)
             # sql to check dataset status
-            sqlDs  = "SELECT status,nFilesToBeUsed-nFilesUsed FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDs  = "SELECT status,nFilesToBeUsed-nFilesUsed,state FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDs += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to get existing files
             sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent,boundaryID,nEvents FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
@@ -753,6 +753,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     resDs = self.cur.fetchone()
                     if resDs == None:
                         tmpLog.debug('dataset not found in Datasets table')
+                    elif resDs[2] != datasetSpec.state:
+                        tmpLog.debug('dataset.state changed from {0} to {1} in DB'.format(datasetSpec.state, resDs[2]))
                     elif not (resDs[0] in JediDatasetSpec.statusToUpdateContents() or \
                                   (taskStatus in ['running','assigning'] and \
                                        (datasetState == 'mutable' or datasetSpec.state == 'mutable') or \
@@ -770,8 +772,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             numUniqueLfn = resCo[0]
                             retVal = True,missingFileList,numUniqueLfn,diagMap
                     else:
-                        oldDsStatus = resDs[0]
-                        nFilesUnprocessed = resDs[1]
+                        oldDsStatus,nFilesUnprocessed,dsStateInDB = resDs
+                        tmpLog.debug('ds.state={0} in DB'.format(dsStateInDB))
                         # get existing file list
                         varMap = {}
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
@@ -916,6 +918,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 tmpFileSpec = JediFileSpec()
                                 tmpFileSpec.pack(resFile)
                                 tmpDatasetSpec.addFile(tmpFileSpec)
+                            if not isMutableDataset and datasetSpec.state == 'mutable':
+                                for tmpFileSpec in fileSpecsForInsert:
+                                    tmpDatasetSpec.addFile(tmpFileSpec)
                             tmpInputChunk = InputChunk(taskSpec)
                             tmpInputChunk.addMasterDS(tmpDatasetSpec)
                             maxSizePerJob = taskSpec.getMaxSizePerJob()
