@@ -1443,7 +1443,7 @@ class JediTaskSpec(object):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['maxWalltime']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
-                return int(tmpMatch.group(1))
+                return int(tmpMatch.group(1)) * 60 * 60
         return None    
 
 
