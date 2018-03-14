@@ -5159,10 +5159,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # sql to get preset values
         if not mergeScout:
             sqlGPV  = "SELECT "
-            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
+            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule "
         else:
             sqlGPV  = "SELECT "
-            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime "
+            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data from JEDI
@@ -5186,23 +5186,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlSCF += "AND tabF.PandaID=:usePandaID "
         # sql to get normal scout job data from Panda 
         sqlSCDN  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES "
+        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
         sqlSCDN += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "UNION "
         sqlSCDN += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES "
+        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
         sqlSCDN += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "AND modificationTime>(CURRENT_DATE-14) "
         # sql to get ES scout job data from Panda 
         sqlSCDE  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES "
+        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
         sqlSCDE += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "UNION "
         sqlSCDE += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES "
+        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
         sqlSCDE += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "AND modificationTime>(CURRENT_DATE-14) "
@@ -5233,7 +5233,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         resGPV = self.cur.fetchone()
         if resGPV != None:
             prodSourceLabel,preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,\
-                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime \
+                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime,splitRule \
                 = resGPV
             # get preOutDiskCount in kB
             if not preOutDiskCount in [0,None]:
@@ -5258,6 +5258,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preCpuTime = 0
             preCpuEfficiency = None
             preBaseWalltime = None
+            splitRule = None
         if preOutDiskUnit != None and preOutDiskUnit.endswith('PerEvent'):
             preOutputScaleWithEvents = True
         else:
@@ -5334,6 +5335,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         execTimeMap  = {}
         diskIoList   = []
         pandaIDList  = set()
+        totInSizeMap = {}
+        masterInSize = {}
         for pandaID,fsize,startEvent,endEvent,nEvents in resList:
             pandaIDList.add(pandaID)
             if not inFSizeMap.has_key(pandaID):
@@ -5345,6 +5348,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not pandaID in inEventsMap:
                 inEventsMap[pandaID] = 0
             inEventsMap[pandaID] += JediCoreUtils.getEffectiveNumEvents(startEvent,endEvent,nEvents)
+            # master input size
+            if not pandaID in masterInSize:
+                masterInSize[pandaID] = 0
+            masterInSize[pandaID] += fsize
         # get nFiles
         totalJobs = 0
         totFiles = 0
@@ -5391,12 +5398,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # loop over all jobs
                 for oneResData in resDataList:
                     eventServiceJob,jobsetID,pandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,\
-                        defCoreCount,startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES = oneResData
+                        defCoreCount,startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileByte = oneResData
                     # add inputSize and nEvents
                     if not pandaID in inFSizeMap:
                         inFSizeMap[pandaID] = totalFSize
                     if not pandaID in inEventsMap or eventServiceJob == EventServiceUtils.esJobFlagNumber:
                         inEventsMap[pandaID] = nEvents
+                    totInSizeMap[pandaID] = inputFileByte
                     # get core power
                     if not computingSite in corePowerMap:
                         varMap = {}
@@ -5616,6 +5624,57 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if flagJob:
             for tmpPandaID,tmpTags in jobTagMap.iteritems():
                 self.updateJobMetrics_JEDI(jediTaskID,tmpPandaID,jMetricsMap[tmpPandaID],tmpTags)
+        # reset NG
+        taskSpec = JediTaskSpec()
+        if not mergeScout and taskSpec.getTgtMaxOutputForNG() is not None and 'outDiskCount' in returnMap:
+            # look for PandaID for outDiskCount
+            for tmpPandaID,tmpTags in jobTagMap.iteritems():
+                if 'outDiskCount' in tmpTags:
+                    # get total and the largest output fsize
+                    sqlBig = "SELECT SUM(fsize) FROM {0}.filesTable4 WHERE PandaID=:PandaID AND type=:type GROUP BY dataset ".format(jedi_config.db.schemaPANDA)
+                    varMap = dict()
+                    varMap[':PandaID'] = tmpPandaID
+                    varMap[':type'] = 'output'
+                    self.cur.execute(sqlBig+comment,varMap)
+                    resBig = self.cur.fetchall()
+                    outTotal = 0
+                    outBig = 0
+                    for tmpFsize, in resBig:
+                        outTotal += tmpFsize
+                        if tmpFsize > outBig:
+                            outBig = tmpFsize
+                    if outTotal*outBig > 0:
+                        # get NG
+                        taskSpec.outDiskCount = returnMap['outDiskCount']
+                        taskSpec.outDiskUnit = returnMap['outDiskUnit']
+                        expectedOutSize = outTotal * taskSpec.getTgtMaxOutputForNG() * 1024 * 1024 * 1024 / outBig 
+                        outDiskCount = taskSpec.getOutDiskSize()
+                        if 'workDiskCount' in returnMap:
+                            taskSpec.workDiskCount = returnMap['workDiskCount']
+                        else:
+                            taskSpec.workDiskCount = preWorkDiskCount
+                        taskSpec.workDiskUnit = 'MB'
+                        workDiskCount = taskSpec.getWorkDiskSize()
+                        if outDiskCount > 0:
+                            scaleFactor = expectedOutSize / outDiskCount
+                            if preOutputScaleWithEvents:
+                                # scaleFactor is num of events
+                                try:
+                                    expectedInSize = (inFSizeMap[tmpPandaID] + totInSizeMap[tmpPandaID] - masterInSize[tmpPandaID]) * scaleFactor / inEventsMap[tmpPandaID]
+                                    newNG = expectedOutSize + expectedInSize  + workDiskCount - InputChunk.defaultOutputSize
+                                except:
+                                    newNG = None
+                            else:
+                                # scaleFactor is input size
+                                newNG = expectedOutSize + scaleFactor * (1024 * 1024) + workDiskCount - InputChunk.defaultOutputSize
+                            if newNG is not None:
+                                newNG /= (1024 * 1024 * 1024)
+                                if newNG <= 0:
+                                    newNG = 1
+                                maxNG = 100
+                                if newNG > maxNG:
+                                    newNG = maxNG
+                                returnMap['newNG'] = newNG
         if useTransaction:    
             # commit
             if not self._commit():
@@ -5664,6 +5723,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':jediTaskID'] = jediTaskID
             sqlTSD  = "UPDATE {0}.JEDI_Tasks SET ".format(jedi_config.db.schemaJEDI)
             for scoutKey,scoutVal in scoutData.iteritems():
+                # skip new NG
+                if scoutKey in ['newNG']:
+                    continue
                 tmpScoutKey = ':{0}'.format(scoutKey)
                 varMap[tmpScoutKey] = scoutVal
                 sqlTSD += '{0}={1},'.format(scoutKey,tmpScoutKey)
@@ -5671,6 +5733,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTSD += " WHERE jediTaskID=:jediTaskID "
             tmpLog.debug(sqlTSD+comment+str(varMap))
             self.cur.execute(sqlTSD+comment,varMap)
+            # update NG
+            if 'newNG' in scoutData:
+                taskSpec.setSplitRule('nGBPerJob', str(scoutData['newNG']))
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':splitRule'] = taskSpec.splitRule
+                sqlTSL  = "UPDATE {0}.JEDI_Tasks SET splitRule=:splitRule ".format(jedi_config.db.schemaJEDI)
+                sqlTSL += " WHERE jediTaskID=:jediTaskID "
+                tmpLog.debug(sqlTSL+comment+str(varMap))
+                self.cur.execute(sqlTSL+comment,varMap)
         # set average merge job data
         mergeScoutSucceeded = None
         if taskSpec.mergeOutput():

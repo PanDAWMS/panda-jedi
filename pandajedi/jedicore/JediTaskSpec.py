@@ -65,6 +65,7 @@ class JediTaskSpec(object):
         'mergeEsOnOS'        : 'ME',
         'nMaxFilesPerJob'    : 'MF',
         'mergeOutput'        : 'MO',
+        'maxWalltime'        : 'MW',
         'noExecStrCnv'       : 'NC',
         'nEventsPerJob'      : 'NE',
         'nFilesPerJob'       : 'NF',
@@ -86,6 +87,7 @@ class JediTaskSpec(object):
         'switchEStoNormal'   : 'SE',
         'stayOutputOnSite'   : 'SO',
         'scoutSuccessRate'   : 'SS',
+        'tgtMaxOutputForNG'  : 'TN',
         't1Weight'           : 'TW',
         'useBuild'           : 'UB',
         'useJobCloning'      : 'UC',
@@ -1433,3 +1435,23 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # get max walltime 
+    def getMaxWalltime(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['maxWalltime']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None    
+
+
+
+    # get target size of the largest output to reset NG
+    def getTgtMaxOutputForNG(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['tgtMaxOutputForNG']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None    

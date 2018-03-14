@@ -164,8 +164,12 @@ class JobSplitter:
                 # cap
                 if maxSize > (siteSpec.maxwdir * 1024 * 1024) and not useDirectIO:
                     maxSize = siteSpec.maxwdir * 1024 * 1024
-                # max walltime      
-                maxWalltime = siteSpec.maxtime
+                # max walltime
+                maxWalltime = None
+                if not inputChunk.isMerging:
+                    maxWalltime = taskSpec.getMaxWalltime()
+                if maxWalltime is None:
+                    maxWalltime = siteSpec.maxtime
                 # core count
                 if siteSpec.coreCount > 0:
                     coreCount = siteSpec.coreCount

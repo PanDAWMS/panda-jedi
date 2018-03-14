@@ -227,6 +227,8 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'nFilesPerMergeJob',    JediTaskSpec.splitRuleToken['nFilesPerMergeJob'])
         self.setSplitRule(taskParamMap,'nGBPerMergeJob',       JediTaskSpec.splitRuleToken['nGBPerMergeJob'])
         self.setSplitRule(taskParamMap,'nMaxFilesPerMergeJob', JediTaskSpec.splitRuleToken['nMaxFilesPerMergeJob'])
+        self.setSplitRule(taskParamMap,'maxWalltime', JediTaskSpec.splitRuleToken['maxWalltime'])
+        self.setSplitRule(taskParamMap,'tgtMaxOutputForNG', JediTaskSpec.splitRuleToken['tgtMaxOutputForNG'])
         if 'nJumboJobs' in taskParamMap:
             self.setSplitRule(taskParamMap,'nJumboJobs',JediTaskSpec.splitRuleToken['nJumboJobs'])
             taskSpec.useJumbo = JediTaskSpec.enum_useJumbo['waiting']
