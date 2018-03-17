@@ -5626,6 +5626,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.updateJobMetrics_JEDI(jediTaskID,tmpPandaID,jMetricsMap[tmpPandaID],tmpTags)
         # reset NG
         taskSpec = JediTaskSpec()
+        taskSpec.splitRule = splitRule
         if not mergeScout and taskSpec.getTgtMaxOutputForNG() is not None and 'outDiskCount' in returnMap:
             # look for PandaID for outDiskCount
             for tmpPandaID,tmpTags in jobTagMap.iteritems():
