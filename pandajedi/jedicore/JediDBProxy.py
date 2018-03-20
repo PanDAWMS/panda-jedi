@@ -5667,7 +5667,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     newNG = None
                             else:
                                 # scaleFactor is input size
-                                newNG = expectedOutSize + scaleFactor * (1024 * 1024) + workDiskCount - InputChunk.defaultOutputSize
+                                newNG = expectedOutSize + scaleFactor * (1024 * 1024) - InputChunk.defaultOutputSize
                             if newNG is not None:
                                 newNG /= (1024 * 1024 * 1024)
                                 if newNG <= 0:
