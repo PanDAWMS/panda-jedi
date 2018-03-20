@@ -67,6 +67,7 @@ class JediTaskSpec(object):
         'mergeOutput'        : 'MO',
         'maxWalltime'        : 'MW',
         'noExecStrCnv'       : 'NC',
+        'notDiscardEvents'   : 'ND',
         'nEventsPerJob'      : 'NE',
         'nFilesPerJob'       : 'NF',
         'nGBPerJob'          : 'NG',
@@ -1455,3 +1456,13 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
+
+
+
+    # not discard events
+    def notDiscardEvents(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['notDiscardEvents']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False

@@ -1098,6 +1098,9 @@ class JobGeneratorThread (WorkerThread):
                     # use prefetcher
                     if taskSpec.usePrefetcher():
                         jobSpec.setUsePrefetcher()
+                    # not discard events
+                    if taskSpec.notDiscardEvents():
+                        jobSpec.setNotDiscardEvents()
                     # write input to file
                     if taskSpec.writeInputToFile():
                         jobSpec.setToWriteInputToFile()
