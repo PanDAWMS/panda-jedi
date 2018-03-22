@@ -1085,11 +1085,13 @@ class AtlasProdJobBroker (JobBrokerBase):
                 pass
             elif numStandby == 0:
                 # use the number of starting jobs as the number of standby jobs
-                nRunning = nStarting
+                nRunning = max(nStarting, nRunning)
                 nStarting = 0
+                tmpLog.debug('using dynamic workload provisioning at {0}'.format(tmpPseudoSiteName))
             else:
                 # the number of standby jobs is defined
-                nRunning = numStandby
+                nRunning = max(numStandby, nRunning)
+                tmpLog.debug('using static workload provisioning at {0} with nStandby={1}'.format(tmpPseudoSiteName, numStandby))
             manyAssigned = float(nAssigned + 1) / float(nActivated + 1)
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
