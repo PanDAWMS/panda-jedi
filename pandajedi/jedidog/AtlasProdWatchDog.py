@@ -269,8 +269,11 @@ class AtlasProdWatchDog (WatchDogBase):
     # action to throttle jobs in paused tasks
     def doActionToThrottleJobInPausedTasks(self,gTmpLog):
         tmpRet = self.taskBufferIF.throttleJobsInPausedTasks_JEDI(self.vo,self.prodSourceLabel)
-        if tmpRet is False:
+        if tmpRet is None:
             # failed                                                                                                             
             gTmpLog.error('failed to thottle jobs in paused tasks')
         else:
-            gTmpLog.info('thottled jobs in paused tasks successfully')
+            for jediTaskID, pandaIDs in tmpRet.iteritems():
+                gTmpLog.info('throttled jobs in paused jediTaskID={0} successfully'.format(jediTaskID))
+                tmpRet = self.taskBufferIF.killJobs(pandaIDs,'reassign','51',True)
+                gTmpLog.info('reassigned {0} jobs in paused jediTaskID={1} with {2}'.format(len(pandaIDs), jediTaskID, tmpRet))

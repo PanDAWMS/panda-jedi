@@ -11014,13 +11014,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlJT  = 'UPDATE {0}.jobsActive4 '.format(jedi_config.db.schemaPANDA)
             sqlJT += 'SET jobStatus=:newJobStatus '
             sqlJT += 'WHERE jediTaskID=:jediTaskID AND jobStatus=:oldJobStatus '
+            # sql to get jobs in jobsDefined
+            sqlJD  = "SELECT PandaID FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            sqlJD += "WHERE jediTaskID=:jediTaskID "
             # start transaction
             self.conn.begin()
             tmpLog.debug(sqlTL+comment+str(varMap))
             self.cur.execute(sqlTL+comment,varMap)
             resTL = self.cur.fetchall()
             # loop over all tasks
+            retMap = {}
             for jediTaskID, in resTL:
+                retMap[jediTaskID] = set()
+                # lock task
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 varMap[':status'] = 'paused'
@@ -11035,18 +11041,25 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sqlJT+comment,varMap)
                     iRow = self.cur.rowcount
                     tmpLog.debug('throttled {0} jobs for jediTaskID={1}'.format(iRow,jediTaskID))
+                # get jobs
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                self.cur.execute(sqlJD+comment,varMap)
+                resJD = self.cur.fetchall()
+                for tmpPandaID, in resJD:
+                    retMap[jediTaskID].add(tmpPandaID)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             # return
             tmpLog.debug("done")
-            return True
+            return retMap
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return False
+            return None
 
 
 
