@@ -393,7 +393,6 @@ class AtlasDDMClient(DDMClientBase):
             available_lfns = rucio_lfn_to_rse_map.keys()
             available_lfns.sort()
             for tmp_lfn in available_lfns:
-
                 tmp_filespec_list = lfn_filespec_map[tmp_lfn]
                 tmp_filespec = lfn_filespec_map[tmp_lfn][0]
                 for site in site_endpoint_map:
@@ -403,7 +402,7 @@ class AtlasDDMClient(DDMClientBase):
                             if not tmp_filespec in return_map[site][storage_type]:
                                 return_map[site][storage_type] += tmp_filespec_list
                             checked_dst.add(site)
-                        break
+                            break
 
             # aggregate all types of storage types into the 'all' key
             for site, storage_type_files in return_map.iteritems():
