@@ -1015,12 +1015,12 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
     # get JEDI tasks with a selection criteria
     def getTasksWithCriteria_JEDI(self,vo,prodSourceLabel,taskStatusList,taskCriteria={},datasetCriteria={},
-                                  taskParamList=[],datasetParamList=[]):
+                                  taskParamList=[],datasetParamList=[],taskLockColumn=None,taskLockInterval=60):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.getTasksWithCriteria_JEDI(vo,prodSourceLabel,taskStatusList,taskCriteria,datasetCriteria,
-                                                 taskParamList,datasetParamList)
+                                                 taskParamList,datasetParamList,taskLockColumn,taskLockInterval)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

@@ -8850,7 +8850,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # get JEDI tasks with a selection criteria
     def getTasksWithCriteria_JEDI(self,vo,prodSourceLabel,taskStatusList,taskCriteria,datasetCriteria,
-                                  taskParamList,datasetParamList):
+                                  taskParamList,datasetParamList,taskLockColumn,taskLockInterval):
         comment = ' /* JediDBProxy.getTasksWithCriteria_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
@@ -8861,7 +8861,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql
             varMap = {}
-            sqlRT  = "SELECT "
+            sqlRT  = "SELECT tabT.jediTaskID,"
             for tmpPar in taskParamList:
                 sqlRT += "tabT.{0},".format(tmpPar)
             for tmpPar in datasetParamList:
@@ -8909,7 +8909,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':{0}'.format(tmpKey)] = tmpVal
                 else:
                     sqlRT += "AND tabD.{0} IS NULL ".format(tmpKey)
+            timeLimit = datetime.datetime.utcnow() - datetime.timedelta(minutes=taskLockInterval)
+            if taskLockColumn is not None:
+                sqlRT += "AND (tabT.{0} IS NULL OR tabT.{0}<:lockTimeLimit) ".format(taskLockColumn)
+                varMap[':lockTimeLimit'] = timeLimit
             sqlRT += "ORDER BY tabT.jediTaskID "
+            # sql to lock
+            if taskLockColumn is not None:
+                sqlLK = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                sqlLK += "SET {0}=CURRENT_DATE ".format(taskLockColumn)
+                sqlLK += "WHERE jediTaskID=:jediTaskID AND ({0} IS NULL OR {0}<:lockTimeLimit) ".format(taskLockColumn)
             # begin transaction
             self.conn.begin()
             self.cur.arraysize = 10000
@@ -8917,18 +8926,34 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug(sqlRT+comment+str(varMap))
             self.cur.execute(sqlRT+comment,varMap)
             resList = self.cur.fetchall()
-            retTasks = []
-            for resRT in resList:
-                taskParMap = {}
-                for tmpIdx,tmpPar in enumerate(taskParamList):
-                    taskParMap[tmpPar] = resRT[tmpIdx]
-                datasetParMap = {}
-                for tmpIdx,tmpPar in enumerate(datasetParamList):
-                    datasetParMap[tmpPar] = resRT[tmpIdx+len(taskParamList)]
-                retTasks.append((taskParMap,datasetParMap))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
+            retTasks = []
+            for resRT in resList:
+                jediTaskID = resRT[0]
+                taskParMap = {}
+                for tmpIdx,tmpPar in enumerate(taskParamList):
+                    taskParMap[tmpPar] = resRT[tmpIdx+1]
+                datasetParMap = {}
+                for tmpIdx,tmpPar in enumerate(datasetParamList):
+                    datasetParMap[tmpPar] = resRT[tmpIdx+1+len(taskParamList)]
+                # lock
+                if taskLockColumn is not None:
+                    # begin transaction
+                    self.conn.begin()
+                    varMap = dict()
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':lockTimeLimit'] = timeLimit
+                    self.cur.execute(sqlLK+comment,varMap)
+                    nLK = self.cur.rowcount
+                    # commit
+                    if not self._commit():
+                        raise RuntimeError, 'Commit error'
+                    # not locked
+                    if nLK == 0:
+                        continue
+                retTasks.append((taskParMap,datasetParMap))
             tmpLog.debug('got {0} tasks'.format(len(retTasks)))
             return retTasks
         except:

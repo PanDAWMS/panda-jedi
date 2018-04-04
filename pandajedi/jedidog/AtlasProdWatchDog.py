@@ -82,7 +82,9 @@ class AtlasProdWatchDog (WatchDogBase):
                                                                           taskCriteria= task_criteria,
                                                                           datasetCriteria=dataset_criteria,
                                                                           taskParamList=task_param_list,
-                                                                          datasetParamList=dataset_param_list)
+                                                                          datasetParamList=dataset_param_list,
+                                                                          taskLockColumn='throttledTime',
+                                                                          taskLockInterval=20)
                 boostedPrio = 900
                 toBoostRatio = 0.95
                 for taskParam,datasetParam in taskVarList:
