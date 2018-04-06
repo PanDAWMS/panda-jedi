@@ -1114,6 +1114,9 @@ class JobGeneratorThread (WorkerThread):
                     # use secondary dataset name as prodDBlock
                     if setProdDBlock == False and prodDBlock != None:
                         jobSpec.prodDBlock = prodDBlock
+                    # scout
+                    if inputChunk.useScout():
+                        jobSpec.setScoutJobFlag()
                     # extract middle name
                     middleName = ''
                     if taskSpec.getFieldNumToLFN() != None and not jobSpec.prodDBlock in [None,'NULL','']:
