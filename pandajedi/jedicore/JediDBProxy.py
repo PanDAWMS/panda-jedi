@@ -7784,7 +7784,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND type=:type "
-            sqlFR += "AND status IN (:status1,:status2) "
+            sqlFR += "AND status IN (:status1) "
             sqlFR += "ORDER BY creationDate DESC "
             # start transaction
             self.conn.begin()
@@ -7810,7 +7810,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':datasetID']  = datasetSpec.datasetID
                     varMap[':type']       = 'lib'
                     varMap[':status1']    = 'finished'
-                    varMap[':status2']    = 'running'
                     self.cur.execute(sqlFR+comment,varMap)
                     resFileList = self.cur.fetchall()
                     for resFile in resFileList:
