@@ -5326,6 +5326,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         cpuTimeDict  = {}
         ioIntentList = []
         ioIntentDict = {}
+        cpuEffList   = []
+        cpuEffDict   = {}
         finishedJobs = []
         inFSizeList  = []
         inFSizeMap   = {}
@@ -5525,6 +5527,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpWorkSize = libSize
                     if tmpWorkSize != None:
                         workSizeList.append(tmpWorkSize)
+                    # CPU efficiency
+                    if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
+                        try:
+                            tmpTimeDelta = endTime - startTime
+                            float(tmpTimeDelta.seconds + tmpTimeDelta.days*24*3600)
+                            tmpCpuEff = int(math.ceil(float(cpuConsumptionTime) / (coreCount * float(tmpTimeDelta.seconds + tmpTimeDelta.days*24*3600)) * 100))
+                            cpuEffList.append(tmpCpuEff)
+                            cpuEffDict[tmpCpuEff] = pandaID
+                        except:
+                            pass
         # add tags
         def addTag(jobTagMap,idDict,value,tagStr):
             if value in idDict:
@@ -5615,6 +5627,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # use preset value if larger
             if preWorkDiskCount != None and preWorkDiskCount > returnMap['workDiskCount']:
                 returnMap['workDiskCount'] = preWorkDiskCount
+        if cpuEffList != []:
+            minCpuEfficiency = int(numpy.median(cpuEffList))
+            addTag(jobTagMap,cpuEffDict,minCpuEfficiency,'cpuEfficiency')
+            extraInfo['minCpuEfficiency'] = minCpuEfficiency
         nShortJobs = 0
         for tmpExecTime in execTimeMap.values():
             if tmpExecTime <= datetime.timedelta(minutes=shortExecTime):
@@ -5805,6 +5821,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                                                          extraInfo['shortExecTime'],
                                                                                                                                          extraInfo['expectedNumJobs'],
                                                                                                                                          shortJobCutoff)
+                    tmpLog.info(errMsg)
+                    taskSpec.setErrDiag(errMsg)
+                    taskSpec.status = 'exhausted'
+            # check CPU efficiency
+            if taskSpec.status != 'exhausted':
+                if taskSpec.getMinCpuEfficiency() is not None and 'minCpuEfficiency' in extraInfo and \
+                        extraInfo['minCpuEfficiency'] < taskSpec.getMinScoutEfficiency():
+                    errMsg = 'status=exhausted since reason=low_efficiency '
+                    errMsg += 'min CPU efficiency {0} is less than {1}%'.format(extraInfo['minCpuEfficiency'],
+                                                                                taskSpec.getMinScoutEfficiency())
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'

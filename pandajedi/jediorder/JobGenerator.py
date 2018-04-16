@@ -1592,7 +1592,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.destinationSE    = siteName
             jobSpec.metadata         = ''
             if siteSpec.corepower:
-                jobSpec.hs06 = jobSpec.coreCount * siteSpec.corepower
+                jobSpec.hs06 = (jobSpec.coreCount or 1) * siteSpec.corepower
             # get log file
             outSubChunk,serialNr,datasetToRegister,siteDsMap,parallelOutMap = self.taskBufferIF.getOutputFiles_JEDI(taskSpec.jediTaskID,
                                                                                                                     None,

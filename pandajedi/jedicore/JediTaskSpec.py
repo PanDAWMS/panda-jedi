@@ -63,6 +63,7 @@ class JediTaskSpec(object):
         'useLocalIO'         : 'LI',
         'limitedSites'       : 'LS',
         'loadXML'            : 'LX',
+        'minCpuEfficiency'   : 'MC',
         'mergeEsOnOS'        : 'ME',
         'nMaxFilesPerJob'    : 'MF',
         'mergeOutput'        : 'MO',
@@ -1467,3 +1468,13 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return True
         return False
+
+
+
+    # get min CPU efficiency
+    def getMinCpuEfficiency(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['minCpuEfficiency']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return None    
