@@ -1591,6 +1591,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.gshare           = taskSpec.gshare
             jobSpec.destinationSE    = siteName
             jobSpec.metadata         = ''
+            jobSpec.coreCount        = 1
             if siteSpec.corepower:
                 jobSpec.hs06 = (jobSpec.coreCount or 1) * siteSpec.corepower
             # get log file
