@@ -75,6 +75,8 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                     taskParamMap['mergeEsOnOS'] = True
                 if 'maxAttemptES' not in taskParamMap:
                     taskParamMap['maxAttemptES'] = 10
+                if 'notDiscardEvents' not in taskParamMap:
+                    taskParamMap['notDiscardEvents'] = True
                 taskParamMap['coreCount'] = 0
                 taskParamMap['resurrectConsumers'] = True
         TaskRefinerBase.extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule)
