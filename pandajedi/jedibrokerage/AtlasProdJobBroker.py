@@ -68,6 +68,11 @@ class AtlasProdJobBroker (JobBrokerBase):
         if self.nw_weight_multiplier is None:
             self.nw_weight_multiplier = 1
 
+        self.io_intensity_cutoff = taskBufferIF.getConfigValue(COMPONENT, 'IO_INTENSITY_CUTOFF', APP, VO)
+        if self.io_intensity_cutoff is None:
+            self.io_intensity_cutoff = 200
+
+
     # wrapper for return
     def sendLogMessage(self,tmpLog):
         # log suppression
@@ -1023,10 +1028,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                 maxNumFiles = len(tmpSet)
         ######################################
         # selection for fileSizeToMove
-        ioIntensityCutoff = 200
         moveSizeCutoffGB = 10
-        if not sitePreAssigned and totalSize > 0 and not inputChunk.isMerging and taskSpec.ioIntensity is not None and taskSpec.ioIntensity > ioIntensityCutoff \
-                and not (taskSpec.useEventService() and not taskSpec.useJobCloning()):
+        if not sitePreAssigned and totalSize > 0 and not inputChunk.isMerging and taskSpec.ioIntensity is not None \
+                and taskSpec.ioIntensity > self.io_intensity_cutoff and not (taskSpec.useEventService() \
+                and not taskSpec.useJobCloning()):
             newScanSiteList = []
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -1036,7 +1041,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpMsg = '  skip site={0} since size of missing input is too large ({1} GB > {2} GB) '.format(tmpSiteName,
                                                                                                                   long(mbToMove/1024),
                                                                                                                   moveSizeCutoffGB)
-                    tmpMsg += 'for IO intensive task ({0} > {1} kBPerS) '.format(taskSpec.ioIntensity,ioIntensityCutoff)
+                    tmpMsg += 'for IO intensive task ({0} > {1} kBPerS) '.format(taskSpec.ioIntensity, self.io_intensity_cutoff)
                     tmpMsg += 'criteria=-io'
                     tmpLog.info(tmpMsg)
                     continue

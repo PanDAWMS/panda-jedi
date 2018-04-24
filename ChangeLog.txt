@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/25/2018
+  * make IO intensity cutoff configurable
+
 * 4/19/2018
   * using notDiscardEvents for ES tasks by default
 
