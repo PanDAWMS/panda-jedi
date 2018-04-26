@@ -1099,7 +1099,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             manyAssigned = float(nAssigned + 1) / float(nActivated + 1)
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
-            weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 1) / manyAssigned
+            weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 10) / manyAssigned
             weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7} totalSizeMB={5} '.format(nRunning,nActivated,nAssigned,
                                                                                                                         nStarting,nDefined,
                                                                                                                         long(totalSize/1024/1024),
