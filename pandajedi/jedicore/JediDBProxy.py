@@ -6967,8 +6967,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             sqlTU += "SET status=oldStatus,"
                         if taskStatus in ['paused'] or changeStatusOnly:
                             sqlTU += "oldStatus=NULL,"
-                        elif taskStatus in ['throttled'] and commandStr == 'pause':
-                            # unchange oldStatus when throttled->paused
+                        elif taskStatus in ['throttled'] and commandStr in ['pause', 'reassign']:
+                            # unchange oldStatus when throttled->paused/toreassign
                             pass
                         elif not taskStatus in ['pending']:
                             sqlTU += "oldStatus=status,"
