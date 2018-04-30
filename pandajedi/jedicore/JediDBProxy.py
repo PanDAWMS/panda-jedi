@@ -6961,6 +6961,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if newTaskStatus != 'dummy':
                             sqlTU += "SET status=:status,"
                         else:
+                            if taskOldStatus is None:
+                                tmpLog.error("jediTaskID={0} has oldStatus=None and status={1} for ".format(jediTaskID, taskStatus, commandStr))
+                                isOK = False
                             sqlTU += "SET status=oldStatus,"
                         if taskStatus in ['paused'] or changeStatusOnly:
                             sqlTU += "oldStatus=NULL,"
@@ -6975,9 +6978,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':wallTimeUnit'] = 'ava'
                         sqlTU += "modificationTime=CURRENT_DATE,errorDialog=:errDiag,stateChangeTime=CURRENT_DATE "
                         sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:taskStatus "
-                        tmpLog.debug(sqlTU+comment+str(varMap))
-                        self.cur.execute(sqlTU+comment,varMap)
-                        nRow = self.cur.rowcount
+                        if isOK:
+                            tmpLog.debug(sqlTU+comment+str(varMap))
+                            self.cur.execute(sqlTU+comment,varMap)
+                            nRow = self.cur.rowcount
+                        else:
+                            nRow = 0
                         if nRow != 1:
                             tmpLog.debug('skip updated jediTaskID={0}'.format(jediTaskID))
                             toSkip = True
