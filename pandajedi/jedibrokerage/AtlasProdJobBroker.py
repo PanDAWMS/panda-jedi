@@ -1080,6 +1080,14 @@ class AtlasProdJobBroker (JobBrokerBase):
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'activated', None, wq_tag) + \
                          AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'throttled', None, wq_tag)
             nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'starting', None, wq_tag)
+
+            if taskSpec.useEventService():
+                # nRunning   = AtlasBrokerUtils.getNumJobs(jobStatMap, tmpSiteName, 'running', None, taskSpec.gshare)
+                nDefined   = AtlasBrokerUtils.getNumJobs(jobStatMap, tmpSiteName, 'defined', None, taskSpec.gshare) + self.getLiveCount(tmpSiteName)
+                nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatMap, tmpSiteName, 'assigned', None, taskSpec.gshare)
+                nActivated = AtlasBrokerUtils.getNumJobs(jobStatMap, tmpSiteName, 'activated', None, taskSpec.gshare)
+                             AtlasBrokerUtils.getNumJobs(jobStatMap, tmpSiteName, 'throttled', None, taskSpec.gshare)
+                nStarting  = AtlasBrokerUtils.getNumJobs(jobStatMap, tmpSiteName, 'starting', None, taskSpec.gshare)
             if tmpSiteName in nPilotMap:
                 nPilot = nPilotMap[tmpSiteName]
             else:
