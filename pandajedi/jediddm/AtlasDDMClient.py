@@ -190,7 +190,7 @@ class AtlasDDMClient(DDMClientBase):
             for tmpName in datasets:
                 retMap[tmpName] = self.convertOutListDatasetReplicas(tmpName,deepScan)
                 tmpLog.debug('got '+str(retMap))
-                return self.SC_SUCCEEDED,retMap
+            return self.SC_SUCCEEDED,retMap
         except:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
