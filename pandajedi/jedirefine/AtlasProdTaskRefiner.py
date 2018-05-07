@@ -40,7 +40,8 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                 maxPending = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_MAXPENDING', 'jedi', 'atlas')
                 nEvents, lastTaskTime, nPendingTasks = self.taskBufferIF.getNumUnprocessedEvents_JEDI(taskParamMap['vo'],
                                                                                                       taskParamMap['prodSourceLabel'],
-                                                                                                      {'eventService': 1})
+                                                                                                      {'eventService': 1},
+                                                                                                      {'gshare': 'Validation'})
                 tmpStr = 'check for ES '
                 tmpStr += 'tot_num_unprocessed_events_AES={0} target_num_events_AES={1} last_AES_task_time={2} '.format(nEvents,
                                                                                                                         minNumEvents,

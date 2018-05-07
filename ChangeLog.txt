@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/7/2018
+  * excluding validation from *_AES for es conversion
+
 * 4/25/2018
   * make IO intensity cutoff configurable
 

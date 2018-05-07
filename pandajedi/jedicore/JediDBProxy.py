@@ -11233,7 +11233,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get number of unprocessed events
-    def getNumUnprocessedEvents_JEDI(self, vo, prodSourceLabel, criteria):
+    def getNumUnprocessedEvents_JEDI(self, vo, prodSourceLabel, criteria, neg_criteria):
         comment = ' /* JediDBProxy.getNumUnprocessedEvents_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
@@ -11256,6 +11256,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for key, val in criteria.iteritems():
                 sqlDJ += "AND tabT.{0}=:{0} ".format(key)
                 varMap[':{0}'.format(key)] = val
+            for key, val in neg_criteria.iteritems():
+                sqlDJ += "AND tabT.{0}<>:neg_{0} ".format(key)
+                varMap[':neg_{0}'.format(key)] = val
             sqlDJ += ") "
             varMap[':st1'] = 'running'
             varMap[':st2'] = 'pending'
