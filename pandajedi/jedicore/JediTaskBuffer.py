@@ -1479,11 +1479,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # get number of unprocessed events
-    def getNumUnprocessedEvents_JEDI(self, vo, prodSourceLabel, criteria):
+    def getNumUnprocessedEvents_JEDI(self, vo, prodSourceLabel, criteria, neg_criteria):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getNumUnprocessedEvents_JEDI(vo, prodSourceLabel, criteria)
+        retVal = proxy.getNumUnprocessedEvents_JEDI(vo, prodSourceLabel, criteria, neg_criteria)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
