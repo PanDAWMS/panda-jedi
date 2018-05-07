@@ -11238,7 +11238,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName = self.getMethodName(comment)
         methodName += " <vo={0} label={1}>".format(vo, prodSourceLabel)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start with criteria={0}'.format(str(criteria)))
+        tmpLog.debug('start with criteria={0} neg={1}'.format(str(criteria), str(neg_criteria)))
         try:
             # get num events
             varMap = {}
