@@ -3540,7 +3540,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         if not tmpDatasetSpec.toKeepTrack():
                                             if not fullSimulation:
                                                 varMap[':status'] = 'ready'
-                                            if datasetID not in dsWithfakeCoJumbo:
+                                            if primaryDatasetID not in dsWithfakeCoJumbo:
                                                 self.cur.execute(sqlFRNR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
                                             else:
                                                 self.cur.execute(sqlCJ_FRNR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
@@ -3550,12 +3550,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                 if inputChunk.ramCount not in (None, 0):
                                                     varMap[':ramCount'] = inputChunk.ramCount
                                             if inputChunk.ramCount not in (None, 0):
-                                                if datasetID not in dsWithfakeCoJumbo or useJumbo == JediTaskSpec.enum_useJumbo['lack']:
+                                                if primaryDatasetID not in dsWithfakeCoJumbo or useJumbo == JediTaskSpec.enum_useJumbo['lack']:
                                                     self.cur.execute(sqlFR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
                                                 else:
                                                     self.cur.execute(sqlCJ_FR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
                                             else: #We group inputChunk.ramCount None and 0 together
-                                                if datasetID not in dsWithfakeCoJumbo or useJumbo == JediTaskSpec.enum_useJumbo['lack']:
+                                                if primaryDatasetID not in dsWithfakeCoJumbo or useJumbo == JediTaskSpec.enum_useJumbo['lack']:
                                                     self.cur.execute(sqlFR_RCNull.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
                                                 else:
                                                     self.cur.execute(sqlCJ_FR_RCNull.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
