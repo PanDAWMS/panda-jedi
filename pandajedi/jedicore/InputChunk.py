@@ -386,7 +386,8 @@ class InputChunk:
                     multiplicity=None,
                     splitByFields=None, 
                     tmpLog=None,
-                    useDirectIO=False):
+                    useDirectIO=False,
+                    maxDiskSize=None):
         # check if there are unused files/events
         if not self.checkUnused():
             return None
@@ -456,12 +457,14 @@ class InputChunk:
         siteAvailable  = True
         inputFileSet   = set()
         fieldStr       = None
+        diskSize       = 0
         while (maxNumFiles == None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or \
                    (dynNumEvents and len(inputFileSet) <= maxNumFiles and inputNumFiles <= maxNumEventRanges)) \
                 and (maxSize == None or (maxSize != None and fileSize <= maxSize)) \
                 and (maxWalltime <= 0 or expWalltime <= maxWalltime) \
                 and (maxNumEvents == None or (maxNumEvents != None and inputNumEvents <= maxNumEvents)) \
-                and (maxOutSize == None or self.getOutSize(outSizeMap) <= maxOutSize):
+                and (maxOutSize == None or self.getOutSize(outSizeMap) <= maxOutSize) \
+                and (maxDiskSize is None or diskSize <= maxDiskSize):
             # get one file (or one file group for MP) from master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             if not self.masterDataset.datasetID in outSizeMap:
@@ -512,14 +515,16 @@ class InputChunk:
                 if self.taskSpec.outputScaleWithEvents():
                     fileSize += long(sizeGradients * effectiveNumEvents)
                     if not dynNumEvents or tmpFileSpec.lfn not in inputFileSet:
+                        fileSize += long(tmpFileSpec.fsize)    
                         if not useDirectIO:
-                            fileSize += long(tmpFileSpec.fsize)    
+                            diskSize += long(tmpFileSpec.fsize)                                
                     outSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveNumEvents)
                 else:
                     fileSize += long(sizeGradients * effectiveFsize)
                     if not dynNumEvents or tmpFileSpec.lfn not in inputFileSet:
+                        fileSize += long(tmpFileSpec.fsize)
                         if not useDirectIO:
-                            fileSize += long(tmpFileSpec.fsize)
+                            diskSize += long(tmpFileSpec.fsize)
                     outSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveFsize)
                 if sizeGradientsPerInSize != None:
                     fileSize += long(effectiveFsize * sizeGradientsPerInSize)
@@ -577,8 +582,9 @@ class InputChunk:
                                 inputFileMap[datasetSpec.datasetID] = []
                             inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
                             # sum
+                            fileSize += tmpFileSpec.fsize
                             if not useDirectIO:
-                                fileSize += tmpFileSpec.fsize
+                                diskSize += tmpFileSpec.fsize
                             if sizeGradientsPerInSize != None:
                                 fileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                                 outSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
@@ -620,8 +626,9 @@ class InputChunk:
                             inputFileMap[datasetSpec.datasetID] = []
                         inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
                         # sum
+                        fileSize += tmpFileSpec.fsize
                         if not useDirectIO:
-                            fileSize += tmpFileSpec.fsize
+                            diskSize += tmpFileSpec.fsize
                         if sizeGradientsPerInSize != None:
                             fileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                             outSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
@@ -670,6 +677,7 @@ class InputChunk:
             newOutSizeMap     = copy.copy(outSizeMap)
             newBoundaryIDs    = set()
             newInputFileSet   = copy.copy(inputFileSet)
+            newDiskSize       = diskSize
             if not self.masterDataset.datasetID in newOutSizeMap:
                 newOutSizeMap[self.masterDataset.datasetID] = 0
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
@@ -723,14 +731,16 @@ class InputChunk:
                 if self.taskSpec.outputScaleWithEvents():
                     newFileSize += long(sizeGradients * effectiveNumEvents)
                     if not dynNumEvents or tmpFileSpec.lfn not in inputFileSet:
+                        newFileSize += long(tmpFileSpec.fsize)
                         if not useDirectIO:
-                            newFileSize += long(tmpFileSpec.fsize)
+                            newDiskSize += long(tmpFileSpec.fsize)
                     newOutSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveNumEvents)
                 else:
                     newFileSize += long(sizeGradients * effectiveFsize)
                     if not dynNumEvents or tmpFileSpec.lfn not in inputFileSet:
+                        newFileSize += long(tmpFileSpec.fsize)
                         if not useDirectIO:
-                            newFileSize += long(tmpFileSpec.fsize)
+                            newDiskSize += long(tmpFileSpec.fsize)
                     newOutSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveFsize)
                 if sizeGradientsPerInSize != None:
                     newFileSize += long(effectiveFsize * sizeGradientsPerInSize)
@@ -771,8 +781,9 @@ class InputChunk:
                         if splitWithBoundaryID and boundaryID != None and boundaryID != tmpFileSpec.boundaryID \
                                 and not tmpFileSpec.boundaryID in boundaryIDs and not tmpFileSpec.boundaryID in newBoundaryIDs:
                             break
+                        newFileSize += tmpFileSpec.fsize
                         if not useDirectIO:
-                            newFileSize += tmpFileSpec.fsize
+                            newDiskSize += tmpFileSpec.fsize
                         if sizeGradientsPerInSize != None:
                             newFileSize += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                             newOutSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
@@ -794,7 +805,8 @@ class InputChunk:
                     or (maxSize != None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize) \
                     or (maxWalltime > 0 and newExpWalltime > maxWalltime) \
                     or (maxNumEvents != None and newInputNumEvents > maxNumEvents) \
-                    or (maxOutSize != None and self.getOutSize(newOutSizeMap) > maxOutSize):
+                    or (maxOutSize != None and self.getOutSize(newOutSizeMap) > maxOutSize) \
+                    or (maxDiskSize is not None and newDiskSize > maxDiskSize):
                 break
         # reset nUsed for repeated datasets
         for tmpDatasetID,datasetUsage in self.datasetMap.iteritems():

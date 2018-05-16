@@ -149,7 +149,7 @@ class JobSplitter:
                 siteSpec = siteMapper.getSite(siteName)
                 # directIO
                 if taskSpec.useLocalIO() or not siteSpec.isDirectIO() or taskSpec.allowInputLAN() is None \
-                        or inputChunk.isMerging or maxSizePerJob is not None:
+                        or inputChunk.isMerging:
                     useDirectIO = False
                 else:
                     useDirectIO = True
@@ -161,9 +161,8 @@ class JobSplitter:
                 else:
                     # add offset
                     maxSize += sizeIntercepts
-                # cap
-                if maxSize > (siteSpec.maxwdir * 1024 * 1024) and not useDirectIO:
-                    maxSize = siteSpec.maxwdir * 1024 * 1024
+                # max disk size
+                maxDiskSize = siteSpec.maxwdir * 1024 * 1024
                 # max walltime
                 maxWalltime = None
                 if not inputChunk.isMerging:
@@ -184,10 +183,11 @@ class JobSplitter:
                         maxNumEventRanges = 1
                 tmpLog.debug('chosen {0}'.format(siteName))
                 tmpLog.debug('new weight {0}'.format(siteCandidate.weight))
-                tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2} corePower={3} maxNumEventRanges={4}'.format(maxSize,maxWalltime,
-                                                                                                                    coreCount,corePower,
-                                                                                                                    maxNumEventRanges))
-                tmpLog.debug('useDirectIO={0}'.format(useDirectIO))
+                tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2} corePower={3} maxNumEventRanges={4} maxDisk={5}'.format(maxSize,maxWalltime,
+                                                                                                                                coreCount,corePower,
+                                                                                                                                maxNumEventRanges,
+                                                                                                                                maxDiskSize))
+                tmpLog.debug('useDirectIO={0} label={1}'.format(useDirectIO, taskSpec.prodSourceLabel))
             # get sub chunk
             subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
                                               maxNumFiles=maxNumFiles,
@@ -208,7 +208,8 @@ class JobSplitter:
                                               multiplicity=multiplicity,
                                               splitByFields=splitByFields,
                                               tmpLog=tmpLog,
-                                              useDirectIO=useDirectIO)
+                                              useDirectIO=useDirectIO,
+                                              maxDiskSize=maxDiskSize)
             if subChunk == None:
                 break
             if subChunk != []:
