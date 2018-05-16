@@ -159,6 +159,8 @@ class JobSplitter:
                     # use maxwdir as the default maxSize
                     if not useDirectIO:
                         maxSize = siteSpec.maxwdir * 1024 * 1024
+                    else:
+                        maxSize = max(20, siteSpec.maxwdir) * 1024 * 1024
                 else:
                     # add offset
                     maxSize += sizeIntercepts
