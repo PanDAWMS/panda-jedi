@@ -119,7 +119,7 @@ def compensateRamCount(ramCount):
     if ramCount == 'NULL':
         ramCount = None
     if not ramCount in [None,0]:
-        ramCount = int(ramCount*0.95)
+        ramCount = int(ramCount * 0.90)
     return ramCount
 
 
