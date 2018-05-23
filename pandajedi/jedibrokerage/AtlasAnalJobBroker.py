@@ -624,6 +624,29 @@ class AtlasAnalJobBroker (JobBrokerBase):
             self.sendLogMessage(tmpLog)
             return retFatal
         ######################################
+        # selection for hospital
+        newScanSiteList = []
+        hasNormalSite = False
+        for tmpSiteName in self.get_unified_sites(scanSiteList):
+            if not tmpSiteName.endswith('_HOSPITAL'):
+                hasNormalSite = True
+                break
+        if hasNormalSite:
+            for tmpSiteName in self.get_unified_sites(scanSiteList):
+                # remove hospital
+                if tmpSiteName.endswith('_HOSPITAL'):
+                    tmpLog.info('  skip site=%s due to hospital queue criteria=-hospital' % tmpSiteName)
+                    continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
+            tmpLog.info('{0} candidates passed hospital check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+        ######################################
         # final procedure
         tmpLog.info('final {0} candidates'.format(len(scanSiteList)))
         weightMap = {}
