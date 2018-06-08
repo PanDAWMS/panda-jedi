@@ -1696,6 +1696,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # set attributes
             timeNow = datetime.datetime.utcnow()
+            taskSpec.resetChangedAttr('jediTaskID')
             if setOldModTime:
                 taskSpec.modificationTime = timeNow - datetime.timedelta(hours=1)
             else:
