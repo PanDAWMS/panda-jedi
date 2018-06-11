@@ -10470,6 +10470,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
+        # sql to check useJumbo
+        sqlJ  = "SELECT useJumbo FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
         # sql to get input datasetID
         sqlM  = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
         sqlM += "WHERE jediTaskID=:jediTaskID AND type IN ("
@@ -10489,6 +10491,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlWM += "SELECT distinct PandaID "
         sqlWM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
         sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID AND status=:statI "
+        # sql to check duplication with jumbo
+        sqlJM  = "SELECT distinct jobsetID "
+        sqlJM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlJM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID AND status IN (:statT1,:statT2) "
+        sqlJM += 'MINUS '
+        sqlJM += "SELECT distinct jobsetID "
+        sqlJM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlJM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID AND status=:statI "
         # sql to check duplication with internal merge
         sqlCM  = "SELECT distinct c1.outPandaID "
         sqlCM += "FROM {0}.JEDI_Dataset_Contents c1,{0}.JEDI_Dataset_Contents c2,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
@@ -10501,6 +10511,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # start transaction
             self.conn.begin()
+            # check useJumbo
+            varMap = {}
+            varMap[':jediTaskID'] = jediTaskID
+            self.cur.execute(sqlJ+comment, varMap)
+            resJ = self.cur.fetchone()
+            useJumbo, = resJ
             # get input datasetID
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
@@ -10535,8 +10551,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':templateID'] = templateID
                         self.cur.execute(sqlCM+comment,varMap)
                     else:
-                        # without internal merge
-                        self.cur.execute(sqlWM+comment,varMap)
+                        if useJumbo is None:
+                            # without internal merge
+                            self.cur.execute(sqlWM+comment,varMap)
+                        else:
+                            # with jumbo
+                            self.cur.execute(sqlJM+comment,varMap)
                     retList = self.cur.fetchall()
                     dupPandaIDs = []
                     for dupPandaID, in retList:
