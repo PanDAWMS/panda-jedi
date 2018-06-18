@@ -643,9 +643,15 @@ class JobGeneratorThread (WorkerThread):
                                                                     oldPandaIDs=oldPandaIDs,
                                                                     relationType=relationType)
                             pandaIDs = []
-                            for idxItem,items in enumerate(resSubmit):
+                            nSkipJumbo = 0
+                            for pandaJob, items in zip(pandaJobs, resSubmit):
                                 if items[0] != 'NULL':
                                     pandaIDs.append(items[0])
+                                elif EventServiceUtils.isJumboJob(pandaJob):
+                                    nSkipJumbo += 1
+                                    pandaIDs.append(items[0])
+                            if nSkipJumbo > 0:
+                                tmpLog.debug('{0} jumbo jobs were skipped'.format(nSkipJumbo))
                             # check if submission was successful
                             if len(pandaIDs) == len(pandaJobs):
                                 tmpMsg = 'successfully submitted '
@@ -663,10 +669,12 @@ class JobGeneratorThread (WorkerThread):
                                 tmpLog.info(tmpMsg)
                                 tmpLog.sendMsg(tmpMsg,self.msgType)
                                 if self.execJobs:
-                                    # skip fake co-jumbo
+                                    # skip fake co-jumbo and unsubmitted jumbo
                                     pandaIDsForExec = []
                                     for pandaID,pandaJob in zip(pandaIDs,pandaJobs):
                                         if pandaJob.computingSite == EventServiceUtils.siteIdForWaitingCoJumboJobs:
+                                            continue
+                                        if pandaID == 'NULL':
                                             continue
                                         pandaIDsForExec.append(pandaID)
                                     statExe,retExe = PandaClient.reassignJobs(pandaIDsForExec, forPending=True,
