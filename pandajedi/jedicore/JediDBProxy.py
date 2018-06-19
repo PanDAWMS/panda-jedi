@@ -3521,6 +3521,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     elif not tmpDatasetSpec.isMaster() and taskSpec.reuseSecOnDemand() \
                                             and not inputChunk.isMerging:
                                         orderBy = 'fileID'
+                                    elif taskSpec.respectLumiblock():
+                                        orderBy = 'lumiBlockNr,lfn'
                                     elif not taskSpec.useLoadXML():
                                         orderBy = 'lfn'
                                     else:
