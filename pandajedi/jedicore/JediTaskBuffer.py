@@ -975,11 +975,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # retry or incrementally execute a task
-    def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5):
+    def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5,retryChildTasks=True):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.retryTask_JEDI(jediTaskID,commStr,maxAttempt)
+        retVal = proxy.retryTask_JEDI(jediTaskID,commStr,maxAttempt,retryChildTasks=retryChildTasks)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return

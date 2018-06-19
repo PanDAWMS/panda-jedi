@@ -8386,12 +8386,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # retry or incrementally execute a task
-    def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5,useCommit=True,statusCheck=True):
+    def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5,useCommit=True,statusCheck=True,retryChildTasks=True):
         comment = ' /* JediDBProxy.retryTask_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start command={0}'.format(commStr))
+        tmpLog.debug('start command={0} retryChildTasks={1}'.format(commStr, retryChildTasks))
         newTaskStatus = None
         # check command
         if not commStr in ['retry','incexec']:
@@ -8691,7 +8691,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[mapKey] = tmpType
                     self.cur.execute(sqlUO+comment,varMap)
                 # retry or reactivate child tasks
-                if newTaskStatus != taskOldStatus:
+                if retryChildTasks and newTaskStatus != taskOldStatus:
                     self.retryChildTasks_JEDI(jediTaskID,useCommit=False)
             if useCommit:
                 # commit
