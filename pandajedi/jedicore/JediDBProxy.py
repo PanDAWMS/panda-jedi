@@ -3271,13 +3271,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         primaryDatasetID = datasetID
                         datasetIDs = [datasetID]
                         taskSpec = copy.copy(origTaskSpec)
+                        origTmpNumFiles = tmpNumFiles
                         
                         # See if there are different memory requirements that need to be mapped to different chuncks
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
                         varMap[':datasetID'] = datasetID
                         if not fullSimulation:
-                            varMap[':status'] = 'ready'
+                            if useJumbo == JediTaskSpec.enum_useJumbo['lack'] and origTmpNumFiles == 0:
+                                varMap[':status'] = 'running'
+                            else:
+                                varMap[':status'] = 'ready'
                         self.cur.arraysize = 1000000
                         # figure out if there are different memory requirements in the dataset
                         if datasetID not in dsWithfakeCoJumbo or useJumbo == JediTaskSpec.enum_useJumbo['lack']:
@@ -3549,7 +3553,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                 self.cur.execute(sqlCJ_FRNR.format(orderBy,numFilesTobeReadInCycle-iFiles_tmp)+comment,varMap)
                                         else:
                                             if not fullSimulation:
-                                                varMap[':status'] = 'ready'
+                                                if useJumbo == JediTaskSpec.enum_useJumbo['lack'] and origTmpNumFiles == 0:
+                                                    varMap[':status'] = 'running'
+                                                else:
+                                                    varMap[':status'] = 'ready'
                                                 if inputChunk.ramCount not in (None, 0):
                                                     varMap[':ramCount'] = inputChunk.ramCount
                                             if inputChunk.ramCount not in (None, 0):
@@ -3578,7 +3585,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                 varMap[':oStatus'] = 'ready'
                                                 self.cur.execute(sqlFU + comment, varMap)
                                                 nFileRow = self.cur.rowcount
-                                                if nFileRow != 1:
+                                                if nFileRow != 1 and not (useJumbo == JediTaskSpec.enum_useJumbo['lack'] and origTmpNumFiles == 0):
                                                     tmpLog.debug('skip fileID={0} already used by another'.format(
                                                         tmpFileSpec.fileID))
                                                     continue
@@ -3650,7 +3657,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                     jediTaskID, datasetID))
                                             # toSkip = True
                                             break
-                                    elif simTasks == None and tmpDatasetSpec.toKeepTrack() and iFiles_tmp != 0:
+                                    elif simTasks == None and tmpDatasetSpec.toKeepTrack() and iFiles_tmp != 0 \
+                                            and not (useJumbo == JediTaskSpec.enum_useJumbo['lack'] and origTmpNumFiles == 0):
                                         # update nFilesUsed in DatasetSpec
                                         nFilesUsed = tmpDatasetSpec.nFilesUsed + iFiles[datasetID]
                                         tmpDatasetSpec.nFilesUsed = nFilesUsed
