@@ -55,10 +55,12 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                         autoEsConversion = True
                         tmpLog.info('will be converted to AES unless it goes to pending')
         # add ES paramsters
-        if ('esFraction' in taskParamMap and taskParamMap['esFraction'] > 0) or autoEsConversion:
+        if ('esFraction' in taskParamMap and taskParamMap['esFraction'] > 0) or \
+           ('esConvertible' in taskParamMap and taskParamMap['esConvertible'] is True):
             tmpStr  = '<PANDA_ES_ONLY>--eventService=True</PANDA_ES_ONLY>'
             taskParamMap['jobParameters'].append({'type':'constant',
                                                   'value':tmpStr})
+        if ('esFraction' in taskParamMap and taskParamMap['esFraction'] > 0) or autoEsConversion:
             if 'nEventsPerWorker' not in taskParamMap and \
                     (('esFraction' in taskParamMap and taskParamMap['esFraction'] > random.random()) or autoEsConversion):
                 taskParamMap['nEventsPerWorker'] = 1
