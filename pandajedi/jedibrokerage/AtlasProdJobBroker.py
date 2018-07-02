@@ -1267,7 +1267,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 weightMap[weight] = []
             weightMap[weight].append((siteCandidateSpec,okMsg,ngMsg))
         # use second candidates if no primary candidates passed cap/lock check
-        if weightMapPrimary == {}:
+        if False: #weightMapPrimary == {}:
             tmpLog.info('use second candidates since no sites pass cap/lock check')
             weightMap = weightMapSecondary
             # use hightest 3 weights
@@ -1280,6 +1280,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpWeight in weightMapSecondary.keys():
                 for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMapSecondary[tmpWeight]:
                     tmpLog.info(tmpNgMsg)
+            if weightMapPrimary == {}:
+                tmpLog.info('available sites all capped')
         # add jumbo sites
         for weight,tmpList in weightMapJumbo.iteritems():
             if not weight in weightMap:
