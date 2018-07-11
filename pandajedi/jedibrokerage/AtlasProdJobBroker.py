@@ -1067,6 +1067,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             self.sendLogMessage(tmpLog)
             return retTmpError
         workerStat = self.taskBufferIF.ups_load_worker_stats()
+        upsQueues = set(self.taskBufferIF.ups_get_queues())
         tmpLog.info('calculate weight and check cap for {0} candidates'.format(len(scanSiteList)))
         weightMapPrimary = {}
         weightMapSecondary = {}
@@ -1093,8 +1094,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                         for tmpStatus, tmpNum in tmpCounts.iteritems():
                             if tmpStatus in ['running', 'submitted']:
                                 nWorkers += tmpNum
+                # cap
+                nWorkers = min(20, nWorkers)
             # use nWorkers to bootstrap
-            if nPilot > 0 and nRunning == 0 and nWorkers > 0:
+            if nPilot > 0 and nRunning == 0 and nWorkers > 0 and tmpSiteName in upsQueues:
                 tmpLog.debug('using nWorkers={0} as nRunning at {1} since original nRunning={2}'.format(nWorkers, tmpPseudoSiteName, nRunning))
                 nRunning = nWorkers
             # take into account the number of standby jobs
