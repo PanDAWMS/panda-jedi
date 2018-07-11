@@ -1088,6 +1088,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 nPilot = 0
             # get num workers
             nWorkers = 0
+            nWorkersCutoff = 20
             if tmpSiteName in workerStat:
                 for tmpHarvesterID, tmpResStat in workerStat[tmpSiteName].iteritems():
                     for tmpResType, tmpCounts in tmpResStat.iteritems():
@@ -1095,9 +1096,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                             if tmpStatus in ['running', 'submitted']:
                                 nWorkers += tmpNum
                 # cap
-                nWorkers = min(20, nWorkers)
+                nWorkers = min(nWorkersCutoff, nWorkers)
             # use nWorkers to bootstrap
-            if nPilot > 0 and nRunning == 0 and nWorkers > 0 and tmpSiteName in upsQueues:
+            if nPilot > 0 and nRunning < nWorkersCutoff and nWorkers > nRunning and tmpSiteName in upsQueues:
                 tmpLog.debug('using nWorkers={0} as nRunning at {1} since original nRunning={2}'.format(nWorkers, tmpPseudoSiteName, nRunning))
                 nRunning = nWorkers
             # take into account the number of standby jobs
