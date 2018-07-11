@@ -1066,6 +1066,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             self.sendLogMessage(tmpLog)
             return retTmpError
+        workerStat = self.taskBufferIF.ups_load_worker_stats()
         tmpLog.info('calculate weight and check cap for {0} candidates'.format(len(scanSiteList)))
         weightMapPrimary = {}
         weightMapSecondary = {}
@@ -1084,6 +1085,18 @@ class AtlasProdJobBroker (JobBrokerBase):
                 nPilot = nPilotMap[tmpSiteName]
             else:
                 nPilot = 0
+            # get num workers
+            nWorkers = 0
+            if tmpSiteName in workerStat:
+                for tmpHarvesterID, tmpResStat in workerStat[tmpSiteName].iteritems():
+                    for tmpResType, tmpCounts in tmpResStat.iteritems():
+                        for tmpStatus, tmpNum in tmpCounts.iteritems():
+                            if tmpStatus in ['running', 'submitted']:
+                                nWorkers += tmpNum
+            # use nWorkers to bootstrap
+            if nPilot > 0 and nRunning == 0 and nWorkers > 0:
+                tmpLog.debug('using nWorkers={0} as nRunning at {1} since original nRunning={2}'.format(nWorkers, tmpPseudoSiteName, nRunning))
+                nRunning = nWorkers
             # take into account the number of standby jobs
             numStandby = tmpSiteSpec.getNumStandby(wq_tag, taskSpec.resource_type)
             if numStandby is None:
