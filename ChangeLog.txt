@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/16/2018
+  * fixed maxWalltime and maxCpuCount for multiple consumers
+
 * 5/23/2018
   * changed AtlasAJB for hospital
 

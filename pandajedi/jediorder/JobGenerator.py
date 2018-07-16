@@ -839,6 +839,7 @@ class JobGeneratorThread (WorkerThread):
                             datasetToRegister.append(tmpToRegisterItem)
                 # make normal jobs
                 tmpJobSpecList = []
+                tmpMasterEventsList = []
                 for inSubChunk in inSubChunks:
                     subOldPandaIDs = []
                     jobSpec = JobSpec()
@@ -1178,27 +1179,8 @@ class JobGeneratorThread (WorkerThread):
                     except:
                         pass
                     # maxWalltime
-                    try:
-                        if taskSpec.cpuTime in [0,None] and taskSpec.useHS06() and inputChunk.useScout():
-                            jobSpec.maxWalltime = 24*60*60
-                            jobSpec.maxCpuCount = 24*60*60
-                        elif taskSpec.cpuTime != None:
-                            jobSpec.maxWalltime = taskSpec.cpuTime
-                            if jobSpec.maxWalltime != None and jobSpec.maxWalltime > 0:
-                                jobSpec.maxWalltime *= totalMasterEvents
-                                if siteSpec.coreCount > 0:
-                                    jobSpec.maxWalltime /= float(siteSpec.coreCount)
-                                if not siteSpec.corepower in [0,None]:
-                                    jobSpec.maxWalltime /= siteSpec.corepower
-                            if not taskSpec.cpuEfficiency in [None,0]:
-                                jobSpec.maxWalltime /= (float(taskSpec.cpuEfficiency) / 100.0)
-                            if taskSpec.baseWalltime != None:
-                                jobSpec.maxWalltime += taskSpec.baseWalltime
-                            jobSpec.maxWalltime = long(jobSpec.maxWalltime)
-                            if taskSpec.useHS06():
-                                jobSpec.maxCpuCount = jobSpec.maxWalltime
-                    except:
-                        pass
+                    tmpMasterEventsList.append(totalMasterEvents)
+                    JediCoreUtils.getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec)
                     # multiply maxDiskCount by total master size or # of events
                     try:
                         if inputChunk.isMerging:
@@ -1374,7 +1356,7 @@ class JobGeneratorThread (WorkerThread):
                         tmpJobSpecList,incOldPandaIDs = self.increaseEventServiceConsumers(tmpJobSpecList,nConsumers,
                                                                                            taskSpec.getNumSitesPerJob(),parallelOutMap,outDsMap,
                                                                                            oldPandaIDs[len(jobSpecList):],
-                                                                                           taskSpec, inputChunk)
+                                                                                           taskSpec, inputChunk, tmpMasterEventsList)
                         oldPandaIDs = oldPandaIDs[:len(jobSpecList)] + incOldPandaIDs
                 # add to all list
                 jobSpecList += tmpJobSpecList
@@ -1960,13 +1942,14 @@ class JobGeneratorThread (WorkerThread):
 
     # increase event service consumers
     def increaseEventServiceConsumers(self,pandaJobs,nConsumers,nSitesPerJob,parallelOutMap,outDsMap,oldPandaIDs,
-                                      taskSpec,inputChunk):
+                                      taskSpec, inputChunk, masterEventsList):
         newPandaJobs = []
         newOldPandaIDs = []
-        for pandaJob,oldPandaID in zip(pandaJobs,oldPandaIDs):
+        for pandaJob,oldPandaID,masterEvents in zip(pandaJobs,oldPandaIDs,masterEventsList):
             for iConsumers in range (nConsumers):
                 newPandaJob = self.clonePandaJob(pandaJob,iConsumers,parallelOutMap,outDsMap,
-                                                 taskSpec=taskSpec,inputChunk=inputChunk)
+                                                 taskSpec=taskSpec,inputChunk=inputChunk,
+                                                 totalMasterEvents=masterEvents)
                 newPandaJobs.append(newPandaJob)
                 newOldPandaIDs.append(oldPandaID)
         # return
@@ -1976,7 +1959,7 @@ class JobGeneratorThread (WorkerThread):
 
     # close panda job with new specialHandling
     def clonePandaJob(self,pandaJob,index,parallelOutMap,outDsMap,sites=None,forJumbo=False,
-                      taskSpec=None, inputChunk=None):
+                      taskSpec=None, inputChunk=None, totalMasterEvents=None):
         newPandaJob = copy.copy(pandaJob)
         if sites == None:
             sites = newPandaJob.computingSite.split(',')
@@ -1992,12 +1975,13 @@ class JobGeneratorThread (WorkerThread):
         if taskSpec is not None and inputChunk is not None:
             newPandaJob.minRamCount, newPandaJob.minRamUnit = JediCoreUtils.getJobMinRamCount(taskSpec, inputChunk,
                                                                                               siteSpec, newPandaJob.coreCount)
-
+            newPandaJob.hs06 = (newPandaJob.coreCount or 1) * siteSpec.corepower
+            if totalMasterEvents is not None:
+                JediCoreUtils.getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, newPandaJob)
         try:
             newPandaJob.resource_type = self.taskBufferIF.get_resource_type_job(newPandaJob)
         except:
             newPandaJob.resource_type = 'Undefined'
-
         datasetList = set()
         # reset SH for jumbo
         if forJumbo:
