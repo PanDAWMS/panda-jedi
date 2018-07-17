@@ -845,6 +845,13 @@ class AtlasProdJobBroker (JobBrokerBase):
                         tmpMsg += 'criteria=-nones'
                         tmpLog.info(tmpMsg)
                         continue
+                # skip UCORE/SCORE
+                if taskSpec.useEventService() and tmpSiteSpec.sitename != tmpSiteSpec.get_unified_name() \
+                        and tmpSiteSpec.coreCount == 1:
+                    tmpMsg = '  skip site={0} since EventService on UCORE/SCORE '.format(tmpSiteName)
+                    tmpMsg += 'criteria=-es_ucore'
+                    tmpLog.info(tmpMsg)
+                    continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed EventService check'.format(len(scanSiteList)))
