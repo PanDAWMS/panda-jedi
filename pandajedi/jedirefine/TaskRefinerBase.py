@@ -243,6 +243,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noWaitParent'])
         if 'respectLB' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['respectLB'])
+        if 'orderByLB' in taskParamMap:
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['orderByLB'])
         if 'respectSplitRule' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['respectSplitRule'])
         if taskParamMap.has_key('reuseSecOnDemand'):

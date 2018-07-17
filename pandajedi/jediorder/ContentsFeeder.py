@@ -242,7 +242,7 @@ class ContentsFeederThread (WorkerThread):
                                             tmpDatasetName = datasetSpec.datasetName
                                         # use long format for LB
                                         longFormat = False
-                                        if taskSpec.respectLumiblock():
+                                        if taskSpec.respectLumiblock() or taskSpec.orderByLB():
                                             longFormat = True
                                         tmpRet = ddmIF.getFilesInDataset(tmpDatasetName,
                                                                          getNumEvents=getNumEvents,

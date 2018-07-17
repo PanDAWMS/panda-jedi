@@ -77,6 +77,7 @@ class JediTaskSpec(object):
         'nJumboJobs'         : 'NJ',
         'nSitesPerJob'       : 'NS',
         'noWaitParent'       : 'NW',
+        'orderByLB'          : 'OL',        
         'pfnList'            : 'PL',
         'putLogToOS'         : 'PO',
         'runUntilClosed'     : 'RC',
@@ -1086,6 +1087,16 @@ class JediTaskSpec(object):
     def respectLumiblock(self):
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['respectLB']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return True
+        return False
+
+
+
+    # order by Lumiblock numbers
+    def orderByLB(self):
+        if self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['orderByLB']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
                 return True
         return False
