@@ -310,6 +310,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         ######################################
         # selection for release
         if taskSpec.transHome != None:
+            useANY = True
             unified_site_list = self.get_unified_sites(scanSiteList)
             if taskSpec.transHome.startswith('ROOT'):
                 # hack until x86_64-slc6-gcc47-opt is published in installedsw
@@ -351,13 +352,18 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                               cmtConfig=taskSpec.architecture)
                 else:
                     # nightlies
-                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                             releases='CVMFS')
+                    useANY = False
+                    siteListWithCVMFS = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
+                                                                                releases='CVMFS')
+                    siteListWithCMTCONFIG = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
+                                                                                    cmtConfig=taskSpec.architecture,
+                                                                                    onlyCmtConfig=True)
+                    siteListWithSW = set(siteListWithCVMFS) & set(siteListWithCMTCONFIG)
             newScanSiteList = []
             for tmpSiteName in unified_site_list:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # release check is disabled or release is available
-                if tmpSiteSpec.releases == ['ANY']:
+                if useANY and tmpSiteSpec.releases == ['ANY']:
                     newScanSiteList.append(tmpSiteName)
                 elif tmpSiteName in siteListWithSW:
                     newScanSiteList.append(tmpSiteName)

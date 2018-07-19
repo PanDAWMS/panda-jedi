@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/19/2018
+  * changed AtlasAJB to check cmtConfig for nightlies
+
 * 7/17/2018
   * added orderByLB
 
