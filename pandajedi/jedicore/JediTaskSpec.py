@@ -1201,7 +1201,7 @@ class JediTaskSpec(object):
 
     # use HS06 for walltime estimation
     def useHS06(self):
-        return self.cpuTimeUnit == 'HS06sPerEvent'
+        return self.cpuTimeUnit in ['HS06sPerEvent', 'HS06sPerEventFixed']
 
 
 

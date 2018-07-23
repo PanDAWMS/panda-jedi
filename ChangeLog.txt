@@ -1,5 +1,9 @@
 Release Notes
 
+* 7/23/2018
+  * changed getScout to ignore nEvents<10*nCore
+  * added HS06sPerEventFixed
+
 * 7/19/2018
   * changed AtlasAJB to check cmtConfig for nightlies
 

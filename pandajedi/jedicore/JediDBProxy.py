@@ -5170,10 +5170,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # sql to get preset values
         if not mergeScout:
             sqlGPV  = "SELECT "
-            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule "
+            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit "
         else:
             sqlGPV  = "SELECT "
-            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule "
+            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data from JEDI
@@ -5244,7 +5244,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         resGPV = self.cur.fetchone()
         if resGPV != None:
             prodSourceLabel,preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,\
-                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime,splitRule \
+                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime,splitRule,preCpuTimeUnit \
                 = resGPV
             # get preOutDiskCount in kB
             if not preOutDiskCount in [0,None]:
@@ -5270,6 +5270,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preCpuEfficiency = None
             preBaseWalltime = None
             splitRule = None
+            preCpuTimeUnit = None
         if preOutDiskUnit != None and preOutDiskUnit.endswith('PerEvent'):
             preOutputScaleWithEvents = True
         else:
@@ -5479,14 +5480,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # CPU time
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
-                            tmpVal = JobUtils.getHS06sec(startTime,endTime,corePower,coreCount,
-                                                         baseWalltime=preBaseWalltime, cpuEfficiency=preCpuEfficiency)
-                            if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
-                                tmpVal /= float(inEventsMap[pandaID])
-                            if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= 10 or \
-                                    (inEventsMap[pandaID] < 10 and pandaID in execTimeMap and execTimeMap[pandaID] > 6*3600):
-                                cpuTimeList.append(tmpVal)
-                                cpuTimeDict[tmpVal] = pandaID
+                            if preCpuTimeUnit == 'HS06sPerEventFixed':
+                                pass
+                            else:
+                                tmpVal = JobUtils.getHS06sec(startTime,endTime,corePower,coreCount,
+                                                             baseWalltime=preBaseWalltime, cpuEfficiency=preCpuEfficiency)
+                                if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
+                                    tmpVal /= float(inEventsMap[pandaID])
+                                if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= (10*coreCount) or \
+                                        (inEventsMap[pandaID] < (10*coreCount) and pandaID in execTimeMap and execTimeMap[pandaID] > 6*3600):
+                                    cpuTimeList.append(tmpVal)
+                                    cpuTimeDict[tmpVal] = pandaID
                         except:
                             pass
                     # IO
@@ -5581,13 +5585,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             median = float(maxWallTime) / float(max(inFSizeList)) * 1.5
             median = math.ceil(median)
             returnMap['walltime']     = long(median)
-            returnMap['walltimeUnit'] = 'kSI2kseconds'
             # use preset value if larger
             if preWalltime != None and (preWalltime > returnMap['walltime'] or preWalltime < 0):
                 returnMap['walltime'] = preWalltime
             # upper limit
             if returnMap['walltime'] > limitWallTime:
                 returnMap['walltime'] = limitWallTime
+        returnMap['walltimeUnit'] = 'kSI2kseconds'
         if cpuTimeList != []:
             maxCpuTime,origValues = JediCoreUtils.percentile(cpuTimeList, cpuTimeRank, cpuTimeDict)
             for origValue in origValues:
