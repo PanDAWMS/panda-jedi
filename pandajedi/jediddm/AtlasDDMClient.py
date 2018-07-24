@@ -594,6 +594,8 @@ class AtlasDDMClient(DDMClientBase):
     
     # wrapper for list_content
     def wp_list_content(self,client,scope,dsn):
+        if dsn.endswith('/'):
+            dsn = dsn[:-1]
         retList = []
         # get contents
         for data in client.list_content(scope,dsn):
