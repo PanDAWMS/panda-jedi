@@ -65,6 +65,8 @@ class AtlasDDMClient(DDMClientBase):
             client = RucioClient()
             # extract scope from dataset
             scope,dsn = self.extract_scope(datasetName)
+            if dsn.endswith('/'):
+                dsn = dsn[:-1]
             # get files
             fileMap = {}
             baseLFNmap = {}
@@ -478,6 +480,8 @@ class AtlasDDMClient(DDMClientBase):
             # get scope and name
             scope,dsn = self.extract_scope(datasetName)
             # get
+            if dsn.endswith('/'):
+                dsn = dsn[:-1]
             tmpRet = client.get_metadata(scope,dsn)
             # set state
             if tmpRet['is_open'] == True and tmpRet['did_type'] != 'CONTAINER':
@@ -816,6 +820,8 @@ class AtlasDDMClient(DDMClientBase):
             # get scope and name
             scope,dsn = self.extract_scope(datasetName)
             # check metadata to avoid a bug in rucio
+            if dsn.endswith('/'):
+                dsn = dsn[:-1]
             tmpRet = client.get_metadata(scope,dsn)
             # close
             client.set_status(scope,dsn,open=False)
