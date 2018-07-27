@@ -186,6 +186,7 @@ class AtlasDDMClient(DDMClientBase):
                 datasets = [dsn]
             else:
                 # get constituent datasets
+                dsn = dsn[:-1]
                 itr = client.list_content(scope,dsn)
                 datasets = [i['name'] for i in itr]
             retMap = {}

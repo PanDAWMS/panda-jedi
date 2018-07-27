@@ -2954,10 +2954,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,\
                     taskStatus,groupByAttr,tmpNumInputFiles,tmpNumInputEvents,\
                     tmpNumFilesWaiting,useJumbo in resList:
-                tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3} prio={4} useJumbo={5}'.format(jediTaskID,datasetID,
-                                                                                                                  tmpNumFiles,datasetType,
-                                                                                                                  currentPriority,
-                                                                                                                  useJumbo))
+                tmpLog.debug('jediTaskID={0} datasetID={1} tmpNumFiles={2} type={3} prio={4} useJumbo={5} nFilesWaiting={6}'.format(jediTaskID,datasetID,
+                                                                                                                                    tmpNumFiles,datasetType,
+                                                                                                                                    currentPriority,
+                                                                                                                                    useJumbo,
+                                                                                                                                    tmpNumFilesWaiting))
 
                 # just return the max priority
                 if isPeeking:
