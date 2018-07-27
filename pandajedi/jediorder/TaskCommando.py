@@ -193,6 +193,10 @@ class TaskCommandoThread (WorkerThread):
                                         break
                                     # wait or kill jobs 
                                     if 'soft finish' in commentStr:
+                                        queuedPandaIDs = self.taskBufferIF.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
+                                        tmpMsg = "trying to kill {0} queued jobs for soft finish".format(len(queuedPandaIDs))
+                                        tmpLog.info(tmpMsg)
+                                        tmpRet = self.taskBufferIF.killJobs(queuedPandaIDs,commentStr,'52',True)
                                         tmpMsg = "wating {0} jobs for soft finish".format(len(pandaIDs))
                                         tmpLog.info(tmpMsg)
                                         tmpRet = True
