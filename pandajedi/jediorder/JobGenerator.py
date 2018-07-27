@@ -166,9 +166,9 @@ class JobGenerator (JediKnight):
                                     numTasksWithRunningJumbo = self.taskBufferIF.getNumTasksWithRunningJumbo_JEDI(vo,prodSourceLabel,cloudName,workQueue)
                                     if not self.withThrottle:
                                         numTasksWithRunningJumbo = 0
-                                    maxNumasksWithRunningJumbo = 5
-                                    if numTasksWithRunningJumbo < maxNumasksWithRunningJumbo:
-                                        numNewTaskWithJumbo = maxNumasksWithRunningJumbo - numTasksWithRunningJumbo
+                                    maxNumTasksWithRunningJumbo = 50
+                                    if numTasksWithRunningJumbo < maxNumTasksWithRunningJumbo:
+                                        numNewTaskWithJumbo = maxNumTasksWithRunningJumbo - numTasksWithRunningJumbo
                                         if numNewTaskWithJumbo < 0:
                                             numNewTaskWithJumbo = 0
                                     else:
