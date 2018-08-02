@@ -9790,16 +9790,25 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get tasks
             varMap = {}
             varMap[':status'] = 'throttled'
-            sqlTL  = "SELECT jediTaskID,oldStatus "
-            sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlTL  = "SELECT tabT.jediTaskID,tabT.oldStatus "
+            sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
-            sqlTL += "AND tabT.status=:status AND tabT.throttledTime<CURRENT_DATE AND tabT.lockedBy IS NULL "
+            sqlTL += "AND tabD.jediTaskID=tabT.jediTaskID AND tabD.type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                sqlTL += '{0},'.format(mapKey)
+                varMap[mapKey] = tmpType
+            sqlTL = sqlTL[:-1]
+            sqlTL += ") AND tabD.masterID IS NULL "
+            sqlTL += "AND tabT.status=:status AND tabT.lockedBy IS NULL "
+            sqlTL += "AND (tabT.throttledTime<CURRENT_DATE OR "
+            sqlTL += "(tabD.nFilesToBeUsed=tabD.nFilesFinished+tabD.nFilesFailed AND tabD.nFiles>0)) "
             if not vo in [None,'any']:
                 varMap[':vo'] = vo
-                sqlTL += "AND vo=:vo "
+                sqlTL += "AND tabT.vo=:vo "
             if not prodSourceLabel in [None,'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
-                sqlTL += "AND prodSourceLabel=:prodSourceLabel "
+                sqlTL += "AND tabT.prodSourceLabel=:prodSourceLabel "
             # sql to update tasks    
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=oldStatus,oldStatus=NULL,errorDialog=NULL,modificationtime=CURRENT_DATE "
