@@ -11196,7 +11196,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nFiles, = self.cur.fetchone()
             # disallow some transition
             retVal = True
-            if statusStr == 'running' and curStr == JediTaskSpec.enum_useJumbo['pending']:
+            if statusStr == 'pending' and curStr == JediTaskSpec.enum_useJumbo['lack']:
+                # to prevent from changing lack to pending
+                statusStr = 'lack'
+                tmpLog.debug("changed to {0} since to pending is not allowed".format(statusStr))
+                retVal = False
+            elif statusStr == 'running' and curStr == JediTaskSpec.enum_useJumbo['pending']:
                 # to running from pending only when all files are used
                 if nFiles != 0:
                     statusStr = 'pending'
