@@ -711,7 +711,7 @@ class JobGeneratorThread (WorkerThread):
                         # set jumbo flag
                         if pendingJumbo:
                             tmpFlagStat = self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'pending')
-                            tmpErrStr = 'pending to generate jumbo or real co-jumbo jobs'
+                            tmpErrStr = 'going to generate jumbo or real co-jumbo jobs when needed'
                             tmpLog.debug(tmpErrStr)
                             if tmpFlagStat:
                                 taskSpec.setErrDiag(None)
