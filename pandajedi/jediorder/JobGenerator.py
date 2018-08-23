@@ -711,13 +711,13 @@ class JobGeneratorThread (WorkerThread):
                         # set jumbo flag
                         if pendingJumbo:
                             tmpFlagStat = self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'pending')
-                            tmpErrStr = 'brokerage failed for jumbo and real co-jumbo'
+                            tmpErrStr = 'pending to generate jumbo or real co-jumbo jobs'
                             tmpLog.debug(tmpErrStr)
                             if tmpFlagStat:
                                 taskSpec.setErrDiag(None)
                             else:
                                 taskSpec.setOnHold()
-                                taskSpec.setErrDiag(tmpErrStr,True)
+                                taskSpec.setErrDiag(tmpErrStr)
                         elif jobsSubmitted and taskSpec.getNumJumboJobs() is not None and inputChunk.useJumbo is not None:
                             self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'running')
                         # unset lockedBy when all inputs are done for a task
