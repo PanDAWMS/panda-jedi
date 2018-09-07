@@ -10321,9 +10321,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.conn.begin()
                     # check parent
                     if parent_tid not in [None, jediTaskID]:
-                        varMap = {}
-                        varMap[':parent_tid'] = parent_tid
-                        self.cur.execute(sqlCP+comment,varMap)
+                        varMapTmp = {}
+                        varMapTmp[':parent_tid'] = parent_tid
+                        self.cur.execute(sqlCP+comment,varMapTmp)
                         resCP = self.cur.fetchone()
                         if resCP[0] not in ['finished', 'failed', 'done', 'aborted', 'broken']:
                             tmpLog.debug('skip jediTaskID={0} as parent {1} is still {2}'.format(jediTaskID, parent_tid, resCP[0]))
