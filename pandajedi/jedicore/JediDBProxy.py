@@ -2143,7 +2143,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             allTasks = []
             taskStatList = []
             for jediTaskID,taskStatus,eventService,site,useJumbo,splitRule in resList:
-                taskStatList.append((jediTaskID,taskStatus))
+                taskStatList.append((jediTaskID,taskStatus,eventService,site,useJumbo,splitRule))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
