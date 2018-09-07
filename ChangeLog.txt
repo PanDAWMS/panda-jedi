@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/7/2018
+  * added enableJumbo
+
 * 7/23/2018
   * changed getScout to ignore nEvents<10*nCore
   * added HS06sPerEventFixed

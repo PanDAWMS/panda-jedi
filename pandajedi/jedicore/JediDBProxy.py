@@ -2107,7 +2107,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status3'] = 'tobroken'
             varMap[':status4'] = 'toabort'
             varMap[':status5'] = 'passed'
-            sqlRT  = "SELECT tabT.jediTaskID,tabT.status "
+            sqlRT  = "SELECT tabT.jediTaskID,tabT.status,tabT.eventService,tabT.site,tabT.useJumbo,tabT.splitRule "
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlRT += "AND tabT.status IN (:status1,:status2,:status3,:status4,:status5) "
@@ -2142,13 +2142,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             retTasks = []
             allTasks = []
             taskStatList = []
-            for jediTaskID,taskStatus in resList:
+            for jediTaskID,taskStatus,eventService,site,useJumbo,splitRule in resList:
                 taskStatList.append((jediTaskID,taskStatus))
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             # get tasks and datasets    
-            for jediTaskID,taskStatus in taskStatList:
+            for jediTaskID,taskStatus,eventService,site,useJumbo,splitRule in taskStatList:
                 # begin transaction
                 self.conn.begin()
                 # check task
@@ -2177,6 +2177,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                             jediTaskID,nRows))
                     if nRows > 0:
                         self.setSuperStatus_JEDI(jediTaskID, 'running')
+                        # enable jumbo
+                        self.enableJumboInTask_JEDI(jediTaskID, eventService, site, useJumbo, splitRule)
                 else:
                     # lock task
                     varMap = {}
@@ -6569,6 +6571,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         deftStatus = 'ready'
                         self.setDeftStatus_JEDI(jediTaskID, deftStatus)
                         self.setSuperStatus_JEDI(jediTaskID,deftStatus)
+                        # get parameters to enable jumbo
+                        sqlRT  = "SELECT eventService,site,useJumbo,splitRule FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                        sqlRT += "WHERE jediTaskID=:jediTaskID "
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        self.cur.execute(sqlRT+comment,varMap)
+                        resRT = self.cur.fetchone()
+                        if resRT is not None:
+                            eventService,site,useJumbo,splitRule = resRT
+                            # enable jumbo
+                            self.enableJumboInTask_JEDI(jediTaskID, eventService, site, useJumbo, splitRule)
                     # commit
                     if not self._commit():
                         raise RuntimeError, 'Commit error'
@@ -11574,3 +11587,138 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False
+
+
+
+    # check if should enable jumbo
+    def toEnableJumbo_JEDI(self, jediTaskID):
+        comment = ' /* JediDBProxy.toEnableJumbo_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get thresholds
+            sqlLK  = "SELECT value FROM {0}.CONFIG ".format(jedi_config.db.schemaPANDA)
+            sqlLK += "WHERE component=:component AND key=:key AND app=:app "
+            # sql to get nevents
+            sqlAV = "SELECT nEvents,nFilesToBeUsed,nFilesUsed FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlAV += "WHERE jediTaskID=:jediTaskID AND type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_' + tmpType
+                sqlAV += '{0},'.format(mapKey)
+            sqlAV = sqlAV[:-1]
+            sqlAV += ') AND masterID IS NULL '
+            # sql to get # of active jumbo jobs
+            sqlAJ  = "SELECT COUNT(*) "
+            sqlAJ += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlAJ += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlAJ += "AND tabT.eventService=:eventService AND tabT.useJumbo IS NOT NULL AND tabT.useJumbo<>:useJumbo "
+            sqlAJ += "AND tabT.site IS NULL AND tabT.status IN (:st1,:st2,:st3) "
+            # get thresholds
+            configMaxJumbo = 'AES_MAX_NUM_JUMBO_TASKS'
+            varMap = dict()
+            varMap[':component'] = 'taskrefiner'
+            varMap[':app'] = 'jedi'
+            varMap[':key'] = configMaxJumbo
+            self.cur.execute(sqlLK+comment, varMap)
+            resLK = self.cur.fetchone()
+            if resLK is None:
+                tmpLog.debug('False since {0} is not defined'.format(configMaxJumbo))
+                return False
+            try:
+                maxJumbo, = resLK
+            except Exception:
+                tmpLog.debug('False since {0} is not an int'.format(configMaxJumbo))
+                return False
+            varMap = dict()
+            varMap[':component'] = 'taskrefiner'
+            varMap[':app'] = 'jedi'
+            varMap[':key'] = 'AES_MIN_EVENTS_PER_JUMBO_TASK'
+            self.cur.execute(sqlLK+comment, varMap)
+            resLK = self.cur.fetchone()
+            try:
+                minEvents, = resLK
+                minEvents = int(minEvents)
+            except:
+                minEvents = 100 * 1000 * 1000
+            # get nevents
+            varMap = dict()
+            varMap[':jediTaskID'] = jediTaskID
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                varMap[mapKey] = tmpType
+            self.cur.execute(sqlAV+comment, varMap)
+            resAV = self.cur.fetchone()
+            if resAV is None:
+                tmpLog.debug('False since cannot get nEvents')
+                return False
+            nEvents,nFilesToBeUsed,nFilesUsed = resAV
+            try:
+                nEvents = nEvents * nFilesToBeUsed // (nFilesToBeUsed - nFilesUsed)
+            except Exception:
+                tmpLog.debug('False since cannot get effective nEvents from nEvents={0} nFilesToBeUsed={1} nFilesUsed={2}'.format(
+                        nEvents, nFilesToBeUsed, nFilesUsed))
+                return False
+            if nEvents < minEvents:
+                tmpLog.debug('False since effective nEvents={0} < minEventsJumbo={1}'.format(nEvents, minEvents))
+                return False
+            # get num jombo tasks
+            varMap = dict()
+            varMap[':eventService'] = 1
+            varMap[':useJumbo'] = 'D'
+            varMap[':st1'] = 'ready'
+            varMap[':st2'] = 'pending'
+            varMap[':st3'] = 'running'
+            self.cur.execute(sqlAJ+comment, varMap)
+            resAJ = self.cur.fetchone()
+            nJumbo = 0
+            if resAJ is not None:
+                nJumbo, = resAJ
+            if nJumbo > maxJumbo:
+                tmpLog.debug('False since nJumbo={0} > maxJumbo={1}'.format(nJumbo, maxJumbo))
+                return False
+            tmpLog.debug('True since nJumbo={0} <= maxJumbo={1} and nEvents={0} >= minEventsJumbo={1}'.format(nJumbo, maxJumbo,
+                                                                                                              nEvents, minEvents))
+            return True
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
+
+
+
+    # enable jumbo jobs in a task
+    def enableJumboInTask_JEDI(self, jediTaskID, eventService, site, useJumbo, splitRule):
+        if eventService == 1 and site is None and useJumbo is None:
+            comment = ' /* enableJumboInTask_JEDI */'
+            taskSpec = JediTaskSpec()
+            taskSpec.splitRule = splitRule
+            # go to scouting
+            if taskSpec.useScout() and not taskSpec.isPostScout():
+                return
+            # check if should enable jumbo
+            toEnable = self.toEnableJumbo_JEDI(jediTaskID)
+            if not toEnable:
+                return
+            # get nJumbo jobs
+            sqlLK  = "SELECT value, type FROM {0}.CONFIG ".format(jedi_config.db.schemaPANDA)
+            sqlLK += "WHERE component=:component AND key=:key AND app=:app "
+            varMap = dict()
+            varMap[':component'] = 'taskrefiner'
+            varMap[':app'] = 'jedi'
+            varMap[':key'] = 'AES_NUM_JUMBO_PER_TASK'
+            self.cur.execute(sqlLK+comment, varMap)
+            resLK = self.cur.fetchone()
+            try:
+                nJumboJobs, = resLK
+                nJumboJobs = int(nJumboJobs)
+            except Exception:
+                nJumboJobs = 1
+            # enable jumbo
+            #self.enableJumboJobs(jediTaskID, nJumboJobs, False, False)
+            
+
+            
