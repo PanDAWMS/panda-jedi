@@ -859,16 +859,19 @@ class AtlasDDMClient(DDMClientBase):
             # get rucio API
             client = RucioClient()
             userInfo = None
-            for i in client.list_accounts(account_type='USER',identity=userName):
-                userInfo = {'nickname':i['account'],
-                            'email':i['email']}
-                break
-            if userInfo == None:
-                # remove /CN=\d
-                userName = re.sub('(/CN=\d+)+$','',userName)
-                for i in client.list_accounts(account_type='USER',identity=userName):
+            for accType in ['USER', 'GROUP']:
+                for i in client.list_accounts(account_type=accType, identity=userName):
                     userInfo = {'nickname':i['account'],
                                 'email':i['email']}
+                    break
+                if userInfo == None:
+                    # remove /CN=\d
+                    userName = re.sub('(/CN=\d+)+$','',userName)
+                    for i in client.list_accounts(account_type=accType, identity=userName):
+                        userInfo = {'nickname':i['account'],
+                                    'email':i['email']}
+                        break
+                if userInfo is not None:
                     break
             if userInfo == None:
                 tmpLog.error('failed to get account info')

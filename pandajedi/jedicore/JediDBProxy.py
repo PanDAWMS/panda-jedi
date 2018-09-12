@@ -11692,8 +11692,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # enable jumbo jobs in a task
     def enableJumboInTask_JEDI(self, jediTaskID, eventService, site, useJumbo, splitRule):
+        comment = ' /* JediDBProxy.enableJumboInTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('eventService={0} site={1} useJumbo={2}'.format(eventService, site, useJumbo))
         if eventService == 1 and site is None and useJumbo is None:
-            comment = ' /* enableJumboInTask_JEDI */'
             taskSpec = JediTaskSpec()
             taskSpec.splitRule = splitRule
             # go to scouting
