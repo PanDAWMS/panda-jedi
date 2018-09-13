@@ -7552,13 +7552,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             abortingFlag = False
                         else:
                             abortingFlag = True
-                        # go to aborting if no finished
+                        # go to exhausted
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
-                        if abortingFlag:
-                            varMap[':newStatus'] = 'aborting'
-                        else:
-                            varMap[':newStatus'] = 'finishing'
+                        varMap[':newStatus'] = 'exhausted'
                         if errorDialog == None:
                             errorDialog = ''
                         else:
@@ -7577,8 +7574,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('jediTaskID={0} reactivated'.format(jediTaskID))
                 nRow += self.cur.rowcount
                 # update DEFT for timeout
-                if timeoutFlag and abortingFlag:
-                    deftStatus = 'aborted'
+                if timeoutFlag:
+                    deftStatus = varMap[':newStatus']
                     self.setDeftStatus_JEDI(jediTaskID, deftStatus)
                     self.setSuperStatus_JEDI(jediTaskID,deftStatus)
             # commit
