@@ -10888,6 +10888,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             retVal = ''
+            outFileMap = dict()
             # sql to get PandaID of the first job
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
@@ -10909,13 +10910,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get jobParms
             sqlJ  = "SELECT jobParameters FROM {0}.jobParamsTable WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
             sqlJA = "SELECT jobParameters FROM {0}.jobParamsTable_ARCH WHERE PandaID=:PandaID".format(jedi_config.db.schemaPANDAARCH)
+            # sql to get file
+            sqlF = "SELECT lfn,datasetID FROM {0}.filesTable4 where PandaID=:PandaID AND type=:type ".format(jedi_config.db.schemaPANDA)
+            sqlFA = "SELECT lfn,datasetID FROM {0}.filesTable_Arch where PandaID=:PandaID AND type=:type ".format(jedi_config.db.schemaPANDAARCH)
             # start transaction
             self.conn.begin()
             self.cur.execute(sql+comment,varMap)
             res = self.cur.fetchone()
             if res != None and res[0] != None:
+                pandaID = res[0]
                 varMap = {}
-                varMap[':PandaID'] = res[0]
+                varMap[':PandaID'] = pandaID
                 self.cur.execute(sqlJ+comment,varMap)
                 for clobJobP, in self.cur:
                     try:
@@ -10931,17 +10936,28 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         except:
                             retVal = str(clobJobP)
                             break
+                # get output
+                varMap = dict()
+                varMap[':PandaID'] = pandaID
+                varMap[':type'] = 'output'
+                self.cur.execute(sqlF+comment, varMap)
+                resF = self.cur.fetchall()
+                if len(resF) == 0:
+                    self.cur.execute(sqlFA+comment, varMap)
+                    resF = self.cur.fetchall()
+                for lfn, datasetID in resF:
+                    outFileMap[datasetID] = lfn
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('get {0} bytes'.format(len(retVal)))
-            return retVal
+            return retVal, outFileMap
         except:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return retVal
+            return retVal, outFileMap
 
 
 

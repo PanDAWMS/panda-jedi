@@ -2070,7 +2070,7 @@ class JobGeneratorThread (WorkerThread):
         nJumbo = len(newSites)
         # get job parameter of the first job
         if nJumbo > 0:
-            jobParams = self.taskBufferIF.getJobParamsOfFirstJob_JEDI(taskSpec.jediTaskID)
+            jobParams, outFileMap = self.taskBufferIF.getJobParamsOfFirstJob_JEDI(taskSpec.jediTaskID)
         # make jumbo jobs
         for iJumbo in range(nJumbo):
             newJumboJob = self.clonePandaJob(pandaJobs[0],iJumbo,{},{},newSites,True,
@@ -2079,6 +2079,12 @@ class JobGeneratorThread (WorkerThread):
             # job params inherit from the first job since first_event etc must be the first value
             if jobParams != '':
                 newJumboJob.jobParameters = jobParams
+                # change output file name
+                for outDatasetID, outLFN in outFileMap.iteritems():
+                    for fileSpec in newJumboJob.Files:
+                        if fileSpec.type == 'output' and fileSpec.datasetID == outDatasetID:
+                            newJumboJob.jobParameters = newJumboJob.jobParameters.replace(outLFN, fileSpec.lfn)
+                            break
             jumboJobs.append(newJumboJob)
         # return
         return jumboJobs
