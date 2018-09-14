@@ -1367,9 +1367,9 @@ class JobGeneratorThread (WorkerThread):
             if taskSpec.getNumJumboJobs() is not None and inputChunk.useJumbo is not None:
                 if self.taskBufferIF.isApplicableTaskForJumbo(taskSpec.jediTaskID):
                     if inputChunk.useJumbo == 'only':
-                        jobSpecList = self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul)
+                        jobSpecList = self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul,outDsMap)
                     else:
-                        jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul)
+                        jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul,outDsMap)
                 else:
                     # disable useJumbo
                     self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'disabled')
@@ -2042,7 +2042,7 @@ class JobGeneratorThread (WorkerThread):
 
 
     # make jumbo jobs
-    def makeJumboJobs(self,pandaJobs,taskSpec,inputChunk,simul):
+    def makeJumboJobs(self,pandaJobs,taskSpec,inputChunk,simul,outDsMap):
         jumboJobs = []
         # no original
         if len(pandaJobs) == 0:
@@ -2073,7 +2073,7 @@ class JobGeneratorThread (WorkerThread):
             jobParams, outFileMap = self.taskBufferIF.getJobParamsOfFirstJob_JEDI(taskSpec.jediTaskID)
         # make jumbo jobs
         for iJumbo in range(nJumbo):
-            newJumboJob = self.clonePandaJob(pandaJobs[0],iJumbo,{},{},newSites,True,
+            newJumboJob = self.clonePandaJob(pandaJobs[0],iJumbo,{},outDsMap,newSites,True,
                                              taskSpec=taskSpec,inputChunk=inputChunk)
             newJumboJob.eventService = EventServiceUtils.jumboJobFlagNumber
             # job params inherit from the first job since first_event etc must be the first value
