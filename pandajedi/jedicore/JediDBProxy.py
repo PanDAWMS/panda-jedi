@@ -10541,13 +10541,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlWM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
         sqlWM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID AND status=:statI "
         # sql to check duplication with jumbo
-        sqlJM  = "SELECT distinct jobsetID "
-        sqlJM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
-        sqlJM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID AND status IN (:statT1,:statT2) "
-        sqlJM += 'MINUS '
-        sqlJM += "SELECT distinct jobsetID "
-        sqlJM += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
-        sqlJM += "WHERE jediTaskID=:jediTaskID AND datasetID=:inDatasetID AND status=:statI "
+        sqlJM = "WITH tmpTab AS ("
+        sqlJM += "SELECT f.fileID,f.PandaID FROM {0}.filesTable4 f, (".format(jedi_config.db.schemaPANDA)
+        sqlJM += "SELECT PandaID FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlJM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID AND status IN (:statT1,:statT2)) t "
+        sqlJM += "WHERE f.PandaID=t.PandaID AND f.datasetID=:inDatasetID "
+        sqlJM += "UNION "
+        sqlJM += "SELECT f.fileID,f.PandaID FROM {0}.filesTable_Arch f, (".format(jedi_config.db.schemaPANDAARCH)
+        sqlJM += "SELECT PandaID FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+        sqlJM += "WHERE jediTaskID=:jediTaskID AND datasetID=:outDatasetID AND status IN (:statT1,:statT2)) t "
+        sqlJM += "WHERE f.PandaID=t.PandaID AND f.datasetID=:inDatasetID AND f.modificationTime>CURRENT_DATE-365 "
+        sqlJM += ") "
+        sqlJM += "SELECT t1.PandaID FROM tmpTab t1, tmpTab t2 WHERE t1.fileID=t2.fileID AND t1.PandaID>t2.PandaID "
         # sql to check duplication with internal merge
         sqlCM  = "SELECT distinct c1.outPandaID "
         sqlCM += "FROM {0}.JEDI_Dataset_Contents c1,{0}.JEDI_Dataset_Contents c2,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
@@ -10605,6 +10610,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.cur.execute(sqlWM+comment,varMap)
                         else:
                             # with jumbo
+                            del varMap[':statI']
                             self.cur.execute(sqlJM+comment,varMap)
                     retList = self.cur.fetchall()
                     dupPandaIDs = []
