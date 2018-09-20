@@ -2057,17 +2057,31 @@ class JobGeneratorThread (WorkerThread):
         if numNewJumboJobs <= 0:
             return jumboJobs
         # sites which already have jumbo jobs
-        sitesWithJumbo = []
+        sitesWithJumbo = dict()
         for tmpPandaID,activeJumboJob in activeJumboJobs.iteritems():
-            sitesWithJumbo.append(activeJumboJob['site'])
+            sitesWithJumbo.setdefault(activeJumboJob['site'], [])
+            if activeJumboJob['status'] not in ['transferring', 'holding']:
+                sitesWithJumbo[activeJumboJob['site']].append(tmpPandaID)
+        # sites with enough jumbo
+        maxJumboPerSite = taskSpec.getMaxJumboPerSite()
+        ngSites = []
+        for tmpSite, tmpPandaIDs in sitesWithJumbo.iteritems():
+            if len(tmpPandaIDs) >= maxJumboPerSite:
+                ngSites.append(tmpSite)
         # get sites
         newSites = []
         for i in range(numNewJumboJobs):
-            siteCandidate = inputChunk.getOneSiteCandidateForJumbo(sitesWithJumbo+newSites)
+            siteCandidate = inputChunk.getOneSiteCandidateForJumbo(ngSites)
             if siteCandidate == None:
                 break
             newSites.append(siteCandidate.siteName)
+            # check if enough
+            sitesWithJumbo.setdefault(siteCandidate.siteName, [])
+            sitesWithJumbo[siteCandidate.siteName].append(None)
+            if len(sitesWithJumbo[siteCandidate.siteName]) >= maxJumboPerSite:
+                ngSites.append(siteCandidate.siteName)
         nJumbo = len(newSites)
+        newSites.sort()
         # get job parameter of the first job
         if nJumbo > 0:
             jobParams, outFileMap = self.taskBufferIF.getJobParamsOfFirstJob_JEDI(taskSpec.jediTaskID)

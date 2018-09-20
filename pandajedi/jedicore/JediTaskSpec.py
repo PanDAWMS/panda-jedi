@@ -66,6 +66,7 @@ class JediTaskSpec(object):
         'minCpuEfficiency'   : 'MC',
         'mergeEsOnOS'        : 'ME',
         'nMaxFilesPerJob'    : 'MF',
+        'maxJumboPerSite'    : 'MJ',
         'mergeOutput'        : 'MO',
         'maxWalltime'        : 'MW',
         'noExecStrCnv'       : 'NC',
@@ -343,6 +344,17 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None
+
+
+
+
+    # get the max number of jumbo jobs per site if defined
+    def getMaxJumboPerSite(self):
+        if self.usingJumboJobs() and self.splitRule != None:
+            tmpMatch = re.search(self.splitRuleToken['maxJumboPerSite']+'=(\d+)',self.splitRule)
+            if tmpMatch != None:
+                return int(tmpMatch.group(1))
+        return 1
 
 
 

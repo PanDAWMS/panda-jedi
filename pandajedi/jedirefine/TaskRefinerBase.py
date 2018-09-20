@@ -232,6 +232,8 @@ class TaskRefinerBase (object):
         if 'nJumboJobs' in taskParamMap:
             self.setSplitRule(taskParamMap,'nJumboJobs',JediTaskSpec.splitRuleToken['nJumboJobs'])
             taskSpec.useJumbo = JediTaskSpec.enum_useJumbo['waiting']
+            if 'maxJumboPerSite' in taskParamMap:
+                self.setSplitRule(taskParamMap,'maxJumboPerSite',JediTaskSpec.splitRuleToken['maxJumboPerSite'])
         if 'minCpuEfficiency' in taskParamMap: 
             self.setSplitRule(taskParamMap,'minCpuEfficiency',JediTaskSpec.splitRuleToken['minCpuEfficiency'])
         if taskParamMap.has_key('loadXML'):

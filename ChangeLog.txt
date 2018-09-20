@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/20/2018
+  * added maxJumboPerSite
+
 * 9/7/2018
   * added enableJumbo
 
