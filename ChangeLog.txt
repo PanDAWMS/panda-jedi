@@ -1,5 +1,8 @@
 Release Notes
 
+* 9/24/2018
+  * using resolve_archives=True in list_replicas
+
 * 9/20/2018
   * added maxJumboPerSite
 

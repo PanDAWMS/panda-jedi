@@ -450,7 +450,7 @@ class AtlasDDMClient(DDMClientBase):
                 dids.append({'scope': scope, 'name': lfn})
 
                 if len(dids) % max_guid == 0 or i_guid == len(files):
-                    for tmp_dict in client.list_replicas(dids, ['srm', 'gsiftp']):
+                    for tmp_dict in client.list_replicas(dids, ['srm', 'gsiftp'], resolve_archives=True):
                         tmp_LFN = str(tmp_dict['name'])
                         rses = []
                         for tmp_RSE in tmp_dict['rses']:
