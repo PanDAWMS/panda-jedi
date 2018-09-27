@@ -360,6 +360,8 @@ class JediTaskSpec(object):
 
     # get the number of sites per job
     def getNumSitesPerJob(self):
+        if not self.useEventService():
+            return 1
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['nSitesPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
