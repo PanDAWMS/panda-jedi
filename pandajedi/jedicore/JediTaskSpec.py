@@ -584,6 +584,8 @@ class JediTaskSpec(object):
 
     # get the number of event service consumers
     def getNumEventServiceConsumer(self):
+        if not self.useEventService():
+            return None
         if self.splitRule != None:
             tmpMatch = re.search(self.splitRuleToken['nEsConsumers']+'=(\d+)',self.splitRule)
             if tmpMatch != None:
