@@ -3136,7 +3136,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             containMerging = True
                             if useJumbo is None or useJumbo == JediTaskSpec.enum_useJumbo['disabled']:
                                 break
-                        elif useJumbo is None or useJumbo == JediTaskSpec.enum_useJumbo['disabled'] or tmpNumFiles-tmpNumFilesWaiting <= 0:
+                        elif useJumbo is None or useJumbo == JediTaskSpec.enum_useJumbo['disabled'] or \
+                                (tmpNumFiles-tmpNumFilesWaiting <= 0 and useJumbo != JediTaskSpec.enum_useJumbo['lack']):
                             # no jumbo or no more co-jumbo
                             pass
                         elif useJumbo in [JediTaskSpec.enum_useJumbo['running'], JediTaskSpec.enum_useJumbo['pending'], JediTaskSpec.enum_useJumbo['lack']] or \
