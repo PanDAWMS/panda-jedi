@@ -10873,6 +10873,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 raise RuntimeError, 'Commit error'
             retMap = {}
             for pandaID,jobStatus,computingSite in resList:
+                if jobStatus in ['transferring','holding']:
+                    continue
                 retMap[pandaID] = {'status' : jobStatus,
                                    'site' : computingSite}
             tmpLog.debug(str(retMap))
