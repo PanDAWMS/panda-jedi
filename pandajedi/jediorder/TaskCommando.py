@@ -266,13 +266,19 @@ class TaskCommandoThread (WorkerThread):
                                 errtype,errvalue = sys.exc_info()[:2]
                                 tmpLog.error('failed to change task params with {0}:{1}'.format(errtype.__name__,errvalue))
                                 continue
-                        # retry failed files
-                        if 'sole retry' in commentStr:
+                        # retry child tasks
+                        if 'sole ' in commentStr:
                             retryChildTasks = False
                         else:
                             retryChildTasks = True
+                        # discard events
+                        if 'discard ' in commentStr:
+                            discardEvents = True
+                        else:
+                            discardEvents = False
                         tmpRet,newTaskStatus = self.taskBufferIF.retryTask_JEDI(jediTaskID,commandStr,
-                                                                                retryChildTasks=retryChildTasks)
+                                                                                retryChildTasks=retryChildTasks,
+                                                                                discardEvents=discardEvents)
                         if tmpRet == True:
                             tmpMsg = 'set task_status={0}'.format(newTaskStatus)
                             tmpLog.sendMsg(tmpMsg,self.msgType)

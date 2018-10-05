@@ -1,5 +1,8 @@
 Release Notes
 
+* 10/5/2018
+  * added discardEvents in retryTask
+
 * 9/24/2018
   * using resolve_archives=True in list_replicas
 

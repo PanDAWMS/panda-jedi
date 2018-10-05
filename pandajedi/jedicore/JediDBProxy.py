@@ -8410,7 +8410,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # retry or incrementally execute a task
-    def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5,useCommit=True,statusCheck=True,retryChildTasks=True):
+    def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5,useCommit=True,statusCheck=True,retryChildTasks=True,
+                       discardEvents=False):
         comment = ' /* JediDBProxy.retryTask_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -8452,6 +8453,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
             sqlTT += "SET status=:status,timeStamp=CURRENT_DATE,start_time=NULL "
             sqlTT += "WHERE taskID=:jediTaskID AND start_time IS NOT NULL "
+            # sql to discard events
+            sqlDE  = "UPDATE {0}.JEDI_Events ".format(jedi_config.db.schemaJEDI)
+            sqlDE += "SET status=:newStatus "
+            sqlDE += "WHERE jediTaskID=:jediTaskID "
+            sqlDE += "AND status IN (:esFinished,:esDone) "
             # sql to reset running files
             sqlRR  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlRR += "SET status=:newStatus,attemptNr=attemptNr+1,maxAttempt=maxAttempt+:maxAttempt " 
@@ -8666,6 +8672,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':nRun'] = nRun
                                 varMap[':status'] = 'ready'
                                 self.cur.execute(sqlRD+comment,varMap)
+                        # discard events
+                        if discardEvents:
+                            varMap = {}
+                            varMap[':jediTaskID']  = jediTaskID
+                            varMap[':newStatus']   = EventServiceUtils.ST_discarded
+                            varMap[':esDone']      = EventServiceUtils.ST_done
+                            varMap[':esFinished']  = EventServiceUtils.ST_finished
+                            self.cur.execute(sqlDE+comment, varMap)
+                            nDE = self.cur.rowcount
+                            tmpLog.debug('discarded {0} events'.format(nDE))
                         # update task
                         if commStr == 'retry':
                             if changedMasterList != [] or taskOldStatus == 'exhausted':
