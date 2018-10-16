@@ -105,6 +105,7 @@ class JediTaskSpec(object):
         'writeInputToFile'   : 'WF',
         'waitInput'          : 'WI',
         'maxAttemptES'       : 'XA',
+        'decAttOnFailedES'   : 'XF',
         'maxAttemptEsJob'    : 'XJ',
         'nEventsPerMergeJob'   : 'ZE',
         'nFilesPerMergeJob'    : 'ZF',
@@ -1505,3 +1506,13 @@ class JediTaskSpec(object):
             if tmpMatch != None:
                 return int(tmpMatch.group(1))
         return None    
+
+
+
+    # decrement attemptNr of events only when failed
+    def decAttOnFailedES(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['decAttOnFailedES']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None:
+                return True
+        return False

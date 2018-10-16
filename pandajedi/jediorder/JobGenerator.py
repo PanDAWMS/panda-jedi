@@ -1111,6 +1111,9 @@ class JobGeneratorThread (WorkerThread):
                     # not discard events
                     if taskSpec.notDiscardEvents():
                         jobSpec.setNotDiscardEvents()
+                    # decrement attemptNr of events only when failed
+                    if taskSpec.decAttOnFailedES():
+                        jobSpec.setDecAttOnFailedES()
                     # write input to file
                     if taskSpec.writeInputToFile():
                         jobSpec.setToWriteInputToFile()

@@ -307,6 +307,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['usePrefetcher'])
         if 'notDiscardEvents' in taskParamMap and taskParamMap['notDiscardEvents'] == True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['notDiscardEvents'])
+        if 'decAttOnFailedES' in taskParamMap and taskParamMap['decAttOnFailedES'] is True:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['decAttOnFailedES'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
