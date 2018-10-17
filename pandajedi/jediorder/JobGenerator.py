@@ -2029,7 +2029,7 @@ class JobGeneratorThread (WorkerThread):
             # append PandaID as suffix for log files to avoid LFN duplication
             if newFileSpec.type == 'log':
                 newFileSpec.lfn += '.$PANDAID'
-            if nSites > 1 and fileSpec.type in ['log','output']:
+            if (nSites > 1 or forJumbo) and fileSpec.type in ['log','output']:
                 # distributed dataset
                 datasetSpec = outDsMap[newFileSpec.datasetID]
                 tmpDistributedDestination = DataServiceUtils.getDistributedDestination(datasetSpec.storageToken)
