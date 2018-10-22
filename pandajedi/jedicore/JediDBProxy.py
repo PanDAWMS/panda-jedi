@@ -484,7 +484,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpec.datasetID    = datasetSpec.datasetID
                 fileSpec.GUID         = guid
                 fileSpec.type         = datasetSpec.type
-                fileSpec.status       = 'ready'            
+                fileSpec.status       = 'ready'
+                fileSpec.proc_status  = 'ready'
                 fileSpec.lfn          = fileVal['lfn']
                 fileSpec.scope        = fileVal['scope']
                 fileSpec.fsize        = fileVal['filesize']
@@ -8425,12 +8426,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql to retry files without maxFailure 
             sqlRFO  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
-            sqlRFO += "SET maxAttempt=maxAttempt+:maxAttempt "
+            sqlRFO += "SET maxAttempt=maxAttempt+:maxAttempt,proc_status=:proc_status "
             sqlRFO += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlRFO += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt<=attemptNr AND maxFailure IS NULL "
             # sql to retry files with maxFailure
             sqlRFF  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
-            sqlRFF += "SET maxAttempt=maxAttempt+:maxAttempt,maxFailure=maxFailure+:maxAttempt "
+            sqlRFF += "SET maxAttempt=maxAttempt+:maxAttempt,maxFailure=maxFailure+:maxAttempt,proc_status=:proc_status "
             sqlRFF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlRFF += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxFailure IS NOT NULL AND (maxAttempt<=attemptNr OR maxFailure<=failedAttempt) "
             # sql to count unprocessd files
@@ -8460,7 +8461,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDE += "AND status IN (:esFinished,:esDone) "
             # sql to reset running files
             sqlRR  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
-            sqlRR += "SET status=:newStatus,attemptNr=attemptNr+1,maxAttempt=maxAttempt+:maxAttempt " 
+            sqlRR += "SET status=:newStatus,attemptNr=attemptNr+1,maxAttempt=maxAttempt+:maxAttempt,proc_status=:proc_status " 
             sqlRR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oldStatus "
             sqlRR += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL "
             # sql to update output/lib/log datasets
@@ -8600,6 +8601,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':datasetID']  = datasetID
                                 varMap[':status']     = 'ready'
+                                varMap[':proc_status'] = 'ready'
                                 varMap[':maxAttempt'] = maxAttempt
                                 varMap[':keepTrack']  = 1
                                 nDiff = 0
@@ -8613,6 +8615,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':datasetID']  = datasetID
                                 varMap[':oldStatus'] = 'picked'
                                 varMap[':newStatus']  = 'ready'
+                                varMap[':proc_status'] = 'ready'
                                 varMap[':keepTrack']  = 1
                                 varMap[':maxAttempt'] = maxAttempt
                                 self.cur.execute(sqlRR+comment,varMap)
