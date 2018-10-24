@@ -310,6 +310,9 @@ class TaskRefinerThread (WorkerThread):
                                 # disable scouts if previous attempt didn't use it
                                 if not impl.taskSpec.useScout(splitRule):
                                     impl.taskSpec.setUseScout(False)
+                                # disallow to reset some attributes
+                                for attName in ['ramCount', 'walltime', 'cpuTime', 'startTime']:
+                                    impl.taskSpec.resetChangedAttr(attName)
                                 # update task with new params
                                 self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
                                                                   oldStatus=[taskStatus])
