@@ -1022,17 +1022,18 @@ class AtlasProdJobBroker (JobBrokerBase):
                             siteSizeMap[tmpSiteName] += tmpFileSpec.fsize
                         siteFilesMap[tmpSiteName].add(tmpFileSpec.lfn)
         # get max total size
-        tmpTotalSizes = siteSizeMap.values()
-        tmpTotalSizes.sort()
-        if tmpTotalSizes != []:
-            totalSize = tmpTotalSizes.pop()
-        else:
-            totalSize = 0
+        allLFNs = set()
+        totalSize = 0
+        for datasetSpec in inputChunk.getDatasets():
+            for fileSpec in datasetSpec.Files:
+                if fileSpec.lfn not in allLFNs:
+                    allLFNs.add(fileSpec.lfn)
+                    try:
+                        totalSize += fileSpec.fsize
+                    except Exception:
+                        pass
         # get max num of available files
-        maxNumFiles = 0
-        for tmpSiteName,tmpSet in siteFilesMap.iteritems():
-            if maxNumFiles < len(tmpSet):
-                maxNumFiles = len(tmpSet)
+        maxNumFiles = len(allLFNs)
         ######################################
         # selection for fileSizeToMove
         moveSizeCutoffGB = 10
@@ -1124,10 +1125,11 @@ class AtlasProdJobBroker (JobBrokerBase):
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
             weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 10) / manyAssigned
-            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7} totalSizeMB={5} '.format(nRunning,nActivated,nAssigned,
-                                                                                                                        nStarting,nDefined,
-                                                                                                                        long(totalSize/1024/1024),
-                                                                                                                        manyAssigned,nPilot)
+            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7} totalSizeMB={5} totalNumFiles={8} '.format(nRunning,nActivated,nAssigned,
+                                                                                                                                          nStarting,nDefined,
+                                                                                                                                          long(totalSize/1024/1024),
+                                                                                                                                          manyAssigned,nPilot,
+                                                                                                                                          maxNumFiles)
             # reduce weights by taking data availability into account
             if totalSize > 0:
                 # file size to move in MB
