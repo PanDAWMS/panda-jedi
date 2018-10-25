@@ -8650,6 +8650,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':datasetID']  = datasetID
                                 varMap[':status']     = 'ready'
+                                varMap[':proc_status'] = 'ready'
                                 varMap[':maxAttempt'] = maxAttempt
                                 varMap[':keepTrack']  = 1
                                 nDiff = 0
@@ -8663,6 +8664,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':datasetID']  = datasetID
                                 varMap[':oldStatus'] = 'picked'
                                 varMap[':newStatus']  = 'ready'
+                                varMap[':proc_status'] = 'ready'
                                 varMap[':keepTrack']  = 1
                                 varMap[':maxAttempt'] = maxAttempt
                                 self.cur.execute(sqlRR+comment,varMap)
