@@ -684,6 +684,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             maxAttemptEsJob = taskSpec.getMaxAttemptEsJob()
             if maxAttemptEsJob is None:
                 maxAttemptEsJob = EventServiceUtils.defMaxAttemptEsJob
+            else:
+                maxAttemptEsJob += 1
         else:
             nEsConsumers = 1
             maxAttemptEsJob = 1
