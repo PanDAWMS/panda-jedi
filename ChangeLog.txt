@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/5/2018
+  * using new task params for ES
+
 * 10/24/2018
   * changed rerefine not to reset some attributes
 
