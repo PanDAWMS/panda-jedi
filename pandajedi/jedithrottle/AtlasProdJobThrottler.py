@@ -408,8 +408,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                     or (workQueue.queue_name in non_rt_wqs and nNotRun_gs + nDefine_gs < nRunning_gs) \
                     or (workQueue.queue_name not in non_rt_wqs and nNotRun_rt + nDefine_rt < nRunning_rt):
                 tmpLog.debug(msgHeader+" not enough jobs queued")
-                if not workQueue.queue_name in  non_rt_wqs:
-                    self.notEnoughJobsQueued()
+                self.notEnoughJobsQueued()
                 self.setMaxNumJobs(max(self.maxNumJobs, nQueueLimit/20))
 
         msgBody = "PASS - priority limit={0} maxNumJobs={1}".format(limitPriorityValue, self.maxNumJobs)
