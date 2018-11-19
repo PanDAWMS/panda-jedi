@@ -2,6 +2,7 @@ Release Notes
 
 * 11/19/2018
   * added the second look in AtlasAJB to ignore data locality
+  * set transient for finished+merged+100%
 
 * 11/5/2018
   * using new task params for ES

@@ -141,7 +141,10 @@ class AtlasProdPostProcessor (PostProcessorBase):
             # set lifetime to parent transient datasets
             if taskSpec.processingType in ['merge'] and \
                     (taskSpec.status == 'done' or \
-                         (taskSpec.status == 'paused' and taskSpec.oldStatus == 'done')):
+                         (taskSpec.status == 'finished' and self.getFinalTaskStatus(taskSpec, checkParent=False) == 'done') or \
+                         (taskSpec.status == 'paused' and \
+                              (taskSpec.oldStatus == 'done' or \
+                                   (taskSpec.oldStatus == 'finished' and self.getFinalTaskStatus(taskSpec, checkParent=False) == 'done')))):
                 # get parent task
                 if not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
                     # get parent
