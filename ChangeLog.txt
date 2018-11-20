@@ -1,5 +1,8 @@
 Release Notes
 
+* 11/20/2018
+  * using TAPE for IO intensity check in AtlasPJB
+
 * 11/19/2018
   * added the second look in AtlasAJB to ignore data locality
   * set transient for finished+merged+100%

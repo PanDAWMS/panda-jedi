@@ -978,9 +978,11 @@ class AtlasProdJobBroker (JobBrokerBase):
             return self.SC_SUCCEEDED,scanSiteList
         ######################################
         # get available files
-        siteSizeMap = {}        
+        siteSizeMap = {}
+        siteSizeMapWT = {}
         availableFileMap = {}
         siteFilesMap = {}
+        siteFilesMapWT = {}
         for datasetSpec in inputChunk.getDatasets():
             try:
                 # mapping between sites and input storage endpoints
@@ -1011,18 +1013,24 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
             # loop over all sites to get the size of available files
             for tmpSiteName in self.get_unified_sites(scanSiteList):
-                if not siteSizeMap.has_key(tmpSiteName):
-                    siteSizeMap[tmpSiteName] = 0
-                if not tmpSiteName in siteFilesMap:
-                    siteFilesMap[tmpSiteName] = set()
+                siteSizeMap.setdefault(tmpSiteName, 0)
+                siteSizeMapWT.setdefault(tmpSiteName, 0)
+                siteFilesMap.setdefault(tmpSiteName, set())
+                siteFilesMapWT.setdefault(tmpSiteName, set())
                 # get the total size of available files
                 if availableFileMap[datasetSpec.datasetName].has_key(tmpSiteName):
                     availableFiles = availableFileMap[datasetSpec.datasetName][tmpSiteName]
                     for tmpFileSpec in \
                             availableFiles['localdisk']+availableFiles['cache']:
-                        if not tmpFileSpec.lfn in siteFilesMap[tmpSiteName]:
+                        if tmpFileSpec.lfn not in siteFilesMap[tmpSiteName]:
                             siteSizeMap[tmpSiteName] += tmpFileSpec.fsize
+                            siteSizeMapWT[tmpSiteName] += tmpFileSpec.fsize
                         siteFilesMap[tmpSiteName].add(tmpFileSpec.lfn)
+                        siteFilesMapWT[tmpSiteName].add(tmpFileSpec.lfn)
+                    for tmpFileSpec in availableFiles['localtape']:
+                        if tmpFileSpec.lfn not in siteFilesMapWT[tmpSiteName]:
+                            siteSizeMapWT[tmpSiteName] += tmpFileSpec.fsize
+                            siteFilesMapWT[tmpSiteName].add(tmpFileSpec.lfn)
         # get max total size
         allLFNs = set()
         totalSize = 0
@@ -1044,12 +1052,16 @@ class AtlasProdJobBroker (JobBrokerBase):
                 and taskSpec.ioIntensity > self.io_intensity_cutoff and not (taskSpec.useEventService() \
                 and not taskSpec.useJobCloning()):
             newScanSiteList = []
+            newScanSiteListWT = []
+            msgList = []
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # file size to move in MB
                 mbToMove = long((totalSize-siteSizeMap[tmpSiteName])/(1024*1024))
                 nFilesToMove = maxNumFiles-len(siteFilesMap[tmpSiteName])
-                if mbToMove > moveSizeCutoffGB * 1024 or nFilesToMove > moveNumFilesCutoff:
+                mbToMoveWT = long((totalSize-siteSizeMapWT[tmpSiteName])/(1024*1024))
+                nFilesToMoveWT = maxNumFiles-len(siteFilesMapWT[tmpSiteName])
+                if min(mbToMove, mbToMoveWT) > moveSizeCutoffGB * 1024 or min(nFilesToMove, nFilesToMoveWT) > moveNumFilesCutoff:
                     tmpMsg = '  skip site={0} '.format(tmpSiteName)
                     if mbToMove > moveSizeCutoffGB * 1024:
                         tmpMsg += 'since size of missing input is too large ({0} GB > {1} GB) '.format(long(mbToMove/1024),
@@ -1061,7 +1073,26 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpMsg += 'criteria=-io'
                     tmpLog.info(tmpMsg)
                     continue
-                newScanSiteList.append(tmpSiteName)
+                if mbToMove > moveSizeCutoffGB * 1024 or nFilesToMove > moveNumFilesCutoff:
+                    tmpMsg = '  skip site={0} '.format(tmpSiteName)
+                    if mbToMove > moveSizeCutoffGB * 1024:
+                        tmpMsg += 'since size of missing disk input is too large ({0} GB > {1} GB) '.format(long(mbToMove/1024),
+                                                                                                            moveSizeCutoffGB)
+                    else:
+                        tmpMsg += 'since the number of missing disk input files is too large ({0} > {1}) '.format(nFilesToMove,
+                                                                                                                  moveNumFilesCutoff)
+                    tmpMsg += 'for IO intensive task ({0} > {1} kBPerS) '.format(taskSpec.ioIntensity, self.io_intensity_cutoff)
+                    tmpMsg += 'criteria=-io'
+                    msgList.append(tmpMsg)
+                    newScanSiteListWT.append(tmpSiteName)
+                else:
+                    newScanSiteList.append(tmpSiteName)
+            if len(newScanSiteList) == 0:
+                # use candidates with TAPE replicas
+                newScanSiteList = newScanSiteListWT
+            else:
+                for tmpMsg in msgList:
+                    tmpLog.info(tmpMsg)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed IO check'.format(len(scanSiteList)))
             if scanSiteList == []:
