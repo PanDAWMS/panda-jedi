@@ -24,7 +24,7 @@ class JumboWatchDog:
     def run(self):
         try:
             # get process lock
-            locked = self.taskBufferIF.lockProcess_JEDI(self.vo, self.prodSourceLabel, self.component, 0, '', self.pid, False, 10)
+            locked = self.taskBufferIF.lockProcess_JEDI(self.vo, self.prodSourceLabel, self.component, 0, 'NULL', self.pid, False, 10)
             if not locked:
                 self.log.debug('{0} skipped since locked by another'.format(self.component))
                 return
