@@ -11769,3 +11769,197 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             
 
             
+    # get tasks with jumbo jobs
+    def getTaskWithJumbo_JEDI(self, vo, prodSourceLabel):
+        comment = ' /* JediDBProxy.getTaskWithJumbo_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < vo={0} label={1} >".format(vo, prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get tasks
+            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,t.useJumbo,d.nEvents FROM {0}.JEDI_Tasks t,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
+            sqlAV += "WHERE t.prodSourceLabel=:prodSourceLabel AND t.vo=:vo AND t.useJumbo IS NOT NULL AND t.useJumbo<>:useJumbo "
+            sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) "
+            sqlAV += "AND t.gshare NOT IN (:gs1) " 
+            sqlAV += "AND d.jediTaskID=t.jediTaskID AND d.type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_' + tmpType
+                sqlAV += '{0},'.format(mapKey)
+            sqlAV = sqlAV[:-1]
+            sqlAV += ') AND d.masterID IS NULL '
+            # sql to get event stat info
+            sqlFR = "SELECT /*+ INDEX_RS_ASC(tab JEDI_EVENTS_PK) NO_INDEX(tab JEDI_EVENTS_PANDAID_STATUS_IDX)*/ "
+            sqlFR += "status,COUNT(*) "
+            sqlFR += "FROM {0}.JEDI_Events tab ".format(jedi_config.db.schemaJEDI)
+            sqlFR += "WHERE jediTaskID=:jediTaskID GROUP BY status "
+            # sql to get jumbo jobs
+            sqlUO  = "SELECT computingSite,jobStatus FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            sqlUO += "WHERE jediTaskID=:jediTaskID AND eventService=:eventService "
+            sqlUO += "UNION "
+            sqlUO += "SELECT computingSite,jobStatus FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+            sqlUO += "WHERE jediTaskID=:jediTaskID AND eventService=:eventService "
+            sqlUO += "UNION "
+            sqlUO += "SELECT computingSite,jobStatus FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
+            sqlUO += "WHERE jediTaskID=:jediTaskID AND eventService=:eventService "
+            sqlUO += "AND modificationTime>CURRENT_DATE-1 "
+            self.conn.begin()
+            # get tasks
+            varMap = dict()
+            varMap[':vo'] = vo
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':s1'] = 'running'
+            varMap[':s2'] = 'pending'
+            varMap[':s3'] = 'scouting'
+            varMap[':s4'] = 'ready'
+            varMap[':s5'] = 'scouted'
+            varMap[':gs1'] = 'Validation'
+            varMap[':useJumbo'] = JediTaskSpec.enum_useJumbo['pending']
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                varMap[mapKey] = tmpType
+            self.cur.execute(sqlAV+comment, varMap)
+            resAV = self.cur.fetchall()
+            tmpLog.debug('got tasks')
+            tasksWithJumbo = dict()
+            for jediTaskID, taskStatus, splitRule, useJumbo, nEvents in resAV:
+                tasksWithJumbo[jediTaskID] = dict()
+                taskData = tasksWithJumbo[jediTaskID]
+                taskData['taskStatus'] = taskStatus
+                taskData['nEvents'] = nEvents
+                taskSpec = JediTaskSpec()
+                taskSpec.useJumbo = useJumbo
+                taskSpec.splitRule = splitRule
+                taskData['nJumboJobs'] = taskSpec.getNumJumboJobs()
+                taskData['maxJumboPerSite'] = taskSpec.getMaxJumboPerSite()
+                # get event stat info
+                varMap = dict()
+                varMap[':jediTaskID'] = jediTaskID
+                self.cur.execute(sqlFR+comment, varMap)
+                resFR = self.cur.fetchall()
+                tmpLog.debug('got event stat info for jediTaskID={0}'.format(jediTaskID))
+                nEventsDone = 0
+                nEventsRunning = 0
+                for eventStatus,eventCount in resFR:
+                    if eventStatus in [EventServiceUtils.ST_done, EventServiceUtils.ST_finished, EventServiceUtils.ST_merged]:
+                        nEventsDone += eventCount
+                    elif eventStatus in [EventServiceUtils.ST_sent, EventServiceUtils.ST_running]:
+                        nEventsRunning += eventCount
+                taskData['nEventsDone'] = nEventsDone
+                taskData['nEventsRunning'] = nEventsRunning
+                # get jumbo jobs
+                varMap = dict()
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':eventService'] = EventServiceUtils.jumboJobFlagNumber
+                self.cur.execute(sqlUO+comment, varMap)
+                resUO = self.cur.fetchall()
+                tmpLog.debug('got jumbo jobs for jediTaskID={0}'.format(jediTaskID))
+                taskData['jumboJobs'] = dict()
+                for computingSite, jobStatus in resUO:
+                    taskData['jumboJobs'].setdefault(computingSite, dict())
+                    taskData['jumboJobs'][computingSite].setdefault(jobStatus, 0)
+                    taskData['jumboJobs'][computingSite][jobStatus] += 1
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done with {0}".format(str(tasksWithJumbo)))
+            return tasksWithJumbo
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return dict()
+
+
+
+    # get tasks to enabme jumbo jobs
+    def getTaskToEnableJumbo_JEDI(self, vo, prodSourceLabel, maxPrio, nEventsToEnable):
+        comment = ' /* JediDBProxy.getTaskToEnableJumbo_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < vo={0} label={1} >".format(vo, prodSourceLabel)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get tasks
+            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,d.nEvents,t.currentPriority FROM {0}.JEDI_Tasks t,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
+            sqlAV += "WHERE t.prodSourceLabel=:prodSourceLabel AND t.vo=:vo AND t.useJumbo IS NULL "
+            sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) "
+            sqlAV += "AND t.gshare NOT IN (:gs1) AND t.eventService=:eventService " 
+            sqlAV += "AND d.jediTaskID=t.jediTaskID AND d.type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_' + tmpType
+                sqlAV += '{0},'.format(mapKey)
+            sqlAV = sqlAV[:-1]
+            sqlAV += ') AND d.masterID IS NULL AND d.nEvents>:minEvents AND t.currentPriority<=:maxPrio '
+            # sql to get event stat info
+            sqlFR = "SELECT /*+ INDEX_RS_ASC(tab JEDI_EVENTS_PK) NO_INDEX(tab JEDI_EVENTS_PANDAID_STATUS_IDX)*/ "
+            sqlFR += "status,COUNT(*) "
+            sqlFR += "FROM {0}.JEDI_Events tab ".format(jedi_config.db.schemaJEDI)
+            sqlFR += "WHERE jediTaskID=:jediTaskID GROUP BY status "
+            self.conn.begin()
+            # get tasks
+            varMap = dict()
+            varMap[':vo'] = vo
+            varMap[':prodSourceLabel'] = prodSourceLabel
+            varMap[':s1'] = 'running'
+            varMap[':s2'] = 'pending'
+            varMap[':s3'] = 'scouting'
+            varMap[':s4'] = 'ready'
+            varMap[':s5'] = 'scouted'
+            varMap[':eventService'] = 1
+            varMap[':gs1'] = 'Validation'
+            varMap[':minEvents'] = nEventsToEnable
+            varMap[':maxPrio'] = maxPrio
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                varMap[mapKey] = tmpType
+            self.cur.execute(sqlAV+comment, varMap)
+            resAV = self.cur.fetchall()
+            tmpLog.debug('got tasks')
+            tasksMap = dict()
+            for jediTaskID, taskStatus, splitRule, nEvents, currentPriority in resAV:
+                taskData = dict()
+                taskData['taskStatus'] = taskStatus
+                taskData['currentPriority'] = currentPriority
+                taskData['nEvents'] = nEvents
+                taskSpec = JediTaskSpec()
+                taskSpec.splitRule = splitRule
+                if taskSpec.useScout() and not taskSpec.isPostScout():
+                    tmpLog.debug('skip jediTaskID={0} since not yet scouted'.format(jediTaskID))
+                    continue
+                if taskSpec.useJobCloning():
+                    tmpLog.debug('skip jediTaskID={0} since job cloning'.format(jediTaskID))
+                    continue
+                varMap = dict()
+                varMap[':jediTaskID'] = jediTaskID
+                self.cur.execute(sqlFR+comment, varMap)
+                resFR = self.cur.fetchall()
+                nEventsDone = 0
+                nEventsRunning = 0
+                for eventStatus,eventCount in resFR:
+                    if eventStatus in [EventServiceUtils.ST_done, EventServiceUtils.ST_finished, EventServiceUtils.ST_merged]:
+                        nEventsDone += eventCount
+                    elif eventStatus in [EventServiceUtils.ST_sent, EventServiceUtils.ST_running]:
+                        nEventsRunning += eventCount
+                if nEvents - nEventsDone < nEventsToEnable:
+                    tmpLog.debug('skip jediTaskID={0} since not enough events {1} < {2}'.format(jediTaskID, nEvents - nEventsDone,
+                                                                                                nEventsToEnable))
+                    continue
+                taskData['nEventsDone'] = nEventsDone
+                taskData['nEventsRunning'] = nEventsRunning
+                tmpLog.debug('got jediTaskID={0} with {1}'.format(jediTaskID, str(taskData)))
+                tasksMap[jediTaskID] = taskData
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done")
+            return tasksMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return dict()

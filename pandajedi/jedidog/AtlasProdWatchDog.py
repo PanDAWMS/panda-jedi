@@ -9,6 +9,7 @@ from pandajedi.jediconfig import jedi_config
 from pandajedi.jedibrokerage import AtlasBrokerUtils
 
 from pandaserver.dataservice import DataServiceUtils
+from JumboWatchDog import JumboWatchDog
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -46,6 +47,9 @@ class AtlasProdWatchDog (WatchDogBase):
             self.doActionToSetScoutJobData(tmpLog)
             # action to throttle jobs in paused tasks
             self.doActionToThrottleJobInPausedTasks(tmpLog)
+            # action for jumbo
+            jumbo = JumboWatchDog(self.taskBufferIF, self.ddmIF, tmpLog, 'atlas', 'managed')
+            jumbo.run()
         except:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('failed with {0}:{1} {2}'.format(errtype.__name__,errvalue,
