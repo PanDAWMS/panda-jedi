@@ -30,25 +30,25 @@ class JumboWatchDog:
                 return
             # get parameters for conversion
             self.log.debug('{0} start'.format(self.component))
-            maxTasks = self.taskBufferIF.getConfigValue(self.component, 'MAX_TASKS_WITH_JUMBO', 'jedi', self.vo)
+            maxTasks = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_MAX_TASKS', 'jedi', self.vo)
             if maxTasks is None:
                 maxTasks = 1
-            nEventsToDisable = self.taskBufferIF.getConfigValue(self.component, 'MIN_EVENTS_DISABLE_JUMBO', 'jedi', self.vo)
+            nEventsToDisable = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_MIN_EVENTS_DISABLE', 'jedi', self.vo)
             if nEventsToDisable is None:
                 nEventsToDisable = 100000
-            nEventsToEnable = self.taskBufferIF.getConfigValue(self.component, 'MIN_EVENTS_ENABLE_JUMBO', 'jedi', self.vo)
+            nEventsToEnable = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_MIN_EVENTS_ENABLE', 'jedi', self.vo)
             if nEventsToEnable is None:
                 nEventsToEnable = nEventsToDisable * 10
-            maxEvents = self.taskBufferIF.getConfigValue(self.component, 'MAX_EVENTS_FOR_JUMBO', 'jedi', self.vo)
+            maxEvents = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_MAX_EVENTS', 'jedi', self.vo)
             if maxEvents is None:
                 maxEvents = maxTasks * nEventsToEnable / 2
-            nJumboPerTask = self.taskBufferIF.getConfigValue(self.component, 'N_JUMBO_PER_TASK', 'jedi', self.vo)
+            nJumboPerTask = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_PER_TASK', 'jedi', self.vo)
             if nJumboPerTask is None:
                 nJumboPerTask = 1
-            nJumboPerSite = self.taskBufferIF.getConfigValue(self.component, 'N_JUMBO_PER_SITE', 'jedi', self.vo)
+            nJumboPerSite = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_PER_SITE', 'jedi', self.vo)
             if nJumboPerSite is None:
                 nJumboPerSite = 1
-            maxPrio = self.taskBufferIF.getConfigValue(self.component, 'MAX_PRIO_FOR_JUMBO', 'jedi', self.vo)
+            maxPrio = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_MAX_CURR_PRIO', 'jedi', self.vo)
             if maxPrio is None:
                 maxPrio = 500
             # get current info
