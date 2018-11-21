@@ -126,7 +126,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                     for taskID in userDict['tasks']:
                         if not userName in thrUserTasks or not taskID in thrUserTasks[userName]:
                             tmpLog.debug('thottle jediTaskID={0}'.format(taskID))
-                            errDiag = 'throttled for {0} min due to too large prestaging from TAPE'.format(thrInterval)
+                            errDiag = 'throttled for {0} min due to large prestaging from TAPE or transfers from DISK'.format(thrInterval)
                             self.taskBufferIF.throttleTask_JEDI(taskID,thrInterval,errDiag)
                     # remove the user from the list
                     if userName in thrUserTasks:
