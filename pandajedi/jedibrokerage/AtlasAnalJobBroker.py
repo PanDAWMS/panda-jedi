@@ -430,6 +430,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpWorkDiskSize = taskSpec.getWorkDiskSize()
             minDiskCountS = tmpOutDiskSize*tmpEffAtomSize + tmpWorkDiskSize + tmpMaxAtomSize
             minDiskCountS = minDiskCountS / 1024 / 1024
+            maxSizePerJob = taskSpec.getMaxSizePerJob()
+            if maxSizePerJob is None or inputChunk.isMerging:
+                maxSizePerJob = None
+            else:
+                maxSizePerJob /= (1024 * 1024)
             # size for direct IO sites
             if taskSpec.useLocalIO():
                 minDiskCountR = minDiskCountS
@@ -440,8 +445,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                                                           tmpEffAtomSize,
                                                                                                           tmpOutDiskSize,
                                                                                                           tmpWorkDiskSize))
-            tmpLog.info('minDiskCountScratch={0} minDiskCountRemote={1}'.format(minDiskCountS,
-                                                                                 minDiskCountR))
+            tmpLog.info('minDiskCountScratch={0} minDiskCountRemote={1} nGBPerJobInMB={2}'.format(minDiskCountS,
+                                                                                                  minDiskCountR,
+                                                                                                  maxSizePerJob))
             newScanSiteList = []
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -451,6 +457,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         minDiskCount = minDiskCountR
                     else:
                         minDiskCount = minDiskCountS
+                    if maxSizePerJob is not None and maxSizePerJob > minDiskCount:
+                        minDiskCount = maxSizePerJob
                     if minDiskCount > tmpSiteSpec.maxwdir:
                         tmpLog.info('  skip site={0} due to small scratch disk={1} < {2} criteria=-disk'.format(tmpSiteName,
                                                                                              tmpSiteSpec.maxwdir,
