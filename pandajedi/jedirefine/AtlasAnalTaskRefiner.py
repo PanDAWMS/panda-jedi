@@ -67,6 +67,10 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         # min ram count
         if not 'ramCount' in taskParamMap:
             taskParamMap['ramCount'] = 2000
+        # disk count
+        if 'outDiskCount' not in taskParamMap:
+            taskParamMap['outDiskCount'] = 500
+            taskParamMap['outDiskUnit'] = 'kB'
         # directIO
         if 'useLocalIO' not in taskParamMap and 'allowInputLAN' not in taskParamMap:
             taskParamMap['allowInputLAN'] = 'use'

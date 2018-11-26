@@ -1,5 +1,9 @@
 Release Notes
 
+* 11/26/2018
+  * using 500kB for analysis outDiskCount
+  * using 50GB for directIO maxSize
+
 * 11/20/2018
   * using TAPE for IO intensity check in AtlasPJB
 

@@ -160,7 +160,7 @@ class JobSplitter:
                     if not useDirectIO:
                         maxSize = siteSpec.maxwdir * 1024 * 1024
                     else:
-                        maxSize = max(20000, siteSpec.maxwdir) * 1024 * 1024
+                        maxSize = max(50000, siteSpec.maxwdir) * 1024 * 1024
                 else:
                     # add offset
                     maxSize += sizeIntercepts
