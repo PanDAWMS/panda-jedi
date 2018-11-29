@@ -455,10 +455,15 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if tmpSiteSpec.maxwdir != 0:
                     if tmpSiteSpec.isDirectIO():
                         minDiskCount = minDiskCountR
+                        if maxSizePerJob is not None and not taskSpec.useLocalIO():
+                            tmpMinDiskCountR = tmpOutDiskSize * maxSizePerJob  + tmpWorkDiskSize
+                            tmpMinDiskCountR /= (1024 * 1024)
+                            if tmpMinDiskCountR > minDiskCount:
+                                minDiskCount = tmpMinDiskCountR
                     else:
                         minDiskCount = minDiskCountS
-                    if maxSizePerJob is not None and maxSizePerJob > minDiskCount:
-                        minDiskCount = maxSizePerJob
+                        if maxSizePerJob is not None and maxSizePerJob > minDiskCount:
+                            minDiskCount = maxSizePerJob
                     if minDiskCount > tmpSiteSpec.maxwdir:
                         tmpLog.info('  skip site={0} due to small scratch disk={1} < {2} criteria=-disk'.format(tmpSiteName,
                                                                                              tmpSiteSpec.maxwdir,
