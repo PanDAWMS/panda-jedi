@@ -230,8 +230,11 @@ class AtlasProdJobBroker (JobBrokerBase):
         workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
         if workQueue.is_global_share:
             wq_tag = workQueue.queue_name
+            wq_tag_global_share = wq_tag
         else:
             wq_tag = workQueue.queue_id
+            workQueueGS = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(None, taskSpec.gshare)
+            wq_tag_global_share = workQueueGS.queue_name
 
         ######################################
         # selection for status
@@ -1102,12 +1105,16 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # calculate weight
+        jobStatPrioMapGS = dict()
+        jobStatPrioMapGSOnly = dict()
         if workQueue.is_global_share:
             tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
         else:
             tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsWithWorkQueue_JEDI(taskSpec.vo,
                                                                                          taskSpec.prodSourceLabel)
-
+            if tmpSt:
+                tmpSt, jobStatPrioMapGS = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
+                tmpSt, jobStatPrioMapGSOnly = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo, True)
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -1124,6 +1131,15 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', None, wq_tag)
+            corrNumPilotStr = ''
+            if not workQueue.is_global_share:
+                # correction factor for nPilot 
+                nRunningGS = AtlasBrokerUtils.getNumJobs(jobStatPrioMapGS, tmpSiteName, 'running', None, wq_tag_global_share)
+                nRunningGSOnly = AtlasBrokerUtils.getNumJobs(jobStatPrioMapGSOnly, tmpSiteName, 'running', None, wq_tag_global_share)
+                corrNumPilot = float(nRunningGS - nRunningGSOnly + 1) / float(nRunningGS + 1) 
+                corrNumPilotStr = '*(nRunResourceQueue({0})+1)/(nRunGlobalShare({1})+1)'.format(nRunningGS - nRunningGSOnly, nRunningGS)
+            else:
+                corrNumPilot = 1
             nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'defined', None, wq_tag) + self.getLiveCount(tmpSiteName)
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'assigned', None, wq_tag)
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'activated', None, wq_tag) + \
@@ -1164,11 +1180,12 @@ class AtlasProdJobBroker (JobBrokerBase):
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
             weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 10) / manyAssigned
-            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7} totalSizeMB={5} totalNumFiles={8} '.format(nRunning,nActivated,nAssigned,
-                                                                                                                                          nStarting,nDefined,
-                                                                                                                                          long(totalSize/1024/1024),
-                                                                                                                                          manyAssigned,nPilot,
-                                                                                                                                          maxNumFiles)
+            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7}{9} totalSizeMB={5} totalNumFiles={8} '.format(nRunning,nActivated,nAssigned,
+                                                                                                                                             nStarting,nDefined,
+                                                                                                                                             long(totalSize/1024/1024),
+                                                                                                                                             manyAssigned,nPilot,
+                                                                                                                                             maxNumFiles,
+                                                                                                                                             corrNumPilotStr)
             # reduce weights by taking data availability into account
             if totalSize > 0:
                 # file size to move in MB
@@ -1271,6 +1288,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 lockedByBrokerage = self.checkSiteLock(taskSpec.vo, taskSpec.prodSourceLabel,
                                                        tmpPseudoSiteName, taskSpec.workQueue_ID, taskSpec.resource_type)
             # check cap with nRunning
+            nPilot *= corrNumPilot 
             cutOffValue = 20
             cutOffFactor = 2 
             nRunningCap = max(cutOffValue,cutOffFactor*nRunning)

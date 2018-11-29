@@ -1,5 +1,9 @@
 Release Notes
 
+* 11/29/2018
+  * added correction to nPilot for resource shares
+  * added release and nFiles checks to JumboWatchDog
+
 * 11/26/2018
   * using 500kB for analysis outDiskCount
   * using 50GB for directIO maxSize

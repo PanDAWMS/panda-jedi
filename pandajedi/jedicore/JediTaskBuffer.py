@@ -1554,3 +1554,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get release and cache at jumbo job enabled sites
+    def getRelCacheForJumbo_JEDI(self):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getRelCacheForJumbo_JEDI()
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal

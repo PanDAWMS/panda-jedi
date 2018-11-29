@@ -11814,7 +11814,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':s4'] = 'ready'
             varMap[':s5'] = 'scouted'
             varMap[':gs1'] = 'Validation'
-            varMap[':useJumbo'] = JediTaskSpec.enum_useJumbo['pending']
+            varMap[':useJumbo'] = JediTaskSpec.enum_useJumbo['disabled']
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ':type_'+tmpType
                 varMap[mapKey] = tmpType
@@ -11883,7 +11883,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get tasks
-            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,d.nEvents,t.currentPriority FROM {0}.JEDI_Tasks t,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
+            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,d.nEvents,t.currentPriority,t.transHome,t.architecture "
+            sqlAV += "FROM {0}.JEDI_Tasks t,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
             sqlAV += "WHERE t.prodSourceLabel=:prodSourceLabel AND t.vo=:vo AND t.useJumbo IS NULL "
             sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) "
             sqlAV += "AND t.gshare NOT IN (:gs1) AND t.eventService=:eventService " 
@@ -11919,11 +11920,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resAV = self.cur.fetchall()
             tmpLog.debug('got tasks')
             tasksMap = dict()
-            for jediTaskID, taskStatus, splitRule, nEvents, currentPriority in resAV:
+            for jediTaskID, taskStatus, splitRule, nEvents, currentPriority, transHome, architecture in resAV:
                 taskData = dict()
                 taskData['taskStatus'] = taskStatus
                 taskData['currentPriority'] = currentPriority
                 taskData['nEvents'] = nEvents
+                taskData['splitRule'] = splitRule
+                taskData['transHome'] = transHome
+                taskData['architecture'] = architecture
                 taskSpec = JediTaskSpec()
                 taskSpec.splitRule = splitRule
                 if taskSpec.useScout() and not taskSpec.isPostScout():
@@ -11963,3 +11967,56 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return dict()
+
+
+
+    # get release and cache at jumbo job enabled sites
+    def getRelCacheForJumbo_JEDI(self):
+        comment = ' /* JediDBProxy.getRelCacheForJumbo_JEDI */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get releases
+            sqlAV = "SELECT release,cmtconfig,COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
+            sqlAV += "WHERE siteid IN (SELECT siteid FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
+            sqlAV += "WHERE catchall LIKE :patt AND status=:status) AND cache=:cache " 
+            sqlAV += "GROUP BY release,cmtconfig "
+            # sql to get caches
+            sqlAC = "SELECT cache,cmtconfig,COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
+            sqlAC += "WHERE siteid IN (SELECT siteid FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
+            sqlAC += "WHERE catchall LIKE :patt AND status=:status) "
+            sqlAC += "GROUP BY cache,cmtconfig "
+            self.conn.begin()
+            # get tasks
+            varMap = dict()
+            varMap[':patt'] = '%useJumboJobs%'
+            varMap[':status'] = 'online'
+            varMap[':cache'] = 'None'
+            self.cur.execute(sqlAV+comment, varMap)
+            resAV = self.cur.fetchall()
+            releses = dict()
+            for release, cmtconfig, n in resAV:
+                key = (release, cmtconfig)
+                releses[key] = n
+            varMap = dict()
+            varMap[':patt'] = '%useJumboJobs%'
+            varMap[':status'] = 'online'
+            self.cur.execute(sqlAC+comment, varMap)
+            resAC = self.cur.fetchall()
+            caches = dict()
+            for cache, cmtconfig, n in resAC:
+                key = (cache, cmtconfig)
+                caches[key] = n
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done")
+            return (releses, caches)
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return ({}, {})
