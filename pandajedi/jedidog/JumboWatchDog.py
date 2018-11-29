@@ -29,10 +29,10 @@ class JumboWatchDog:
             # get process lock
             locked = self.taskBufferIF.lockProcess_JEDI(self.vo, self.prodSourceLabel, self.component, 0, 'NULL', self.pid, False, 10)
             if not locked:
-                self.log.debug('{0} skipped since locked by another'.format(self.component))
+                self.log.debug('component={0} skipped since locked by another'.format(self.component))
                 return
             # get parameters for conversion
-            self.log.debug('{0} start'.format(self.component))
+            self.log.debug('component={0} start'.format(self.component))
             maxTasks = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_MAX_TASKS', 'jedi', self.vo)
             if maxTasks is None:
                 maxTasks = 1
@@ -62,26 +62,26 @@ class JumboWatchDog:
             for jediTaskID, taskData in tasksWithJumbo.iteritems():
                 if taskData['nEvents'] - taskData['nEventsDone'] < nEventsToDisable:
                     # disable jumbo
-                    self.log.info('{0} disable jumbo in jediTaskID={1} due to n_events={2} < {3}'.format(self.component, jediTaskID,
-                                                                                                         taskData['nEvents'] - taskData['nEventsDone'],
-                                                                                                         nEventsToDisable))
+                    self.log.info('component={0} disable jumbo in jediTaskID={1} due to n_events={2} < {3}'.format(self.component, jediTaskID,
+                                                                                                                   taskData['nEvents'] - taskData['nEventsDone'],
+                                                                                                                   nEventsToDisable))
                     if not self.dryRun:
                         self.taskBufferIF.enableJumboJobs(jediTaskID, 0, 0)
                 else:
                     nTasks += 1
                     totEvents += taskData['nEvents']
                     doneEvents += taskData['nEventsDone']
-            self.log.info('{0} total_events={1} n_events_to_process={2} n_tasks={3} available for jumbo'.format(self.component, totEvents,
-                                                                                                                totEvents - doneEvents, nTasks))
+            self.log.info('component={0} total_events={1} n_events_to_process={2} n_tasks={3} available for jumbo'.format(self.component, totEvents,
+                                                                                                                          totEvents - doneEvents, nTasks))
             if self.dryRun or (nTasks < maxTasks and (totEvents - doneEvents) < maxEvents):
                 # get list of releases and caches available at jumbo job enabled PQs
                 jumboRels, jumboCaches = self.taskBufferIF.getRelCacheForJumbo_JEDI()
                 # look for tasks to enable jumbo
-                self.log.info('{0} look for tasks to enable jumbo due to lack of tasks and events to meet max_tasks={1} max_events={2}'.format(self.component,
-                                                                                                                                               maxTasks,
-                                                                                                                                               maxEvents))
+                self.log.info('component={0} look for tasks to enable jumbo due to lack of tasks and events to meet max_tasks={1} max_events={2}'.format(self.component,
+                                                                                                                                                         maxTasks,
+                                                                                                                                                         maxEvents))
                 tasksToEnableJumbo = self.taskBufferIF.getTaskToEnableJumbo_JEDI(self.vo, self.prodSourceLabel, maxPrio, nEventsToEnable)
-                self.log.debug('{0} got {1} tasks'.format(self.component, len(tasksToEnableJumbo)))
+                self.log.debug('component={0} got {1} tasks'.format(self.component, len(tasksToEnableJumbo)))
                 # sort by nevents
                 nEventsMap = dict()
                 for jediTaskID, taskData in tasksToEnableJumbo.iteritems():
@@ -125,18 +125,18 @@ class JumboWatchDog:
                                                                                                                                            cmtConfig))
                         continue
                     if not self.dryRun:
-                        self.log.info('{0} enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
-                                                                                                               taskData['nEvents'] - taskData['nEventsDone']))
+                        self.log.info('component={0} enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
+                                                                                                                         taskData['nEvents'] - taskData['nEventsDone']))
                         self.taskBufferIF.enableJumboJobs(taskData['jediTaskID'], nJumboPerTask, nJumboPerSite)
                     else:
-                        self.log.info('{0} good to enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
-                                                                                                                       taskData['nEvents'] - taskData['nEventsDone']))
+                        self.log.info('component={0} good to enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
+                                                                                                                                 taskData['nEvents'] - taskData['nEventsDone']))
                     nTasks += 1
                     totEvents += taskData['nEvents']
                     doneEvents += taskData['nEventsDone']
                     if nTasks >= maxTasks or (totEvents - doneEvents) >= maxEvents:
                         break
-            self.log.debug('{0} done'.format(self.component))
+            self.log.debug('component={0} done'.format(self.component))
         except Exception:
             # error
             errtype, errvalue = sys.exc_info()[:2]
