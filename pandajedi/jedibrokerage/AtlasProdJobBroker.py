@@ -1354,7 +1354,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             cutOffValue = 20
             cutOffFactor = 2 
             nRunningCap = max(cutOffValue,cutOffFactor*nRunning)
-            nRunningCap = max(nRunningCap,nPilot)
             if taskSpec.getNumJumboJobs() == None or not tmpSiteSpec.useJumboJobs():
                 forJumbo = False
             else:
@@ -1375,7 +1374,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                              weight,
                                                                                              nActivated+nStarting)
-                ngMsg += 'greater than max({0},{1}*nRun,nPilot) '.format(cutOffValue, cutOffFactor)
+                ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
             elif tmpSiteName in siteSizeMap and siteSizeMap[tmpSiteName] < totalSize and \
@@ -1383,7 +1382,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                                                 weight,
                                                                                                                 nDefined+nActivated+nAssigned+nStarting)
-                ngMsg += 'greater than max({0},{1}*nRun,nPilot) '.format(cutOffValue, cutOffFactor)
+                ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
             elif taskSpec.useWorldCloud() and self.nwActive and inputChunk.isExpress() \
