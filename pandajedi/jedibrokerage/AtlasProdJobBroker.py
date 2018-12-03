@@ -137,6 +137,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
         # get sites in the cloud
+        siteSkippedTmp = dict()
         sitePreAssigned = False
         siteListPreAssigned = False
         if siteListForTB != None:
@@ -244,16 +245,24 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # skip unified queues
                 if tmpSiteSpec.is_unified:
-                    #tmpLog.info('  skip site=%s due to is_unified=%s criteria=-unified' % (tmpSiteName,tmpSiteSpec.is_unified))
                     continue
                 # check site status
+                msgFlag = False
                 skipFlag = False
-                if tmpSiteSpec.status not in ['online', 'standby']:
-                    skipFlag = True
-                if not skipFlag:    
+                if tmpSiteSpec.status in ['online', 'standby', 'test']:
                     newScanSiteList.append(tmpSiteName)
+                    # temporary problem
+                    if tmpSiteSpec.status == 'test':
+                        msgFlag = True
                 else:
-                    tmpLog.info('  skip site=%s due to status=%s criteria=-status' % (tmpSiteName,tmpSiteSpec.status))
+                    msgFlag = True
+                    skipFlag = True
+                if msgFlag:
+                    tmpStr = '  skip site=%s due to status=%s criteria=-status' % (tmpSiteName,tmpSiteSpec.status)
+                    if skipFlag:
+                        tmpLog.info(tmpStr)
+                    else:
+                        siteSkippedTmp[tmpSiteName] = tmpStr
             scanSiteList = newScanSiteList        
             tmpLog.info('{0} candidates passed site status check'.format(len(scanSiteList)))
             if scanSiteList == []:
@@ -284,6 +293,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # filtering out blacklisted or links with long queues
         if taskSpec.useWorldCloud() and nucleus and not sitePreAssigned and not siteListPreAssigned:
             newScanSiteList = []
+            newSkippedTmp = dict()
             for tmpPandaSiteName in self.get_unified_sites(scanSiteList):
                 try:
                     tmpAtlasSiteName = storageMapping[tmpPandaSiteName]
@@ -292,20 +302,28 @@ class AtlasProdJobBroker (JobBrokerBase):
                                     networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold):
                         newScanSiteList.append(tmpPandaSiteName)
                     else:
+                        skipFlag = True
                         if networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] == BLOCKED_LINK:
                             reason = 'agis_closeness={0}'.format(networkMap[tmpAtlasSiteName][AGIS_CLOSENESS])
                         elif networkMap[tmpAtlasSiteName][queued_tag] >= self.queue_threshold:
                             reason = 'too many output files queued {0}(>{1} link limit)'\
                                 .format(networkMap[tmpAtlasSiteName][queued_tag], self.queue_threshold)
+                            # temporary problem
+                            skipFlag = False
                         else:
                             reason = 'reason unknown'
-                        tmpLog.info('  skip site={0} due to {1}, from satellite={2} to nucleus={3}: criteria=-link_unusable'
-                        .format(tmpPandaSiteName, reason, tmpAtlasSiteName, nucleus))
+                        tmpStr = '  skip site={0} due to {1}, from satellite={2} to nucleus={3}: criteria=-link_unusable'\
+                            .format(tmpPandaSiteName, reason, tmpAtlasSiteName, nucleus)
+                        if skipFlag:
+                            tmpLog.info(tmpStr)
+                        else:
+                            newSkippedTmp[tmpPandaSiteName] = tmpStr
+                            newScanSiteList.append(tmpPandaSiteName)
                 except KeyError:
                     # Don't skip missing links for the moment. In later stages missing links
                     # default to the worst connectivity and will be penalized.
                     newScanSiteList.append(tmpPandaSiteName)
-
+            siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed site status check'.format(len(scanSiteList)))
             if not scanSiteList:
@@ -346,6 +364,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             inactiveTimeLimit = 2
             inactiveSites = self.taskBufferIF.getInactiveSites_JEDI('production',inactiveTimeLimit)
             newScanSiteList = []
+            newSkippedTmp = dict()
             tmpMsgList = []
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -354,18 +373,17 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if tmpSiteName in ['BNL_CLOUD','BNL_CLOUD_MCORE','ATLAS_OPP_OSG']:
                     tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid slow sites '.format(tmpSiteName)
                     tmpMsg += 'criteria=-slow'
-                    tmpMsgList.append(tmpMsg)
+                    tmpLog.info(tmpMsg)
+                    continue
                 elif tmpSiteName in inactiveSites and nToGetAll > 0:
                     tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid inactive sites (laststart is older than {1}h) '.format(tmpSiteName,
                                                                                                                                                  inactiveTimeLimit)
                     tmpMsg += 'criteria=-inactive'
-                    tmpMsgList.append(tmpMsg)
-                else:
-                    newScanSiteList.append(tmpSiteName)
-            if newScanSiteList != []:
-                scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-                for tmpMsg in tmpMsgList:
-                    tmpLog.info(tmpMsg)
+                    # temporary problem
+                    newSkippedTmp[tmpSiteName] = tmpMsg
+                newScanSiteList.append(tmpSiteName)
+            siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
+            scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed for slowness/inactive check'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
@@ -646,6 +664,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for available space in SE
         newScanSiteList = []
+        newSkippedTmp = dict()
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # don't check for T1
@@ -662,15 +681,17 @@ class AtlasProdJobBroker (JobBrokerBase):
                     if tmpEndPoint['space_expired'] is not None:
                         tmpSpaceSize += tmpEndPoint['space_expired']
                     diskThreshold = 200
+                    tmpMsg = None
                     if tmpSpaceSize < diskThreshold:
-                        tmpLog.info('  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName, tmpSiteSpec.ddm_output,
-                                                                                                                    tmpSpaceSize, diskThreshold))
-                        continue
+                        tmpMsg = '  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName, tmpSiteSpec.ddm_output,
+                                                                                                                   tmpSpaceSize, diskThreshold)
                     # check if blacklisted
-                    if tmpEndPoint['blacklisted'] == 'Y':
-                        tmpLog.info('  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output))
-                        continue
+                    elif tmpEndPoint['blacklisted'] == 'Y':
+                        tmpMsg = '  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output)
+                    if tmpMsg is not None:
+                        newSkippedTmp[tmpSiteName] = tmpMsg
             newScanSiteList.append(tmpSiteName)
+        siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed SE space check'.format(len(scanSiteList)))
         if scanSiteList == []:
@@ -897,6 +918,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for transferring
         newScanSiteList = []
+        newSkippedTmp = dict()
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             if not tmpSiteName in t1Sites+sitesShareSeT1:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -911,10 +933,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                 nTraJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'transferring')
                 nRunJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running')
                 if max(maxTransferring,2*nRunJobs) < nTraJobs and not tmpSiteSpec.cloud in ['ND']:
-                    tmpLog.info('  skip site=%s due to too many transferring=%s greater than max(%s,2x%s) criteria=-transferring' % \
-                                     (tmpSiteName,nTraJobs,def_maxTransferring,nRunJobs))
-                    continue
+                    tmpStr = '  skip site=%s due to too many transferring=%s greater than max(%s,2x%s) criteria=-transferring' % \
+                        (tmpSiteName,nTraJobs,def_maxTransferring,nRunJobs)
+                    newSkippedTmp[tmpSiteName] = tmpStr
             newScanSiteList.append(tmpSiteName)
+        siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed transferring check'.format(len(scanSiteList)))
         if scanSiteList == []:
@@ -955,6 +978,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not sitePreAssigned:
             nWNmap = self.taskBufferIF.getCurrentSiteData()
             newScanSiteList = []
+            newSkippedTmp = dict()
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
@@ -965,10 +989,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if nPilot == 0 and not 'test' in taskSpec.prodSourceLabel and \
                         (taskSpec.getNumJumboJobs() == None or not tmpSiteSpec.useJumboJobs()) and \
                         tmpSiteSpec.getNumStandby(wq_tag, taskSpec.resource_type) is None:
-                    tmpLog.info('  skip site=%s due to no pilot criteria=-nopilot' % tmpSiteName)
-                    continue
+                    tmpStr = '  skip site=%s due to no pilot criteria=-nopilot' % tmpSiteName
+                    newSkippedTmp[tmpSiteName] = tmpStr
                 newScanSiteList.append(tmpSiteName)
                 nPilotMap[tmpSiteName] = nPilot
+            siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
             if scanSiteList == []:
@@ -978,6 +1003,21 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         # return if to give a hint for task brokerage
         if hintForTB:
+            ######################################
+            # temporary problems
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                if tmpSiteName in siteSkippedTmp:
+                    tmpLog.info(siteSkippedTmp[tmpSiteName])
+                else:
+                    newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList
+            tmpLog.info('{0} candidates passed temporary problem check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
             return self.SC_SUCCEEDED,scanSiteList
         ######################################
         # get available files
@@ -1057,6 +1097,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             newScanSiteList = []
             newScanSiteListWT = []
             msgList = []
+            msgListDT = []
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # file size to move in MB
@@ -1074,7 +1115,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                                              moveNumFilesCutoff)
                     tmpMsg += 'for IO intensive task ({0} > {1} kBPerS) '.format(taskSpec.ioIntensity, self.io_intensity_cutoff)
                     tmpMsg += 'criteria=-io'
-                    tmpLog.info(tmpMsg)
+                    msgListDT.append(tmpMsg)
                     continue
                 if mbToMove > moveSizeCutoffGB * 1024 or nFilesToMove > moveNumFilesCutoff:
                     tmpMsg = '  skip site={0} '.format(tmpSiteName)
@@ -1090,19 +1131,40 @@ class AtlasProdJobBroker (JobBrokerBase):
                     newScanSiteListWT.append(tmpSiteName)
                 else:
                     newScanSiteList.append(tmpSiteName)
-            if len(newScanSiteList) == 0:
-                # use candidates with TAPE replicas
-                newScanSiteList = newScanSiteListWT
+            if len(newScanSiteList + newScanSiteListWT) == 0:
+                # disable if no candidate
+                tmpLog.info('disabled IO check since no candidate passed')
             else:
-                for tmpMsg in msgList:
+                for tmpMsg in msgListDT:
                     tmpLog.info(tmpMsg)
-            scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info('{0} candidates passed IO check'.format(len(scanSiteList)))
-            if scanSiteList == []:
-                tmpLog.error('no candidates')
-                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
-                return retTmpError
+                if len(newScanSiteList) == 0:
+                    # use candidates with TAPE replicas
+                    newScanSiteList = newScanSiteListWT
+                else:
+                    for tmpMsg in msgList:
+                        tmpLog.info(tmpMsg)
+                scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
+                tmpLog.info('{0} candidates passed IO check'.format(len(scanSiteList)))
+                if scanSiteList == []:
+                    tmpLog.error('no candidates')
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    self.sendLogMessage(tmpLog)
+                    return retTmpError
+        ######################################
+        # temporary problems
+        newScanSiteList = []
+        for tmpSiteName in scanSiteList:
+            if tmpSiteName in siteSkippedTmp:
+                tmpLog.info(siteSkippedTmp[tmpSiteName])
+            else:
+                newScanSiteList.append(tmpSiteName)
+        scanSiteList = newScanSiteList
+        tmpLog.info('{0} candidates passed temporary problem check'.format(len(scanSiteList)))
+        if scanSiteList == []:
+            tmpLog.error('no candidates')
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            self.sendLogMessage(tmpLog)
+            return retTmpError
         ######################################
         # calculate weight
         jobStatPrioMapGS = dict()

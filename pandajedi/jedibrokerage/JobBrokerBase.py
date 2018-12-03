@@ -83,4 +83,14 @@ class JobBrokerBase (object):
         return tuple(pseudo_list)
 
 
+
+    # add pseudo sites to skip
+    def add_pseudo_sites_to_skip(self, unified_dict, scan_site_list, skipped_dict):
+        for tmpSiteName in scan_site_list:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            if tmpSiteSpec.get_unified_name() in unified_dict:
+                skipped_dict[tmpSiteName] = unified_dict[tmpSiteSpec.get_unified_name()]
+        return skipped_dict
+
+
 Interaction.installSC(JobBrokerBase)

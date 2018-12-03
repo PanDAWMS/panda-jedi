@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/3/2018
+  * disabled IO intensity check when no candidate available permanently
+
 * 11/29/2018
   * added correction to nPilot for resource shares
   * added release and nFiles checks to JumboWatchDog
