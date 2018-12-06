@@ -638,10 +638,16 @@ class JobGeneratorThread (WorkerThread):
                             # submit
                             fqans = taskSpec.makeFQANs()
                             tmpLog.info('submit njobs={0} jobs with FQAN={1}'.format(len(pandaJobs),','.join(str(fqan) for fqan in fqans)))
-                            resSubmit = self.taskBufferIF.storeJobs(pandaJobs,taskSpec.userName,
-                                                                    fqans=fqans,toPending=True,
-                                                                    oldPandaIDs=oldPandaIDs,
-                                                                    relationType=relationType)
+                            iJobs = 0
+                            nJobsInBunch = 200
+                            resSubmit = []
+                            while iJobs < len(pandaJobs):
+                                resSubmit += self.taskBufferIF.storeJobs(pandaJobs[iJobs:iJobs+nJobsInBunch],taskSpec.userName,
+                                                                         fqans=fqans,toPending=True,
+                                                                         oldPandaIDs=oldPandaIDs[iJobs:iJobs+nJobsInBunch],
+                                                                         relationType=relationType)
+                                self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
+                                iJobs += nJobsInBunch
                             pandaIDs = []
                             nSkipJumbo = 0
                             for pandaJob, items in zip(pandaJobs, resSubmit):
