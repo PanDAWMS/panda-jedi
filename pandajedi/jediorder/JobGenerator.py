@@ -1376,15 +1376,11 @@ class JobGeneratorThread (WorkerThread):
             if taskSpec.useEventService() and taskSpec.getNumSitesPerJob():
                 jobSpecList,oldPandaIDs = self.sortParallelJobsBySite(jobSpecList,oldPandaIDs)
             # make jumbo jobs
-            if taskSpec.getNumJumboJobs() is not None and inputChunk.useJumbo is not None:
-                if self.taskBufferIF.isApplicableTaskForJumbo(taskSpec.jediTaskID):
-                    if inputChunk.useJumbo == 'only':
-                        jobSpecList = self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul,outDsMap)
-                    else:
-                        jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul,outDsMap)
+            if taskSpec.getNumJumboJobs() is not None and inputChunk.useJumbo is not None and taskSpec.status == 'running':
+                if inputChunk.useJumbo == 'only':
+                    jobSpecList = self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul,outDsMap)
                 else:
-                    # disable useJumbo
-                    self.taskBufferIF.setUseJumboFlag_JEDI(taskSpec.jediTaskID,'disabled')
+                    jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul,outDsMap)
             # return
             return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap
         except:
