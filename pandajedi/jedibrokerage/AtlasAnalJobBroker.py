@@ -103,10 +103,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
         # two loops with/without data locality check
         scanSiteLists = [(copy.copy(scanSiteList), True)]
         if len(inputChunk.getDatasets()) > 0:
-            if taskSpec.taskPriority > 1000:
-                scanSiteLists.append((copy.copy(scanSiteList), False))
-            elif taskSpec.taskPriority >= 2000:
+            if taskSpec.taskPriority >= 2000:
                 scanSiteLists = [(copy.copy(scanSiteList), False)]
+            elif taskSpec.taskPriority > 1000:
+                scanSiteLists.append((copy.copy(scanSiteList), False))
         retVal = None
         checkDataLocality = False
         for scanSiteList, checkDataLocality in scanSiteLists:
