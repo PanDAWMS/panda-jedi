@@ -104,7 +104,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
         scanSiteLists = [(copy.copy(scanSiteList), True)]
         if len(inputChunk.getDatasets()) > 0:
             if taskSpec.taskPriority >= 2000:
-                scanSiteLists = [(copy.copy(scanSiteList), False)]
+                if inputChunk.isMerging:
+                    scanSiteLists.append((copy.copy(scanSiteList), False))
+                else:
+                    scanSiteLists = [(copy.copy(scanSiteList), False)]
             elif taskSpec.taskPriority > 1000:
                 scanSiteLists.append((copy.copy(scanSiteList), False))
         retVal = None
