@@ -642,12 +642,14 @@ class JobGeneratorThread (WorkerThread):
                             nJobsInBunch = 300
                             resSubmit = []
                             esJobsetMap = dict()
+                            unprocessedMap = dict()
                             while iJobs < len(pandaJobs):
-                                tmpResSubmit, esJobsetMap = self.taskBufferIF.storeJobs(pandaJobs[iJobs:iJobs+nJobsInBunch],taskSpec.userName,
-                                                                                        fqans=fqans,toPending=True,
-                                                                                        oldPandaIDs=oldPandaIDs[iJobs:iJobs+nJobsInBunch],
-                                                                                        relationType=relationType,
-                                                                                        esJobsetMap=esJobsetMap, getEsJobsetMap=True)
+                                tmpResSubmit, esJobsetMap, unprocessedMap = self.taskBufferIF.storeJobs(pandaJobs[iJobs:iJobs+nJobsInBunch],taskSpec.userName,
+                                                                                                        fqans=fqans,toPending=True,
+                                                                                                        oldPandaIDs=oldPandaIDs[iJobs:iJobs+nJobsInBunch],
+                                                                                                        relationType=relationType,
+                                                                                                        esJobsetMap=esJobsetMap, getEsJobsetMap=True,
+                                                                                                        unprocessedMap=unprocessedMap)
                                 resSubmit += tmpResSubmit
                                 self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
                                 iJobs += nJobsInBunch
