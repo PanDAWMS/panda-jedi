@@ -218,7 +218,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             taskCoreCount = taskSpec.coreCount
         # MP
-        if taskCoreCount is not None and (taskCoreCount > 1 or (taskCoreCount == 0 and currentPriority >= 900)):
+        if taskCoreCount is not None and (taskCoreCount > 1 or (taskCoreCount == 0 and taskSpec.currentPriority >= 900)):
             # use MCORE only
             useMP = 'only'
         elif taskCoreCount == 0:
