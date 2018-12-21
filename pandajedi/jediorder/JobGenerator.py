@@ -640,7 +640,7 @@ class JobGeneratorThread (WorkerThread):
                             fqans = taskSpec.makeFQANs()
                             tmpLog.info('submit njobs={0} jobs with FQAN={1}'.format(len(pandaJobs),','.join(str(fqan) for fqan in fqans)))
                             iJobs = 0
-                            nJobsInBunch = 300
+                            nJobsInBunch = 100
                             resSubmit = []
                             esJobsetMap = dict()
                             unprocessedMap = dict()
