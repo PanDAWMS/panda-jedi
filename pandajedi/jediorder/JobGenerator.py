@@ -462,6 +462,7 @@ class JobGeneratorThread (WorkerThread):
                         taskSpec.errorDialog = None
                         # reset map of buildSpec
                         self.buildSpecMap = {}
+                        loopStart = datetime.datetime.utcnow()
                         # make logger
                         tmpLog = MsgWrapper(self.logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,
                                                                                                 inputChunk.masterIndexName),
@@ -752,7 +753,8 @@ class JobGeneratorThread (WorkerThread):
                             tmpMsg += ' ' + taskSpec.errorDialog
                         tmpLog.sendMsg(tmpMsg,self.msgType)
                         tmpLog.info(tmpMsg)
-                        tmpLog.debug('done')
+                        regTime = datetime.datetime.utcnow() - loopStart
+                        tmpLog.debug('done. took {0} sec'.format(regTime.seconds))
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('%s.runImpl() failed with %s %s lastJediTaskID=%s' % (self.__class__.__name__,errtype.__name__,errvalue,
