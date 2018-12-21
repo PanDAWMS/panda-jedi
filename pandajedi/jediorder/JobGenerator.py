@@ -738,6 +738,8 @@ class JobGeneratorThread (WorkerThread):
                             taskSpec.lockedTime = None
                             if taskSpec.status == 'running' and nFileReset > 0 and taskSpec.currentPriority > 900:
                                 setOldModTime = True
+                            elif inputChunk.useJumbo in ['fake', 'only']:
+                                setOldModTime = True
                         else:
                             taskSpec.lockedBy = self.pid
                             taskSpec.lockedTime = datetime.datetime.utcnow()
