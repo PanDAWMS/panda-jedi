@@ -1,5 +1,8 @@
 Release Notes
 
+* 12/21/2018
+  * to use only MCORE for ES scouts
+
 * 12/19/2018
   * to use only MCORE for ES with prio>=900
 
