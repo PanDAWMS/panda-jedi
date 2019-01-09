@@ -614,7 +614,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     break
                 # too long list
                 if len(uniqueFileKeyList) > maxFileRecords:
-                    diagMap['errMsg'] = "too many file records >{0}".format(maxFileRecords)
+                    if len(fileMap) > maxFileRecords and nMaxFiles is None:
+                        diagMap['errMsg'] = "Input dataset contains too many files >{0}. Split the dataset or set nFiles properly".format(maxFileRecords)
+                    elif nEventsPerJob is not None:
+                        diagMap['errMsg'] = "SUM(nEventsInEachFile/nEventsPerJob) >{0}. Split the dataset, set nFiles properly, or increase nEventsPerJob".format(maxFileRecords)
+                    else:
+                        diagMap['errMsg'] = "Too many file record >{0}".format(maxFileRecords)
                     tmpLog.error(diagMap['errMsg'])
                     return failedRet
             missingFileList = []    
