@@ -1,5 +1,6 @@
 import re
 import sys
+import random
 
 from pandajedi.jedicore import Interaction
 from TaskRefinerBase import TaskRefinerBase
@@ -36,6 +37,10 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 # athena
                 taskParamMap['transPath'] = 'http://{0}:{1}/trf/user/runAthena-00-00-12'.format(panda_config.pserveralias,
                                                                                                 panda_config.pserverportcache)
+            elif 'cont' in processingTypes:
+                # container
+                taskParamMap['transPath'] = 'http://{0}:{1}/trf/user/runcontainer'.format(panda_config.pserveralias,
+                                                                                          panda_config.pserverportcache)
             else:
                 # general executable
                 taskParamMap['transPath'] = 'http://{0}:{1}/trf/user/runGen-00-00-02'.format(panda_config.pserveralias,
@@ -74,6 +79,12 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         # directIO
         if 'useLocalIO' not in taskParamMap and 'allowInputLAN' not in taskParamMap:
             taskParamMap['allowInputLAN'] = 'use'
+        # choose N % of tasks to enable input data motion
+        fracTaskWithDataMotion = self.taskBufferIF.getConfigValue('taskrefiner', 'USER_TASKS_MOVE_INPUT', 'jedi', 'atlas')
+        if fracTaskWithDataMotion is not None and fracTaskWithDataMotion > 0:
+            if random.randint(1, 100) <= fracTaskWithDataMotion:
+                taskParamMap['currentPriority'] = taskParamMap['taskPriority']
+                taskParamMap['taskPriority'] = 2000
         # update task parameters
         self.updatedTaskParams = taskParamMap
         # call base method

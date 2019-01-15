@@ -1,5 +1,9 @@
 Release Notes
 
+* 1/15/2019
+  * processingType=blah-cont for container based analysys
+  * added USER_TASKS_MOVE_INPUT
+
 * 12/21/2018
   * to use only MCORE for ES scouts
 
