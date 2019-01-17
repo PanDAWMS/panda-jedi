@@ -495,6 +495,29 @@ class AtlasProdJobBroker (JobBrokerBase):
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError
+        elif not sitePreAssigned and taskSpec.getNumJumboJobs() is not None:
+            nReadyEvents = self.taskBufferIF.getNumReadyEvents(taskSpec.jediTaskID)
+            if nReadyEvents is not None:
+                newScanSiteList = []
+                for tmpSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                    if tmpSiteSpec.useJumboJobs():
+                        minEvents = tmpSiteSpec.getMinEventsForJumbo()
+                        if minEvents is not None and nReadyEvents < minEvents:
+                            tmpLog.info('  skip site={0} since not enough events ({1}<{2}) for jumbo criteria=-fewevents'.format(tmpSiteName,
+                                                                                                                                 minEvents,
+                                                                                                                                 nReadyEvents))
+                            continue
+                    newScanSiteList.append(tmpSiteName)                
+                scanSiteList = newScanSiteList        
+                tmpLog.info('{0} candidates passed jumbo events check nReadyEvents={1}'.format(len(scanSiteList), nReadyEvents))
+                if scanSiteList == []:
+                    tmpLog.error('no candidates')
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    self.sendLogMessage(tmpLog)
+                    return retTmpError
+                
+
         ######################################
         # selection for I/O intensive tasks
         # FIXME
