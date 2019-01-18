@@ -792,6 +792,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if not weightMap.has_key(weight):
                     weightMap[weight] = []
                 weightMap[weight].append(siteCandidateSpec)    
+        oldScanSiteList = copy.copy(scanSiteList)
         # sort candidates by weights
         weightList = weightMap.keys()
         weightList.sort()
@@ -820,6 +821,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             scanSiteList.append(siteCandidateSpec.siteName)
         # append candidates
         newScanSiteList = []
+        msgList = []
         for siteCandidateSpec in candidateSpecList:
             tmpPseudoSiteName = siteCandidateSpec.siteName
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
@@ -827,6 +829,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
             # preassigned
             if sitePreAssigned and tmpSiteName != taskSpec.site:
                 tmpLog.info('  skip site={0} non pre-assigned site criteria=-nonpreassigned'.format(tmpPseudoSiteName))
+                try:
+                    del weightStr[tmpPseudoSiteName]
+                except Exception:
+                    pass
                 continue
             # set available files
             if inputChunk.getDatasets() == [] or not checkDataLocality: 
@@ -876,16 +882,31 @@ class AtlasAnalJobBroker (JobBrokerBase):
             # append
             if not isAvailable:
                 tmpLog.info('  skip site={0} file unavailable criteria=-fileunavailable'.format(siteCandidateSpec.siteName))
+                try:
+                    del weightStr[siteCandidateSpec.siteName]
+                except Exception:
+                    pass
                 continue
             inputChunk.addSiteCandidate(siteCandidateSpec)
             newScanSiteList.append(siteCandidateSpec.siteName)
-            tmpLog.info('  use site={0} with {1} nLocalDisk={2} nLocalTape={3} nCache={4} nRemote={5} criteria=+use'.format(siteCandidateSpec.siteName,
-                                                                                                                            weightStr[siteCandidateSpec.siteName],
-                                                                                                                            len(siteCandidateSpec.localDiskFiles),
-                                                                                                                            len(siteCandidateSpec.localTapeFiles),
-                                                                                                                            len(siteCandidateSpec.cacheFiles),
-                                                                                                                            len(siteCandidateSpec.remoteFiles),
-                                                                                                                            ))
+            tmpMsg = '  use site={0} with {1} nLocalDisk={2} nLocalTape={3} nCache={4} nRemote={5} criteria=+use'.format(siteCandidateSpec.siteName,
+                                                                                                                         weightStr[siteCandidateSpec.siteName],
+                                                                                                                         len(siteCandidateSpec.localDiskFiles),
+                                                                                                                         len(siteCandidateSpec.localTapeFiles),
+                                                                                                                         len(siteCandidateSpec.cacheFiles),
+                                                                                                                         len(siteCandidateSpec.remoteFiles))
+            msgList.append(tmpMsg)
+            del weightStr[siteCandidateSpec.siteName]
+        # dump
+        for tmpPseudoSiteName in oldScanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+            tmpSiteName = tmpSiteSpec.get_unified_name()
+            if tmpSiteName in weightStr:
+                #tmpMsg = '  skip site={0} with {1} criteria=+lowweight'.format(tmpSiteName, weightStr[tmpSiteName])
+                #tmpLog.info(tmpMsg)
+                pass
+        for tmpMsg in msgList:
+            tmpLog.info(tmpMsg)
         scanSiteList = newScanSiteList
         if scanSiteList == []:
             tmpLog.error('no candidates')
