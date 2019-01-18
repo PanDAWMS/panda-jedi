@@ -650,6 +650,65 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if len(scanSiteList) > 0:
                 retVal = None
                 break
+        # get list of available files
+        availableFileMap = {}     
+        for datasetSpec in inputChunk.getDatasets():
+            try:
+                # get list of site to be scanned
+                fileScanSiteList = []
+                for tmpPseudoSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+                    tmpSiteName = tmpSiteSpec.get_unified_name()
+                    if tmpSiteName in fileScanSiteList:
+                        continue
+                    fileScanSiteList.append(tmpSiteName)
+                    if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(datasetSpec.datasetName):
+                        for tmpRemoteSite in remoteSourceList[tmpSiteName][datasetSpec.datasetName]:
+                            if not tmpRemoteSite in fileScanSiteList:
+                                fileScanSiteList.append(tmpRemoteSite)
+                # mapping between sites and input storage endpoints
+                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper)
+                # disable file lookup for merge jobs
+                if inputChunk.isMerging:
+                    checkCompleteness = False
+                else:
+                    checkCompleteness = True
+                # get available files per site/endpoint
+                tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
+                                                            siteStorageEP,
+                                                            self.siteMapper,
+                                                            check_completeness=checkCompleteness)
+                if tmpAvFileMap == None:
+                    raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
+                availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
+            except:
+                errtype,errvalue = sys.exc_info()[:2]
+                tmpLog.error('failed to get available files with %s %s' % (errtype.__name__,errvalue))
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+        # make data weight
+        if not checkDataLocality:
+            totalSize = 0
+            totalDiskSizeMap = dict()
+            totalTapeSizeMap = dict()            
+            for datasetSpec in inputChunk.getDatasets():
+                for fileSpec in datasetSpec.Files:
+                    totalSize += fileSpec.fsize
+                if datasetSpec.datasetName in availableFileMap:
+                    for tmpSiteName, tmpAvFileMap in availableFileMap[datasetSpec.datasetName].iteritems():
+                        totalDiskSizeMap.setdefault(tmpSiteName, 0)
+                        for fileSpec in tmpAvFileMap['localdisk']:
+                            totalDiskSizeMap[tmpSiteName] += fileSpec.fsize
+                        for fileSpec in tmpAvFileMap['localtape']:
+                            totalTapeSizeMap[tmpSiteName] += fileSpec.fsize
+            totalSize //= (1024 * 1024 * 1024)
+            tmpLog.info('totalInputSize={0} GB'.format(totalSize))
+            for tmpSiteName in totalDiskSizeMap.keys():
+                totalDiskSizeMap[tmpSiteName] //= (1024 * 1024 *1024)
+            for tmpSiteName in totalTapeSizeMap.keys():
+                totalTapeSizeMap[tmpSiteName] //= (1024 * 1024 *1024)
         ######################################
         # final procedure
         if retVal is not None:
@@ -659,6 +718,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             return retVal
         tmpLog.info('final {0} candidates'.format(len(scanSiteList)))
         weightMap = {}
+        weightStr = {}
         candidateSpecList = []
         timeWindowForFC = 6
         preSiteCandidateSpec = None
@@ -692,10 +752,21 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,None)
                 weight /= float(nThrottled + 1)
             # noramize weights by taking data availability into account
-            tmpDataWeight = 1
-            if dataWeight.has_key(tmpSiteName):
-                weight = weight * dataWeight[tmpSiteName]
-                tmpDataWeight = dataWeight[tmpSiteName]
+            diskNorm = 10
+            tapeNorm = 1000
+            if checkDataLocality:
+                tmpDataWeight = 1
+                if dataWeight.has_key(tmpSiteName):
+                    weight *= dataWeight[tmpSiteName]
+                    tmpDataWeight = dataWeight[tmpSiteName]
+            else:
+                tmpDataWeight = 1
+                if totalSize > 0:
+                    if tmpSiteName in totalDiskSizeMap:
+                        tmpDataWeight += (totalDiskSizeMap[tmpSiteName] / diskNorm)
+                    elif tmpSiteName in totalTapeSizeMap:
+                        tmpDataWeight += (totalDiskSizeMap[tmpSiteName] / tapeNorm)                        
+                weight *= tmpDataWeight
             # make candidate
             siteCandidateSpec = SiteCandidate(tmpPseudoSiteName)
             # preassigned
@@ -703,18 +774,17 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 preSiteCandidateSpec = siteCandidateSpec
             # set weight
             siteCandidateSpec.weight = weight
-            tmpStr  = '  site={0} nRun={1} nDef={2} nAct={3} nStart={4} '.format(tmpPseudoSiteName,
+            tmpStr  = 'weight={0} nRun={1} nDef={2} nAct={3} nStart={4} '.format(weight,
                                                                                  nRunning,        
                                                                                  nAssigned,       
                                                                                  nActivated,      
                                                                                  nStarting)
-            tmpStr += 'nFailed={0} nClosed={1} nFinished={2} nTr={3} dataW={4} W={5}'.format(nFailed,
-                                                                                             nClosed,
-                                                                                             nFinished,
-                                                                                             nThrottled,
-                                                                                             tmpDataWeight,
-                                                                                             weight)
-            tmpLog.info(tmpStr)
+            tmpStr += 'nFailed={0} nClosed={1} nFinished={2} nTr={3} dataW={4}'.format(nFailed,
+                                                                                       nClosed,
+                                                                                       nFinished,
+                                                                                       nThrottled,
+                                                                                       tmpDataWeight)
+            weightStr[tmpPseudoSiteName] = tmpStr
             # append
             if tmpSiteName in sitesUsedByTask:
                 candidateSpecList.append(siteCandidateSpec)
@@ -748,46 +818,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
         scanSiteList = []    
         for siteCandidateSpec in candidateSpecList:
             scanSiteList.append(siteCandidateSpec.siteName)
-        # get list of available files
-        availableFileMap = {}     
-        for datasetSpec in inputChunk.getDatasets():
-            try:
-                # get list of site to be scanned
-                fileScanSiteList = []
-                for tmpPseudoSiteName in scanSiteList:
-                    tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
-                    tmpSiteName = tmpSiteSpec.get_unified_name()
-                    if tmpSiteName in fileScanSiteList:
-                        continue
-                    fileScanSiteList.append(tmpSiteName)
-                    if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(datasetSpec.datasetName):
-                        for tmpRemoteSite in remoteSourceList[tmpSiteName][datasetSpec.datasetName]:
-                            if not tmpRemoteSite in fileScanSiteList:
-                                fileScanSiteList.append(tmpRemoteSite)
-                # mapping between sites and input storage endpoints
-                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper)
-
-
-                # disable file lookup for merge jobs
-                if inputChunk.isMerging:
-                    checkCompleteness = False
-                else:
-                    checkCompleteness = True
-                # get available files per site/endpoint
-                tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
-                                                            siteStorageEP,
-                                                            self.siteMapper,
-                                                            check_completeness=checkCompleteness)
-                if tmpAvFileMap == None:
-                    raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
-                availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
-            except:
-                errtype,errvalue = sys.exc_info()[:2]
-                tmpLog.error('failed to get available files with %s %s' % (errtype.__name__,errvalue))
-                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                # send info to logger
-                self.sendLogMessage(tmpLog)
-                return retTmpError
         # append candidates
         newScanSiteList = []
         for siteCandidateSpec in candidateSpecList:
@@ -849,13 +879,13 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 continue
             inputChunk.addSiteCandidate(siteCandidateSpec)
             newScanSiteList.append(siteCandidateSpec.siteName)
-            tmpLog.info('  use site={0} with weight={1} nLocalDisk={2} nLocalTaps={3} nCache={4} nRemote={5} criteria=+use'.format(siteCandidateSpec.siteName,
-                                                                                                                 siteCandidateSpec.weight,
-                                                                                                                 len(siteCandidateSpec.localDiskFiles),
-                                                                                                                 len(siteCandidateSpec.localTapeFiles),
-                                                                                                                 len(siteCandidateSpec.cacheFiles),
-                                                                                                                 len(siteCandidateSpec.remoteFiles),
-                                                                                                                 ))
+            tmpLog.info('  use site={0} with {1} nLocalDisk={2} nLocalTape={3} nCache={4} nRemote={5} criteria=+use'.format(siteCandidateSpec.siteName,
+                                                                                                                            weightStr[siteCandidateSpec.siteName],
+                                                                                                                            len(siteCandidateSpec.localDiskFiles),
+                                                                                                                            len(siteCandidateSpec.localTapeFiles),
+                                                                                                                            len(siteCandidateSpec.cacheFiles),
+                                                                                                                            len(siteCandidateSpec.remoteFiles),
+                                                                                                                            ))
         scanSiteList = newScanSiteList
         if scanSiteList == []:
             tmpLog.error('no candidates')
