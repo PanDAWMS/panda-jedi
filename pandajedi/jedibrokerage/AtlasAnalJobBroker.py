@@ -699,6 +699,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if datasetSpec.datasetName in availableFileMap:
                     for tmpSiteName, tmpAvFileMap in availableFileMap[datasetSpec.datasetName].iteritems():
                         totalDiskSizeMap.setdefault(tmpSiteName, 0)
+                        totalTapeSizeMap.setdefault(tmpSiteName, 0)
                         for fileSpec in tmpAvFileMap['localdisk']:
                             totalDiskSizeMap[tmpSiteName] += fileSpec.fsize
                         for fileSpec in tmpAvFileMap['localtape']:
