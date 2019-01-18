@@ -919,4 +919,3 @@ class AtlasAnalJobBroker (JobBrokerBase):
         # return
         tmpLog.debug('done')        
         return self.SC_SUCCEEDED,inputChunk
-    

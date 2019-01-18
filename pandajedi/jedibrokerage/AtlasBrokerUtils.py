@@ -225,6 +225,8 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
     # loop over all clouds
     retMap = {}
     for tmpSiteName in siteList:
+        if not siteMapper.checkSite(tmpSiteName):
+            continue
         tmpSiteSpec = siteMapper.getSite(tmpSiteName)
         # loop over all DDM endpoints
         checkedEndPoints = []
