@@ -935,7 +935,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 maxSizePerJob += taskSpec.getWorkDiskSize()
                             # make sub chunks
                             for i in range(nChunks):
-                                tmpInputChunk.getSubChunk(None,nFilesPerJob=taskSpec.getNumFilesPerJob(),
+                                tmpInputChunk.getSubChunk(None, maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
+                                                          nFilesPerJob=taskSpec.getNumFilesPerJob(),
                                                           sizeGradients=taskSpec.getOutDiskSize(),
                                                           sizeIntercepts=taskSpec.getWorkDiskSize(),
                                                           maxSize=maxSizePerJob,
