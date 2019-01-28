@@ -891,6 +891,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                         tmpMsg += 'criteria=-es'
                         tmpLog.info(tmpMsg)
                         continue
+                    if tmpSiteSpec.getJobSeed() == 'eshigh' and taskSpec.currentPriority < 900 and not inputChunk.useScout():
+                        tmpMsg = '  skip site={0} since low prio EventService is not allowed '.format(tmpSiteName)
+                        tmpMsg += 'criteria=-eshigh'
+                        tmpLog.info(tmpMsg)
+                        continue
                 else:
                     if tmpSiteSpec.getJobSeed() == 'es':
                         tmpMsg = '  skip site={0} since only EventService is allowed '.format(tmpSiteName)

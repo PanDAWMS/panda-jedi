@@ -54,23 +54,40 @@ class JumboWatchDog:
             maxPrio = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_MAX_CURR_PRIO', 'jedi', self.vo)
             if maxPrio is None:
                 maxPrio = 500
+            progressToBoost = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_PROG_TO_BOOST', 'jedi', self.vo)
+            if progressToBoost is None:
+                progressToBoost = 90
+            prioToBoost = 900
             # get current info
             tasksWithJumbo = self.taskBufferIF.getTaskWithJumbo_JEDI(self.vo, self.prodSourceLabel)
             totEvents = 0
             doneEvents = 0
             nTasks = 0
             for jediTaskID, taskData in tasksWithJumbo.iteritems():
-                if taskData['nEvents'] - taskData['nEventsDone'] < nEventsToDisable:
-                    # disable jumbo
-                    self.log.info('component={0} disable jumbo in jediTaskID={1} due to n_events={2} < {3}'.format(self.component, jediTaskID,
-                                                                                                                   taskData['nEvents'] - taskData['nEventsDone'],
-                                                                                                                   nEventsToDisable))
-                    if not self.dryRun:
-                        self.taskBufferIF.enableJumboJobs(jediTaskID, 0, 0)
-                else:
-                    nTasks += 1
-                    totEvents += taskData['nEvents']
-                    doneEvents += taskData['nEventsDone']
+                # disable jumbo
+                if taskData['useJumbo'] != JediTaskSpec.enum_useJumbo['disabled']:
+                    if  taskData['nEvents'] - taskData['nEventsDone'] < nEventsToDisable:
+                        # disable
+                        self.log.info('component={0} disable jumbo in jediTaskID={1} due to n_events={2} < {3}'.format(self.component, jediTaskID,
+                                                                                                                       taskData['nEvents'] - taskData['nEventsDone'],
+                                                                                                                       nEventsToDisable))
+                        if not self.dryRun:
+                            self.taskBufferIF.enableJumboJobs(jediTaskID, 0, 0)
+                    else:
+                        # wait
+                        nTasks += 1
+                        totEvents += taskData['nEvents']
+                        doneEvents += taskData['nEventsDone']
+                # increase priority
+                if taskData['nEvents'] > 0 and (taskData['nEvents'] - taskData['nEventsDone']) * 100 / taskData['nEvents'] < progressToBoost \
+                        and taskData['currentPriority'] < prioToBoost:
+                        # disable
+                        self.log.info('component={0} priority boost for jediTaskID={1} due to n_events_done={2} > {3}*{4}%'.format(self.component, jediTaskID,
+                                                                                                                                   taskData['nEventsDone'],
+                                                                                                                                   taskData['nEvents'],
+                                                                                                                                   progressToBoost))
+                        if not self.dryRun:
+                            self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioToBoost)
             self.log.info('component={0} total_events={1} n_events_to_process={2} n_tasks={3} available for jumbo'.format(self.component, totEvents,
                                                                                                                           totEvents - doneEvents, nTasks))
             if self.dryRun or (nTasks < maxTasks and (totEvents - doneEvents) < maxEvents):

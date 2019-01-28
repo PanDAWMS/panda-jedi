@@ -1,5 +1,9 @@
 Release Notes
 
+* 1/28/2019
+  * added eshigh
+  * prio boost for tasks with jumbo
+
 * 1/17/2019
   * using nEventsReady for jumbo in AtlasPJB
   * not to count throttled jobs in nAct in AtlasAJB
