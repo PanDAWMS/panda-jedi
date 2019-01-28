@@ -730,7 +730,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpSiteName = tmpSiteSpec.get_unified_name()
             # get number of jobs in each job status. Using workQueueID=None to include non-JEDI jobs
             nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',  None,None)
-            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',  None,None)
+            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',  None,None)
+            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned', None,None)
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,None) 
             nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting', None,None)
             nFailed    = 0
@@ -747,7 +748,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if nFailed+nClosed > 2*nFinished:
                 problematicSites.add(tmpSiteName)
             # calculate weight
-            weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + 1)
+            weight = float(nRunning + 1) / float(nActivated + nAssigned + nDefined + nStarting + 1)
             nThrottled = 0
             if remoteSourceList.has_key(tmpSiteName):
                 nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,None)
@@ -775,16 +776,16 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 preSiteCandidateSpec = siteCandidateSpec
             # set weight
             siteCandidateSpec.weight = weight
-            tmpStr  = 'weight={0} nRun={1} nDef={2} nAct={3} nStart={4} '.format(weight,
-                                                                                 nRunning,        
-                                                                                 nAssigned,       
-                                                                                 nActivated,      
-                                                                                 nStarting)
-            tmpStr += 'nFailed={0} nClosed={1} nFinished={2} nTr={3} dataW={4}'.format(nFailed,
-                                                                                       nClosed,
-                                                                                       nFinished,
-                                                                                       nThrottled,
-                                                                                       tmpDataWeight)
+            tmpStr  = 'weight={0} nRunning={1} nDefined={2} nActivated={3} nStarting={4} nAssigned={5} '.format(weight,
+                                                                                                                nRunning,        
+                                                                                                                nDefined,
+                                                                                                                nActivated,      
+                                                                                                                nStarting,
+                                                                                                                nAssigned)
+            tmpStr += 'nFailed={0} nClosed={1} nFinished={2} dataW={3}'.format(nFailed,
+                                                                               nClosed,
+                                                                               nFinished,
+                                                                               tmpDataWeight)
             weightStr[tmpPseudoSiteName] = tmpStr
             # append
             if tmpSiteName in sitesUsedByTask:
