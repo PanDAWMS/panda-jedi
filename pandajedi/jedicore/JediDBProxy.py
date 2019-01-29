@@ -4505,7 +4505,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         # sqlS has the where conditions
         sqlS  = "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
-        sqlS += "AND processingType<>:pmerge "
+        sqlS += "AND NOT processingType IN (:pmerge,:esmerge) "
         sqlS += "AND cloud=:cloud "
         if resource_name:
             sqlS += "AND resource_type=:resource_type "
@@ -4547,6 +4547,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':jobStatus1'] = 'defined'
                     varMap[':jobStatus2'] = 'assigned'
                 varMap[':pmerge'] = 'pmerge'
+                varMap[':esmerge'] = 'esmerge'
                 self.cur.arraysize = 100
                 tmpLog.debug((sql0+comment).format(table)+str(varMap))
                 self.cur.execute((sql0+comment).format(table), varMap)
