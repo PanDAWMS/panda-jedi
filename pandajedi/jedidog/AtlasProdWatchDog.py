@@ -125,9 +125,9 @@ class AtlasProdWatchDog (WatchDogBase):
                             if currentPriority < boostedPrio:
                                 gTmpLog.info('>>> boosting priority of jediTaskID={0}'.format(jediTaskID))
                                 self.taskBufferIF.changeTaskPriorityPanda(jediTaskID,boostedPrio)
-                            # skip express
+                            # skip express or non global share
                             newShare = 'Express'
-                            if gshare != newShare:
+                            if gshare != newShare and workQueue.is_global_share:
                                 gTmpLog.info('>>> changing gshare of jediTaskID={0} to {1} from {2}'.format(jediTaskID, newShare, gshare))
                                 self.taskBufferIF.reassignShare([jediTaskID], newShare)
                             gTmpLog.info('>>> done jediTaskID={0}'.format(jediTaskID))
