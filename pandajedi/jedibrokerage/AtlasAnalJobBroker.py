@@ -655,6 +655,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         for datasetSpec in inputChunk.getDatasets():
             try:
                 # get list of site to be scanned
+                tmpLog.debug('getting the list of available files for {0}'.format(datasetSpec.datasetName))
                 fileScanSiteList = []
                 for tmpPseudoSiteName in scanSiteList:
                     tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
@@ -909,9 +910,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
             if tmpSiteName in weightStr:
-                #tmpMsg = '  skip site={0} with {1} criteria=+lowweight'.format(tmpSiteName, weightStr[tmpSiteName])
-                #tmpLog.info(tmpMsg)
-                pass
+                if tmpSiteName in problematicSites:
+                    tmpMsg = '  skip site={0} due to too many failed or closed jobs with {1} criteria=+failedclosed'.format(tmpSiteName, weightStr[tmpSiteName])
+                else:
+                    tmpMsg = '  skip site={0} due to low weight and not-used by old jobs with {1} criteria=+lowweight'.format(tmpSiteName, weightStr[tmpSiteName])
+                tmpLog.info(tmpMsg)
         for tmpMsg in msgList:
             tmpLog.info(tmpMsg)
         scanSiteList = newScanSiteList
