@@ -911,9 +911,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpSiteName = tmpSiteSpec.get_unified_name()
             if tmpSiteName in weightStr:
                 if tmpSiteName in problematicSites:
-                    tmpMsg = '  skip site={0} due to too many failed or closed jobs with {1} criteria=+failedclosed'.format(tmpSiteName, weightStr[tmpSiteName])
+                    tmpMsg = '  skip site={0} due to too many failed or closed jobs for last 6h with {1} criteria=-failedclosed'.format(tmpSiteName, weightStr[tmpSiteName])
                 else:
-                    tmpMsg = '  skip site={0} due to low weight and not-used by old jobs with {1} criteria=+lowweight'.format(tmpSiteName, weightStr[tmpSiteName])
+                    tmpMsg = '  skip site={0} due to low weight and not-used by old jobs with {1} criteria=-lowweight'.format(tmpSiteName, weightStr[tmpSiteName])
                 tmpLog.info(tmpMsg)
         for tmpMsg in msgList:
             tmpLog.info(tmpMsg)
