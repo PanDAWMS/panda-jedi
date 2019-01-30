@@ -81,7 +81,7 @@ class JumboWatchDog:
                 # increase priority
                 if taskData['nEvents'] > 0 and (taskData['nEvents'] - taskData['nEventsDone']) * 100 / taskData['nEvents'] < progressToBoost \
                         and taskData['currentPriority'] < prioToBoost:
-                        # disable
+                        # boost
                         self.log.info('component={0} priority boost for jediTaskID={1} due to n_events_done={2} > {3}*{4}%'.format(self.component, jediTaskID,
                                                                                                                                    taskData['nEventsDone'],
                                                                                                                                    taskData['nEvents'],

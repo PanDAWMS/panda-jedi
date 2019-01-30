@@ -689,27 +689,28 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
         # make data weight
-        if not checkDataLocality:
-            totalSize = 0
-            totalDiskSizeMap = dict()
-            totalTapeSizeMap = dict()            
-            for datasetSpec in inputChunk.getDatasets():
-                for fileSpec in datasetSpec.Files:
-                    totalSize += fileSpec.fsize
-                if datasetSpec.datasetName in availableFileMap:
-                    for tmpSiteName, tmpAvFileMap in availableFileMap[datasetSpec.datasetName].iteritems():
-                        totalDiskSizeMap.setdefault(tmpSiteName, 0)
-                        totalTapeSizeMap.setdefault(tmpSiteName, 0)
-                        for fileSpec in tmpAvFileMap['localdisk']:
-                            totalDiskSizeMap[tmpSiteName] += fileSpec.fsize
-                        for fileSpec in tmpAvFileMap['localtape']:
-                            totalTapeSizeMap[tmpSiteName] += fileSpec.fsize
-            totalSize //= (1024 * 1024 * 1024)
-            tmpLog.info('totalInputSize={0} GB'.format(totalSize))
-            for tmpSiteName in totalDiskSizeMap.keys():
-                totalDiskSizeMap[tmpSiteName] //= (1024 * 1024 *1024)
-            for tmpSiteName in totalTapeSizeMap.keys():
-                totalTapeSizeMap[tmpSiteName] //= (1024 * 1024 *1024)
+        totalSize = 0
+        totalNumFiles = 0
+        totalDiskSizeMap = dict()
+        totalTapeSizeMap = dict()            
+        for datasetSpec in inputChunk.getDatasets():
+            totalNumFiles += len(datasetSpec.Files)
+            for fileSpec in datasetSpec.Files:
+                totalSize += fileSpec.fsize
+            if datasetSpec.datasetName in availableFileMap:
+                for tmpSiteName, tmpAvFileMap in availableFileMap[datasetSpec.datasetName].iteritems():
+                    totalDiskSizeMap.setdefault(tmpSiteName, 0)
+                    totalTapeSizeMap.setdefault(tmpSiteName, 0)
+                    for fileSpec in tmpAvFileMap['localdisk']:
+                        totalDiskSizeMap[tmpSiteName] += fileSpec.fsize
+                    for fileSpec in tmpAvFileMap['localtape']:
+                        totalTapeSizeMap[tmpSiteName] += fileSpec.fsize
+        totalSize //= (1024 * 1024 * 1024)
+        tmpLog.info('totalInputSize={0} GB'.format(totalSize))
+        for tmpSiteName in totalDiskSizeMap.keys():
+            totalDiskSizeMap[tmpSiteName] //= (1024 * 1024 *1024)
+        for tmpSiteName in totalTapeSizeMap.keys():
+            totalTapeSizeMap[tmpSiteName] //= (1024 * 1024 *1024)
         ######################################
         # final procedure
         if retVal is not None:
@@ -756,6 +757,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             # noramize weights by taking data availability into account
             diskNorm = 10
             tapeNorm = 1000
+            localSize = totalSize
             if checkDataLocality:
                 tmpDataWeight = 1
                 if dataWeight.has_key(tmpSiteName):
@@ -766,8 +768,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 if totalSize > 0:
                     if tmpSiteName in totalDiskSizeMap:
                         tmpDataWeight += (totalDiskSizeMap[tmpSiteName] / diskNorm)
+                        localSize = totalDiskSizeMap[tmpSiteName]
                     elif tmpSiteName in totalTapeSizeMap:
-                        tmpDataWeight += (totalDiskSizeMap[tmpSiteName] / tapeNorm)                        
+                        tmpDataWeight += (totalTapeSizeMap[tmpSiteName] / tapeNorm)                        
+                        localSize = totalTapeSizeMap[tmpSiteName]
                 weight *= tmpDataWeight
             # make candidate
             siteCandidateSpec = SiteCandidate(tmpPseudoSiteName)
@@ -782,10 +786,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                                                                 nActivated,      
                                                                                                                 nStarting,
                                                                                                                 nAssigned)
-            tmpStr += 'nFailed={0} nClosed={1} nFinished={2} dataW={3}'.format(nFailed,
-                                                                               nClosed,
-                                                                               nFinished,
-                                                                               tmpDataWeight)
+            tmpStr += 'nFailed={0} nClosed={1} nFinished={2} dataW={3} '.format(nFailed,
+                                                                                nClosed,
+                                                                                nFinished,
+                                                                                tmpDataWeight)
+            tmpStr += 'totalInGB={0} localInGB={1} nFiles={2}'.format(totalSize, localSize, totalNumFiles)
             weightStr[tmpPseudoSiteName] = tmpStr
             # append
             if tmpSiteName in sitesUsedByTask:
