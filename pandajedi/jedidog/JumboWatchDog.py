@@ -71,9 +71,9 @@ class JumboWatchDog:
                 if taskData['useJumbo'] != JediTaskSpec.enum_useJumbo['disabled']:
                     if  taskData['nEvents'] - taskData['nEventsDone'] < nEventsToDisable:
                         # disable
-                        self.log.info('component={0} disable jumbo in jediTaskID={1} due to n_events={2} < {3}'.format(self.component, jediTaskID,
-                                                                                                                       taskData['nEvents'] - taskData['nEventsDone'],
-                                                                                                                       nEventsToDisable))
+                        self.log.info('component={0} disable jumbo in jediTaskID={1} due to n_events_to_process={2} < {3}'.format(self.component, jediTaskID,
+                                                                                                                                  taskData['nEvents'] - taskData['nEventsDone'],
+                                                                                                                                  nEventsToDisable))
                         if not self.dryRun:
                             self.taskBufferIF.enableJumboJobs(jediTaskID, 0, 0)
                     else:
@@ -81,6 +81,9 @@ class JumboWatchDog:
                         nTasks += 1
                         totEvents += taskData['nEvents']
                         doneEvents += taskData['nEventsDone']
+                        self.log.info('component={0} keep jumbo in jediTaskID={1} due to n_events_to_process={2} > {3}'.format(self.component, jediTaskID,
+                                                                                                                               taskData['nEvents'] - taskData['nEventsDone'],
+                                                                                                                               nEventsToDisable))
                 # increase priority
                 if taskData['nEvents'] > 0 and (taskData['nEvents'] - taskData['nEventsDone']) * 100 / taskData['nEvents'] < progressToBoost \
                         and taskData['currentPriority'] < prioToBoost and (taskData['nFiles'] - taskData['nFilesDone']) < maxFilesToBoost:
@@ -98,9 +101,12 @@ class JumboWatchDog:
                 # get list of releases and caches available at jumbo job enabled PQs
                 jumboRels, jumboCaches = self.taskBufferIF.getRelCacheForJumbo_JEDI()
                 # look for tasks to enable jumbo
-                self.log.info('component={0} look for tasks to enable jumbo due to lack of tasks and events to meet max_tasks={1} max_events={2}'.format(self.component,
-                                                                                                                                                         maxTasks,
-                                                                                                                                                         maxEvents))
+                if self.dryRun:
+                    self.log.info('component={0} look for tasks to enable jumbo in dry run mode'.format(self.component))
+                else:
+                    self.log.info('component={0} look for tasks to enable jumbo due to lack of tasks and events to meet max_tasks={1} max_events={2}'.format(self.component,
+                                                                                                                                                             maxTasks,
+                                                                                                                                                             maxEvents))
                 tasksToEnableJumbo = self.taskBufferIF.getTaskToEnableJumbo_JEDI(self.vo, self.prodSourceLabel, maxPrio, nEventsToEnable)
                 self.log.debug('component={0} got {1} tasks'.format(self.component, len(tasksToEnableJumbo)))
                 # sort by nevents
