@@ -56,7 +56,7 @@ class JumboWatchDog:
                 maxPrio = 500
             progressToBoost = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_PROG_TO_BOOST', 'jedi', self.vo)
             if progressToBoost is None:
-                progressToBoost = 90
+                progressToBoost = 95
             maxFilesToBoost = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_MAX_FILES_TO_BOOST', 'jedi', self.vo)
             if maxFilesToBoost is None:
                 maxFilesToBoost = 500
