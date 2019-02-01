@@ -57,6 +57,9 @@ class JumboWatchDog:
             progressToBoost = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_PROG_TO_BOOST', 'jedi', self.vo)
             if progressToBoost is None:
                 progressToBoost = 90
+            maxFilesToBoost = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_MAX_FILES_TO_BOOST', 'jedi', self.vo)
+            if maxFilesToBoost is None:
+                maxFilesToBoost = 500
             prioToBoost = 900
             # get current info
             tasksWithJumbo = self.taskBufferIF.getTaskWithJumbo_JEDI(self.vo, self.prodSourceLabel)
@@ -80,14 +83,15 @@ class JumboWatchDog:
                         doneEvents += taskData['nEventsDone']
                 # increase priority
                 if taskData['nEvents'] > 0 and (taskData['nEvents'] - taskData['nEventsDone']) * 100 / taskData['nEvents'] < progressToBoost \
-                        and taskData['currentPriority'] < prioToBoost:
-                        # boost
-                        self.log.info('component={0} priority boost for jediTaskID={1} due to n_events_done={2} > {3}*{4}%'.format(self.component, jediTaskID,
-                                                                                                                                   taskData['nEventsDone'],
-                                                                                                                                   taskData['nEvents'],
-                                                                                                                                   progressToBoost))
-                        if not self.dryRun:
-                            self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioToBoost)
+                        and taskData['currentPriority'] < prioToBoost and (taskData['nFiles'] - taskData['nFilesDone']) < maxFilesToBoost:
+                    # boost
+                    tmpStr = 'component={0} priority boost for jediTaskID={1} due to n_events_done={2} > {3}*{4}% '.format(self.component, jediTaskID,
+                                                                                                                           taskData['nEventsDone'],
+                                                                                                                           taskData['nEvents'],
+                                                                                                                           progressToBoost)
+                    tmpStr += 'n_files_remaining={0} < {1}'.format(taskData['nFiles'] - taskData['nFilesDone'], maxFilesToBoost)
+                    self.log.info(tmpStr)
+                    self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioToBoost)
             self.log.info('component={0} total_events={1} n_events_to_process={2} n_tasks={3} available for jumbo'.format(self.component, totEvents,
                                                                                                                           totEvents - doneEvents, nTasks))
             if self.dryRun or (nTasks < maxTasks and (totEvents - doneEvents) < maxEvents):

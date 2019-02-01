@@ -11785,7 +11785,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get tasks
-            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,t.useJumbo,d.nEvents,t.currentPriority FROM {0}.JEDI_Tasks t,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
+            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,t.useJumbo,d.nEvents,t.currentPriority,d.nFiles,d.nFilesFinished,d.nFilesFailed "
+            sqlAV += "FROM {0}.JEDI_Tasks t,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
             sqlAV += "WHERE t.prodSourceLabel=:prodSourceLabel AND t.vo=:vo AND t.useJumbo IS NOT NULL "
             sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) "
             sqlAV += "AND t.gshare NOT IN (:gs1) " 
@@ -11828,7 +11829,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resAV = self.cur.fetchall()
             tmpLog.debug('got tasks')
             tasksWithJumbo = dict()
-            for jediTaskID, taskStatus, splitRule, useJumbo, nEvents, currentPriority in resAV:
+            for jediTaskID, taskStatus, splitRule, useJumbo, nEvents, currentPriority, \
+                    nFiles, nFilesFinished, nFilesFailed in resAV:
                 tasksWithJumbo[jediTaskID] = dict()
                 taskData = tasksWithJumbo[jediTaskID]
                 taskData['taskStatus'] = taskStatus
@@ -11840,6 +11842,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 taskSpec.splitRule = splitRule
                 taskData['nJumboJobs'] = taskSpec.getNumJumboJobs()
                 taskData['maxJumboPerSite'] = taskSpec.getMaxJumboPerSite()
+                taskData['nFiles'] = nFiles
+                taskData['nFilesDone'] = nFilesFinished + nFilesFailed
                 # get event stat info
                 varMap = dict()
                 varMap[':jediTaskID'] = jediTaskID
