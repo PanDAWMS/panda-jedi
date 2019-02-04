@@ -106,7 +106,7 @@ class AtlasAnalWatchDog (WatchDogBase):
             # get throttled users
             thrUserTasks = self.taskBufferIF.getThrottledUsersTasks_JEDI(self.vo,self.prodSourceLabel)
             # get dispatch datasets
-            dispUserTasks = self.taskBufferIF.getDispatchDatasetsPerUser(self.vo,self.prodSourceLabel,False,True)
+            dispUserTasks = self.taskBufferIF.getDispatchDatasetsPerUser(self.vo,self.prodSourceLabel,True,True)
             # max size of prestaging requests in MB
             maxPrestaging = self.taskBufferIF.getConfigValue('anal_watchdog', 'PRESTAGE_LIMIT', 'jedi', 'atlas')
             if maxPrestaging == None:
