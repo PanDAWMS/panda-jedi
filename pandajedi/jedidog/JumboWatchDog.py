@@ -68,7 +68,7 @@ class JumboWatchDog:
             nTasks = 0
             for jediTaskID, taskData in tasksWithJumbo.iteritems():
                 # disable jumbo
-                if taskData['useJumbo'] != JediTaskSpec.enum_useJumbo['disabled']:
+                if taskData['useJumbo'] != JediTaskSpec.enum_useJumbo['disabled'] and taskData['site'] is None:
                     if  taskData['nEvents'] - taskData['nEventsDone'] < nEventsToDisable:
                         # disable
                         self.log.info('component={0} disable jumbo in jediTaskID={1} due to n_events_to_process={2} < {3}'.format(self.component, jediTaskID,

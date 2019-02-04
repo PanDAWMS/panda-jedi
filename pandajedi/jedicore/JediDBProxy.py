@@ -11785,7 +11785,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get tasks
-            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,t.useJumbo,d.nEvents,t.currentPriority,d.nFiles,d.nFilesFinished,d.nFilesFailed "
+            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,t.useJumbo,d.nEvents,t.currentPriority,d.nFiles,d.nFilesFinished,d.nFilesFailed,t.site "
             sqlAV += "FROM {0}.JEDI_Tasks t,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
             sqlAV += "WHERE t.prodSourceLabel=:prodSourceLabel AND t.vo=:vo AND t.useJumbo IS NOT NULL "
             sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) "
@@ -11830,13 +11830,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('got tasks')
             tasksWithJumbo = dict()
             for jediTaskID, taskStatus, splitRule, useJumbo, nEvents, currentPriority, \
-                    nFiles, nFilesFinished, nFilesFailed in resAV:
+                    nFiles, nFilesFinished, nFilesFailed, taskSite in resAV:
                 tasksWithJumbo[jediTaskID] = dict()
                 taskData = tasksWithJumbo[jediTaskID]
                 taskData['taskStatus'] = taskStatus
                 taskData['nEvents'] = nEvents
                 taskData['useJumbo'] = useJumbo
                 taskData['currentPriority'] = currentPriority
+                taskData['site'] = taskSite
                 taskSpec = JediTaskSpec()
                 taskSpec.useJumbo = useJumbo
                 taskSpec.splitRule = splitRule
@@ -11898,7 +11899,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,d.nEvents,t.currentPriority,t.transHome,t.architecture "
             sqlAV += "FROM {0}.JEDI_Tasks t,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
             sqlAV += "WHERE t.prodSourceLabel=:prodSourceLabel AND t.vo=:vo AND t.useJumbo IS NULL "
-            sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) "
+            sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) AND t.site IS NULL "
             sqlAV += "AND t.gshare NOT IN (:gs1) AND t.eventService=:eventService " 
             sqlAV += "AND d.jediTaskID=t.jediTaskID AND d.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
