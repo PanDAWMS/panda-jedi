@@ -74,8 +74,7 @@ class JumboWatchDog:
                         self.log.info('component={0} disable jumbo in jediTaskID={1} due to n_events_to_process={2} < {3}'.format(self.component, jediTaskID,
                                                                                                                                   taskData['nEvents'] - taskData['nEventsDone'],
                                                                                                                                   nEventsToDisable))
-                        if not self.dryRun:
-                            self.taskBufferIF.enableJumboJobs(jediTaskID, 0, 0)
+                        self.taskBufferIF.enableJumboJobs(jediTaskID, 0, 0)
                     else:
                         # wait
                         nTasks += 1
