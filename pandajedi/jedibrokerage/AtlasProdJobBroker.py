@@ -173,7 +173,11 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
             tmpLog.info('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
-
+        # hight prio ES
+        if taskSpec.useEventService() and not taskSpec.useJobCloning() and (taskSpec.currentPriority >= 900 or inputChunk.useScout()):
+            esHigh = True
+        else:
+            esHigh = False
         # get job statistics
         tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
         if not tmpSt:
@@ -891,7 +895,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         tmpMsg += 'criteria=-es'
                         tmpLog.info(tmpMsg)
                         continue
-                    if tmpSiteSpec.getJobSeed() == 'eshigh' and taskSpec.currentPriority < 900 and not inputChunk.useScout():
+                    if tmpSiteSpec.getJobSeed() == 'eshigh' and not esHigh:
                         tmpMsg = '  skip site={0} since low prio EventService is not allowed '.format(tmpSiteName)
                         tmpMsg += 'criteria=-eshigh'
                         tmpLog.info(tmpMsg)
@@ -1223,7 +1227,13 @@ class AtlasProdJobBroker (JobBrokerBase):
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
-            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', None, wq_tag)
+            if not workQueue.is_global_share and esHigh and tmpSiteSpec.getJobSeed() == 'eshigh':
+                tmp_wq_tag = wq_tag_global_share
+                tmp_jobStatPrioMap = jobStatPrioMapGS
+            else:
+                tmp_wq_tag = wq_tag
+                tmp_jobStatPrioMap = jobStatPrioMap
+            nRunning   = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'running', None, tmp_wq_tag)
             corrNumPilotStr = ''
             if not workQueue.is_global_share:
                 # correction factor for nPilot 
@@ -1233,11 +1243,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                 corrNumPilotStr = '*(nRunResourceQueue({0})+1)/(nRunGlobalShare({1})+1)'.format(nRunningGS - nRunningGSOnly, nRunningGS)
             else:
                 corrNumPilot = 1
-            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'defined', None, wq_tag) + self.getLiveCount(tmpSiteName)
-            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'assigned', None, wq_tag)
-            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'activated', None, wq_tag) + \
-                         AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'throttled', None, wq_tag)
-            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'starting', None, wq_tag)
+            nDefined   = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'defined', None, tmp_wq_tag) + self.getLiveCount(tmpSiteName)
+            nAssigned  = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'assigned', None, tmp_wq_tag)
+            nActivated = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'activated', None, tmp_wq_tag) + \
+                         AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'throttled', None, tmp_wq_tag)
+            nStarting  = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'starting', None, tmp_wq_tag)
             if tmpSiteName in nPilotMap:
                 nPilot = nPilotMap[tmpSiteName]
             else:
