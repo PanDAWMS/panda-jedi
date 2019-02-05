@@ -280,7 +280,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # skip unified queues
                 if tmpSiteSpec.is_unified:
-                    tmpLog.info('  skip site=%s due to is_unified=%s criteria=-unified' % (tmpSiteName,tmpSiteSpec.is_unified))
                     continue
                 # check site status
                 skipFlag = False
@@ -321,21 +320,22 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 continue
             ######################################
             # selection for closed
-            newScanSiteList = []
-            for tmpSiteName in scanSiteList:
-                if tmpSiteName in failureCounts and 'closed' in failureCounts[tmpSiteName]:
-                    nClosed = failureCounts[tmpSiteName]['closed']
-                    if nClosed > 0:
-                        tmpLog.info('  skip site=%s due to n_closed=%s criteria=-closed' % \
-                                        (tmpSiteName, nClosed))
-                        continue
-                newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList        
-            tmpLog.info('{0} candidates passed for closed'.format(len(scanSiteList)))
-            if scanSiteList == []:
-                tmpLog.error('no candidates')
-                retVal = retTmpError
-                continue
+            if not sitePreAssigned and not inputChunk.isMerging:
+                newScanSiteList = []
+                for tmpSiteName in self.get_unified_sites(scanSiteList):
+                    if tmpSiteName in failureCounts and 'closed' in failureCounts[tmpSiteName]:
+                        nClosed = failureCounts[tmpSiteName]['closed']
+                        if nClosed > 0:
+                            tmpLog.info('  skip site=%s due to n_closed=%s criteria=-closed' % \
+                                            (tmpSiteName, nClosed))
+                            continue
+                    newScanSiteList.append(tmpSiteName)
+                scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
+                tmpLog.info('{0} candidates passed for closed'.format(len(scanSiteList)))
+                if scanSiteList == []:
+                    tmpLog.error('no candidates')
+                    retVal = retTmpError
+                    continue
             ######################################
             # selection for release
             if taskSpec.transHome != None:
