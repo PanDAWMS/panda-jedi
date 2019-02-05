@@ -11797,7 +11797,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlAV = sqlAV[:-1]
             sqlAV += ') AND d.masterID IS NULL '
             # sql to get event stat info
-            sqlFR = "SELECT /*+ INDEX_RS_ASC(tab JEDI_EVENTS_PK) NO_INDEX(tab JEDI_EVENTS_PANDAID_STATUS_IDX)*/ "
+            sqlFR = "SELECT /se*+ INDEX_RS_ASC(tab JEDI_EVENTS_PK) NO_INDEX(tab JEDI_EVENTS_PANDAID_STATUS_IDX)*/ "
             sqlFR += "status,COUNT(*) "
             sqlFR += "FROM {0}.JEDI_Events tab ".format(jedi_config.db.schemaJEDI)
             sqlFR += "WHERE jediTaskID=:jediTaskID GROUP BY status "
@@ -12033,3 +12033,40 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return ({}, {})
+
+
+
+    # kick pending tasks with jumbo jobs
+    def kickPendingTasksWithJumbo_JEDI(self, jediTaskID):
+        comment = ' /* JediDBProxy.kickPendingTasksWithJumbo_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to kick
+            sqlAV = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlAV += "SET useJumbo=:useJumboL,status=oldStatus,oldStatus=NULL " 
+            sqlAV += "WHERE jediTaskID=:jediTaskID AND useJumbo=:useJumboP " 
+            sqlAV += "AND status=:status AND lockedBy IS NULL "
+            self.conn.begin()
+            # get tasks
+            varMap = dict()
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':status'] = 'pending'
+            varMap[':useJumboL'] = JediTaskSpec.enum_useJumbo['lack']
+            varMap[':useJumboP'] = JediTaskSpec.enum_useJumbo['pending']
+            self.cur.execute(sqlAV+comment, varMap)
+            nDone = self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("kicked with {0}".format(nDone))
+            return nDone
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None

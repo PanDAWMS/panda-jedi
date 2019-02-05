@@ -94,6 +94,16 @@ class JumboWatchDog:
                     tmpStr += 'n_files_remaining={0} < {1}'.format(taskData['nFiles'] - taskData['nFilesDone'], maxFilesToBoost)
                     self.log.info(tmpStr)
                     self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioToBoost)
+                # kick pending
+                if taskData['taskStatus'] == 'pending' and taskData['useJumbo'] == JediTaskSpec.enum_useJumbo['pending']:
+                    nActiveJumbo = 0
+                    for computingSite, jobStatusMap in taskData['jumboJobs'].iteritems():
+                        for jobStatus, nJobs in jobStatusMap.iteritems():
+                            if jobStatus in ['defined', 'assigned', 'activated', 'sent', 'starting', 'running', 'transferring', 'holding']:
+                                nActiveJumbo += nJobs
+                    if nActiveJumbo == 0:
+                        self.log.info('component={0} kick jumbo in pending jediTaskID={1}'.format(self.component, jediTaskID))
+                        self.taskBufferIF.kickPendingTasksWithJumbo_JEDI(jediTaskID)
             self.log.info('component={0} total_events={1} n_events_to_process={2} n_tasks={3} available for jumbo'.format(self.component, totEvents,
                                                                                                                           totEvents - doneEvents, nTasks))
             if self.dryRun or (nTasks < maxTasks and (totEvents - doneEvents) < maxEvents):

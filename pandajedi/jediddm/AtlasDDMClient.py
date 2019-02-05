@@ -448,18 +448,11 @@ class AtlasDDMClient(DDMClientBase):
                 i_guid += 1
                 scope = scopes[lfn]
                 dids.append({'scope': scope, 'name': lfn})
-
                 if len(dids) % max_guid == 0 or i_guid == len(files):
-                    for tmp_dict in client.list_replicas(dids, ['srm', 'gsiftp'], resolve_archives=True):
+                    x = client.list_replicas(dids, ['srm', 'gsiftp'], resolve_archives=True)
+                    for tmp_dict in x: 
                         tmp_LFN = str(tmp_dict['name'])
-                        rses = []
-                        for tmp_RSE in tmp_dict['rses']:
-                            # rse selection
-                            if tmp_RSE in storages:
-                                rses.append(tmp_RSE)
-
-                        lfn_to_rses_map[tmp_LFN] = rses
-
+                        lfn_to_rses_map[tmp_LFN] = tmp_dict['rses']
                     # reset the dids list for the next bulk for Rucio
                     dids = []
         except:
@@ -467,6 +460,23 @@ class AtlasDDMClient(DDMClientBase):
             return self.SC_FAILED, "file lookup failed with {0}:{1} {2}".format(err_type, err_value, traceback.format_exc())
 
         return self.SC_SUCCEEDED, lfn_to_rses_map
+
+    # list file replicas with dataset name/scope
+    def jedi_list_replicas_with_dataset(self, datasetName):
+        try:
+            scope, dsn = self.extract_scope(datasetName)
+            client = RucioClient()
+            lfn_to_rses_map = {}
+            dids = []
+            dids = [{'scope': scope, 'name': dsn}]
+            for tmp_dict in client.list_replicas(dids, ['srm', 'gsiftp'], resolve_archives=True):
+                tmp_LFN = str(tmp_dict['name'])
+                lfn_to_rses_map[tmp_LFN] = tmp_dict['rses']
+        except:
+            err_type, err_value = sys.exc_info()[:2]
+            return self.SC_FAILED, "file lookup failed with {0}:{1} {2}".format(err_type, err_value, traceback.format_exc())
+        return self.SC_SUCCEEDED, lfn_to_rses_map
+
 
     # get dataset metadata
     def getDatasetMetaData(self,datasetName):
@@ -1088,7 +1098,7 @@ class AtlasDDMClient(DDMClientBase):
 
             # get SURLs
             seList = datasetReplicaMap.keys()
-            tmpStat, tmpRetMap = self.jedi_list_replicas(lfnMap, seList, scopes=scopeMap)
+            tmpStat, tmpRetMap = self.jedi_list_replicas_with_dataset(datasetName)
             if tmpStat != self.SC_SUCCEEDED:
                 tmpLog.error('failed to get SURLs with {0}'.format(tmpRetMap))
                 return tmpStat,tmpRetMap
