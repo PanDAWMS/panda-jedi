@@ -10794,7 +10794,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql += "WHERE jediTaskID=:jediTaskID AND modificationTime>CURRENT_DATE-{0}/24 ".format(timeWindow)
             sql += "AND ("
             sql += "(jobStatus=:jobFailed AND pilotErrorCode IS NOT NULL AND pilotErrorCode<>0) OR "
-            sql += "(jobStatus=:jobClosed AND jobSubStatus=:toReassign) OR "
+            sql += "(jobStatus=:jobClosed AND jobSubStatus=:toReassign AND relocationFlag<>:relThrottled) OR "
             sql += "(jobStatus=:jobFinished) "
             sql += ") "
             sql += "GROUP BY computingSite,jobStatus "
@@ -10804,6 +10804,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':jobFailed']   = 'failed'
             varMap[':jobFinished'] = 'finished'
             varMap[':toReassign'] = 'toreassign'
+            varMap[':relThrottled'] = 3
             # start transaction
             self.conn.begin()
             self.cur.execute(sql+comment,varMap)

@@ -100,6 +100,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
         else:
             # not use MCORE
             useMP = 'unuse'
+        # get statistics of failures
+        timeWindowForFC = 6
+        failureCounts = self.taskBufferIF.getFailureCountsForTask_JEDI(taskSpec.jediTaskID, timeWindowForFC)
         # two loops with/without data locality check
         scanSiteLists = [(copy.copy(scanSiteList), True)]
         if len(inputChunk.getDatasets()) > 0:
@@ -312,6 +315,23 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                     (tmpSiteName,tmpSiteSpec.coreCount,taskSpec.coreCount))
             scanSiteList = newScanSiteList        
             tmpLog.info('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                retVal = retTmpError
+                continue
+            ######################################
+            # selection for closed
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                if tmpSiteName in failureCounts and 'closed' in failureCounts[tmpSiteName]:
+                    nClosed = failureCounts[tmpSiteName]['closed']
+                    if nClosed > 0:
+                        tmpLog.info('  skip site=%s due to n_closed=%s criteria=-closed' % \
+                                        (tmpSiteName, nClosed))
+                        continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList        
+            tmpLog.info('{0} candidates passed for closed'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 retVal = retTmpError
@@ -723,9 +743,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         weightMap = {}
         weightStr = {}
         candidateSpecList = []
-        timeWindowForFC = 6
         preSiteCandidateSpec = None
-        failureCounts = self.taskBufferIF.getFailureCountsForTask_JEDI(taskSpec.jediTaskID,timeWindowForFC)
         problematicSites = set()
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)

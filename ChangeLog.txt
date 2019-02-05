@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/5/2019
+  * using nClosed in AtlasAJB
+
 * 1/28/2019
   * added eshigh
   * prio boost for tasks with jumbo
