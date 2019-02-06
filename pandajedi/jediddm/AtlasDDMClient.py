@@ -400,7 +400,7 @@ class AtlasDDMClient(DDMClientBase):
                 tmp_filespec = lfn_filespec_map[tmp_lfn][0]
                 for site in site_endpoint_map:
                     for endpoint in site_endpoint_map[site]:
-                        if endpoint in rucio_lfn_to_rse_map[tmp_lfn]:
+                        if endpoint in rucio_lfn_to_rse_map[tmp_lfn] and endpoint in endpoint_storagetype_map:
                             storage_type = endpoint_storagetype_map[endpoint]
                             if not tmp_filespec in return_map[site][storage_type]:
                                 return_map[site][storage_type] += tmp_filespec_list
