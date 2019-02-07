@@ -804,7 +804,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteMaxTime *= tmpSiteSpec.coreCount
                     tmpSiteStr += '*{0}'.format(tmpSiteSpec.coreCount)
                 if taskSpec.useHS06():
-                    if not siteMaxTime in [None,0] and not tmpSiteSpec.corepower in [None,0]:
+                    if not siteMaxTime in [None,0]:
                         siteMaxTime *= tmpSiteSpec.corepower
                         tmpSiteStr += '*{0}'.format(tmpSiteSpec.corepower)
                     siteMaxTime *= float(taskSpec.cpuEfficiency) / 100.0
@@ -829,7 +829,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteMinTime *= tmpSiteSpec.coreCount
                     tmpSiteStr += '*{0}'.format(tmpSiteSpec.coreCount)
                 if taskSpec.useHS06():
-                    if not siteMinTime in [None,0] and not tmpSiteSpec.corepower in [None,0]:
+                    if not siteMinTime in [None,0]:
                         siteMinTime *= tmpSiteSpec.corepower
                         tmpSiteStr += '*{0}'.format(tmpSiteSpec.corepower)
                     siteMinTime *= float(taskSpec.cpuEfficiency) / 100.0
