@@ -1,3 +1,4 @@
+import re
 import os
 import sys
 import socket
@@ -149,7 +150,7 @@ class JumboWatchDog:
                     # check software
                     transHome = taskData['transHome']
                     cmtConfig = taskData['architecture']
-                    if transHome.startswith('AtlasOffline'):
+                    if re.search('^\d+\.\d+\.\d+$', transHome.split('-')) is not None:
                         transHome = transHome.split('-')[-1]
                         swDict = jumboRels
                     else:
