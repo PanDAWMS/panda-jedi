@@ -1198,7 +1198,7 @@ class JobGeneratorThread (WorkerThread):
                         pass
                     # maxWalltime
                     tmpMasterEventsList.append(totalMasterEvents)
-                    JediCoreUtils.getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec)
+                    JediCoreUtils.getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec)
                     # multiply maxDiskCount by total master size or # of events
                     try:
                         if inputChunk.isMerging:
@@ -1991,7 +1991,7 @@ class JobGeneratorThread (WorkerThread):
                                                                                               siteSpec, newPandaJob.coreCount)
             newPandaJob.hs06 = (newPandaJob.coreCount or 1) * siteSpec.corepower
             if totalMasterEvents is not None:
-                JediCoreUtils.getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, newPandaJob)
+                JediCoreUtils.getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, newPandaJob, siteSpec)
         try:
             newPandaJob.resource_type = self.taskBufferIF.get_resource_type_job(newPandaJob)
         except:
