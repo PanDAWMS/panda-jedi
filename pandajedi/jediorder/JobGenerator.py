@@ -1981,6 +1981,7 @@ class JobGeneratorThread (WorkerThread):
         # set site for parallel jobs
         newPandaJob.computingSite = sites[index % nSites]
         siteSpec = self.siteMapper.getSite(newPandaJob.computingSite)
+        siteCandidate = inputChunk.getSiteCandidate(newPandaJob.computingSite)
         newPandaJob.computingSite = siteSpec.get_unified_name()
         if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:
             newPandaJob.coreCount = 1
@@ -2013,7 +2014,6 @@ class JobGeneratorThread (WorkerThread):
                 newFileSpec = newFileSpec.convertToJobFileSpec(datasetSpec,useEventService=True)
             # set locality
             if inputChunk is not None and newFileSpec.type == 'input':
-                siteCandidate = inputChunk.getSiteCandidate(newPandaJob.computingSite)
                 if siteCandidate is not None:
                     locality = siteCandidate.getFileLocality(newFileSpec)
                     if locality in ['localdisk','remote']:

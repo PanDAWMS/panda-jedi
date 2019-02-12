@@ -295,7 +295,7 @@ class AtlasDDMClient(DDMClientBase):
         """
         # make logger
         method_name = 'getAvailableFiles'
-        method_name += ' <datasetID={0}>'.format(dataset_spec.datasetID)
+        method_name += ' < jediTaskID={0} datasetID={1} >'.format(dataset_spec.jediTaskID, dataset_spec.datasetID)
         tmp_log = MsgWrapper(logger, method_name)
 
         try:
