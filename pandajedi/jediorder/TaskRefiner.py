@@ -181,11 +181,24 @@ class TaskRefinerThread (WorkerThread):
                         if not impl.taskSpec.checkAttrLength():
                             tmpLog.error(impl.taskSpec.errorDialog)
                             tmpStat = Interaction.SC_FAILED
+                    # staging
+                    if tmpStat == Interaction.SC_SUCCEEDED:
+                        if 'toStaging' in taskParamMap and taskStatus <> 'staged':
+                            errStr = 'wait until staging is done'
+                            impl.taskSpec.status = 'staging'
+                            impl.taskSpec.oldStatus = taskStatus
+                            impl.taskSpec.setErrDiag(errStr)
+                            # not to update some task attributes
+                            impl.taskSpec.resetRefinedAttrs()
+                            tmpLog.info(errStr)
+                            self.taskBufferIF.updateTask_JEDI(impl.taskSpec, {'jediTaskID':impl.taskSpec.jediTaskID},
+                                                              oldStatus=[taskStatus], updateDEFT=False, setFrozenTime=False)
+                            continue
                     # check parent
                     noWaitParent = False
                     parentState = None
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        if not parent_tid in [None,jediTaskID]:
+                        if parent_tid not in [None,jediTaskID]:
                             tmpLog.info('check parent task')
                             try:
                                 tmpStat = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
@@ -280,7 +293,7 @@ class TaskRefinerThread (WorkerThread):
                             strTaskParams = None
                             if impl.updatedTaskParams != None:
                                 strTaskParams = RefinerUtils.encodeJSON(impl.updatedTaskParams)
-                            if taskStatus == 'registered':
+                            if taskStatus in ['registered', 'staged']:
                                 # unset pre-process flag
                                 if impl.taskSpec.checkPreProcessed():
                                     impl.taskSpec.setPostPreProcess()

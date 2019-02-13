@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/13/2019
+  * added toStaging
+
 * 2/5/2019
   * using nClosed in AtlasAJB
 

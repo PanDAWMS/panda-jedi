@@ -1807,7 +1807,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug(sqlD+comment+str(varMap))
                         self.cur.execute(sqlD+comment,varMap)
                         self.setSuperStatus_JEDI(taskSpec.jediTaskID,taskSpec.status)
-                elif taskSpec.status in ['running','broken','assigning','scouting','aborted','aborting','exhausted']:
+                elif taskSpec.status in ['running','broken','assigning','scouting','aborted','aborting','exhausted', 'staging']:
                     # update DEFT task status
                     if taskSpec.status == 'scouting':
                         deftStatus = 'submitting'
@@ -4818,11 +4818,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':status1'] = 'registered'
             varMap[':status2'] = JediTaskSpec.commandStatusMap()['incexec']['done']
+            varMap[':status3'] = 'staged'
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
             sqlOrpS  = "SELECT tabT.jediTaskID,tabT.splitRule,tabT.status,tabT.parent_tid "
             sqlOrpS += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlOrpS += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
-            sqlOrpS += "AND tabT.status IN (:status1,:status2) AND tabT.modificationtime<:timeLimit "
+            sqlOrpS += "AND tabT.status IN (:status1,:status2,:status3) AND tabT.modificationtime<:timeLimit "
             if vo != None:
                 sqlOrpS += 'AND vo=:vo '
                 varMap[':vo'] = vo
@@ -6958,16 +6959,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                                            commandStr,taskStatus))
                                     isOK = False
                             elif commandStr == 'resume':
-                                if not taskStatus in ['paused','throttled']:
+                                if not taskStatus in ['paused','throttled', 'staging']:
                                     # task is in a status which rejects resume
                                     tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for resume".format(jediTaskID,
                                                                                                                             commandStr,taskStatus))
                                     isOK = False
                             elif commandStr == 'avalanche':
                                 if not taskStatus in ['scouting']:
-                                    # task is in a status which rejects resume
-                                    tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for resume".format(jediTaskID,
-                                                                                                                            commandStr,taskStatus))
+                                    # task is in a status which rejects avalanche
+                                    tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not for avalanche".format(jediTaskID,
+                                                                                                                               commandStr,taskStatus))
                                     isOK = False
                             elif taskStatus in JediTaskSpec.statusToRejectExtChange():
                                 # task is in a status which rejects external changes
@@ -6981,6 +6982,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     changeStatusOnly = True
                                 elif commandStr in ['avalanche']:
                                     newTaskStatus = 'scouting'
+                                    changeStatusOnly = True
+                                elif commandStr == 'resume' and taskStatus == 'staging':
+                                    newTaskStatus = 'staged'
                                     changeStatusOnly = True
                                 elif commandStatusMap.has_key(commandStr):
                                     newTaskStatus = commandStatusMap[commandStr]['doing']
@@ -7028,9 +7032,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         else:
                             # update T_TASK
                             if newTaskStatus in ['paused'] or \
-                                    (newTaskStatus in ['running', 'ready', 'scouting'] and taskStatus in ['paused', 'exhausted']):
+                                    (newTaskStatus in ['running', 'ready', 'scouting'] and taskStatus in ['paused', 'exhausted']) or \
+                                    newTaskStatus in ['staged']:
                                 if newTaskStatus == 'scouting':
                                     deftStatus = 'submitting'
+                                elif newTaskStatus == 'staged':
+                                    deftStatus = 'registered'
                                 else:
                                     deftStatus = newTaskStatus
                                 self.setDeftStatus_JEDI(jediTaskID, deftStatus)
