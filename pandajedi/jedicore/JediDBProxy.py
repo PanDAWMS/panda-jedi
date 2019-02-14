@@ -11810,7 +11810,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlAV += "FROM {0}.JEDI_Tasks t,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
             sqlAV += "WHERE t.prodSourceLabel=:prodSourceLabel AND t.vo=:vo AND t.useJumbo IS NOT NULL "
             sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) "
-            sqlAV += "AND t.gshare NOT IN (:gs1) " 
             sqlAV += "AND d.jediTaskID=t.jediTaskID AND d.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ':type_' + tmpType
@@ -11842,7 +11841,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':s3'] = 'scouting'
             varMap[':s4'] = 'ready'
             varMap[':s5'] = 'scouted'
-            varMap[':gs1'] = 'Validation'
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ':type_'+tmpType
                 varMap[mapKey] = tmpType
