@@ -10932,13 +10932,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            retVal = ''
+            retVal = None
             outFileMap = dict()
             # sql to get PandaID of the first job
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
             sql  = "SELECT * FROM ("
-            sql += "SELECT PandaID "
+            sql += "SELECT tabF.datasetID,tabF.fileID "
             sql += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID "
             sql += "AND tabD.datasetID=tabF.datasetID "
@@ -10952,6 +10952,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql += ") "
             sql += "ORDER BY fileID "
             sql += ") WHERE rownum<2 "
+            # sql to get PandaIDs
+            sqlP = "SELECT PandaID FROM {0}.filesTable4 WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID ".format(jedi_config.db.schemaPANDA)
+            sqlPA = "SELECT PandaID FROM {0}.filesTable_arch WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID ".format(jedi_config.db.schemaPANDAARCH)
             # sql to get jobParms
             sqlJ  = "SELECT jobParameters FROM {0}.jobParamsTable WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
             sqlJA = "SELECT jobParameters FROM {0}.jobParamsTable_ARCH WHERE PandaID=:PandaID".format(jedi_config.db.schemaPANDAARCH)
@@ -10962,8 +10965,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.conn.begin()
             self.cur.execute(sql+comment,varMap)
             res = self.cur.fetchone()
-            if res != None and res[0] != None:
-                pandaID = res[0]
+            if res is not None:
+                datasetID, fileID = res
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':datasetID'] = datasetID
+                varMap[':fileID'] = fileID
+                self.cur.execute(sqlP+comment, varMap)
+                resP = self.cur.fetchone()
+                if resP is None:
+                    self.cur.execute(sqlPA+comment, varMap)
+                    resP = self.cur.fetchone()
+                pandaID, = resP
                 varMap = {}
                 varMap[':PandaID'] = pandaID
                 self.cur.execute(sqlJ+comment,varMap)
@@ -10973,7 +10986,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     except:
                         retVal = str(clobJobP)
                     break
-                if retVal == '':
+                if retVal is None:
                     self.cur.execute(sqlJA+comment,varMap)
                     for clobJobP, in self.cur:
                         try:
@@ -11002,7 +11015,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return retVal, outFileMap
+            return None, None
 
 
 

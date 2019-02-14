@@ -1384,9 +1384,9 @@ class JobGeneratorThread (WorkerThread):
             # make jumbo jobs
             if taskSpec.getNumJumboJobs() is not None and inputChunk.useJumbo is not None and taskSpec.status == 'running':
                 if inputChunk.useJumbo == 'only':
-                    jobSpecList = self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul,outDsMap)
+                    jobSpecList = self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul,outDsMap, tmpLog)
                 else:
-                    jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul,outDsMap)
+                    jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul,outDsMap, tmpLog)
             # return
             return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap
         except:
@@ -2056,7 +2056,7 @@ class JobGeneratorThread (WorkerThread):
 
 
     # make jumbo jobs
-    def makeJumboJobs(self,pandaJobs,taskSpec,inputChunk,simul,outDsMap):
+    def makeJumboJobs(self,pandaJobs,taskSpec,inputChunk,simul,outDsMap,tmpLog):
         jumboJobs = []
         # no original
         if len(pandaJobs) == 0:
@@ -2099,6 +2099,9 @@ class JobGeneratorThread (WorkerThread):
         # get job parameter of the first job
         if nJumbo > 0:
             jobParams, outFileMap = self.taskBufferIF.getJobParamsOfFirstJob_JEDI(taskSpec.jediTaskID)
+            if jobParams is None:
+                tmpLog.error('cannot get first job for jumbo')
+                return jumboJobs
         # make jumbo jobs
         for iJumbo in range(nJumbo):
             newJumboJob = self.clonePandaJob(pandaJobs[0],iJumbo,{},outDsMap,newSites,True,
