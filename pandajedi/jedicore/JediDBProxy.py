@@ -12067,8 +12067,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql to kick
             sqlAV = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlAV += "SET useJumbo=:useJumboL,status=oldStatus,oldStatus=NULL " 
-            sqlAV += "WHERE jediTaskID=:jediTaskID AND useJumbo=:useJumboP " 
+            sqlAV += "SET useJumbo=:useJumboL " 
+            sqlAV += "WHERE jediTaskID=:jediTaskID AND useJumbo IN (:useJumboP,:useJumboR) " 
             sqlAV += "AND status=:status AND lockedBy IS NULL "
             self.conn.begin()
             # get tasks
@@ -12077,6 +12077,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status'] = 'pending'
             varMap[':useJumboL'] = JediTaskSpec.enum_useJumbo['lack']
             varMap[':useJumboP'] = JediTaskSpec.enum_useJumbo['pending']
+            varMap[':useJumboR'] = JediTaskSpec.enum_useJumbo['running']
             self.cur.execute(sqlAV+comment, varMap)
             nDone = self.cur.rowcount
             # commit
