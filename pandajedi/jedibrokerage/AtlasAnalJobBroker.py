@@ -338,10 +338,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     continue
             ######################################
             # selection for release
-            if taskSpec.transHome != None:
+            if taskSpec.transHome is not None or (taskSpec.processingType is not None and taskSpec.processingType.endswith('jedi-cont')):
                 useANY = True
                 unified_site_list = self.get_unified_sites(scanSiteList)
-                if taskSpec.transHome.startswith('ROOT'):
+                if taskSpec.transHome is not None:
+                    transHome = taskSpec.transHome
+                else:
+                    transHome = ''
+                if transHome.startswith('ROOT'):
                     # hack until x86_64-slc6-gcc47-opt is published in installedsw
                     if taskSpec.architecture == 'x86_64-slc6-gcc47-opt':
                         tmpCmtConfig = 'x86_64-slc6-gcc46-opt'
@@ -350,25 +354,25 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                              cmtConfig=tmpCmtConfig,
                                                                              onlyCmtConfig=True)
-                elif 'AthAnalysis' in taskSpec.transHome or re.search('Ath[a-zA-Z]+Base',taskSpec.transHome) != None \
-                        or 'AnalysisBase' in taskSpec.transHome:
+                elif 'AthAnalysis' in transHome or re.search('Ath[a-zA-Z]+Base',transHome) != None \
+                        or 'AnalysisBase' in transHome:
                     # AthAnalysis
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                              cmtConfig=taskSpec.architecture,
                                                                              onlyCmtConfig=True)
                 else:    
                     # remove AnalysisTransforms-
-                    transHome = re.sub('^[^-]+-*','',taskSpec.transHome)
+                    transHome = re.sub('^[^-]+-*','',transHome)
                     transHome = re.sub('_','-',transHome)
-                    if re.search('rel_\d+(\n|$)',taskSpec.transHome) == None and taskSpec.transHome != 'AnalysisTransforms' and \
-                            re.search('\d{4}-\d{2}-\d{2}T\d{4}$',taskSpec.transHome) == None and \
-                            re.search('_\d+\.\d+\.\d+$',taskSpec.transHome) is None:
+                    if re.search('rel_\d+(\n|$)',transHome) == None and taskSpec.transHome not in ['AnalysisTransforms', None] and \
+                            re.search('\d{4}-\d{2}-\d{2}T\d{4}$',transHome) == None and \
+                            re.search('_\d+\.\d+\.\d+$',transHome) is None:
                         # cache is checked 
                         siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                                  caches=transHome,
                                                                                  cmtConfig=taskSpec.architecture)
                     elif (transHome == '' and taskSpec.transUses != None) or \
-                            (re.search('_\d+\.\d+\.\d+$',taskSpec.transHome) is not None and \
+                            (re.search('_\d+\.\d+\.\d+$',transHome) is not None and \
                                  (taskSpec.transUses is None or re.search('-\d+\.\d+$',taskSpec.transUses) is None)):
                         # remove Atlas-
                         transUses = taskSpec.transUses.split('-')[-1]
@@ -387,7 +391,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         siteListWithCMTCONFIG = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                                         cmtConfig=taskSpec.architecture,
                                                                                         onlyCmtConfig=True)
-                        siteListWithSW = set(siteListWithCVMFS) & set(siteListWithCMTCONFIG)
+                        if taskSpec.transHome is not None:
+                            siteListWithSW = set(siteListWithCVMFS) & set(siteListWithCMTCONFIG)
+                        else:
+                            siteListWithSW = siteListWithCMTCONFIG
                 newScanSiteList = []
                 for tmpSiteName in unified_site_list:
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
