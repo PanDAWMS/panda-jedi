@@ -11817,7 +11817,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlAV = sqlAV[:-1]
             sqlAV += ') AND d.masterID IS NULL '
             # sql to get event stat info
-            sqlFR = "SELECT /se*+ INDEX_RS_ASC(tab JEDI_EVENTS_PK) NO_INDEX(tab JEDI_EVENTS_PANDAID_STATUS_IDX)*/ "
+            sqlFR = "SELECT /*+ INDEX_RS_ASC(tab JEDI_EVENTS_PK) NO_INDEX(tab JEDI_EVENTS_PANDAID_STATUS_IDX)*/ "
             sqlFR += "status,COUNT(*) "
             sqlFR += "FROM {0}.JEDI_Events tab ".format(jedi_config.db.schemaJEDI)
             sqlFR += "WHERE jediTaskID=:jediTaskID GROUP BY status "
