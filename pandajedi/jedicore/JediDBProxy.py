@@ -12090,3 +12090,118 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+
+    # reset input to re-generate co-jumbo jobs
+    def resetInputToReGenCoJumbo_JEDI(self, jediTaskID):
+        comment = ' /* JediDBProxy.resetInputToReGenCoJumbo_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} >".format(jediTaskID)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            nReset = 0
+            # sql to get JDI files
+            sqlF = "SELECT c.datasetID,c.fileID FROM {0}.JEDI_Datasets d, {0}.JEDI_Dataset_Contents c ".format(jedi_config.db.schemaJEDI)
+            sqlF += "WHERE d.jediTaskID=:jediTaskID AND d.type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_' + tmpType
+                sqlF += '{0},'.format(mapKey)
+            sqlF = sqlF[:-1]
+            sqlF += ') AND d.masterID IS NULL '
+            sqlF += 'AND c.jediTaskID=d.jediTaskID AND c.datasetID=d.datasetID AND c.status=:status '
+            # sql to get PandaIDs
+            sqlP = "SELECT PandaID FROM {0}.filesTable4 ".format(jedi_config.db.schemaPANDA)
+            sqlP += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileid=:fileID "
+            sqlP += "ORDER BY PandaID DESC "
+            # sql to check jobs
+            sqlJ = "SELECt 1 FROM {0}.jobsWaiting4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
+            sqlJ += "UNION "
+            sqlJ += "SELECt 1 FROM {0}.jobsDefined4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
+            sqlJ += "UNION "
+            sqlJ += "SELECt 1 FROM {0}.jobsActive4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
+            # sql to get files
+            sqlFL = "SELECT datasetID,fileID FROM {0}.filesTable4 WHERE PandaID=:PandaID AND type IN (".format(jedi_config.db.schemaPANDA)
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_' + tmpType
+                sqlFL += '{0},'.format(mapKey)
+            sqlFL = sqlFL[:-1]
+            sqlFL += ') '
+            # sql to update files
+            sqlUF = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlUF += "SET status=:newStatus,proc_status=:proc_status,attemptNr=attemptNr+1,maxAttempt=maxAttempt+1,"
+            sqlUF += "maxFailure=(CASE WHEN maxFailure IS NULL THEN NULL ELSE maxFailure+1 END) " 
+            sqlUF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID=:fileID " 
+            sqlUF += "AND status=:oldStatus AND keepTrack=:keepTrack "
+            # sql to update datasets
+            sqlUD = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlUD += "SET nFilesUsed=nFilesUsed-1 WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            self.conn.begin()
+            # get JEDI files
+            varMap = dict()
+            varMap[':jediTaskID'] = jediTaskID
+            varMap[':status'] = 'running'
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_'+tmpType
+                varMap[mapKey] = tmpType
+            self.cur.execute(sqlF + comment, varMap)
+            resF = self.cur.fetchall()
+            # get PandaIDs
+            for datasetID, fileID in resF:
+                varMap = dict()
+                varMap[':jediTaskID'] = jediTaskID
+                varMap[':datasetID'] = datasetID
+                varMap[':fileID'] = fileID
+                self.cur.execute(sqlP + comment, varMap)
+                resP = self.cur.fetchall()
+                # check jobs
+                hasJob = False
+                for PandaID, in resP:
+                    varMap = dict()
+                    varMap[':PandaID'] = PandaID
+                    self.cur.execute(sqlJ + comment, varMap)
+                    resJ = self.cur.fetchone()
+                    if resJ is not None:
+                        hasJob = True
+                        break
+                # get files
+                if not hasJob:
+                    varMap = dict()
+                    varMap[':PandaID'] = PandaID
+                    for tmpType in JediDatasetSpec.getInputTypes():
+                        mapKey = ':type_'+tmpType
+                        varMap[mapKey] = tmpType
+                    self.cur.execute(sqlFL + comment, varMap)
+                    resFL = self.cur.fetchall()
+                    # update file
+                    for f_datasetID, f_fileID in resFL:
+                        varMap = dict()
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':datasetID'] = f_datasetID
+                        varMap[':fileID'] = f_fileID
+                        varMap[':oldStatus'] = 'running'
+                        varMap[':newStatus'] = 'ready'
+                        varMap[':proc_status'] = 'ready'
+                        varMap[':keepTrack'] = 1
+                        self.cur.execute(sqlUF + comment, varMap)
+                        nRow = self.cur.rowcount
+                        tmpLog.debug("reset datasetID={0} fileID={1} with {2}".format(f_datasetID, f_fileID, nRow))                        
+                        if nRow > 0:
+                            varMap = dict()
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID'] = f_datasetID
+                            self.cur.execute(sqlUD + comment, varMap)                            
+                            nReset += 1
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            # return
+            tmpLog.debug("done with {0}".format(nReset))
+            return nReset
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None

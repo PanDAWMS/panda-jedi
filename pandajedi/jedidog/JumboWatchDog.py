@@ -105,6 +105,13 @@ class JumboWatchDog:
                     if nActiveJumbo == 0:
                         self.log.info('component={0} kick jumbo in pending jediTaskID={1}'.format(self.component, jediTaskID))
                         self.taskBufferIF.kickPendingTasksWithJumbo_JEDI(jediTaskID)
+                # reset input to re-generate co-jumbo
+                if taskData['currentPriority'] >= prioToBoost:
+                    nReset = self.taskBufferIF.resetInputToReGenCoJumbo_JEDI(jediTaskID)
+                    if nReset is not None and nReset > 0:
+                        self.log.info('component={0} reset {1} inputs to regenerate co-jumbo for jediTaskID={2}'.format(self.component, nReset, jediTaskID))
+                    else:
+                        self.log.debug('component={0} tried to reset inputs to regenerate co-jumbo with {1} for jediTaskID={2}'.format(self.component, nReset, jediTaskID))
             self.log.info('component={0} total_events={1} n_events_to_process={2} n_tasks={3} available for jumbo'.format(self.component, totEvents,
                                                                                                                           totEvents - doneEvents, nTasks))
             if self.dryRun or (nTasks < maxTasks and (totEvents - doneEvents) < maxEvents):
@@ -181,3 +188,4 @@ class JumboWatchDog:
             errStr.strip()
             errStr += traceback.format_exc()
             self.log.error(errStr)
+           
