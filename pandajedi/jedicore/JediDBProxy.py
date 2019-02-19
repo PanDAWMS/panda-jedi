@@ -4452,6 +4452,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "AND workQueue_ID=:wq_id "
                 varMap[':wq_id'] = workQueue.queue_id
             sql += "GROUP BY processingType "
+            # sql to get config
+            sqlC = "SELECT key,value FROM ATLAS_PANDA.CONFIG "
+            sqlC += "WHERE app=:app AND component=:component AND vo=:vo AND key LIKE :patt "
             # begin transaction
             self.conn.begin()
             # exec
@@ -4463,6 +4466,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if numFile == None:
                     numFile = 0
                 retMap[processingType] = int(math.ceil(numFile))
+            # get from config
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':app'] = 'jedi'
+            varMap[':component'] = 'jobgen'
+            varMap[':patt'] = 'TYPNFILES_{0}_%'.format(prodSourceLabel)
+            self.cur.execute(sqlC + comment, varMap)
+            resC = self.cur.fetchall()
+            for tmpKey, tmpVal in resC:
+                tmpItems = tmpKey.split('_')
+                if len(tmpItems) != 4:
+                    continue
+                confWorkQueue = tmpItems[2]
+                confProcessingType = tmpItems[3]
+                if confWorkQueue != '' and confWorkQueue != workQueue.queue_name:
+                    continue
+                retMap[confProcessingType] = int(tmpVal)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
