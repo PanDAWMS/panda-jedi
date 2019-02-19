@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/19/2019
+  * improved AtlasAJB for GPU PQs to request architecture matching
+
 * 2/13/2019
   * added toStaging
 

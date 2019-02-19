@@ -319,6 +319,28 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 retVal = retTmpError
                 continue
             ######################################
+            # selection for GPU + architecture
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                if tmpSiteSpec.isGPU():
+                    if taskSpec.architecture in ['', None]:
+                        tmpLog.info('  skip site={0} since architecture is required for GPU queues'.format(tmpSiteName))
+                        continue
+                    siteListWithCMTCONFIG = self.taskBufferIF.checkSitesWithRelease([tmpSiteSpec.get_unified_name()],
+                                                                                    cmtConfig=taskSpec.architecture,
+                                                                                    onlyCmtConfig=True)
+                    if len(siteListWithCMTCONFIG) == 0:
+                        tmpLog.info('  skip site={0} since architecture={1} is unavaiable'.format(tmpSiteName, taskSpec.architecture))
+                        continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList        
+            tmpLog.info('{0} candidates passed for architecture check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                retVal = retTmpError
+                continue
+            ######################################
             # selection for closed
             if not sitePreAssigned and not inputChunk.isMerging:
                 newScanSiteList = []
