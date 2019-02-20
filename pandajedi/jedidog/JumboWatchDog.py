@@ -168,7 +168,7 @@ class JumboWatchDog:
                     # check software
                     transHome = taskData['transHome']
                     cmtConfig = taskData['architecture']
-                    if re.search('^\d+\.\d+\.\d+$', transHome.split('-')) is not None:
+                    if re.search('^\d+\.\d+\.\d+$', transHome.split('-')[-1]) is not None:
                         transHome = transHome.split('-')[-1]
                         swDict = jumboRels
                     else:
