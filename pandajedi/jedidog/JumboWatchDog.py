@@ -79,8 +79,6 @@ class JumboWatchDog:
                                                                                                                                   taskData['nEvents'] - taskData['nEventsDone'],
                                                                                                                                   nEventsToDisable))
                         self.taskBufferIF.enableJumboJobs(jediTaskID, 0, 0)
-                        if taskData['currentPriority'] < prioWhenDisabled:
-                            self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioWhenDisabled)
                     else:
                         # wait
                         nTasks += 1
@@ -89,14 +87,19 @@ class JumboWatchDog:
                         self.log.info('component={0} keep jumbo in jediTaskID={1} due to n_events_to_process={2} > {3}'.format(self.component, jediTaskID,
                                                                                                                                taskData['nEvents'] - taskData['nEventsDone'],
                                                                                                                                nEventsToDisable))
-                # increase priority
+                # increase priority for jumbo disabled
+                if taskData['useJumbo'] == JediTaskSpec.enum_useJumbo['disabled'] and taskData['currentPriority'] < prioWhenDisabled:
+                    self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioWhenDisabled)
+                    self.log.info('component={0} priority boost to {1} after disabing jumbo in in jediTaskID={2}'.format(self.component, prioWhenDisabled, jediTaskID))
+                # increase priority when close to completion
                 if taskData['nEvents'] > 0 and (taskData['nEvents'] - taskData['nEventsDone']) * 100 / taskData['nEvents'] < progressToBoost \
                         and taskData['currentPriority'] < prioToBoost and (taskData['nFiles'] - taskData['nFilesDone']) < maxFilesToBoost:
                     # boost
-                    tmpStr = 'component={0} priority boost for jediTaskID={1} due to n_events_done={2} > {3}*{4}% '.format(self.component, jediTaskID,
-                                                                                                                           taskData['nEventsDone'],
-                                                                                                                           taskData['nEvents'],
-                                                                                                                           progressToBoost)
+                    tmpStr = 'component={0} priority boost to {5} for jediTaskID={1} due to n_events_done={2} > {3}*{4}% '.format(self.component, jediTaskID,
+                                                                                                                                  taskData['nEventsDone'],
+                                                                                                                                  taskData['nEvents'],
+                                                                                                                                  progressToBoost,
+                                                                                                                                  prioToBoost)
                     tmpStr += 'n_files_remaining={0} < {1}'.format(taskData['nFiles'] - taskData['nFilesDone'], maxFilesToBoost)
                     self.log.info(tmpStr)
                     self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioToBoost)
