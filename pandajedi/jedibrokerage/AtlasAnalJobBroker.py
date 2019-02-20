@@ -406,16 +406,22 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                                   caches=transHome,
                                                                                   cmtConfig=taskSpec.architecture)
                     else:
-                        # nightlies
+                        # nightlies or standalone
                         useANY = False
                         siteListWithCVMFS = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                                     releases='CVMFS')
-                        siteListWithCMTCONFIG = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                        cmtConfig=taskSpec.architecture,
-                                                                                        onlyCmtConfig=True)
+                        if taskSpec.architecture in ['', None]:
+                            # architecture is not set
+                            siteListWithCMTCONFIG = copy.copy(unified_site_list)
+                        else:
+                            siteListWithCMTCONFIG = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
+                                                                                            cmtConfig=taskSpec.architecture,
+                                                                                            onlyCmtConfig=True)
                         if taskSpec.transHome is not None:
+                            # CVMFS check
                             siteListWithSW = set(siteListWithCVMFS) & set(siteListWithCMTCONFIG)
                         else:
+                            # no CVMFS check for standalone SW
                             siteListWithSW = siteListWithCMTCONFIG
                 newScanSiteList = []
                 for tmpSiteName in unified_site_list:
