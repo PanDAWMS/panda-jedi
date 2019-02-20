@@ -147,13 +147,13 @@ class JumboWatchDog:
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                         taskParamMap = RefinerUtils.decodeJSON(taskParam)
                     except Exception:
-                        tmpLog.error('failed to get task params for jediTaskID={0}'.format(jediTaskID))
+                        self.log.error('component={0} failed to get task params for jediTaskID={1}'.format(self.component, jediTaskID))
                         continue
                     taskSpec = JediTaskSpec()
                     taskSpec.splitRule = taskData['splitRule']
                     # check if good for jumbo
                     if 'esConvertible' not in taskParamMap or taskParamMap['esConvertible'] is False:
-                        tmpLog.info('skip to enable jumbo for jediTaskID={0} since not ES-convertible'.format(jediTaskID))
+                        self.log.info('component={0} skip to enable jumbo for jediTaskID={1} since not ES-convertible'.format(self.component, jediTaskID))
                         continue
                     if taskSpec.inFilePosEvtNum():
                         pass
@@ -163,7 +163,7 @@ class JumboWatchDog:
                             and taskSpec.getNumEventsPerJob() <= taskParamMap['nEventsPerInputFile']:
                         pass
                     else:
-                        tmpLog.info('skip to enable jumbo for jediTaskID={0} since not good for in-file positional event numbers'.format(jediTaskID))
+                        self.log.info('component={0} skip to enable jumbo for jediTaskID={1} since not good for in-file positional event numbers'.format(self.component, jediTaskID))
                         continue
                     # check software
                     transHome = taskData['transHome']
@@ -175,9 +175,11 @@ class JumboWatchDog:
                         swDict = jumboCaches
                     key = (transHome, cmtConfig)
                     if key not in swDict:
-                        tmpLog.info('skip to enable jumbo for jediTaskID={0} since {1}:{2} is unavailable at jumbo job enabled PQs'.format(jediTaskID,
-                                                                                                                                           transHome,
-                                                                                                                                           cmtConfig))
+                        self.log.info('component={0} skip to enable jumbo for jediTaskID={1} since {2}:{3} is unavailable at jumbo job enabled PQs'.format(
+                                self.component,
+                                jediTaskID,
+                                transHome,
+                                cmtConfig))
                         continue
                     if not self.dryRun:
                         self.log.info('component={0} enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
