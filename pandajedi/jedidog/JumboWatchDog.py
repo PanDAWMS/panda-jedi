@@ -144,6 +144,9 @@ class JumboWatchDog:
                     taskSpec = JediTaskSpec()
                     taskSpec.splitRule = taskData['splitRule']
                     # check if good for jumbo
+                    if 'esConvertible' not in taskParamMap or taskParamMap['esConvertible'] is False:
+                        tmpLog.info('skip to enable jumbo for jediTaskID={0} since not ES-convertible'.format(jediTaskID))
+                        continue
                     if taskSpec.inFilePosEvtNum():
                         pass
                     elif taskSpec.getNumFilesPerJob() == 1:
@@ -171,15 +174,20 @@ class JumboWatchDog:
                     if not self.dryRun:
                         self.log.info('component={0} enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
                                                                                                                          taskData['nEvents'] - taskData['nEventsDone']))
+                        if taskData['eventService'] == 0:
+                            tmpS, tmpO = self.taskBufferIF.enableEventService(taskData['jediTaskID'])
+                            if tmpS != 0:
+                                self.log.error('component={0} failed to enable ES in jediTaskID={1} with {2}'.format(self.component, jediTaskID, tmpO))
+                                continue
                         self.taskBufferIF.enableJumboJobs(taskData['jediTaskID'], nJumboPerTask, nJumboPerSite)
+                        nTasks += 1
+                        totEvents += taskData['nEvents']
+                        doneEvents += taskData['nEventsDone']
+                        if nTasks >= maxTasks or (totEvents - doneEvents) >= maxEvents:
+                            break
                     else:
                         self.log.info('component={0} good to enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
                                                                                                                                  taskData['nEvents'] - taskData['nEventsDone']))
-                    nTasks += 1
-                    totEvents += taskData['nEvents']
-                    doneEvents += taskData['nEventsDone']
-                    if nTasks >= maxTasks or (totEvents - doneEvents) >= maxEvents:
-                        break
             self.log.debug('component={0} done'.format(self.component))
         except Exception:
             # error

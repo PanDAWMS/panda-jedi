@@ -11935,11 +11935,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get tasks
-            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,d.nEvents,t.currentPriority,t.transHome,t.architecture "
+            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,d.nEvents,d.nEventsUsed,t.currentPriority,t.transHome,t.architecture,t.eventService "
             sqlAV += "FROM {0}.JEDI_Tasks t,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
             sqlAV += "WHERE t.prodSourceLabel=:prodSourceLabel AND t.vo=:vo AND t.useJumbo IS NULL "
             sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) AND t.site IS NULL "
-            sqlAV += "AND t.gshare NOT IN (:gs1) AND t.eventService=:eventService " 
+            sqlAV += "AND t.gshare NOT IN (:gs1) AND (t.eventService=:eventService OR t.processingType=:processingType) " 
             sqlAV += "AND d.jediTaskID=t.jediTaskID AND d.type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ':type_' + tmpType
@@ -11963,6 +11963,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':s5'] = 'scouted'
             varMap[':eventService'] = 1
             varMap[':gs1'] = 'Validation'
+            varMap[':processingType'] = 'simul'
             varMap[':minEvents'] = nEventsToEnable
             varMap[':maxPrio'] = maxPrio
             for tmpType in JediDatasetSpec.getInputTypes():
@@ -11972,13 +11973,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resAV = self.cur.fetchall()
             tmpLog.debug('got tasks')
             tasksMap = dict()
-            for jediTaskID, taskStatus, splitRule, nEvents, currentPriority, transHome, architecture in resAV:
+            for jediTaskID, taskStatus, splitRule, nEvents, nEventsUsed,\
+                    currentPriority, transHome, architecture, eventService in resAV:
                 taskData = dict()
                 taskData['taskStatus'] = taskStatus
                 taskData['currentPriority'] = currentPriority
                 taskData['nEvents'] = nEvents
                 taskData['splitRule'] = splitRule
                 taskData['transHome'] = transHome
+                taskData['eventService'] = eventService
                 taskData['architecture'] = architecture
                 taskSpec = JediTaskSpec()
                 taskSpec.splitRule = splitRule
@@ -11988,17 +11991,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if taskSpec.useJobCloning():
                     tmpLog.debug('skip jediTaskID={0} since job cloning'.format(jediTaskID))
                     continue
-                varMap = dict()
-                varMap[':jediTaskID'] = jediTaskID
-                self.cur.execute(sqlFR+comment, varMap)
-                resFR = self.cur.fetchall()
-                nEventsDone = 0
-                nEventsRunning = 0
-                for eventStatus,eventCount in resFR:
-                    if eventStatus in [EventServiceUtils.ST_done, EventServiceUtils.ST_finished, EventServiceUtils.ST_merged]:
-                        nEventsDone += eventCount
-                    elif eventStatus in [EventServiceUtils.ST_sent, EventServiceUtils.ST_running]:
-                        nEventsRunning += eventCount
+                if eventService == 1:
+                    # get nEvents from event table
+                    varMap = dict()
+                    varMap[':jediTaskID'] = jediTaskID
+                    self.cur.execute(sqlFR+comment, varMap)
+                    resFR = self.cur.fetchall()
+                    nEventsDone = 0
+                    nEventsRunning = 0
+                    for eventStatus,eventCount in resFR:
+                        if eventStatus in [EventServiceUtils.ST_done, EventServiceUtils.ST_finished, EventServiceUtils.ST_merged]:
+                            nEventsDone += eventCount
+                        elif eventStatus in [EventServiceUtils.ST_sent, EventServiceUtils.ST_running]:
+                            nEventsRunning += eventCount
+                else:
+                    # use nEvents in file table
+                    nEventsDone = nEventsUsed
+                    nEventsRunning = 0
                 if nEvents - nEventsDone < nEventsToEnable:
                     tmpLog.debug('skip jediTaskID={0} since not enough events {1} < {2}'.format(jediTaskID, nEvents - nEventsDone,
                                                                                                 nEventsToEnable))
