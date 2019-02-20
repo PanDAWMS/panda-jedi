@@ -62,6 +62,9 @@ class JumboWatchDog:
             if maxFilesToBoost is None:
                 maxFilesToBoost = 500
             prioToBoost = 900
+            prioWhenDisabled = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_PRIO_DISABLED', 'jedi', self.vo)
+            if prioWhenDisabled is None:
+                prioWhenDisabled = 500
             # get current info
             tasksWithJumbo = self.taskBufferIF.getTaskWithJumbo_JEDI(self.vo, self.prodSourceLabel)
             totEvents = 0
@@ -76,6 +79,8 @@ class JumboWatchDog:
                                                                                                                                   taskData['nEvents'] - taskData['nEventsDone'],
                                                                                                                                   nEventsToDisable))
                         self.taskBufferIF.enableJumboJobs(jediTaskID, 0, 0)
+                        if taskData['currentPriority'] < prioWhenDisabled:
+                            self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioWhenDisabled)
                     else:
                         # wait
                         nTasks += 1
