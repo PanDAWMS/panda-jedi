@@ -11826,7 +11826,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get tasks
-            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,t.useJumbo,d.nEvents,t.currentPriority,d.nFiles,d.nFilesFinished,d.nFilesFailed,t.site "
+            sqlAV = "SELECT t.jediTaskID,t.status,t.splitRule,t.useJumbo,d.nEvents,t.currentPriority,"
+            sqlAV += "d.nFiles,d.nFilesFinished,d.nFilesFailed,t.site,d.nEventsUsed "
             sqlAV += "FROM {0}.JEDI_Tasks t,{0}.JEDI_Datasets d ".format(jedi_config.db.schemaJEDI)
             sqlAV += "WHERE t.prodSourceLabel=:prodSourceLabel AND t.vo=:vo AND t.useJumbo IS NOT NULL "
             sqlAV += "AND t.status IN (:s1,:s2,:s3,:s4,:s5) "
@@ -11838,9 +11839,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlAV += ') AND d.masterID IS NULL '
             # sql to get event stat info
             sqlFR = "SELECT /*+ INDEX_RS_ASC(tab JEDI_EVENTS_PK) NO_INDEX(tab JEDI_EVENTS_PANDAID_STATUS_IDX)*/ "
-            sqlFR += "status,COUNT(*) "
-            sqlFR += "FROM {0}.JEDI_Events tab ".format(jedi_config.db.schemaJEDI)
-            sqlFR += "WHERE jediTaskID=:jediTaskID GROUP BY status "
+            sqlFR += "tab.status,COUNT(*) "
+            sqlFR += "FROM {0}.JEDI_Events tab,{0}.JEDI_Dataset_Contents c ".format(jedi_config.db.schemaJEDI)
+            sqlFR += "WHERE tab.jediTaskID=:jediTaskID AND c.jediTaskID=tab.jediTaskID AND c.datasetid=tab.datasetID "
+            sqlFR += "AND c.fileID=tab.fileID AND c.status<>:status "
+            sqlFR += "GROUP BY tab.status "
             # sql to get jumbo jobs
             sqlUO  = "SELECT computingSite,jobStatus FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
             sqlUO += "WHERE jediTaskID=:jediTaskID AND eventService=:eventService "
@@ -11869,7 +11872,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('got tasks')
             tasksWithJumbo = dict()
             for jediTaskID, taskStatus, splitRule, useJumbo, nEvents, currentPriority, \
-                    nFiles, nFilesFinished, nFilesFailed, taskSite in resAV:
+                    nFiles, nFilesFinished, nFilesFailed, taskSite, nEventsUsed in resAV:
                 tasksWithJumbo[jediTaskID] = dict()
                 taskData = tasksWithJumbo[jediTaskID]
                 taskData['taskStatus'] = taskStatus
@@ -11887,10 +11890,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # get event stat info
                 varMap = dict()
                 varMap[':jediTaskID'] = jediTaskID
+                varMap[':status'] = 'finished'
                 self.cur.execute(sqlFR+comment, varMap)
                 resFR = self.cur.fetchall()
                 tmpLog.debug('got event stat info for jediTaskID={0}'.format(jediTaskID))
-                nEventsDone = 0
+                nEventsDone = nEventsUsed
                 nEventsRunning = 0
                 for eventStatus,eventCount in resFR:
                     if eventStatus in [EventServiceUtils.ST_done, EventServiceUtils.ST_finished, EventServiceUtils.ST_merged]:
