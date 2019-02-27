@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/27/2019
+  * checking nNewJobs when setting exhausted after scouts
+
 * 2/19/2019
   * improved AtlasAJB for GPU PQs to request architecture matching
 

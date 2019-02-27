@@ -5259,7 +5259,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlCore  = "SELECT corepower FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
         sqlCore += "WHERE siteID=:site "
         # get nJobs
-        sqlNumJobs = "SELECT SUM(nFiles),SUM(nFilesFinished) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+        sqlNumJobs = "SELECT SUM(nFiles),SUM(nFilesFinished),SUM(nFilesUsed) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
         sqlNumJobs += "WHERE jediTaskID=:jediTaskID AND type IN ("
         for tmpType in JediDatasetSpec.getInputTypes():
             mapKey = ':type_'+tmpType
@@ -5403,6 +5403,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         totalJobs = 0
         totFiles = 0
         totFinished = 0
+        nNewJobs = 0
         if not mergeScout:
             varMap = dict()
             varMap[':jediTaskID'] = jediTaskID
@@ -5412,13 +5413,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlNumJobs+comment,varMap)
             resNumJobs = self.cur.fetchone()
             if resNumJobs is not None:
-                totFiles, totFinished = resNumJobs
+                totFiles, totFinished, totUsed = resNumJobs
                 if totFinished > 0:
                     totalJobs = int(totFiles * len(pandaIDList) / totFinished)
+                    nNewJobs = int((totFiles - totUsed) * len(pandaIDList) / totFinished)
         extraInfo['expectedNumJobs'] = totalJobs
         extraInfo['numFinishedJobs'] = len(pandaIDList)
         extraInfo['nFiles'] = totFiles
         extraInfo['nFilesFinished'] = totFinished
+        extraInfo['nNewJobs'] = nNewJobs
         # loop over all jobs
         loopPandaIDs = inFSizeMap.keys()
         for loopPandaID in loopPandaIDs:
@@ -5832,7 +5835,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
         # go to exhausted if necessary
-        if useExhausted and scoutSucceeded:
+        nNewJobsCutoff = 20
+        if useExhausted and scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
             # check cpuTime
             if taskSpec.useHS06() and 'cpuTime' in scoutData and 'execTime' in extraInfo:
                 minExecTime = 24
@@ -5855,7 +5859,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
         # short job check 
-        if scoutSucceeded:
+        if scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
             # check execution time
             if taskSpec.status != 'exhausted':
                 # get exectime threshold for exausted
