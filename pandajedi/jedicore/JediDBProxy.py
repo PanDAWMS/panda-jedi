@@ -11959,6 +11959,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR += "status,COUNT(*) "
             sqlFR += "FROM {0}.JEDI_Events tab ".format(jedi_config.db.schemaJEDI)
             sqlFR += "WHERE jediTaskID=:jediTaskID GROUP BY status "
+            # sql to get running events
+            sqlRE = "SELECT SUM(c.nEvents) FROM {0}.JEDI_Datasets d,{0}.JEDI_Dataset_Contents c ".format(jedi_config.db.schemaJEDI)
+            sqlRE += "WHERE d.jediTaskID=:jediTaskID AND d.type IN ("
+            for tmpType in JediDatasetSpec.getInputTypes():
+                mapKey = ':type_' + tmpType
+                sqlRE += '{0},'.format(mapKey)
+            sqlRE = sqlRE[:-1]
+            sqlRE += ') AND d.masterID IS NULL '
+            sqlRE += 'AND c.jediTaskID=d.jediTaskID AND c.datasetID=d.datasetID AND c.status=:status '
             self.conn.begin()
             # get tasks
             varMap = dict()
@@ -12012,12 +12021,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             nEventsDone += eventCount
                         elif eventStatus in [EventServiceUtils.ST_sent, EventServiceUtils.ST_running]:
                             nEventsRunning += eventCount
+                    nEventsToProcess = nEvents - nEventsDone
                 else:
                     # use nEvents in file table
                     nEventsDone = nEventsUsed
-                    nEventsRunning = 0
-                if nEvents - nEventsDone < nEventsToEnable:
-                    tmpLog.debug('skip jediTaskID={0} since not enough events {1} < {2}'.format(jediTaskID, nEvents - nEventsDone,
+                    # get nEvents from file table
+                    varMap = dict()
+                    varMap[':jediTaskID'] = jediTaskID
+                    varMap[':status'] = 'running'
+                    for tmpType in JediDatasetSpec.getInputTypes():
+                        mapKey = ':type_'+tmpType
+                        varMap[mapKey] = tmpType
+                    self.cur.execute(sqlRE + comment, varMap)
+                    resRE = self.cur.fetchone()
+                    if resRE is not None:
+                        nEventsRunning, = resRE
+                    else:
+                        nEventsRunning = 0
+                    nEventsToProcess = nEvents - nEventsDone - nEventsRunning
+                if nEventsToProcess < nEventsToEnable:
+                    tmpLog.debug('skip jediTaskID={0} since not enough events {1} < {2}'.format(jediTaskID, nEventsToProcess,
                                                                                                 nEventsToEnable))
                     continue
                 taskData['nEventsDone'] = nEventsDone

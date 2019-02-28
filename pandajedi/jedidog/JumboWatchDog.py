@@ -122,7 +122,7 @@ class JumboWatchDog:
                         self.log.debug('component={0} tried to reset inputs to regenerate co-jumbo with {1} for jediTaskID={2}'.format(self.component, nReset, jediTaskID))
             self.log.info('component={0} total_events={1} n_events_to_process={2} n_tasks={3} available for jumbo'.format(self.component, totEvents,
                                                                                                                           totEvents - doneEvents, nTasks))
-            if self.dryRun or (nTasks < maxTasks and (totEvents - doneEvents) < maxEvents):
+            if True:
                 # get list of releases and caches available at jumbo job enabled PQs
                 jumboRels, jumboCaches = self.taskBufferIF.getRelCacheForJumbo_JEDI()
                 # look for tasks to enable jumbo
@@ -133,7 +133,8 @@ class JumboWatchDog:
                                                                                                                                                              maxTasks,
                                                                                                                                                              maxEvents))
                 tasksToEnableJumbo = self.taskBufferIF.getTaskToEnableJumbo_JEDI(self.vo, self.prodSourceLabel, maxPrio, nEventsToEnable)
-                self.log.debug('component={0} got {1} tasks'.format(self.component, len(tasksToEnableJumbo)))
+                nGoodTasks = 0
+                self.log.debug('component={0} got {1} tasks to check'.format(self.component, len(tasksToEnableJumbo)))
                 # sort by nevents
                 nEventsMap = dict()
                 for jediTaskID, taskData in tasksToEnableJumbo.iteritems():
@@ -181,7 +182,7 @@ class JumboWatchDog:
                                 transHome,
                                 cmtConfig))
                         continue
-                    if not self.dryRun:
+                    if not self.dryRun and nTasks < maxTasks and (totEvents - doneEvents) < maxEvents:
                         self.log.info('component={0} enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
                                                                                                                          taskData['nEvents'] - taskData['nEventsDone']))
                         if taskData['eventService'] == 0:
@@ -193,11 +194,11 @@ class JumboWatchDog:
                         nTasks += 1
                         totEvents += taskData['nEvents']
                         doneEvents += taskData['nEventsDone']
-                        if nTasks >= maxTasks or (totEvents - doneEvents) >= maxEvents:
-                            break
                     else:
+                        nGoodTasks += 1
                         self.log.info('component={0} good to enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
                                                                                                                                  taskData['nEvents'] - taskData['nEventsDone']))
+                self.log.debug('component={0} there are {1} tasks good for jumbo'.format(self.component, nGoodTasks))
             self.log.debug('component={0} done'.format(self.component))
         except Exception:
             # error

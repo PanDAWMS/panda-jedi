@@ -1129,6 +1129,9 @@ class JobGeneratorThread (WorkerThread):
                     # decrement attemptNr of events only when failed
                     if taskSpec.decAttOnFailedES():
                         jobSpec.setDecAttOnFailedES()
+                    # use zip to pin input files
+                    if taskSpec.useZipToPin():
+                        jobSpec.setUseZipToPin()
                     # write input to file
                     if taskSpec.writeInputToFile():
                         jobSpec.setToWriteInputToFile()

@@ -102,6 +102,7 @@ class JediTaskSpec(object):
         'useScout'           : 'US',
         'usePrefetcher'      : 'UT',
         'useExhausted'       : 'UX',
+        'useZipToPin'        : 'UZ',
         'writeInputToFile'   : 'WF',
         'waitInput'          : 'WI',
         'maxAttemptES'       : 'XA',
@@ -1513,6 +1514,16 @@ class JediTaskSpec(object):
     def decAttOnFailedES(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['decAttOnFailedES']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None:
+                return True
+        return False
+
+
+
+    # use zip files to pin input files
+    def useZipToPin(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['useZipToPin']+'=(\d+)', self.splitRule)
             if tmpMatch is not None:
                 return True
         return False

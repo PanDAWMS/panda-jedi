@@ -312,6 +312,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['notDiscardEvents'])
         if 'decAttOnFailedES' in taskParamMap and taskParamMap['decAttOnFailedES'] is True:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['decAttOnFailedES'])
+        if 'useZipToPin' in taskParamMap and taskParamMap['useZipToPin'] is True:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['useZipToPin'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
