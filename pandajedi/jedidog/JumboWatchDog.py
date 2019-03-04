@@ -198,7 +198,7 @@ class JumboWatchDog:
                         nGoodTasks += 1
                         self.log.info('component={0} good to enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
                                                                                                                                  taskData['nEvents'] - taskData['nEventsDone']))
-                self.log.debug('component={0} there are {1} tasks good for jumbo'.format(self.component, nGoodTasks))
+                self.log.info('component={0} there are n_good_tasks={1} tasks good for jumbo'.format(self.component, nGoodTasks))
             self.log.debug('component={0} done'.format(self.component))
         except Exception:
             # error
