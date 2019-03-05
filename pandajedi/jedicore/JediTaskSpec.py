@@ -78,7 +78,8 @@ class JediTaskSpec(object):
         'nJumboJobs'         : 'NJ',
         'nSitesPerJob'       : 'NS',
         'noWaitParent'       : 'NW',
-        'orderByLB'          : 'OL',        
+        'orderByLB'          : 'OL',
+        'osMatching'         : 'OS',
         'pfnList'            : 'PL',
         'putLogToOS'         : 'PO',
         'runUntilClosed'     : 'RC',
@@ -1524,6 +1525,16 @@ class JediTaskSpec(object):
     def useZipToPin(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['useZipToPin']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None:
+                return True
+        return False
+
+
+
+    # require OS matching
+    def osMatching(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['osMatching']+'=(\d+)', self.splitRule)
             if tmpMatch is not None:
                 return True
         return False

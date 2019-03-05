@@ -184,6 +184,9 @@ class TaskRefinerBase (object):
             taskSpec.eventService = 1
         else:
             taskSpec.eventService = 0
+        # OS
+        if 'osInfo' in taskParamMap:
+            taskSpec.termCondition = taskParamMap['osInfo']
         # ttcr: requested time to completion
         if taskParamMap.has_key('ttcrTimestamp'):
             try:
@@ -314,6 +317,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['decAttOnFailedES'])
         if 'useZipToPin' in taskParamMap and taskParamMap['useZipToPin'] is True:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['useZipToPin'])
+        if 'osMatching' in taskParamMap and taskParamMap['osMatching'] is True:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['osMatching'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
