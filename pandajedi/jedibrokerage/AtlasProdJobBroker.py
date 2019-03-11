@@ -867,7 +867,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     elif tmpSiteSpec.wnconnectivity == 'http' and ipConnectivity == 'http':
                         pass
                     else:
-                        tmpMsg = '  skip site={0} due to insufficient connectivity (site={1}) for task={2} '.format(tmpSiteName,
+                        tmpMsg = '  skip site={0} due to insufficient connectivity (connectivity={1}) for task={2} '.format(tmpSiteName,
                                                                                                                     tmpSiteSpec.wnconnectivity,
                                                                                                                     ipConnectivity)
                         tmpMsg += 'criteria=-network'
