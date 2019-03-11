@@ -12246,7 +12246,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':keepTrack'] = 1
                         self.cur.execute(sqlUF + comment, varMap)
                         nRow = self.cur.rowcount
-                        tmpLog.debug("reset datasetID={0} fileID={1} with {2}".format(f_datasetID, f_fileID, nRow))                        
+                        tmpLog.debug("reset datasetID={0} fileID={1} with {2}".format(f_datasetID, f_fileID, nRow))
                         if nRow > 0:
                             varMap = dict()
                             varMap[':jediTaskID'] = jediTaskID

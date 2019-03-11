@@ -1138,6 +1138,9 @@ class JobGeneratorThread (WorkerThread):
                     # set lumi block number
                     if lumiBlockNr != None:
                         jobSpec.setLumiBlockNr(lumiBlockNr)
+                    # fake job
+                    if jobSpec.computingSite == EventServiceUtils.siteIdForWaitingCoJumboJobs:
+                        jobSpec.setFakeJobToIgnore()
                     # request type
                     if not taskSpec.requestType in ['',None]:
                         jobSpec.setRequestType(taskSpec.requestType)

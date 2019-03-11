@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/11/2019
+  * using fake in specialHandling for WAITING_CO_JUMBO
+
 * 3/5/2019
   * added osMatching
 
