@@ -2962,6 +2962,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             taskPrioMap = {}
             taskUseJumboMap = {}
             taskUserMap = {}
+            expressAttr = 'express_group_by'
             for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,\
                     taskStatus,groupByAttr,tmpNumInputFiles,tmpNumInputEvents,\
                     tmpNumFilesWaiting,useJumbo in resList:
@@ -2978,6 +2979,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 taskStatusMap[jediTaskID] = taskStatus
                 # make task-useJumbo mapping
                 taskUseJumboMap[jediTaskID] = useJumbo
+                # task and usermap
+                taskUserMap[jediTaskID] = groupByAttr
                 # make task-dataset mapping
                 if not taskDatasetMap.has_key(jediTaskID):
                     taskDatasetMap[jediTaskID] = []
@@ -2988,6 +2991,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # use single value if WQ has a share
                 if workQueue != None and workQueue.queue_share != None and not setGroupByAttr:
                     groupByAttr = ''
+                elif currentPriority >= 1500:
+                    groupByAttr = expressAttr
                 # increase priority so that scouts do not wait behind the bulk
                 if taskStatus in ['ready', 'scouting']:
                     currentPriority += 1
@@ -2999,8 +3004,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskUserPrioMap[groupByAttr][currentPriority] = []
                 if not jediTaskID in taskUserPrioMap[groupByAttr][currentPriority]:
                     taskUserPrioMap[groupByAttr][currentPriority].append(jediTaskID)
-                # task and usermap
-                taskUserMap[jediTaskID] = groupByAttr
             # make user-task mapping
             userTaskMap = {}
             for groupByAttr in taskUserPrioMap.keys():
@@ -3016,6 +3019,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             groupByAttrList = userTaskMap.keys()
             random.shuffle(groupByAttrList)
             tmpLog.debug('{0} groupBy values for {1} tasks'.format(len(groupByAttrList), len(taskDatasetMap)))
+            if expressAttr in userTaskMap:
+                # express
+                jediTaskIDList += userTaskMap[expressAttr]
+                groupByAttrList.remove(expressAttr)
             while groupByAttrList != []:
                 for groupByAttr in groupByAttrList:
                     if userTaskMap[groupByAttr] == []:
