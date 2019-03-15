@@ -3012,11 +3012,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if not groupByAttr in userTaskMap:
                         userTaskMap[groupByAttr] = []
                     userTaskMap[groupByAttr] += taskUserPrioMap[groupByAttr][currentPriority]
-            tmpLog.debug('got {0} tasks'.format(len(taskDatasetMap)))
             # make list
             groupByAttrList = userTaskMap.keys()
             random.shuffle(groupByAttrList)
-            tmpLog.debug('{0} groupBy values'.format(len(groupByAttrList)))
+            tmpLog.debug('{0} groupBy values for {1} tasks'.format(len(groupByAttrList), len(taskDatasetMap)))
             while groupByAttrList != []:
                 for groupByAttr in groupByAttrList:
                     if userTaskMap[groupByAttr] == []:
