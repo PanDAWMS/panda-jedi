@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/15/2019
+  * to automatically fix empty memory requirements
+
 * 3/11/2019
   * using fake in specialHandling for WAITING_CO_JUMBO
 
