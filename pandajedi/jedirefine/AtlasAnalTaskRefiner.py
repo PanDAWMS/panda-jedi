@@ -83,7 +83,8 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         fracTaskWithDataMotion = self.taskBufferIF.getConfigValue('taskrefiner', 'USER_TASKS_MOVE_INPUT', 'jedi', 'atlas')
         if fracTaskWithDataMotion is not None and fracTaskWithDataMotion > 0:
             if random.randint(1, 100) <= fracTaskWithDataMotion:
-                taskParamMap['currentPriority'] = taskParamMap['taskPriority']
+                if 'currentPriority' not in taskParamMap['currentPriority']:
+                    taskParamMap['currentPriority'] = taskParamMap['taskPriority']
                 taskParamMap['taskPriority'] = 1001
         # update task parameters
         self.updatedTaskParams = taskParamMap
