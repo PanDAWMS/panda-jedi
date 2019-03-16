@@ -3028,15 +3028,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('{0} groupBy values for {1} tasks'.format(len(groupByAttrList), len(taskDatasetMap)))
             # put high prio tasks first
             if expressAttr in userTaskMap:
-                superCutOff = int(nTasks * superHighPrioTaskRatio / 100)
-                jediTaskIDList += userTaskMap[expressAttr][:superCutOff]
-                userTaskMap[expressAttr] = userTaskMap[expressAttr][superCutOff:]
+                useSuperHigh = True
+            else:
+                useSuperHigh = False
             while groupByAttrList != []:
                 for groupByAttr in groupByAttrList:
                     if userTaskMap[groupByAttr] == []:
                         groupByAttrList.remove(groupByAttr)
                     else:
-                        jediTaskIDList.append(userTaskMap[groupByAttr].pop(0))
+                        if useSuperHigh and expressAttr in userTaskMap and len(userTaskMap[expressAttr]) > 0 \
+                                and random.randint(1, 100) <= superHighPrioTaskRatio:
+                            jediTaskIDList.append(userTaskMap[expressAttr].pop(0))
+                        if len(userTaskMap[groupByAttr]) > 0:
+                            jediTaskIDList.append(userTaskMap[groupByAttr].pop(0))
             # sql to read task
             sqlRT = "SELECT {0} ".format(JediTaskSpec.columnNames())
             sqlRT += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
