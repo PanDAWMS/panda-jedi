@@ -2995,6 +2995,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if workQueue != None and workQueue.queue_share != None and not setGroupByAttr:
                     groupByAttr = ''
                 elif currentPriority >= 1500:
+                    # use special name for super high prio tasks
                     groupByAttr = expressAttr
                 # increase priority so that scouts do not wait behind the bulk
                 if taskStatus in ['ready', 'scouting']:
@@ -3017,13 +3018,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 for currentPriority in priorityList:
                     if not groupByAttr in userTaskMap:
                         userTaskMap[groupByAttr] = []
+                    # randomize super high prio tasks to avoid that multiple threads try to get the same tasks
+                    if groupByAttr == expressAttr:
+                        random.shuffle(taskUserPrioMap[groupByAttr][currentPriority])
                     userTaskMap[groupByAttr] += taskUserPrioMap[groupByAttr][currentPriority]
             # make list
             groupByAttrList = userTaskMap.keys()
             random.shuffle(groupByAttrList)
             tmpLog.debug('{0} groupBy values for {1} tasks'.format(len(groupByAttrList), len(taskDatasetMap)))
+            # put high prio tasks first
             if expressAttr in userTaskMap:
-                # express
                 superCutOff = int(nTasks * superHighPrioTaskRatio / 100)
                 jediTaskIDList += userTaskMap[expressAttr][:superCutOff]
                 userTaskMap[expressAttr] = userTaskMap[expressAttr][superCutOff:]
