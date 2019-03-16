@@ -2801,6 +2801,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # set max number of jobs if undefined
         if maxNumJobs == None:
             tmpLog.debug('set maxNumJobs={0} since undefined '.format(maxNumJobs))
+        superHighPrioTaskRatio = self.getConfigValue('dbproxy', 'SUPER_HIGH_PRIO_TASK_RATIO', 'jedi')
+        if superHighPrioTaskRatio is None:
+            superHighPrioTaskRatio = 30
         # time limit to avoid duplication
         timeLimit = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
         try:
@@ -3021,8 +3024,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('{0} groupBy values for {1} tasks'.format(len(groupByAttrList), len(taskDatasetMap)))
             if expressAttr in userTaskMap:
                 # express
-                jediTaskIDList += userTaskMap[expressAttr]
-                groupByAttrList.remove(expressAttr)
+                superCutOff = int(nTasks * superHighPrioTaskRatio / 100)
+                jediTaskIDList += userTaskMap[expressAttr][:superCutOff]
+                userTaskMap[expressAttr] = userTaskMap[expressAttr][superCutOff:]
             while groupByAttrList != []:
                 for groupByAttr in groupByAttrList:
                     if userTaskMap[groupByAttr] == []:
