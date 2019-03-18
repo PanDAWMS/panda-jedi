@@ -2998,7 +2998,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # use special name for super high prio tasks
                     groupByAttr = expressAttr
                 # increase priority so that scouts do not wait behind the bulk
-                if taskStatus in ['ready', 'scouting']:
+                if taskStatus in ['scouting']:
                     currentPriority += 1
                 # make task-prio mapping
                 taskPrioMap[jediTaskID] = currentPriority
@@ -3036,11 +3036,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if userTaskMap[groupByAttr] == []:
                         groupByAttrList.remove(groupByAttr)
                     else:
+                        # add high prio tasks
                         if useSuperHigh and expressAttr in userTaskMap and len(userTaskMap[expressAttr]) > 0 \
                                 and random.randint(1, 100) <= superHighPrioTaskRatio:
                             jediTaskIDList.append(userTaskMap[expressAttr].pop(0))
-                        if len(userTaskMap[groupByAttr]) > 0:
-                            jediTaskIDList.append(userTaskMap[groupByAttr].pop(0))
+                        # add normal tasks
+                        while True:
+                            if len(userTaskMap[groupByAttr]) > 0:
+                                jediTaskID = userTaskMap[groupByAttr].pop(0)
+                                # check if only pmerge
+                                onlyMerging = True
+                                for tmpTaskDataset in taskDatasetMap[jediTaskID]:
+                                    if tmpTaskDataset[2] not in JediDatasetSpec.getMergeProcessTypes():
+                                        onlyMerging = False
+                                        break
+                                jediTaskIDList.append(jediTaskID)
+                                # add next task if only pmerge
+                                if not onlyMerging:
+                                    break
+                            else:
+                                break
             # sql to read task
             sqlRT = "SELECT {0} ".format(JediTaskSpec.columnNames())
             sqlRT += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
