@@ -79,6 +79,9 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         # directIO
         if 'useLocalIO' not in taskParamMap and 'allowInputLAN' not in taskParamMap:
             taskParamMap['allowInputLAN'] = 'use'
+        # current priority
+        if 'currentPriority' in taskParamMap and (taskParamMap['currentPriority'] < 900 or taskParamMap['currentPriority'] > 1100):
+            taskParamMap['currentPriority'] = 1000
         # choose N % of tasks to enable input data motion
         fracTaskWithDataMotion = self.taskBufferIF.getConfigValue('taskrefiner', 'USER_TASKS_MOVE_INPUT', 'jedi', 'atlas')
         if fracTaskWithDataMotion is not None and fracTaskWithDataMotion > 0:

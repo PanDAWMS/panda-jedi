@@ -3035,30 +3035,34 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             groupByAttrList = userTaskMap.keys()
             random.shuffle(groupByAttrList)
             tmpLog.debug('{0} groupBy values for {1} tasks'.format(len(groupByAttrList), len(taskDatasetMap)))
-            # put high prio tasks first
             if expressAttr in userTaskMap:
                 useSuperHigh = True
             else:
                 useSuperHigh = False
+            nPickUp = 10
             while groupByAttrList != []:
+                # pickup one task from each groupByAttr
                 for groupByAttr in groupByAttrList:
                     if userTaskMap[groupByAttr] == []:
                         groupByAttrList.remove(groupByAttr)
                     else:
-                        # add high prio tasks
-                        if useSuperHigh and expressAttr in userTaskMap and len(userTaskMap[expressAttr]) > 0 \
-                                and random.randint(1, 100) <= superHighPrioTaskRatio:
-                            jediTaskIDList.append(userTaskMap[expressAttr].pop(0))
-                        # add normal tasks
-                        for iPickUp in range(10):
-                            if len(userTaskMap[groupByAttr]) > 0:
-                                jediTaskID = userTaskMap[groupByAttr].pop(0)
-                                jediTaskIDList.append(jediTaskID)
-                                # add next task if only pmerge
-                                if not taskMergeMap[jediTaskID]:
+                        # add high prio tasks first
+                        if useSuperHigh and expressAttr in userTaskMap and random.randint(1, 100) <= superHighPrioTaskRatio:
+                            tmpGroupByAttrList  = [expressAttr]
+                        else:
+                            tmpGroupByAttrList = []
+                        # add normal tasks 
+                        tmpGroupByAttrList.append(groupByAttr)
+                        for tmpGroupByAttr in tmpGroupByAttrList:
+                            for iPickUp in range(nPickUp):
+                                if len(userTaskMap[tmpGroupByAttr]) > 0:
+                                    jediTaskID = userTaskMap[tmpGroupByAttr].pop(0)
+                                    jediTaskIDList.append(jediTaskID)
+                                    # add next task if only pmerge
+                                    if not taskMergeMap[jediTaskID]:
+                                        break
+                                else:
                                     break
-                            else:
-                                break
             # sql to read task
             sqlRT = "SELECT {0} ".format(JediTaskSpec.columnNames())
             sqlRT += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
