@@ -2966,6 +2966,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             taskUseJumboMap = {}
             taskUserMap = {}
             expressAttr = 'express_group_by'
+            taskMergeMap = {}
             for jediTaskID,datasetID,currentPriority,tmpNumFiles,datasetType,\
                     taskStatus,groupByAttr,tmpNumInputFiles,tmpNumInputEvents,\
                     tmpNumFilesWaiting,useJumbo in resList:
@@ -3008,6 +3009,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskUserPrioMap[groupByAttr][currentPriority] = []
                 if not jediTaskID in taskUserPrioMap[groupByAttr][currentPriority]:
                     taskUserPrioMap[groupByAttr][currentPriority].append(jediTaskID)
+                taskMergeMap.setdefault(jediTaskID, True)
+                if datasetType not in JediDatasetSpec.getMergeProcessTypes():
+                    taskMergeMap[jediTaskID] = False
             # make user-task mapping
             userTaskMap = {}
             for groupByAttr in taskUserPrioMap.keys():
@@ -3015,13 +3019,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 priorityList = taskUserPrioMap[groupByAttr].keys()
                 priorityList.sort()
                 priorityList.reverse()
+                tmpMergeTasks = []
                 for currentPriority in priorityList:
-                    if not groupByAttr in userTaskMap:
-                        userTaskMap[groupByAttr] = []
+                    userTaskMap.setdefault(groupByAttr, [])
                     # randomize super high prio tasks to avoid that multiple threads try to get the same tasks
                     if groupByAttr == expressAttr:
                         random.shuffle(taskUserPrioMap[groupByAttr][currentPriority])
-                    userTaskMap[groupByAttr] += taskUserPrioMap[groupByAttr][currentPriority]
+                    for jediTaskID in taskUserPrioMap[groupByAttr][currentPriority]:
+                        if taskMergeMap[jediTaskID]:
+                            tmpMergeTasks.append(jediTaskID)
+                        else:
+                            userTaskMap[groupByAttr].append(jediTaskID)
+                    userTaskMap[groupByAttr] = tmpMergeTasks + userTaskMap[groupByAttr]
             # make list
             groupByAttrList = userTaskMap.keys()
             random.shuffle(groupByAttrList)
@@ -3041,18 +3050,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 and random.randint(1, 100) <= superHighPrioTaskRatio:
                             jediTaskIDList.append(userTaskMap[expressAttr].pop(0))
                         # add normal tasks
-                        while True:
+                        for iPickUp in range(10):
                             if len(userTaskMap[groupByAttr]) > 0:
                                 jediTaskID = userTaskMap[groupByAttr].pop(0)
-                                # check if only pmerge
-                                onlyMerging = True
-                                for tmpTaskDataset in taskDatasetMap[jediTaskID]:
-                                    if tmpTaskDataset[2] not in JediDatasetSpec.getMergeProcessTypes():
-                                        onlyMerging = False
-                                        break
                                 jediTaskIDList.append(jediTaskID)
                                 # add next task if only pmerge
-                                if not onlyMerging:
+                                if not taskMergeMap[jediTaskID]:
                                     break
                             else:
                                 break
