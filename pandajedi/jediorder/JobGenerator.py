@@ -1429,7 +1429,7 @@ class JobGeneratorThread (WorkerThread):
                 return failedRet
             # lib.tgz is already available
             if fileSpec != None:
-                if fileSpec.creationDate < datetime.datetime.utcnow() - datetime.timedelta(days=periodToUselibTgz):
+                if fileSpec.creationDate > datetime.datetime.utcnow() - datetime.timedelta(days=periodToUselibTgz):
                     pandaFileSpec = fileSpec.convertToJobFileSpec(datasetSpec,setType='input')
                     pandaFileSpec.dispatchDBlock = pandaFileSpec.dataset
                     pandaFileSpec.prodDBlockToken = 'local'
