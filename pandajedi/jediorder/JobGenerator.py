@@ -1406,6 +1406,7 @@ class JobGeneratorThread (WorkerThread):
     def doGenerateBuild(self,taskSpec,cloudName,siteName,siteSpec,taskParamMap,tmpLog,simul=False):
         # return for failure
         failedRet = Interaction.SC_FAILED,None,None,None
+        periodToUselibTgz = 7
         try:
             datasetToRegister = []
             # get sites which share DDM endpoint
@@ -1428,15 +1429,19 @@ class JobGeneratorThread (WorkerThread):
                 return failedRet
             # lib.tgz is already available
             if fileSpec != None:
-                pandaFileSpec = fileSpec.convertToJobFileSpec(datasetSpec,setType='input')
-                pandaFileSpec.dispatchDBlock = pandaFileSpec.dataset
-                pandaFileSpec.prodDBlockToken = 'local'
-                if fileSpec.status == 'finished':
-                    pandaFileSpec.status = 'ready'
-                # make dummy jobSpec
-                jobSpec = JobSpec()
-                jobSpec.addFile(pandaFileSpec)
-                return Interaction.SC_SUCCEEDED,None,pandaFileSpec,datasetToRegister
+                if fileSpec.creationDate < datetime.datetime.utcnow() - datetime.timedelta(days=periodToUselibTgz):
+                    pandaFileSpec = fileSpec.convertToJobFileSpec(datasetSpec,setType='input')
+                    pandaFileSpec.dispatchDBlock = pandaFileSpec.dataset
+                    pandaFileSpec.prodDBlockToken = 'local'
+                    if fileSpec.status == 'finished':
+                        pandaFileSpec.status = 'ready'
+                    # make dummy jobSpec
+                    jobSpec = JobSpec()
+                    jobSpec.addFile(pandaFileSpec)
+                    return Interaction.SC_SUCCEEDED,None,pandaFileSpec,datasetToRegister
+                else:
+                    # not to use very old lib.tgz
+                    fileSpec = None
             # make job spec for build
             jobSpec = JobSpec()
             jobSpec.jobDefinitionID  = 0
@@ -1480,7 +1485,8 @@ class JobGeneratorThread (WorkerThread):
             if siteSpec.corepower:
                 jobSpec.hs06 = (jobSpec.coreCount or 1) * siteSpec.corepower # default 0 and None corecount to 1
             # make libDS name
-            if datasetSpec == None or datasetSpec.state == 'closed' or fileSpec == None:
+            if datasetSpec == None or fileSpec == None or datasetSpec.state == 'closed' \
+                    or datasetSpec.creationTime < datetime.datetime.utcnow() - datetime.timedelta(days=periodToUselibTgz):
                 # make new libDS
                 reusedDatasetID = None
                 libDsName = 'panda.{0}.{1}.lib._{2:06d}'.format(time.strftime('%m%d%H%M%S',time.gmtime()),

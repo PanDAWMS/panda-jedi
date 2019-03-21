@@ -12253,11 +12253,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlP += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileid=:fileID "
             sqlP += "ORDER BY PandaID DESC "
             # sql to check jobs
-            sqlJ = "SELECt 1 FROM {0}.jobsWaiting4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
+            sqlJ = "SELECT 1 FROM {0}.jobsWaiting4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
             sqlJ += "UNION "
-            sqlJ += "SELECt 1 FROM {0}.jobsDefined4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
+            sqlJ += "SELECT 1 FROM {0}.jobsDefined4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
             sqlJ += "UNION "
-            sqlJ += "SELECt 1 FROM {0}.jobsActive4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
+            sqlJ += "SELECT 1 FROM {0}.jobsActive4 WHERE PandaID=:PandaID ".format(jedi_config.db.schemaPANDA)
             # sql to get files
             sqlFL = "SELECT datasetID,fileID FROM {0}.filesTable4 WHERE PandaID=:PandaID AND type IN (".format(jedi_config.db.schemaPANDA)
             for tmpType in JediDatasetSpec.getInputTypes():
