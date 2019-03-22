@@ -7,6 +7,7 @@ from TaskRefinerBase import TaskRefinerBase
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandaserver.config import panda_config
 
+from pandaserver.taskbuffer import JobUtils
 from pandaserver.dataservice import DataServiceUtils
 
 # brokerage for ATLAS analysis
@@ -82,6 +83,11 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         # current priority
         if 'currentPriority' in taskParamMap and (taskParamMap['currentPriority'] < 900 or taskParamMap['currentPriority'] > 1100):
             taskParamMap['currentPriority'] = 1000
+        isSU, isSG = self.taskBufferIF.isSuperUser(taskParamMap['userName'])
+        if isSU or (isSG and 'workingGroup' in taskParamMap):
+            # super high priority to jump over others
+            if 'currentPriority' not in taskParamMap or taskParamMap['currentPriority'] < JobUtils.priorityTasksToJumpOver:
+                taskParamMap['currentPriority'] = JobUtils.priorityTasksToJumpOver
         # choose N % of tasks to enable input data motion
         fracTaskWithDataMotion = self.taskBufferIF.getConfigValue('taskrefiner', 'USER_TASKS_MOVE_INPUT', 'jedi', 'atlas')
         if fracTaskWithDataMotion is not None and fracTaskWithDataMotion > 0:

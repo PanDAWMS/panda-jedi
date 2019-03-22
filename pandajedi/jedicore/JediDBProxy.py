@@ -2995,7 +2995,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # use single value if WQ has a share
                 if workQueue != None and workQueue.queue_share != None and not setGroupByAttr:
                     groupByAttr = ''
-                elif currentPriority >= 1500:
+                elif currentPriority >= JobUtils.priorityTasksToJumpOver:
                     # use special name for super high prio tasks
                     groupByAttr = expressAttr
                 # increase priority so that scouts do not wait behind the bulk

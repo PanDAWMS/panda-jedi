@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/22/2019
+  * setting task.currentprio=1500 if s or g in gridpref
+
 * 3/18/2019
   * added --priority in panda-client
   * removed high prio from ready tasks in getTasksTBP
