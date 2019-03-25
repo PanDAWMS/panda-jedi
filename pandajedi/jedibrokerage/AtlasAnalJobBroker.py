@@ -324,14 +324,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 if tmpSiteSpec.isGPU():
-                    if taskSpec.architecture in ['', None]:
+                    if taskSpec.getArchitecture() in ['', None]:
                         tmpLog.info('  skip site={0} since architecture is required for GPU queues'.format(tmpSiteName))
                         continue
                     siteListWithCMTCONFIG = self.taskBufferIF.checkSitesWithRelease([tmpSiteSpec.get_unified_name()],
-                                                                                    cmtConfig=taskSpec.architecture,
+                                                                                    cmtConfig=taskSpec.getArchitecture(),
                                                                                     onlyCmtConfig=True)
                     if len(siteListWithCMTCONFIG) == 0:
-                        tmpLog.info('  skip site={0} since architecture={1} is unavaiable'.format(tmpSiteName, taskSpec.architecture))
+                        tmpLog.info('  skip site={0} since architecture={1} is unavaiable'.format(tmpSiteName, taskSpec.getArchitecture()))
                         continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList        
@@ -369,10 +369,10 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     transHome = ''
                 if transHome.startswith('ROOT'):
                     # hack until x86_64-slc6-gcc47-opt is published in installedsw
-                    if taskSpec.architecture == 'x86_64-slc6-gcc47-opt':
+                    if taskSpec.getArchitecture() == 'x86_64-slc6-gcc47-opt':
                         tmpCmtConfig = 'x86_64-slc6-gcc46-opt'
                     else:
-                        tmpCmtConfig = taskSpec.architecture
+                        tmpCmtConfig = taskSpec.getArchitecture()
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                              cmtConfig=tmpCmtConfig,
                                                                              onlyCmtConfig=True)
@@ -380,7 +380,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         or 'AnalysisBase' in transHome:
                     # AthAnalysis
                     siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                             cmtConfig=taskSpec.architecture,
+                                                                             cmtConfig=taskSpec.getArchitecture(),
                                                                              onlyCmtConfig=True)
                 else:    
                     # remove AnalysisTransforms-
@@ -392,7 +392,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         # cache is checked 
                         siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                                  caches=transHome,
-                                                                                 cmtConfig=taskSpec.architecture)
+                                                                                 cmtConfig=taskSpec.getArchitecture())
                     elif (transHome == '' and taskSpec.transUses != None) or \
                             (re.search('-\d+\.\d+\.\d+$',transHome) is not None and \
                                  (taskSpec.transUses is None or re.search('-\d+\.\d+$',taskSpec.transUses) is None)):
@@ -401,21 +401,21 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         # release is checked 
                         siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                                  releases=transUses,
-                                                                                 cmtConfig=taskSpec.architecture)
+                                                                                 cmtConfig=taskSpec.getArchitecture())
                         siteListWithSW += self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                                   caches=transHome,
-                                                                                  cmtConfig=taskSpec.architecture)
+                                                                                  cmtConfig=taskSpec.getArchitecture())
                     else:
                         # nightlies or standalone
                         useANY = False
                         siteListWithCVMFS = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                                     releases='CVMFS')
-                        if taskSpec.architecture in ['', None]:
+                        if taskSpec.getArchitecture() in ['', None]:
                             # architecture is not set
                             siteListWithCMTCONFIG = copy.copy(unified_site_list)
                         else:
                             siteListWithCMTCONFIG = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                            cmtConfig=taskSpec.architecture,
+                                                                                            cmtConfig=taskSpec.getArchitecture(),
                                                                                             onlyCmtConfig=True)
                         if taskSpec.transHome is not None:
                             # CVMFS check
@@ -434,12 +434,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     else:
                         # release is unavailable
                         tmpLog.info('  skip site=%s due to missing rel/cache %s:%s:%s criteria=-cache' % \
-                                     (tmpSiteName,taskSpec.transUses,taskSpec.transHome,taskSpec.architecture))
+                                     (tmpSiteName,taskSpec.transUses,taskSpec.transHome,taskSpec.getArchitecture()))
                 scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
                 tmpLog.info('{0} candidates passed for SW {1}:{2}:{3}'.format(len(scanSiteList),
                                                                                taskSpec.transUses,
                                                                                taskSpec.transHome,
-                                                                               taskSpec.architecture))
+                                                                               taskSpec.getArchitecture()))
                 if scanSiteList == []:
                     tmpLog.error('no candidates')
                     retVal = retTmpError

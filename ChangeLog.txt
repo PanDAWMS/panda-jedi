@@ -1,5 +1,8 @@
 Release Notes
 
+* 3/25/2019
+  * task.architecture=cmtconfig@image
+
 * 3/22/2019
   * setting task.currentprio=1500 if s or g in gridpref
 

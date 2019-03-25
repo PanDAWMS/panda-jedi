@@ -1538,3 +1538,19 @@ class JediTaskSpec(object):
             if tmpMatch is not None:
                 return True
         return False
+
+
+
+    # get architecture
+    def getArchitecture(self):
+        if self.architecture is None or '@' not in self.architecture:
+            return self.architecture 
+        return self.architecture.split('@')[0]
+
+
+
+    # get architecture
+    def getImage(self):
+        if self.architecture is None or '@' not in self.architecture:
+            return None
+        return self.architecture.split('@')[1]

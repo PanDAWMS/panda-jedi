@@ -554,22 +554,22 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # 3 digits base release
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                          releases=taskSpec.transHome.split('-')[-1],
-                                                                         cmtConfig=taskSpec.architecture)
+                                                                         cmtConfig=taskSpec.getArchitecture())
                 siteListWithSW += self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                           caches=taskSpec.transHome,
-                                                                          cmtConfig=taskSpec.architecture)
+                                                                          cmtConfig=taskSpec.getArchitecture())
             elif re.search('rel_\d+(\n|$)',taskSpec.transHome) is None and \
                     re.search('\d{4}-\d{2}-\d{2}T\d{4}$',taskSpec.transHome) is None:
                 # only cache is checked for normal tasks
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                          caches=taskSpec.transHome,
-                                                                         cmtConfig=taskSpec.architecture)
+                                                                         cmtConfig=taskSpec.getArchitecture())
             else:
                 # nightlies
                 siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                          releases='CVMFS')
                 #                                                         releases='nightlies',
-                #                                                         cmtConfig=taskSpec.architecture)
+                #                                                         cmtConfig=taskSpec.getArchitecture())
             newScanSiteList = []
             for tmpSiteName in unified_site_list:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -582,11 +582,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                 else:
                     # release is unavailable
                     tmpLog.info('  skip site=%s due to missing cache=%s:%s criteria=-cache' % \
-                                 (tmpSiteName,taskSpec.transHome,taskSpec.architecture))
+                                 (tmpSiteName,taskSpec.transHome,taskSpec.getArchitecture()))
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed for ATLAS release {1}:{2}'.format(len(scanSiteList),
                                                                                   taskSpec.transHome,
-                                                                                  taskSpec.architecture))
+                                                                                  taskSpec.getArchitecture()))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
