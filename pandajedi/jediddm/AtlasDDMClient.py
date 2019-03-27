@@ -1,7 +1,6 @@
 import re
 import os
 import sys
-import lfc
 import socket
 import random
 import datetime
