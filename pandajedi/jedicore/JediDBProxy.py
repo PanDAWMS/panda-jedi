@@ -8058,7 +8058,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 datasetID = reusedDatasetID
             elif not simul:
                 self.cur.execute(sqlDS+comment,varMap)
-                datasetID = long(varMap[':newDatasetID'].getvalue())
+                val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                datasetID = long(val)
             else:
                 datasetID = 0
             # insert files
