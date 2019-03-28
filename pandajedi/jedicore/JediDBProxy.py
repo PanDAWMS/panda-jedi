@@ -12113,6 +12113,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     resRE = self.cur.fetchone()
                     if resRE is not None:
                         nEventsRunning, = resRE
+                        if nEventsRunning is None:
+                            nEventsRunning = 0
                     else:
                         nEventsRunning = 0
                     nEventsToProcess = nEvents - nEventsDone - nEventsRunning
