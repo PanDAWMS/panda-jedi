@@ -5060,7 +5060,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
                     # insert dataset
                     self.cur.execute(sql+comment,varMap)
-                    val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue()
+                    val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
                     datasetID = long(val)
                     datasetIdMap[datasetSpec.outputMapKey()] = datasetID
                     datasetSpec.datasetID = datasetID
