@@ -2940,7 +2940,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sql += "AND nFilesToBeUsed > nFilesUsed "
             # begin transaction
             self.conn.begin()
-            self.cur.arraysize = 1000000
+            self.cur.arraysize = 100000
             # select
             tmpLog.debug(sql + comment + str(varMap))
             self.cur.execute(sql + comment, varMap)
@@ -3294,7 +3294,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':status'] = 'running'
                             else:
                                 varMap[':status'] = 'ready'
-                        self.cur.arraysize = 1000000
+                        self.cur.arraysize = 100000
                         # figure out if there are different memory requirements in the dataset
                         if datasetID not in dsWithfakeCoJumbo or useJumbo == JediTaskSpec.enum_useJumbo['lack']:
                             self.cur.execute(sqlRM+comment, varMap)
@@ -9210,7 +9210,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlU += "WHERE prodUserName=:prodUserName AND jobsetID=:jobsetID AND jobDefinitionID=:jobDefinitionID "
             # start transaction
             self.conn.begin()
-            self.cur.arraysize = 1000000
+            self.cur.arraysize = 100000
             retList = []
             # get the list of waiting user/jobIDs
             varMap = {}
