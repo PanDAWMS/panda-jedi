@@ -101,7 +101,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
             # not use MCORE
             useMP = 'unuse'
         # get statistics of failures
-        timeWindowForFC = 6
+        timeWindowForFC = self.taskBufferIF.getConfigValue('anal_jobbroker', 'TW_DONE_JOB_STAT', 'jedi', taskSpec.vo)
+        if timeWindowForFC is None:
+            timeWindowForFC = 6
         failureCounts = self.taskBufferIF.getFailureCountsForTask_JEDI(taskSpec.jediTaskID, timeWindowForFC)
         # two loops with/without data locality check
         scanSiteLists = [(copy.copy(scanSiteList), True)]
