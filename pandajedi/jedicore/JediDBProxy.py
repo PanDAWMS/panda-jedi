@@ -1202,8 +1202,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return failedRet
 
-
-
     # insert dataset to the JEDI datasets table
     def insertDataset_JEDI(self,datasetSpec):
         comment = ' /* JediDBProxy.insertDataset_JEDI */'
@@ -1229,7 +1227,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError, 'Commit error'
             tmpLog.debug('done')
-            return True,long(varMap[':newDatasetID'].getvalue())
+            val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+            return True,long(val)
         except:
             # roll back
             self._rollback()
@@ -2600,7 +2599,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap = cDatasetSpec.valuesMap(useSeq=True)
                             varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
                             self.cur.execute(sqlT2+comment,varMap)
-                            fileDatasetID = long(varMap[':newDatasetID'].getvalue())
+                            val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                            fileDatasetID = long(val)
                             if instantiatedSite != None:
                                 # set concreate name
                                 cDatasetSpec.site = instantiatedSite
@@ -2686,7 +2686,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     varMap = fileSpec.valuesMap(useSeq=True)
                                     varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
                                     self.cur.execute(sqlI+comment,varMap)
-                                    fileSpec.fileID = long(varMap[':newFileID'].getvalue())
+                                    val = self.getvalue_corrector(varMap[':newFileID'].getvalue())
+                                    fileSpec.fileID = long(val)
                                 # increment SN
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
@@ -2943,7 +2944,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sql += "AND nFilesToBeUsed > nFilesUsed "
             # begin transaction
             self.conn.begin()
-            self.cur.arraysize = 1000000
+            self.cur.arraysize = 100000
             # select
             tmpLog.debug(sql + comment + str(varMap))
             self.cur.execute(sql + comment, varMap)
@@ -3343,7 +3344,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':status'] = 'running'
                             else:
                                 varMap[':status'] = 'ready'
-                        self.cur.arraysize = 1000000
+                        self.cur.arraysize = 100000
                         # figure out if there are different memory requirements in the dataset
                         if datasetID not in dsWithfakeCoJumbo or useJumbo == JediTaskSpec.enum_useJumbo['lack']:
                             self.cur.execute(sqlRM+comment, varMap)
@@ -3759,8 +3760,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         varMap[':newnFilesUsed'] = self.cur.var(cx_Oracle.NUMBER)
                                         varMap[':newnFilesTobeUsed'] = self.cur.var(cx_Oracle.NUMBER)
                                         self.cur.execute(sqlDU + comment, varMap)
-                                        newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
-                                        newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
+                                        #newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
+                                        #newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
                                     tmpLog.debug(
                                         'jediTaskID={2} datasetID={0} has {1} files to be processed for ramCount={3}'.format(
                                             datasetID, iFiles_tmp,
@@ -3907,7 +3908,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':prodSourceLabel'] = prodSourceLabel
             varMap[':jediTaskID'] = self.cur.var(cx_Oracle.NUMBER)
             self.cur.execute(sqlT+comment,varMap)
-            jediTaskID = long(varMap[':jediTaskID'].getvalue())
+            val = self.getvalue_corrector(varMap[':jediTaskID'].getvalue())
+            jediTaskID = long(val)
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
@@ -3952,7 +3954,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 varMap[':jediTaskID'] = self.cur.var(cx_Oracle.NUMBER)
                 self.cur.execute(sqlIT+comment,varMap)
-                newJediTaskID = long(varMap[':jediTaskID'].getvalue())
+                val = self.getvalue_corrector(varMap[':jediTaskID'].getvalue())
+                newJediTaskID = long(val)
                 newJediTaskIDs.append(newJediTaskID)
             # update task parameters
             varMap = {}
@@ -5081,7 +5084,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
                         # insert dataset
                         self.cur.execute(sql+comment,varMap)
-                        datasetID = long(varMap[':newDatasetID'].getvalue())
+                        val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                        datasetID = long(val)
                         masterID = datasetID
                         datasetIdMap[datasetSpec.uniqueMapKey()] = datasetID
                         datasetSpec.datasetID = datasetID
@@ -5100,7 +5104,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
                         # insert dataset
                         self.cur.execute(sql+comment,varMap)
-                        datasetID = long(varMap[':newDatasetID'].getvalue())
+                        val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                        datasetID = long(val)
                         datasetIdMap[datasetSpec.uniqueMapKey()] = datasetID
                         datasetSpec.datasetID = datasetID
                         # insert files
@@ -5118,7 +5123,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
                     # insert dataset
                     self.cur.execute(sql+comment,varMap)
-                    datasetID = long(varMap[':newDatasetID'].getvalue())
+                    val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                    datasetID = long(val)
                     datasetIdMap[datasetSpec.outputMapKey()] = datasetID
                     datasetSpec.datasetID = datasetID
                     unmergeMasterID = datasetID
@@ -5131,7 +5137,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
                     # insert dataset
                     self.cur.execute(sql+comment,varMap)
-                    datasetID = long(varMap[':newDatasetID'].getvalue())
+                    val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                    datasetID = long(val)
                     datasetIdMap[datasetSpec.outputMapKey()] = datasetID
                     datasetSpec.datasetID = datasetID
                 # insert output datasets
@@ -5149,7 +5156,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
                     # insert dataset
                     self.cur.execute(sql+comment,varMap)
-                    datasetID = long(varMap[':newDatasetID'].getvalue())
+                    val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                    datasetID = long(val)
                     datasetIdMap[outputMapKey] = datasetID
                     datasetSpec.datasetID = datasetID
                 # insert outputTemplates
@@ -8128,7 +8136,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 datasetID = reusedDatasetID
             elif not simul:
                 self.cur.execute(sqlDS+comment,varMap)
-                datasetID = long(varMap[':newDatasetID'].getvalue())
+                val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                datasetID = long(val)
             else:
                 datasetID = 0
             # insert files
@@ -8139,7 +8148,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
                 if not simul:
                     self.cur.execute(sqlFI+comment,varMap)
-                    fileID = long(varMap[':newFileID'].getvalue())
+                    val = self.getvalue_corrector(varMap[':newFileID'].getvalue())
+                    fileID = long(val)
                 else:
                     fileID = 0
                 # change placeholder in filename
@@ -8304,7 +8314,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap = tmpFileSpec.valuesMap(useSeq=True)
                         varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
                         self.cur.execute(sqlFI+comment,varMap)
-                        tmpFileSpec.fileID = long(varMap[':newFileID'].getvalue())
+                        val = self.getvalue_corrector(varMap[':newFileID'].getvalue())
+                        tmpFileSpec.fileID = long(val)
                         tmpLog.debug('insert fileID={0} datasetID={1} rndmSeed={2}'.format(tmpFileSpec.fileID,
                                                                                            tmpFileSpec.datasetID,
                                                                                            tmpFileSpec.firstEvent))
@@ -8448,7 +8459,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap = tmpFileSpec.valuesMap(useSeq=True)
                     varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
                     self.cur.execute(sqlFI+comment,varMap)
-                    tmpFileSpec.fileID = long(varMap[':newFileID'].getvalue())
+                    val = self.getvalue_corrector(varMap[':newFileID'].getvalue())
+                    tmpFileSpec.fileID = long(val)
                     # increment nFiles
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
@@ -8946,7 +8958,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
                         # insert dataset
                         self.cur.execute(sqlID+comment,varMap)
-                        datasetID = long(varMap[':newDatasetID'].getvalue())
+                        val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                        datasetID = long(val)
                         masterID = datasetID
                         datasetSpec.datasetID = datasetID
                         # insert secondary datasets
@@ -8958,7 +8971,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)            
                             # insert dataset
                             self.cur.execute(sqlID+comment,varMap)
-                            datasetID = long(varMap[':newDatasetID'].getvalue())
+                            val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                            datasetID = long(val)
                             datasetSpec.datasetID = datasetID
                         goDefined = True
                     # update task
@@ -9273,7 +9287,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlU += "WHERE prodUserName=:prodUserName AND jobsetID=:jobsetID AND jobDefinitionID=:jobDefinitionID "
             # start transaction
             self.conn.begin()
-            self.cur.arraysize = 1000000
+            self.cur.arraysize = 100000
             retList = []
             # get the list of waiting user/jobIDs
             varMap = {}
