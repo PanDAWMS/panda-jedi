@@ -1,5 +1,8 @@
 Release Notes
 
+* 4/2/2019
+  * max attempts/failures for analysis
+
 * 3/25/2019
   * task.architecture=cmtconfig@image
 

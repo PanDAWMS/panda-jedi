@@ -88,6 +88,11 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
             # super high priority to jump over others
             if 'currentPriority' not in taskParamMap or taskParamMap['currentPriority'] < JobUtils.priorityTasksToJumpOver:
                 taskParamMap['currentPriority'] = JobUtils.priorityTasksToJumpOver
+        # max attempts
+        if 'maxAttempt' not in taskParamMap:
+            taskParamMap['maxAttempt'] = 10
+        if 'maxFailure' not in taskParamMap:
+            taskParamMap['maxFailure'] = 3
         # choose N % of tasks to enable input data motion
         fracTaskWithDataMotion = self.taskBufferIF.getConfigValue('taskrefiner', 'USER_TASKS_MOVE_INPUT', 'jedi', 'atlas')
         if fracTaskWithDataMotion is not None and fracTaskWithDataMotion > 0:
