@@ -11704,7 +11704,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 mapKey = ':type_' + tmpType
                 sqlAV += '{0},'.format(mapKey)
             sqlAV = sqlAV[:-1]
-            sqlAV += ') AND masterID IS NULL '
+            sqlAV += ') '
             # sql to update attemptNr for files
             sqlFR = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlFR += "SET attemptNr=maxAttempt "
