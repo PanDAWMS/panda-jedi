@@ -1074,12 +1074,14 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if not datasetSpec.isMaster():
                     useCompleteOnly = True
                 # get available files per site/endpoint
+                tmpLog.debug('getting available files for {0}'.format(datasetSpec.datasetName))
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
                                                             siteStorageEP,
                                                             self.siteMapper,
                                                             check_completeness=checkCompleteness,
                                                             storage_token=datasetSpec.storageToken,
                                                             complete_only=useCompleteOnly)
+                tmpLog.debug('got')
                 if tmpAvFileMap == None:
                     raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap

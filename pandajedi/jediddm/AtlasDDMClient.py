@@ -44,6 +44,8 @@ class AtlasDDMClient(DDMClientBase):
         self.lastUpdateEP = None
         # how frequently update endpoint dict
         self.timeIntervalEP = datetime.timedelta(seconds=60*10)
+        # pid
+        self.pid = os.getpid()
 
     # get a parsed certificate DN
     def parse_dn(self, tmpDN):
@@ -56,6 +58,7 @@ class AtlasDDMClient(DDMClientBase):
     # get files in dataset
     def getFilesInDataset(self, datasetName, getNumEvents=False, skipDuplicate=True, ignoreUnknown=False, longFormat=False):
         methodName = 'getFilesInDataset'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -125,6 +128,7 @@ class AtlasDDMClient(DDMClientBase):
     # list dataset replicas
     def listDatasetReplicas(self,datasetName):
         methodName = 'listDatasetReplicas'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -172,6 +176,7 @@ class AtlasDDMClient(DDMClientBase):
     # list replicas per dataset
     def listReplicasPerDataset(self,datasetName,deepScan=False):
         methodName = 'listReplicasPerDataset'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start with deepScan={0}'.format(deepScan))
@@ -203,6 +208,7 @@ class AtlasDDMClient(DDMClientBase):
     # get site property
     def getSiteProperty(self,seName,attribute):
         methodName = 'getSiteProperty'
+        methodName += ' pid={0}'.format(self.pid)
         self.updateEndPointDict()
         try:
             retVal = self.endPointDict[seName][attribute]
@@ -294,6 +300,7 @@ class AtlasDDMClient(DDMClientBase):
         """
         # make logger
         method_name = 'getAvailableFiles'
+        method_name += ' pid={0}'.format(self.pid)
         method_name += ' < jediTaskID={0} datasetID={1} >'.format(dataset_spec.jediTaskID, dataset_spec.datasetID)
         tmp_log = MsgWrapper(logger, method_name)
 
@@ -437,23 +444,30 @@ class AtlasDDMClient(DDMClientBase):
 
     def jedi_list_replicas(self, files, storages, scopes={}):
         try:
+            method_name = 'jedi_list_replicas'
+            method_name += ' pid={0}'.format(self.pid)
+            tmp_log = MsgWrapper(logger, method_name)
             client = RucioClient()
             i_guid = 0
             max_guid = 1000 # do 1000 guids in each Rucio call
             lfn_to_rses_map = {}
             dids = []
-
             for guid, lfn in files.iteritems():
                 i_guid += 1
                 scope = scopes[lfn]
                 dids.append({'scope': scope, 'name': lfn})
                 if len(dids) % max_guid == 0 or i_guid == len(files):
+                    tmp_log.debug('lookup start')
+                    loopStart = datetime.datetime.utcnow()
                     x = client.list_replicas(dids, ['srm', 'gsiftp'], resolve_archives=True)
+                    regTime = datetime.datetime.utcnow() - loopStart
+                    tmp_log.debug('rucio.list_replicas took {0} sec for {1} files'.format(regTime.seconds, len(dids)))
                     for tmp_dict in x: 
                         tmp_LFN = str(tmp_dict['name'])
                         lfn_to_rses_map[tmp_LFN] = tmp_dict['rses']
                     # reset the dids list for the next bulk for Rucio
                     dids = []
+                    tmp_log.debug('lookup end')
         except:
             err_type, err_value = sys.exc_info()[:2]
             return self.SC_FAILED, "file lookup failed with {0}:{1} {2}".format(err_type, err_value, traceback.format_exc())
@@ -469,7 +483,10 @@ class AtlasDDMClient(DDMClientBase):
             dids = []
             dids = [{'scope': scope, 'name': dsn}]
             for tmp_dict in client.list_replicas(dids, ['srm', 'gsiftp'], resolve_archives=True):
-                tmp_LFN = str(tmp_dict['name'])
+                try:
+                    tmp_LFN = str(tmp_dict['name'])
+                except Exception:
+                    continue
                 lfn_to_rses_map[tmp_LFN] = tmp_dict['rses']
         except:
             err_type, err_value = sys.exc_info()[:2]
@@ -481,6 +498,7 @@ class AtlasDDMClient(DDMClientBase):
     def getDatasetMetaData(self,datasetName):
         # make logger
         methodName = 'getDatasetMetaData'
+        methodName += ' pid={0}'.format(self.pid)
         methodName = '{0} datasetName={1}'.format(methodName,datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -523,6 +541,7 @@ class AtlasDDMClient(DDMClientBase):
     # list dataset/container
     def listDatasets(self,datasetName,ignorePandaDS=True):
         methodName = 'listDatasets'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -563,6 +582,7 @@ class AtlasDDMClient(DDMClientBase):
     # register new dataset/container
     def registerNewDataset(self,datasetName,backEnd='rucio',location=None,lifetime=None,metaData=None,resurrect=False):
         methodName = 'registerNewDataset'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start location={0} lifetime={1}'.format(location,lifetime))
@@ -626,6 +646,7 @@ class AtlasDDMClient(DDMClientBase):
     # list datasets in container
     def listDatasetsInContainer(self,containerName):
         methodName = 'listDatasetsInContainer'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <containerName={0}>'.format(containerName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -650,6 +671,7 @@ class AtlasDDMClient(DDMClientBase):
     # expand Container
     def expandContainer(self,containerName):
         methodName = 'expandContainer'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <contName={0}>'.format(containerName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -691,6 +713,7 @@ class AtlasDDMClient(DDMClientBase):
     # add dataset to container
     def addDatasetsToContainer(self,containerName,datasetNames,backEnd='rucio'):
         methodName = 'addDatasetsToContainer'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <contName={0}>'.format(containerName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -729,6 +752,7 @@ class AtlasDDMClient(DDMClientBase):
     # get latest DBRelease
     def getLatestDBRelease(self):
         methodName = 'getLatestDBRelease'
+        methodName += ' pid={0}'.format(self.pid)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('trying to get the latest version number of DBR')
         # get ddo datasets
@@ -820,6 +844,7 @@ class AtlasDDMClient(DDMClientBase):
     # freeze dataset
     def freezeDataset(self,datasetName,ignoreUnknown=False):
         methodName = 'freezeDataset'
+        methodName += ' pid={0}'.format(self.pid)
         methodName = '{0} datasetName={1}'.format(methodName,datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -859,6 +884,7 @@ class AtlasDDMClient(DDMClientBase):
     # finger
     def finger(self,userName):
         methodName = 'finger'
+        methodName += ' pid={0}'.format(self.pid)
         methodName = '{0} userName={1}'.format(methodName,userName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -900,6 +926,7 @@ class AtlasDDMClient(DDMClientBase):
     # set dataset metadata
     def setDatasetMetadata(self,datasetName,metadataName,metadaValue):
         methodName = 'setDatasetMetadata'
+        methodName += ' pid={0}'.format(self.pid)
         methodName = '{0} datasetName={1} metadataName={2} metadaValue={3}'.format(methodName,datasetName,
                                                                                    metadataName,metadaValue)
         tmpLog = MsgWrapper(logger,methodName)
@@ -929,6 +956,7 @@ class AtlasDDMClient(DDMClientBase):
                                 activity=None,grouping=None,weight=None,copies=1,
                                 ignore_availability=True):
         methodName = 'registerDatasetLocation'
+        methodName += ' pid={0}'.format(self.pid)
         methodName = '{0} datasetName={1} location={2}'.format(methodName,datasetName,location)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -980,6 +1008,7 @@ class AtlasDDMClient(DDMClientBase):
     # delete dataset
     def deleteDataset(self,datasetName,emptyOnly,ignoreUnknown=False):
         methodName = 'deleteDataset'
+        methodName += ' pid={0}'.format(self.pid)
         methodName = '{0} datasetName={1}'.format(methodName,datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -1025,6 +1054,7 @@ class AtlasDDMClient(DDMClientBase):
     def registerDatasetSubscription(self,datasetName,location,activity,lifetime=None,
                                     asynchronous=False):
         methodName = 'registerDatasetSubscription'
+        methodName += ' pid={0}'.format(self.pid)
         methodName = '{0} datasetName={1} location={2} activity={3} asyn={4}'.format(methodName,datasetName,
                                                                                      location,activity,asynchronous)
         tmpLog = MsgWrapper(logger,methodName)
@@ -1066,6 +1096,7 @@ class AtlasDDMClient(DDMClientBase):
     # find lost files
     def findLostFiles(self, datasetName, fileMap):
         methodName = 'findLostFiles'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -1148,6 +1179,7 @@ class AtlasDDMClient(DDMClientBase):
     # delete files from dataset
     def deleteFilesFromDataset(self,datasetName,filesToDelete):
         methodName  = 'deleteFilesFromDataset'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -1191,6 +1223,7 @@ class AtlasDDMClient(DDMClientBase):
     # open dataset
     def openDataset(self,datasetName):
         methodName  = 'openDataset'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -1221,6 +1254,7 @@ class AtlasDDMClient(DDMClientBase):
     # update backlist
     def updateBlackList(self):
         methodName  = 'updateBlackList'
+        methodName += ' pid={0}'.format(self.pid)
         tmpLog = MsgWrapper(logger,methodName)
         # check freashness
         timeNow = datetime.datetime.utcnow()
@@ -1245,6 +1279,7 @@ class AtlasDDMClient(DDMClientBase):
     # check if the endpoint is backlisted
     def isBlackListedEP(self,endPoint):
         methodName  = 'isBlackListedEP'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <endPoint={0}>'.format(endPoint)
         tmpLog = MsgWrapper(logger,methodName)
         try:
@@ -1261,6 +1296,7 @@ class AtlasDDMClient(DDMClientBase):
     # get disk usage at RSE
     def getRseUsage(self,rse,src='srm'):
         methodName  = 'getRseUsage'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <rse={0}>'.format(rse)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -1303,6 +1339,7 @@ class AtlasDDMClient(DDMClientBase):
     # update endpoint dict
     def updateEndPointDict(self):
         methodName  = 'updateEndPointDict'
+        methodName += ' pid={0}'.format(self.pid)
         tmpLog = MsgWrapper(logger,methodName)
         # check freshness
         timeNow = datetime.datetime.utcnow()
@@ -1330,6 +1367,7 @@ class AtlasDDMClient(DDMClientBase):
     # check if the dataset is distributed
     def isDistributedDataset(self,datasetName):
         methodName  = 'isDistributedDataset'
+        methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -1365,6 +1403,7 @@ class AtlasDDMClient(DDMClientBase):
     # update replication rules
     def updateReplicationRules(self,datasetName,dataMap):
         methodName = 'updateReplicationRules'
+        methodName += ' pid={0}'.format(self.pid)
         methodName = '{0} datasetName={1}'.format(methodName,datasetName)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
