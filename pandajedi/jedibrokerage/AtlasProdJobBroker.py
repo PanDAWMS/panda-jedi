@@ -317,6 +317,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     else:
                         skipFlag = True
                         criteria = '-link_unusable'
+                        from_str = 'from satellite={0}'.format(tmpAtlasSiteName)
                         if networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] == BLOCKED_LINK:
                             reason = 'agis_closeness={0}'.format(networkMap[tmpAtlasSiteName][AGIS_CLOSENESS])
                         elif networkMap[tmpAtlasSiteName][queued_tag] >= self.queue_threshold:
@@ -330,10 +331,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                             # temporary problem
                             skipFlag = False
                             criteria = '-links_full'
+                            from_str = ''
                         else:
                             reason = 'reason unknown'
-                        tmpStr = '  skip site={0} due to {1}, from satellite={2} to nucleus={3}: criteria={4}'\
-                            .format(tmpPandaSiteName, reason, tmpAtlasSiteName, nucleus, criteria)
+                        tmpStr = '  skip site={0} due to {1}, {2} to nucleus={3}: criteria={4}'\
+                            .format(tmpPandaSiteName, reason, from_str, nucleus, criteria)
                         if skipFlag:
                             tmpLog.info(tmpStr)
                         else:
