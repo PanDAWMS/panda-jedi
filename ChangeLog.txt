@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/2/2019
+  * added NQUEUED_NUC_CAP
+
 * 4/2/2019
   * max attempts/failures for analysis
 

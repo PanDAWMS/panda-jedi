@@ -10819,11 +10819,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         resList = self.cur.fetchall()
 
         networkMap = {}
+        total = 0
         for res in resList:
             src, key, value, ts = res
             networkMap.setdefault(src, {})
             networkMap[src][key] = value
-
+            try:
+                total += value
+            except Exception:
+                pass
+        networkMap['total'] = total
         tmpLog.debug('network map to nucleus {0} is: {1}'.format(dst, networkMap))
 
         return networkMap
@@ -12358,3 +12363,36 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+
+    # get averaged disk IO
+    def getAvgDiskIO_JEDI(self):
+        comment = ' /* JediDBProxy.getAvgDiskIO_JEDI */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql
+            sql  = "SELECT AVG(diskIO/coreCount),computingSite FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+            sql += "WHERE jobStatus=:jobStatus GROUP BY computingSite "
+            varMap = dict()
+            varMap[':jobStatus'] = 'running'
+            # begin transaction
+            self.conn.begin()
+            self.cur.execute(sql+comment, varMap)
+            resFL = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError, 'Commit error'
+            retMap = dict()
+            for avg, computingSite in resFL:
+                retMap[computingSite] = avg
+            tmpLog.debug('done')
+            return retMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return {}

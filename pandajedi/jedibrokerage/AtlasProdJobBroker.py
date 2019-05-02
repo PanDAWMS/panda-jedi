@@ -64,6 +64,10 @@ class AtlasProdJobBroker (JobBrokerBase):
         if self.queue_threshold is None:
             self.queue_threshold = 150
 
+        self.total_queue_threshold = taskBufferIF.getConfigValue(COMPONENT, 'NQUEUED_NUC_CAP', APP, VO)
+        if self.total_queue_threshold is None:
+            self.total_queue_threshold = 10000
+
         self.nw_weight_multiplier = taskBufferIF.getConfigValue(COMPONENT, 'NW_WEIGHT_MULTIPLIER', APP, VO)
         if self.nw_weight_multiplier is None:
             self.nw_weight_multiplier = 1
@@ -298,6 +302,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
         #####################################################
         # filtering out blacklisted or links with long queues
+        tmpLog.debug('Total number of files being transferred to the nucleus : {0}'.format(networkMap['total']))
         if taskSpec.useWorldCloud() and nucleus and not sitePreAssigned and not siteListPreAssigned:
             newScanSiteList = []
             newSkippedTmp = dict()
@@ -306,21 +311,29 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpAtlasSiteName = storageMapping[tmpPandaSiteName]
                     if nucleus == tmpAtlasSiteName or \
                                     (networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK and \
-                                    networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold):
+                                    networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold and \
+                                         networkMap['total'] < self.total_queue_threshold):
                         newScanSiteList.append(tmpPandaSiteName)
                     else:
                         skipFlag = True
+                        criteria = '-link_unusable'
                         if networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] == BLOCKED_LINK:
                             reason = 'agis_closeness={0}'.format(networkMap[tmpAtlasSiteName][AGIS_CLOSENESS])
                         elif networkMap[tmpAtlasSiteName][queued_tag] >= self.queue_threshold:
-                            reason = 'too many output files queued {0}(>{1} link limit)'\
+                            reason = 'too many output files queued in the channel {0}(>{1} link limit)'\
                                 .format(networkMap[tmpAtlasSiteName][queued_tag], self.queue_threshold)
                             # temporary problem
                             skipFlag = False
+                        elif networkMap['total'] >= self.total_queue_threshold:
+                            reason = 'too many output files being transferred to the nucleus {0}(>{1} total limit)'\
+                                .format(networkMap['total'], self.total_queue_threshold)
+                            # temporary problem
+                            skipFlag = False
+                            criteria = '-links_full'
                         else:
                             reason = 'reason unknown'
-                        tmpStr = '  skip site={0} due to {1}, from satellite={2} to nucleus={3}: criteria=-link_unusable'\
-                            .format(tmpPandaSiteName, reason, tmpAtlasSiteName, nucleus)
+                        tmpStr = '  skip site={0} due to {1}, from satellite={2} to nucleus={3}: criteria={4}'\
+                            .format(tmpPandaSiteName, reason, tmpAtlasSiteName, nucleus, criteria)
                         if skipFlag:
                             tmpLog.info(tmpStr)
                         else:
@@ -332,7 +345,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     newScanSiteList.append(tmpPandaSiteName)
             siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info('{0} candidates passed site status check'.format(len(scanSiteList)))
+            tmpLog.info('{0} candidates passed link check'.format(len(scanSiteList)))
             if not scanSiteList:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

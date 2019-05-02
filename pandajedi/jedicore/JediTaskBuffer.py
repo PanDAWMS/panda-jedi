@@ -1593,3 +1593,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # get averaged disk IO
+    def getAvgDiskIO_JEDI(self):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getAvgDiskIO_JEDI()
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
