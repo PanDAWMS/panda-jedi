@@ -64,7 +64,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if self.queue_threshold is None:
             self.queue_threshold = 150
 
-        self.total_queue_threshold = taskBufferIF.getConfigValue(COMPONENT, 'NQUEUED_NUC_CAP', APP, VO)
+        self.total_queue_threshold = taskBufferIF.getConfigValue(COMPONENT, 'NQUEUED_NUC_CAP_FOR_JOBS', APP, VO)
         if self.total_queue_threshold is None:
             self.total_queue_threshold = 10000
 
@@ -286,7 +286,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # WORLD CLOUD: get the nucleus and the network map
         nucleus = taskSpec.nucleus
         storageMapping = self.taskBufferIF.getPandaSiteToOutputStorageSiteMapping()
-
+        
         if taskSpec.useWorldCloud() and nucleus:
             # get connectivity stats to the nucleus in case of WORLD cloud
             if inputChunk.isExpress():
@@ -302,8 +302,8 @@ class AtlasProdJobBroker (JobBrokerBase):
 
         #####################################################
         # filtering out blacklisted or links with long queues
-        tmpLog.debug('Total number of files being transferred to the nucleus : {0}'.format(networkMap['total']))
         if taskSpec.useWorldCloud() and nucleus and not sitePreAssigned and not siteListPreAssigned:
+            tmpLog.debug('Total number of files being transferred to the nucleus : {0}'.format(networkMap['total']))
             newScanSiteList = []
             newSkippedTmp = dict()
             for tmpPandaSiteName in self.get_unified_sites(scanSiteList):
