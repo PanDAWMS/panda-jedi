@@ -159,6 +159,8 @@ class JobSplitter:
                     # use maxwdir as the default maxSize
                     if not useDirectIO:
                         maxSize = siteSpec.maxwdir * 1024 * 1024
+                    elif nEventsPerJob is not None or nFilesPerJob is not None:
+                        maxSize = None
                     else:
                         maxSize = max(50000, siteSpec.maxwdir) * 1024 * 1024
                 else:
