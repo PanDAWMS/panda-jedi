@@ -69,7 +69,7 @@ def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
             totalNumDatasets = len(tmpDsMap)
     except:
         errtype,errvalue = sys.exc_info()[:2]
-        return errtype,'ddmIF.ddmIF.getFilesInDataset failed with %s' % errvalue
+        return errtype,'ddmIF.listDatasetsInContainer failed with %s' % errvalue
     # get replicas
     try:
         replicaMap= {}
