@@ -312,11 +312,13 @@ class AtlasDDMClient(DDMClientBase):
             self.updateEndPointDict()
 
             # get the file map
-            tmp_status, tmp_output = self.getFilesInDataset(dataset_spec.datasetName)
+            tmp_status, tmp_output = self.getDatasetMetaData(dataset_spec.datasetName)
             if tmp_status != self.SC_SUCCEEDED:
-                tmp_log.error('failed to get file list with {0}'.format(tmp_output))
+                tmp_log.error('failed to get metadata with {0}'.format(tmp_output))
                 return tmp_status, tmp_output
-            total_files_in_dataset = len(tmp_output)
+            total_files_in_dataset = tmp_output['length']
+            if total_files_in_dataset is None:
+                total_files_in_dataset = 0
 
             # get the dataset replica map
             tmp_status, tmp_output = self.listDatasetReplicas(dataset_spec.datasetName)
