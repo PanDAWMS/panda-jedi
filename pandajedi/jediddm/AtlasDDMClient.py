@@ -140,29 +140,40 @@ class AtlasDDMClient(DDMClientBase):
                 return self.SC_SUCCEEDED,tmpRet
             else:
                 # list of attributes summed up
-                attrList = ['total','found']
                 retMap = {}
                 # get constituent datasets
                 tmpS,dsList = self.listDatasetsInContainer(datasetName)
+                totalFiles = 0
+                grandTotal = 0
                 for tmpName in dsList:
                     tmpLog.debug(tmpName)
+                    tmp_status, tmp_output = self.getDatasetMetaData(tmpName)
+                    if tmp_status != self.SC_SUCCEEDED:
+                        raise RuntimeError, 'failed to get metadata with {0}'.format(tmp_output)
+                    try:
+                        totalFiles = tmp_output['length']
+                    except Exception:
+                        totalFiles = 0
                     tmpRet = self.convertOutListDatasetReplicas(tmpName)
                     # loop over all sites
                     for tmpSite,tmpValMap in tmpRet.iteritems():
                         # add site
-                        if not retMap.has_key(tmpSite):
-                            retMap[tmpSite] = [{}]
-                        # loop over all attributes
-                        for tmpAttr in attrList:
-                            # add default
-                            if not retMap[tmpSite][-1].has_key(tmpAttr):
-                                retMap[tmpSite][-1][tmpAttr] = 0
-                            # sum
-                            try:
-                                retMap[tmpSite][-1][tmpAttr] += int(tmpValMap[-1][tmpAttr])
-                            except:
-                                # unknown
-                                retMap[tmpSite][-1][tmpAttr] = None
+                        retMap.setdefault(tmpSite, [{'found': 0}])
+                        # sum
+                        try:
+                            retMap[tmpSite][-1]['found'] += int(tmpValMap[-1]['found'])
+                        except Exception:
+                            pass
+                        # total
+                        try:
+                            if totalFiles < int(tmpValMap[-1]['total']):
+                                totalFiles = int(tmpValMap[-1]['total'])
+                        except Exception:
+                            pass
+                    grandTotal += totalFiles
+                # set total
+                for tmpSite in retMap.keys():
+                    retMap[tmpSite][-1]['total'] = grandTotal
                 # return
                 tmpLog.debug('got '+str(retMap))
                 return self.SC_SUCCEEDED,retMap
