@@ -4526,7 +4526,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql += "WHERE prodSourceLabel=:prodSourceLabel and vo=:vo "
             if workQueue.is_global_share:
                 sql += "AND gshare=:wq_name "
-                sql += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
+                sql += "AND workqueue_id IN ("
+                sql += "SELECT UNIQUE workqueue_id FROM {0}.jobsActive4 " .format(jedi_config.db.schemaPANDA)
+                sql += "MINUS "
+                sql += "SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
                 varMap[':wq_name'] = workQueue.queue_name
             else:
                 sql += "AND workQueue_ID=:wq_id "
@@ -4612,7 +4615,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMapO[':resource_type'] = resource_name
         if workQueue.is_global_share:
             sqlS += "AND gshare=:wq_name "
-            sqlS += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
+            sqlS += "AND workqueue_id IN ("
+            sqlS += "SELECT UNIQUE workqueue_id FROM {0} "
+            sqlS += "MINUS "
+            sqlS += "SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
             varMapO[':wq_name'] = workQueue.queue_name
         else:
             sqlS += "AND workQueue_ID=:wq_id "
@@ -10610,7 +10616,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
             if workQueue.is_global_share:
                 sql += "AND gshare=:wq_name "
-                sql += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
+                sql += "AND workqueue_id IN ("
+                sql += "SELECT UNIQUE workqueue_id FROM {0}.".format(jedi_config.db.schemaPANDA) + "{0} "
+                sql += "MINUS "
+                sql += "SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
                 varMap[':wq_name'] = workQueue.queue_name
             else:
                 sql += "AND workQueue_ID=:wq_id "
