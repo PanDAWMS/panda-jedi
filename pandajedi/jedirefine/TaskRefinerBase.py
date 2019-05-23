@@ -123,6 +123,11 @@ class TaskRefinerBase (object):
             taskSpec.baseRamCount = taskParamMap['baseRamCount']
         else:
             taskSpec.baseRamCount = 0
+        # IO
+        if 'ioIntensity' in taskParamMap:
+            taskSpec.ioIntensity = taskParamMap['ioIntensity']
+        if 'ioIntensityUnit' in taskParamMap:
+            taskSpec.ioIntensityUnit = taskParamMap['ioIntensityUnit']
         # HS06 stuff
         if 'cpuTimeUnit' in taskParamMap:
             taskSpec.cpuTimeUnit = taskParamMap['cpuTimeUnit']
