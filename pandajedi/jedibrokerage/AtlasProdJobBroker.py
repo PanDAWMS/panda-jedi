@@ -1141,10 +1141,10 @@ class AtlasProdJobBroker (JobBrokerBase):
         maxNumFiles = len(allLFNs)
         ######################################
         # selection for fileSizeToMove
-        moveSizeCutoffGB = taskBufferIF.getConfigValue(COMPONENT, 'SIZE_CUTOFF_TO_MOVE_INPUT', APP, VO)
+        moveSizeCutoffGB = self.taskBufferIF.getConfigValue(COMPONENT, 'SIZE_CUTOFF_TO_MOVE_INPUT', APP, VO)
         if moveSizeCutoffGB is None:
             moveSizeCutoffGB = 10
-        moveNumFilesCutoff = taskBufferIF.getConfigValue(COMPONENT, 'NUM_CUTOFF_TO_MOVE_INPUT', APP, VO)
+        moveNumFilesCutoff = self.taskBufferIF.getConfigValue(COMPONENT, 'NUM_CUTOFF_TO_MOVE_INPUT', APP, VO)
         if moveNumFilesCutoff is None:
             moveNumFilesCutoff = 100
         if not sitePreAssigned and totalSize > 0 and not inputChunk.isMerging and taskSpec.ioIntensity is not None \
