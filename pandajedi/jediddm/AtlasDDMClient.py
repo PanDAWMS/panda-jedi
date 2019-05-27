@@ -384,11 +384,14 @@ class AtlasDDMClient(DDMClientBase):
                 scope_map[tmp_file.lfn] = tmp_file.scope
 
             # get the file locations from Rucio
-            tmp_log.debug('lookup file replicas in Rucio for RSEs: {0}'.format(rse_list))
-            tmp_status, rucio_lfn_to_rse_map = self.jedi_list_replicas(file_map, rse_list, scopes=scope_map)
-            tmp_log.debug('lookup file replicas return status: {0}'.format(str(tmp_status)))
-            if tmp_status != self.SC_SUCCEEDED:
-                raise RuntimeError, rucio_lfn_to_rse_map
+            if len(rse_list) > 0:
+                tmp_log.debug('lookup file replicas in Rucio for RSEs: {0}'.format(rse_list))
+                tmp_status, rucio_lfn_to_rse_map = self.jedi_list_replicas(file_map, rse_list, scopes=scope_map)
+                tmp_log.debug('lookup file replicas return status: {0}'.format(str(tmp_status)))
+                if tmp_status != self.SC_SUCCEEDED:
+                    raise RuntimeError, rucio_lfn_to_rse_map
+            else:
+                rucio_lfn_to_rse_map = dict()
 
             # initialize the return map and add complete/cached replicas
             return_map = {}
