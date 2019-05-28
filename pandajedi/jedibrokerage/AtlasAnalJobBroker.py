@@ -26,15 +26,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
         JobBrokerBase.__init__(self,ddmIF,taskBufferIF)
         self.dataSiteMap = {}
 
-
-        
     # wrapper for return
     def sendLogMessage(self,tmpLog):
         # send info to logger
         tmpLog.bulkSendMsg('analy_brokerage')
         tmpLog.debug('sent')
-
-
 
     # main
     def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap):
@@ -78,6 +74,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     pass
         # loop over all sites        
         for siteName,tmpSiteSpec in self.siteMapper.siteSpecList.iteritems():
+            # TODO prodanaly: way to identify production queues running analysis
             if tmpSiteSpec.type == 'analysis':
                 scanSiteList.append(siteName)
         # preassigned
