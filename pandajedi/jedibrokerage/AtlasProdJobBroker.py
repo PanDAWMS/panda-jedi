@@ -573,12 +573,13 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    taskSpec.transHome.split('-')[1],
                                                                    taskSpec.getArchitecture(),
                                                                    False)
-                siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                          releases=taskSpec.transHome.split('-')[-1],
-                                                                          cmtConfig=taskSpec.getArchitecture())
-                siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                          caches=taskSpec.transHome,
-                                                                          cmtConfig=taskSpec.getArchitecture())
+                if len(sitesNoJsonCheck) > 0:
+                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                              releases=taskSpec.transHome.split('-')[-1],
+                                                                              cmtConfig=taskSpec.getArchitecture())
+                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                              caches=taskSpec.transHome,
+                                                                              cmtConfig=taskSpec.getArchitecture())
             elif re.search('rel_\d+(\n|$)', taskSpec.transHome) is None and \
                     re.search('\d{4}-\d{2}-\d{2}T\d{4}$', taskSpec.transHome) is None:
                 # only cache is checked for normal tasks
@@ -587,19 +588,19 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    taskSpec.transHome.split('-')[1],
                                                                    taskSpec.getArchitecture(),
                                                                    False)
-                siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                          caches=taskSpec.transHome,
-                                                                          cmtConfig=taskSpec.getArchitecture())
+                if len(sitesNoJsonCheck) > 0:
+                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                              caches=taskSpec.transHome,
+                                                                              cmtConfig=taskSpec.getArchitecture())
             else:
                 # nightlies
                 siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
                                                                    None, None,
                                                                    taskSpec.getArchitecture(),
                                                                    True)
-                siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                          releases='CVMFS')
-                #                                                         releases='nightlies',
-                #                                                         cmtConfig=taskSpec.getArchitecture())
+                if len(sitesNoJsonCheck) > 0:
+                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                              releases='CVMFS')
             newScanSiteList = []
             for tmpSiteName in unified_site_list:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
