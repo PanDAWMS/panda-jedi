@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/30/2019
+  * using json SW check in AtlasAJB
+
 * 5/2/2019
   * added NQUEUED_NUC_CAP
 

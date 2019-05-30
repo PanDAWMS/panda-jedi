@@ -1,5 +1,6 @@
 import re
 import sys
+import json
 
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
@@ -596,3 +597,43 @@ def getOkNgArchList(task_spec):
             return (['x86_64-centos7-%'], None)
     return (None, None)
     
+
+# check SW with json
+class JsonSoftwareCheck:
+    # constructor
+    def __init__(self, site_mapper, json_name=None):
+        if json_name is None:
+            json_name = '/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_tags.json'
+        self.siteMapper = site_mapper
+        try:
+            self.swDict = json.load(open(json_name))
+        except Exception:
+            self.swDict = dict()
+            
+    # get lists
+    def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs):
+        okSite = []
+        noAutoSite = []
+        for tmpSiteName in site_list:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
+                # check if CVMFS is available
+                if 'any' in self.swDict[tmpSiteName]["cvmfs"] or cvmfs_tag in self.swDict[tmpSiteName]["cvmfs"]:
+                    # check if container is available
+                    if 'any' in self.swDict[tmpSiteName]["containers"]:
+                        okSite.append(tmpSiteName)
+                    # check cmt config
+                    if cmt_config in self.swDict[tmpSiteName]['cmtconfig']:
+                        okSite.append(tmpSiteName)
+                elif not need_cvmfs:
+                    # check tags
+                    for tag in self.swDict[tmpSiteName]["tags"]:
+                        if tag['cmtconfig'] == cmt_config and tag['project'] == sw_project \
+                           and tag['release'] == sw_version:
+                            okSite.append(tmpSiteName)
+                            toContinue = True
+                            break
+                # don't pass to subsequent check if AUTO is enabled
+                continue
+            noAutoSite.append(tmpSiteName)
+        return (okSite, noAutoSite)

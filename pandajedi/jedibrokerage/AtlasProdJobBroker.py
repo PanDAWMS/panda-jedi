@@ -564,25 +564,40 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for release
         if taskSpec.transHome != None:
+            jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
             unified_site_list = self.get_unified_sites(scanSiteList)
-            if re.search('-\d+\.\d+\.\d+$',taskSpec.transHome) is not None:
+            if re.search('-\d+\.\d+\.\d+$', taskSpec.transHome) is not None:
                 # 3 digits base release
-                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                         releases=taskSpec.transHome.split('-')[-1],
-                                                                         cmtConfig=taskSpec.getArchitecture())
-                siteListWithSW += self.taskBufferIF.checkSitesWithRelease(unified_site_list,
+                siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
+                                                                   taskSpec.transHome.split('-')[0],
+                                                                   taskSpec.transHome.split('-')[1],
+                                                                   taskSpec.getArchitecture(),
+                                                                   False)
+                siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                          releases=taskSpec.transHome.split('-')[-1],
+                                                                          cmtConfig=taskSpec.getArchitecture())
+                siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                           caches=taskSpec.transHome,
                                                                           cmtConfig=taskSpec.getArchitecture())
-            elif re.search('rel_\d+(\n|$)',taskSpec.transHome) is None and \
-                    re.search('\d{4}-\d{2}-\d{2}T\d{4}$',taskSpec.transHome) is None:
+            elif re.search('rel_\d+(\n|$)', taskSpec.transHome) is None and \
+                    re.search('\d{4}-\d{2}-\d{2}T\d{4}$', taskSpec.transHome) is None:
                 # only cache is checked for normal tasks
-                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                         caches=taskSpec.transHome,
-                                                                         cmtConfig=taskSpec.getArchitecture())
+                siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
+                                                                   taskSpec.transHome.split('-')[0],
+                                                                   taskSpec.transHome.split('-')[1],
+                                                                   taskSpec.getArchitecture(),
+                                                                   False)
+                siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                          caches=taskSpec.transHome,
+                                                                          cmtConfig=taskSpec.getArchitecture())
             else:
                 # nightlies
-                siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                         releases='CVMFS')
+                siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
+                                                                   None, None,
+                                                                   taskSpec.getArchitecture(),
+                                                                   True)
+                siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                          releases='CVMFS')
                 #                                                         releases='nightlies',
                 #                                                         cmtConfig=taskSpec.getArchitecture())
             newScanSiteList = []
