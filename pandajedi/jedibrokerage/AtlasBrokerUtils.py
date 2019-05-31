@@ -611,19 +611,24 @@ class JsonSoftwareCheck:
             self.swDict = dict()
             
     # get lists
-    def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs):
+    def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only):
         okSite = []
         noAutoSite = []
         for tmpSiteName in site_list:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
+                # only cmt config check
+                if cmt_config_only:
+                    if cmt_config in self.swDict[tmpSiteName]['cmtconfig']:
+                        okSite.append(tmpSiteName)
+                    continue
                 # check if CVMFS is available
                 if 'any' in self.swDict[tmpSiteName]["cvmfs"] or cvmfs_tag in self.swDict[tmpSiteName]["cvmfs"]:
                     # check if container is available
                     if 'any' in self.swDict[tmpSiteName]["containers"]:
                         okSite.append(tmpSiteName)
                     # check cmt config
-                    if cmt_config in self.swDict[tmpSiteName]['cmtconfig']:
+                    elif cmt_config in self.swDict[tmpSiteName]['cmtconfig']:
                         okSite.append(tmpSiteName)
                 elif not need_cvmfs:
                     # check tags
@@ -631,7 +636,6 @@ class JsonSoftwareCheck:
                         if tag['cmtconfig'] == cmt_config and tag['project'] == sw_project \
                            and tag['release'] == sw_version:
                             okSite.append(tmpSiteName)
-                            toContinue = True
                             break
                 # don't pass to subsequent check if AUTO is enabled
                 continue

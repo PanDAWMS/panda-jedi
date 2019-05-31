@@ -572,7 +572,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    taskSpec.transHome.split('-')[0],
                                                                    taskSpec.transHome.split('-')[1],
                                                                    taskSpec.getArchitecture(),
-                                                                   False)
+                                                                   False, False)
                 if len(sitesNoJsonCheck) > 0:
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               releases=taskSpec.transHome.split('-')[-1],
@@ -587,7 +587,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    taskSpec.transHome.split('-')[0],
                                                                    taskSpec.transHome.split('-')[1],
                                                                    taskSpec.getArchitecture(),
-                                                                   False)
+                                                                   False, False)
                 if len(sitesNoJsonCheck) > 0:
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               caches=taskSpec.transHome,
@@ -597,7 +597,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
                                                                    None, None,
                                                                    taskSpec.getArchitecture(),
-                                                                   True)
+                                                                   True, False)
                 if len(sitesNoJsonCheck) > 0:
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               releases='CVMFS')
