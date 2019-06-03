@@ -565,15 +565,16 @@ class AtlasProdJobBroker (JobBrokerBase):
             diskio_usage_tmp = diskio_percore_usage.get(tmpSiteName, 0)
 
             # figure out queue or default limit
-            if tmpSiteSpec.maxDiskioPerCore and tmpSiteSpec.maxDiskioPerCore > 0:
+            if tmpSiteSpec.maxDiskio and tmpSiteSpec.maxDiskio > 0:
                 # there is a limit specified in AGIS
-                diskio_limit_tmp = tmpSiteSpec.maxDiskioPerCore
+                diskio_limit_tmp = tmpSiteSpec.maxDiskio
             else:
                 # we need to use the default value from GDP Config
                 diskio_limit_tmp = max_diskio_per_core_default
 
             # normalize task diskIO by site corecount
-            if not tmpSiteSpec.coreCount in [None, 0]:
+            diskio_task_tmp = taskSpec.diskIO
+            if taskSpec.diskIO is not None and taskSpec.coreCount not in [None, 0, 1] and tmpSiteSpec.coreCount not in [None, 0]:
                 diskio_task_tmp = taskSpec.diskIO / tmpSiteSpec.coreCount
 
             tmpLog.info('diskIO measurements: site={0} jediTaskID={1} diskIO_task={2} diskIO_site_usage={3} diskIO_site_limit={4}'
