@@ -628,7 +628,7 @@ class JsonSoftwareCheck:
                     if 'any' in self.swDict[tmpSiteName]["containers"]:
                         okSite.append(tmpSiteName)
                     # check cmt config
-                    elif cmt_config in self.swDict[tmpSiteName]['cmtconfig']:
+                    elif cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
                         okSite.append(tmpSiteName)
                 elif not need_cvmfs:
                     # check tags
