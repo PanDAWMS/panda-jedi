@@ -549,7 +549,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         """
 
         # get default disk IO limit from GDP config
-        max_diskio_per_core_default =  self.taskBufferIF.getConfigValue(COMPONENT, 'MAX_DISKIO_PER_CORE_DEFAULT', APP, VO)
+        max_diskio_per_core_default =  self.taskBufferIF.getConfigValue(COMPONENT, 'MAX_DISKIO_DEFAULT', APP, VO)
         if not max_diskio_per_core_default:
             max_diskio_per_core_default = 10**10
 
@@ -575,6 +575,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             # normalize task diskIO by site corecount
             if not tmpSiteSpec.coreCount in [None, 0]:
                 diskio_task_tmp = taskSpec.diskIO / tmpSiteSpec.coreCount
+
+            tmpLog.info('diskIO measurements: site={0} jediTaskID={1} diskIO_task={2} diskIO_site_usage={3} diskIO_site_limit={4}'
+                        .format(tmpSiteName, taskSpec.jediTaskID, diskio_task_tmp, diskio_usage_tmp, diskio_limit_tmp))
 
             # if the task has a diskIO defined, the queue is over the IO limit and the task IO is over the limit
             if diskio_task_tmp and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
