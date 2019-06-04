@@ -10,7 +10,6 @@ from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediCoreUtils
 from JobBrokerBase import JobBrokerBase
-from pandaserver.taskbuffer import PrioUtil
 import AtlasBrokerUtils
 
 # logger
@@ -362,69 +361,75 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     continue
             ######################################
             # selection for release
-            if taskSpec.transHome is not None or (taskSpec.processingType is not None and taskSpec.processingType.endswith('jedi-cont')):
+            if taskSpec.transHome is not None or \
+                    (taskSpec.processingType is not None and taskSpec.processingType.endswith('jedi-cont')):
                 useANY = True
+                jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
                 unified_site_list = self.get_unified_sites(scanSiteList)
                 if taskSpec.transHome is not None:
                     transHome = taskSpec.transHome
                 else:
                     transHome = ''
-                if transHome.startswith('ROOT'):
-                    # hack until x86_64-slc6-gcc47-opt is published in installedsw
-                    if taskSpec.getArchitecture() == 'x86_64-slc6-gcc47-opt':
-                        tmpCmtConfig = 'x86_64-slc6-gcc46-opt'
+                # remove AnalysisTransforms-
+                transHome = re.sub('^[^-]+-*','',transHome)
+                transHome = re.sub('_','-',transHome)
+                if re.search('rel_\d+(\n|$)', transHome) is None and \
+                        taskSpec.transHome not in ['AnalysisTransforms', None] and \
+                        re.search('\d{4}-\d{2}-\d{2}T\d{4}$', transHome) is None and \
+                        re.search('-\d+\.\d+\.\d+$', transHome) is None:
+                    # cache is checked
+                    siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
+                                                                       transHome.split('-')[0],
+                                                                       transHome.split('-')[1],
+                                                                       taskSpec.getArchitecture(),
+                                                                       False, False)
+                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                              caches=transHome,
+                                                                              cmtConfig=taskSpec.getArchitecture())
+                elif (transHome == '' and taskSpec.transUses is not None) or \
+                        (re.search('-\d+\.\d+\.\d+$',transHome) is not None and
+                        (taskSpec.transUses is None or re.search('-\d+\.\d+$', taskSpec.transUses) is None)):
+                    # remove Atlas-
+                    transUses = taskSpec.transUses.split('-')[-1]
+                    # release is checked
+                    siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
+                                                                       transHome.split('-')[0],
+                                                                       transHome.split('-')[1],
+                                                                       taskSpec.getArchitecture(),
+                                                                       False, False)
+                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                              releases=transUses,
+                                                                              cmtConfig=taskSpec.getArchitecture())
+                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                              caches=transHome,
+                                                                              cmtConfig=taskSpec.getArchitecture())
+                else:
+                    # nightlies or standalone
+                    useANY = False
+                    siteListWithCVMFS = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
+                                                                                releases='CVMFS')
+                    if taskSpec.getArchitecture() in ['', None]:
+                        # architecture is not set
+                        siteListWithCMTCONFIG = copy.copy(unified_site_list)
                     else:
-                        tmpCmtConfig = taskSpec.getArchitecture()
-                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                             cmtConfig=tmpCmtConfig,
-                                                                             onlyCmtConfig=True)
-                elif 'AthAnalysis' in transHome or re.search('Ath[a-zA-Z]+Base',transHome) != None \
-                        or 'AnalysisBase' in transHome:
-                    # AthAnalysis
-                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                             cmtConfig=taskSpec.getArchitecture(),
-                                                                             onlyCmtConfig=True)
-                else:    
-                    # remove AnalysisTransforms-
-                    transHome = re.sub('^[^-]+-*','',transHome)
-                    transHome = re.sub('_','-',transHome)
-                    if re.search('rel_\d+(\n|$)',transHome) == None and taskSpec.transHome not in ['AnalysisTransforms', None] and \
-                            re.search('\d{4}-\d{2}-\d{2}T\d{4}$',transHome) == None and \
-                            re.search('-\d+\.\d+\.\d+$',transHome) is None:
-                        # cache is checked 
-                        siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                 caches=transHome,
-                                                                                 cmtConfig=taskSpec.getArchitecture())
-                    elif (transHome == '' and taskSpec.transUses != None) or \
-                            (re.search('-\d+\.\d+\.\d+$',transHome) is not None and \
-                                 (taskSpec.transUses is None or re.search('-\d+\.\d+$',taskSpec.transUses) is None)):
-                        # remove Atlas-
-                        transUses = taskSpec.transUses.split('-')[-1]
-                        # release is checked 
-                        siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                 releases=transUses,
-                                                                                 cmtConfig=taskSpec.getArchitecture())
-                        siteListWithSW += self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                  caches=transHome,
-                                                                                  cmtConfig=taskSpec.getArchitecture())
+                        siteListWithCMTCONFIG = \
+                            self.taskBufferIF.checkSitesWithRelease(unified_site_list,
+                            cmtConfig=taskSpec.getArchitecture(),
+                            onlyCmtConfig=True)
+                    if taskSpec.transHome is not None:
+                        # CVMFS check for nightlies
+                        siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
+                                                                           None, None,
+                                                                           taskSpec.getArchitecture(),
+                                                                           True, False)
+                        siteListWithSW += list(set(siteListWithCVMFS) & set(siteListWithCMTCONFIG))
                     else:
-                        # nightlies or standalone
-                        useANY = False
-                        siteListWithCVMFS = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                    releases='CVMFS')
-                        if taskSpec.getArchitecture() in ['', None]:
-                            # architecture is not set
-                            siteListWithCMTCONFIG = copy.copy(unified_site_list)
-                        else:
-                            siteListWithCMTCONFIG = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                            cmtConfig=taskSpec.getArchitecture(),
-                                                                                            onlyCmtConfig=True)
-                        if taskSpec.transHome is not None:
-                            # CVMFS check
-                            siteListWithSW = set(siteListWithCVMFS) & set(siteListWithCMTCONFIG)
-                        else:
-                            # no CVMFS check for standalone SW
-                            siteListWithSW = siteListWithCMTCONFIG
+                        # no CVMFS check for standalone SW
+                        siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
+                                                                           None, None,
+                                                                           taskSpec.getArchitecture(),
+                                                                           False, True)
+                        siteListWithSW += siteListWithCMTCONFIG
                 newScanSiteList = []
                 for tmpSiteName in unified_site_list:
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -451,13 +456,18 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if taskSpec.osMatching():
                 mandatoryArchs, badArchs = AtlasBrokerUtils.getOkNgArchList(taskSpec)
                 unified_site_list = self.get_unified_sites(scanSiteList)
+                jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
                 # mandatory architectures
                 if mandatoryArchs is not None:
                     for tmpArch in mandatoryArchs:
-                        tmpSiteList = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                              cmtConfig=tmpArch,
-                                                                              onlyCmtConfig=True,
-                                                                              cmtConfigPattern=True)
+                        tmpSiteList, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
+                                                                        None, None,
+                                                                        tmpArch,
+                                                                        False, True)
+                        tmpSiteList += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                               cmtConfig=tmpArch,
+                                                                               onlyCmtConfig=True,
+                                                                               cmtConfigPattern=True)
                         for tmpSiteName in unified_site_list:
                             if tmpSiteName not in tmpSiteList:
                                 # release is unavailable
@@ -466,10 +476,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # bad architectures
                 if badArchs is not None:
                     for tmpArch in badArchs:
-                        tmpSiteList = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                              cmtConfig=tmpArch,
-                                                                              onlyCmtConfig=True,
-                                                                              cmtConfigPattern=True)
+                        tmpSiteList, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
+                                                                        None, None,
+                                                                        tmpArch,
+                                                                        False, True)
+                        tmpSiteList += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                               cmtConfig=tmpArch,
+                                                                               onlyCmtConfig=True,
+                                                                               cmtConfigPattern=True)
                         newSiteList = []
                         for tmpSiteName in unified_site_list:
                             if tmpSiteName in tmpSiteList:

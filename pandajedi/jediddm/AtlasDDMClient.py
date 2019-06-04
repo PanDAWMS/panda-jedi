@@ -478,9 +478,12 @@ class AtlasDDMClient(DDMClientBase):
                     x = client.list_replicas(dids, ['srm', 'gsiftp'], resolve_archives=True)
                     regTime = datetime.datetime.utcnow() - loopStart
                     tmp_log.debug('rucio.list_replicas took {0} sec for {1} files'.format(regTime.seconds, len(dids)))
-                    for tmp_dict in x: 
-                        tmp_LFN = str(tmp_dict['name'])
-                        lfn_to_rses_map[tmp_LFN] = tmp_dict['rses']
+                    for tmp_dict in x:
+                        try:
+                            tmp_LFN = str(tmp_dict['name'])
+                            lfn_to_rses_map[tmp_LFN] = tmp_dict['rses']
+                        except Exception:
+                            pass
                     # reset the dids list for the next bulk for Rucio
                     dids = []
                     tmp_log.debug('lookup end')
