@@ -555,9 +555,9 @@ class AtlasProdJobBroker (JobBrokerBase):
 
         # get the current disk IO usage per site
         diskio_percore_usage = self.taskBufferIF.getAvgDiskIO_JEDI()
-
+        unified_site_list = self.get_unified_sites(scanSiteList)
         newScanSiteList = []
-        for tmpSiteName in scanSiteList:
+        for tmpSiteName in unified_site_list:
 
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
 
@@ -584,8 +584,11 @@ class AtlasProdJobBroker (JobBrokerBase):
             if diskio_task_tmp and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
                 tmpLog.info('  skip site={0} due to diskIO overload criteria=-diskIO'.format(tmpSiteName))
                 continue
+
             newScanSiteList.append(tmpSiteName)
-        scanSiteList = newScanSiteList
+
+        scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
+
         tmpLog.info('{0} candidates passed diskIO check'.format(len(scanSiteList)))
         if not scanSiteList:
             tmpLog.error('no candidates')
@@ -613,6 +616,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError
+
         ######################################
         # selection for release
         if taskSpec.transHome != None:
