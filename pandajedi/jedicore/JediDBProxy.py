@@ -12396,7 +12396,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 raise RuntimeError, 'Commit error'
             retMap = dict()
             for avg, computingSite in resFL:
-                retMap[computingSite] = round(avg, 2)
+                retMap[computingSite] = avg
             tmpLog.debug('done')
             return retMap
         except:
