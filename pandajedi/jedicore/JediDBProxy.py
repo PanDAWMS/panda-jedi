@@ -6115,7 +6115,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += ') AND NOT status IN (:dsEndStatus1,:dsEndStatus2,:dsEndStatus3) AND ('
                 sql += 'nFilesToBeUsed>nFilesFinished+nFilesFailed '
                 sql += 'OR (nFilesUsed=0 AND nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>0) '
-                sql += 'OR nFilesUsed>nFilesFinished+nFilesFailed) '
+                sql += 'OR (nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>nFilesFinished+nFilesFailed)) '
                 sql += ') AND rownum<={0}'.format(nTasks)
             else:
                 varMap = {}
