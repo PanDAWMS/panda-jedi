@@ -393,10 +393,17 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     transUses = taskSpec.transUses.split('-')[-1]
                     # release is checked
                     siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
-                                                                       transHome.split('-')[0],
-                                                                       transHome.split('-')[1],
+                                                                       "AtlasOffline",
+                                                                       transUses,
                                                                        taskSpec.getArchitecture(),
                                                                        False, False)
+                    if len(transHome.split('-')) == 2:
+                        tmpSiteListWithSW, sitesNoJsonCheck = jsonCheck.check(sitesNoJsonCheck, "atlas",
+                                                                              transHome.split('-')[0],
+                                                                              transHome.split('-')[1],
+                                                                              taskSpec.getArchitecture(),
+                                                                              False, False)
+                        siteListWithSW += tmpSiteListWithSW
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               releases=transUses,
                                                                               cmtConfig=taskSpec.getArchitecture())
