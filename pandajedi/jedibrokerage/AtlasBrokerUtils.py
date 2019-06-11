@@ -363,6 +363,29 @@ def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_tag=N
     return nJobs
 
 
+# get the total number of jobs in a status
+def get_total_nq_nr_ratio(job_stat_map, work_queue_tag=None):
+    nRunning = 0
+    nQueue = 0
+    # loop over all workQueues
+    for siteVal in job_stat_map.values():
+        for tmpWorkQueue in siteVal:
+            # workQueue is defined
+            if work_queue_tag is not None and work_queue_tag != tmpWorkQueue:
+                continue
+            tmpWorkQueueVal = siteVal[tmpWorkQueue]
+            # loop over all job status
+            for tmpJobStatus in ['defined', 'assigned', 'activated', 'starting']:
+                if tmpJobStatus in tmpWorkQueueVal:
+                    nQueue += tmpWorkQueueVal[tmpJobStatus]
+            if 'running' in tmpWorkQueueVal:
+                nRunning += tmpWorkQueueVal['running']
+    try:
+        ratio = float(nQueue) / float(nRunning)
+    except Exception:
+        ratio = None
+    # return
+    return ratio
 
 # check if the queue is suppressed
 def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
@@ -619,7 +642,7 @@ class JsonSoftwareCheck:
             if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
                 # only cmt config check
                 if cmt_config_only:
-                    if cmt_config in self.swDict[tmpSiteName]['cmtconfig']:
+                    if cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
                         okSite.append(tmpSiteName)
                     continue
                 # check if CVMFS is available

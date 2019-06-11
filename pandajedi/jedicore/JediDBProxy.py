@@ -12393,9 +12393,46 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resFL = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             retMap = dict()
             for avg, computingSite in resFL:
+                retMap[computingSite] = avg
+            tmpLog.debug('done')
+            return retMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return {}
+
+    # get nQ/nR ratio
+    def get_nq_nr_ratio_JEDI(self, source_label):
+        comment = ' /* JediDBProxy.get_nq_nr_ratio_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < label={0} >'.format(source_label)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            retMap = dict()
+            # sql
+            sql  = "SELECT computingSite,jobStatus,COUNT(*) FROM {0}.{{0}} ".format(jedi_config.db.schemaPANDA)
+            sql += "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
+            sql += "GROUP BY computingSite,jobStatus "
+            for tableName, jobStatus1, jobStatus2 in [('jobsDefined4', 'defined', 'assigned'),
+                                                      ('jobsActive4', 'activated, ''running')]:
+                varMap = dict()
+                varMap[':jobStatus1'] = jobStatus1
+                varMap[':jobStatus2'] = jobStatus2
+                # begin transaction
+                self.conn.begin()
+                self.cur.execute(sql.format(tableName)+comment, varMap)
+                resFL = self.cur.fetchall()
+                # commit
+                if not self._commit():
+                    raise RuntimeError('Commit error')
+                for computingSite, jobStatus, nJobs in resFL:
+                    retMap.setdefault(computingSite, {'nRunning': 0, 'nQueue': 0})
                 retMap[computingSite] = avg
             tmpLog.debug('done')
             return retMap

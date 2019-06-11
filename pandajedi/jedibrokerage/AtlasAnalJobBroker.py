@@ -756,6 +756,46 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     tmpLog.error('no candidates')
                     retVal = retTmpError
                     continue
+            ######################################
+            # selection for un-overloaded sites
+            newScanSiteList = []
+            msgList = []
+            minQueue = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_MIN_QUEUE',
+                                                        'jedi', taskSpec.vo)
+            if minQueue is None:
+                minQueue = 20
+            ratioOffset = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_RATIO_OFFSET',
+                                                        'jedi', taskSpec.vo)
+            if ratioOffset is None:
+                ratioOffset = 1.2
+            grandRatio = AtlasBrokerUtils.get_total_nq_nr_ratio(jobStatPrioMap)
+            tmpLog.info('grand nQueue/nRunning ratio : {0}'.format(grandRatio))
+            for tmpPseudoSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+                tmpSiteName = tmpSiteSpec.get_unified_name()
+                # get nQueue and nRunning
+                nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', None, None)
+                nQueue = 0
+                for jobStatus in ['defined', 'assigned', 'activated', 'starting']:
+                    nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus, None, None)
+                # skip if overloaded
+                if nQueue > minQueue and \
+                        (nRunning == 0 or float(nQueue) / float(nRunning) > grandRatio * ratioOffset):
+                    tmpMsg = '  skip site={0} '.format(tmpPseudoSiteName)
+                    tmpMsg += 'nQueue>minQueue({0}) and '.format(minQueue)
+                    tmpMsg += 'nQueue({0})/nRunning({1}) > grandRatio({2:.2f})*offset({3}) '.format(nQueue,
+                                                                                                    nRunning,
+                                                                                                    grandRatio,
+                                                                                                    ratioOffset)
+                    tmpMsg += 'criteria=-overloaded'
+                    msgList.append(tmpMsg)
+                else:
+                    newScanSiteList.append(tmpPseudoSiteName)
+            if len(newScanSiteList) > 0:
+                scanSiteList = newScanSiteList
+                for tmpMsg in msgList:
+                    tmpLog.info(tmpMsg)
+                tmpLog.info('{0} candidates passed overload check'.format(len(scanSiteList)))
             # loop end
             if len(scanSiteList) > 0:
                 retVal = None
