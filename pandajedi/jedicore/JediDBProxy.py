@@ -10828,13 +10828,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         resList = self.cur.fetchall()
 
         networkMap = {}
-        total = 0
+        total = {}
         for res in resList:
             src, key, value, ts = res
             networkMap.setdefault(src, {})
             networkMap[src][key] = value
+            total.setdefault(key, 0)
             try:
-                total += value
+                total[key] += value
             except Exception:
                 pass
         networkMap['total'] = total
