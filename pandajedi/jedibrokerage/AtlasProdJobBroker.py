@@ -303,8 +303,11 @@ class AtlasProdJobBroker (JobBrokerBase):
         #####################################################
         # filtering out blacklisted or links with long queues
         if taskSpec.useWorldCloud() and nucleus and not sitePreAssigned and not siteListPreAssigned:
-            tmpLog.debug('Total number of files being transferred to the nucleus : {0}'.format(
-                networkMap['total'][queued_tag]))
+            if queued_tag in networkMap['total']:
+                totalQueued = networkMap['total'][queued_tag]
+            else:
+                totalQueued = 0
+            tmpLog.debug('Total number of files being transferred to the nucleus : {0}'.format(totalQueued))
             newScanSiteList = []
             newSkippedTmp = dict()
             for tmpPandaSiteName in self.get_unified_sites(scanSiteList):
@@ -313,7 +316,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     if nucleus == tmpAtlasSiteName or \
                                     (networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK and \
                                     networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold and \
-                                         networkMap['total'][queued_tag] < self.total_queue_threshold):
+                                     totalQueued < self.total_queue_threshold):
                         newScanSiteList.append(tmpPandaSiteName)
                     else:
                         skipFlag = True
@@ -326,9 +329,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                                 .format(networkMap[tmpAtlasSiteName][queued_tag], self.queue_threshold)
                             # temporary problem
                             skipFlag = False
-                        elif networkMap['total'][queued_tag] >= self.total_queue_threshold:
+                        elif totalQueued >= self.total_queue_threshold:
                             reason = 'too many output files being transferred to the nucleus {0}(>{1} total limit)'\
-                                .format(networkMap['total'][queued_tag], self.total_queue_threshold)
+                                .format(totalQueued, self.total_queue_threshold)
                             # temporary problem
                             skipFlag = False
                             criteria = '-links_full'
