@@ -737,11 +737,24 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
             # check for preassigned
-            if sitePreAssigned and (taskSpec.site not in scanSiteList and taskSpec.site not in self.get_unified_sites(scanSiteList)):
-                tmpLog.info("preassigned site {0} did not pass all tests".format(taskSpec.site))
-                tmpLog.error('no candidates')
-                retVal = retFatal
-                continue
+            if sitePreAssigned:
+                if taskSpec.site not in scanSiteList and taskSpec.site not in self.get_unified_sites(scanSiteList):
+                    tmpLog.info("preassigned site {0} did not pass all tests".format(taskSpec.site))
+                    tmpLog.error('no candidates')
+                    retVal = retFatal
+                    continue
+                else:
+                    newScanSiteList = []
+                    for tmpPseudoSiteName in scanSiteList:
+                        tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+                        tmpSiteName = tmpSiteSpec.get_unified_name()
+                        if tmpSiteName != taskSpec.site:
+                            tmpLog.info('  skip site={0} non pre-assigned site criteria=-nonpreassigned'.format(
+                                tmpPseudoSiteName))
+                            continue
+                        newScanSiteList.append(tmpSiteName)
+                    scanSiteList = newScanSiteList
+                tmpLog.info('{0} candidates passed preassigned check'.format(len(scanSiteList)))
             ######################################
             # selection for hospital
             newScanSiteList = []
