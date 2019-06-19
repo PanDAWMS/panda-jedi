@@ -116,6 +116,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 scanSiteLists.append((copy.copy(scanSiteList), False))
         retVal = None
         checkDataLocality = False
+        scanSiteWoVP = []
         for scanSiteList, checkDataLocality in scanSiteLists:
             if checkDataLocality:
                 tmpLog.debug('!!! look for candidates WITH data locality check') 
@@ -189,6 +190,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     # get sites where replica is available
                     tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=True)
                     tmpDiskSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=False)
+                    tmpNonVpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite, includeTape=True,
+                                                                                 use_vp=False)
                     # get sites which can remotely access source sites
                     if inputChunk.isMerging:
                         # disable remote access for merging
@@ -241,6 +244,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             if not tmpSiteName in oldScanUnifiedSiteList:
                                 continue
                             scanSiteListOnDisk.add(tmpSiteName)
+                        scanSiteWoVP = tmpNonVpSiteList
                         continue
                     # pickup sites which have all data
                     newScanList = []
@@ -255,6 +259,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         if tmpSiteName in scanSiteListOnDisk:
                             newScanListOnDisk.add(tmpSiteName)
                     scanSiteListOnDisk = newScanListOnDisk
+                    # get common elements
+                    scanSiteWoVP = list(set(scanSiteWoVP).intersection(tmpNonVpSiteList))
                     tmpLog.debug('{0} is available at {1} sites on DISK'.format(datasetName,len(scanSiteListOnDisk)))
                 # check for preassigned
                 if sitePreAssigned and not taskSpec.site in scanSiteList:
@@ -289,7 +295,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 elif tmpSiteSpec.status in ['brokeroff','test']:
                     if not sitePreAssigned:
                         skipFlag = True
-                    elif tmpSiteName != taskSpec.site:
+                    elif taskSpec.site not in [tmpSiteName, tmpSiteSpec.get_unified_name()]:
                         skipFlag = True
                 if not skipFlag:    
                     newScanSiteList.append(tmpSiteName)
@@ -779,7 +785,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
             ######################################
             # selection for un-overloaded sites
             newScanSiteList = []
+            overloadedNonVP = []
             msgList = []
+            msgListVP = []
             minQueue = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_MIN_QUEUE',
                                                         'jedi', taskSpec.vo)
             if minQueue is None:
@@ -790,6 +798,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 ratioOffset = 1.2
             grandRatio = AtlasBrokerUtils.get_total_nq_nr_ratio(jobStatPrioMap)
             tmpLog.info('grand nQueue/nRunning ratio : {0}'.format(grandRatio))
+            tmpLog.info('sites with non-VP data : {0}'.format(','.join(scanSiteWoVP)))
             for tmpPseudoSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
                 tmpSiteName = tmpSiteSpec.get_unified_name()
@@ -807,15 +816,28 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                                                     nRunning,
                                                                                                     grandRatio,
                                                                                                     ratioOffset)
-                    tmpMsg += 'criteria=-overloaded'
-                    msgList.append(tmpMsg)
+                    if tmpSiteName in scanSiteWoVP:
+                        tmpMsg += 'criteria=-overloaded'
+                        overloadedNonVP.append(tmpPseudoSiteName)
+                        msgListVP.append(tmpMsg)
+                    else:
+                        tmpMsg += 'and VP criteria=-overloaded_vp'
+                        msgList.append(tmpMsg)
                 else:
                     newScanSiteList.append(tmpPseudoSiteName)
             if len(newScanSiteList) > 0:
                 scanSiteList = newScanSiteList
-                for tmpMsg in msgList:
+                for tmpMsg in msgList+msgListVP:
                     tmpLog.info(tmpMsg)
-                tmpLog.info('{0} candidates passed overload check'.format(len(scanSiteList)))
+            else:
+                scanSiteList = overloadedNonVP
+                for tmpMsg in msgListVP:
+                    tmpLog.info(tmpMsg)
+            tmpLog.info('{0} candidates passed overload check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                retVal = retTmpError
+                continue
             # loop end
             if len(scanSiteList) > 0:
                 retVal = None
@@ -842,15 +864,18 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # disable file lookup for merge jobs
                 if inputChunk.isMerging:
                     checkCompleteness = False
+                    useVP = False
                 else:
                     checkCompleteness = True
+                    useVP = True
                 # get available files per site/endpoint
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
                                                             siteStorageEP,
                                                             self.siteMapper,
-                                                            check_completeness=checkCompleteness)
+                                                            check_completeness=checkCompleteness,
+                                                            use_vp=useVP)
                 if tmpAvFileMap == None:
-                    raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
+                    raise Interaction.JEDITemporaryError('ddmIF.getAvailableFiles failed')
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
             except:
                 errtype,errvalue = sys.exc_info()[:2]

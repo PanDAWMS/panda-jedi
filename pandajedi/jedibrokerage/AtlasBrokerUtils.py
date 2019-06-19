@@ -219,7 +219,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
     # get replicas
     try:
         replicaMap= {}
-        replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName)
+        replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName, use_vp=True)
     except:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.listDatasetReplicas failed with %s' % errvalue
@@ -283,17 +283,22 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
                 if not retMap.has_key(tmpSiteName):
                     retMap[tmpSiteName] = {}
                 retMap[tmpSiteName][tmpSE] = {'tape':tmpOnTape,'state':tmpDatasetStatus}
+                if 'vp' in tmpStatistics:
+                    retMap[tmpSiteName][tmpSE]['vp'] = tmpStatistics['vp']
     # return
     return Interaction.SC_SUCCEEDED,retMap
 
 
 
 # get analysis sites where data is available at disk
-def getAnalSitesWithDataDisk(dataSiteMap,includeTape=False):
+def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True):
     siteList = []
     siteWithIncomp = []
     for tmpSiteName,tmpSeValMap in dataSiteMap.iteritems():
         for tmpSE,tmpValMap in tmpSeValMap.iteritems():
+            # VP
+            if not use_vp and 'vp' in tmpValMap and tmpValMap['vp'] is True:
+                continue
             # on disk or tape
             if includeTape or not tmpValMap['tape']:
                 if tmpValMap['state'] == 'complete':

@@ -126,7 +126,7 @@ class AtlasDDMClient(DDMClientBase):
             return errCode,'{0} : {1}'.format(methodName,errStr)
 
     # list dataset replicas
-    def listDatasetReplicas(self,datasetName):
+    def listDatasetReplicas(self, datasetName, use_vp=False):
         methodName = 'listDatasetReplicas'
         methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
@@ -135,7 +135,7 @@ class AtlasDDMClient(DDMClientBase):
         try:
             if not datasetName.endswith('/'):
                 # get file list
-                tmpRet = self.convertOutListDatasetReplicas(datasetName)
+                tmpRet = self.convertOutListDatasetReplicas(datasetName, use_vp=use_vp)
                 tmpLog.debug('got new '+str(tmpRet))
                 return self.SC_SUCCEEDED,tmpRet
             else:
@@ -149,12 +149,12 @@ class AtlasDDMClient(DDMClientBase):
                     tmpLog.debug(tmpName)
                     tmp_status, tmp_output = self.getDatasetMetaData(tmpName)
                     if tmp_status != self.SC_SUCCEEDED:
-                        raise RuntimeError, 'failed to get metadata with {0}'.format(tmp_output)
+                        raise RuntimeError('failed to get metadata with {0}'.format(tmp_output))
                     try:
                         totalFiles = tmp_output['length']
                     except Exception:
                         totalFiles = 0
-                    tmpRet = self.convertOutListDatasetReplicas(tmpName)
+                    tmpRet = self.convertOutListDatasetReplicas(tmpName, use_vp=use_vp)
                     # loop over all sites
                     for tmpSite,tmpValMap in tmpRet.iteritems():
                         # add site
@@ -281,21 +281,24 @@ class AtlasDDMClient(DDMClientBase):
 
     def SiteHasCompleteReplica(self, dataset_replica_map, endpoint, total_files_in_dataset):
         """
-        Checks the #found files at site == #total files at site == #files in dataset
+        Checks the #found files at site == #total files at site == #files in dataset. VP is regarded as complete
         :return: True or False
         """
         try:
+            if 'vp' in dataset_replica_map[endpoint][-1]:
+                if dataset_replica_map[endpoint][-1]['vp']:
+                    return True
             found_tmp = dataset_replica_map[endpoint][-1]['found']
             total_tmp = dataset_replica_map[endpoint][-1]['total']
             if found_tmp is not None and total_tmp == found_tmp and total_tmp >= total_files_in_dataset:
                 return True
         except KeyError:
             pass
-
         return False
 
     def getAvailableFiles(self, dataset_spec, site_endpoint_map, site_mapper, check_LFC=False,
-                          check_completeness=True, storage_token=None, complete_only=False):
+                          check_completeness=True, storage_token=None, complete_only=False,
+                          use_vp=True):
         """
         :param dataset_spec: dataset spec object
         :param site_endpoint_map: panda sites to ddm endpoints map. The list of panda sites includes the ones to scan
@@ -304,6 +307,7 @@ class AtlasDDMClient(DDMClientBase):
         :param check_completeness:
         :param storage_token:
         :param complete_only: check only for complete replicas
+        :param use_vp: use virtual placement
 
         TODO: do we need NG, do we need alternate names
         TODO: the storage_token is not used anymore
@@ -332,7 +336,7 @@ class AtlasDDMClient(DDMClientBase):
                 total_files_in_dataset = 0
 
             # get the dataset replica map
-            tmp_status, tmp_output = self.listDatasetReplicas(dataset_spec.datasetName)
+            tmp_status, tmp_output = self.listDatasetReplicas(dataset_spec.datasetName, use_vp=use_vp)
             if tmp_status != self.SC_SUCCEEDED:
                 tmp_log.error('failed to get dataset replicas with {0}'.format(tmp_output))
                 return tmp_status, tmp_output
@@ -389,7 +393,7 @@ class AtlasDDMClient(DDMClientBase):
                 tmp_status, rucio_lfn_to_rse_map = self.jedi_list_replicas(file_map, rse_list, scopes=scope_map)
                 tmp_log.debug('lookup file replicas return status: {0}'.format(str(tmp_status)))
                 if tmp_status != self.SC_SUCCEEDED:
-                    raise RuntimeError, rucio_lfn_to_rse_map
+                    raise RuntimeError(rucio_lfn_to_rse_map)
             else:
                 rucio_lfn_to_rse_map = dict()
 
@@ -1168,7 +1172,7 @@ class AtlasDDMClient(DDMClientBase):
 
 
     # convert output of listDatasetReplicas
-    def convertOutListDatasetReplicas(self,datasetName,usefileLookup=False):
+    def convertOutListDatasetReplicas(self, datasetName, usefileLookup=False, use_vp=False):
         retMap = {}
         # get rucio API
         client = RucioClient()
@@ -1178,18 +1182,42 @@ class AtlasDDMClient(DDMClientBase):
         itr = client.list_dataset_replicas(scope,dsn,deep=usefileLookup)
         items = []
         for item in itr:
+            if 'vp' not in item:
+                item['vp'] = False
             items.append(item)
         # deep lookup if shallow gave nothing
         if items == [] and not usefileLookup:
             itr = client.list_dataset_replicas(scope,dsn,deep=True)
             for item in itr:
+                if 'vp' not in item:
+                    item['vp'] = False
                 items.append(item)
+        # VP
+        """
+        if use_vp:
+            itr = client.list_dataset_replicas_vp(scope, dsn)
+            for item in itr:
+                if item['vp']:
+                    # add dummy
+                    if "length" not in item:
+                        item["length"] = 1
+                    if "available_length" not in item:
+                        item["available_length"] = 1
+                    if "bytes" not in item:
+                        item["bytes"] = 1
+                    if "available_bytes" not in item:
+                        item["available_bytes"] = 1
+                    if "site" in item and "rse" not in item:
+                        item["rse"] = item["site"]
+                    items.append(item)
+        """
         for item in items:
             rse = item["rse"]
             retMap[rse] = [{'total':item["length"],
                             'found':item["available_length"],
                             'tsize':item["bytes"],
                             'asize':item["available_bytes"],
+                            'vp': item["vp"],
                             'immutable':1}]
         return retMap
 
