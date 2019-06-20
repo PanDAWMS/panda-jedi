@@ -816,7 +816,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                                                     nRunning,
                                                                                                     grandRatio,
                                                                                                     ratioOffset)
-                    if tmpSiteName in scanSiteWoVP:
+                    if tmpSiteName in scanSiteWoVP or checkDataLocality is False or inputChunk.getDatasets() == []:
                         tmpMsg += 'criteria=-overloaded'
                         overloadedNonVP.append(tmpPseudoSiteName)
                         msgListVP.append(tmpMsg)
