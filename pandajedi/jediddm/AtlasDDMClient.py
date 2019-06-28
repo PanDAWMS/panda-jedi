@@ -481,7 +481,7 @@ class AtlasDDMClient(DDMClientBase):
                     loopStart = datetime.datetime.utcnow()
                     x = client.list_replicas(dids, ['srm', 'gsiftp'], resolve_archives=True)
                     regTime = datetime.datetime.utcnow() - loopStart
-                    tmp_log.debug('rucio.list_replicas took {0} sec for {1} files'.format(regTime.seconds, len(dids)))
+                    tmp_log.info('rucio.list_replicas took list_replicas_t={0} sec for list_replicas_f={1} files'.format(regTime.seconds, len(dids)))
                     for tmp_dict in x:
                         try:
                             tmp_LFN = str(tmp_dict['name'])

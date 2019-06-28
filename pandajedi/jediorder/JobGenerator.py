@@ -754,7 +754,7 @@ class JobGeneratorThread (WorkerThread):
                         tmpLog.sendMsg(tmpMsg,self.msgType)
                         tmpLog.info(tmpMsg)
                         regTime = datetime.datetime.utcnow() - loopStart
-                        tmpLog.debug('done. took {0} sec'.format(regTime.seconds))
+                        tmpLog.info('done. took cycle_t={0} sec'.format(regTime.seconds))
             except:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('%s.runImpl() failed with %s %s lastJediTaskID=%s' % (self.__class__.__name__,errtype.__name__,errvalue,
