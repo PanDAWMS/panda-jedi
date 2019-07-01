@@ -1193,7 +1193,6 @@ class AtlasDDMClient(DDMClientBase):
                     item['vp'] = False
                 items.append(item)
         # VP
-        """
         if use_vp:
             itr = client.list_dataset_replicas_vp(scope, dsn)
             for item in itr:
@@ -1210,7 +1209,6 @@ class AtlasDDMClient(DDMClientBase):
                     if "site" in item and "rse" not in item:
                         item["rse"] = item["site"]
                     items.append(item)
-        """
         for item in items:
             rse = item["rse"]
             retMap[rse] = [{'total':item["length"],
