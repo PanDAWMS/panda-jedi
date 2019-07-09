@@ -5983,8 +5983,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
-        # cpu abuse
-        if scoutSucceeded:
+            # cpu abuse
             if taskSpec.status != 'exhausted':
                 try:
                     if extraInfo['maxCpuConsumptionTime'] > \
