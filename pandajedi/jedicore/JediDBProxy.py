@@ -5986,13 +5986,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # cpu abuse
             if taskSpec.status != 'exhausted':
                 try:
+                    abuseOffset = 2
                     if extraInfo['maxCpuConsumptionTime'] > \
-                            extraInfo['maxExecTime'].total_seconds() * extraInfo['defCoreCount']:
+                            extraInfo['maxExecTime'].total_seconds() * extraInfo['defCoreCount'] * abuseOffset:
                         errMsg = 'status=exhausted since reason=over_cpu_consumption {0} sec '.format(
                             extraInfo['maxCpuConsumptionTime'])
-                        errMsg += 'is larger than jobDuration*coreCount ({0}*{1}). '.format(
+                        errMsg += 'is larger than jobDuration*coreCount*safety ({0}*{1}*{2}). '.format(
                             extraInfo['maxExecTime'].total_seconds(),
-                            extraInfo['defCoreCount'])
+                            extraInfo['defCoreCount'],
+                            abuseOffset
+                        )
                         errMsg += 'Running multi-core payload on single core queues?'
                         tmpLog.info(errMsg)
                         taskSpec.setErrDiag(errMsg)
