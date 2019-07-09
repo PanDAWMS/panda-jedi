@@ -5416,7 +5416,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # get the size of lib 
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
-        varMap[':type'] = 'lib'
+        varMap['type'] = 'lib'
         varMap[':status'] = 'finished'
         self.cur.execute(sqlLIB+comment,varMap)
         resLIB = self.cur.fetchone()
@@ -5475,6 +5475,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         pandaIDList  = set()
         totInSizeMap = {}
         masterInSize = {}
+        coreCountMap = {}
         for pandaID,fsize,startEvent,endEvent,nEvents in resList:
             pandaIDList.add(pandaID)
             if not inFSizeMap.has_key(pandaID):
@@ -5563,6 +5564,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     finishedJobs.append(pandaID)
                     inFSizeList.append(totalFSize)
                     jMetricsMap[pandaID] = jobMetrics
+                    coreCountMap[pandaID] = defCoreCount
                     # core count
                     coreCount = JobUtils.getCoreCount(actualCoreCount,defCoreCount,jobMetrics)
                     # output size
@@ -5615,7 +5617,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
                                     tmpVal /= float(inEventsMap[pandaID])
                                 if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= (10*coreCount) or \
-                                        (inEventsMap[pandaID] < (10*coreCount) and pandaID in execTimeMap and execTimeMap[pandaID] > 6*3600):
+                                        (inEventsMap[pandaID] < (10*coreCount) and pandaID in execTimeMap
+                                         and execTimeMap[pandaID] > datetime.timedelta(seconds=6*3600)):
                                     cpuTimeList.append(tmpVal)
                                     cpuTimeDict[tmpVal] = pandaID
                         except:
@@ -5705,6 +5708,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 returnMap['outDiskUnit']  = 'kB'
         if walltimeList != []:
             maxWallTime = max(walltimeList)
+            extraInfo['maxCpuConsumptionTime'] = maxWallTime
+            extraInfo['maxExecTime'] = execTimeMap[walltimeDict[maxWallTime]]
+            extraInfo['defCoreCount'] = coreCountMap[walltimeDict[maxWallTime]]
             addTag(jobTagMap,walltimeDict,maxWallTime,'walltime')
             # cut off of 60min
             if maxWallTime < 60 * 60:
@@ -5953,7 +5959,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
             # check execution time
             if taskSpec.status != 'exhausted':
-                # get exectime threshold for exausted
+                # get exectime threshold for exhausted
                 maxShortJobs = self.getConfigValue('dbproxy','SCOUT_NUM_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
                 shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
                 if maxShortJobs is not None and 'nShortJobs' in extraInfo and extraInfo['nShortJobs'] >= maxShortJobs and \
@@ -5977,6 +5983,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
+        # cpu abuse
+        if scoutSucceeded:
+            if taskSpec.status != 'exhausted':
+                try:
+                    if extraInfo['maxCpuConsumptionTime'] > \
+                            extraInfo['maxExecTime'].total_seconds() * extraInfo['defCoreCount']:
+                        errMsg = 'status=exhausted since reason=over_cpu_consumption {0} sec '.format(
+                            extraInfo['maxCpuConsumptionTime'])
+                        errMsg += 'is larger than jobDuration*coreCount ({0}*{1}). '.format(
+                            extraInfo['maxExecTime'].total_seconds(),
+                            extraInfo['defCoreCount'])
+                        errMsg += 'Running multi-core payload on single core queues?'
+                        tmpLog.info(errMsg)
+                        taskSpec.setErrDiag(errMsg)
+                        taskSpec.status = 'exhausted'
+                except Exception:
+                    tmpLog.error('failed to check CPU abuse')
+                    pass
         # reset the task resource type
         try:
             self.reset_resource_type_task(jediTaskID, useCommit)

@@ -1,5 +1,8 @@
 Release Notes
 
+* 7/9/2019
+  * added CPU abuse check
+
 * 5/30/2019
   * using json SW check in AtlasAJB
 
