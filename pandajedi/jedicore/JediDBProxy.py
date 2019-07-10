@@ -5564,9 +5564,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     finishedJobs.append(pandaID)
                     inFSizeList.append(totalFSize)
                     jMetricsMap[pandaID] = jobMetrics
-                    coreCountMap[pandaID] = defCoreCount
                     # core count
                     coreCount = JobUtils.getCoreCount(actualCoreCount,defCoreCount,jobMetrics)
+                    coreCountMap[pandaID] = coreCount
                     # output size
                     tmpWorkSize = 0
                     if eventServiceJob != EventServiceUtils.esJobFlagNumber:
