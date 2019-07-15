@@ -591,7 +591,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     log_msg += 'diskIO_site_limit={:.2f} '.format(diskio_limit_tmp)
                 tmpLog.info(log_msg)
             except:
-                tmpLog.debug('Error generating diskIO message')
+                tmpLog.debug('diskIO measurements: Error generating diskIO message')
 
             # if the task has a diskIO defined, the queue is over the IO limit and the task IO is over the limit
             if diskio_task_tmp and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
