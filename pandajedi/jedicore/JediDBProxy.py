@@ -5408,6 +5408,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preBaseRamCount = 0
         extraInfo['oldCpuTime'] = preCpuTime
         extraInfo['oldRamCount'] = preRamCount
+        # get minimum ram count
+        minRamCount = self.getConfigValue('dbproxy','SCOUT_RAMCOUNT_MIN', 'jedi')
         # get limit for short jobs
         shortExecTime = self.getConfigValue('dbproxy','SCOUT_SHORT_EXECTIME_{0}'.format(prodSourceLabel), 'jedi')
         if shortExecTime is None:
@@ -5747,7 +5749,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap['diskIO'] = aveDiskIo
             returnMap['diskIOUnit'] = 'kBPerS'
         if memSizeList != []:
-            memVal = max(memSizeList)
             memVal, origValues = JediCoreUtils.percentile(memSizeList, ramCountRank, memSizeDict)
             for origValue in origValues:
                 addTag(jobTagMap,memSizeDict,origValue,'ramCount')
@@ -5756,6 +5757,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             memVal = long(memVal)
             if memVal < 0:
                 memVal = 1
+            if minRamCount is not None and minRamCount > memVal:
+                memVal = minRamCount
             if preRamUnit == 'MBPerCore':
                 returnMap['ramUnit'] = preRamUnit
                 returnMap['ramCount'] = memVal
