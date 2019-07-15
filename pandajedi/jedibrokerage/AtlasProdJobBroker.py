@@ -586,7 +586,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if diskio_task_tmp is not None:
                     log_msg += 'diskIO_task={:.2f} '.format(diskio_task_tmp)
                 if diskio_usage_tmp is not None:
-                    log_msg += 'diskIO_site_usage={:.2f} '.format(diskio_task_tmp)
+                    log_msg += 'diskIO_site_usage={:.2f} '.format(diskio_usage_tmp)
                 if diskio_limit_tmp is not None:
                     log_msg += 'diskIO_site_limit={:.2f} '.format(diskio_limit_tmp)
                 tmpLog.info(log_msg)
