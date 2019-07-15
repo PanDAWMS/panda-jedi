@@ -581,8 +581,17 @@ class AtlasProdJobBroker (JobBrokerBase):
             if taskSpec.diskIO is not None and taskSpec.coreCount not in [None, 0, 1] and tmpSiteSpec.coreCount not in [None, 0]:
                 diskio_task_tmp = taskSpec.diskIO / tmpSiteSpec.coreCount
 
-            tmpLog.info('diskIO measurements: site={0} jediTaskID={1} diskIO_task={2} diskIO_site_usage={3} diskIO_site_limit={4}'
-                        .format(tmpSiteName, taskSpec.jediTaskID, diskio_task_tmp, diskio_usage_tmp, diskio_limit_tmp))
+            try: # generate a log message parseable by logstash for monitoring
+                log_msg = 'diskIO measurements: site={0} jediTaskID={1} '.format(tmpSiteName, taskSpec.jediTaskID)
+                if diskio_task_tmp is not None:
+                    log_msg += 'diskIO_task={:.2f}'.format(diskio_task_tmp)
+                if diskio_usage_tmp is not None:
+                    log_msg += 'diskIO_site_usage={:.2f}'.format(diskio_task_tmp)
+                if diskio_limit_tmp is not None:
+                    log_msg += 'diskIO_site_limit={:.2f}'.format(diskio_limit_tmp)
+                tmpLog.info(log_msg)
+            except:
+                tmpLog.debug('Error generating diskIO message')
 
             # if the task has a diskIO defined, the queue is over the IO limit and the task IO is over the limit
             if diskio_task_tmp and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
