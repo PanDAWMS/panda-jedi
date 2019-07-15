@@ -584,11 +584,11 @@ class AtlasProdJobBroker (JobBrokerBase):
             try: # generate a log message parseable by logstash for monitoring
                 log_msg = 'diskIO measurements: site={0} jediTaskID={1} '.format(tmpSiteName, taskSpec.jediTaskID)
                 if diskio_task_tmp is not None:
-                    log_msg += 'diskIO_task={:.2f}'.format(diskio_task_tmp)
+                    log_msg += 'diskIO_task={:.2f} '.format(diskio_task_tmp)
                 if diskio_usage_tmp is not None:
-                    log_msg += 'diskIO_site_usage={:.2f}'.format(diskio_task_tmp)
+                    log_msg += 'diskIO_site_usage={:.2f} '.format(diskio_task_tmp)
                 if diskio_limit_tmp is not None:
-                    log_msg += 'diskIO_site_limit={:.2f}'.format(diskio_limit_tmp)
+                    log_msg += 'diskIO_site_limit={:.2f} '.format(diskio_limit_tmp)
                 tmpLog.info(log_msg)
             except:
                 tmpLog.debug('Error generating diskIO message')
