@@ -635,13 +635,18 @@ class AtlasProdJobBroker (JobBrokerBase):
         if taskSpec.transHome != None:
             jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
             unified_site_list = self.get_unified_sites(scanSiteList)
+            if taskSpec.getImage() is None:
+                useContainer = False
+            else:
+                useContainer = True
             if re.search('-\d+\.\d+\.\d+$', taskSpec.transHome) is not None:
                 # 3 digits base release
                 siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
                                                                    taskSpec.transHome.split('-')[0],
                                                                    taskSpec.transHome.split('-')[1],
                                                                    taskSpec.getArchitecture(),
-                                                                   False, False)
+                                                                   False, False,
+                                                                   need_container=useContainer)
                 if len(sitesNoJsonCheck) > 0:
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               releases=taskSpec.transHome.split('-')[-1],
@@ -656,7 +661,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    taskSpec.transHome.split('-')[0],
                                                                    taskSpec.transHome.split('-')[1],
                                                                    taskSpec.getArchitecture(),
-                                                                   False, False)
+                                                                   False, False,
+                                                                   need_container=useContainer)
                 if len(sitesNoJsonCheck) > 0:
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               caches=taskSpec.transHome,
@@ -666,7 +672,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
                                                                    None, None,
                                                                    taskSpec.getArchitecture(),
-                                                                   True, False)
+                                                                   True, False,
+                                                                   need_container=useContainer)
                 if len(sitesNoJsonCheck) > 0:
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               releases='CVMFS')
@@ -684,9 +691,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpLog.info('  skip site=%s due to missing cache=%s:%s criteria=-cache' % \
                                  (tmpSiteName,taskSpec.transHome,taskSpec.getArchitecture()))
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info('{0} candidates passed for ATLAS release {1}:{2}'.format(len(scanSiteList),
-                                                                                  taskSpec.transHome,
-                                                                                  taskSpec.getArchitecture()))
+            tmpLog.info('{0} candidates passed for ATLAS release {1}:{2} container={3}'.format(
+                len(scanSiteList),
+                taskSpec.transHome,
+                taskSpec.getArchitecture(),
+                useContainer))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

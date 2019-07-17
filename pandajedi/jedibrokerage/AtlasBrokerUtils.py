@@ -639,7 +639,8 @@ class JsonSoftwareCheck:
             self.swDict = dict()
             
     # get lists
-    def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only):
+    def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only,
+              need_container=False):
         okSite = []
         noAutoSite = []
         for tmpSiteName in site_list:
@@ -656,15 +657,16 @@ class JsonSoftwareCheck:
                     if 'any' in self.swDict[tmpSiteName]["containers"]:
                         okSite.append(tmpSiteName)
                     # check cmt config
-                    elif cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
+                    elif not need_container and cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
                         okSite.append(tmpSiteName)
                 elif not need_cvmfs:
-                    # check tags
-                    for tag in self.swDict[tmpSiteName]["tags"]:
-                        if tag['cmtconfig'] == cmt_config and tag['project'] == sw_project \
-                           and tag['release'] == sw_version:
-                            okSite.append(tmpSiteName)
-                            break
+                    if not need_container or 'any' in self.swDict[tmpSiteName]["containers"]:
+                        # check tags
+                        for tag in self.swDict[tmpSiteName]["tags"]:
+                            if tag['cmtconfig'] == cmt_config and tag['project'] == sw_project \
+                               and tag['release'] == sw_version:
+                                okSite.append(tmpSiteName)
+                                break
                 # don't pass to subsequent check if AUTO is enabled
                 continue
             noAutoSite.append(tmpSiteName)
