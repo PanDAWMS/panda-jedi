@@ -308,7 +308,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             newSkippedTmp = dict()
             for tmpPandaSiteName in self.get_unified_sites(scanSiteList):
                 try:
-                    tmpAtlasSiteName = storageMapping[tmpPandaSiteName]
+                    tmpAtlasSiteName = storageMapping[tmpPandaSiteName]['default']
                     if nucleus == tmpAtlasSiteName or \
                                     (networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK and \
                                     networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold and \
@@ -1329,7 +1329,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
                 tmpAtlasSiteName = None
                 try:
-                    tmpAtlasSiteName = storageMapping[tmpSiteName]
+                    tmpAtlasSiteName = storageMapping[tmpSiteName]['default']
                 except KeyError:
                     tmpLog.debug('Panda site {0} was not in site mapping. Default network values will be given'.
                                  format(tmpSiteName))
