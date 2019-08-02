@@ -10,7 +10,7 @@ from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediCoreUtils
 from JobBrokerBase import JobBrokerBase
-from pandaserver.taskbuffer import PrioUtil
+from pandaserver.taskbuffer.Util import select_scope
 import AtlasBrokerUtils
 
 # logger
@@ -581,7 +581,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 # check endpoint
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output.getEndPoint(tmpSiteSpec.ddm_output)
+                scope = select_scope(tmpSiteSpec, 'user')
+                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope].getEndPoint(tmpSiteSpec.ddm_output[scope])
                 if tmpEndPoint is not None:
                     # free space must be >= 200GB
                     diskThreshold = 200
@@ -596,7 +597,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         continue
                     # check if blacklisted
                     if tmpEndPoint['blacklisted'] == 'Y':
-                        tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output))
+                        tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope]))
                         continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
@@ -761,7 +762,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             if not tmpRemoteSite in fileScanSiteList:
                                 fileScanSiteList.append(tmpRemoteSite)
                 # mapping between sites and input storage endpoints
-                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper)
+                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper, 'user')
                 # disable file lookup for merge jobs
                 if inputChunk.isMerging:
                     checkCompleteness = False

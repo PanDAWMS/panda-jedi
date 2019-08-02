@@ -2,7 +2,6 @@ import re
 import sys
 import datetime
 
-from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
@@ -11,10 +10,10 @@ from JobBrokerBase import JobBrokerBase
 import AtlasBrokerUtils
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils
+from pandaserver.taskbuffer.Util import select_scope
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandacommon.pandalogger import logger_config
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 # definitions for network
@@ -43,7 +42,7 @@ class AtlasProdJobBroker (JobBrokerBase):
     # constructor
     def __init__(self,ddmIF,taskBufferIF):
         JobBrokerBase.__init__(self,ddmIF, taskBufferIF)
-        self.hospitalQueueMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper)
+        self.hospitalQueueMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper, 'managed')
         self.dataSiteMap = {}
         self.suppressLogSending = False
 
@@ -168,7 +167,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             else:
                 # pmerge
                 siteListPreAssigned = True
-                scanSiteList = DataServiceUtils.getSitesShareDDM(self.siteMapper,inputChunk.getPreassignedSite())
+                scanSiteList = DataServiceUtils.getSitesShareDDM(self.siteMapper,inputChunk.getPreassignedSite(), 'managed')
                 scanSiteList.append(inputChunk.getPreassignedSite())
                 tmpMsg = 'use site={0} since they share DDM endpoints with orinal_site={1} which is pre-assigned in masterDS '.format(str(scanSiteList),
                                                                                                                                       inputChunk.getPreassignedSite())
@@ -215,7 +214,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
         # sites sharing SE with T1
         if len(t1Sites) > 0:
-            sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper,t1Sites[0])
+            sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper, t1Sites[0], 'managed')
         else:
             sitesShareSeT1 = []
         # all T1
@@ -712,12 +711,13 @@ class AtlasProdJobBroker (JobBrokerBase):
         newSkippedTmp = dict()
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            scope = select_scope(tmpSiteSpec, 'managed')
             # don't check for T1
             if tmpSiteName in t1Sites:
                 pass
             else:
                 # check endpoint
-                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output.getEndPoint(tmpSiteSpec.ddm_output)
+                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope].getEndPoint(tmpSiteSpec.ddm_output[scope])
                 if tmpEndPoint != None:
                     # check free size
                     tmpSpaceSize = 0
@@ -728,11 +728,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                     diskThreshold = 200
                     tmpMsg = None
                     if tmpSpaceSize < diskThreshold:
-                        tmpMsg = '  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName, tmpSiteSpec.ddm_output,
+                        tmpMsg = '  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope],
                                                                                                                    tmpSpaceSize, diskThreshold)
                     # check if blacklisted
                     elif tmpEndPoint['blacklisted'] == 'Y':
-                        tmpMsg = '  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output)
+                        tmpMsg = '  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope])
                     if tmpMsg is not None:
                         newSkippedTmp[tmpSiteName] = tmpMsg
             newScanSiteList.append(tmpSiteName)
@@ -1080,7 +1080,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             try:
                 # mapping between sites and input storage endpoints
                 siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(self.get_unified_sites(scanSiteList),
-                                                                                self.siteMapper, ignore_cc=True)
+                                                                                self.siteMapper, 'managed', ignore_cc=True)
                 # disable file lookup for merge jobs or secondary datasets
                 checkCompleteness = True
                 useCompleteOnly = False

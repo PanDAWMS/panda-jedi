@@ -4,10 +4,10 @@ import sys
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import ProcessGroups
-
+from pandaserver.taskbuffer.Utils import select_scope
 
 # get hospital queues
-def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
+def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucleus=None):
     retMap = {}
     # hospital words
     goodWordList = ['CORE$','VL$','MEM$','MP\d+$','LONG$','_HIMEM','_\d+$','SHORT$']
@@ -26,8 +26,9 @@ def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
         else:
             tmpT1Name = siteInNucleus
         tmpT1Spec = siteMapper.getSite(tmpT1Name)
+        scope_t1 = select_scope(tmpT1Name, prodSourceLabel)
         # skip if DDM is undefined
-        if tmpT1Spec.ddm_output == []: # TODO: check with Tadashi
+        if tmpT1Spec[scope_t1].ddm_output == []:
             continue
         # loop over all sites
         for tmpSiteName in tmpCloudSpec['sites']:
@@ -46,8 +47,9 @@ def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
             if not siteMapper.checkSite(tmpSiteName):
                 continue
             tmpSiteSpec = siteMapper.getSite(tmpSiteName)
+            scope_tmpSite = select_scope(tmpSiteSpec, prodSourceLabel)
             # check DDM
-            if tmpT1Spec.ddm_output == tmpSiteSpec.ddm_output: # TODO: check with Tadashi
+            if tmpT1Spec[scope_t1].ddm_output == tmpSiteSpec[scope_tmpSite].ddm_output:
                 # append
                 if not retMap.has_key(tmpCloudName):
                     retMap[tmpCloudName] = []
@@ -228,9 +230,11 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
         if not siteMapper.checkSite(tmpSiteName):
             continue
         tmpSiteSpec = siteMapper.getSite(tmpSiteName)
+        scope = select_scope(tmpSiteSpec, 'user')
+
         # loop over all DDM endpoints
         checkedEndPoints = []
-        for tmpDDM in tmpSiteSpec.ddm_endpoints_input.all.keys():
+        for tmpDDM in tmpSiteSpec.ddm_endpoints_input[scope].all.keys():
             # skip empty
             if tmpDDM == '':
                 continue
@@ -556,7 +560,7 @@ def skipProblematicSites(candidateSpecList,ngSites,sitesUsedByTask,preSetSiteSpe
 
 
 # get mapping between sites and input storage endpoints
-def getSiteInputStorageEndpointMap(site_list, site_mapper, ignore_cc=False):
+def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, ignore_cc=False):
 
     # make a map of the t1 to its respective cloud
     t1_map = {}
@@ -572,9 +576,10 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, ignore_cc=False):
     ret_map = {}
     for site_name in site_list:
         tmp_site_spec = site_mapper.getSite(site_name)
+        scope = select_scope(tmp_site_spec, prod_source_label)
 
         # add the schedconfig.ddm endpoints
-        ret_map[site_name] = tmp_site_spec.ddm_endpoints_input.all.keys()
+        ret_map[site_name] = tmp_site_spec.ddm_endpoints_input[scope].all.keys()
 
         # add the cloudconfig.tier1SE for T1s
         if not ignore_cc and t1_map.has_key(site_name):
