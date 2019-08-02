@@ -10,7 +10,7 @@ from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediCoreUtils
 from JobBrokerBase import JobBrokerBase
-from pandaserver.taskbuffer.Util import select_scope
+from pandaserver.dataservice.DataServiceUtils import select_scope
 import AtlasBrokerUtils
 
 # logger

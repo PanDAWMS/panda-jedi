@@ -3,8 +3,8 @@ import sys
 
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
+from dataservice.DataServiceUtils import select_scope
 from pandaserver.taskbuffer import ProcessGroups
-from pandaserver.taskbuffer.Utils import select_scope
 
 # get hospital queues
 def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucleus=None):

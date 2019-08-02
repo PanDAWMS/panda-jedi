@@ -9,8 +9,8 @@ from pandajedi.jedicore import JediCoreUtils
 from JobBrokerBase import JobBrokerBase
 import AtlasBrokerUtils
 from pandaserver.dataservice import DataServiceUtils
+from dataservice.DataServiceUtils import select_scope
 from pandaserver.taskbuffer import EventServiceUtils
-from pandaserver.taskbuffer.Util import select_scope
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
