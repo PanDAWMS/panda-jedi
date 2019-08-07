@@ -7201,8 +7201,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if not commandStr in ['pause','resume'] and not changeStatusOnly:
                                 retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment,
                                                           'oldStatus':taskStatus}
-                                # use old status if pending
-                                if taskStatus == 'pending':
+                                # use old status if pending or throttled
+                                if taskStatus in ['pending', 'throttled']:
                                     retTaskIDs[jediTaskID]['oldStatus'] = taskOldStatus
                             # update job table
                             if commandStr in ['pause','resume']:
