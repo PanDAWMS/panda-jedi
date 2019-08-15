@@ -26,9 +26,9 @@ def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucl
         else:
             tmpT1Name = siteInNucleus
         tmpT1Spec = siteMapper.getSite(tmpT1Name)
-        scope_t1 = select_scope(tmpT1Name, prodSourceLabel)
+        scope_t1 = select_scope(tmpT1Spec, prodSourceLabel)
         # skip if DDM is undefined
-        if tmpT1Spec[scope_t1].ddm_output == []:
+        if not tmpT1Spec.ddm_output[scope_t1]:
             continue
         # loop over all sites
         for tmpSiteName in tmpCloudSpec['sites']:
@@ -49,7 +49,7 @@ def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucl
             tmpSiteSpec = siteMapper.getSite(tmpSiteName)
             scope_tmpSite = select_scope(tmpSiteSpec, prodSourceLabel)
             # check DDM
-            if tmpT1Spec[scope_t1].ddm_output == tmpSiteSpec[scope_tmpSite].ddm_output:
+            if tmpT1Spec.ddm_output[scope_t1] == tmpSiteSpec.ddm_output[scope_tmpSite]:
                 # append
                 if not retMap.has_key(tmpCloudName):
                     retMap[tmpCloudName] = []
@@ -61,7 +61,7 @@ def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucl
     
 
 # get sites where data is available
-def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
+def getSitesWithData(siteMapper, ddmIF, datasetName, prodsourcelabel, storageToken=None):
     # get num of files
     try:
         if not datasetName.endswith('/'):
@@ -127,9 +127,9 @@ def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
                 # append
                 retMap[tmpCloudName]['t1'][tmpSE] = {'tape':tmpOnTape,'state':tmpDatasetStatus}
         # get T2 list
-        tmpSiteList = DataServiceUtils.getSitesWithDataset(datasetName,siteMapper,replicaMap,
-                                                           tmpCloudName,useHomeCloud=True,
-                                                           useOnlineSite=True,includeT1=False)
+        tmpSiteList = DataServiceUtils.getSitesWithDataset(datasetName, siteMapper, replicaMap,
+                                                           tmpCloudName, prodsourcelabel, useHomeCloud=True,
+                                                           useOnlineSite=True, includeT1=False)
         # append
         retMap[tmpCloudName]['t2'] = tmpSiteList
         # remove if empty
@@ -556,6 +556,7 @@ def skipProblematicSites(candidateSpecList,ngSites,sitesUsedByTask,preSetSiteSpe
         #tmpLog.debug('  skip {0} too many closed or failed for last {1}hr'.format(skippedSite,timeWindow))
         pass
     return newcandidateSpecList
+
 
 
 

@@ -21,6 +21,7 @@ from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.taskbuffer.FileSpec import FileSpec
 from pandaserver.taskbuffer import EventServiceUtils
 from pandaserver.dataservice import DataServiceUtils
+from pandaserver.dataservice.DataServiceUtils import select_scope
 from pandaserver.userinterface import Client as PandaClient
 
 from JobThrottler import JobThrottler
@@ -821,6 +822,7 @@ class JobGeneratorThread (WorkerThread):
                 inSubChunks   = tmpInChunk['subChunks']
                 siteCandidate = tmpInChunk['siteCandidate']
                 siteSpec      = self.siteMapper.getSite(siteName.split(',')[0])
+                scope = select_scope(siteSpec, jobSpec.prodSourceLabel)
                 buildFileSpec = None
                 # make preprocessing job
                 if taskSpec.usePrePro():
@@ -1310,13 +1312,13 @@ class JobGeneratorThread (WorkerThread):
                         # stay output on site
                         if taskSpec.stayOutputOnSite():
                             tmpOutFileSpec.destinationSE = siteName
-                            tmpOutFileSpec.destinationDBlockToken = 'dst:{0}'.format(siteSpec.ddm_output)
+                            tmpOutFileSpec.destinationDBlockToken = 'dst:{0}'.format(siteSpec.ddm_output[scope])
                         # distributed dataset
                         tmpDistributedDestination = DataServiceUtils.getDistributedDestination(tmpOutFileSpec.destinationDBlockToken)
                         if tmpDistributedDestination != None:
                             tmpDddKey = (siteName,tmpDistributedDestination)
                             if not tmpDddKey in dddMap:
-                                dddMap[tmpDddKey] = siteSpec.ddm_endpoints_output.getAssociatedEndpoint(tmpDistributedDestination)
+                                dddMap[tmpDddKey] = siteSpec.ddm_endpoints_output[scope].getAssociatedEndpoint(tmpDistributedDestination)
                             if dddMap[tmpDddKey] != None:
                                 tmpOutFileSpec.destinationSE = siteName
                                 tmpOutFileSpec.destinationDBlockToken = 'ddd:{0}'.format(dddMap[tmpDddKey]['ddm_endpoint_name'])
@@ -1993,6 +1995,7 @@ class JobGeneratorThread (WorkerThread):
         # set site for parallel jobs
         newPandaJob.computingSite = sites[index % nSites]
         siteSpec = self.siteMapper.getSite(newPandaJob.computingSite)
+        scope = select_scope(siteSpec, pandaJob.prodSourcelabel)
         siteCandidate = inputChunk.getSiteCandidate(newPandaJob.computingSite)
         newPandaJob.computingSite = siteSpec.get_unified_name()
         if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:
@@ -2057,7 +2060,7 @@ class JobGeneratorThread (WorkerThread):
                 datasetSpec = outDsMap[newFileSpec.datasetID]
                 tmpDistributedDestination = DataServiceUtils.getDistributedDestination(datasetSpec.storageToken)
                 if tmpDistributedDestination != None:
-                    tmpDestination = siteSpec.ddm_endpoints_output.getAssociatedEndpoint(tmpDistributedDestination)
+                    tmpDestination = siteSpec.ddm_endpoints_output[scope].getAssociatedEndpoint(tmpDistributedDestination)
                     # change destination
                     newFileSpec.destinationSE = newPandaJob.computingSite
                     if tmpDestination != None:

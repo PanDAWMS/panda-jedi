@@ -424,7 +424,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     # get the list of sites where data is available
                     tmpLog.info('getting the list of sites where {0} is available'.format(datasetName))
                     tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,
-                                                                     self.ddmIF,datasetName,
+                                                                     self.ddmIF,datasetName, 'managed'
                                                                      datasetSpec.storageToken)
                     if tmpSt == self.SC_FAILED:
                         tmpLog.error('failed to get the list of sites where data is available, since %s' % tmpRet)

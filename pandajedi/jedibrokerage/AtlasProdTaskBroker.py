@@ -12,6 +12,7 @@ from AtlasProdJobBroker import AtlasProdJobBroker
 
 from pandaserver.userinterface import Client as PandaClient
 from pandaserver.dataservice import DataServiceUtils
+from DataServiceUtils import select_scope
 
 # cannot use pandaserver.taskbuffer while Client is used
 from taskbuffer.JobSpec import JobSpec
@@ -61,6 +62,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                     ddmIF = self.ddmIF.getInterface(taskSpec.vo)
                     # get site
                     siteSpec = self.siteMapper.getSite(tmpCoreName)
+                    scopeSiteSpec = select_scope(siteSpec, taskSpec.prodSourceLabel)
                     # get nucleus
                     nucleus = siteSpec.pandasite
                     # get output/log datasets
@@ -72,10 +74,10 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                         if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
                             continue
                         # get token
-                        token = ddmIF.convertTokenToEndpoint(siteSpec.ddm_output,datasetSpec.storageToken)
+                        token = ddmIF.convertTokenToEndpoint(siteSpec.ddm_output[scopeSiteSpec], datasetSpec.storageToken)
                         # use default endpoint
                         if token == None:
-                            token = siteSpec.ddm_output
+                            token = siteSpec.ddm_output[scopeSiteSpec]
                         # add origianl token
                         if not datasetSpec.storageToken in ['',None]:
                             token += '/{0}'.format(datasetSpec.storageToken)
