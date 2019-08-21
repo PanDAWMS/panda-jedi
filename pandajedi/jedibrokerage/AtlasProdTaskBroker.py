@@ -1,4 +1,3 @@
-import re
 import sys
 import random
 import traceback
@@ -12,11 +11,10 @@ from AtlasProdJobBroker import AtlasProdJobBroker
 
 from pandaserver.userinterface import Client as PandaClient
 from pandaserver.dataservice import DataServiceUtils
-from DataServiceUtils import select_scope
+from pandaserver.dataservice.DataServiceUtils import select_scope
 
 # cannot use pandaserver.taskbuffer while Client is used
 from taskbuffer.JobSpec import JobSpec
-
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
