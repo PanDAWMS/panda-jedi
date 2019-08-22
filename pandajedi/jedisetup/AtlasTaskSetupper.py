@@ -1,10 +1,6 @@
-import re
 import sys
-import uuid
-import json
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore import Interaction
 from TaskSetupperBase import TaskSetupperBase
 
 from pandaserver.dataservice import DataServiceUtils
