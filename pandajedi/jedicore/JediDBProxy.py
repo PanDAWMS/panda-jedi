@@ -5823,26 +5823,28 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             taskSpec.workDiskCount = preWorkDiskCount
                         taskSpec.workDiskUnit = 'MB'
                         workDiskCount = taskSpec.getWorkDiskSize()
-                        if outDiskCount > 0:
-                            scaleFactor = expectedOutSize / outDiskCount
-                            if preOutputScaleWithEvents:
-                                # scaleFactor is num of events
-                                try:
-                                    expectedInSize = (inFSizeMap[tmpPandaID] + totInSizeMap[tmpPandaID] - masterInSize[tmpPandaID]) * scaleFactor / inEventsMap[tmpPandaID]
-                                    newNG = expectedOutSize + expectedInSize  + workDiskCount - InputChunk.defaultOutputSize
-                                except:
-                                    newNG = None
-                            else:
-                                # scaleFactor is input size
-                                newNG = expectedOutSize + scaleFactor * (1024 * 1024) - InputChunk.defaultOutputSize
-                            if newNG is not None:
-                                newNG /= (1024 * 1024 * 1024)
-                                if newNG <= 0:
-                                    newNG = 1
-                                maxNG = 100
-                                if newNG > maxNG:
-                                    newNG = maxNG
-                                returnMap['newNG'] = newNG
+                        if outDiskCount == 0:
+                            # to avoid zero-division
+                            outDiskCount = 1
+                        scaleFactor = expectedOutSize / outDiskCount
+                        if preOutputScaleWithEvents:
+                            # scaleFactor is num of events
+                            try:
+                                expectedInSize = (inFSizeMap[tmpPandaID] + totInSizeMap[tmpPandaID] - masterInSize[tmpPandaID]) * scaleFactor / inEventsMap[tmpPandaID]
+                                newNG = expectedOutSize + expectedInSize  + workDiskCount - InputChunk.defaultOutputSize
+                            except:
+                                newNG = None
+                        else:
+                            # scaleFactor is input size
+                            newNG = expectedOutSize + scaleFactor * (1024 * 1024) - InputChunk.defaultOutputSize
+                        if newNG is not None:
+                            newNG /= (1024 * 1024 * 1024)
+                            if newNG <= 0:
+                                newNG = 1
+                            maxNG = 100
+                            if newNG > maxNG:
+                                newNG = maxNG
+                            returnMap['newNG'] = newNG
         if useTransaction:    
             # commit
             if not self._commit():
