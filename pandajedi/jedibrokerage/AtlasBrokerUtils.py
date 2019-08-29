@@ -26,9 +26,9 @@ def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucl
         else:
             tmpT1Name = siteInNucleus
         tmpT1Spec = siteMapper.getSite(tmpT1Name)
-        scope_t1 = select_scope(tmpT1Spec, prodSourceLabel)
+        scope_t1_input, scope_t1_output = select_scope(tmpT1Spec, prodSourceLabel)
         # skip if DDM is undefined
-        if not tmpT1Spec.ddm_output[scope_t1]:
+        if not tmpT1Spec.ddm_output[scope_t1_output]:
             continue
         # loop over all sites
         for tmpSiteName in tmpCloudSpec['sites']:
@@ -47,9 +47,9 @@ def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucl
             if not siteMapper.checkSite(tmpSiteName):
                 continue
             tmpSiteSpec = siteMapper.getSite(tmpSiteName)
-            scope_tmpSite = select_scope(tmpSiteSpec, prodSourceLabel)
+            scope_tmpSite_input, scope_tmpSite_output = select_scope(tmpSiteSpec, prodSourceLabel)
             # check DDM
-            if tmpT1Spec.ddm_output[scope_t1] == tmpSiteSpec.ddm_output[scope_tmpSite]:
+            if tmpT1Spec.ddm_output[scope_t1_output] == tmpSiteSpec.ddm_output[scope_tmpSite_output]:
                 # append
                 if not retMap.has_key(tmpCloudName):
                     retMap[tmpCloudName] = []
@@ -230,11 +230,11 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
         if not siteMapper.checkSite(tmpSiteName):
             continue
         tmpSiteSpec = siteMapper.getSite(tmpSiteName)
-        scope = select_scope(tmpSiteSpec, 'user')
+        scope_input, scope_output = select_scope(tmpSiteSpec, 'user')
 
         # loop over all DDM endpoints
         checkedEndPoints = []
-        for tmpDDM in tmpSiteSpec.ddm_endpoints_input[scope].all.keys():
+        for tmpDDM in tmpSiteSpec.ddm_endpoints_input[scope_input].all.keys():
             # skip empty
             if tmpDDM == '':
                 continue
@@ -577,10 +577,10 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, ig
     ret_map = {}
     for site_name in site_list:
         tmp_site_spec = site_mapper.getSite(site_name)
-        scope = select_scope(tmp_site_spec, prod_source_label)
+        scope_input, scope_output = select_scope(tmp_site_spec, prod_source_label)
 
         # add the schedconfig.ddm endpoints
-        ret_map[site_name] = tmp_site_spec.ddm_endpoints_input[scope].all.keys()
+        ret_map[site_name] = tmp_site_spec.ddm_endpoints_input[scope_input].all.keys()
 
         # add the cloudconfig.tier1SE for T1s
         if not ignore_cc and t1_map.has_key(site_name):

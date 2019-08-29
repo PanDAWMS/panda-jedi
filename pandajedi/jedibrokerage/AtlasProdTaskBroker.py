@@ -60,7 +60,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                     ddmIF = self.ddmIF.getInterface(taskSpec.vo)
                     # get site
                     siteSpec = self.siteMapper.getSite(tmpCoreName)
-                    scopeSiteSpec = select_scope(siteSpec, taskSpec.prodSourceLabel)
+                    scopeSiteSpec_input, scopeSiteSpec_output = select_scope(siteSpec, taskSpec.prodSourceLabel)
                     # get nucleus
                     nucleus = siteSpec.pandasite
                     # get output/log datasets
@@ -72,10 +72,10 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                         if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
                             continue
                         # get token
-                        token = ddmIF.convertTokenToEndpoint(siteSpec.ddm_output[scopeSiteSpec], datasetSpec.storageToken)
+                        token = ddmIF.convertTokenToEndpoint(siteSpec.ddm_output[scopeSiteSpec_output], datasetSpec.storageToken)
                         # use default endpoint
                         if token == None:
-                            token = siteSpec.ddm_output[scopeSiteSpec]
+                            token = siteSpec.ddm_output[scopeSiteSpec_output]
                         # add origianl token
                         if not datasetSpec.storageToken in ['',None]:
                             token += '/{0}'.format(datasetSpec.storageToken)

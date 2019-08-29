@@ -581,8 +581,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 # check endpoint
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                scope = select_scope(tmpSiteSpec, 'user')
-                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope].getEndPoint(tmpSiteSpec.ddm_output[scope])
+                scope_input, scope_output = select_scope(tmpSiteSpec, 'user')
+                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope_output].getEndPoint(tmpSiteSpec.ddm_output[scope_output])
                 if tmpEndPoint is not None:
                     # free space must be >= 200GB
                     diskThreshold = 200
@@ -597,7 +597,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         continue
                     # check if blacklisted
                     if tmpEndPoint['blacklisted'] == 'Y':
-                        tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope]))
+                        tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope_output]))
                         continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
