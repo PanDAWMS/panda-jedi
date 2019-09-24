@@ -129,7 +129,7 @@ class AtlasProdWatchDog (WatchDogBase):
                             newShare = 'Express'
                             if gshare != newShare and workQueue.is_global_share:
                                 gTmpLog.info('>>> changing gshare of jediTaskID={0} to {1} from {2}'.format(jediTaskID, newShare, gshare))
-                                self.taskBufferIF.reassignShare([jediTaskID], newShare)
+                                self.taskBufferIF.reassignShare([jediTaskID], newShare, True)
                             gTmpLog.info('>>> done jediTaskID={0}'.format(jediTaskID))
                     except:
                         pass
