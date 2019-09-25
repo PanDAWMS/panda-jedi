@@ -260,11 +260,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # check site status
                 msgFlag = False
                 skipFlag = False
-                if tmpSiteSpec.status in ['online', 'standby', 'test']:
+                if tmpSiteSpec.status in ['online', 'standby']:
                     newScanSiteList.append(tmpSiteName)
-                    # temporary problem
-                    if tmpSiteSpec.status == 'test':
-                        msgFlag = True
                 else:
                     msgFlag = True
                     skipFlag = True
