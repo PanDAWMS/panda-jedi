@@ -166,18 +166,6 @@ class AtlasProdPostProcessor (PostProcessorBase):
                                                                                                                           datasetSpec.datasetName))
                                     for metadataName,metadaValue in metaData.iteritems():
                                         ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
-        # delete empty datasets
-        if taskSpec.status == 'done' or (taskSpec.status == 'paused' and taskSpec.oldStatus == 'done'):
-            ddmIF = self.ddmIF.getInterface(taskSpec.vo)
-            # loop over all datasets
-            for datasetSpec in taskSpec.datasetSpecList:
-                try:
-                    if datasetSpec.type == 'output' and datasetSpec.nFilesFinished == 0:
-                        tmpStat = ddmIF.deleteDataset(datasetSpec.datasetName,True,True)
-                        tmpLog.debug('delete empty prod dataset {0} with {1}'.format(datasetSpec.datasetName,tmpStat))
-                except:
-                    errtype,errvalue = sys.exc_info()[:2]
-                    tmpLog.warning('failed to delete empty dataset with {0}:{1}'.format(errtype.__name__,errvalue))
         # set lifetime to failed datasets
         if taskSpec.status in ['failed','broken','aborted']:
             trnLifeTime = 30*24*60*60
