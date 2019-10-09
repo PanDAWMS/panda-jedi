@@ -1,5 +1,6 @@
 import re
 import sys
+import json
 
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
@@ -220,7 +221,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
     # get replicas
     try:
         replicaMap= {}
-        replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName)
+        replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName, use_vp=True)
     except:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.listDatasetReplicas failed with %s' % errvalue
@@ -286,17 +287,22 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
                 if not retMap.has_key(tmpSiteName):
                     retMap[tmpSiteName] = {}
                 retMap[tmpSiteName][tmpSE] = {'tape':tmpOnTape,'state':tmpDatasetStatus}
+                if 'vp' in tmpStatistics:
+                    retMap[tmpSiteName][tmpSE]['vp'] = tmpStatistics['vp']
     # return
     return Interaction.SC_SUCCEEDED,retMap
 
 
 
 # get analysis sites where data is available at disk
-def getAnalSitesWithDataDisk(dataSiteMap,includeTape=False):
+def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True):
     siteList = []
     siteWithIncomp = []
     for tmpSiteName,tmpSeValMap in dataSiteMap.iteritems():
         for tmpSE,tmpValMap in tmpSeValMap.iteritems():
+            # VP
+            if not use_vp and 'vp' in tmpValMap and tmpValMap['vp'] is True:
+                continue
             # on disk or tape
             if includeTape or not tmpValMap['tape']:
                 if tmpValMap['state'] == 'complete':
@@ -366,6 +372,29 @@ def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_tag=N
     return nJobs
 
 
+# get the total number of jobs in a status
+def get_total_nq_nr_ratio(job_stat_map, work_queue_tag=None):
+    nRunning = 0
+    nQueue = 0
+    # loop over all workQueues
+    for siteVal in job_stat_map.values():
+        for tmpWorkQueue in siteVal:
+            # workQueue is defined
+            if work_queue_tag is not None and work_queue_tag != tmpWorkQueue:
+                continue
+            tmpWorkQueueVal = siteVal[tmpWorkQueue]
+            # loop over all job status
+            for tmpJobStatus in ['defined', 'assigned', 'activated', 'starting']:
+                if tmpJobStatus in tmpWorkQueueVal:
+                    nQueue += tmpWorkQueueVal[tmpJobStatus]
+            if 'running' in tmpWorkQueueVal:
+                nRunning += tmpWorkQueueVal['running']
+    try:
+        ratio = float(nQueue) / float(nRunning)
+    except Exception:
+        ratio = None
+    # return
+    return ratio
 
 # check if the queue is suppressed
 def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
@@ -602,3 +631,49 @@ def getOkNgArchList(task_spec):
             return (['x86_64-centos7-%'], None)
     return (None, None)
     
+
+# check SW with json
+class JsonSoftwareCheck:
+    # constructor
+    def __init__(self, site_mapper, json_name=None):
+        if json_name is None:
+            json_name = '/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_tags.json'
+        self.siteMapper = site_mapper
+        try:
+            self.swDict = json.load(open(json_name))
+        except Exception:
+            self.swDict = dict()
+            
+    # get lists
+    def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only,
+              need_container=False):
+        okSite = []
+        noAutoSite = []
+        for tmpSiteName in site_list:
+            tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
+                # only cmt config check
+                if cmt_config_only:
+                    if cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
+                        okSite.append(tmpSiteName)
+                    continue
+                # check if CVMFS is available
+                if 'any' in self.swDict[tmpSiteName]["cvmfs"] or cvmfs_tag in self.swDict[tmpSiteName]["cvmfs"]:
+                    # check if container is available
+                    if 'any' in self.swDict[tmpSiteName]["containers"]:
+                        okSite.append(tmpSiteName)
+                    # check cmt config
+                    elif not need_container and cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
+                        okSite.append(tmpSiteName)
+                elif not need_cvmfs:
+                    if not need_container or 'any' in self.swDict[tmpSiteName]["containers"]:
+                        # check tags
+                        for tag in self.swDict[tmpSiteName]["tags"]:
+                            if tag['cmtconfig'] == cmt_config and tag['project'] == sw_project \
+                               and tag['release'] == sw_version:
+                                okSite.append(tmpSiteName)
+                                break
+                # don't pass to subsequent check if AUTO is enabled
+                continue
+            noAutoSite.append(tmpSiteName)
+        return (okSite, noAutoSite)

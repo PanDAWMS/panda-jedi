@@ -1553,4 +1553,7 @@ class JediTaskSpec(object):
     def getImage(self):
         if self.architecture is None or '@' not in self.architecture:
             return None
-        return self.architecture.split('@')[1]
+        img = self.architecture.split('@')[1]
+        if img == '':
+            img = None
+        return img
