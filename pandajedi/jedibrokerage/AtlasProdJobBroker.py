@@ -803,29 +803,25 @@ class AtlasProdJobBroker (JobBrokerBase):
         newSkippedTmp = dict()
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            # don't check for T1
-            if tmpSiteName in t1Sites:
-                pass
-            else:
-                # check endpoint
-                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output.getEndPoint(tmpSiteSpec.ddm_output)
-                if tmpEndPoint != None:
-                    # check free size
-                    tmpSpaceSize = 0
-                    if tmpEndPoint['space_free'] is not None:
-                        tmpSpaceSize += tmpEndPoint['space_free']
-                    if tmpEndPoint['space_expired'] is not None:
-                        tmpSpaceSize += tmpEndPoint['space_expired']
-                    diskThreshold = 200
-                    tmpMsg = None
-                    if tmpSpaceSize < diskThreshold:
-                        tmpMsg = '  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName, tmpSiteSpec.ddm_output,
-                                                                                                                   tmpSpaceSize, diskThreshold)
-                    # check if blacklisted
-                    elif tmpEndPoint['blacklisted'] == 'Y':
-                        tmpMsg = '  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output)
-                    if tmpMsg is not None:
-                        newSkippedTmp[tmpSiteName] = tmpMsg
+            # check endpoint
+            tmpEndPoint = tmpSiteSpec.ddm_endpoints_output.getEndPoint(tmpSiteSpec.ddm_output)
+            if tmpEndPoint is not None:
+                # check free size
+                tmpSpaceSize = 0
+                if tmpEndPoint['space_free'] is not None:
+                    tmpSpaceSize += tmpEndPoint['space_free']
+                if tmpEndPoint['space_expired'] is not None:
+                    tmpSpaceSize += tmpEndPoint['space_expired']
+                diskThreshold = 200
+                tmpMsg = None
+                if tmpSpaceSize < diskThreshold:
+                    tmpMsg = '  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName, tmpSiteSpec.ddm_output,
+                                                                                                               tmpSpaceSize, diskThreshold)
+                # check if blacklisted
+                elif tmpEndPoint['blacklisted'] == 'Y':
+                    tmpMsg = '  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output)
+                if tmpMsg is not None:
+                    newSkippedTmp[tmpSiteName] = tmpMsg
             newScanSiteList.append(tmpSiteName)
         siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
