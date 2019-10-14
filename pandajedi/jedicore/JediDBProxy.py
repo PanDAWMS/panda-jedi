@@ -10896,7 +10896,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
 
         sql = """
-        SELECT pdr.panda_site_name, de.site_name, pdr.scope
+        SELECT pdr.panda_site_name, de.site_name, nvl(pdr.scope, 'default')
         FROM atlas_panda.panda_ddm_relation pdr, atlas_panda.ddm_endpoint de
         WHERE pdr.default_write = 'Y'
         AND pdr.ddm_endpoint_name = de.ddm_endpoint_name
