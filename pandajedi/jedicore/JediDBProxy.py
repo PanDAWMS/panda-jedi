@@ -5408,6 +5408,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preBaseRamCount = 0
         extraInfo['oldCpuTime'] = preCpuTime
         extraInfo['oldRamCount'] = preRamCount
+        # get minimum ram count
+        minRamCount = self.getConfigValue('dbproxy','SCOUT_RAMCOUNT_MIN', 'jedi')
         # get limit for short jobs
         shortExecTime = self.getConfigValue('dbproxy','SCOUT_SHORT_EXECTIME_{0}'.format(prodSourceLabel), 'jedi')
         if shortExecTime is None:
@@ -5416,7 +5418,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # get the size of lib 
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
-        varMap[':type'] = 'lib'
+        varMap['type'] = 'lib'
         varMap[':status'] = 'finished'
         self.cur.execute(sqlLIB+comment,varMap)
         resLIB = self.cur.fetchone()
@@ -5475,6 +5477,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         pandaIDList  = set()
         totInSizeMap = {}
         masterInSize = {}
+        coreCountMap = {}
         for pandaID,fsize,startEvent,endEvent,nEvents in resList:
             pandaIDList.add(pandaID)
             if not inFSizeMap.has_key(pandaID):
@@ -5565,6 +5568,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     jMetricsMap[pandaID] = jobMetrics
                     # core count
                     coreCount = JobUtils.getCoreCount(actualCoreCount,defCoreCount,jobMetrics)
+                    coreCountMap[pandaID] = coreCount
                     # output size
                     tmpWorkSize = 0
                     if eventServiceJob != EventServiceUtils.esJobFlagNumber:
@@ -5615,7 +5619,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
                                     tmpVal /= float(inEventsMap[pandaID])
                                 if (not pandaID in inEventsMap) or inEventsMap[pandaID] >= (10*coreCount) or \
-                                        (inEventsMap[pandaID] < (10*coreCount) and pandaID in execTimeMap and execTimeMap[pandaID] > 6*3600):
+                                        (inEventsMap[pandaID] < (10*coreCount) and pandaID in execTimeMap
+                                         and execTimeMap[pandaID] > datetime.timedelta(seconds=6*3600)):
                                     cpuTimeList.append(tmpVal)
                                     cpuTimeDict[tmpVal] = pandaID
                         except:
@@ -5705,6 +5710,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 returnMap['outDiskUnit']  = 'kB'
         if walltimeList != []:
             maxWallTime = max(walltimeList)
+            extraInfo['maxCpuConsumptionTime'] = maxWallTime
+            extraInfo['maxExecTime'] = execTimeMap[walltimeDict[maxWallTime]]
+            extraInfo['defCoreCount'] = coreCountMap[walltimeDict[maxWallTime]]
             addTag(jobTagMap,walltimeDict,maxWallTime,'walltime')
             # cut off of 60min
             if maxWallTime < 60 * 60:
@@ -5741,7 +5749,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap['diskIO'] = aveDiskIo
             returnMap['diskIOUnit'] = 'kBPerS'
         if memSizeList != []:
-            memVal = max(memSizeList)
             memVal, origValues = JediCoreUtils.percentile(memSizeList, ramCountRank, memSizeDict)
             for origValue in origValues:
                 addTag(jobTagMap,memSizeDict,origValue,'ramCount')
@@ -5750,6 +5757,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             memVal = long(memVal)
             if memVal < 0:
                 memVal = 1
+            if minRamCount is not None and minRamCount > memVal:
+                memVal = minRamCount
             if preRamUnit == 'MBPerCore':
                 returnMap['ramUnit'] = preRamUnit
                 returnMap['ramCount'] = memVal
@@ -5814,26 +5823,28 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             taskSpec.workDiskCount = preWorkDiskCount
                         taskSpec.workDiskUnit = 'MB'
                         workDiskCount = taskSpec.getWorkDiskSize()
-                        if outDiskCount > 0:
-                            scaleFactor = expectedOutSize / outDiskCount
-                            if preOutputScaleWithEvents:
-                                # scaleFactor is num of events
-                                try:
-                                    expectedInSize = (inFSizeMap[tmpPandaID] + totInSizeMap[tmpPandaID] - masterInSize[tmpPandaID]) * scaleFactor / inEventsMap[tmpPandaID]
-                                    newNG = expectedOutSize + expectedInSize  + workDiskCount - InputChunk.defaultOutputSize
-                                except:
-                                    newNG = None
-                            else:
-                                # scaleFactor is input size
-                                newNG = expectedOutSize + scaleFactor * (1024 * 1024) - InputChunk.defaultOutputSize
-                            if newNG is not None:
-                                newNG /= (1024 * 1024 * 1024)
-                                if newNG <= 0:
-                                    newNG = 1
-                                maxNG = 100
-                                if newNG > maxNG:
-                                    newNG = maxNG
-                                returnMap['newNG'] = newNG
+                        if outDiskCount == 0:
+                            # to avoid zero-division
+                            outDiskCount = 1
+                        scaleFactor = expectedOutSize / outDiskCount
+                        if preOutputScaleWithEvents:
+                            # scaleFactor is num of events
+                            try:
+                                expectedInSize = (inFSizeMap[tmpPandaID] + totInSizeMap[tmpPandaID] - masterInSize[tmpPandaID]) * scaleFactor / inEventsMap[tmpPandaID]
+                                newNG = expectedOutSize + expectedInSize  + workDiskCount - InputChunk.defaultOutputSize
+                            except:
+                                newNG = None
+                        else:
+                            # scaleFactor is input size
+                            newNG = expectedOutSize + scaleFactor * (1024 * 1024) - InputChunk.defaultOutputSize
+                        if newNG is not None:
+                            newNG /= (1024 * 1024 * 1024)
+                            if newNG <= 0:
+                                newNG = 1
+                            maxNG = 100
+                            if newNG > maxNG:
+                                newNG = maxNG
+                            returnMap['newNG'] = newNG
         if useTransaction:    
             # commit
             if not self._commit():
@@ -5953,7 +5964,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
             # check execution time
             if taskSpec.status != 'exhausted':
-                # get exectime threshold for exausted
+                # get exectime threshold for exhausted
                 maxShortJobs = self.getConfigValue('dbproxy','SCOUT_NUM_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
                 shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
                 if maxShortJobs is not None and 'nShortJobs' in extraInfo and extraInfo['nShortJobs'] >= maxShortJobs and \
@@ -5977,6 +5988,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
+            # cpu abuse
+            if taskSpec.status != 'exhausted':
+                try:
+                    abuseOffset = 2
+                    if extraInfo['maxCpuConsumptionTime'] > \
+                            extraInfo['maxExecTime'].total_seconds() * extraInfo['defCoreCount'] * abuseOffset:
+                        errMsg = 'status=exhausted since reason=over_cpu_consumption {0} sec '.format(
+                            extraInfo['maxCpuConsumptionTime'])
+                        errMsg += 'is larger than jobDuration*coreCount*safety ({0}*{1}*{2}). '.format(
+                            extraInfo['maxExecTime'].total_seconds(),
+                            extraInfo['defCoreCount'],
+                            abuseOffset
+                        )
+                        errMsg += 'Running multi-core payload on single core queues?'
+                        tmpLog.info(errMsg)
+                        taskSpec.setErrDiag(errMsg)
+                        taskSpec.status = 'exhausted'
+                except Exception:
+                    tmpLog.error('failed to check CPU abuse')
+                    pass
         # reset the task resource type
         try:
             self.reset_resource_type_task(jediTaskID, useCommit)
@@ -6115,7 +6146,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += ') AND NOT status IN (:dsEndStatus1,:dsEndStatus2,:dsEndStatus3) AND ('
                 sql += 'nFilesToBeUsed>nFilesFinished+nFilesFailed '
                 sql += 'OR (nFilesUsed=0 AND nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>0) '
-                sql += 'OR nFilesUsed>nFilesFinished+nFilesFailed) '
+                sql += 'OR (nFilesToBeUsed IS NOT NULL AND nFilesToBeUsed>nFilesFinished+nFilesFailed)) '
                 sql += ') AND rownum<={0}'.format(nTasks)
             else:
                 varMap = {}
@@ -7172,8 +7203,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if not commandStr in ['pause','resume'] and not changeStatusOnly:
                                 retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment,
                                                           'oldStatus':taskStatus}
-                                # use old status if pending
-                                if taskStatus == 'pending':
+                                # use old status if pending or throttled
+                                if taskStatus in ['pending', 'throttled']:
                                     retTaskIDs[jediTaskID]['oldStatus'] = taskOldStatus
                             # update job table
                             if commandStr in ['pause','resume']:
@@ -10828,13 +10859,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         resList = self.cur.fetchall()
 
         networkMap = {}
-        total = 0
+        total = {}
         for res in resList:
             src, key, value, ts = res
             networkMap.setdefault(src, {})
             networkMap[src][key] = value
+            total.setdefault(key, 0)
             try:
-                total += value
+                total[key] += value
             except Exception:
                 pass
         networkMap['total'] = total
@@ -12394,9 +12426,46 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resFL = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             retMap = dict()
             for avg, computingSite in resFL:
+                retMap[computingSite] = avg
+            tmpLog.debug('done')
+            return retMap
+        except:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return {}
+
+    # get nQ/nR ratio
+    def get_nq_nr_ratio_JEDI(self, source_label):
+        comment = ' /* JediDBProxy.get_nq_nr_ratio_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < label={0} >'.format(source_label)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            retMap = dict()
+            # sql
+            sql  = "SELECT computingSite,jobStatus,COUNT(*) FROM {0}.{{0}} ".format(jedi_config.db.schemaPANDA)
+            sql += "WHERE prodSourceLabel=:prodSourceLabel AND jobStatus IN (:jobStatus1,:jobStatus2) "
+            sql += "GROUP BY computingSite,jobStatus "
+            for tableName, jobStatus1, jobStatus2 in [('jobsDefined4', 'defined', 'assigned'),
+                                                      ('jobsActive4', 'activated, ''running')]:
+                varMap = dict()
+                varMap[':jobStatus1'] = jobStatus1
+                varMap[':jobStatus2'] = jobStatus2
+                # begin transaction
+                self.conn.begin()
+                self.cur.execute(sql.format(tableName)+comment, varMap)
+                resFL = self.cur.fetchall()
+                # commit
+                if not self._commit():
+                    raise RuntimeError('Commit error')
+                for computingSite, jobStatus, nJobs in resFL:
+                    retMap.setdefault(computingSite, {'nRunning': 0, 'nQueue': 0})
                 retMap[computingSite] = avg
             tmpLog.debug('done')
             return retMap

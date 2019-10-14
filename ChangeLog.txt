@@ -1,5 +1,15 @@
 Release Notes
 
+* 9/25/2019
+  * not to delete empty output datasets for prod
+  * to use done instead of failed when input has no files
+
+* 7/9/2019
+  * added CPU abuse check
+
+* 5/30/2019
+  * using json SW check in AtlasAJB
+
 * 5/2/2019
   * added NQUEUED_NUC_CAP
 

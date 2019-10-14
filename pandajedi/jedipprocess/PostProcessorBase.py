@@ -182,7 +182,7 @@ class PostProcessorBase (object):
             status = 'aborted'
         elif taskSpec.status == 'paused':
             status = 'paused'
-        elif nFiles == nFilesFinished and nFiles > 0:
+        elif nFiles == nFilesFinished:
             # check parent status
             if checkParent and not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
                 if self.taskBufferIF.getTaskStatus_JEDI(taskSpec.parent_tid) != 'done':

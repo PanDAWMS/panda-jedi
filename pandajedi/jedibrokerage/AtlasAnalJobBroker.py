@@ -114,6 +114,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 scanSiteLists.append((copy.copy(scanSiteList), False))
         retVal = None
         checkDataLocality = False
+        scanSiteWoVP = []
         for scanSiteList, checkDataLocality in scanSiteLists:
             if checkDataLocality:
                 tmpLog.debug('!!! look for candidates WITH data locality check') 
@@ -187,6 +188,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     # get sites where replica is available
                     tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=True)
                     tmpDiskSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=False)
+                    tmpNonVpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite, includeTape=True,
+                                                                                 use_vp=False)
                     # get sites which can remotely access source sites
                     if inputChunk.isMerging:
                         # disable remote access for merging
@@ -239,6 +242,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             if not tmpSiteName in oldScanUnifiedSiteList:
                                 continue
                             scanSiteListOnDisk.add(tmpSiteName)
+                        scanSiteWoVP = tmpNonVpSiteList
                         continue
                     # pickup sites which have all data
                     newScanList = []
@@ -253,6 +257,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         if tmpSiteName in scanSiteListOnDisk:
                             newScanListOnDisk.add(tmpSiteName)
                     scanSiteListOnDisk = newScanListOnDisk
+                    # get common elements
+                    scanSiteWoVP = list(set(scanSiteWoVP).intersection(tmpNonVpSiteList))
                     tmpLog.debug('{0} is available at {1} sites on DISK'.format(datasetName,len(scanSiteListOnDisk)))
                 # check for preassigned
                 if sitePreAssigned and not taskSpec.site in scanSiteList:
@@ -287,7 +293,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 elif tmpSiteSpec.status in ['brokeroff','test']:
                     if not sitePreAssigned:
                         skipFlag = True
-                    elif tmpSiteName != taskSpec.site:
+                    elif taskSpec.site not in [tmpSiteName, tmpSiteSpec.get_unified_name()]:
                         skipFlag = True
                 if not skipFlag:    
                     newScanSiteList.append(tmpSiteName)
@@ -359,69 +365,90 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     continue
             ######################################
             # selection for release
-            if taskSpec.transHome is not None or (taskSpec.processingType is not None and taskSpec.processingType.endswith('jedi-cont')):
+            if taskSpec.transHome is not None or \
+                    (taskSpec.processingType is not None and taskSpec.processingType.endswith('jedi-cont')):
                 useANY = True
+                jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
                 unified_site_list = self.get_unified_sites(scanSiteList)
                 if taskSpec.transHome is not None:
                     transHome = taskSpec.transHome
                 else:
                     transHome = ''
-                if transHome.startswith('ROOT'):
-                    # hack until x86_64-slc6-gcc47-opt is published in installedsw
-                    if taskSpec.getArchitecture() == 'x86_64-slc6-gcc47-opt':
-                        tmpCmtConfig = 'x86_64-slc6-gcc46-opt'
-                    else:
-                        tmpCmtConfig = taskSpec.getArchitecture()
-                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                             cmtConfig=tmpCmtConfig,
-                                                                             onlyCmtConfig=True)
-                elif 'AthAnalysis' in transHome or re.search('Ath[a-zA-Z]+Base',transHome) != None \
-                        or 'AnalysisBase' in transHome:
-                    # AthAnalysis
-                    siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                             cmtConfig=taskSpec.getArchitecture(),
-                                                                             onlyCmtConfig=True)
-                else:    
-                    # remove AnalysisTransforms-
-                    transHome = re.sub('^[^-]+-*','',transHome)
-                    transHome = re.sub('_','-',transHome)
-                    if re.search('rel_\d+(\n|$)',transHome) == None and taskSpec.transHome not in ['AnalysisTransforms', None] and \
-                            re.search('\d{4}-\d{2}-\d{2}T\d{4}$',transHome) == None and \
-                            re.search('-\d+\.\d+\.\d+$',transHome) is None:
-                        # cache is checked 
-                        siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                 caches=transHome,
-                                                                                 cmtConfig=taskSpec.getArchitecture())
-                    elif (transHome == '' and taskSpec.transUses != None) or \
-                            (re.search('-\d+\.\d+\.\d+$',transHome) is not None and \
-                                 (taskSpec.transUses is None or re.search('-\d+\.\d+$',taskSpec.transUses) is None)):
-                        # remove Atlas-
+                # remove AnalysisTransforms-
+                transHome = re.sub('^[^-]+-*','',transHome)
+                transHome = re.sub('_','-',transHome)
+                if re.search('rel_\d+(\n|$)', transHome) is None and \
+                        taskSpec.transHome not in ['AnalysisTransforms', None] and \
+                        re.search('\d{4}-\d{2}-\d{2}T\d{4}$', transHome) is None and \
+                        re.search('-\d+\.\d+\.\d+$', transHome) is None:
+                    # cache is checked
+                    siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
+                                                                       transHome.split('-')[0],
+                                                                       transHome.split('-')[1],
+                                                                       taskSpec.getArchitecture(),
+                                                                       False, False)
+                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                              caches=transHome,
+                                                                              cmtConfig=taskSpec.getArchitecture())
+                elif (transHome == '' and taskSpec.transUses is not None) or \
+                        (re.search('-\d+\.\d+\.\d+$',transHome) is not None and
+                        (taskSpec.transUses is None or re.search('-\d+\.\d+$', taskSpec.transUses) is None)):
+                    siteListWithSW = []
+                    sitesNoJsonCheck = unified_site_list
+                    # remove Atlas-
+                    if taskSpec.transUses is not None:
                         transUses = taskSpec.transUses.split('-')[-1]
-                        # release is checked 
-                        siteListWithSW = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                 releases=transUses,
-                                                                                 cmtConfig=taskSpec.getArchitecture())
-                        siteListWithSW += self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                  caches=transHome,
-                                                                                  cmtConfig=taskSpec.getArchitecture())
                     else:
-                        # nightlies or standalone
-                        useANY = False
-                        siteListWithCVMFS = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                    releases='CVMFS')
-                        if taskSpec.getArchitecture() in ['', None]:
-                            # architecture is not set
-                            siteListWithCMTCONFIG = copy.copy(unified_site_list)
-                        else:
-                            siteListWithCMTCONFIG = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                            cmtConfig=taskSpec.getArchitecture(),
-                                                                                            onlyCmtConfig=True)
-                        if taskSpec.transHome is not None:
-                            # CVMFS check
-                            siteListWithSW = set(siteListWithCVMFS) & set(siteListWithCMTCONFIG)
-                        else:
-                            # no CVMFS check for standalone SW
-                            siteListWithSW = siteListWithCMTCONFIG
+                        transUses = None
+                    if transUses is not None:
+                        # release is checked
+                        tmpSiteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
+                                                                              "AtlasOffline",
+                                                                              transUses,
+                                                                              taskSpec.getArchitecture(),
+                                                                              False, False)
+                        siteListWithSW += tmpSiteListWithSW
+                    if len(transHome.split('-')) == 2:
+                        tmpSiteListWithSW, sitesNoJsonCheck = jsonCheck.check(sitesNoJsonCheck, "atlas",
+                                                                              transHome.split('-')[0],
+                                                                              transHome.split('-')[1],
+                                                                              taskSpec.getArchitecture(),
+                                                                              False, False)
+                        siteListWithSW += tmpSiteListWithSW
+                    if transUses is not None:
+                        siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                                  releases=transUses,
+                                                                                  cmtConfig=taskSpec.getArchitecture())
+                    siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                              caches=transHome,
+                                                                              cmtConfig=taskSpec.getArchitecture())
+                else:
+                    # nightlies or standalone
+                    useANY = False
+                    siteListWithCVMFS = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
+                                                                                releases='CVMFS')
+                    if taskSpec.getArchitecture() in ['', None]:
+                        # architecture is not set
+                        siteListWithCMTCONFIG = copy.copy(unified_site_list)
+                    else:
+                        siteListWithCMTCONFIG = \
+                            self.taskBufferIF.checkSitesWithRelease(unified_site_list,
+                            cmtConfig=taskSpec.getArchitecture(),
+                            onlyCmtConfig=True)
+                    if taskSpec.transHome is not None:
+                        # CVMFS check for nightlies
+                        siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
+                                                                           None, None,
+                                                                           taskSpec.getArchitecture(),
+                                                                           True, False)
+                        siteListWithSW += list(set(siteListWithCVMFS) & set(siteListWithCMTCONFIG))
+                    else:
+                        # no CVMFS check for standalone SW
+                        siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
+                                                                           None, None,
+                                                                           taskSpec.getArchitecture(),
+                                                                           False, True)
+                        siteListWithSW += siteListWithCMTCONFIG
                 newScanSiteList = []
                 for tmpSiteName in unified_site_list:
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -448,13 +475,18 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if taskSpec.osMatching():
                 mandatoryArchs, badArchs = AtlasBrokerUtils.getOkNgArchList(taskSpec)
                 unified_site_list = self.get_unified_sites(scanSiteList)
+                jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
                 # mandatory architectures
                 if mandatoryArchs is not None:
                     for tmpArch in mandatoryArchs:
-                        tmpSiteList = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                              cmtConfig=tmpArch,
-                                                                              onlyCmtConfig=True,
-                                                                              cmtConfigPattern=True)
+                        tmpSiteList, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
+                                                                        None, None,
+                                                                        tmpArch,
+                                                                        False, True)
+                        tmpSiteList += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                               cmtConfig=tmpArch,
+                                                                               onlyCmtConfig=True,
+                                                                               cmtConfigPattern=True)
                         for tmpSiteName in unified_site_list:
                             if tmpSiteName not in tmpSiteList:
                                 # release is unavailable
@@ -463,10 +495,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # bad architectures
                 if badArchs is not None:
                     for tmpArch in badArchs:
-                        tmpSiteList = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                              cmtConfig=tmpArch,
-                                                                              onlyCmtConfig=True,
-                                                                              cmtConfigPattern=True)
+                        tmpSiteList, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
+                                                                        None, None,
+                                                                        tmpArch,
+                                                                        False, True)
+                        tmpSiteList += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
+                                                                               cmtConfig=tmpArch,
+                                                                               onlyCmtConfig=True,
+                                                                               cmtConfigPattern=True)
                         newSiteList = []
                         for tmpSiteName in unified_site_list:
                             if tmpSiteName in tmpSiteList:
@@ -714,11 +750,24 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
             # check for preassigned
-            if sitePreAssigned and (taskSpec.site not in scanSiteList and taskSpec.site not in self.get_unified_sites(scanSiteList)):
-                tmpLog.info("preassigned site {0} did not pass all tests".format(taskSpec.site))
-                tmpLog.error('no candidates')
-                retVal = retFatal
-                continue
+            if sitePreAssigned:
+                if taskSpec.site not in scanSiteList and taskSpec.site not in self.get_unified_sites(scanSiteList):
+                    tmpLog.info("preassigned site {0} did not pass all tests".format(taskSpec.site))
+                    tmpLog.error('no candidates')
+                    retVal = retFatal
+                    continue
+                else:
+                    newScanSiteList = []
+                    for tmpPseudoSiteName in scanSiteList:
+                        tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+                        tmpSiteName = tmpSiteSpec.get_unified_name()
+                        if tmpSiteName != taskSpec.site:
+                            tmpLog.info('  skip site={0} non pre-assigned site criteria=-nonpreassigned'.format(
+                                tmpPseudoSiteName))
+                            continue
+                        newScanSiteList.append(tmpSiteName)
+                    scanSiteList = newScanSiteList
+                tmpLog.info('{0} candidates passed preassigned check'.format(len(scanSiteList)))
             ######################################
             # selection for hospital
             newScanSiteList = []
@@ -740,6 +789,62 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     tmpLog.error('no candidates')
                     retVal = retTmpError
                     continue
+            ######################################
+            # selection for un-overloaded sites
+            newScanSiteList = []
+            overloadedNonVP = []
+            msgList = []
+            msgListVP = []
+            minQueue = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_MIN_QUEUE',
+                                                        'jedi', taskSpec.vo)
+            if minQueue is None:
+                minQueue = 20
+            ratioOffset = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_RATIO_OFFSET',
+                                                        'jedi', taskSpec.vo)
+            if ratioOffset is None:
+                ratioOffset = 1.2
+            grandRatio = AtlasBrokerUtils.get_total_nq_nr_ratio(jobStatPrioMap)
+            tmpLog.info('grand nQueue/nRunning ratio : {0}'.format(grandRatio))
+            tmpLog.info('sites with non-VP data : {0}'.format(','.join(scanSiteWoVP)))
+            for tmpPseudoSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+                tmpSiteName = tmpSiteSpec.get_unified_name()
+                # get nQueue and nRunning
+                nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', None, None)
+                nQueue = 0
+                for jobStatus in ['defined', 'assigned', 'activated', 'starting']:
+                    nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus, None, None)
+                # skip if overloaded
+                if nQueue > minQueue and \
+                        (nRunning == 0 or float(nQueue) / float(nRunning) > grandRatio * ratioOffset):
+                    tmpMsg = '  skip site={0} '.format(tmpPseudoSiteName)
+                    tmpMsg += 'nQueue>minQueue({0}) and '.format(minQueue)
+                    tmpMsg += 'nQueue({0})/nRunning({1}) > grandRatio({2:.2f})*offset({3}) '.format(nQueue,
+                                                                                                    nRunning,
+                                                                                                    grandRatio,
+                                                                                                    ratioOffset)
+                    if tmpSiteName in scanSiteWoVP or checkDataLocality is False or inputChunk.getDatasets() == []:
+                        tmpMsg += 'criteria=-overloaded'
+                        overloadedNonVP.append(tmpPseudoSiteName)
+                        msgListVP.append(tmpMsg)
+                    else:
+                        tmpMsg += 'and VP criteria=-overloaded_vp'
+                        msgList.append(tmpMsg)
+                else:
+                    newScanSiteList.append(tmpPseudoSiteName)
+            if len(newScanSiteList) > 0:
+                scanSiteList = newScanSiteList
+                for tmpMsg in msgList+msgListVP:
+                    tmpLog.info(tmpMsg)
+            else:
+                scanSiteList = overloadedNonVP
+                for tmpMsg in msgListVP:
+                    tmpLog.info(tmpMsg)
+            tmpLog.info('{0} candidates passed overload check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                retVal = retTmpError
+                continue
             # loop end
             if len(scanSiteList) > 0:
                 retVal = None
@@ -766,15 +871,18 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # disable file lookup for merge jobs
                 if inputChunk.isMerging:
                     checkCompleteness = False
+                    useVP = False
                 else:
                     checkCompleteness = True
+                    useVP = True
                 # get available files per site/endpoint
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
                                                             siteStorageEP,
                                                             self.siteMapper,
-                                                            check_completeness=checkCompleteness)
+                                                            check_completeness=checkCompleteness,
+                                                            use_vp=useVP)
                 if tmpAvFileMap == None:
-                    raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
+                    raise Interaction.JEDITemporaryError('ddmIF.getAvailableFiles failed')
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
             except:
                 errtype,errvalue = sys.exc_info()[:2]
