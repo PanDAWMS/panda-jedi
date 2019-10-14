@@ -141,7 +141,7 @@ class InputChunk:
 
 
     # get one site candidate randomly
-    def getOneSiteCandidate(self,nSubChunks=0,ngSites=None):
+    def getOneSiteCandidate(self, nSubChunks=0, ngSites=None, get_msg=False):
         retSiteCandidate = None
         if ngSites == None:
             ngSites = []
@@ -153,7 +153,7 @@ class InputChunk:
                 if len(tmpDatasetSpec.Files) > datasetUsage['used']:
                     tmpFileSpec = tmpDatasetSpec.Files[datasetUsage['used']]
                     for siteCandidate in self.siteCandidates.values():
-                        # skip if the first file is unavalble at the site
+                        # skip if the first file is unavailable at the site
                         if not siteCandidate.isAvailableFile(tmpFileSpec):
                             ngSites.append(siteCandidate.siteName)
         # get total weight
@@ -161,15 +161,27 @@ class InputChunk:
         weightList  = []
         siteCandidateList = self.siteCandidates.values()
         newSiteCandidateList = []
+        nNG = 0
+        nOK = 0
+        nFull = 0
         for siteCandidate in siteCandidateList:
             # remove NG sites
             if siteCandidate.siteName in ngSites:
+                nNG += 1
+                continue
+            # skip incapable
+            if not siteCandidate.can_accept_jobs():
+                nFull += 1
                 continue
             totalWeight += siteCandidate.weight
             newSiteCandidateList.append(siteCandidate)
+            nOK += 1
         siteCandidateList = newSiteCandidateList
+        retMsg = 'OK={0} NG={1} Full={2}'.format(nOK, nNG, nFull)
         # empty
         if siteCandidateList == []:
+            if get_msg:
+                return None, retMsg
             return None
         # get random number
         rNumber = random.random() * totalWeight
@@ -187,12 +199,12 @@ class InputChunk:
                 oldNumQueued = retSiteCandidate.nQueuedJobs
                 retSiteCandidate.nQueuedJobs += nSubChunks
                 newNumQueued = retSiteCandidate.nQueuedJobs
-                oldNumAssigned = retSiteCandidate.nAssignedJobs
                 retSiteCandidate.nAssignedJobs += nSubChunks
-                newNumAssigned = retSiteCandidate.nAssignedJobs
                 siteCandidate.weight = siteCandidate.weight * float(oldNumQueued+1) / float(newNumQueued+1)
         except:
             pass
+        if get_msg:
+            return retSiteCandidate, retMsg
         return retSiteCandidate
 
 

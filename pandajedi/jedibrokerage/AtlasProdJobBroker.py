@@ -1480,7 +1480,12 @@ class AtlasProdJobBroker (JobBrokerBase):
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning
-            siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
+            if tmpSiteName not in siteSizeMap or siteSizeMap[tmpSiteName] >= totalSize:
+                siteCandidateSpec.nQueuedJobs = nActivated + nStarting
+                useActivated = True
+            else:
+                siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
+                useActivated = False
             siteCandidateSpec.nAssignedJobs = nAssigned
             # set available files
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():
@@ -1504,6 +1509,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             cutOffValue = 20
             cutOffFactor = 2 
             nRunningCap = max(cutOffValue,cutOffFactor*nRunning)
+            siteCandidateSpec.nRunningJobsCap = nRunningCap
             if taskSpec.getNumJumboJobs() == None or not tmpSiteSpec.useJumboJobs():
                 forJumbo = False
             else:
@@ -1519,16 +1525,15 @@ class AtlasProdJobBroker (JobBrokerBase):
             if lockedByBrokerage:
                 ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-lock'
-            elif (not tmpSiteName in siteSizeMap or siteSizeMap[tmpSiteName] >= totalSize) and \
-                    (nActivated+nStarting) > nRunningCap:
+            elif not useActivated and siteCandidateSpec.nQueuedJobs > nRunningCap:
                 ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                              weight,
                                                                                              nActivated+nStarting)
+                ngMsg += '(nAssigned ignored due to data already available) '
                 ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
-            elif tmpSiteName in siteSizeMap and siteSizeMap[tmpSiteName] < totalSize and \
-                    (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
+            elif useActivated and siteCandidateSpec.nQueuedJobs > nRunningCap:
                 ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                                                 weight,
                                                                                                                 nDefined+nActivated+nAssigned+nStarting)
