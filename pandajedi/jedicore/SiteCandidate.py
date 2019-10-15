@@ -14,7 +14,7 @@ class SiteCandidate(object):
         self.remoteFiles = []
         # the list of all files
         self.allFiles = None
-        # acess
+        # remote access protocol
         self.remoteProtocol = None
         # remote source if any
         self.remoteSource = None
@@ -24,8 +24,8 @@ class SiteCandidate(object):
         self.nQueuedJobs = None
         # number of assigned jobs
         self.nAssignedJobs = None
-
-
+        # cap on running jobs
+        self.nRunningJobsCap = None
 
     # get locality of a file
     def getFileLocality(self,fileSpec):
@@ -43,8 +43,6 @@ class SiteCandidate(object):
                 return 'remote'
         return None
 
-
-
     # add available files
     def addAvailableFiles(self,fileList):
         if self.allFiles == None:
@@ -52,12 +50,18 @@ class SiteCandidate(object):
         for tmpFileSpec in fileList:
             self.allFiles.add(tmpFileSpec.fileID)
 
-
-
     # check if file is available
     def isAvailableFile(self,tmpFileSpec):
         # N/A
         if self.allFiles == None:
             return True
         return tmpFileSpec.fileID in self.allFiles
+
+    # check if still can accept jobs
+    def can_accept_jobs(self):
+        if self.nRunningJobsCap is None or self.nQueuedJobs is None:
+            return True
+        if self.nRunningJobsCap > self.nQueuedJobs:
+            return True
+        return False
 

@@ -803,29 +803,25 @@ class AtlasProdJobBroker (JobBrokerBase):
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             scope_input, scope_output = select_scope(tmpSiteSpec, 'managed')
-            # don't check for T1
-            if tmpSiteName in t1Sites:
-                pass
-            else:
-                # check endpoint
-                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope_output].getEndPoint(tmpSiteSpec.ddm_output[scope_output])
-                if tmpEndPoint != None:
-                    # check free size
-                    tmpSpaceSize = 0
-                    if tmpEndPoint['space_free'] is not None:
-                        tmpSpaceSize += tmpEndPoint['space_free']
-                    if tmpEndPoint['space_expired'] is not None:
-                        tmpSpaceSize += tmpEndPoint['space_expired']
-                    diskThreshold = 200
-                    tmpMsg = None
-                    if tmpSpaceSize < diskThreshold:
-                        tmpMsg = '  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope_output],
-                                                                                                                   tmpSpaceSize, diskThreshold)
-                    # check if blacklisted
-                    elif tmpEndPoint['blacklisted'] == 'Y':
-                        tmpMsg = '  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope_output])
-                    if tmpMsg is not None:
-                        newSkippedTmp[tmpSiteName] = tmpMsg
+            # check endpoint
+            tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope_output].getEndPoint(tmpSiteSpec.ddm_output[scope_output])
+            if tmpEndPoint is not None:
+                # check free size
+                tmpSpaceSize = 0
+                if tmpEndPoint['space_free'] is not None:
+                    tmpSpaceSize += tmpEndPoint['space_free']
+                if tmpEndPoint['space_expired'] is not None:
+                    tmpSpaceSize += tmpEndPoint['space_expired']
+                diskThreshold = 200
+                tmpMsg = None
+                if tmpSpaceSize < diskThreshold:
+                    tmpMsg = '  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope_output],
+                                                                                                               tmpSpaceSize, diskThreshold)
+                # check if blacklisted
+                elif tmpEndPoint['blacklisted'] == 'Y':
+                    tmpMsg = '  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope_output])
+                if tmpMsg is not None:
+                    newSkippedTmp[tmpSiteName] = tmpMsg
             newScanSiteList.append(tmpSiteName)
         siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
@@ -1484,7 +1480,12 @@ class AtlasProdJobBroker (JobBrokerBase):
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning
-            siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
+            if tmpSiteName not in siteSizeMap or siteSizeMap[tmpSiteName] >= totalSize:
+                siteCandidateSpec.nQueuedJobs = nActivated + nStarting
+                useActivated = True
+            else:
+                siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
+                useActivated = False
             siteCandidateSpec.nAssignedJobs = nAssigned
             # set available files
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():
@@ -1508,6 +1509,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             cutOffValue = 20
             cutOffFactor = 2 
             nRunningCap = max(cutOffValue,cutOffFactor*nRunning)
+            siteCandidateSpec.nRunningJobsCap = nRunningCap
             if taskSpec.getNumJumboJobs() == None or not tmpSiteSpec.useJumboJobs():
                 forJumbo = False
             else:
@@ -1523,16 +1525,15 @@ class AtlasProdJobBroker (JobBrokerBase):
             if lockedByBrokerage:
                 ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-lock'
-            elif (not tmpSiteName in siteSizeMap or siteSizeMap[tmpSiteName] >= totalSize) and \
-                    (nActivated+nStarting) > nRunningCap:
+            elif not useActivated and siteCandidateSpec.nQueuedJobs > nRunningCap:
                 ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                              weight,
                                                                                              nActivated+nStarting)
+                ngMsg += '(nAssigned ignored due to data already available) '
                 ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
-            elif tmpSiteName in siteSizeMap and siteSizeMap[tmpSiteName] < totalSize and \
-                    (nDefined+nActivated+nAssigned+nStarting) > nRunningCap:
+            elif useActivated and siteCandidateSpec.nQueuedJobs > nRunningCap:
                 ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                                                 weight,
                                                                                                                 nDefined+nActivated+nAssigned+nStarting)
