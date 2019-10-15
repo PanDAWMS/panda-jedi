@@ -538,6 +538,17 @@ class JobGeneratorThread (WorkerThread):
                             tmpLog.debug('run splitter')
                             splitter = JobSplitter()
                             try:
+                                # lock counter
+                                if self.liveCounter is not None and not inputChunk.isMerging:
+                                    if not lockCounter:
+                                        tmpLog.debug('trying to lock counter')
+                                        self.liveCounter.acquire()
+                                        tmpLog.debug('locked counter')
+                                        lockCounter = True
+                                        # update nQueuedJobs since live counter may not have been
+                                        # considered in brokerage
+                                        tmpMsg = inputChunk.update_n_queue(self.liveCounter)
+                                        tmpLog.debug('updated nQueue at {0}'.format(tmpMsg))
                                 tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
                                 # * remove the last sub-chunk when inputChunk is read in a block 
                                 #   since alignment could be broken in the last sub-chunk 
@@ -548,12 +559,7 @@ class JobGeneratorThread (WorkerThread):
                                         and inputChunk.readBlock == True:
                                     subChunks[-1]['subChunks'] = subChunks[-1]['subChunks'][:-1]
                                 # update counter
-                                if self.liveCounter != None and not inputChunk.isMerging:
-                                    if not lockCounter:
-                                        tmpLog.debug('trying to lock counter')
-                                        self.liveCounter.acquire()
-                                        tmpLog.debug('locked counter')
-                                        lockCounter = True
+                                if lockCounter:
                                     for tmpSubChunk in subChunks:
                                         self.liveCounter.add(tmpSubChunk['siteName'],len(tmpSubChunk['subChunks']))
                             except:

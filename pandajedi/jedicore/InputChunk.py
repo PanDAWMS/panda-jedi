@@ -924,3 +924,14 @@ class InputChunk:
         if name in self.siteCandidates:
             return self.siteCandidates[name]
         return None
+
+    # update number of queued jobs
+    def update_n_queue(self, live_counter):
+        sites = []
+        for siteCandidate in self.siteCandidates.values():
+            if live_counter is not None:
+                n = live_counter.get(siteCandidate.siteName)
+                if n > 0:
+                    siteCandidate.nQueuedJobs += n
+                    sites.append(siteCandidate.siteName)
+        return ','.join(sites)
