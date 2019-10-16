@@ -142,8 +142,9 @@ class JobSplitter:
                 nSkip = inputChunk.skipUnavailableFiles()
                 tmpLog.debug('skipped {0} files'.format(nSkip))
                 # new candidate
-                siteCandidate = inputChunk.getOneSiteCandidate(nSubChunks)
-                if siteCandidate == None:
+                siteCandidate, getCandidateMsg = inputChunk.getOneSiteCandidate(nSubChunks, get_msg=True)
+                if siteCandidate is None:
+                    tmpLog.debug('no candidate: {0}'.format(getCandidateMsg))
                     break
                 siteName = siteCandidate.siteName
                 siteSpec = siteMapper.getSite(siteName)
@@ -186,7 +187,9 @@ class JobSplitter:
                     maxNumEventRanges = int(siteSpec.get_n_sim_events() / taskSpec.get_min_granularity())
                     if maxNumEventRanges == 0:
                         maxNumEventRanges = 1
-                tmpLog.debug('chosen {0}'.format(siteName))
+                tmpLog.debug('chosen {0} : {1} : nQueue={2} nRunCap={3}'.format(siteName, getCandidateMsg,
+                                                                                siteCandidate.nQueuedJobs,
+                                                                                siteCandidate.nRunningJobsCap))
                 tmpLog.debug('new weight {0}'.format(siteCandidate.weight))
                 tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2} corePower={3} maxNumEventRanges={4} maxDisk={5}'.format(maxSize,maxWalltime,
                                                                                                                                 coreCount,corePower,
