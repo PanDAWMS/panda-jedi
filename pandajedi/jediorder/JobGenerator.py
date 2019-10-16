@@ -1995,7 +1995,7 @@ class JobGeneratorThread (WorkerThread):
         # set site for parallel jobs
         newPandaJob.computingSite = sites[index % nSites]
         siteSpec = self.siteMapper.getSite(newPandaJob.computingSite)
-        scope_input, scope_output = select_scope(siteSpec, pandaJob.prodSourcelabel)
+        scope_input, scope_output = select_scope(siteSpec, pandaJob.prodSourceLabel)
         siteCandidate = inputChunk.getSiteCandidate(newPandaJob.computingSite)
         newPandaJob.computingSite = siteSpec.get_unified_name()
         if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:
