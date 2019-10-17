@@ -555,7 +555,8 @@ class JobGeneratorThread (WorkerThread):
                                 #    e.g., inputChunk=10 -> subChunks=4,4,2 and remove 2
                                 # * don't remove it for the last inputChunk
                                 # e.g., inputChunks = 10(remove),10(remove),3(not remove)
-                                if len(subChunks[-1]['subChunks']) > 1 and inputChunk.masterDataset != None \
+                                if len(subChunks) > 0 and len(subChunks[-1]['subChunks']) > 1 and \
+                                        inputChunk.masterDataset != None \
                                         and inputChunk.readBlock == True:
                                     subChunks[-1]['subChunks'] = subChunks[-1]['subChunks'][:-1]
                                 # update counter
