@@ -235,7 +235,11 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
 
         # loop over all DDM endpoints
         checkedEndPoints = []
-        for tmpDDM in tmpSiteSpec.ddm_endpoints_input[scope_input].all.keys():
+        try:
+            input_endpoints = tmpSiteSpec.ddm_endpoints_input[scope_input].all.keys()
+        except:
+            input_endpoints = {}
+        for tmpDDM in input_endpoints:
             # skip empty
             if tmpDDM == '':
                 continue
