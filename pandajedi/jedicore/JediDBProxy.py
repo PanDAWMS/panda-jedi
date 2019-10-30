@@ -5936,6 +5936,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
+
         # go to exhausted if necessary
         nNewJobsCutoff = 20
         if useExhausted and scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
@@ -5944,7 +5945,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 minExecTime = 24
                 if not extraInfo['oldCpuTime'] in [0,None] and scoutData['cpuTime'] > 2*extraInfo['oldCpuTime'] \
                         and extraInfo['execTime'] > datetime.timedelta(hours=minExecTime):
-                    errMsg = 'status=exhausted since reason=scout_cpuTime ({0}) is larger than 2*task_cpuTime ({1})'.format(scoutData['cpuTime'],
+                    errMsg = 'status=exhausted since reason=scout_cpuTime ({0}) is larger than 2*task_cpuTime ({1}) #ATM'.format(scoutData['cpuTime'],
                                                                                                                             extraInfo['oldCpuTime'])
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
@@ -5955,12 +5956,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         and extraInfo['oldRamCount'] < ramThr and scoutData['ramCount'] > ramThr:
                     errMsg = 'status=exhausted since reason=scout_ramCount {0} MB is larger than {1} MB '.format(scoutData['ramCount'],
                                                                                                                  ramThr)
-                    errMsg += 'while task_ramCount {0} MB is less than {1} MB'.format(extraInfo['oldRamCount'],
+                    errMsg += 'while task_ramCount {0} MB is less than {1} MB #ATM'.format(extraInfo['oldRamCount'],
                                                                                       ramThr)
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
-        # short job check 
+
+        # short job check
         if scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
             # check execution time
             if taskSpec.status != 'exhausted':
@@ -5970,7 +5972,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if maxShortJobs is not None and 'nShortJobs' in extraInfo and extraInfo['nShortJobs'] >= maxShortJobs and \
                         shortJobCutoff is not None and 'expectedNumJobs' in extraInfo and extraInfo['expectedNumJobs'] > shortJobCutoff:
                     errMsg = 'status=exhausted since reason=many_shorter_jobs '
-                    errMsg += '({0} is grather than {1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
+                    errMsg += '({0} is greater than {1}) less than {2} min and the expected num of jobs ({3}) is larger than {4} #ATM'.format(extraInfo['nShortJobs'],
                                                                                                                                          maxShortJobs,
                                                                                                                                          extraInfo['shortExecTime'],
                                                                                                                                          extraInfo['expectedNumJobs'],
@@ -5978,16 +5980,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
+
             # check CPU efficiency
             if taskSpec.status != 'exhausted':
                 if taskSpec.getMinCpuEfficiency() is not None and 'minCpuEfficiency' in extraInfo and \
                         extraInfo['minCpuEfficiency'] < taskSpec.getMinScoutEfficiency():
                     errMsg = 'status=exhausted since reason=low_efficiency '
-                    errMsg += 'min CPU efficiency {0} is less than {1}%'.format(extraInfo['minCpuEfficiency'],
+                    errMsg += 'min CPU efficiency {0} is less than {1}% #ATM'.format(extraInfo['minCpuEfficiency'],
                                                                                 taskSpec.getMinScoutEfficiency())
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
+
             # cpu abuse
             if taskSpec.status != 'exhausted':
                 try:
@@ -6001,7 +6005,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             extraInfo['defCoreCount'],
                             abuseOffset
                         )
-                        errMsg += 'Running multi-core payload on single core queues?'
+                        errMsg += 'Running multi-core payload on single core queues? #ATM'
                         tmpLog.info(errMsg)
                         taskSpec.setErrDiag(errMsg)
                         taskSpec.status = 'exhausted'
@@ -7729,11 +7733,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         sql = sqlTU
                 self.cur.execute(sql+comment,varMap)
                 if timeoutFlag:
-                    tmpLog.debug('jediTaskID={0} timeout'.format(jediTaskID))
+                    tmpLog.info('jediTaskID={0} timeout #ATM'.format(jediTaskID))
                 elif keepFlag:
-                    tmpLog.debug('jediTaskID={0} keep pending'.format(jediTaskID))
+                    tmpLog.info('jediTaskID={0} keep pending #ATM'.format(jediTaskID))
                 else:
-                    tmpLog.debug('jediTaskID={0} reactivated'.format(jediTaskID))
+                    tmpLog.info('jediTaskID={0} reactivated #ATM'.format(jediTaskID))
                 nRow += self.cur.rowcount
                 # update DEFT for timeout
                 if timeoutFlag:
@@ -9907,11 +9911,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     throttledTime = datetime.datetime.utcnow()
                     releaseTime   = throttledTime + \
                         datetime.timedelta(minutes=waitTime*numThrottled*numThrottled)
-                    errorDialog  = 'throttled due to many attempts {0}>={1}x{2} '.format(largestAttemptNr,
-                                                                                         numThrottled,
-                                                                                         attemptInterval)
+                    errorDialog  = 'throttled jediTaskID={0} due to many attempts {0}>={1}x{2} '.format(jediTaskID,
+                                                                                                        largestAttemptNr,
+                                                                                                        numThrottled,
+                                                                                                        attemptInterval)
                     errorDialog += 'from {0} '.format(throttledTime.strftime('%Y/%m/%d %H:%M:%S'))
-                    errorDialog += 'till {0}'.format(releaseTime.strftime('%Y/%m/%d %H:%M:%S'))
+                    errorDialog += 'till {0} #ATM'.format(releaseTime.strftime('%Y/%m/%d %H:%M:%S'))
                     varMap = {}
                     varMap[':jediTaskID']   = jediTaskID
                     varMap[':newStatus']    = 'throttled'
@@ -10007,29 +10012,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not prodSourceLabel in [None,'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlTL += "AND tabT.prodSourceLabel=:prodSourceLabel "
-            # sql to update tasks    
+
+            # sql to update tasks
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=oldStatus,oldStatus=NULL,errorDialog=NULL,modificationtime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus AND lockedBy IS NULL "
+
             # start transaction
             self.conn.begin()
             tmpLog.debug(sqlTL+comment+str(varMap))
             self.cur.execute(sqlTL+comment,varMap)
             resTL = self.cur.fetchall()
+
             # loop over all tasks
             nRow = 0
             for jediTaskID,oldStatus in resTL:
                 if oldStatus in [None,'']:
                     tmpLog.debug('cannot release jediTaskID={0} since oldStatus is invalid'.format(jediTaskID))
                     continue
-                timeoutFlag = False
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 varMap[':oldStatus'] = 'throttled'
                 self.cur.execute(sqlTU+comment,varMap)
                 iRow = self.cur.rowcount
-                tmpLog.debug('released jediTaskID={0} with {1}'.format(jediTaskID,iRow))
+                tmpLog.info('released jediTaskID={0} with {1} #ATM'.format(jediTaskID,iRow))
                 nRow += iRow
+
             # commit
             if not self._commit():
                 raise RuntimeError, 'Commit error'
