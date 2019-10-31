@@ -5760,7 +5760,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap['diskIO'] = aveDiskIo
             returnMap['diskIOUnit'] = 'kBPerS'
         if leak_list:
-            ave_leak = long(math.ceil(sum(leak_list) / len(leak_list))
+            ave_leak = long(math.ceil(sum(leak_list) / len(leak_list)))
             returnMap['memory_leak_core'] = ave_leak
         if memSizeList != []:
             memVal, origValues = JediCoreUtils.percentile(memSizeList, ramCountRank, memSizeDict)
