@@ -5294,10 +5294,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # sql to get preset values
         if not mergeScout:
             sqlGPV  = "SELECT "
-            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit "
+            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit,memory_leak_core "
         else:
             sqlGPV  = "SELECT "
-            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit "
+            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit,memory_leak_core "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data from JEDI
@@ -5321,23 +5321,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlSCF += "AND tabF.PandaID=:usePandaID "
         # sql to get normal scout job data from Panda 
         sqlSCDN  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
+        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
         sqlSCDN += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "UNION "
         sqlSCDN += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
+        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
         sqlSCDN += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "AND modificationTime>(CURRENT_DATE-14) "
         # sql to get ES scout job data from Panda 
         sqlSCDE  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
+        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
         sqlSCDE += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "UNION "
         sqlSCDE += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
+        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
         sqlSCDE += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "AND modificationTime>(CURRENT_DATE-14) "
@@ -5459,6 +5459,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         walltimeDict = {}
         memSizeList  = []
         memSizeDict  = {}
+        leak_list    = []
+        leak_dict    = {}
         workSizeList = []
         cpuTimeList  = []
         cpuTimeDict  = {}
@@ -5542,7 +5544,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # loop over all jobs
                 for oneResData in resDataList:
                     eventServiceJob,jobsetID,pandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,\
-                        defCoreCount,startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileByte = oneResData
+                        defCoreCount,startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileByte,memory_leak = oneResData
                     # add inputSize and nEvents
                     if not pandaID in inFSizeMap:
                         inFSizeMap[pandaID] = totalFSize
@@ -5643,6 +5645,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpVal = (totRBYTES + totWBYTES)
                             tmpVal /= float(tmpTimeDelta.seconds+tmpTimeDelta.days*24*3600)
                             diskIoList.append(tmpVal)
+                        except:
+                            pass
+                    # memory leak
+                    if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
+                        try:
+                            memory_leak_core_tmp = float(memory_leak) / float(coreCount)
+                            memory_leak_core_tmp = long(math.ceil(memory_leak_core_tmp))
+                            leak_list.append(memory_leak_core_tmp)
+                            leak_dict[memory_leak_core_tmp] = pandaID
                         except:
                             pass
                     # RAM size
@@ -5748,6 +5759,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             aveDiskIo = long(math.ceil(aveDiskIo))
             returnMap['diskIO'] = aveDiskIo
             returnMap['diskIOUnit'] = 'kBPerS'
+        if leak_list:
+            ave_leak = long(math.ceil(sum(leak_list) / len(leak_list))
+            returnMap['memory_leak_core'] = ave_leak
         if memSizeList != []:
             memVal, origValues = JediCoreUtils.percentile(memSizeList, ramCountRank, memSizeDict)
             for origValue in origValues:
@@ -5950,6 +5964,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
+
             # check ramCount
             if taskSpec.status != 'exhausted':
                 if taskSpec.ramPerCore() and 'ramCount' in scoutData and extraInfo['oldRamCount'] is not None \
@@ -5961,6 +5976,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
+
+            # check memory leak
+            if taskSpec.status != 'exhausted':
+                memory_leak_core_max = self.getConfigValue('dbproxy','SCOUT_MEM_LEAK_PER_CORE_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
+                memory_leak_core = scoutData.get('memory_leak_core')
+                if memory_leak_core and memory_leak_core_max and memory_leak_core > memory_leak_core_max:
+                    errMsg = 'status=exhausted since reason=scout_memory_leak {0} is larger than {1} #ATM #KV'.\
+                        format(memory_leak_core, memory_leak_core_max)
+                    tmpLog.info(errMsg)
+                    taskSpec.setErrDiag(errMsg)
+                    # taskSpec.status = 'exhausted'
 
         # short job check
         if scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
@@ -7733,11 +7759,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         sql = sqlTU
                 self.cur.execute(sql+comment,varMap)
                 if timeoutFlag:
-                    tmpLog.info('jediTaskID={0} timeout #ATM'.format(jediTaskID))
+                    tmpLog.info('jediTaskID={0} timeout #ATM #KV'.format(jediTaskID))
                 elif keepFlag:
-                    tmpLog.info('jediTaskID={0} keep pending #ATM'.format(jediTaskID))
+                    tmpLog.info('jediTaskID={0} keep pending #ATM #KV'.format(jediTaskID))
                 else:
-                    tmpLog.info('jediTaskID={0} reactivated #ATM'.format(jediTaskID))
+                    tmpLog.info('jediTaskID={0} reactivated #ATM #KV'.format(jediTaskID))
                 nRow += self.cur.rowcount
                 # update DEFT for timeout
                 if timeoutFlag:
@@ -9911,7 +9937,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     throttledTime = datetime.datetime.utcnow()
                     releaseTime   = throttledTime + \
                         datetime.timedelta(minutes=waitTime*numThrottled*numThrottled)
-                    errorDialog  = 'throttled jediTaskID={0} due to many attempts {0}>={1}x{2} '.format(jediTaskID,
+                    errorDialog  = 'throttled jediTaskID={0} due to many attempts {0} > {1}x{2} '.format(jediTaskID,
                                                                                                         largestAttemptNr,
                                                                                                         numThrottled,
                                                                                                         attemptInterval)
@@ -10035,7 +10061,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':oldStatus'] = 'throttled'
                 self.cur.execute(sqlTU+comment,varMap)
                 iRow = self.cur.rowcount
-                tmpLog.info('released jediTaskID={0} with {1} #ATM'.format(jediTaskID,iRow))
+                tmpLog.info('released jediTaskID={0} with {1} #ATM #KV'.format(jediTaskID,iRow))
                 nRow += iRow
 
             # commit
@@ -11918,7 +11944,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if nJumbo > maxJumbo:
                 tmpLog.debug('False since nJumbo={0} > maxJumbo={1}'.format(nJumbo, maxJumbo))
                 return False
-            tmpLog.debug('True since nJumbo={0} <= maxJumbo={1} and nEvents={0} >= minEventsJumbo={1}'.format(nJumbo, maxJumbo,
+            tmpLog.debug('True since nJumbo={0} < maxJumbo={1} and nEvents={0} > minEventsJumbo={1}'.format(nJumbo, maxJumbo,
                                                                                                               nEvents, minEvents))
             return True
         except:

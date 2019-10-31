@@ -27,7 +27,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
     # main to setup task
     def doSetup(self,taskSpec,datasetToRegister,pandaJobs):
         # make logger
-        tmpLog = MsgWrapper(logger,"<jediTaskID={0}>".format(taskSpec.jediTaskID))
+        tmpLog = MsgWrapper(logger,"< jediTaskID={0} >".format(taskSpec.jediTaskID))
         tmpLog.info('start label={0} taskType={1}'.format(taskSpec.prodSourceLabel,taskSpec.taskType))
         # returns
         retFatal    = self.SC_FATAL
@@ -100,7 +100,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                             tmpT1Name = siteMapper.getCloud(taskSpec.cloud)['source']
                                             location = siteMapper.getDdmEndpoint(tmpT1Name,datasetSpec.storageToken)
                                     else:
-                                        tmpLog.info('site={0} token='.format(datasetSpec.site,datasetSpec.storageToken))
+                                        tmpLog.info('site={0} token={1}'.format(datasetSpec.site, datasetSpec.storageToken))
                                         location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
                                 if locForRule == None:
                                     locForRule = location
@@ -139,7 +139,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                         tmpToRegister = True
                                     if tmpToRegister:
                                         activity = DataServiceUtils.getActivityForOut(taskSpec.prodSourceLabel)
-                                        tmpLog.info('registering location={0} lifetime={1}days activity={2} grouping={3}'.format(locForRule,lifetime,
+                                        tmpLog.info('registering location={0} lifetime={1} days activity={2} grouping={3}'.format(locForRule,lifetime,
                                                                                                                                  activity,grouping))
                                         tmpStat = ddmIF.registerDatasetLocation(targetName,locForRule,owner=userName,
                                                                                 lifetime=lifetime,backEnd=ddmBackEnd,
