@@ -5368,7 +5368,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         resGPV = self.cur.fetchone()
         if resGPV != None:
             prodSourceLabel,preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,\
-                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime,splitRule,preCpuTimeUnit \
+                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime,splitRule,preCpuTimeUnit,memory_leak_core \
                 = resGPV
             # get preOutDiskCount in kB
             if not preOutDiskCount in [0,None]:
@@ -5395,6 +5395,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preBaseWalltime = None
             splitRule = None
             preCpuTimeUnit = None
+            memory_leak_core = 0
         if preOutDiskUnit != None and preOutDiskUnit.endswith('PerEvent'):
             preOutputScaleWithEvents = True
         else:
