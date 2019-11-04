@@ -473,54 +473,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     retVal = retTmpError
                     continue
             ######################################
-            # selection for OS matching
-            if taskSpec.osMatching():
-                mandatoryArchs, badArchs = AtlasBrokerUtils.getOkNgArchList(taskSpec)
-                unified_site_list = self.get_unified_sites(scanSiteList)
-                jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
-                # mandatory architectures
-                if mandatoryArchs is not None:
-                    for tmpArch in mandatoryArchs:
-                        tmpSiteList, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
-                                                                        None, None,
-                                                                        tmpArch,
-                                                                        False, True)
-                        tmpSiteList += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                               cmtConfig=tmpArch,
-                                                                               onlyCmtConfig=True,
-                                                                               cmtConfigPattern=True)
-                        for tmpSiteName in unified_site_list:
-                            if tmpSiteName not in tmpSiteList:
-                                # release is unavailable
-                                tmpLog.info('  skip site={0} due to missing architecture={1} criteria=-miss_os'.format(tmpSiteName, tmpArch))
-                        unified_site_list = tmpSiteList
-                # bad architectures
-                if badArchs is not None:
-                    for tmpArch in badArchs:
-                        tmpSiteList, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
-                                                                        None, None,
-                                                                        tmpArch,
-                                                                        False, True)
-                        tmpSiteList += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                               cmtConfig=tmpArch,
-                                                                               onlyCmtConfig=True,
-                                                                               cmtConfigPattern=True)
-                        newSiteList = []
-                        for tmpSiteName in unified_site_list:
-                            if tmpSiteName in tmpSiteList:
-                                # release is unavailable
-                                tmpLog.info('  skip site={0} due to bad architecture={1} criteria=-bad_os'.format(tmpSiteName, tmpArch))
-                            else:
-                                newSiteList.append(tmpSiteName)
-                        unified_site_list = newSiteList
-                scanSiteList = self.get_pseudo_sites(unified_site_list, scanSiteList)
-                tmpLog.info('{0} candidates passed for OS matching with {1}'.format(len(scanSiteList),
-                                                                                    taskSpec.termCondition))
-                if scanSiteList == []:
-                    tmpLog.error('no candidates')
-                    retVal = retTmpError
-                    continue
-            ######################################
             # selection for memory
             minRamCount = inputChunk.getMaxRamCount()
             minRamCount = JediCoreUtils.compensateRamCount(minRamCount)
