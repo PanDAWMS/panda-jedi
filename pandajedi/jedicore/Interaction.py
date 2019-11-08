@@ -67,7 +67,7 @@ installSC(sys.modules[ __name__ ])
 # log message with timestamp
 def dumpStdOut(sender,message):
     timeNow = datetime.datetime.utcnow()
-    print "{0} {1}: INFO    {2}".format(str(timeNow),sender,message)
+    print("{0} {1}: INFO    {2}".format(str(timeNow),sender,message))
 
 
 
@@ -171,7 +171,7 @@ class MethodClass(object):
                 stepIdx = 2
                 timeoutPeriodACK = 30
                 if not pipe.poll(timeoutPeriodACK):
-                    raise JEDITimeoutError,"did not get ACK for %ssec" % timeoutPeriodACK
+                    raise JEDITimeoutError("did not get ACK for %ssec" % timeoutPeriodACK)
                 ack = pipe.recv()
                 # send command
                 stepIdx = 3
@@ -180,7 +180,7 @@ class MethodClass(object):
                 stepIdx = 4
                 timeoutPeriod = 600
                 if not pipe.poll(timeoutPeriod):
-                    raise JEDITimeoutError,"did not get response for %ssec" % timeoutPeriod
+                    raise JEDITimeoutError("did not get response for %ssec" % timeoutPeriod)
                 # get response
                 stepIdx = 5
                 ret = pipe.recv()
@@ -248,12 +248,12 @@ class MethodClass(object):
         if retException is not None:
             if strException is None:
                 strException = 'VO={0} {1}'.format(self.vo,ret.errorValue)
-            raise retException,strException
+            raise retException(strException)
         # return
         if ret.statusCode == SC_SUCCEEDED:
             return ret.returnValue
         else:
-            raise retException,'VO=%s %s' % (self.vo,ret.errorValue)
+            raise retException('VO=%s %s' % (self.vo,ret.errorValue))
 
 
 

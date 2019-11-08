@@ -123,9 +123,9 @@ class JobGenerator (JediKnight):
                                         errtype, errvalue = sys.exc_info()[:2]
                                         tmpLog.error('throttler failed with {0} {1}'.format(errtype, errvalue))
                                         tmpLog.error('throttler failed with traceback {0}'.format(traceback.format_exc()))
-                                        raise RuntimeError,'crashed when checking throttle'
+                                        raise RuntimeError('crashed when checking throttle')
                                     if tmpSt != self.SC_SUCCEEDED:
-                                        raise RuntimeError,'failed to check throttle'
+                                        raise RuntimeError('failed to check throttle')
                                     mergeUnThrottled = None
                                     if thrFlag is True:
                                         if flagLocked:
@@ -155,7 +155,7 @@ class JobGenerator (JediKnight):
                                                                                                    workQueue,
                                                                                                    useResultCache=600)
                                     if typicalNumFilesMap is None:
-                                        raise RuntimeError,'failed to get typical number of files'
+                                        raise RuntimeError('failed to get typical number of files')
                                     # get params
                                     tmpParamsToGetTasks = self.getParamsToGetTasks(vo, prodSourceLabel,
                                                                                    workQueue.queue_name, cloudName)
@@ -1753,8 +1753,8 @@ class JobGeneratorThread (WorkerThread):
                 tmpRange  = tmpStRaMatch.group(2)
                 if tmpPatt != tmpStream and streamLFNsMap.has_key(tmpStream):
                     try:
-                        exec "streamLFNsMap['{0}']=streamLFNsMap['{1}']{2}".format(tmpPatt,tmpStream,
-                                                                                   tmpRange)
+                        exec("streamLFNsMap['{0}']=streamLFNsMap['{1}']{2}".format(tmpPatt,tmpStream,
+                                                                                   tmpRange))
                     except Exception:
                         pass
         # loop over all streams to collect transient and final steams

@@ -21,7 +21,7 @@ from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 
-# worker class to refine TASK_PARAM to fill JEDI tables 
+# worker class to refine TASK_PARAM to fill JEDI tables
 class TaskRefiner (JediKnight,FactoryBase):
 
     # constructor
@@ -183,7 +183,7 @@ class TaskRefinerThread (WorkerThread):
                             tmpStat = Interaction.SC_FAILED
                     # staging
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        if 'toStaging' in taskParamMap and taskStatus <> 'staged':
+                        if 'toStaging' in taskParamMap and taskStatus != 'staged':
                             errStr = 'wait until staging is done'
                             impl.taskSpec.status = 'staging'
                             impl.taskSpec.oldStatus = taskStatus
@@ -281,7 +281,7 @@ class TaskRefinerThread (WorkerThread):
                             tmpTaskSpec.setErrDiag(errStr,True)
                         self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':tmpTaskSpec.jediTaskID},oldStatus=[taskStatus])
                     else:
-                        tmpLog.info('registering')                    
+                        tmpLog.info('registering')
                         # fill JEDI tables
                         try:
                             # enable protection against task duplication
@@ -308,7 +308,7 @@ class TaskRefinerThread (WorkerThread):
                                                                                                      impl.unmergeMasterDatasetSpec,
                                                                                                      impl.unmergeDatasetSpecMap,
                                                                                                      uniqueTaskName,
-                                                                                                     taskStatus) 
+                                                                                                     taskStatus)
                                 if not tmpStat:
                                     tmpErrStr = 'failed to register the task to JEDI in a single shot'
                                     tmpLog.error(tmpErrStr)
@@ -343,11 +343,11 @@ class TaskRefinerThread (WorkerThread):
             except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
-        
 
 
-########## lauch 
-                
+
+########## lauch
+
 def launcher(commuChannel,taskBufferIF,ddmIF,vos=None,prodSourceLabels=None):
     p = TaskRefiner(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels)
     p.start()

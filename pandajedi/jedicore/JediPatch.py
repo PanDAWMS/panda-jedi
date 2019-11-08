@@ -19,7 +19,7 @@ def SocketClient(address):
     while 1:
         try:
             s.connect(address)
-        except socket.error, e:
+        except socket.error as e:
             if e.args[0] != errno.ECONNREFUSED or MP._check_timeout(t):
                 MP.debug('failed to connect to address %s', address)
                 raise

@@ -348,7 +348,7 @@ class TaskRefinerBase (object):
                                                                                                    taskSpec.coreCount,
                                                                                                    taskSpec.eventService)
             errStr += 'splitRule={0} campaign={1}'.format(taskSpec.splitRule,taskSpec.campaign)
-            raise RuntimeError,errStr
+            raise RuntimeError(errStr)
         self.taskSpec.workQueue_ID = workQueue.queue_id
 
         # Initialize the global share
@@ -505,7 +505,7 @@ class TaskRefinerBase (object):
                         self.taskSpec.setErrDiag(errStr)
                         if datasetSpec.datasetName not in self.unknownDatasetList:
                             self.unknownDatasetList.append(datasetSpec.datasetName)
-                        raise JediException.UnknownDatasetError,errStr
+                        raise JediException.UnknownDatasetError(errStr)
                     # set master flag
                     for inDatasetSpec in inDatasetSpecList:
                         if nIn == 0:

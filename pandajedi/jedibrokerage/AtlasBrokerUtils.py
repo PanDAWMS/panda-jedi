@@ -417,7 +417,7 @@ def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
                             break
                     if tmpPrio is not None:
                         try:
-                            exec "tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio)
+                            exec("tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio))
                             if not tmpStat:
                                 continue
                         except Exception:
@@ -459,7 +459,7 @@ def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
                 # check priority
                 if tmpPrio is not None and not ignorePrio:
                     try:
-                        exec "tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio)
+                        exec("tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio))
                         if not tmpStat:
                             continue
                     except Exception:

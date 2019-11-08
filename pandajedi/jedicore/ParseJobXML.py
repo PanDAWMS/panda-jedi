@@ -34,7 +34,7 @@ class dom_job:
             for file in files:
                 s.infiles[name].append(dom_parser.text(file))
         if primaryds and primaryds not in s.infiles.keys():
-            print 'ERROR: primaryds=%s must be present in each job'%primaryds
+            print('ERROR: primaryds=%s must be present in each job'%primaryds)
             sys.exit(0)
         # output files (also, drop duplicates within this job)
         outfiles = set(defaultout)
@@ -215,7 +215,7 @@ class dom_parser:
             for job in s.dom.getElementsByTagName('job'):
                 s.jobs.append(dom_job(job,primaryds=s.primaryds,defaultcmd=s.command,defaultout=s.global_outfiles))
         except Exception:
-            print 'ERROR: failed to parse',s.fname
+            print('ERROR: failed to parse' + ' ' + s.fname)
             raise
     def to_dom(s):
         """ Converts this submission to a dom tree branch """
@@ -254,8 +254,8 @@ class dom_parser:
         for j in s.jobs:
             quals+=j.outputs_list(True)
         if len(list(set(quals))) != len(quals):
-            print 'ERROR: found non-unique output file names across the jobs'
-            print '(you likely need to review xml options with prepend=true)'
+            print('ERROR: found non-unique output file names across the jobs')
+            print('(you likely need to review xml options with prepend=true)')
             sys.exit(0)
     def input_datasets(s):
         """ returns a list of all used input datasets """
@@ -332,10 +332,9 @@ class dom_parser:
         """ prints a summary of this submission """
         def P(key,value=''):
             if value=='':
-                print key
+                print(key)
             else:
-                print (key+':').ljust(14),
-                print value
+                print((key+':').ljust(14) + ' ' + value)
         P('XML FILE LOADED',s.fname)
         P('Title',s.title)
         P('Command',s.command)

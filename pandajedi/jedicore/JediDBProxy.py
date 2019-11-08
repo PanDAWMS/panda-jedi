@@ -134,7 +134,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sql+comment)
             res = self.cur.fetchall()
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # make map
             self.workQueueMap.makeMap(res, leave_shares)
             tmpLog.debug('done')
@@ -208,7 +208,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sql+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             resList = self.cur.fetchall()
             returnMap = {}
             taskDatasetMap = {}
@@ -237,7 +237,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sqlSEQ+comment,varMap)
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
                 resSeqList = self.cur.fetchall()
                 for resSeq in resSeqList:
                     datasetSpec = JediDatasetSpec()
@@ -348,7 +348,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     producedFileList.add(tmpLFN)
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
                 # check if files are 'finished' in JEDI table
                 newFileMap = {}
                 for guid,fileVal in fileMap.iteritems():
@@ -382,7 +382,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         usedFilesToSkip.add(tmpID)
                     # commit
                     if not self._commit():
-                        raise RuntimeError, 'Commit error'
+                        raise RuntimeError('Commit error')
             # include files
             if includePatt != []:
                 newFileMap = {}
@@ -420,7 +420,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 except Exception:
                     errtype,errvalue = sys.exc_info()[:2]
                     tmpErrStr = 'failed to load XML config with {0}:{1}'.format(errtype.__name__,errvalue)
-                    raise RuntimeError,tmpErrStr
+                    raise RuntimeError(tmpErrStr)
                 newFileMap = {}
                 for guid,fileVal in fileMap.iteritems():
                     if fileVal['lfn'] in xmlConfig.files_in_DS(datasetSpec.datasetName):
@@ -693,11 +693,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # resource busy and acquire with NOWAIT specified
                     tmpLog.debug('skip locked jediTaskID={0}'.format(datasetSpec.jediTaskID))
                     if not self._commit():
-                        raise RuntimeError, 'Commit error'
+                        raise RuntimeError('Commit error')
                     return retVal
                 else:
                     # failed with something else
-                    raise errType,errValue
+                    raise errType(errValue)
             if resTask is None:
                 tmpLog.debug('task not found in Task table')
             else:
@@ -1119,7 +1119,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         retVal = True,missingFileList,numUniqueLfn,diagMap
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('inserted {0} rows with {1} activated, {2} pending, {3} ready, {4} unprocessed, status={5}->{6}'.format(nInsert,
                                                                                                                                  nActivatedPending,
                                                                                                                                  nPending-nActivatedPending,
@@ -1186,7 +1186,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpResList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # make file specs
             fileSpecList = []
             for tmpRes in tmpResList:
@@ -1225,7 +1225,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sql+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done')
             val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
             return True,long(val)
@@ -1291,7 +1291,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nRows = self.cur.rowcount
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('updated {0} rows'.format(nRows))
             return True,nRows
         except Exception:
@@ -1335,7 +1335,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nRows = self.cur.rowcount
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('updated {0} rows'.format(nRows))
             return True,nRows
         except Exception:
@@ -1375,7 +1375,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             res = self.cur.fetchone()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # make return
             retMap = {}
             if res is not None:
@@ -1421,7 +1421,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             res = self.cur.fetchone()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # make return
             retMap = {}
             if res is not None:
@@ -1461,7 +1461,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             res = self.cur.fetchone()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             if res is not None:
                 datasetSpec = JediDatasetSpec()
                 datasetSpec.pack(res)
@@ -1509,7 +1509,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpResList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # make file specs
             datasetSpecList = []
             for tmpRes in tmpResList:
@@ -1548,7 +1548,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sql+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done')
             return True
         except Exception:
@@ -1664,7 +1664,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('set to {0}'.format(taskStatus))
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             if not getTaskStatus:
                 return True
             else:
@@ -1833,7 +1833,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlDS+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('updated {0} rows'.format(nRows))
             return True,nRows
         except Exception:
@@ -1867,7 +1867,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlS+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done')
             return True
         except Exception:
@@ -1933,10 +1933,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('skip locked')
                 else:
                     # failed with something else
-                    raise errType,errValue
+                    raise errType(errValue)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             if res is not None:
                 taskSpec = JediTaskSpec()
                 taskSpec.pack(res)
@@ -2014,10 +2014,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('skip locked')
                 else:
                     # failed with something else
-                    raise errType,errValue
+                    raise errType(errValue)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             if taskSpec is None:
                 tmpLog.debug('done with None')
             else:
@@ -2084,7 +2084,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             retTaskIDs.sort()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('got {0} tasks'.format(len(retTaskIDs)))
             return retTaskIDs
         except Exception:
@@ -2152,7 +2152,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 taskStatList.append((jediTaskID,taskStatus,eventService,site,useJumbo,splitRule))
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # get tasks and datasets
             for jediTaskID,taskStatus,eventService,site,useJumbo,splitRule in taskStatList:
                 # begin transaction
@@ -2166,7 +2166,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
                     # commit
                     if not self._commit():
-                        raise RuntimeError, 'Commit error'
+                        raise RuntimeError('Commit error')
                     continue
                 # special action for scouted
                 if taskStatus == 'scouted':
@@ -2215,7 +2215,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 taskSpec.datasetSpecList.append(datasetSpec)
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             tmpLog.debug('got {0} tasks'.format(len(retTasks)))
             return retTasks
         except Exception:
@@ -2286,7 +2286,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 res = self.cur.fetchall()
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
                 # create map
                 for computingSite,cloud,jobStatus,workQueue_ID,nCount in res:
                     # count the number of non-running with prio>=MIN
@@ -2722,7 +2722,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sqlMC+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done indexFileID={0}'.format(indexFileID))
             return outMap,maxSerialNr,datasetToRegister,siteDsMap,parallelOutMap
         except Exception:
@@ -2759,7 +2759,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sql+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done')
             return True
         except Exception:
@@ -2951,7 +2951,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # no tasks
             if resList == [] and isPeeking:
                 return 0
@@ -3238,7 +3238,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
                         lockedByAnother.append(jediTaskID)
                         if not self._commit():
-                            raise RuntimeError, 'Commit error'
+                            raise RuntimeError('Commit error')
                         continue
                     else:
                         origTaskSpec = JediTaskSpec()
@@ -3248,7 +3248,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         toSkip = True
                         tmpLog.debug('skip scouting jumbo jediTaskID={0}'.format(jediTaskID))
                         if not self._commit():
-                            raise RuntimeError, 'Commit error'
+                            raise RuntimeError('Commit error')
                         continue
                     # lock task
                     if simTasks is None and jediTaskID not in lockedTasks:
@@ -3265,7 +3265,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             lockedByAnother.append(jediTaskID)
                             toSkip = True
                             if not self._commit():
-                                raise RuntimeError, 'Commit error'
+                                raise RuntimeError('Commit error')
                             continue
                         # list of locked tasks
                         if jediTaskID not in lockedTasks:
@@ -3277,11 +3277,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         toSkip = True
                         tmpLog.debug('skip locked with NOWAIT jediTaskID={0}'.format(jediTaskID))
                         if not self._commit():
-                            raise RuntimeError, 'Commit error'
+                            raise RuntimeError('Commit error')
                         continue
                     else:
                         # failed with something else
-                        raise errType, errValue
+                        raise errType(errValue)
                 # count the number of files for avalanche
                 if not toSkip:
                     varMap = {}
@@ -3522,7 +3522,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                        datasetID))
                                     else:
                                         # failed with something else
-                                        raise errType, errValue
+                                        raise errType(errValue)
                             # set useScout
                             if (numAvalanche == 0 and not inputChunks[0].isMutableMaster()) or \
                                     not taskSpec.useScout() or readMinFiles:
@@ -3816,7 +3816,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not toSkip:
                     # commit
                     if not self._commit():
-                        raise RuntimeError, 'Commit error'
+                        raise RuntimeError('Commit error')
                 else:
                     tmpLog.debug('rollback for jediTaskID={0}'.format(jediTaskID))
                     # roll back
@@ -3864,7 +3864,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sql+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done')
             return True
         except Exception:
@@ -3912,7 +3912,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             jediTaskID = long(val)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done new jediTaskID={0}'.format(jediTaskID))
             return True,jediTaskID
         except Exception:
@@ -3964,7 +3964,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlUT+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done new jediTaskIDs={0}'.format(str(newJediTaskIDs)))
             return True,newJediTaskIDs
         except Exception:
@@ -4019,7 +4019,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         nFileRowMaster = nFileRow
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done')
             return nFileRowMaster
         except Exception:
@@ -4067,7 +4067,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sqlD+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done set {0} missing files'.format(nFileRow))
             return True
         except Exception:
@@ -4134,7 +4134,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resTaskList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # loop over all tasks
             nTasks = 0
             for jediTaskID,lockedBy in resTaskList:
@@ -4155,7 +4155,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         toSkip = True
                     else:
                         # failed with something else
-                        raise errType,errValue
+                        raise errType(errValue)
                 if not toSkip:
                     # re-lock the task
                     varMap = {}
@@ -4207,7 +4207,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             nTasks += 1
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             tmpLog.debug('done')
             return nTasks
         except Exception:
@@ -4277,7 +4277,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resTaskList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             taskDsMap = dict()
             for jediTaskID, datasetID in resTaskList:
                 if jediTaskID not in taskDsMap:
@@ -4308,7 +4308,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         toSkip = True
                     else:
                         # failed with something else
-                        raise errType,errValue
+                        raise errType(errValue)
                 if not toSkip:
                     # loop over all datasets
                     allOK = True
@@ -4345,7 +4345,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('[jediTaskID={0}] done with {1}'.format(jediTaskID, nRow))
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             nTasks = len(ngTasks)
             tmpLog.debug('done {0} stuck tasks'.format(nTasks))
             return nTasks
@@ -4461,7 +4461,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nTasks += iTasks
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done with {0} tasks'.format(nTasks))
             return nTasks
         except Exception:
@@ -4498,7 +4498,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 retVal = 0
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done')
             return retVal
         except Exception:
@@ -4568,7 +4568,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 retMap[confProcessingType] = int(tmpVal)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # use predefined values
             tmpLog.debug(hasattr(jedi_config.jobgen,'typicalNumFile'))
             try:
@@ -4679,7 +4679,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         retMap[nNotRunKey] += resC[0]
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             # return
             tmpLog.debug(str(retMap))
             return True,retMap
@@ -4721,7 +4721,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('got {0} tasks'.format(len(resList)))
             for jediTaskID,parent_tid in resList:
                 tmpLog.debug('start jediTaskID={0}'.format(jediTaskID))
@@ -4745,7 +4745,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
                     else:
                         # failed with something else
-                        raise errType,errValue
+                        raise errType(errValue)
                 if not toSkip:
                     resLock = self.cur.fetchone()
                     if resLock is None:
@@ -4844,7 +4844,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     if nRowP == 1 and nRowT == 1:
                                         # commit
                                         if not self._commit():
-                                            raise RuntimeError, 'Commit error'
+                                            raise RuntimeError('Commit error')
                                         # continue to skip subsequent rollback
                                         continue
                             except Exception:
@@ -4884,7 +4884,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 break
                             # check size
                             if len(retStr) != totalSize:
-                                raise RuntimeError, 'taskParams was truncated {0}/{1} bytes'.format(len(retStr),totalSize)
+                                raise RuntimeError('taskParams was truncated {0}/{1} bytes'.format(len(retStr),totalSize))
                             varMap = {}
                             varMap[':taskid'] = jediTaskID
                             varMap[':taskParams'] = retStr
@@ -4915,7 +4915,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # commit
                 if isOK:
                     if not self._commit():
-                        raise RuntimeError, 'Commit error'
+                        raise RuntimeError('Commit error')
                 else:
                     # roll back
                     self._rollback()
@@ -4953,7 +4953,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     retTaskIDs.append((jediTaskID,splitRule,taskStatus,parent_tid))
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("return {0} tasks".format(len(retTaskIDs)))
             return retTaskIDs
@@ -4990,7 +4990,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 break
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('read {0}/{1} bytes'.format(len(retStr),totalSize))
             return retStr
         except Exception:
@@ -5170,7 +5170,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.debug('inserting outTmpl')
                 for outputMapKey,outputTemplateList in outputTemplateMap.iteritems():
                     if not datasetIdMap.has_key(outputMapKey):
-                        raise RuntimeError,'datasetID is not defined for {0}'.format(outputMapKey)
+                        raise RuntimeError('datasetID is not defined for {0}'.format(outputMapKey))
                     for outputTemplate in outputTemplateList:
                         sqlH = "INSERT INTO {0}.JEDI_Output_Template (outTempID,datasetID,".format(jedi_config.db.schemaJEDI)
                         sqlL = "VALUES({0}.JEDI_OUTPUT_TEMPLATE_ID_SEQ.nextval,:datasetID,".format(jedi_config.db.schemaJEDI)
@@ -5219,7 +5219,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sql+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done')
             return True,taskSpec.status
         except Exception:
@@ -5848,7 +5848,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if useTransaction:
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
         # filtered dump
         if scoutSucceeded and not mergeScout and len(returnMap) > 0:
             tmpMsg = "scouts got for jediTaskID={0} ".format(jediTaskID)
@@ -5935,7 +5935,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if useCommit:
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
         # go to exhausted if necessary
         nNewJobsCutoff = 20
         if useExhausted and scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
@@ -6057,7 +6057,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             nTasks = 0
             for jediTaskID, in resList:
                 # get task
@@ -6083,7 +6083,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.setSuperStatus_JEDI(taskSpec.jediTaskID, taskSpec.status)
                         # commit
                         if not self._commit():
-                            raise RuntimeError, 'Commit error'
+                            raise RuntimeError('Commit error')
                         tmpLog.debug('set status={0} to jediTaskID={1} with {2} since {3}'.format(taskSpec.status,
                                                                                                   taskSpec.jediTaskID,
                                                                                                   nRow,
@@ -6254,7 +6254,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug('got jediTaskID={0} to force avalanche'.format(jediTaskID))
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             jediTaskIDList = jediTaskIDstatusMap.keys()
             jediTaskIDList.sort()
             tmpLog.debug('got {0} tasks'.format(len(jediTaskIDList)))
@@ -6337,7 +6337,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug('skip jediTaskID={0} since status has changed'.format(jediTaskID))
                         toSkip = True
                         if not self._commit():
-                            raise RuntimeError, 'Commit error'
+                            raise RuntimeError('Commit error')
                         continue
                     else:
                         taskSpec = JediTaskSpec()
@@ -6355,7 +6355,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug('failed to lock jediTaskID={0}'.format(jediTaskID))
                         toSkip = True
                         if not self._commit():
-                            raise RuntimeError, 'Commit error'
+                            raise RuntimeError('Commit error')
                         continue
                 except Exception:
                     errType,errValue = sys.exc_info()[:2]
@@ -6364,11 +6364,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         toSkip = True
                         tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
                         if not self._commit():
-                            raise RuntimeError, 'Commit error'
+                            raise RuntimeError('Commit error')
                         continue
                     else:
                         # failed with something else
-                        raise errType,errValue
+                        raise errType(errValue)
                 # update dataset
                 if not toSkip:
                     tmpLog.debug('jediTaskID={0} status={1} useScout={2} isPostScout={3}'.format(jediTaskID,taskSpec.status,
@@ -6522,7 +6522,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.setSuperStatus_JEDI(jediTaskID,newTaskStatus)
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             tmpLog.debug('done')
             return True
         except Exception:
@@ -6595,7 +6595,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     retJediTaskIDs.append(jediTaskID)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug('got {0} tasks'.format(len(retJediTaskIDs)))
             return retJediTaskIDs
@@ -6658,7 +6658,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 retJediTaskIDs.append(jediTaskID)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug('got {0} tasks'.format(len(retJediTaskIDs)))
             return retJediTaskIDs
@@ -6740,7 +6740,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.enableJumboInTask_JEDI(jediTaskID, eventService, site, useJumbo, splitRule)
                     # commit
                     if not self._commit():
-                        raise RuntimeError, 'Commit error'
+                        raise RuntimeError('Commit error')
             # return
             tmpLog.debug('done')
             return True
@@ -6775,7 +6775,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resRT = self.cur.fetchone()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # locked by another
             if resRT is None:
                 retVal = None
@@ -6850,7 +6850,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # loop over all tasks
             retMap = {}
             sqlF  = "SELECT fsize,startEvent,endEvent,nEvents "
@@ -6868,7 +6868,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 resFile = self.cur.fetchone()
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
                 if resFile is not None:
                     # calculate RW using effective size
                     fsize,startEvent,endEvent,nEvents = resFile
@@ -6950,7 +6950,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # loop over all nuclei
             retMap = {}
             for nucleus,worldRW in resList:
@@ -6990,7 +6990,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resRT = self.cur.fetchone()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # locked by another
             if resRT is None:
                 retVal = None
@@ -7045,7 +7045,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('got {0} tasks'.format(len(resList)))
             for jediTaskID,commandStr,comComment in resList:
                 tmpLog.debug('start jediTaskID={0} command={1}'.format(jediTaskID,commandStr))
@@ -7069,7 +7069,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug('skip locked+nowauit jediTaskID={0}'.format(jediTaskID))
                     else:
                         # failed with something else
-                        raise errType,errValue
+                        raise errType(errValue)
                 isOK = True
                 if not toSkip:
                     if isOK:
@@ -7222,7 +7222,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 self.cur.execute(sqlJT+comment,varMap)
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             # find orphaned tasks to rescue
             for commandStr,taskStatusMap in commandStatusMap.iteritems():
                 varMap = {}
@@ -7262,7 +7262,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                   'oldStatus':oldStatus}
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             # read clob
             sqlCC  = "SELECT comm_parameters FROM {0}.PRODSYS_COMM WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
             for jediTaskID in retTaskIDs.keys():
@@ -7281,7 +7281,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         retTaskIDs[jediTaskID]['comment'] = tmpComComment
                     # commit
                     if not self._commit():
-                        raise RuntimeError, 'Commit error'
+                        raise RuntimeError('Commit error')
             # convert to list
             retTaskList = []
             for jediTaskID,varMap in retTaskIDs.iteritems():
@@ -7330,7 +7330,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             for pandaID, in resList:
                 retPandaIDs.add(pandaID)
             # return
@@ -7376,7 +7376,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             for pandaID, in resList:
                 if pandaID not in retPandaIDs:
                     retPandaIDs.append(pandaID)
@@ -7431,7 +7431,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     break
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("return {0}".format(str(retMap)))
             return True,retMap
@@ -7524,7 +7524,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             pandaID = resAP[0]
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("PandaID -> {0}".format(pandaID))
             return True,pandaID
@@ -7583,7 +7583,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 fileSpecList.append(fileSpec)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("got {0} files".format(len(fileSpecList)))
             return True,fileSpecList
@@ -7617,7 +7617,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nRow = self.cur.rowcount
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("updated {0} rows".format(nRow))
             if nRow == 1:
@@ -7742,7 +7742,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.setSuperStatus_JEDI(jediTaskID,deftStatus)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("updated {0} rows".format(nRow))
             return nRow
@@ -7906,7 +7906,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     nTasks += 1
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done")
             return nTasks
@@ -7972,7 +7972,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     nTasks += 1
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done")
             return nTasks
@@ -8046,7 +8046,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     break
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             if fileSpec is not None:
                 tmpLog.debug("got lib.tgz={0}".format(fileSpec.lfn))
@@ -8099,7 +8099,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             fileSpec.pack(tmpRes)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             if fileSpec is not None:
                 tmpLog.debug("got lib.tgz={0}".format(fileSpec.lfn))
@@ -8206,7 +8206,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                            'scope':fileSpec.scope}
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done")
             return True,fileIdMap
@@ -8244,7 +8244,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 siteList.add(siteName)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done -> {0}".format(str(siteList)))
             return True,siteList
@@ -8361,7 +8361,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 retVal = (tmpFileSpec,datasetSpec)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done")
             return True,retVal
@@ -8434,7 +8434,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug('got metaData from PandaID={0}'.format(pandaID))
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             return retVal
         except Exception:
@@ -8507,7 +8507,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 retVal = True,datasetSpec,tmpFileSpec
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug('done')
             return retVal
@@ -8561,7 +8561,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 siteList[siteName] = costVal
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done -> {0}".format(str(siteList)))
             return True,siteList
@@ -8905,7 +8905,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if useCommit:
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done")
             return True,newTaskStatus
@@ -9035,7 +9035,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sqlUT+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done")
             return True
@@ -9080,7 +9080,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlIN+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done")
             return True
@@ -9173,7 +9173,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             retTasks = []
             for resRT in resList:
                 jediTaskID = resRT[0]
@@ -9194,7 +9194,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     nLK = self.cur.rowcount
                     # commit
                     if not self._commit():
-                        raise RuntimeError, 'Commit error'
+                        raise RuntimeError('Commit error')
                     # not locked
                     if nLK == 0:
                         continue
@@ -9231,7 +9231,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if useCommit:
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             if resTK is None:
                 tmpLog.error('parent not found')
                 # set 1 (running) just in case
@@ -9281,7 +9281,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resTK = self.cur.fetchone()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             if resTK is not None:
                 retVal, = resTK
             # return
@@ -9336,7 +9336,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resL = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # loop over all user/jobIDs
             for prodUserName,jobsetID,jobDefinitionID,pandaID in resL:
                 self.conn.begin()
@@ -9371,7 +9371,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sqlU+comment,varMap)
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done with {0}".format(len(retList)))
             return retList
@@ -9429,7 +9429,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     retTasks.append(taskSpec)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug('got {0} tasks'.format(len(retTasks)))
             return retTasks
@@ -9481,11 +9481,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # kill child
                 tmpStat = self.killChildTasks_JEDI(cJediTaskID,cTaskStatus,useCommit=False)
                 if not tmpStat:
-                    raise RuntimeError, 'Failed to kill child tasks'
+                    raise RuntimeError('Failed to kill child tasks')
             # commit
             if useCommit:
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             # return
             tmpLog.debug('done')
             return True
@@ -9552,7 +9552,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('kicked {0} mutable datasets for jediTaskID={1}'.format(nRow,cJediTaskID))
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug('done')
             return True
@@ -9657,7 +9657,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if useCommit:
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             # return
             tmpLog.debug('done')
             return True
@@ -9755,7 +9755,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.debug('done with {0} locked by another {1} at {2}'.format(retVal,tmpLockedBy,tmpLockedTime))
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             return retVal
         except Exception:
@@ -9792,7 +9792,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 lfnList.append(lfn)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug('got {0} files'.format(len(lfnList)))
             return lfnList
@@ -9827,7 +9827,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nRow = self.cur.rowcount
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done with {0}'.format(nRow))
             return True
         except Exception:
@@ -9885,7 +9885,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # sql to throttle tasks
             sqlTH  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTH += "SET throttledTime=:releaseTime,modificationTime=CURRENT_DATE,"
@@ -9927,7 +9927,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
             tmpLog.debug('done')
             return nTasks
         except Exception:
@@ -9966,7 +9966,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('done with {0}'.format(nRow))
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             return True
         except Exception:
             # roll back
@@ -10032,7 +10032,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow += iRow
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("updated {0} rows".format(nRow))
             return nRow
@@ -10067,7 +10067,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('done with {0}'.format(nRow))
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             return True
         except Exception:
@@ -10112,7 +10112,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 userTaskMap[userName].add(jediTaskID)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("get {0} users".format(len(userTaskMap)))
             return userTaskMap
@@ -10258,7 +10258,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 retVal = True
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             return retVal
         except Exception:
             # roll back
@@ -10301,7 +10301,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlCD+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done')
             retVal = True
             return retVal
@@ -10349,7 +10349,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlCD+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done')
             retVal = True
             return retVal
@@ -10408,7 +10408,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('skipped locked by {0}'.format(lockedBy))
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('done with {0}'.format(retVal))
             return retVal
         except Exception:
@@ -10474,7 +10474,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             retTasks = []
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # get tasks and datasets
             for jediTaskID,taskStatus,taskGoal,splitRule,parent_tid in taskStatList:
                 # begin transaction
@@ -10488,7 +10488,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow = self.cur.rowcount
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
                 if nRow == 1:
                     # make a task spec to check if auto finish is disabled
                     taskSpec = JediTaskSpec()
@@ -10514,7 +10514,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpLog.debug('skip jediTaskID={0} as parent {1} is still {2}'.format(jediTaskID, parent_tid, resCP[0]))
                             # commit
                             if not self._commit():
-                                raise RuntimeError, 'Commit error'
+                                raise RuntimeError('Commit error')
                             continue
                     # check datasets
                     self.cur.execute(sqlDS+comment,varMap)
@@ -10557,7 +10557,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             firstOutput = False
                     # commit
                     if not self._commit():
-                        raise RuntimeError, 'Commit error'
+                        raise RuntimeError('Commit error')
                     # check number of events
                     if taskToFinish:
                         if totalInputEvents == 0:
@@ -10614,7 +10614,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resCD = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             for tmpSiteID, in resCD:
                 retVal.add(tmpSiteID)
             tmpLog.debug('done')
@@ -10687,7 +10687,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('totWalltime={0} nHasVal={1} nNoVal={2}'.format(totWalltime,nHasVal,nNoVal))
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             if nHasVal != 0:
                 totWalltime = long(totWalltime*(1+float(nNoVal)/float(nHasVal)))
             else:
@@ -10811,7 +10811,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     retVal = len(dupPandaIDs)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('dup={0}'.format(retVal))
             return retVal
         except Exception:
@@ -10979,7 +10979,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # make dict
             retMap = {}
             for cnt,computingSite,jobStatus in resList:
@@ -11023,7 +11023,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             retVal = []
             for tmpPandaID, in resList:
                 if tmpPandaID != pandaID:
@@ -11067,7 +11067,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             retMap = {}
             for pandaID,jobStatus,computingSite in resList:
                 if jobStatus in ['transferring','holding']:
@@ -11168,7 +11168,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     outFileMap[datasetID] = lfn
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('get {0} bytes'.format(len(retVal)))
             return retVal, outFileMap
         except Exception:
@@ -11203,7 +11203,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 newFileIDs.append(fileID)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('got {0} IDs'.format(len(newFileIDs)))
             return newFileIDs
         except Exception:
@@ -11236,7 +11236,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nRow = self.cur.rowcount
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             tmpLog.debug('set Y to {0} event ranges'.format(nRow))
             return nRow
         except Exception:
@@ -11281,7 +11281,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     lfnMap[datasetID][idx].append(fileID)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # find common elements
             datasetID = datasetIDs[0]
             commonIdx = set(lfnMap[datasetID].keys())
@@ -11334,7 +11334,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sqlUD+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             return True
         except Exception:
             # roll back
@@ -11411,7 +11411,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     retMap[jediTaskID].add(tmpPandaID)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done")
             return retMap
@@ -11482,7 +11482,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlDJ+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("set {0} -> {1}".format(curStr, varMap[':status']))
             return retVal
@@ -11528,7 +11528,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlDJ+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             nTasks, = self.cur.fetchone()
             # return
             tmpLog.debug("got {0} tasks".format(nTasks))
@@ -11603,7 +11603,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nPending, = self.cur.fetchone()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("got nEvents={0} lastTaskTime={1} nPendingTasks={2}".format(nEvents,lastTaskTime,nPending))
             return nEvents, lastTaskTime, nPending
@@ -11645,7 +11645,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sql+comment,varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             nDone, = self.cur.fetchone()
             # return
             tmpLog.debug("got {0} jobs".format(nDone))
@@ -11678,7 +11678,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # sum per gshare/workqueue and resource type
             for siteid, catchall in resList:
                 numMap = JobUtils.parseNumStandby(catchall)
@@ -11775,7 +11775,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if iRow == 0:
                 # commit
                 if not self._commit():
-                    raise RuntimeError, 'Commit error'
+                    raise RuntimeError('Commit error')
                 tmpLog.debug('cannot lock')
                 return False
             # get datasets
@@ -11809,7 +11809,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlLK+comment, varMap)
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done")
             return True
@@ -12058,7 +12058,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskData['jumboJobs'][computingSite][jobStatus] += 1
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done with {0}".format(str(tasksWithJumbo)))
             return tasksWithJumbo
@@ -12188,7 +12188,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tasksMap[jediTaskID] = taskData
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done")
             return tasksMap
@@ -12241,7 +12241,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 caches[key] = n
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done")
             return (releses, caches)
@@ -12279,7 +12279,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nDone = self.cur.rowcount
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("kicked with {0}".format(nDone))
             return nDone
@@ -12394,7 +12394,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             nReset += 1
             # commit
             if not self._commit():
-                raise RuntimeError, 'Commit error'
+                raise RuntimeError('Commit error')
             # return
             tmpLog.debug("done with {0}".format(nReset))
             return nReset

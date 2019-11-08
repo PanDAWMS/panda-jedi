@@ -87,4 +87,4 @@ taskParamMap['esmergeSpec'] = {}
 taskParamMap['esmergeSpec']['transPath'] = 'Merge_trf.py'
 taskParamMap['esmergeSpec']['jobParameters'] = "aaa bbb"
 
-print Client.insertTaskParams(taskParamMap)
+print(Client.insertTaskParams(taskParamMap))

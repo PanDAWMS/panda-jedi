@@ -33,12 +33,12 @@ class JediMaster:
             mod = getattr(mod,subModuleName)
         # launch
         timeNow = datetime.datetime.utcnow()
-        print "{0} {1}: INFO    start {2} with pid={3}".format(str(timeNow),
+        print("{0} {1}: INFO    start {2} with pid={3}".format(str(timeNow),
                                                                moduleName,
                                                                'launcher',
-                                                               os.getpid())
-        apply(mod.launcher,args,kwargs)    
-        
+                                                               os.getpid()))
+        apply(mod.launcher,args,kwargs)
+
 
 
     # convert config parameters
@@ -58,13 +58,13 @@ class JediMaster:
         return newItems
 
 
-    
+
     # main loop
     def start(self):
         # start zombi cleaner
         ZombiCleaner().start()
         # setup DDM I/F
-        ddmIF = DDMInterface()        
+        ddmIF = DDMInterface()
         ddmIF.setupInterface()
         # setup TaskBuffer I/F
         taskBufferIF = JediTaskBufferInterface()
@@ -177,12 +177,12 @@ class JediMaster:
         for knight in knightList:
             if not knight.is_alive():
                 timeNow = datetime.datetime.utcnow()
-                print "{0} {1}: ERROR    pid={2} died in initialization".format(str(timeNow),
+                print("{0} {1}: ERROR    pid={2} died in initialization".format(str(timeNow),
                                                                                 self.__class__.__name__,
-                                                                                knight.pid)
+                                                                                knight.pid))
                 os.killpg(os.getpgrp(),signal.SIGKILL)
         # join
-        for knight in knightList:    
+        for knight in knightList:
             knight.join()
 
 
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     uid = pwd.getpwnam(jedi_config.master.uname).pw_uid
     gid = grp.getgrnam(jedi_config.master.gname).gr_gid
     timeNow = datetime.datetime.utcnow()
-    print "{0} JediMaster: INFO    start".format(str(timeNow))
+    print("{0} JediMaster: INFO    start".format(str(timeNow)))
     # make daemon context
     dc = daemon.DaemonContext(stdout=sys.stdout,
                               stderr=sys.stderr,

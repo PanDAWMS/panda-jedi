@@ -1186,7 +1186,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                             complete_only=useCompleteOnly)
                 tmpLog.debug('got')
                 if tmpAvFileMap is None:
-                    raise Interaction.JEDITemporaryError,'ddmIF.getAvailableFiles failed'
+                    raise Interaction.JEDITemporaryError('ddmIF.getAvailableFiles failed')
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
             except Exception:
                 errtype,errvalue = sys.exc_info()[:2]

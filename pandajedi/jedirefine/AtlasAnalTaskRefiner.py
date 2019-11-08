@@ -152,7 +152,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['instantiateTmpl'])
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['instantiateTmplSite'])
             for datasetSpec in self.outDatasetSpecList:
-                datasetSpec.type = "tmpl_{0}".format(datasetSpec.type) 
+                datasetSpec.type = "tmpl_{0}".format(datasetSpec.type)
             # get jobsetID
             tmpStat,tmpJobID = self.taskBufferIF.getUserJobsetID_JEDI(self.taskSpec.userName)
             if not tmpStat:
@@ -171,8 +171,6 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
             errStr = 'doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errStr)
             self.taskSpec.setErrDiag(errStr,None)
-            raise errtype,errvalue
+            raise errtype(errvalue)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
-            
-    

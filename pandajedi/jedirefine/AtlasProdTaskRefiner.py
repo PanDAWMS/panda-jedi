@@ -151,7 +151,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
         except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))
-            raise errtype,errvalue
+            raise errtype(errvalue)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
 

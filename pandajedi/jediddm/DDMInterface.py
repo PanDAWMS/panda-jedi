@@ -1,10 +1,10 @@
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction
-    
+
 
 # interface to DDM
 class DDMInterface:
-    
+
     # constructor
     def __init__(self):
         self.interfaceMap = {}
@@ -43,19 +43,19 @@ class DDMInterface:
         return None
 
 
-    
+
 if __name__ == '__main__':
     def dummyClient(dif):
-        print "client test"
+        print("client test")
         dif.getInterface('atlas').test()
-        print 'client done'
+        print('client done')
 
     dif = DDMInterface()
     dif.setupInterface()
-    print "master test"
+    print("master test")
     atlasIF = dif.getInterface('atlas')
     atlasIF.test()
-    print "master done"
+    print("master done")
     import multiprocessing
     p = multiprocessing.Process(target=dummyClient,
                                 args=(dif,))

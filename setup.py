@@ -43,7 +43,7 @@ while idx < len(sys.argv):
             tmpVal = sys.argv[idx]
             idx += 1
         else:
-            raise RuntimeError,"invalid panda option : %s" % tmpArg
+            raise RuntimeError("invalid panda option : %s" % tmpArg)
         # get key
         tmpKey = re.sub('--panda_','',tmpArg)
         # set params
@@ -111,7 +111,7 @@ class install_data_panda (install_data_org):
             for srcFile in dataFiles:
                 # check extension
                 if not srcFile.endswith('.template'):
-                    raise RuntimeError,"%s doesn't have the .template extension" % srcFile
+                    raise RuntimeError("%s doesn't have the .template extension" % srcFile)
                 # dest filename
                 destFile = re.sub('(\.exe)*\.template$','',srcFile)
                 destFile = re.sub(r'^templates/', '', destFile)
@@ -125,7 +125,7 @@ class install_data_panda (install_data_org):
                 # replace patterns
                 for item in re.findall('@@([^@]+)@@',filedata):
                     if not hasattr(self,item):
-                        raise RuntimeError,'unknown pattern %s in %s' % (item,srcFile)
+                        raise RuntimeError('unknown pattern %s in %s' % (item,srcFile))
                     # get pattern
                     patt = getattr(self,item)
                     # remove install root, if any

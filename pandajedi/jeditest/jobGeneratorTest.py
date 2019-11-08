@@ -38,7 +38,7 @@ try:
 except Exception:
     testClouds = [None]
 
-print testVO,testTaskType,testClouds
+print('{0} {1} {2}'.format(testVO, testTaskType, testClouds))
 
 gen = multiprocessing.Process(target=JobGenerator.launcher,
                               args=(child_conn,tbIF,ddmIF,testVO,testTaskType,testClouds,

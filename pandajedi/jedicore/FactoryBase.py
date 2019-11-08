@@ -103,7 +103,7 @@ class FactoryBase:
                                                                                                                          cn=className,
                                                                                                                          mn=moduleName)
                                 )
-                            raise ImportError, 'failed to import {0}.{1}'.format(moduleName,className)
+                            raise ImportError('failed to import {0}.{1}'.format(moduleName,className))
         # return
         return True
 

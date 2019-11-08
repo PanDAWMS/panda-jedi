@@ -85,11 +85,11 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         # get job statistics
         status, wq_stats = self.taskBufferIF.getJobStatisticsByResourceType(workQueue)
         if not status:
-            raise RuntimeError, 'failed to get job statistics'
+            raise RuntimeError('failed to get job statistics')
 
         # get the number of standby jobs which is used as the number of running jobs
         standby_num_static, standby_num_static_dynamic = self.taskBufferIF.getNumMapForStandbyJobs_JEDI(workQueue)
-        
+
         # add running if the original stat doesn't have running and standby jobs are required
         if 'running' not in wq_stats and (len(standby_num_static) > 0 or len(standby_num_static_dynamic) > 0):
             wq_stats['running'] = {}
@@ -139,7 +139,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 nNotRun_rt -= nJobs_rt
                 nNotRun_ms -= nJobs_ms
                 nNotRun_gs -= nJobs_gs
-                
+
 
         # Get the job stats at the same level as the configured parameters
         # nRunning is compared with the nRunningCap
