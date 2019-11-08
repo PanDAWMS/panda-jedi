@@ -5,25 +5,26 @@
 #
 # set PYTHONPATH to use the current directory first
 import sys
-sys.path.insert(0,'.')
+sys.path.insert(0,'.')  # noqa: E402
 
-# get release version
 import os
+import re
+import sys
+import commands
+
 import PandaPkgInfo
-release_version = PandaPkgInfo.release_version
-if os.environ.has_key('BUILD_NUMBER'):
-    release_version = '{0}.{1}'.format(release_version,os.environ['BUILD_NUMBER'])
+from distutils.core import setup
+from distutils.command.install import install as install_org
+from distutils.command.install_data import install_data as install_data_org
 
 # define user name and group
 panda_user = 'atlpan'
 panda_group = 'zp'
 
-import re
-import sys
-import commands
-from distutils.core import setup
-from distutils.command.install import install as install_org
-from distutils.command.install_data import install_data as install_data_org
+# get release version
+release_version = PandaPkgInfo.release_version
+if os.environ.has_key('BUILD_NUMBER'):
+    release_version = '{0}.{1}'.format(release_version,os.environ['BUILD_NUMBER'])
 
 # get panda specific params
 optPanda = {}
@@ -33,7 +34,7 @@ while idx < len(sys.argv):
     tmpArg = sys.argv[idx]
     if tmpArg.startswith('--panda_'):
         # panda params
-        idx += 1            
+        idx += 1
         if len(tmpArg.split('=')) == 2:
             # split to par and val if = is contained
             tmpVal = tmpArg.split('=')[-1]
@@ -43,7 +44,7 @@ while idx < len(sys.argv):
             idx += 1
         else:
             raise RuntimeError,"invalid panda option : %s" % tmpArg
-        # get key             
+        # get key
         tmpKey = re.sub('--panda_','',tmpArg)
         # set params
         optPanda[tmpKey] = tmpVal
@@ -69,7 +70,7 @@ class install_data_panda (install_data_org):
         self.install_purelib = None
         self.panda_user = panda_user
         self.panda_group = panda_group
-        
+
     def finalize_options (self):
         # set install_purelib
         self.set_undefined_options('install',
@@ -89,17 +90,17 @@ class install_data_panda (install_data_org):
         if optPanda.has_key('usergroup') and optPanda['usergroup'] != '':
             self.usergroup = optPanda['usergroup']
         else:
-            self.usergroup = commands.getoutput('id -gn')             
-        
-    
+            self.usergroup = commands.getoutput('id -gn')
+
+
     def run (self):
         # remove /usr for bdist/bdist_rpm
         match = re.search('(build/[^/]+/dumb)/usr',self.install_dir)
-        if match != None:
+        if match is not None:
             self.install_dir = re.sub(match.group(0),match.group(1),self.install_dir)
         # remove /var/tmp/*-buildroot for bdist_rpm
         match = re.search('(/var/tmp/.*-buildroot)/usr',self.install_dir)
-        if match != None:
+        if match is not None:
             self.install_dir = re.sub(match.group(0),match.group(1),self.install_dir)
         # create tmp area
         tmpDir = 'build/tmp'
@@ -133,7 +134,7 @@ class install_data_panda (install_data_org):
                     # remove build/*/dump for bdist
                     patt = re.sub('build/[^/]+/dumb','',patt)
                     # remove /var/tmp/*-buildroot for bdist_rpm
-                    patt = re.sub('/var/tmp/.*-buildroot','',patt)                    
+                    patt = re.sub('/var/tmp/.*-buildroot','',patt)
                     # replace
                     filedata = filedata.replace('@@%s@@' % item, patt)
                 # write to dest
@@ -154,8 +155,8 @@ class install_data_panda (install_data_org):
         # install
         self.data_files = new_data_files
         install_data_org.run(self)
-        
-        
+
+
 # setup for distutils
 setup(
     name="panda-jedi",
@@ -169,14 +170,14 @@ setup(
     packages=[ 'pandajedi',
                'pandajedi.jedicore',
                'pandajedi.jediexec',
-               'pandajedi.jeditest',               
+               'pandajedi.jeditest',
                'pandajedi.jedidog',
                'pandajedi.jediddm',
                'pandajedi.jedigen',
                'pandajedi.jedisetup',
-               'pandajedi.jediorder',               
+               'pandajedi.jediorder',
                'pandajedi.jediconfig',
-               'pandajedi.jedirefine',               
+               'pandajedi.jedirefine',
                'pandajedi.jedithrottle',
                'pandajedi.jedibrokerage',
                'pandajedi.jedipprocess',

@@ -44,7 +44,7 @@ class JobSplitter:
                 nFilesPerJob = taskSpec.getNumFilesPerJob()
             else:
                 nFilesPerJob = None
-            if nFilesPerJob == None and nEventsPerJob == None and inputChunk.useScout() \
+            if nFilesPerJob is None and nEventsPerJob is None and inputChunk.useScout() \
                     and not taskSpec.useLoadXML() and not taskSpec.respectSplitRule():
                 nFilesPerJob = 1
             # grouping with boundaryID
@@ -67,7 +67,7 @@ class JobSplitter:
             else:
                 multiplicity = taskSpec.getNumEventServiceConsumer()
             # split with fields
-            if taskSpec.getFieldNumToLFN() != None and taskSpec.useFileAsSourceLFN():
+            if taskSpec.getFieldNumToLFN() is not None and taskSpec.useFileAsSourceLFN():
                 splitByFields = taskSpec.getFieldNumToLFN()
             else:
                 splitByFields = None
@@ -92,11 +92,11 @@ class JobSplitter:
             if sizeIntercepts < interceptsMergin:
                 sizeIntercepts = interceptsMergin
             maxOutSize = taskSpec.getMaxSizePerMergeJob()
-            if maxOutSize == None:
+            if maxOutSize is None:
                 # max output size is 5GB for merging by default
                 maxOutSize = 5 * 1024 * 1024 * 1024
             # split with fields
-            if taskSpec.getFieldNumToLFN() != None and taskSpec.useFileAsSourceLFN():
+            if taskSpec.getFieldNumToLFN() is not None and taskSpec.useFileAsSourceLFN():
                 splitByFields = range(4+1,4+1+len(taskSpec.getFieldNumToLFN()))
             else:
                 splitByFields = None
@@ -156,7 +156,7 @@ class JobSplitter:
                     useDirectIO = True
                 # get maxSize if it is set in taskSpec
                 maxSize = maxSizePerJob
-                if maxSize == None:
+                if maxSize is None:
                     # use maxwdir as the default maxSize
                     if not useDirectIO:
                         maxSize = siteSpec.maxwdir * 1024 * 1024
@@ -218,7 +218,7 @@ class JobSplitter:
                                               tmpLog=tmpLog,
                                               useDirectIO=useDirectIO,
                                               maxDiskSize=maxDiskSize)
-            if subChunk == None:
+            if subChunk is None:
                 break
             if subChunk != []:
                 # append

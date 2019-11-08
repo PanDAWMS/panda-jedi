@@ -47,7 +47,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                         if not tmpPandaJob.produceUnMerge():
                             for tmpFileSpec in tmpPandaJob.Files:
                                 if tmpFileSpec.type in ['output','log']:
-                                    if not tmpFileSpec.datasetID in datasetToRegister:
+                                    if tmpFileSpec.datasetID not in datasetToRegister:
                                         datasetToRegister.append(tmpFileSpec.datasetID)
                 tmpLog.info('datasetToRegister={0}'.format(str(datasetToRegister)))
                 # get site mapper
@@ -71,9 +71,9 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     tmpLog.info('checking {0}'.format(datasetSpec.datasetName)) 
                     # check if dataset and container are available in DDM
                     for targetName in [datasetSpec.datasetName,datasetSpec.containerName]:
-                        if targetName == None:
+                        if targetName is None:
                             continue
-                        if not targetName in avDatasetList:
+                        if targetName not in avDatasetList:
                             # set lifetime
                             if targetName.startswith('panda'):
                                 if datasetSpec.type == 'trn_log' and taskSpec.prodSourceLabel == 'managed':
@@ -91,26 +91,26 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                 if targetName == datasetSpec.datasetName:
                                     # dataset
                                     if datasetSpec.site in ['',None]:
-                                        if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+                                        if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
                                             locForRule = datasetSpec.destination
-                                        elif DataServiceUtils.getDestinationSE(datasetSpec.storageToken) != None:
+                                        elif DataServiceUtils.getDestinationSE(datasetSpec.storageToken) is not None:
                                             location = DataServiceUtils.getDestinationSE(datasetSpec.storageToken)
-                                        elif taskSpec.cloud != None:
+                                        elif taskSpec.cloud is not None:
                                             # use T1 SE
                                             tmpT1Name = siteMapper.getCloud(taskSpec.cloud)['source']
                                             location = siteMapper.getDdmEndpoint(tmpT1Name,datasetSpec.storageToken)
                                     else:
                                         tmpLog.info('site={0} token='.format(datasetSpec.site,datasetSpec.storageToken))
                                         location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
-                                if locForRule == None:
+                                if locForRule is None:
                                     locForRule = location
                                 # set metadata
                                 if taskSpec.prodSourceLabel in ['managed','test'] and targetName == datasetSpec.datasetName:
                                     metaData = {}
                                     metaData['task_id'] = taskSpec.jediTaskID
-                                    if not taskSpec.campaign in [None,'']:
+                                    if taskSpec.campaign not in [None,'']:
                                         metaData['campaign'] = taskSpec.campaign 
-                                    if datasetSpec.getTransient() != None:
+                                    if datasetSpec.getTransient() is not None:
                                         metaData['transient'] = datasetSpec.getTransient()
                                 else:
                                     metaData = None
@@ -126,14 +126,14 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                     tmpLog.error('failed to register {0}'.format(targetName))
                                     return retFatal
                                 # procedures for user 
-                                if userSetup or DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+                                if userSetup or DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
                                     # register location
                                     tmpToRegister = False
-                                    if userSetup and targetName == datasetSpec.datasetName and not datasetSpec.site in ['',None]:
+                                    if userSetup and targetName == datasetSpec.datasetName and datasetSpec.site not in ['',None]:
                                         userName = taskSpec.userName
                                         grouping = None
                                         tmpToRegister = True
-                                    elif DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+                                    elif DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
                                         userName = None
                                         grouping = 'NONE'
                                         tmpToRegister = True
@@ -171,12 +171,12 @@ class AtlasTaskSetupper (TaskSetupperBase):
                             else:
                                 tmpLog.info('{0} already registered'.format(targetName))
                     # check if dataset is in the container
-                    if datasetSpec.containerName != None and datasetSpec.containerName != datasetSpec.datasetName:
+                    if datasetSpec.containerName is not None and datasetSpec.containerName != datasetSpec.datasetName:
                         # get list of constituent datasets in the container
                         if not cnDatasetMap.has_key(datasetSpec.containerName):
                             cnDatasetMap[datasetSpec.containerName] = ddmIF.listDatasetsInContainer(datasetSpec.containerName)
                         # add dataset
-                        if not datasetSpec.datasetName in cnDatasetMap[datasetSpec.containerName]:
+                        if datasetSpec.datasetName not in cnDatasetMap[datasetSpec.containerName]:
                             tmpLog.info('adding {0} to {1}'.format(datasetSpec.datasetName,datasetSpec.containerName)) 
                             tmpStat = ddmIF.addDatasetsToContainer(datasetSpec.containerName,[datasetSpec.datasetName],
                                                                    backEnd=ddmBackEnd)
@@ -227,7 +227,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                 for tmpPandaJob in pandaJobs:
                     for tmpFileSpec in tmpPandaJob.Files:
                         if tmpFileSpec.type in ['output','log']:
-                            if not tmpFileSpec.destinationDBlock in outDatasetList:
+                            if tmpFileSpec.destinationDBlock not in outDatasetList:
                                 outDatasetList.append(tmpFileSpec.destinationDBlock)
                 # open datasets
                 for outDataset in outDatasetList:
@@ -238,7 +238,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
             # return
             tmpLog.info('done')        
             return retOK
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doSetup failed with {0}:{1}'.format(errtype.__name__,errvalue))
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

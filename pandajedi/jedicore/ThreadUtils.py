@@ -31,7 +31,7 @@ class ListWithLock:
     def append(self,item):
         self.lock.acquire()
         appended = False
-        if not item in self.dataList:
+        if item not in self.dataList:
             self.dataList.append(item)
             appended = True
         self.lock.release()
@@ -72,7 +72,7 @@ class ListWithLock:
 class MapWithLock:
     def __init__(self,dataMap=None):
         self.lock = threading.Lock()
-        if dataMap == None:
+        if dataMap is None:
             dataMap = {}
         self.dataMap  = dataMap
 
@@ -94,12 +94,12 @@ class MapWithLock:
         self.lock.release()
 
     def add(self,item,value):
-        if not item in self.dataMap:
+        if item not in self.dataMap:
             self.dataMap[item] = 0
         self.dataMap[item] += value
 
     def get(self,item):
-        if not item in self.dataMap:
+        if item not in self.dataMap:
             return 0
         return self.dataMap[item]
     
@@ -125,7 +125,7 @@ class ThreadPool:
         self.lock.acquire()
         try:
             self.list.remove(obj)
-        except:
+        except Exception:
             pass
         self.lock.release()
         
@@ -137,7 +137,7 @@ class ThreadPool:
                 thr.join(timeOut)
                 if thr.isAlive():
                     break
-            except:
+            except Exception:
                 pass
 
     # remove inactive threads
@@ -173,19 +173,19 @@ class WorkerThread (threading.Thread):
     # main loop
     def run(self):
         # get slot
-        if self.workerSemaphore != None:
+        if self.workerSemaphore is not None:
             self.workerSemaphore.acquire()
         # execute real work
         try:
             self.runImpl()
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             self.logger.error("%s crashed in WorkerThread.run() with %s:%s" % \
                               (self.__class__.__name__,errtype.__name__,errvalue))
         # remove self from thread pool
         self.threadPool.remove(self)
         # release slot
-        if self.workerSemaphore != None:
+        if self.workerSemaphore is not None:
             self.workerSemaphore.release()
             
 

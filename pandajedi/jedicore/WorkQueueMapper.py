@@ -137,7 +137,7 @@ class WorkQueueMapper:
                     ret_queue, result = wq.evaluate(param_map)
                     if result:
                         return ret_queue, ret_str
-                except:
+                except Exception:
                     ret_str += '{0},'.format(wq.queue_name)
 
             ret_str = ret_str[:-1]

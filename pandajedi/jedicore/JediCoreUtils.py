@@ -10,8 +10,8 @@ def getEffectiveFileSize(fsize,startEvent,endEvent,nEvents):
     if fsize in [None,0]:
         # use dummy size for pseudo input
         effectiveFsize = inMB
-    elif nEvents != None and startEvent != None and endEvent != None:
-        # take event range into account 
+    elif nEvents is not None and startEvent is not None and endEvent is not None:
+        # take event range into account
         effectiveFsize = long(float(fsize)*float(endEvent-startEvent+1)/float(nEvents))
     else:
         effectiveFsize = fsize
@@ -19,20 +19,20 @@ def getEffectiveFileSize(fsize,startEvent,endEvent,nEvents):
     if effectiveFsize == 0:
         effectiveFsize = inMB
     # in MB
-    effectiveFsize = float(effectiveFsize) / inMB 
+    effectiveFsize = float(effectiveFsize) / inMB
     # return
     return effectiveFsize
 
 
 
-# get effective number of events                                                                                                                          
+# get effective number of events
 def getEffectiveNumEvents(startEvent,endEvent,nEvents):
-    if endEvent != None and startEvent != None:
+    if endEvent is not None and startEvent is not None:
         evtCounts = endEvent-startEvent+1
         if evtCounts > 0:
             return evtCounts
         return 1
-    if nEvents != None:
+    if nEvents is not None:
         return nEvents
     return 1
 
@@ -55,7 +55,7 @@ def getMemoryUsage():
                     pass
                 break
         return value
-    except:
+    except Exception:
         return None
 
 
@@ -95,20 +95,20 @@ def getConfigParam(configStr,vo,sourceLabel):
             items = configStr.split(':')
             vos          = items[0].split('|')
             sourceLabels = items[1].split('|')
-            if not vo in ['','any'] and \
-                    not vo in vos and \
-                    not None in vos and \
-                    not 'any' in vos and \
-                    not '' in vos:
+            if vo not in ['','any'] and \
+                    vo not in vos and \
+                    None not in vos and \
+                    'any' not in vos and \
+                    '' not in vos:
                 continue
-            if not sourceLabel in ['','any'] and \
-                    not sourceLabel in sourceLabels and \
-                    not None in sourceLabels and \
-                    not 'any' in sourceLabels and \
-                    not '' in sourceLabels:
+            if sourceLabel not in ['','any'] and \
+                    sourceLabel not in sourceLabels and \
+                    None not in sourceLabels and \
+                    'any' not in sourceLabels and \
+                    '' not in sourceLabels:
                 continue
             return ','.join(items[2:])
-    except:
+    except Exception:
         pass
     return None
 
@@ -118,7 +118,7 @@ def getConfigParam(configStr,vo,sourceLabel):
 def compensateRamCount(ramCount):
     if ramCount == 'NULL':
         ramCount = None
-    if not ramCount in [None,0]:
+    if ramCount not in [None,0]:
         ramCount = int(ramCount * 0.90)
     return ramCount
 
@@ -159,7 +159,7 @@ def getJobMinRamCount(taskSpec, inputChunk, siteSpec, coreCount):
     # round up with chunks
     minRamCount = compensateRamCount(minRamCount)
     return minRamCount, minRamUnit
-    
+
 
 
 # get max walltime and cpu count
@@ -168,20 +168,20 @@ def getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec
         if taskSpec.cpuTime in [0,None] and taskSpec.useHS06() and inputChunk.useScout():
             jobSpec.maxWalltime = 24*60*60
             jobSpec.maxCpuCount = 24*60*60
-        elif taskSpec.cpuTime != None:
+        elif taskSpec.cpuTime is not None:
             jobSpec.maxWalltime = taskSpec.cpuTime
-            if jobSpec.maxWalltime != None and jobSpec.maxWalltime > 0:
+            if jobSpec.maxWalltime is not None and jobSpec.maxWalltime > 0:
                 jobSpec.maxWalltime *= totalMasterEvents
                 if siteSpec.coreCount > 0:
                     jobSpec.maxWalltime /= float(siteSpec.coreCount)
-                if not siteSpec.corepower in [0,None]:
+                if siteSpec.corepower not in [0,None]:
                     jobSpec.maxWalltime /= siteSpec.corepower
-            if not taskSpec.cpuEfficiency in [None,0]:
+            if taskSpec.cpuEfficiency not in [None,0]:
                 jobSpec.maxWalltime /= (float(taskSpec.cpuEfficiency) / 100.0)
-            if taskSpec.baseWalltime != None:
+            if taskSpec.baseWalltime is not None:
                 jobSpec.maxWalltime += taskSpec.baseWalltime
             jobSpec.maxWalltime = long(jobSpec.maxWalltime)
             if taskSpec.useHS06():
                 jobSpec.maxCpuCount = jobSpec.maxWalltime
-    except:
+    except Exception:
         pass

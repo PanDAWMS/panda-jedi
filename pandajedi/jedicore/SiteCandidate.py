@@ -45,7 +45,7 @@ class SiteCandidate(object):
 
     # add available files
     def addAvailableFiles(self,fileList):
-        if self.allFiles == None:
+        if self.allFiles is None:
             self.allFiles = set()
         for tmpFileSpec in fileList:
             self.allFiles.add(tmpFileSpec.fileID)
@@ -53,7 +53,7 @@ class SiteCandidate(object):
     # check if file is available
     def isAvailableFile(self,tmpFileSpec):
         # N/A
-        if self.allFiles == None:
+        if self.allFiles is None:
             return True
         return tmpFileSpec.fileID in self.allFiles
 

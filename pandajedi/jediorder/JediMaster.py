@@ -53,7 +53,7 @@ class JediMaster:
             else:
                 try:
                     newItems.append(int(item))
-                except:
+                except Exception:
                     newItems.append(item)
         return newItems
 

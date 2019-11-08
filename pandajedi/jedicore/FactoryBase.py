@@ -13,21 +13,21 @@ class FactoryBase:
         else:
             try:
                 self.vos = vos.split('|')
-            except:
+            except Exception:
                 self.vos = [vos]
         if isinstance(sourceLabels,list):
             self.sourceLabels = sourceLabels
         else:
-            try:    
+            try:
                 self.sourceLabels = sourceLabels.split('|')
-            except:
+            except Exception:
                 self.sourceLabels = [sourceLabels]
         self.modConfig = modConfig
         self.logger = MsgWrapper(logger,_factoryModuleName)
         self.implMap = {}
         self.className = None
         self.classMap = {}
-        
+
 
     # initialize all modules
     def initializeMods(self,*args):
@@ -43,25 +43,25 @@ class FactoryBase:
                 className    = items[3]
                 try:
                     subTypes = items[4].split('|')
-                except:
+                except Exception:
                     subTypes = ['any']
-            except:
+            except Exception:
                 self.logger.error('wrong config definition : {0}'.format(configStr))
                 continue
             # loop over all VOs
             for vo in vos:
                 # loop over all labels
-                for sourceLabel in sourceLabels: 
+                for sourceLabel in sourceLabels:
                     # check vo and sourceLabel if specified
-                    if not vo in ['','any'] and \
-                            not vo in self.vos and \
-                            not None in self.vos and \
-                            not 'any' in self.vos:
+                    if vo not in ['','any'] and \
+                            vo not in  self.vos and \
+                            None not in  self.vos and \
+                            'any' not in  self.vos:
                         continue
-                    if not sourceLabel in ['','any'] and \
-                            not sourceLabel in self.sourceLabels and \
-                            not None in self.sourceLabels and \
-                            not 'any' in self.sourceLabels:
+                    if sourceLabel not in ['','any'] and \
+                            sourceLabel not in  self.sourceLabels and \
+                            None not in  self.sourceLabels and \
+                            'any' not in  self.sourceLabels:
                         continue
                     # loop over all sub types
                     for subType in subTypes:
@@ -92,7 +92,7 @@ class FactoryBase:
                             self.implMap[vo][sourceLabel][subType] = impl
                             self.classMap[vo][sourceLabel][subType] = cls
                             self.logger.info("{0} is ready for {1}:{2}:{3}".format(cls,vo,sourceLabel,subType))
-                        except:
+                        except Exception:
                             errtype,errvalue = sys.exc_info()[:2]
                             self.logger.error(
                                 'failed to import {mn}.{cn} for vo={vo} label={lb} subtype={st} due to {et} {ev}'.format(et=errtype.__name__,
@@ -180,12 +180,12 @@ class FactoryBase:
             return impl
         else:
             return None
-            
-        
-                                                            
+
+
+
     # get class name of impl
     def getClassName(self,vo=None,sourceLabel=None):
         impl = self.getImpl(vo,sourceLabel,doRefresh=False)
-        if impl == None:
+        if impl is None:
             return None
         return impl.__class__.__name__

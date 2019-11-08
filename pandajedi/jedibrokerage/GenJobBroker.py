@@ -31,10 +31,10 @@ class GenJobBroker (JobBrokerBase):
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
         # get sites in the cloud
-        if not taskSpec.site in ['',None]:
+        if taskSpec.site not in ['',None]:
             scanSiteList = [taskSpec.site]
             tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
-        elif inputChunk.getPreassignedSite() != None:
+        elif inputChunk.getPreassignedSite() is not None:
             scanSiteList = [inputChunk.getPreassignedSite()]
             tmpLog.debug('site={0} is pre-assigned in masterDS'.format(inputChunk.getPreassignedSite()))
         else:
@@ -63,7 +63,7 @@ class GenJobBroker (JobBrokerBase):
         ######################################
         # selection for memory
         minRamCount  = max(taskSpec.ramCount, inputChunk.ramCount)
-        if not minRamCount in [0,None]:
+        if minRamCount not in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -140,7 +140,7 @@ class GenJobBroker (JobBrokerBase):
         ######################################
         # selection for walltime
         minWalltime = taskSpec.walltime
-        if not minWalltime in [0,None]:
+        if minWalltime not in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -171,7 +171,7 @@ class GenJobBroker (JobBrokerBase):
             nPilot = 0
             if nWNmap.has_key(tmpSiteName):
                 nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
-            if nPilot == 0 and not taskSpec.prodSourceLabel in ['test']:
+            if nPilot == 0 and taskSpec.prodSourceLabel not in ['test']:
                 tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
                 #continue
             newScanSiteList.append(tmpSiteName)

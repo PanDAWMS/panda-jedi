@@ -83,7 +83,7 @@ class AtlasTaskGenerator (TaskGeneratorBase):
                             # add extension
                             outDatasetName = outDatasetName + '.{0}{1}'.format(taskSpec.taskType,taskSpec.jediTaskID)
                             newTaskParamMap['output'] = {'dataset': outDatasetName}
-                            if not datasetSpec.containerName in ['',None]:
+                            if datasetSpec.containerName not in ['',None]:
                                 newTaskParamMap['output']['container'] = datasetSpec.containerName
                             # make json
                             jsonStr = json.dumps(newTaskParamMap)
@@ -106,7 +106,7 @@ class AtlasTaskGenerator (TaskGeneratorBase):
             # return
             tmpLog.info('done')        
             return retOK
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doGenerate failed with {0}:{1}'.format(errtype.__name__,errvalue))
             return retFatal

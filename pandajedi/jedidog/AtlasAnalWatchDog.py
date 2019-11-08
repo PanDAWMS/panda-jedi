@@ -43,13 +43,13 @@ class AtlasAnalWatchDog (WatchDogBase):
                 tmpLog.debug('start')
                 # check status of lib.tgz
                 if tmpFileSpec.status == 'failed':
-                    # get buildJob 
+                    # get buildJob
                     pandaJobSpecs = self.taskBufferIF.peekJobs([tmpFileSpec.PandaID],
                                                                fromDefined=False,
                                                                fromActive=False,
                                                                fromWaiting=False)
                     pandaJobSpec = pandaJobSpecs[0]
-                    if pandaJobSpec != None:
+                    if pandaJobSpec is not None:
                         # kill
                         self.taskBufferIF.updateJobs([pandaJobSpec],False)
                         tmpLog.debug('  killed downstream jobs for user="{0}" with libDS={1}'.format(prodUserName,datasetName))
@@ -67,7 +67,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                                                  }])
                     # get lib dataset
                     dataset = self.taskBufferIF.queryDatasetWithMap({'name':datasetName})
-                    if dataset != None:
+                    if dataset is not None:
                         # activate jobs
                         aThr = Activator(self.taskBufferIF,dataset)
                         aThr.start()
@@ -81,7 +81,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                     tmpLog.debug('  keep waiting for user="{0}" libDS={1}'.format(prodUserName,datasetName))
             # throttle tasks if so many prestaging requests
             self.doForPreStaging()
-        except:
+        except Exception:
             tmpLog = origTmpLog
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('failed with {0} {1}'.format(errtype,errvalue))
@@ -89,7 +89,7 @@ class AtlasAnalWatchDog (WatchDogBase):
         tmpLog = origTmpLog
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
-    
+
 
 
     # throttle tasks if so many prestaging requests
@@ -109,7 +109,7 @@ class AtlasAnalWatchDog (WatchDogBase):
             dispUserTasks = self.taskBufferIF.getDispatchDatasetsPerUser(self.vo,self.prodSourceLabel,True,True)
             # max size of prestaging requests in MB
             maxPrestaging = self.taskBufferIF.getConfigValue('anal_watchdog', 'PRESTAGE_LIMIT', 'jedi', 'atlas')
-            if maxPrestaging == None:
+            if maxPrestaging is None:
                 maxPrestaging = 1
             maxPrestaging *= 1024*1024
             # throttle interval
@@ -124,7 +124,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                                                                                   maxPrestaging/1024))
                     # throttle tasks
                     for taskID in userDict['tasks']:
-                        if not userName in thrUserTasks or not taskID in thrUserTasks[userName]:
+                        if userName not in thrUserTasks or taskID not in thrUserTasks[userName]:
                             tmpLog.debug('thottle jediTaskID={0}'.format(taskID))
                             errDiag = 'throttled for {0} min due to large prestaging from TAPE or transfers from DISK'.format(thrInterval)
                             self.taskBufferIF.throttleTask_JEDI(taskID,thrInterval,errDiag)
@@ -139,7 +139,6 @@ class AtlasAnalWatchDog (WatchDogBase):
                     tmpLog.debug('unthottle jediTaskID={0}'.format(taskID))
                     self.taskBufferIF.releaseThrottledTask_JEDI(taskID)
             tmpLog.debug('done')
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('failed with {0} {1} {2}'.format(errtype,errvalue,traceback.format_exc()))
-            

@@ -27,7 +27,7 @@ panda_sites = ['ANALY_DESY-HH', 'ANALY_DESY-HH_TEST', 'WT2_Install', 'BNL_Test_2
 #     print 'setokens_input: {0}, setokens_output: {1}'.format(tmp_site_spec.setokens_input,
 #                                                              tmp_site_spec.setokens_output)
 
-from pandaserver.dataservice import DataServiceUtils
+from pandaserver.dataservice import DataServiceUtils    # noqa: E402
 sites = site_mapper.getCloud('WORLD')['sites']
 sites.sort()
 for tmp_site_name in sites:
@@ -47,4 +47,3 @@ for tmp_site_name in sites:
             print 'excepted!'
 
     print '-------------------'
-

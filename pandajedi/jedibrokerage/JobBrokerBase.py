@@ -26,7 +26,7 @@ class JobBrokerBase (object):
 
 
     def getLiveCount(self,siteName):
-        if self.liveCounter == None:
+        if self.liveCounter is None:
             return 0
         return self.liveCounter.get(siteName)
 

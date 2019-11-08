@@ -23,7 +23,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
             tmpStat = self.doPreCheck(taskSpec,tmpLog)
             if tmpStat:
                 return self.SC_SUCCEEDED
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doPreCheck failed with {0}:{1}'.format(errtype.__name__,errvalue))
             return self.SC_FATAL
@@ -39,7 +39,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                 if datasetSpec.type in ['output']:
                     # get successful files
                     okFiles = self.taskBufferIF.getSuccessfulFiles_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID)
-                    if okFiles == None:
+                    if okFiles is None:
                         tmpLog.warning('failed to get successful files for {0}'.format(datasetSpec.datasetName))
                         return self.SC_FAILED
                     # get files in dataset
@@ -57,7 +57,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                     # delete
                     if toDelete != []:
                         ddmIF.deleteFilesFromDataset(datasetSpec.datasetName,toDelete)
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.warning('failed to remove wrong files with {0}:{1}'.format(errtype.__name__,errvalue))
                 return self.SC_FAILED
@@ -66,7 +66,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                 if datasetSpec.type in ['output','log','trn_log']:
                     tmpLog.info('freezing datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
                     ddmIF.freezeDataset(datasetSpec.datasetName,ignoreUnknown=True)
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.warning('failed to freeze datasets with {0}:{1}'.format(errtype.__name__,errvalue))
                 return self.SC_FAILED
@@ -76,7 +76,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                     tmpLog.debug('deleting datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
                     retStr = ddmIF.deleteDataset(datasetSpec.datasetName,False,ignoreUnknown=True)
                     tmpLog.info(retStr)
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.warning('failed to delete datasets with {0}:{1}'.format(errtype.__name__,errvalue))
         # check duplication
@@ -96,12 +96,12 @@ class AtlasProdPostProcessor (PostProcessorBase):
                 tmpLog.debug('deleting ES dataset name={0}'.format(targetName))
                 retStr = ddmIF.deleteDataset(targetName,False,ignoreUnknown=True)
                 tmpLog.debug(retStr)
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.warning('failed to delete ES dataset with {0}:{1}'.format(errtype.__name__,errvalue))
         try:
             self.doBasicPostProcess(taskSpec,tmpLog)
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicPostProcess failed with {0}:{1}'.format(errtype.__name__,errvalue))
             return self.SC_FATAL
@@ -125,7 +125,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
             datasetTypeListO = set()
             for datasetSpec in taskSpec.datasetSpecList:
                 if datasetSpec.type in ['log','output']:
-                    if datasetSpec.getTransient() == True:
+                    if datasetSpec.getTransient() is True:
                         tmpLog.debug('set metadata={0} to datasetID={1}:Name={2}'.format(str(metaData),
                                                                                         datasetSpec.datasetID,
                                                                                         datasetSpec.datasetName))
@@ -133,7 +133,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                             ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
                 # collect dataset types
                 datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
-                if not datasetType in ['',None]:
+                if datasetType not in ['',None]:
                     if datasetSpec.type == 'input':
                         datasetTypeListI.add(datasetType)
                     elif datasetSpec.type == 'output':
@@ -146,20 +146,20 @@ class AtlasProdPostProcessor (PostProcessorBase):
                               (taskSpec.oldStatus == 'done' or \
                                    (taskSpec.oldStatus == 'finished' and self.getFinalTaskStatus(taskSpec, checkParent=False) == 'done')))):
                 # get parent task
-                if not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
+                if taskSpec.parent_tid not in [None,taskSpec.jediTaskID]:
                     # get parent
                     tmpStat,parentTaskSpec = self.taskBufferIF.getTaskDatasetsWithID_JEDI(taskSpec.parent_tid,None,False)
-                    if tmpStat and parentTaskSpec != None:
+                    if tmpStat and parentTaskSpec is not None:
                         # set lifetime to parent datasets if they are transient
                         for datasetSpec in parentTaskSpec.datasetSpecList:
                             if datasetSpec.type in ['output']:
                                 # check dataset type
                                 datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
-                                if not datasetType in datasetTypeListI or not datasetType in datasetTypeListO:
+                                if datasetType not in datasetTypeListI or datasetType not in datasetTypeListO:
                                     continue
                                 metaData = {'lifetime': trnLifeTimeMerge}
                                 tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
-                                if tmpMetadata['transient'] == True:
+                                if tmpMetadata['transient'] is True:
                                     tmpLog.debug('set metadata={0} to parent jediTaskID={1}:datasetID={2}:Name={3}'.format(str(metaData),
                                                                                                                           taskSpec.parent_tid,
                                                                                                                           datasetSpec.datasetID,

@@ -30,7 +30,7 @@ class ProcessWrapper(multiprocessing.Process):
                                                                           self.__class__.__name__,
                                                                           pid)
                         break
-                except:
+                except Exception:
                     timeNow = datetime.datetime.utcnow()
                     errType,errValue = sys.exc_info()[:2]
                     print "{0} {1}: INFO    failed to check pid={2} with {3} {4}".format(str(timeNow),

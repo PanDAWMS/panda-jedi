@@ -50,7 +50,7 @@ class AtlasProdWatchDog (WatchDogBase):
             # action for jumbo
             jumbo = JumboWatchDog(self.taskBufferIF, self.ddmIF, tmpLog, 'atlas', 'managed')
             jumbo.run()
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('failed with {0}:{1} {2}'.format(errtype.__name__,errvalue,
                                                           traceback.format_exc()))
@@ -114,7 +114,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     if nJobs is not None:
                         try:
                             nRemJobs = int(float(nFiles-nFilesFinished-nFilesFailed) * float(nJobs) / float(nFiles))
-                        except:
+                        except Exception:
                             pass
                     tmpStr = 'jediTaskID={0} nFiles={1} nFilesFinishedFailed={2} '.format(jediTaskID,nFiles,nFilesFinished+nFilesFailed)
                     tmpStr += 'nJobs={0} nRemJobs={1} parent_tid={2} parentStatus={3}'.format(nJobs, nRemJobs, parent_tid, parentState)
@@ -131,7 +131,7 @@ class AtlasProdWatchDog (WatchDogBase):
                                 gTmpLog.info('>>> changing gshare of jediTaskID={0} to {1} from {2}'.format(jediTaskID, newShare, gshare))
                                 self.taskBufferIF.reassignShare([jediTaskID], newShare, True)
                             gTmpLog.info('>>> done jediTaskID={0}'.format(jediTaskID))
-                    except:
+                    except Exception:
                         pass
 
                 if break_loop:
@@ -155,7 +155,7 @@ class AtlasProdWatchDog (WatchDogBase):
             ddmBackEnd = taskSpec.getDdmBackEnd()
             # get datasets
             tmpStat,datasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,['output','log'])
-            if tmpStat != True:
+            if tmpStat is not True:
                 tmpLog.error('failed to get datasets')
                 continue
             # update DB
@@ -181,7 +181,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     continue
                 # get nucleus
                 nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)
-                if nucleusSpec == None:
+                if nucleusSpec is None:
                     tmpLog.error("nucleus={0} doesn't exist".format(taskSpec.nucleus))
                     continue
                 # set nucleus
@@ -197,7 +197,7 @@ class AtlasProdWatchDog (WatchDogBase):
             isOK = True
             for datasetSpec in datasetSpecList:
                 tmpLog.debug('dataset={0}'.format(datasetSpec.datasetName))
-                if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+                if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
                     tmpLog.debug('skip {0} is distributed'.format(datasetSpec.datasetName))
                     continue
                 # get location
@@ -208,11 +208,11 @@ class AtlasProdWatchDog (WatchDogBase):
                                                                                            ddmBackEnd))
                     tmpStat = ddmIF.registerDatasetSubscription(datasetSpec.datasetName,location,
                                                                 'Production Output',asynchronous=True)
-                    if tmpStat != True:
+                    if tmpStat is not True:
                         tmpLog.error("failed to make subscription")
                         isOK = False
                         break
-                except:
+                except Exception:
                     errtype,errvalue = sys.exc_info()[:2]
                     tmpLog.warning('failed to make subscription with {0}:{1}'.format(errtype.__name__,errvalue))
                     isOK = False
@@ -247,13 +247,13 @@ class AtlasProdWatchDog (WatchDogBase):
         timeoutForPending = None
         if hasattr(jedi_config.watchdog,'timeoutForPendingVoLabel'):
             timeoutForPending = JediCoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel,self.vo,self.prodSourceLabel)
-        if timeoutForPending == None:
+        if timeoutForPending is None:
             timeoutForPending = jedi_config.watchdog.timeoutForPending
         timeoutForPending = int(timeoutForPending)
         tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(self.vo,self.prodSourceLabel,
                                                                timeoutVal,timeoutForPending,
                                                                minPriority=minPriority)
-        if tmpRet == None:
+        if tmpRet is None:
             # failed                                                                                                             
             gTmpLog.error('failed to reactivate high priority (>{0}) tasks'.format(minPriority))
         else:
@@ -264,7 +264,7 @@ class AtlasProdWatchDog (WatchDogBase):
     # action to set scout job data w/o scouts
     def doActionToSetScoutJobData(self,gTmpLog):
         tmpRet = self.taskBufferIF.setScoutJobDataToTasks_JEDI(self.vo,self.prodSourceLabel)
-        if tmpRet == None:
+        if tmpRet is None:
             # failed                                                                                                             
             gTmpLog.error('failed to set scout job data')
         else:

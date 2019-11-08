@@ -10,12 +10,13 @@ from pandajedi.jediconfig import jedi_config
 
 from config import panda_config
 
-# initialize cx_Oracle using dummy connection
 from taskbuffer.Initializer import initializer
-initializer.init()
-
 from pandajedi.jedicore import JediTaskBuffer
 from pandalogger.PandaLogger import PandaLogger
+
+# initialize cx_Oracle using dummy connection
+initializer.init()
+
 
 taskBuffer= JediTaskBuffer.JediTaskBuffer(None)
 proxy = taskBuffer.proxyPool.getProxy()

@@ -22,7 +22,7 @@ class DDMInterface:
                 maxSize = int(items[1])
                 moduleName = items[2]
                 className  = items[3]
-            except:
+            except Exception:
                 # TODO add config error message
                 continue
             # add VO interface

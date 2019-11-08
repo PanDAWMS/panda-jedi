@@ -1,7 +1,7 @@
 import sys
 try:
     metaID = sys.argv[1]
-except:
+except Exception:
     metaID = None
 import json
 import uuid

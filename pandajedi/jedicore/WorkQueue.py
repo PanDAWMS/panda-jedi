@@ -100,7 +100,7 @@ class WorkQueue(object):
                     continue
                 # add
                 tmp_map[':%s' % items[0]] = items[1]
-        except:
+        except Exception:
             pass
         # assign map
         self.variables = tmp_map
@@ -118,7 +118,7 @@ class WorkQueue(object):
             tmp_eval_str = tmp_eval_str.replace('=', '==')
             # replace LIKE
             tmp_eval_str = re.sub('(?P<var>[^ \(]+)\s+LIKE\s+(?P<pat>[^ \(]+)',
-                                  "re.search(\g<pat>,\g<var>,re.I) != None",
+                                  "re.search(\g<pat>,\g<var>,re.I) is not None",
                                   tmp_eval_str, re.I)
             # NULL
             tmp_eval_str = re.sub(' IS NULL', '==None', tmp_eval_str)
@@ -171,7 +171,7 @@ class WorkQueue(object):
                     self.throttled = False
 
             self.variables = tmp_map
-        except:
+        except Exception:
             pass
 
     # evaluate in python

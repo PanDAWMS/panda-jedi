@@ -35,7 +35,7 @@ if __name__ == '__main__':
             #time.sleep(i*stime)
             try:
                 print dif.getCloudList()
-            except:
+            except Exception:
                 print "exp"
         print 'client done'
 

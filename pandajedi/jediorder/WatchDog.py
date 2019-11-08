@@ -50,7 +50,7 @@ class WatchDog (JediKnight,FactoryBase):
                         tmpLog.info('rescue tasks with picked files for vo={0} label={1}'.format(vo,prodSourceLabel)) 
                         tmpRet = self.taskBufferIF.rescuePickedFiles_JEDI(vo,prodSourceLabel,
                                                                           jedi_config.watchdog.waitForPicked)
-                        if tmpRet == None:
+                        if tmpRet is None:
                             # failed
                             tmpLog.error('failed to rescue')
                         else:
@@ -61,13 +61,13 @@ class WatchDog (JediKnight,FactoryBase):
                         timeoutForPending = None
                         if hasattr(jedi_config.watchdog,'timeoutForPendingVoLabel'): 
                             timeoutForPending = JediCoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel,vo,prodSourceLabel)
-                        if timeoutForPending == None:
+                        if timeoutForPending is None:
                             timeoutForPending = jedi_config.watchdog.timeoutForPending
                         timeoutForPending = int(timeoutForPending)    
                         tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(vo,prodSourceLabel,
                                                                                jedi_config.watchdog.waitForPending,
                                                                                timeoutForPending)
-                        if tmpRet == None:
+                        if tmpRet is None:
                             # failed
                             tmpLog.error('failed to reactivate')
                         else:
@@ -79,7 +79,7 @@ class WatchDog (JediKnight,FactoryBase):
                         tmpRet = self.taskBufferIF.unlockTasks_JEDI(vo,prodSourceLabel,10,
                                                                     socket.getfqdn().split('.')[0],
                                                                     os.getpgrp())
-                        if tmpRet == None:
+                        if tmpRet is None:
                             # failed
                             tmpLog.error('failed to unlock')
                         else:
@@ -88,7 +88,7 @@ class WatchDog (JediKnight,FactoryBase):
                         tmpLog.info('unlock tasks for vo={0} label={1}'.format(vo,prodSourceLabel)) 
                         tmpRet = self.taskBufferIF.unlockTasks_JEDI(vo,prodSourceLabel,
                                                                     jedi_config.watchdog.waitForLocked)
-                        if tmpRet == None:
+                        if tmpRet is None:
                             # failed
                             tmpLog.error('failed to unlock')
                         else:
@@ -96,7 +96,7 @@ class WatchDog (JediKnight,FactoryBase):
                         # restart contents update
                         tmpLog.info('restart contents update for vo={0} label={1}'.format(vo,prodSourceLabel)) 
                         tmpRet = self.taskBufferIF.restartTasksForContentsUpdate_JEDI(vo,prodSourceLabel)
-                        if tmpRet == None:
+                        if tmpRet is None:
                             # failed
                             tmpLog.error('failed to restart')
                         else:
@@ -105,7 +105,7 @@ class WatchDog (JediKnight,FactoryBase):
                         tmpLog.info('kick exhausted tasks for vo={0} label={1}'.format(vo,prodSourceLabel)) 
                         tmpRet = self.taskBufferIF.kickExhaustedTasks_JEDI(vo,prodSourceLabel,
                                                                            jedi_config.watchdog.waitForExhausted)
-                        if tmpRet == None:
+                        if tmpRet is None:
                             # failed
                             tmpLog.error('failed to kick')
                         else:
@@ -114,7 +114,7 @@ class WatchDog (JediKnight,FactoryBase):
                         tmpLog.info('finish achieved tasks for vo={0} label={1}'.format(vo,prodSourceLabel)) 
                         tmpRet = self.taskBufferIF.getAchievedTasks_JEDI(vo,prodSourceLabel,
                                                                          jedi_config.watchdog.waitForAchieved)
-                        if tmpRet == None:
+                        if tmpRet is None:
                             # failed
                             tmpLog.error('failed to finish')
                         else:
@@ -124,14 +124,14 @@ class WatchDog (JediKnight,FactoryBase):
                         # rescue unlocked tasks with picked files
                         tmpLog.info('rescue unlocked tasks with picked files for vo={0} label={1}'.format(vo,prodSourceLabel)) 
                         tmpRet = self.taskBufferIF.rescueUnLockedTasksWithPicked_JEDI(vo,prodSourceLabel,60,self.pid)
-                        if tmpRet == None:
+                        if tmpRet is None:
                             # failed
                             tmpLog.error('failed to rescue unlocked tasks')
                         else:
                             tmpLog.info('rescue unlocked {0} tasks'.format(tmpRet))
                         # vo/prodSourceLabel specific action
                         impl = self.getImpl(vo,prodSourceLabel)
-                        if impl != None:
+                        if impl is not None:
                             tmpLog.info('special action for vo={0} label={1} with {2}'.format(vo,prodSourceLabel,impl.__class__.__name__))
                             tmpStat = impl.doAction()
                             if tmpStat !=  Interaction.SC_SUCCEEDED:
@@ -139,7 +139,7 @@ class WatchDog (JediKnight,FactoryBase):
                             else:
                                 tmpLog.info('done for vo={0} label={1}'.format(vo,prodSourceLabel))
                 tmpLog.info('done')
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
             # sleep if needed

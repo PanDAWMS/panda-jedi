@@ -195,11 +195,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retStat,datasetSpecList = proxy.getDatasetsWithJediTaskID_JEDI(jediTaskID,datasetTypes=datasetTypes)
-        if retStat == True and getFiles == True:
+        if retStat is True and getFiles is True:
             for datasetSpec in datasetSpecList:
                 # read files
                 retStat,fileSpecList = proxy.getFilesInDatasetWithID_JEDI(jediTaskID,datasetSpec.datasetID,None,None)
-                if retStat == False:
+                if retStat is False:
                     break
                 for fileSpec in fileSpecList:
                     datasetSpec.addFile(fileSpec)

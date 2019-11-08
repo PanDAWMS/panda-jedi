@@ -22,7 +22,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
     def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule):
         processingTypes = taskParamMap['processingType'].split('-')
         # set ddmBackEnd
-        if not 'ddmBackEnd' in taskParamMap:
+        if 'ddmBackEnd' not in taskParamMap:
             taskParamMap['ddmBackEnd'] = 'rucio'
         # set sourceURL
         try:
@@ -30,7 +30,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 for tmpItem in taskParamMap['jobParameters']:
                     if tmpItem.has_key('value'):
                         tmpItem['value'] = re.sub('\$\{SURL\}',taskParamMap['sourceURL'],tmpItem['value'])
-        except:
+        except Exception:
             pass
         # set transPath
         if not taskParamMap.has_key('transPath'):
@@ -71,7 +71,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
             taskParamMap['mergeSpec']['transPath'] = 'http://{0}:{1}/trf/user/runMerge-00-00-02'.format(panda_config.pserveralias,
                                                                                                         panda_config.pserverportcache)
         # min ram count
-        if not 'ramCount' in taskParamMap:
+        if 'ramCount' not in taskParamMap:
             taskParamMap['ramCount'] = 2000
         # disk count
         if 'outDiskCount' not in taskParamMap:
@@ -115,10 +115,10 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         try:
             # preprocessing
             tmpStat,taskParamMap = self.doPreProRefine(taskParamMap)
-            if tmpStat == True:
+            if tmpStat is True:
                 tmpLog.debug('done for preprocessing')
                 return self.SC_SUCCEEDED
-            if tmpStat == False:
+            if tmpStat is False:
                 # failed
                 tmpLog.error('doPreProRefine failed')
                 return self.SC_FAILED
@@ -166,7 +166,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 self.taskSpec.setLimitedSites('exc')
             elif 'includedSite' in taskParamMap:
                 self.taskSpec.setLimitedSites('inc')
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errStr = 'doRefine failed with {0}:{1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errStr)

@@ -3,11 +3,11 @@ import uuid
 
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 
+from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
+from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
+
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()
-
-
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 
 task = JediTaskSpec()
 task.jediTaskID = sys.argv[1]
@@ -24,15 +24,15 @@ task.transHome = 'AtlasProduction-17.2.8.10'
 task.transPath = 'Reco_trf.py'
 task.workQueue_ID = 3
 
-tbIF.insertTask_JEDI(task) 
+tbIF.insertTask_JEDI(task)
 
-from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
+
 ds = JediDatasetSpec()
 ds.jediTaskID = task.jediTaskID
 if len(sys.argv) > 2:
     ds.datasetName = sys.argv[2]
 else:
-    ds.datasetName = 'data12_8TeV.00214651.physics_Egamma.merge.AOD.f489_m1261'    
+    ds.datasetName = 'data12_8TeV.00214651.physics_Egamma.merge.AOD.f489_m1261'
 ds.type = 'input'
 ds.vo = task.vo
 ds.cloud = 'US'
@@ -82,7 +82,7 @@ tbIF.insertOutputTemplate_JEDI([{'jediTaskID':task.jediTaskID,
                                  'datasetID':datasetID,
                                  'filenameTemplate':'{0}.${{SN}}.pool.root'.format(ds.datasetName),
                                  'serialNr':1,
-                                 'streamName':'OUT',                                 
+                                 'streamName':'OUT',
                                  'outtype':ds.type}])
 
 ds = JediDatasetSpec()

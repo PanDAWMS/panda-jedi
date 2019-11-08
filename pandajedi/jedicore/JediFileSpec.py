@@ -66,7 +66,7 @@ class JediFileSpec(object):
                 if not self._changedAttrs.has_key(attr):
                     continue
             val = getattr(self,attr)
-            if val == None:
+            if val is None:
                 if attr in self._zeroAttrs:
                     val = 0
                 else:
@@ -85,7 +85,7 @@ class JediFileSpec(object):
 
     # return column names for INSERT
     def columnNames(cls,useSeq=False,defaultVales=None,skipDefaultAttr=False):
-        if defaultVales == None:
+        if defaultVales is None:
             defaultVales = {}
         ret = ""
         for attr in cls._attributes:
@@ -98,7 +98,7 @@ class JediFileSpec(object):
                 continue
             if attr in defaultVales:
                 arg = defaultVales[attr]
-                if arg == None:
+                if arg is None:
                     ret += "NULL"
                 elif isinstance(arg,types.StringType):
                     ret += "'{0}'".format(arg)
@@ -143,7 +143,7 @@ class JediFileSpec(object):
         jobFileSpec.jediTaskID = datasetSpec.jediTaskID
         jobFileSpec.lfn        = self.lfn
         jobFileSpec.GUID       = self.GUID
-        if setType == None:
+        if setType is None:
             jobFileSpec.type   = self.type
         else:
             jobFileSpec.type   = setType
@@ -152,9 +152,9 @@ class JediFileSpec(object):
         jobFileSpec.checksum   = self.checksum
         jobFileSpec.attemptNr  = self.attemptNr
         # dataset attribute
-        if datasetSpec != None:
+        if datasetSpec is not None:
             # dataset
-            if not datasetSpec.containerName in [None,'']:
+            if datasetSpec.containerName not in [None,'']:
                 jobFileSpec.dataset = datasetSpec.containerName
             else:
                 jobFileSpec.dataset = datasetSpec.datasetName
@@ -162,19 +162,19 @@ class JediFileSpec(object):
                 # prodDBlock
                 jobFileSpec.prodDBlock = datasetSpec.datasetName
                 # storage token    
-                if not datasetSpec.storageToken in ['',None]:
+                if datasetSpec.storageToken not in ['',None]:
                     jobFileSpec.dispatchDBlockToken = datasetSpec.storageToken 
             else:
                 # destinationDBlock
                 jobFileSpec.destinationDBlock = datasetSpec.datasetName
                 # storage token    
-                if not datasetSpec.storageToken in ['',None]:
+                if datasetSpec.storageToken not in ['',None]:
                     jobFileSpec.destinationDBlockToken = datasetSpec.storageToken.split('/')[0] 
                 # destination
-                if not datasetSpec.destination in ['',None]:
+                if datasetSpec.destination not in ['',None]:
                     jobFileSpec.destinationSE = datasetSpec.destination
                 # set prodDBlockToken for Event Service
-                if useEventService and datasetSpec.getObjectStore() != None:
+                if useEventService and datasetSpec.getObjectStore() is not None:
                     jobFileSpec.prodDBlockToken = 'objectstore^{0}'.format(datasetSpec.getObjectStore())
                 # allow no output
                 if datasetSpec.isAllowedNoOutput():
@@ -206,19 +206,19 @@ class JediFileSpec(object):
 
     # check if event-level splitting is used
     def doEventLevelSplit(self):
-        if self.startEvent == None:
+        if self.startEvent is None:
             return False
         return True
 
 
     # get effective number of events
     def getEffectiveNumEvents(self):
-        if self.endEvent != None and self.startEvent != None:
+        if self.endEvent is not None and self.startEvent is not None:
             evtCounts = self.endEvent-self.startEvent+1
             if evtCounts > 0:
                 return evtCounts
             return 1
-        if self.nEvents != None and self.nEvents > 0:
+        if self.nEvents is not None and self.nEvents > 0:
             return self.nEvents
         return 1
 
@@ -230,6 +230,6 @@ class JediFileSpec(object):
             tmpMidStrList = re.split('\.|_tid\d+',self.lfn)
             for tmpFieldNum in fieldNumList:
                 tmpFieldStr += '.'+tmpMidStrList[tmpFieldNum-1]
-        except:
+        except Exception:
             pass
         return tmpFieldStr

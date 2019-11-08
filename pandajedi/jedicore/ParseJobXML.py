@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-import sys,re
+import sys
+import re
 import urllib
 import xml.dom.minidom
 
@@ -107,7 +108,7 @@ class dom_job:
         comStr = '%s %s'%(s.forward_opts(),s.command)
         return urllib.quote(comStr)
     def get_outmap_str(s,outMap):
-        """ return mapping of original and new filenames 
+        """ return mapping of original and new filenames
         """
         newMap = {}
         for oldLFN,fileSpec in outMap.iteritems():
@@ -140,7 +141,7 @@ class dom_parser:
             s.dom = xml.dom.minidom.parse(fname)
             s.parse()
             s.check()
-        if xmlStr != None:
+        if xmlStr is not None:
             s.dom = xml.dom.minidom.parseString(xmlStr)
             s.parse()
             s.check()
@@ -213,7 +214,7 @@ class dom_parser:
                 s.primaryds = None
             for job in s.dom.getElementsByTagName('job'):
                 s.jobs.append(dom_job(job,primaryds=s.primaryds,defaultcmd=s.command,defaultout=s.global_outfiles))
-        except:
+        except Exception:
             print 'ERROR: failed to parse',s.fname
             raise
     def to_dom(s):

@@ -35,7 +35,7 @@ def encodeJSON(inputMap):
 # extract stream name
 def extractStreamName(valStr):
     tmpMatch = re.search('\$\{([^\}]+)\}',valStr)
-    if tmpMatch == None:
+    if tmpMatch is None:
         return None
     # remove decorators
     streamName = tmpMatch.group(1)

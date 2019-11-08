@@ -31,18 +31,18 @@ class StatusCode(object):
     def __eq__(self,other):
         try:
             return self.value == other.value
-        except:
+        except Exception:
             return False
 
     def __ne__(self,other):
         try:
             return self.value != other.value
-        except:
+        except Exception:
             return True
 
 
-    
-# mapping to accessors   
+
+# mapping to accessors
 statusCodeMap = {'SC_SUCCEEDED': StatusCode(0),
                  'SC_FAILED'   : StatusCode(1),
                  'SC_FATAL'    : StatusCode(2),
@@ -58,7 +58,7 @@ def installSC(cls):
 # install SCs in this module
 installSC(sys.modules[ __name__ ])
 
-        
+
 ###########################################################
 #
 # classes for IPC
@@ -73,8 +73,8 @@ def dumpStdOut(sender,message):
 
 # object class for command
 class CommandObject(object):
-    
-    # constructor    
+
+    # constructor
     def __init__(self,methodName,argList,argMap):
         self.methodName = methodName
         self.argList = argList
@@ -133,13 +133,13 @@ class ProcessClass(object):
                             pass
                         break
                 self.usedMemory = value
-            except:
+            except Exception:
                 pass
             return self.usedMemory
         else:
             return None
 
-                     
+
 # method class
 class MethodClass(object):
     # constructor
@@ -190,7 +190,7 @@ class MethodClass(object):
                     retException = JEDITemporaryError
                 elif ret.statusCode == SC_FATAL:
                     retException = JEDIFatalError
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 retException = errtype
                 argStr = 'args=%s kargs=%s' % (str(args),str(kwargs))
@@ -203,14 +203,14 @@ class MethodClass(object):
             # memory check
             largeMemory = False
             memUsed = child_process.getMemUsage()
-            if memUsed != None:
+            if memUsed is not None:
                 memStr= 'pid={0} memory={1}MB'.format(child_process.pid,memUsed)
                 if memUsed > 1.5*1024:
                     largeMemory = True
                     memStr += ' exceeds memory limit'
                     dumpStdOut(self.className,memStr)
             # kill old or problematic process
-            if child_process.nused > 1000 or not retException in [None,JEDITemporaryError,JEDIFatalError] or \
+            if child_process.nused > 1000 or retException not in [None,JEDITemporaryError,JEDIFatalError] or \
                     largeMemory:
                 dumpStdOut(self.className,'methodName={0} ret={1} nused={2} {3} in pid={4}'.format(self.methodName,retException,
                                                                                                    child_process.nused,
@@ -219,7 +219,7 @@ class MethodClass(object):
                 # close connection
                 try:
                     pipe.close()
-                except:
+                except Exception:
                     pass
                 # terminate child process
                 try:
@@ -228,25 +228,25 @@ class MethodClass(object):
                     dumpStdOut(self.className,'waiting pid={0}'.format(child_process.pid))
                     os.waitpid(child_process.pid,0)
                     dumpStdOut(self.className,'terminated pid={0}'.format(child_process.pid))
-                except:
+                except Exception:
                     errtype,errvalue = sys.exc_info()[:2]
-                    if not 'No child processes' in str(errvalue):
+                    if 'No child processes' not in str(errvalue):
                         dumpStdOut(self.className,'failed to terminate {0} with {1}:{2}'.format(child_process.pid,
                                                                                                 errtype,errvalue))
                 # make new child process
                 self.voIF.launchChild()
             else:
-                # reduce process object to avoid deadlock due to rebuilding of connection 
+                # reduce process object to avoid deadlock due to rebuilding of connection
                 child_process.reduceConnection(pipe)
                 self.connectionQueue.put(child_process)
-            # success, fatal error, or maximally attempted    
+            # success, fatal error, or maximally attempted
             if retException in [None,JEDIFatalError] or (iTry+1 == nTry):
                 break
             # sleep
-            time.sleep(1) 
+            time.sleep(1)
         # raise exception
-        if retException != None:
-            if strException == None:
+        if retException is not None:
+            if strException is None:
                 strException = 'VO={0} {1}'.format(self.vo,ret.errorValue)
             raise retException,strException
         # return
@@ -254,7 +254,7 @@ class MethodClass(object):
             return ret.returnValue
         else:
             raise retException,'VO=%s %s' % (self.vo,ret.errorValue)
-        
+
 
 
 # interface class to send command
@@ -266,7 +266,7 @@ class CommandSendInterface(object):
         self.connectionQueue = multiprocessing.Queue(maxChild)
         self.moduleName = moduleName
         self.className  = className
-        
+
 
     # factory method
     def __getattr__(self,attrName):
@@ -287,11 +287,11 @@ class CommandSendInterface(object):
         timeNow = datetime.datetime.utcnow()
         try:
             cls(channel).start()
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             dumpStdOut(self.className,'launcher crashed with {0}:{1}'.format(errtype,errvalue))
-                     
-            
+
+
 
     # launch child processes to interact with DDM
     def launchChild(self):
@@ -303,7 +303,7 @@ class CommandSendInterface(object):
         # start child process
         child_process.daemon = True
         child_process.start()
-        # keep process in queue        
+        # keep process in queue
         processObj = ProcessClass(child_process.pid,parent_conn)
         self.connectionQueue.put(processObj)
 
@@ -332,13 +332,13 @@ class CommandReceiveInterface(object):
                 tmpKey += '{0}:'.format(str(argItem))
             for argKey,argVal in argMap.iteritems():
                 tmpKey += '{0}={1}:'.format(argKey,str(argVal))
-            tmpKey = tmpKey[:-1]   
-            return tmpKey    
-        except:
+            tmpKey = tmpKey[:-1]
+            return tmpKey
+        except Exception:
             return None
 
-                
-    # main loop    
+
+    # main loop
     def start(self):
         while True:
             # send ACK
@@ -367,7 +367,7 @@ class CommandReceiveInterface(object):
                         del commandObj.argMap['useResultCache']
                         # make key for cache
                         tmpCacheKey = self.makeKey(className,commandObj.methodName,commandObj.argList,commandObj.argMap)
-                        if tmpCacheKey != None:
+                        if tmpCacheKey is not None:
                             useCache = True
                             # cache is fresh
                             if self.cacheMap.has_key(tmpCacheKey) and \
@@ -398,10 +398,10 @@ class CommandReceiveInterface(object):
                                         retObj.errorValue = tmpRet[1]
                                     else:
                                         retObj.errorValue = tmpRet[1:]
-                    else:        
+                    else:
                         retObj.statusCode = self.SC_SUCCEEDED
                         retObj.returnValue = tmpRet
-                except:
+                except Exception:
                     errtype,errvalue = sys.exc_info()[:2]
                     # failed
                     retObj.statusCode = self.SC_FATAL
@@ -445,6 +445,3 @@ class JEDITimeoutError(Exception):
 # exception for no child error
 class JEDINoChildError(Exception):
     pass
-
-
-
