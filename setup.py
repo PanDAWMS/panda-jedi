@@ -15,8 +15,8 @@ import getpass
 import grp
 
 import PandaPkgInfo
-from distutils.core import setup
-from distutils.command.install import install as install_org
+from setuptools import setup
+from setuptools.command.install import install as install_org
 from distutils.command.install_data import install_data as install_data_org
 
 # define user name and group
