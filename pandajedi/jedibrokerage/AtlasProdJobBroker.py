@@ -4,6 +4,11 @@ import datetime
 
 from six import iteritems
 
+try:
+    long()
+except Exception:
+    long = int
+
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate

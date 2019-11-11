@@ -13,6 +13,11 @@ import cx_Oracle
 
 from six import iteritems
 
+try:
+    long()
+except Exception:
+    long = int
+
 from pandajedi.jediconfig import jedi_config
 
 from pandaserver import taskbuffer
@@ -3352,7 +3357,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.cur.execute(sqlRM+comment, varMap)
                         else:
                             self.cur.execute(sqlCJ_RM+comment, varMap)
-                        memReqs = map (lambda req: req[0], self.cur.fetchall()) #Unpack resultset
+                        memReqs = [req[0] for req in self.cur.fetchall()] #Unpack resultset
 
                         # Group 0 and NULL memReqs
                         if 0 in memReqs and None in memReqs:
@@ -5156,9 +5161,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # keep original outputMapKey since provenanceID may change
                     outputMapKey = datasetSpec.outputMapKey()
                     # associate to unmerged dataset
-                    if unmergeMasterDatasetSpec.has_key(datasetSpec.outputMapKey()):
+                    if datasetSpec.outputMapKey() in unmergeMasterDatasetSpec:
                         datasetSpec.provenanceID = unmergeMasterDatasetSpec[datasetSpec.outputMapKey()].datasetID
-                    elif unmergeDatasetSpecMap.has_key(datasetSpec.outputMapKey()):
+                    elif datasetSpec.outputMapKey() in unmergeDatasetSpecMap:
                         datasetSpec.provenanceID = unmergeDatasetSpecMap[datasetSpec.outputMapKey()].datasetID
                     varMap = datasetSpec.valuesMap(useSeq=True)
                     varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
@@ -6684,7 +6689,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 for jediTaskID,tmpVal in iteritems(taskCloudMap):
                     # begin transaction
                     self.conn.begin()
-                    if isinstance(tmpVal,types.StringType):
+                    if isinstance(tmpVal, str):
                         # sql to set cloud
                         sql  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
                         sql += "SET cloud=:cloud,status=:status,oldStatus=NULL,stateChangeTime=CURRENT_DATE "
@@ -10849,7 +10854,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         for key in keyList:
             varMap[':key{0}'.format(i)] = key
             i += 1
-        key_bindings = ','.join(':key{0}'.format(i) for i in xrange(len(keyList)))
+        key_bindings = ','.join(':key{0}'.format(i) for i in range(len(keyList)))
 
         sql = """
         SELECT src, key, value, ts FROM {0}.network_matrix_kv

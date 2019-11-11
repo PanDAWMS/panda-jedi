@@ -4,13 +4,22 @@ import sys
 import time
 import copy
 import signal
-import urllib
 import socket
 import random
 import datetime
 import traceback
 
 from six import iteritems
+
+try:
+    long()
+except Exception:
+    long = int
+
+try:
+    from urllib.parse import unquote
+except ImportError:
+    from urllib import unquote
 
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread,MapWithLock
 from pandajedi.jedicore import Interaction
@@ -1828,7 +1837,7 @@ class JobGeneratorThread (WorkerThread):
                     parTemplate = parTemplate.replace('${'+streamNames+'}',replaceStr)
                     # encoded
                     encStreamName = streamNames+'/E'
-                    replaceStr = urllib.unquote(replaceStr)
+                    replaceStr = unquote(replaceStr)
                     parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
                 else:
                     # compact format
@@ -1875,7 +1884,7 @@ class JobGeneratorThread (WorkerThread):
                     parTemplate = parTemplate.replace('${'+streamNames+'}',replaceStr)
                     # encoded
                     encStreamName = streamNames+'/E'
-                    replaceStr = urllib.unquote(fullLFNList)
+                    replaceStr = unquote(fullLFNList)
                     parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
         # replace params related to transient files
         replaceStrMap = {}

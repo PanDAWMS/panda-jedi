@@ -1077,7 +1077,7 @@ class JediTaskSpec(object):
                         tmpList.remove('')
                     except Exception:
                         pass
-                    return map(int,tmpList)
+                    return list(map(int, tmpList))
         except Exception:
             pass
         return None

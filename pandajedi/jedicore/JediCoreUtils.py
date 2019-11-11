@@ -3,6 +3,11 @@ import os
 import copy
 import math
 
+try:
+    long()
+except Exception:
+    long = int
+
 
 # get effective file size
 def getEffectiveFileSize(fsize,startEvent,endEvent,nEvents):

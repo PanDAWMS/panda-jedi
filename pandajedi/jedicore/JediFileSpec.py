@@ -52,8 +52,8 @@ class JediFileSpec(object):
     # reset changed attribute list
     def resetChangedList(self):
         object.__setattr__(self,'_changedAttrs',{})
-        
-    
+
+
     # return map of values
     def valuesMap(self,useSeq=False,onlyChanged=False):
         ret = {}
@@ -100,7 +100,7 @@ class JediFileSpec(object):
                 arg = defaultVales[attr]
                 if arg is None:
                     ret += "NULL"
-                elif isinstance(arg,types.StringType):
+                elif isinstance(arg, str):
                     ret += "'{0}'".format(arg)
                 else:
                     ret += "{0}".format(arg)
@@ -119,11 +119,11 @@ class JediFileSpec(object):
             else:
                 ret += ":%s," % attr
         ret = ret[:-1]
-        ret += ")"            
+        ret += ")"
         return ret
     bindValuesExpression = classmethod(bindValuesExpression)
 
-    
+
     # return an expression of bind variables for UPDATE to update only changed attributes
     def bindUpdateChangesExpression(self):
         ret = ""
@@ -161,15 +161,15 @@ class JediFileSpec(object):
             if self.type in datasetSpec.getInputTypes() or setType in datasetSpec.getInputTypes():
                 # prodDBlock
                 jobFileSpec.prodDBlock = datasetSpec.datasetName
-                # storage token    
+                # storage token
                 if datasetSpec.storageToken not in ['',None]:
-                    jobFileSpec.dispatchDBlockToken = datasetSpec.storageToken 
+                    jobFileSpec.dispatchDBlockToken = datasetSpec.storageToken
             else:
                 # destinationDBlock
                 jobFileSpec.destinationDBlock = datasetSpec.datasetName
-                # storage token    
+                # storage token
                 if datasetSpec.storageToken not in ['',None]:
-                    jobFileSpec.destinationDBlockToken = datasetSpec.storageToken.split('/')[0] 
+                    jobFileSpec.destinationDBlockToken = datasetSpec.storageToken.split('/')[0]
                 # destination
                 if datasetSpec.destination not in ['',None]:
                     jobFileSpec.destinationSE = datasetSpec.destination

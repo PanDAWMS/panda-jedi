@@ -5,6 +5,11 @@ import traceback
 
 from six import iteritems
 
+try:
+    long()
+except Exception:
+    long = int
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
 from TaskBrokerBase import TaskBrokerBase

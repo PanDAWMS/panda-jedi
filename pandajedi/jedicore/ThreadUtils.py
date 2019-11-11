@@ -20,7 +20,7 @@ class ListWithLock:
         self.lock.release()
         return ret
 
-    def next(self):
+    def __next__(self):
         if self.dataIndex >= len(self.dataList):
             self.dataIndex = 0
             raise StopIteration
@@ -65,7 +65,7 @@ class ListWithLock:
             ret = 'None'
         self.lock.release()
         return ret
-        
+
 
 
 # map with lock
@@ -102,7 +102,7 @@ class MapWithLock:
         if item not in self.dataMap:
             return 0
         return self.dataMap[item]
-    
+
     def iteritems(self):
         return iteritems(self.dataMap)
 
@@ -119,7 +119,7 @@ class ThreadPool:
         self.lock.acquire()
         self.list.append(obj)
         self.lock.release()
-        
+
     # remove thread
     def remove(self,obj):
         self.lock.acquire()
@@ -128,7 +128,7 @@ class ThreadPool:
         except Exception:
             pass
         self.lock.release()
-        
+
     # join
     def join(self,timeOut=None):
         thrlist = tuple(self.list)
@@ -146,7 +146,7 @@ class ThreadPool:
         for thr in thrlist:
             if not thr.isAlive():
                 self.remove(thr)
-        
+
     # dump contents
     def dump(self):
         thrlist = tuple(self.list)
@@ -187,7 +187,7 @@ class WorkerThread (threading.Thread):
         # release slot
         if self.workerSemaphore is not None:
             self.workerSemaphore.release()
-            
+
 
 
 # thread class to cleanup zombi processes

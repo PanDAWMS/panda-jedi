@@ -381,11 +381,11 @@ class CommandReceiveInterface(object):
                         # get function
                         functionObj = getattr(self,commandObj.methodName)
                         # exec
-                        tmpRet = apply(functionObj,commandObj.argList,commandObj.argMap)
+                        tmpRet = functionObj(*commandObj.argList, **commandObj.argMap)
                     if isinstance(tmpRet,StatusCode):
                         # only status code was returned
                         retObj.statusCode = tmpRet
-                    elif (isinstance(tmpRet,types.TupleType) or isinstance(tmpRet,types.ListType)) \
+                    elif (isinstance(tmpRet, tuple) or isinstance(tmpRet, list)) \
                        and len(tmpRet) > 0 and isinstance(tmpRet[0],StatusCode):
                             retObj.statusCode = tmpRet[0]
                             # status code + return values

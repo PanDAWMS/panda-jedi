@@ -6,8 +6,12 @@ import random
 import datetime
 import json
 import types
-import urllib2
 import traceback
+
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib2 import urlopen
 
 from six import iteritems
 
@@ -225,7 +229,7 @@ class AtlasDDMClient(DDMClientBase):
         self.updateEndPointDict()
         try:
             retVal = self.endPointDict[seName][attribute]
-            if isinstance(retVal,types.UnicodeType):
+            if not isinstance(retVal, str):
                 retVal = str(retVal)
             return self.SC_SUCCEEDED,retVal
         except Exception:
@@ -1311,7 +1315,7 @@ class AtlasDDMClient(DDMClientBase):
         # get json
         try:
             tmpLog.debug('start')
-            res = urllib2.urlopen('http://atlas-agis-api.cern.ch/request/ddmendpointstatus/query/list/?json&fstate=OFF&activity=w')
+            res = urlopen('http://atlas-agis-api.cern.ch/request/ddmendpointstatus/query/list/?json&fstate=OFF&activity=w')
             jsonStr = res.read()
             self.blackListEndPoints = list(json.loads(jsonStr).keys())
             tmpLog.debug('{0} endpoints blacklisted'.format(len(self.blackListEndPoints)))
@@ -1397,7 +1401,7 @@ class AtlasDDMClient(DDMClientBase):
         try:
             tmpLog.debug('start')
             jsonStr = ''
-            res = urllib2.urlopen('http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&state=ACTIVE&preset=dict')
+            res = urlopen('http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&state=ACTIVE&preset=dict')
             jsonStr = res.read()
             self.endPointDict = json.loads(jsonStr)
             tmpLog.debug('got {0} endpoints '.format(len(self.endPointDict)))

@@ -542,7 +542,7 @@ class TaskRefinerBase (object):
                                           'filenameTemplate' : outFileTemplate,
                                           'outtype' : datasetSpec.type,
                                           }
-                        if self.outputTemplateMap.has_key(datasetSpec.outputMapKey()):
+                        if datasetSpec.outputMapKey() in self.outputTemplateMap:
                             # multiple files are associated to the same output datasets
                             self.outputTemplateMap[datasetSpec.outputMapKey()].append(outTemplateMap)
                             # don't insert the same output dataset
@@ -584,7 +584,7 @@ class TaskRefinerBase (object):
                                 umOutTemplateMap['filenameTemplate'] = outFileTemplate + '.panda.um'
                             else:
                                 umOutTemplateMap['filenameTemplate'] = 'panda.um.' + outFileTemplate
-                            if self.outputTemplateMap.has_key(umDatasetSpec.outputMapKey()):
+                            if umDatasetSpec.outputMapKey() in self.outputTemplateMap:
                                 # multiple files are associated to the same output datasets
                                 self.outputTemplateMap[umDatasetSpec.outputMapKey()].append(umOutTemplateMap)
                                 # don't insert the same output dataset
@@ -650,17 +650,17 @@ class TaskRefinerBase (object):
 
     # replace placeholder with dict provided by prepro job
     def replacePlaceHolders(self,paramItem,placeHolderName,newValue):
-        if isinstance(paramItem,types.DictType):
+        if isinstance(paramItem, dict):
             # loop over all dict params
             for tmpParName,tmpParVal in iteritems(paramItem):
                 if tmpParVal == placeHolderName:
                     # replace placeholder
                     paramItem[tmpParName] = newValue
-                elif isinstance(tmpParVal,types.DictType) or \
-                        isinstance(tmpParVal,types.ListType):
+                elif isinstance(tmpParVal, dict) or \
+                        isinstance(tmpParVal, list):
                     # recursive execution
                     self.replacePlaceHolders(tmpParVal,placeHolderName,newValue)
-        elif isinstance(paramItem,types.ListType):
+        elif isinstance(paramItem, list):
             # loop over all list items
             for tmpItem in paramItem:
                 self.replacePlaceHolders(tmpItem,placeHolderName,newValue)

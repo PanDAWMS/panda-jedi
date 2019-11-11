@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 import sys
 import re
-import urllib
 import xml.dom.minidom
+
+try:
+    from urllib.parse import quote
+except ImportError:
+    from urllib import quote
+
 
 from six import iteritems
 
@@ -108,7 +113,7 @@ class dom_job:
         This way, all options will be set inside run.sh
         """
         comStr = '%s %s'%(s.forward_opts(),s.command)
-        return urllib.quote(comStr)
+        return quote(comStr)
     def get_outmap_str(s,outMap):
         """ return mapping of original and new filenames
         """

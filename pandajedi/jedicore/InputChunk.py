@@ -3,6 +3,11 @@ import random
 
 from six import iteritems
 
+try:
+    long()
+except Exception:
+    long = int
+
 from JediTaskSpec import JediTaskSpec
 import JediCoreUtils
 

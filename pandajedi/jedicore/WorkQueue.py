@@ -184,7 +184,7 @@ class WorkQueue(object):
             # normal queue
             # expand parameters to local namespace
             for tmp_param_key, tmp_param_val in iteritems(param_map):
-                if isinstance(tmp_param_val, types.StringType):
+                if isinstance(tmp_param_val, str):
                     # add quotes for string
                     exec('{0}="{1}"'.format(tmp_param_key, tmp_param_val))
                 else:

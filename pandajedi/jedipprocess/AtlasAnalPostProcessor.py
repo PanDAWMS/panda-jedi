@@ -1,11 +1,15 @@
 import re
 import sys
 import time
-import urllib
 import datetime
 import random
 
 from six import iteritems
+
+try:
+    from urllib.parmase import urlencode
+except ImportError:
+    from urllib import urlencode
 
 from pandajedi.jedicore import Interaction
 from PostProcessorBase import PostProcessorBase
@@ -250,8 +254,8 @@ PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(\
             errorDialog=self.removeTags(taskSpec.errorDialog),
             params=cliParams,
             taskName=taskSpec.taskName,
-            oldPandaMon=urllib.urlencode(urlData),
-            newPandaMon=urllib.urlencode(newUrlData),
+            oldPandaMon=urlencode(urlData),
+            newPandaMon=urlencode(newUrlData),
             numTotal=numTotal,
             numOK=numOK,
             numNG=numNG,

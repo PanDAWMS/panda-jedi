@@ -37,7 +37,7 @@ class JediMaster:
                                                                moduleName,
                                                                'launcher',
                                                                os.getpid()))
-        apply(mod.launcher,args,kwargs)
+        mod.launcher(*args, **kwargs)
 
 
 

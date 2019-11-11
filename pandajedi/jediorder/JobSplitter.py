@@ -15,7 +15,7 @@ class JobSplitter:
         self.sizeGradientsPerInSizeForMerge = 1.2
         self.interceptsMerginForMerge = 500 * 1024 * 1024
 
-        
+
 
     # split
     def doSplit(self,taskSpec,inputChunk,siteMapper):
@@ -30,7 +30,7 @@ class JobSplitter:
             maxNumFiles = taskSpec.getMaxNumFilesPerJob()
             # set fsize gradients using taskSpec
             sizeGradients  = taskSpec.getOutDiskSize()
-            # set fsize intercepts using taskSpec                
+            # set fsize intercepts using taskSpec
             sizeIntercepts = taskSpec.getWorkDiskSize()
             # walltime
             if not taskSpec.useHS06():
@@ -97,7 +97,7 @@ class JobSplitter:
                 maxOutSize = 5 * 1024 * 1024 * 1024
             # split with fields
             if taskSpec.getFieldNumToLFN() is not None and taskSpec.useFileAsSourceLFN():
-                splitByFields = range(4+1,4+1+len(taskSpec.getFieldNumToLFN()))
+                splitByFields = list(range(4+1, 4+1+len(taskSpec.getFieldNumToLFN())))
             else:
                 splitByFields = None
         # LB

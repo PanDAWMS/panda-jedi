@@ -39,7 +39,7 @@ for tmp_site_name in sites:
     #print 'tmp_site_spec.setokens_input: {0}'.format(tmp_site_spec.setokens_input.values())
     #print 'combination: {0}'.format([tmp_site_spec.ddm_input] + tmp_site_spec.setokens_input.values())
 
-    for tmp_ddm_endpoint in [tmp_site_spec.ddm_input] + tmp_site_spec.setokens_input.values():
+    for tmp_ddm_endpoint in [tmp_site_spec.ddm_input] + list(tmp_site_spec.setokens_input.values()):
         try:
             tmp_prefix = DataServiceUtils.getDQ2Prefix(tmp_ddm_endpoint)
             print('prefix: {0}'.format(tmp_prefix))
