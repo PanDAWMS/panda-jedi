@@ -109,11 +109,11 @@ class JediDatasetSpec(object):
         ret = {}
         for attr in self._attributes:
             # use sequence
-            if useSeq and self._seqAttrMap.has_key(attr):
+            if useSeq and attr in self._seqAttrMap:
                 continue
             # only changed attributes
             if onlyChanged:
-                if not self._changedAttrs.has_key(attr):
+                if attr not in self._changedAttrs:
                     continue
             val = getattr(self,attr)
             if val is None:
@@ -152,7 +152,7 @@ class JediDatasetSpec(object):
     def bindValuesExpression(cls,useSeq=True):
         ret = "VALUES("
         for attr in cls._attributes:
-            if useSeq and cls._seqAttrMap.has_key(attr):
+            if useSeq and attr in cls._seqAttrMap:
                 ret += "%s," % cls._seqAttrMap[attr]
             else:
                 ret += ":%s," % attr
@@ -167,7 +167,7 @@ class JediDatasetSpec(object):
     def bindUpdateChangesExpression(self):
         ret = ""
         for attr in self._attributes:
-            if self._changedAttrs.has_key(attr):
+            if attr in self._changedAttrs:
                 ret += '%s=:%s,' % (attr,attr)
         ret  = ret[:-1]
         ret += ' '

@@ -173,7 +173,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     # check if dataset is in the container
                     if datasetSpec.containerName is not None and datasetSpec.containerName != datasetSpec.datasetName:
                         # get list of constituent datasets in the container
-                        if not cnDatasetMap.has_key(datasetSpec.containerName):
+                        if datasetSpec.containerName not in cnDatasetMap:
                             cnDatasetMap[datasetSpec.containerName] = ddmIF.listDatasetsInContainer(datasetSpec.containerName)
                         # add dataset
                         if datasetSpec.datasetName not in cnDatasetMap[datasetSpec.containerName]:

@@ -137,7 +137,7 @@ class ContentsFeederThread (WorkerThread):
                         tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
                         taskBroken = True
                     # renaming of parameters
-                    if taskParamMap.has_key('nEventsPerInputFile'):
+                    if 'nEventsPerInputFile' in taskParamMap:
                         taskParamMap['nEventsPerFile'] = taskParamMap['nEventsPerInputFile']
                     # the number of files per job
                     nFilesPerJob = taskSpec.getNumFilesPerJob()
@@ -173,7 +173,7 @@ class ContentsFeederThread (WorkerThread):
                     if not taskBroken:
                         ddmIF = self.ddmIF.getInterface(taskSpec.vo)
                         origNumFiles = None
-                        if taskParamMap.has_key('nFiles'):
+                        if 'nFiles' in taskParamMap:
                             origNumFiles = taskParamMap['nFiles']
                         for datasetSpec in dsList:
                             tmpLog.debug('start loop for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))
@@ -224,7 +224,7 @@ class ContentsFeederThread (WorkerThread):
                                 # get file list specified in task parameters
                                 fileList,includePatt,excludePatt = RefinerUtils.extractFileList(taskParamMap,datasetSpec.datasetName)
                                 # get the number of events in metadata
-                                if taskParamMap.has_key('getNumEventsInMetadata'):
+                                if 'getNumEventsInMetadata' in taskParamMap:
                                     getNumEvents = True
                                 else:
                                     getNumEvents = False
@@ -234,7 +234,7 @@ class ContentsFeederThread (WorkerThread):
                                     useInFilesWithNewAttemptNr = False
                                     skipDuplicate = not datasetSpec.useDuplicatedFiles()
                                     if not datasetSpec.isPseudo():
-                                        if fileList != [] and taskParamMap.has_key('useInFilesInContainer') and \
+                                        if fileList != [] and 'useInFilesInContainer' in taskParamMap and \
                                                 datasetSpec.containerName not in ['',None]:
                                             # read files from container if file list is specified in task parameters
                                             tmpDatasetName = datasetSpec.containerName
@@ -264,10 +264,10 @@ class ContentsFeederThread (WorkerThread):
                                                 nPFN = datasetSpec.getNumRecords()
                                             elif origNumFiles is not None:
                                                 nPFN = origNumFiles
-                                                if taskParamMap.has_key('nEventsPerJob') and taskParamMap.has_key('nEventsPerFile') \
+                                                if 'nEventsPerJob' in taskParamMap and 'nEventsPerFile' in taskParamMap \
                                                         and taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
                                                     nPFN = nPFN * taskParamMap['nEventsPerFile'] / taskParamMap['nEventsPerJob']
-                                                elif taskParamMap.has_key('nEventsPerFile') and taskParamMap.has_key('nEventsPerRange'):
+                                                elif 'nEventsPerFile' in taskParamMap and 'nEventsPerRange' in taskParamMap:
                                                     nPFN = nPFN * taskParamMap['nEventsPerFile'] / taskParamMap['nEventsPerRange']
                                             elif 'nEvents' in taskParamMap and 'nEventsPerJob' in taskParamMap:
                                                 nPFN = taskParamMap['nEvents'] / taskParamMap['nEventsPerJob']
@@ -314,7 +314,7 @@ class ContentsFeederThread (WorkerThread):
                                                       }
                                         else:
                                             # make dummy file list for PFN list
-                                            if taskParamMap.has_key('nFiles'):
+                                            if 'nFiles' in taskParamMap:
                                                 nPFN = taskParamMap['nFiles']
                                             else:
                                                 nPFN = 1
@@ -354,16 +354,16 @@ class ContentsFeederThread (WorkerThread):
                                     nEventsPerJob   = None
                                     nEventsPerRange = None
                                     tgtNumEventsPerJob = None
-                                    if (datasetSpec.isMaster() and (taskParamMap.has_key('nEventsPerFile') or useRealNumEvents)) or \
-                                            (datasetSpec.isPseudo() and taskParamMap.has_key('nEvents') and not datasetSpec.isSeqNumber()):
-                                        if taskParamMap.has_key('nEventsPerFile'):
+                                    if (datasetSpec.isMaster() and ('nEventsPerFile' in taskParamMap or useRealNumEvents)) or \
+                                            (datasetSpec.isPseudo() and 'nEvents' in taskParamMap and not datasetSpec.isSeqNumber()):
+                                        if 'nEventsPerFile' in taskParamMap:
                                             nEventsPerFile = taskParamMap['nEventsPerFile']
-                                        elif datasetSpec.isMaster() and datasetSpec.isPseudo() and taskParamMap.has_key('nEvents'):
+                                        elif datasetSpec.isMaster() and datasetSpec.isPseudo() and 'nEvents' in taskParamMap:
                                             # use nEvents as nEventsPerFile for pseudo input
                                             nEventsPerFile = taskParamMap['nEvents']
-                                        if taskParamMap.has_key('nEventsPerJob'):
+                                        if 'nEventsPerJob' in taskParamMap:
                                             nEventsPerJob = taskParamMap['nEventsPerJob']
-                                        elif taskParamMap.has_key('nEventsPerRange'):
+                                        elif 'nEventsPerRange' in taskParamMap:
                                             nEventsPerRange = taskParamMap['nEventsPerRange']
                                         if 'tgtNumEventsPerJob' in taskParamMap:
                                             tgtNumEventsPerJob = taskParamMap['tgtNumEventsPerJob']
@@ -377,7 +377,7 @@ class ContentsFeederThread (WorkerThread):
                                         if taskSpec.disableAutoRetry():
                                             # disable auto retry
                                             maxAttempt = 1
-                                        elif taskParamMap.has_key('maxAttempt'):
+                                        elif 'maxAttempt' in taskParamMap:
                                             maxAttempt = taskParamMap['maxAttempt']
                                         else:
                                             # use default value
@@ -392,23 +392,23 @@ class ContentsFeederThread (WorkerThread):
                                         firstEventNumber = 1 + taskSpec.getFirstEventOffset()
                                     # nMaxEvents
                                     nMaxEvents = None
-                                    if datasetSpec.isMaster() and taskParamMap.has_key('nEvents'):
+                                    if datasetSpec.isMaster() and 'nEvents' in taskParamMap:
                                         nMaxEvents = taskParamMap['nEvents']
                                     # nMaxFiles
                                     nMaxFiles = None
-                                    if taskParamMap.has_key('nFiles'):
+                                    if 'nFiles' in taskParamMap:
                                         if datasetSpec.isMaster():
                                             nMaxFiles = taskParamMap['nFiles']
                                         else:
                                             # calculate for secondary
                                             nMaxFiles = datasetSpec.getNumMultByRatio(origNumFiles)
                                             # multipled by the number of jobs per file for event-level splitting
-                                            if nMaxFiles is not None and taskParamMap.has_key('nEventsPerFile'):
-                                                if taskParamMap.has_key('nEventsPerJob'):
+                                            if nMaxFiles is not None and 'nEventsPerFile' in taskParamMap:
+                                                if 'nEventsPerJob' in taskParamMap:
                                                     if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
                                                         nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerJob'])
                                                         nMaxFiles = int(math.ceil(nMaxFiles))
-                                                elif taskParamMap.has_key('nEventsPerRange'):
+                                                elif 'nEventsPerRange' in taskParamMap:
                                                     if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerRange']:
                                                         nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerRange'])
                                                         nMaxFiles = int(math.ceil(nMaxFiles))
@@ -418,7 +418,7 @@ class ContentsFeederThread (WorkerThread):
                                         useScout = True
                                     # use files with new attempt numbers
                                     useFilesWithNewAttemptNr = False
-                                    if not datasetSpec.isPseudo() and fileList != [] and taskParamMap.has_key('useInFilesWithNewAttemptNr'):
+                                    if not datasetSpec.isPseudo() and fileList != [] and 'useInFilesWithNewAttemptNr' in taskParamMap:
                                         useFilesWithNewAttemptNr = True
                                     # ramCount
                                     ramCount = 0
@@ -483,7 +483,7 @@ class ContentsFeederThread (WorkerThread):
                                                                                'missingFiles':missingFileList}
                                     else:
                                         # reduce the number of files to be read
-                                        if taskParamMap.has_key('nFiles'):
+                                        if 'nFiles' in taskParamMap:
                                             if datasetSpec.isMaster():
                                                 taskParamMap['nFiles'] -= nFilesUnique
                                         # reduce the number of files for scout

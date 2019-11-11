@@ -132,7 +132,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 oldScanUnifiedSiteList = self.get_unified_sites(oldScanSiteList)
                 for datasetSpec in inputChunk.getDatasets():
                     datasetName = datasetSpec.datasetName
-                    if not self.dataSiteMap.has_key(datasetName):
+                    if datasetName not in self.dataSiteMap:
                         # get the list of sites where data is available
                         tmpLog.debug('getting the list of sites where {0} is available'.format(datasetName))
                         tmpSt,tmpRet = AtlasBrokerUtils.getAnalSitesWithData(self.get_unified_sites(scanSiteList),
@@ -205,7 +205,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         tmpSatelliteSites = {}
                     # make weight map for local
                     for tmpSiteName in tmpSiteList:
-                        if not dataWeight.has_key(tmpSiteName):
+                        if tmpSiteName not in dataWeight:
                             dataWeight[tmpSiteName] = 0
                         # give more weight to disk
                         if tmpSiteName in tmpDiskSiteList:
@@ -223,12 +223,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         if tmpSiteSpec.wansinklimit not in [0,None]:
                             wRemote /= float(tmpSiteSpec.wansinklimit)
                         # sum weight
-                        if not dataWeight.has_key(tmpSiteName):
+                        if tmpSiteName not in dataWeight:
                             dataWeight[tmpSiteName] = float(tmpWeightSrcMap['weight'])/wRemote
                         else:
                             dataWeight[tmpSiteName] += float(tmpWeightSrcMap['weight'])/wRemote
                         # make remote source list
-                        if not remoteSourceList.has_key(tmpSiteName):
+                        if tmpSiteName not in remoteSourceList:
                             remoteSourceList[tmpSiteName] = {}
                         remoteSourceList[tmpSiteName][datasetName] = tmpWeightSrcMap['source']
                     # first list
@@ -628,7 +628,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 # check at the site
                 nPilot = 0
-                if nWNmap.has_key(tmpSiteName):
+                if tmpSiteName in nWNmap:
                     nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
                 if nPilot == 0 and taskSpec.prodSourceLabel not in ['test']:
                     tmpLog.info('  skip site=%s due to no pilot criteria=-nopilot' % tmpSiteName)
@@ -661,7 +661,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # limited access
                 if tmpSiteSpec.accesscontrol == 'grouplist':
-                    if not siteAccessMap.has_key(tmpSiteSpec.sitename) or \
+                    if tmpSiteSpec.sitename not in siteAccessMap or \
                             siteAccessMap[tmpSiteSpec.sitename] != 'approved':
                         tmpLog.info('  skip site={0} limited access criteria=-limitedaccess'.format(tmpSiteName))
                         continue
@@ -815,7 +815,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     if tmpSiteName in fileScanSiteList:
                         continue
                     fileScanSiteList.append(tmpSiteName)
-                    if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(datasetSpec.datasetName):
+                    if tmpSiteName in remoteSourceList and datasetSpec.datasetName in remoteSourceList[tmpSiteName]:
                         for tmpRemoteSite in remoteSourceList[tmpSiteName][datasetSpec.datasetName]:
                             if tmpRemoteSite not in fileScanSiteList:
                                 fileScanSiteList.append(tmpRemoteSite)
@@ -905,7 +905,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             # calculate weight
             weight = float(nRunning + 1) / float(nActivated + nAssigned + nDefined + nStarting + 1)
             nThrottled = 0
-            if remoteSourceList.has_key(tmpSiteName):
+            if tmpSiteName in remoteSourceList:
                 nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,None)
                 weight /= float(nThrottled + 1)
             # noramize weights by taking data availability into account
@@ -914,7 +914,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             localSize = totalSize
             if checkDataLocality:
                 tmpDataWeight = 1
-                if dataWeight.has_key(tmpSiteName):
+                if tmpSiteName in dataWeight:
                     weight *= dataWeight[tmpSiteName]
                     tmpDataWeight = dataWeight[tmpSiteName]
             else:
@@ -950,7 +950,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if tmpSiteName in sitesUsedByTask:
                 candidateSpecList.append(siteCandidateSpec)
             else:
-                if not weightMap.has_key(weight):
+                if weight not in weightMap:
                     weightMap[weight] = []
                 weightMap[weight].append(siteCandidateSpec)
         oldScanSiteList = copy.copy(scanSiteList)
@@ -1003,9 +1003,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():
                 tmpDatasetSpec = inputChunk.getDatasetWithName(tmpDatasetName)
                 # check remote files
-                if remoteSourceList.has_key(tmpSiteName) and remoteSourceList[tmpSiteName].has_key(tmpDatasetName):
+                if tmpSiteName in remoteSourceList and tmpDatasetName in remoteSourceList[tmpSiteName]:
                     for tmpRemoteSite in remoteSourceList[tmpSiteName][tmpDatasetName]:
-                        if availableFiles.has_key(tmpRemoteSite) and \
+                        if tmpRemoteSite in availableFiles and \
                                 len(tmpDatasetSpec.Files) <= len(availableFiles[tmpRemoteSite]['localdisk']):
                             # use only remote disk files
                             siteCandidateSpec.remoteFiles += availableFiles[tmpRemoteSite]['localdisk']
@@ -1015,7 +1015,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             isAvailable = True
                             break
                 # local files
-                if availableFiles.has_key(tmpSiteName):
+                if tmpSiteName in availableFiles:
                     if len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localdisk']) or \
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['cache']) or \
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localtape']) or \

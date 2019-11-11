@@ -137,7 +137,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
         if toAdd is None or \
-                (self.taskParamMap is not None and self.taskParamMap.has_key('noEmail') and self.taskParamMap['noEmail'] is True):
+                (self.taskParamMap is not None and 'noEmail' in self.taskParamMap and self.taskParamMap['noEmail'] is True):
             tmpLog.debug('email notification is suppressed')
         else:
             # send email notification

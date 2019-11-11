@@ -216,7 +216,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for res in resList:
                 datasetSpec = JediDatasetSpec()
                 datasetSpec.pack(res)
-                if not returnMap.has_key(datasetSpec.jediTaskID):
+                if datasetSpec.jediTaskID not in returnMap:
                     returnMap[datasetSpec.jediTaskID] = []
                 returnMap[datasetSpec.jediTaskID].append(datasetSpec)
                 nDS += 1
@@ -443,7 +443,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 for tmpJobXML in xmlConfig.jobs:
                     for tmpLFN in tmpJobXML.files_in_DS(datasetSpec.datasetName):
                         # check if the file is available
-                        if not filelValMap.has_key(tmpLFN):
+                        if tmpLFN not in filelValMap:
                             diagMap['errMsg'] = "{0} is not found in {1}".format(tmpLFN,datasetSpec.datasetName)
                             tmpLog.error(diagMap['errMsg'])
                             return failedRet
@@ -519,12 +519,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                           fileSpec.lfn))
                 elif nEventsPerFile is not None:
                     fileSpec.nEvents = nEventsPerFile
-                elif fileVal.has_key('events') and fileVal['events'] not in ['None',None]:
+                elif 'events' in fileVal and fileVal['events'] not in ['None',None]:
                     try:
                         fileSpec.nEvents = long(fileVal['events'])
                     except Exception:
                         fileSpec.nEvents = None
-                if fileVal.has_key('lumiblocknr'):
+                if 'lumiblocknr' in fileVal:
                     try:
                         fileSpec.lumiBlockNr = long(fileVal['lumiblocknr'])
                     except Exception:
@@ -2296,13 +2296,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if  useRunning is False and jobStatus == 'running':
                         continue
                     # add site
-                    if not returnMap.has_key(computingSite):
+                    if computingSite not in returnMap:
                         returnMap[computingSite] = {}
                     # add workQueue
-                    if not returnMap[computingSite].has_key(workQueue_ID):
+                    if workQueue_ID not in returnMap[computingSite]:
                         returnMap[computingSite][workQueue_ID] = {}
                     # add jobstatus
-                    if not returnMap[computingSite][workQueue_ID].has_key(jobStatus):
+                    if jobStatus not in returnMap[computingSite][workQueue_ID]:
                         returnMap[computingSite][workQueue_ID][jobStatus] = 0
                     # add
                     returnMap[computingSite][workQueue_ID][jobStatus] += nCount
@@ -2550,7 +2550,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         doInstantiate = False
                         if isUnMerging:
                             # instantiate new datasets in each submission for premerged
-                            if siteDsMap.has_key(datasetID) and siteDsMap[datasetID].has_key(instantiatedSite):
+                            if datasetID in siteDsMap and instantiatedSite in siteDsMap[datasetID]:
                                 fileDatasetID = siteDsMap[datasetID][instantiatedSite]
                                 tmpLog.debug('found concrete premerged datasetID={0}'.format(fileDatasetID))
                             else:
@@ -2623,9 +2623,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 datasetToRegister.append(fileDatasetID)
                             # collect IDs for pre-merging
                             if isUnMerging:
-                                if not siteDsMap.has_key(datasetID):
+                                if datasetID not in siteDsMap:
                                     siteDsMap[datasetID] = {}
-                                if not siteDsMap[datasetID].has_key(instantiatedSite):
+                                if instantiatedSite not in siteDsMap[datasetID]:
                                     siteDsMap[datasetID][instantiatedSite] = fileDatasetID
                         # keep relation between template and concrete
                         if datasetID not in tmpl_RelationMap:
@@ -2987,7 +2987,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # task and usermap
                 taskUserMap[jediTaskID] = groupByAttr
                 # make task-dataset mapping
-                if not taskDatasetMap.has_key(jediTaskID):
+                if jediTaskID not in taskDatasetMap:
                     taskDatasetMap[jediTaskID] = []
 
                 taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,
@@ -3555,7 +3555,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     pass
                                 if typicalNumFilesPerJob < 1:
                                     typicalNumFilesPerJob = 1
-                            elif typicalNumFilesMap is not None and typicalNumFilesMap.has_key(taskSpec.processingType) \
+                            elif typicalNumFilesMap is not None and taskSpec.processingType in typicalNumFilesMap \
                                     and typicalNumFilesMap[taskSpec.processingType] > 0:
                                 # typical usage
                                 typicalNumFilesPerJob = typicalNumFilesMap[taskSpec.processingType]
@@ -5169,7 +5169,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # insert outputTemplates
                 tmpLog.debug('inserting outTmpl')
                 for outputMapKey,outputTemplateList in outputTemplateMap.iteritems():
-                    if not datasetIdMap.has_key(outputMapKey):
+                    if outputMapKey not in datasetIdMap:
                         raise RuntimeError('datasetID is not defined for {0}'.format(outputMapKey))
                     for outputTemplate in outputTemplateList:
                         sqlH = "INSERT INTO {0}.JEDI_Output_Template (outTempID,datasetID,".format(jedi_config.db.schemaJEDI)
@@ -5480,7 +5480,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         coreCountMap = {}
         for pandaID,fsize,startEvent,endEvent,nEvents in resList:
             pandaIDList.add(pandaID)
-            if not inFSizeMap.has_key(pandaID):
+            if pandaID not in inFSizeMap:
                 inFSizeMap[pandaID] = 0
             # get effective file size
             effectiveFsize = JediCoreUtils.getEffectiveFileSize(fsize,startEvent,endEvent,nEvents)
@@ -7132,7 +7132,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 elif commandStr == 'resume' and taskStatus == 'staging':
                                     newTaskStatus = 'staged'
                                     changeStatusOnly = True
-                                elif commandStatusMap.has_key(commandStr):
+                                elif commandStr in commandStatusMap:
                                     newTaskStatus = commandStatusMap[commandStr]['doing']
                                 else:
                                     tmpLog.error("jediTaskID={0} new status is undefined for command={1}".format(jediTaskID,commandStr))
@@ -7257,7 +7257,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug(sqlOrpU+comment+str(varMap))
                     self.cur.execute(sqlOrpU+comment,varMap)
                     nRow = self.cur.rowcount
-                    if nRow == 1 and not retTaskIDs.has_key(jediTaskID):
+                    if nRow == 1 and jediTaskID not in retTaskIDs:
                         retTaskIDs[jediTaskID] = {'command':commandStr,'comment':comComment,
                                                   'oldStatus':oldStatus}
                 # commit
@@ -8714,7 +8714,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if masterID is not None:
                                 if state not in [None,'']:
                                     # keep secondary dataset info
-                                    if not secMap.has_key(masterID):
+                                    if masterID not in secMap:
                                         secMap[masterID] = []
                                     secMap[masterID].append((datasetID,nFilesFinished,status,state))
                                     # update dataset
@@ -8805,7 +8805,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # update secondary
                         for masterID in changedMasterList:
                             # no seconday
-                            if not secMap.has_key(masterID):
+                            if masterID not in secMap:
                                 continue
                             # loop over all datasets
                             for datasetID,nFilesFinished,status,state in secMap[masterID]:

@@ -61,15 +61,15 @@ def extractFileList(taskParamMap,datasetName):
     includePatt = []
     excludePatt = []
     for tmpItem in itemList:
-        if tmpItem['type'] == 'template' and tmpItem.has_key('dataset') and \
+        if tmpItem['type'] == 'template' and 'dataset' in tmpItem and \
                 ((tmpItem['dataset'] == datasetName or tmpItem['dataset'] == baseDatasetName) or \
-                     (tmpItem.has_key('expandedList') and \
+                     ('expandedList' in tmpItem and \
                           (datasetName in tmpItem['expandedList'] or baseDatasetName in tmpItem['expandedList']))):
-            if tmpItem.has_key('files'):
+            if 'files' in tmpItem:
                 fileList = tmpItem['files']
-            if tmpItem.has_key('include'):
+            if 'include' in tmpItem:
                 includePatt = tmpItem['include'].split(',')
-            if tmpItem.has_key('exclude'):
+            if 'exclude' in tmpItem:
                 excludePatt = tmpItem['exclude'].split(',')
     return fileList,includePatt,excludePatt
 
@@ -86,7 +86,7 @@ def appendDataset(taskParamMap,datasetSpec,fileList):
     if fileList != []:
         tmpItem['files']  = fileList
     # append    
-    if not taskParamMap.has_key('jobParameters'):
+    if 'jobParameters' not in taskParamMap:
         taskParamMap['jobParameters'] = []
     taskParamMap['jobParameters'].append(tmpItem)
     return taskParamMap
@@ -96,7 +96,7 @@ def appendDataset(taskParamMap,datasetSpec,fileList):
 # check if use random seed
 def useRandomSeed(taskParamMap):
     for tmpItem in taskParamMap['jobParameters']:
-        if tmpItem.has_key('value'):
+        if 'value' in tmpItem:
             # get offset for random seed
             if tmpItem['type'] == 'template' and tmpItem['param_type'] == 'number':
                 if '${RNDMSEED}' in tmpItem['value']:

@@ -100,7 +100,7 @@ class AtlasDDMClient(DDMClientBase):
                         attNr = int(attNr)
                     # compare attempt numbers
                     addMap = False
-                    if baseLFNmap.has_key(baseLFN):
+                    if baseLFN in baseLFNmap:
                         # use larger attempt number
                         oldMap = baseLFNmap[baseLFN]
                         if oldMap['attNr'] < attNr:
@@ -413,7 +413,7 @@ class AtlasDDMClient(DDMClientBase):
                 # complete replicas
                 if not check_LFC:
                     for tmp_endpoint in tmp_endpoints:
-                        if complete_replica_map.has_key(tmp_endpoint):
+                        if tmp_endpoint in complete_replica_map:
                             storage_type = complete_replica_map[tmp_endpoint]
                             return_map[site_name][storage_type] += dataset_spec.Files
                             checked_dst.add(site_name)

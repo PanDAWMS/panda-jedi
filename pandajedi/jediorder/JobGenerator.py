@@ -1014,7 +1014,7 @@ class JobGeneratorThread (WorkerThread):
                             elif tmpFileSpec.locality == 'cache':
                                 tmpInFileSpec.status = 'cached'
                             # local IO
-                            if taskSpec.useLocalIO() or (inputChunk.isMerging and taskParamMap['mergeSpec'].has_key('useLocalIO')):
+                            if taskSpec.useLocalIO() or (inputChunk.isMerging and 'useLocalIO' in taskParamMap['mergeSpec']):
                                 tmpInFileSpec.prodDBlockToken = 'local'
                             jobSpec.addFile(tmpInFileSpec)
                             # use remote access
@@ -1302,7 +1302,7 @@ class JobGeneratorThread (WorkerThread):
                     destinationDBlock = None
                     for tmpFileSpec in outSubChunk.values():
                         # get dataset
-                        if not outDsMap.has_key(tmpFileSpec.datasetID):
+                        if tmpFileSpec.datasetID not in outDsMap:
                             tmpStat,tmpDataset = self.taskBufferIF.getDatasetWithID_JEDI(taskSpec.jediTaskID,
                                                                                          tmpFileSpec.datasetID)
                             # not found
@@ -1632,7 +1632,7 @@ class JobGeneratorThread (WorkerThread):
             outDsMap = {}
             for tmpFileSpec in outSubChunk.values():
                 # get dataset
-                if not outDsMap.has_key(tmpFileSpec.datasetID):
+                if tmpFileSpec.datasetID not in outDsMap:
                     tmpStat,tmpDataset = self.taskBufferIF.getDatasetWithID_JEDI(taskSpec.jediTaskID,
                                                                                  tmpFileSpec.datasetID)
                     # not found
@@ -1686,7 +1686,7 @@ class JobGeneratorThread (WorkerThread):
         rndmSeed   = None
         sourceURL  = None
         # source URL
-        if taskParamMap is not None and taskParamMap.has_key('sourceURL'):
+        if taskParamMap is not None and 'sourceURL' in taskParamMap:
             sourceURL = taskParamMap['sourceURL']
         # get random seed
         if taskSpec.useRandomSeed() and not isMerging:
@@ -1751,7 +1751,7 @@ class JobGeneratorThread (WorkerThread):
             if tmpStRaMatch is not None:
                 tmpStream = tmpStRaMatch.group(1)
                 tmpRange  = tmpStRaMatch.group(2)
-                if tmpPatt != tmpStream and streamLFNsMap.has_key(tmpStream):
+                if tmpPatt != tmpStream and tmpStream in streamLFNsMap:
                     try:
                         exec("streamLFNsMap['{0}']=streamLFNsMap['{1}']{2}".format(tmpPatt,tmpStream,
                                                                                    tmpRange))
@@ -1897,7 +1897,7 @@ class JobGeneratorThread (WorkerThread):
                     replaceStr += '{0},'.format(tmpLFN)
                 replaceStr = replaceStr[:-1]
             # concatenate per base stream name
-            if not replaceStrMap.has_key(streamNameBase):
+            if streamNameBase not in replaceStrMap:
                 replaceStrMap[streamNameBase] = ''
             replaceStrMap[streamNameBase] += '{0} '.format(replaceStr)
         for streamNameBase,replaceStr in replaceStrMap.iteritems():

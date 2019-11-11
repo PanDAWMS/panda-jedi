@@ -50,7 +50,7 @@ def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
             # check DDM
             if tmpT1Spec.ddm_output == tmpSiteSpec.ddm_output: # TODO: check with Tadashi
                 # append
-                if not retMap.has_key(tmpCloudName):
+                if tmpCloudName not in retMap:
                     retMap[tmpCloudName] = []
                 if tmpSiteName not in retMap[tmpCloudName]:
                     retMap[tmpCloudName].append(tmpSiteName)
@@ -245,7 +245,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
             # DBR
             if DataServiceUtils.isCachedFile(datasetName,tmpSiteSpec):
                 # no replica check since it is cached
-                if not retMap.has_key(tmpSiteName):
+                if tmpSiteName not in retMap:
                     retMap[tmpSiteName] = {}
                 retMap[tmpSiteName][tmpDDM] = {'tape': False, 'state': 'complete'}
                 checkedEndPoints.append(tmpPrefix)
@@ -280,7 +280,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
                 else:
                     tmpDatasetStatus = 'incomplete'
                 # append
-                if not retMap.has_key(tmpSiteName):
+                if tmpSiteName not in retMap:
                     retMap[tmpSiteName] = {}
                 retMap[tmpSiteName][tmpSE] = {'tape':tmpOnTape,'state':tmpDatasetStatus}
                 if 'vp' in tmpStatistics:
@@ -342,9 +342,9 @@ def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,t
                 continue
             # use first or larger value
             tmpSiteSpec = siteMapper.getSite(tmpD)
-            if not retVal.has_key(tmpD) or retVal[tmpD]['weight'] < tmpW:
+            if tmpD not in retVal or retVal[tmpD]['weight'] < tmpW:
                 retVal[tmpD] = {'weight':tmpW,'source':[siteName]}
-            elif retVal.has_key(tmpD) and retVal[tmpD]['weight'] == tmpW:
+            elif tmpD in retVal and retVal[tmpD]['weight'] == tmpW:
                 retVal[tmpD]['source'].append(siteName)
     return retVal
 
@@ -352,7 +352,7 @@ def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,t
 
 # get the number of jobs in a status
 def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_tag=None):
-    if not jobStatMap.has_key(computingSite):
+    if computingSite not in jobStatMap:
         return 0
     nJobs = 0
     # loop over all workQueues
@@ -606,7 +606,7 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, ignore_cc=False):
         ret_map[site_name] = tmp_site_spec.ddm_endpoints_input.all.keys()
 
         # add the cloudconfig.tier1SE for T1s
-        if not ignore_cc and t1_map.has_key(site_name):
+        if not ignore_cc and site_name in t1_map:
             tmp_cloud_name = t1_map[site_name]
             tmp_cloud_spec = site_mapper.getCloud(tmp_cloud_name)
             for tmp_endpoint in tmp_cloud_spec['tier1SE']:

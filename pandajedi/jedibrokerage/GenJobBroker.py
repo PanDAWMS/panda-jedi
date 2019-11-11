@@ -169,7 +169,7 @@ class GenJobBroker (JobBrokerBase):
         for tmpSiteName in scanSiteList:
             # check at the site
             nPilot = 0
-            if nWNmap.has_key(tmpSiteName):
+            if tmpSiteName in nWNmap:
                 nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
             if nPilot == 0 and taskSpec.prodSourceLabel not in ['test']:
                 tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
@@ -215,7 +215,7 @@ class GenJobBroker (JobBrokerBase):
             if tmpSiteName in sitesUsedByTask:
                 candidateSpecList.append(siteCandidateSpec)
             else:
-                if not weightMap.has_key(weight):
+                if weight not in weightMap:
                     weightMap[weight] = []
                 weightMap[weight].append(siteCandidateSpec)    
         # limit the number of sites

@@ -33,11 +33,11 @@ class DDMInterface:
 
     # get interface with VO
     def getInterface(self,vo):
-        if self.interfaceMap.has_key(vo):
+        if vo in self.interfaceMap:
             return self.interfaceMap[vo]
         # catchall
         cacheAll = 'any'
-        if self.interfaceMap.has_key(cacheAll):
+        if cacheAll in self.interfaceMap:
             return self.interfaceMap[cacheAll]
         # not found
         return None

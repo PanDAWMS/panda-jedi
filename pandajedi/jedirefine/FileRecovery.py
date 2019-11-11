@@ -42,7 +42,7 @@ class FileRecovery (TaskRefinerBase):
             # old dataset name
             oldDatasetName = taskParamMap['oldDatasetName']
             # accompany datasets
-            if taskParamMap.has_key('oldAccompanyDatasetNames'):
+            if 'oldAccompanyDatasetNames' in taskParamMap:
                 oldAccDatasetNames = taskParamMap['oldAccompanyDatasetNames']
             else:
                 oldAccDatasetNames = None
@@ -121,18 +121,18 @@ class FileRecovery (TaskRefinerBase):
                     # set new attributes
                     tmpItem = taskParamMap['log']
                     datasetSpec.datasetName = tmpItem['dataset']
-                    if tmpItem.has_key('container'):
+                    if 'container' in tmpItem:
                         datasetSpec.containerName = tmpItem['container']
-                    if tmpItem.has_key('token'):
+                    if 'token' in tmpItem:
                         datasetSpec.storageToken = tmpItem['token']
-                    if tmpItem.has_key('destination'):
+                    if 'destination' in tmpItem:
                         datasetSpec.destination = tmpItem['destination']
                     # extract output filename template and change the value field
                     outFileTemplate,tmpItem['value'] = RefinerUtils.extractReplaceOutFileTemplate(tmpItem['value'],
                                                                                                   datasetSpec.streamName)
                     # make output template
                     if outFileTemplate is not None:
-                        if tmpItem.has_key('offset'):
+                        if 'offset' in tmpItem:
                             offsetVal = 1 + tmpItem['offset']
                         else:
                             offsetVal = 1
@@ -180,7 +180,7 @@ class FileRecovery (TaskRefinerBase):
                     if fileSpec.type not in JediDatasetSpec.getInputTypes():
                         continue
                     # get original datasetSpec
-                    if not datasetIDSpecMap.has_key(fileSpec.datasetID):
+                    if fileSpec.datasetID not in datasetIDSpecMap:
                         tmpStat,tmpDatasetSpec = self.taskBufferIF.getDatasetWithID_JEDI(fileSpec.jediTaskID,fileSpec.datasetID)
                         if tmpStat is not True or tmpDatasetSpec is None:
                             tmpLog.error('failed to get dataset for jediTaskID={0} datasetID={1}'.format(fileSpec.jediTaskID,
@@ -188,7 +188,7 @@ class FileRecovery (TaskRefinerBase):
                             return self.SC_FAILED
                         datasetIDSpecMap[fileSpec.datasetID] = tmpDatasetSpec
                     origDatasetSpec = datasetIDSpecMap[fileSpec.datasetID]
-                    if not datasetNameSpecMap.has_key(origDatasetSpec.datasetName):
+                    if origDatasetSpec.datasetName not in datasetNameSpecMap:
                         tmpLog.error('datasetName={0} is missing in new datasets'.format(origDatasetSpec.datasetName))
                         return self.SC_FAILED
                     # not target or accompany datasets
@@ -211,11 +211,11 @@ class FileRecovery (TaskRefinerBase):
                 # set new attributes
                 tmpItem = taskParamMap['output']
                 datasetSpec.datasetName = tmpItem['dataset']
-                if tmpItem.has_key('container'):
+                if 'container' in tmpItem:
                     datasetSpec.containerName = tmpItem['container']
-                if tmpItem.has_key('token'):
+                if 'token' in tmpItem:
                     datasetSpec.storageToken = tmpItem['token']
-                if tmpItem.has_key('destination'):
+                if 'destination' in tmpItem:
                     datasetSpec.destination = tmpItem['destination']
                 # use PandaID of original job as provenanceID
                 datasetSpec.provenanceID = pandaID

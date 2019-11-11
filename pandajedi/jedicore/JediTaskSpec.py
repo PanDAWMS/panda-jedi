@@ -214,11 +214,11 @@ class JediTaskSpec(object):
         ret = {}
         for attr in self.attributes:
             # use sequence
-            if useSeq and self._seqAttrMap.has_key(attr):
+            if useSeq and attr in self._seqAttrMap:
                 continue
             # only changed attributes
             if onlyChanged:
-                if not self._changedAttrs.has_key(attr):
+                if attr not in self._changedAttrs:
                     continue
             val = getattr(self,attr)
             if val is None:
@@ -227,7 +227,7 @@ class JediTaskSpec(object):
                 else:
                     val = None
             # truncate too long values
-            if self._limitLength.has_key(attr):
+            if attr in self._limitLength:
                 if val is not None:
                     val = val[:self._limitLength[attr]]
             ret[':%s' % attr] = val
@@ -258,7 +258,7 @@ class JediTaskSpec(object):
     def bindValuesExpression(cls,useSeq=True):
         ret = "VALUES("
         for attr in cls.attributes:
-            if useSeq and cls._seqAttrMap.has_key(attr):
+            if useSeq and attr in cls._seqAttrMap:
                 ret += "%s," % cls._seqAttrMap[attr]
             else:
                 ret += ":%s," % attr
@@ -272,7 +272,7 @@ class JediTaskSpec(object):
     def bindUpdateChangesExpression(self):
         ret = ""
         for attr in self.attributes:
-            if self._changedAttrs.has_key(attr):
+            if attr in self._changedAttrs:
                 ret += '%s=:%s,' % (attr,attr)
         ret  = ret[:-1]
         ret += ' '

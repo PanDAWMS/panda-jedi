@@ -109,7 +109,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             t1SiteName = self.siteMapper.getCloud(cloudName)['source']
             t1Sites.add(t1SiteName)
             # hospital
-            if self.hospitalQueueMap.has_key(cloudName):
+            if cloudName in self.hospitalQueueMap:
                 for tmpSiteName in self.hospitalQueueMap[cloudName]:
                     t1Sites.add(tmpSiteName)
         return list(t1Sites)
@@ -193,7 +193,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not taskSpec.useWorldCloud():
             t1Sites = [self.siteMapper.getCloud(cloudName)['source']]
             # hospital sites
-            if self.hospitalQueueMap.has_key(cloudName):
+            if cloudName in self.hospitalQueueMap:
                 t1Sites += self.hospitalQueueMap[cloudName]
         else:
             # get destination for WORLD cloud
@@ -422,7 +422,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # ignore DBR
                 if DataServiceUtils.isDBR(datasetName):
                     continue
-                if not self.dataSiteMap.has_key(datasetName):
+                if datasetName not in self.dataSiteMap:
                     # get the list of sites where data is available
                     tmpLog.info('getting the list of sites where {0} is available'.format(datasetName))
                     tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,
@@ -442,7 +442,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     self.dataSiteMap[datasetName] = tmpRet
                     tmpLog.debug('map of data availability : {0}'.format(str(tmpRet)))
                 # check if T1 has the data
-                if self.dataSiteMap[datasetName].has_key(cloudName):
+                if cloudName in self.dataSiteMap[datasetName]:
                     cloudHasData = True
                 else:
                     cloudHasData = False
@@ -1121,7 +1121,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
                 nPilot = 0
-                if nWNmap.has_key(tmpSiteName):
+                if tmpSiteName in nWNmap:
                     nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
                 # skip no pilot sites unless the task and the site use jumbo jobs or the site is standby
                 if nPilot == 0 and 'test' not in taskSpec.prodSourceLabel and \
@@ -1201,7 +1201,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 siteFilesMap.setdefault(tmpSiteName, set())
                 siteFilesMapWT.setdefault(tmpSiteName, set())
                 # get the total size of available files
-                if availableFileMap[datasetSpec.datasetName].has_key(tmpSiteName):
+                if tmpSiteName in availableFileMap[datasetSpec.datasetName]:
                     availableFiles = availableFileMap[datasetSpec.datasetName][tmpSiteName]
                     for tmpFileSpec in \
                             availableFiles['localdisk']+availableFiles['cache']:
@@ -1489,7 +1489,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             siteCandidateSpec.nAssignedJobs = nAssigned
             # set available files
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():
-                if availableFiles.has_key(tmpSiteName):
+                if tmpSiteName in availableFiles:
                     siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
                     siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
                     siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']

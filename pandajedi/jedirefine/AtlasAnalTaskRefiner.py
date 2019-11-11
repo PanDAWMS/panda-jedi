@@ -26,14 +26,14 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
             taskParamMap['ddmBackEnd'] = 'rucio'
         # set sourceURL
         try:
-            if taskParamMap.has_key('sourceURL'):
+            if 'sourceURL' in taskParamMap:
                 for tmpItem in taskParamMap['jobParameters']:
-                    if tmpItem.has_key('value'):
+                    if 'value' in tmpItem:
                         tmpItem['value'] = re.sub('\$\{SURL\}',taskParamMap['sourceURL'],tmpItem['value'])
         except Exception:
             pass
         # set transPath
-        if not taskParamMap.has_key('transPath'):
+        if 'transPath' not in taskParamMap:
             if 'athena' in processingTypes:
                 # athena
                 taskParamMap['transPath'] = 'http://{0}:{1}/trf/user/runAthena-00-00-12'.format(panda_config.pserveralias,
@@ -47,7 +47,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 taskParamMap['transPath'] = 'http://{0}:{1}/trf/user/runGen-00-00-02'.format(panda_config.pserveralias,
                                                                                              panda_config.pserverportcache)
         # set transPath for build
-        if taskParamMap.has_key('buildSpec') and not taskParamMap['buildSpec'].has_key('transPath'):
+        if 'buildSpec' in taskParamMap and 'transPath' not in taskParamMap['buildSpec']:
             if 'athena' in processingTypes:
                 # athena
                 taskParamMap['buildSpec']['transPath'] = 'http://{0}:{1}/trf/user/buildJob-00-00-03'.format(panda_config.pserveralias,
@@ -57,7 +57,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 taskParamMap['buildSpec']['transPath'] = 'http://{0}:{1}/trf/user/buildGen-00-00-01'.format(panda_config.pserveralias,
                                                                                                             panda_config.pserverportcache)
         # set transPath for preprocessing
-        if taskParamMap.has_key('preproSpec') and not taskParamMap['preproSpec'].has_key('transPath'):
+        if 'preproSpec' in taskParamMap and 'transPath' not in taskParamMap['preproSpec']:
             if 'evp' in processingTypes:
                 # event picking
                 taskParamMap['preproSpec']['transPath'] = 'http://{0}:{1}/trf/user/preEvtPick-00-00-01'.format(panda_config.pserveralias,
@@ -67,7 +67,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 taskParamMap['preproSpec']['transPath'] = 'http://{0}:{1}/trf/user/preGoodRunList-00-00-01'.format(panda_config.pserveralias,
                                                                                                                    panda_config.pserverportcache)
         # set transPath for merge
-        if taskParamMap.has_key('mergeSpec') and not taskParamMap['mergeSpec'].has_key('transPath'):
+        if 'mergeSpec' in taskParamMap and 'transPath' not in taskParamMap['mergeSpec']:
             taskParamMap['mergeSpec']['transPath'] = 'http://{0}:{1}/trf/user/runMerge-00-00-02'.format(panda_config.pserveralias,
                                                                                                         panda_config.pserverportcache)
         # min ram count
@@ -142,11 +142,11 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                     self.taskSpec.setErrDiag(errStr,None)
                     return self.SC_FATAL
             # destination
-            if taskParamMap.has_key('destination'):
+            if 'destination' in taskParamMap:
                 for datasetSpec in self.outDatasetSpecList:
                     datasetSpec.destination = taskParamMap['destination']
             # use build
-            if taskParamMap.has_key('buildSpec'):
+            if 'buildSpec' in taskParamMap:
                 self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['useBuild'])
             # use template dataset
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['instantiateTmpl'])

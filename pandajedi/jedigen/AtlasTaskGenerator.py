@@ -37,12 +37,12 @@ class AtlasTaskGenerator (TaskGeneratorBase):
                 # check taskType
                 if taskSpec.taskType == 'recov':
                     # generate parent tasks for lost file recovery if it is not yet generated
-                    if taskParamMap.has_key('parentGenerated'):
+                    if 'parentGenerated' in taskParamMap:
                         tmpLog.info('skip since already generated parent tasks')
                     else:
                         tmpLog.info('generating parent tasks for lost file recovery')
                         # missing files are undefined
-                        if not varMap.has_key('missingFilesMap'):
+                        if 'missingFilesMap' not in varMap:
                             tmpLog.error('missing files are undefined')
                             return retFatal
                         missingFilesMap = varMap['missingFilesMap']

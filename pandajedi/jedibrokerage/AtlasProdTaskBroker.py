@@ -151,7 +151,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                 prioMap[jobSpec.taskID] = jobSpec.currentPriority
                 tt2Map[jobSpec.taskID]  = jobSpec.processingType
                 # get RW for a priority
-                if not allRwMap.has_key(jobSpec.currentPriority):
+                if jobSpec.currentPriority not in allRwMap:
                     tmpRW = self.taskBufferIF.calculateRWwithPrio_JEDI(vo,prodSourceLabel,workQueue,
                                                                        jobSpec.currentPriority) 
                     if tmpRW is None:

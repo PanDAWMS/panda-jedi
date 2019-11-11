@@ -98,7 +98,7 @@ class InputChunk:
 
     # return dataset with datasetID
     def getDatasetWithID(self,datasetID):
-        if self.datasetMap.has_key(datasetID):
+        if datasetID in self.datasetMap:
             return self.datasetMap[datasetID]['datasetSpec']
         return None
 
@@ -511,7 +511,7 @@ class InputChunk:
                         not siteCandidate.isAvailableFile(tmpFileSpec):
                     siteAvailable = False
                     break
-                if not inputFileMap.has_key(self.masterDataset.datasetID):
+                if self.masterDataset.datasetID not in inputFileMap:
                     inputFileMap[self.masterDataset.datasetID] = []
                 inputFileMap[self.masterDataset.datasetID].append(tmpFileSpec)
                 inputFileSet.add(tmpFileSpec.lfn)
@@ -596,7 +596,7 @@ class InputChunk:
                     if firstLoop:
                         datasetUsage = self.datasetMap[datasetSpec.datasetID]
                         for tmpFileSpec in datasetSpec.Files:
-                            if not inputFileMap.has_key(datasetSpec.datasetID):
+                            if datasetSpec.datasetID not in inputFileMap:
                                 inputFileMap[datasetSpec.datasetID] = []
                             inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
                             # sum
@@ -610,7 +610,7 @@ class InputChunk:
                                 outSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                             datasetUsage['used'] += 1
                 else:
-                    if not nSecFilesMap.has_key(datasetSpec.datasetID):
+                    if datasetSpec.datasetID not in nSecFilesMap:
                         nSecFilesMap[datasetSpec.datasetID] = 0
                     # get number of files to be used for the secondary
                     nSecondary = datasetSpec.getNumFilesPerJob()
@@ -642,7 +642,7 @@ class InputChunk:
                         if datasetSpec.getEventRatio() is not None and inputNumEvents > 0:
                             if float(nSecEventsMap[datasetSpec.datasetID]) / float(inputNumEvents) >= datasetSpec.getEventRatio():
                                 break
-                        if not inputFileMap.has_key(datasetSpec.datasetID):
+                        if datasetSpec.datasetID not in inputFileMap:
                             inputFileMap[datasetSpec.datasetID] = []
                         inputFileMap[datasetSpec.datasetID].append(tmpFileSpec)
                         # sum

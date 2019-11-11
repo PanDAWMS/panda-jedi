@@ -360,7 +360,7 @@ class CommandReceiveInterface(object):
                     # use cache
                     useCache = False
                     doExec = True
-                    if commandObj.argMap.has_key('useResultCache'):
+                    if 'useResultCache' in commandObj.argMap:
                         # get time range
                         timeRange = commandObj.argMap['useResultCache']
                         # delete from args map
@@ -370,7 +370,7 @@ class CommandReceiveInterface(object):
                         if tmpCacheKey is not None:
                             useCache = True
                             # cache is fresh
-                            if self.cacheMap.has_key(tmpCacheKey) and \
+                            if tmpCacheKey in self.cacheMap and \
                                self.cacheMap[tmpCacheKey]['utime']+datetime.timedelta(seconds=timeRange) > datetime.datetime.utcnow():
                                 tmpRet = self.cacheMap[tmpCacheKey]['value']
                                 doExec = False

@@ -78,48 +78,48 @@ class TaskRefinerBase (object):
         taskSpec.taskType = taskParamMap['taskType']
         taskSpec.splitRule = splitRule
         taskSpec.startTime = datetime.datetime.utcnow()
-        if taskParamMap.has_key('workingGroup'):
+        if 'workingGroup' in taskParamMap:
             taskSpec.workingGroup = taskParamMap['workingGroup']
-        if taskParamMap.has_key('countryGroup'):
+        if 'countryGroup' in taskParamMap:
             taskSpec.countryGroup = taskParamMap['countryGroup']
-        if taskParamMap.has_key('ticketID'):
+        if 'ticketID' in taskParamMap:
             taskSpec.ticketID = taskParamMap['ticketID']
-        if taskParamMap.has_key('ticketSystemType'):
+        if 'ticketSystemType' in taskParamMap:
             taskSpec.ticketSystemType = taskParamMap['ticketSystemType']
-        if taskParamMap.has_key('reqID'):
+        if 'reqID' in taskParamMap:
             taskSpec.reqID = taskParamMap['reqID']
         else:
             taskSpec.reqID = jediTaskID
-        if taskParamMap.has_key('coreCount'):
+        if 'coreCount' in taskParamMap:
             taskSpec.coreCount = taskParamMap['coreCount']
         else:
             taskSpec.coreCount = 1
-        if taskParamMap.has_key('walltime'):
+        if 'walltime' in taskParamMap:
             taskSpec.walltime = taskParamMap['walltime']
         else:
             taskSpec.walltime = 0
-        if not taskParamMap.has_key('walltimeUnit'):
+        if 'walltimeUnit' not in taskParamMap:
             # force to set NULL so that retried tasks get data from scouts again
             taskSpec.forceUpdate('walltimeUnit')
-        if taskParamMap.has_key('outDiskCount'):
+        if 'outDiskCount' in taskParamMap:
             taskSpec.outDiskCount = taskParamMap['outDiskCount']
         else:
             taskSpec.outDiskCount = 0
         if 'outDiskUnit' in taskParamMap:
             taskSpec.outDiskUnit = taskParamMap['outDiskUnit']
-        if taskParamMap.has_key('workDiskCount'):
+        if 'workDiskCount' in taskParamMap:
             taskSpec.workDiskCount = taskParamMap['workDiskCount']
         else:
             taskSpec.workDiskCount = 0
-        if taskParamMap.has_key('workDiskUnit'):
+        if 'workDiskUnit' in taskParamMap:
             taskSpec.workDiskUnit = taskParamMap['workDiskUnit']
-        if taskParamMap.has_key('ramCount'):
+        if 'ramCount' in taskParamMap:
             taskSpec.ramCount = taskParamMap['ramCount']
         else:
             taskSpec.ramCount = 0
-        if taskParamMap.has_key('ramUnit'):
+        if 'ramUnit' in taskParamMap:
             taskSpec.ramUnit = taskParamMap['ramUnit']
-        if taskParamMap.has_key('baseRamCount'):
+        if 'baseRamCount' in taskParamMap:
             taskSpec.baseRamCount = taskParamMap['baseRamCount']
         else:
             taskSpec.baseRamCount = 0
@@ -149,10 +149,10 @@ class TaskRefinerBase (object):
         if 'mergeCoreCount' in taskParamMap:
             taskSpec.mergeCoreCount = taskParamMap['mergeCoreCount']
         # scout
-        if not taskParamMap.has_key('skipScout') and not taskSpec.isPostScout():
+        if 'skipScout' not in taskParamMap and not taskSpec.isPostScout():
             taskSpec.setUseScout(True)
         # cloud
-        if taskParamMap.has_key('cloud'):
+        if 'cloud' in taskParamMap:
             self.cloudName = taskParamMap['cloud']
             taskSpec.cloud = self.cloudName
         else:
@@ -160,7 +160,7 @@ class TaskRefinerBase (object):
             taskSpec.cloud = 'dummy'
             taskSpec.cloud = None
         # site
-        if taskParamMap.has_key('site'):
+        if 'site' in taskParamMap:
             self.siteName = taskParamMap['site']
             taskSpec.site = self.siteName
         else:
@@ -185,7 +185,7 @@ class TaskRefinerBase (object):
         # event service flag
         if 'useJobCloning' in taskParamMap:
             taskSpec.eventService = 2
-        elif taskParamMap.has_key('nEventsPerWorker'):
+        elif 'nEventsPerWorker' in taskParamMap:
             taskSpec.eventService = 1
         else:
             taskSpec.eventService = 0
@@ -193,7 +193,7 @@ class TaskRefinerBase (object):
         if 'osInfo' in taskParamMap:
             taskSpec.termCondition = taskParamMap['osInfo']
         # ttcr: requested time to completion
-        if taskParamMap.has_key('ttcrTimestamp'):
+        if 'ttcrTimestamp' in taskParamMap:
             try:
                 # get rid of the +00:00 timezone string and parse the timestamp
                 taskSpec.ttcRequested = datetime.datetime.strptime(taskParamMap['ttcrTimestamp'].split('+')[0], '%Y-%m-%d %H:%M:%S.%f')
@@ -208,7 +208,7 @@ class TaskRefinerBase (object):
             except Exception:
                 pass
         # campaign
-        if taskParamMap.has_key('campaign'):
+        if 'campaign' in taskParamMap:
             taskSpec.campaign = taskParamMap['campaign']
         # request type
         if 'requestType' in taskParamMap:
@@ -247,12 +247,12 @@ class TaskRefinerBase (object):
                 self.setSplitRule(taskParamMap,'maxJumboPerSite',JediTaskSpec.splitRuleToken['maxJumboPerSite'])
         if 'minCpuEfficiency' in taskParamMap:
             self.setSplitRule(taskParamMap,'minCpuEfficiency',JediTaskSpec.splitRuleToken['minCpuEfficiency'])
-        if taskParamMap.has_key('loadXML'):
+        if 'loadXML' in taskParamMap:
             self.setSplitRule(None,3,JediTaskSpec.splitRuleToken['loadXML'])
             self.setSplitRule(None,4,JediTaskSpec.splitRuleToken['groupBoundaryID'])
-        if taskParamMap.has_key('pfnList'):
+        if 'pfnList' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['pfnList'])
-        if taskParamMap.has_key('noWaitParent') and taskParamMap['noWaitParent'] is True:
+        if 'noWaitParent' in taskParamMap and taskParamMap['noWaitParent'] is True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['noWaitParent'])
         if 'respectLB' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['respectLB'])
@@ -260,7 +260,7 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['orderByLB'])
         if 'respectSplitRule' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['respectSplitRule'])
-        if taskParamMap.has_key('reuseSecOnDemand'):
+        if 'reuseSecOnDemand' in taskParamMap:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['reuseSecOnDemand'])
         if 'ddmBackEnd' in taskParamMap:
             self.taskSpec.setDdmBackEnd(taskParamMap['ddmBackEnd'])
@@ -388,7 +388,7 @@ class TaskRefinerBase (object):
         else:
             itemList = taskParamMap['jobParameters'] + taskParamMap['log']
         # pseudo input
-        if taskParamMap.has_key('noInput') and taskParamMap['noInput'] is True:
+        if 'noInput' in taskParamMap and taskParamMap['noInput'] is True:
             tmpItem = {}
             tmpItem['type']       = 'template'
             tmpItem['value']      = ''
@@ -407,7 +407,7 @@ class TaskRefinerBase (object):
         allDsList = []
         for tmpItem in itemList:
             # look for datasets
-            if tmpItem['type'] == 'template' and tmpItem.has_key('dataset'):
+            if tmpItem['type'] == 'template' and 'dataset' in tmpItem:
                 # avoid duplication
                 if tmpItem['dataset'] not in allDsList:
                     allDsList.append(tmpItem['dataset'])
@@ -417,35 +417,35 @@ class TaskRefinerBase (object):
                 datasetSpec.datasetName = tmpItem['dataset']
                 datasetSpec.jediTaskID = self.taskSpec.jediTaskID
                 datasetSpec.type = tmpItem['param_type']
-                if tmpItem.has_key('container'):
+                if 'container' in tmpItem:
                     datasetSpec.containerName = tmpItem['container']
-                if tmpItem.has_key('token'):
+                if 'token' in tmpItem:
                     datasetSpec.storageToken = tmpItem['token']
-                if tmpItem.has_key('destination'):
+                if 'destination' in tmpItem:
                     datasetSpec.destination = tmpItem['destination']
-                if tmpItem.has_key('attributes'):
+                if 'attributes' in tmpItem:
                     datasetSpec.setDatasetAttribute(tmpItem['attributes'])
-                if tmpItem.has_key('ratio'):
+                if 'ratio' in tmpItem:
                     datasetSpec.setDatasetAttribute('ratio={0}'.format(tmpItem['ratio']))
-                if tmpItem.has_key('eventRatio'):
+                if 'eventRatio' in tmpItem:
                     datasetSpec.setEventRatio(tmpItem['eventRatio'])
-                if tmpItem.has_key('check'):
+                if 'check' in tmpItem:
                     datasetSpec.setDatasetAttribute('cc')
-                if tmpItem.has_key('usedup'):
+                if 'usedup' in tmpItem:
                     datasetSpec.setDatasetAttribute('ud')
-                if tmpItem.has_key('random'):
+                if 'random' in tmpItem:
                     datasetSpec.setDatasetAttribute('rd')
-                if tmpItem.has_key('reusable'):
+                if 'reusable' in tmpItem:
                     datasetSpec.setDatasetAttribute('ru')
-                if tmpItem.has_key('indexConsistent'):
+                if 'indexConsistent' in tmpItem:
                     datasetSpec.setDatasetAttributeWithLabel('indexConsistent')
-                if tmpItem.has_key('offset'):
+                if 'offset' in tmpItem:
                     datasetSpec.setOffset(tmpItem['offset'])
-                if tmpItem.has_key('allowNoOutput'):
+                if 'allowNoOutput' in tmpItem:
                     datasetSpec.allowNoOutput()
-                if tmpItem.has_key('nFilesPerJob'):
+                if 'nFilesPerJob' in tmpItem:
                     datasetSpec.setNumFilesPerJob(tmpItem['nFilesPerJob'])
-                if tmpItem.has_key('num_records'):
+                if 'num_records' in tmpItem:
                     datasetSpec.setNumRecords(tmpItem['num_records'])
                 if 'transient' in tmpItem:
                     datasetSpec.setTransient(tmpItem['transient'])
@@ -464,7 +464,7 @@ class TaskRefinerBase (object):
                 datasetSpec.status = 'defined'
                 if datasetSpec.type in JediDatasetSpec.getInputTypes() + ['random_seed']:
                     datasetSpec.streamName = RefinerUtils.extractStreamName(tmpItem['value'])
-                    if not tmpItem.has_key('expandedList'):
+                    if 'expandedList' not in tmpItem:
                         tmpItem['expandedList'] = []
                     # dataset names could be comma-concatenated
                     datasetNameList = datasetSpec.datasetName.split(',')
@@ -472,7 +472,7 @@ class TaskRefinerBase (object):
                     incexecDS = 'dsFor{0}'.format(datasetSpec.streamName)
                     # remove /XYZ
                     incexecDS = incexecDS.split('/')[0]
-                    if taskParamMap.has_key(incexecDS):
+                    if incexecDS in taskParamMap:
                         for tmpDatasetName in taskParamMap[incexecDS].split(','):
                             if tmpDatasetName not in datasetNameList:
                                 datasetNameList.append(tmpDatasetName)
@@ -486,7 +486,7 @@ class TaskRefinerBase (object):
                         if datasetSpec.isPseudo() or datasetSpec.type in ['random_seed'] or datasetName == 'DBR_LATEST':
                             # pseudo input
                             tmpDatasetNameList = [datasetName]
-                        elif tmpItem.has_key('expand') and tmpItem['expand'] is True:
+                        elif 'expand' in tmpItem and tmpItem['expand'] is True:
                             # expand dataset container
                             tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).expandContainer(datasetName)
                         else:
@@ -517,20 +517,20 @@ class TaskRefinerBase (object):
                     nIn += 1
                     continue
                 if datasetSpec.type in ['output','log']:
-                    if not nOutMap.has_key(datasetSpec.type):
+                    if datasetSpec.type not in nOutMap:
                         nOutMap[datasetSpec.type] = 0
                     # make stream name
                     datasetSpec.streamName = "{0}{1}".format(datasetSpec.type.upper(),nOutMap[datasetSpec.type])
                     nOutMap[datasetSpec.type] += 1
                     # set attribute for event service
-                    if self.taskSpec.useEventService() and taskParamMap.has_key('objectStore') and datasetSpec.type in ['output']:
+                    if self.taskSpec.useEventService() and 'objectStore' in taskParamMap and datasetSpec.type in ['output']:
                         datasetSpec.setObjectStore(taskParamMap['objectStore'])
                     # extract output filename template and change the value field
                     outFileTemplate,tmpItem['value'] = RefinerUtils.extractReplaceOutFileTemplate(tmpItem['value'],
                                                                                                   datasetSpec.streamName)
                     # make output template
                     if outFileTemplate is not None:
-                        if tmpItem.has_key('offset'):
+                        if 'offset' in tmpItem:
                             offsetVal = 1 + tmpItem['offset']
                         else:
                             offsetVal = 1
@@ -549,7 +549,7 @@ class TaskRefinerBase (object):
                     # append
                     self.outDatasetSpecList.append(datasetSpec)
                     # make unmerged dataset
-                    if taskParamMap.has_key('mergeOutput') and taskParamMap['mergeOutput'] is True:
+                    if 'mergeOutput' in taskParamMap and taskParamMap['mergeOutput'] is True:
                         umDatasetSpec = JediDatasetSpec()
                         umDatasetSpec.datasetName = 'panda.um.' + datasetSpec.datasetName
                         umDatasetSpec.jediTaskID = self.taskSpec.jediTaskID
@@ -577,7 +577,7 @@ class TaskRefinerBase (object):
                                                 'outtype' : datasetSpec.type,
                                                 }
                             # append temporary name
-                            if taskParamMap.has_key('umNameAtEnd') and taskParamMap['umNameAtEnd'] is True:
+                            if 'umNameAtEnd' in taskParamMap and taskParamMap['umNameAtEnd'] is True:
                                 # append temporary name at the end
                                 umOutTemplateMap['filenameTemplate'] = outFileTemplate + '.panda.um'
                             else:
@@ -595,16 +595,16 @@ class TaskRefinerBase (object):
                             # append
                             self.unmergeDatasetSpecMap[datasetSpec.outputMapKey()] = umDatasetSpec
         # set attributes for merging
-        if taskParamMap.has_key('mergeOutput') and taskParamMap['mergeOutput'] is True:
+        if 'mergeOutput' in taskParamMap and taskParamMap['mergeOutput'] is True:
             self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['mergeOutput'])
         # make job parameters
         rndmSeedOffset = None
         firstEventOffset = None
         jobParameters = ''
         for tmpItem in taskParamMap['jobParameters']:
-            if tmpItem.has_key('value'):
+            if 'value' in tmpItem:
                 # hidden parameter
-                if tmpItem.has_key('hidden') and tmpItem['hidden'] is True:
+                if 'hidden' in tmpItem and tmpItem['hidden'] is True:
                     continue
                 # add tags for ES-only parameters
                 esOnly = False
@@ -616,19 +616,19 @@ class TaskRefinerBase (object):
                 if esOnly:
                     jobParameters += '</PANDA_ES_ONLY>'
                 # padding
-                if tmpItem.has_key('padding') and tmpItem['padding'] is False:
+                if 'padding' in tmpItem and tmpItem['padding'] is False:
                     pass
                 else:
                     jobParameters += ' '
                 # get offset for random seed and first event
                 if tmpItem['type'] == 'template' and tmpItem['param_type'] == 'number':
                     if '${RNDMSEED}' in tmpItem['value']:
-                        if tmpItem.has_key('offset'):
+                        if 'offset' in tmpItem:
                             rndmSeedOffset = tmpItem['offset']
                         else:
                             rndmSeedOffset = 0
                     elif '${FIRSTEVENT}' in tmpItem['value']:
-                        if tmpItem.has_key('offset'):
+                        if 'offset' in tmpItem:
                             firstEventOffset = tmpItem['offset']
         jobParameters = jobParameters[:-1]
         # append parameters for event service merging if necessary
@@ -668,7 +668,7 @@ class TaskRefinerBase (object):
     # refinement procedure for preprocessing
     def doPreProRefine(self,taskParamMap):
         # no preprocessing
-        if not taskParamMap.has_key('preproSpec'):
+        if 'preproSpec' not in taskParamMap:
             return None,taskParamMap
         # already preprocessed
         if self.taskSpec.checkPreProcessed():
@@ -747,7 +747,7 @@ class TaskRefinerBase (object):
     # set split rule
     def setSplitRule(self,taskParamMap,keyName,valName):
         if taskParamMap is not None:
-            if not taskParamMap.has_key(keyName):
+            if keyName not in taskParamMap:
                 return
             tmpStr = '{0}={1}'.format(valName,taskParamMap[keyName])
         else:
@@ -774,10 +774,10 @@ class TaskRefinerBase (object):
         # extract parameters
         transPath = 'UnDefined'
         jobParameters = 'UnDefined'
-        if taskParamMap.has_key('esmergeSpec'):
-            if taskParamMap['esmergeSpec'].has_key('transPath'):
+        if 'esmergeSpec' in taskParamMap:
+            if 'transPath' in taskParamMap['esmergeSpec']:
                 transPath = taskParamMap['esmergeSpec']['transPath']
-            if taskParamMap['esmergeSpec'].has_key('jobParameters'):
+            if 'jobParameters' in taskParamMap['esmergeSpec']:
                 jobParameters = taskParamMap['esmergeSpec']['jobParameters']
         # return
         return '<PANDA_ESMERGE_TRF>'+transPath+'</PANDA_ESMERGE_TRF>'+'<PANDA_ESMERGE_JOBP>'+jobParameters+'</PANDA_ESMERGE_JOBP>'

@@ -83,10 +83,10 @@ class FactoryBase:
                             impl.vo = vo
                             impl.prodSourceLabel = sourceLabel
                             # append
-                            if not self.implMap.has_key(vo):
+                            if vo not in self.implMap:
                                 self.implMap[vo] = {}
                                 self.classMap[vo] = {}
-                            if not self.implMap[vo].has_key(sourceLabel):
+                            if sourceLabel not in self.implMap[vo]:
                                 self.implMap[vo][sourceLabel] = {}
                                 self.classMap[vo][sourceLabel] = {}
                             self.implMap[vo][sourceLabel][subType] = impl
@@ -111,31 +111,31 @@ class FactoryBase:
     # get implementation for vo and sourceLabel. Only work with initializeMods()
     def getImpl(self,vo,sourceLabel,subType='any',doRefresh=True):
         # check VO
-        if self.implMap.has_key(vo):
+        if vo in self.implMap:
             # match VO
             voImplMap = self.implMap[vo]
-        elif self.implMap.has_key('any'):
+        elif 'any' in self.implMap:
             # catch all
             voImplMap = self.implMap['any']
         else:
             return None
         # check sourceLabel
-        if voImplMap.has_key(sourceLabel):
+        if sourceLabel in voImplMap:
             # match sourceLabel
             srcImplMap = voImplMap[sourceLabel]
-        elif voImplMap.has_key('any'):
+        elif 'any' in voImplMap:
             # catch all
             srcImplMap = voImplMap['any']
         else:
             return None
         # check subType
-        if srcImplMap.has_key(subType):
+        if subType in srcImplMap:
             # match subType
             tmpImpl = srcImplMap[subType]
             if doRefresh:
                 tmpImpl.refresh()
             return tmpImpl
-        elif srcImplMap.has_key('any'):
+        elif 'any' in srcImplMap:
             # catch all
             tmpImpl = srcImplMap['any']
             if doRefresh:
@@ -148,31 +148,31 @@ class FactoryBase:
     # instantiate implementation for vo and sourceLabel. Only work with initializeMods()
     def instantiateImpl(self,vo,sourceLabel,subType,*args):
         # check VO
-        if self.classMap.has_key(vo):
+        if vo in self.classMap:
             # match VO
             voImplMap = self.classMap[vo]
-        elif self.classMap.has_key('any'):
+        elif 'any' in self.classMap:
             # catch all
             voImplMap = self.classMap['any']
         else:
             return None
         # check sourceLabel
-        if voImplMap.has_key(sourceLabel):
+        if sourceLabel in voImplMap:
             # match sourceLabel
             srcImplMap = voImplMap[sourceLabel]
-        elif voImplMap.has_key('any'):
+        elif 'any' in voImplMap:
             # catch all
             srcImplMap = voImplMap['any']
         else:
             return None
         # check subType
-        if srcImplMap.has_key(subType):
+        if subType in srcImplMap:
             # match subType
             impl = srcImplMap[subType](*args)
             impl.vo = vo
             impl.prodSourceLabel= sourceLabel
             return impl
-        elif srcImplMap.has_key('any'):
+        elif 'any' in srcImplMap:
             # catch all
             impl = srcImplMap['any'](*args)
             impl.vo = vo

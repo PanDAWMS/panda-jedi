@@ -25,7 +25,7 @@ panda_group = 'zp'
 
 # get release version
 release_version = PandaPkgInfo.release_version
-if os.environ.has_key('BUILD_NUMBER'):
+if 'BUILD_NUMBER' in os.environ:
     release_version = '{0}.{1}'.format(release_version,os.environ['BUILD_NUMBER'])
 
 # get panda specific params
@@ -80,16 +80,16 @@ class install_data_panda (install_data_org):
         # set reaming params
         install_data_org.finalize_options(self)
         # set hostname
-        if optPanda.has_key('hostname') and optPanda['hostname'] != '':
+        if 'hostname' in optPanda and optPanda['hostname'] != '':
             self.hostname = optPanda['hostname']
         else:
             self.hostname = socket.gethostname()
         # set user and group
-        if optPanda.has_key('username') and optPanda['username'] != '':
+        if 'username' in optPanda and optPanda['username'] != '':
             self.username = optPanda['username']
         else:
             self.username = getpass.getuser()
-        if optPanda.has_key('usergroup') and optPanda['usergroup'] != '':
+        if 'usergroup' in optPanda and optPanda['usergroup'] != '':
             self.usergroup = optPanda['usergroup']
         else:
             self.usergroup = grp.getgrnam(self.username).gr_name

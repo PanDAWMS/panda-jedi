@@ -250,10 +250,10 @@ class TaskCommandoThread (WorkerThread):
                                         if tmpParam['type'] == 'constant' and re.search('^-a [^ ]+$',tmpParam['value']) is not None:
                                             tmpParam['value'] = '-a {0}'.taskParamMap['fixedSandbox']
                                     # build
-                                    if taskParamMap.has_key('buildSpec'):
+                                    if 'buildSpec' in taskParamMap:
                                         taskParamMap['buildSpec']['archiveName'] = taskParamMap['fixedSandbox']
                                     # merge
-                                    if taskParamMap.has_key('mergeSpec'):
+                                    if 'mergeSpec' in taskParamMap:
                                         taskParamMap['mergeSpec']['jobParameters'] = \
                                             re.sub('-a [^ ]+','-a {0}'.format(taskParamMap['fixedSandbox']),taskParamMap['mergeSpec']['jobParameters'])
                                 # encode new param

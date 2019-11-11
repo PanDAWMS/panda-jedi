@@ -285,7 +285,7 @@ class TaskRefinerThread (WorkerThread):
                         # fill JEDI tables
                         try:
                             # enable protection against task duplication
-                            if taskParamMap.has_key('uniqueTaskName') and taskParamMap['uniqueTaskName'] and \
+                            if 'uniqueTaskName' in taskParamMap and taskParamMap['uniqueTaskName'] and \
                                     not impl.taskSpec.checkPreProcessed():
                                 uniqueTaskName = True
                             else:
