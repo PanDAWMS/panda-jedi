@@ -124,7 +124,7 @@ class PostProcessorBase (object):
                     tmpLog.error("failed to send notification with {0}:{1}".format(errType,errValue))
                     if fileBackUp:
                         # write to file which is processed in add.py
-                        mailFile = '{0}/jmail_{1}_{2}' % (panda_config.logdir,jediTaskID,commands.getoutput('uuidgen'))
+                        mailFile = '{0}/jmail_{1}_{2}' % (panda_config.logdir, jediTaskID, uuid.uuid4())
                         oMail = open(mailFile,"w")
                         oMail.write(str(jediTaskID)+'\n'+toAdd+'\n'+msgBody)
                         oMail.close()

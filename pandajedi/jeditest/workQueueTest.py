@@ -3,7 +3,6 @@ import re
 import sys
 import time
 import datetime
-import commands
 import threading
 
 from pandajedi.jediconfig import jedi_config

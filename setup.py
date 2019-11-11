@@ -10,7 +10,9 @@ sys.path.insert(0,'.')  # noqa: E402
 import os
 import re
 import sys
-import commands
+import socket
+import getpass
+import grp
 
 import PandaPkgInfo
 from distutils.core import setup
@@ -81,16 +83,16 @@ class install_data_panda (install_data_org):
         if optPanda.has_key('hostname') and optPanda['hostname'] != '':
             self.hostname = optPanda['hostname']
         else:
-            self.hostname = commands.getoutput('hostname -f')
+            self.hostname = socket.gethostname()
         # set user and group
         if optPanda.has_key('username') and optPanda['username'] != '':
-            self.username  = optPanda['username']
+            self.username = optPanda['username']
         else:
-            self.username  = commands.getoutput('id -un')
+            self.username = getpass.getuser()
         if optPanda.has_key('usergroup') and optPanda['usergroup'] != '':
             self.usergroup = optPanda['usergroup']
         else:
-            self.usergroup = commands.getoutput('id -gn')
+            self.usergroup = grp.getgrnam(self.username).gr_name
 
 
     def run (self):
@@ -147,7 +149,7 @@ class install_data_panda (install_data_org):
                 oFile.close()
                 # chmod for exe
                 if srcFile.endswith('.exe.template'):
-                    commands.getoutput('chmod +x %s' % destFile)
+                    os.chmod(destFile, 0o755)
                 # append
                 newFilesList.append(destFile)
             # replace dataFiles to install generated file
