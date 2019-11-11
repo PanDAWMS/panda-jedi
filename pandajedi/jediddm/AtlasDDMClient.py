@@ -9,6 +9,8 @@ import types
 import urllib2
 import traceback
 
+from six import iteritems
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
 from DDMClientBase import DDMClientBase
@@ -156,7 +158,7 @@ class AtlasDDMClient(DDMClientBase):
                         totalFiles = 0
                     tmpRet = self.convertOutListDatasetReplicas(tmpName, use_vp=use_vp)
                     # loop over all sites
-                    for tmpSite,tmpValMap in tmpRet.iteritems():
+                    for tmpSite,tmpValMap in iteritems(tmpRet):
                         # add site
                         retMap.setdefault(tmpSite, [{'found': 0}])
                         # sum
@@ -242,7 +244,7 @@ class AtlasDDMClient(DDMClientBase):
     def getAssociatedEndpoints(self,altName):
         self.updateEndPointDict()
         epList = []
-        for seName,seVal in self.endPointDict.iteritems():
+        for seName,seVal in iteritems(self.endPointDict):
             if seVal['site'] == altName:
                 epList.append(seName)
         return epList
@@ -253,7 +255,7 @@ class AtlasDDMClient(DDMClientBase):
         try:
             altName = self.getSiteAlternateName(baseSeName)[0]
             if altName is not None:
-                for seName,seVal in self.endPointDict.iteritems():
+                for seName,seVal in iteritems(self.endPointDict):
                     if seVal['site'] == altName:
                         # space token
                         if seVal['token'] == token:
@@ -347,7 +349,7 @@ class AtlasDDMClient(DDMClientBase):
             rse_list = []
 
             # figure out complete replicas and storage types
-            for site_name, endpoint_list in site_endpoint_map.iteritems():
+            for site_name, endpoint_list in iteritems(site_endpoint_map):
                 tmp_site_spec = site_mapper.getSite(site_name)
 
                 # loop over all endpoints
@@ -400,7 +402,7 @@ class AtlasDDMClient(DDMClientBase):
             # initialize the return map and add complete/cached replicas
             return_map = {}
             checked_dst = set()
-            for site_name, tmp_endpoints in site_endpoint_map.iteritems():
+            for site_name, tmp_endpoints in iteritems(site_endpoint_map):
 
                 return_map.setdefault(site_name, {'localdisk': [], 'localtape': [], 'cache': [], 'remote': []})
                 tmp_site_spec = site_mapper.getSite(site_name)
@@ -419,7 +421,7 @@ class AtlasDDMClient(DDMClientBase):
                             checked_dst.add(site_name)
 
             # loop over all available LFNs
-            available_lfns = rucio_lfn_to_rse_map.keys()
+            available_lfns = list(rucio_lfn_to_rse_map.keys())
             available_lfns.sort()
             for tmp_lfn in available_lfns:
                 tmp_filespec_list = lfn_filespec_map[tmp_lfn]
@@ -434,18 +436,18 @@ class AtlasDDMClient(DDMClientBase):
                             break
 
             # aggregate all types of storage types into the 'all' key
-            for site, storage_type_files in return_map.iteritems():
+            for site, storage_type_files in iteritems(return_map):
                 site_all_file_list = set()
-                for storage_type, file_list in storage_type_files.iteritems():
+                for storage_type, file_list in iteritems(storage_type_files):
                     for tmp_file_spec in file_list:
                         site_all_file_list.add(tmp_file_spec)
                 storage_type_files['all'] = site_all_file_list
 
             # dump for logging
             logging_str = ''
-            for site, storage_type_file in return_map.iteritems():
+            for site, storage_type_file in iteritems(return_map):
                 logging_str += '{0}:('.format(site)
-                for storage_type, file_list in storage_type_file.iteritems():
+                for storage_type, file_list in iteritems(storage_type_file):
                     logging_str += '{0}:{1},'.format(storage_type, len(file_list))
                 logging_str = logging_str[:-1]
                 logging_str += ') '
@@ -472,7 +474,7 @@ class AtlasDDMClient(DDMClientBase):
             max_guid = 1000 # do 1000 guids in each Rucio call
             lfn_to_rses_map = {}
             dids = []
-            for guid, lfn in files.iteritems():
+            for guid, lfn in iteritems(files):
                 i_guid += 1
                 scope = scopes[lfn]
                 dids.append({'scope': scope, 'name': lfn})
@@ -1150,14 +1152,14 @@ class AtlasDDMClient(DDMClientBase):
                 scopeMap[tmpLFN] = fileMap[tmpGUID]['scope']
 
             # get SURLs
-            seList = datasetReplicaMap.keys()
+            seList = list(datasetReplicaMap.keys())
             tmpStat, tmpRetMap = self.jedi_list_replicas_with_dataset(datasetName)
             if tmpStat != self.SC_SUCCEEDED:
                 tmpLog.error('failed to get SURLs with {0}'.format(tmpRetMap))
                 return tmpStat,tmpRetMap
             # look for missing files
             lfnMap = {}
-            for tmpGUID,tmpLFN in lfnMap.iteritems():
+            for tmpGUID,tmpLFN in iteritems(lfnMap):
                 if tmpLFN not in tmpRetMap:
                     lfnMap[tmpGUID] = tmpLFN
 
@@ -1311,7 +1313,7 @@ class AtlasDDMClient(DDMClientBase):
             tmpLog.debug('start')
             res = urllib2.urlopen('http://atlas-agis-api.cern.ch/request/ddmendpointstatus/query/list/?json&fstate=OFF&activity=w')
             jsonStr = res.read()
-            self.blackListEndPoints = json.loads(jsonStr).keys()
+            self.blackListEndPoints = list(json.loads(jsonStr).keys())
             tmpLog.debug('{0} endpoints blacklisted'.format(len(self.blackListEndPoints)))
         except Exception:
             errtype,errvalue = sys.exc_info()[:2]
@@ -1460,7 +1462,7 @@ class AtlasDDMClient(DDMClientBase):
             scope,dsn = self.extract_scope(datasetName)
             # get rules
             for rule in client.list_did_rules(scope=scope, name=dsn):
-                for dataKey,data in dataMap.iteritems():
+                for dataKey,data in iteritems(dataMap):
                     if rule['rse_expression'] == dataKey or re.search(dataKey,rule['rse_expression']) is not None:
                         tmpLog.debug('set data={0} on {1}'.format(str(data),rule['rse_expression']))
                         client.update_replication_rule(rule['id'],data)

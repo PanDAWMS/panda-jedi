@@ -5,6 +5,8 @@ import copy
 import types
 import datetime
 
+from six import iteritems
+
 import RefinerUtils
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediException
@@ -650,7 +652,7 @@ class TaskRefinerBase (object):
     def replacePlaceHolders(self,paramItem,placeHolderName,newValue):
         if isinstance(paramItem,types.DictType):
             # loop over all dict params
-            for tmpParName,tmpParVal in paramItem.iteritems():
+            for tmpParName,tmpParVal in iteritems(paramItem):
                 if tmpParVal == placeHolderName:
                     # replace placeholder
                     paramItem[tmpParName] = newValue
@@ -678,7 +680,7 @@ class TaskRefinerBase (object):
                 # replace placeholders
                 replaceParams = RefinerUtils.decodeJSON(tmpJsonStr)
                 self.tmpLog.debug("replace placeholders with "+str(replaceParams))
-                for tmpKey,tmpVal in replaceParams.iteritems():
+                for tmpKey,tmpVal in iteritems(replaceParams):
                     self.replacePlaceHolders(taskParamMap,tmpKey,tmpVal)
             except Exception:
                 errtype,errvalue = sys.exc_info()[:2]

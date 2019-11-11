@@ -4,6 +4,8 @@ import re
 import urllib
 import xml.dom.minidom
 
+from six import iteritems
+
 class dom_job:
     """ infiles[inds]=[file1,file2...]
         outfiles = [file1,file2...]
@@ -111,7 +113,7 @@ class dom_job:
         """ return mapping of original and new filenames
         """
         newMap = {}
-        for oldLFN,fileSpec in outMap.iteritems():
+        for oldLFN,fileSpec in iteritems(outMap):
             newMap[oldLFN] = str(fileSpec.lfn)
         return str(newMap)
     def outputs_list(s,prepend=False):
@@ -227,7 +229,7 @@ class dom_parser:
         if s.tag:
             submission.appendChild(x.createElement('tag'))
             submission.childNodes[-1].appendChild(x.createTextNode(s.tag))
-        for name,stream in s.inds.iteritems():
+        for name,stream in iteritems(s.inds):
             submission.appendChild(x.createElement('inds'))
             if name==s.primaryds:
                 submission.childNodes[-1].setAttribute('primary','true')
@@ -348,7 +350,7 @@ class dom_parser:
                 P('outfiles',job.outputs())
                 P('INPUTS:')
                 j=0
-                for dsname,files in job.infiles.iteritems():
+                for dsname,files in iteritems(job.infiles):
                     P('  Dataset%d'%j,dsname)
                     for k,fname in enumerate(files):
                         P('     File%d'%k,fname)

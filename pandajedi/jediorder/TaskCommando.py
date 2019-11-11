@@ -6,6 +6,8 @@ import socket
 import datetime
 import traceback
 
+from six import iteritems
+
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -161,7 +163,7 @@ class TaskCommandoThread (WorkerThread):
                                             tmpMsg = 'set {0}={1}'.format(tmpItems[0],tmpItems[1])
                                             tmpLog.sendMsg(tmpMsg,self.msgType)
                                             tmpLog.info(tmpMsg)
-                                            # back to oldStatus if necessary 
+                                            # back to oldStatus if necessary
                                             if tmpItems[2] == 'y':
                                                 tmpTaskSpec.status = oldStatus
                                                 tmpTaskSpec.forceUpdate('oldStatus')
@@ -191,7 +193,7 @@ class TaskCommandoThread (WorkerThread):
                                     # kill only in the first loop
                                     if iLoop > 0:
                                         break
-                                    # wait or kill jobs 
+                                    # wait or kill jobs
                                     if 'soft finish' in commentStr:
                                         queuedPandaIDs = self.taskBufferIF.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
                                         tmpMsg = "trying to kill {0} queued jobs for soft finish".format(len(queuedPandaIDs))
@@ -235,7 +237,7 @@ class TaskCommandoThread (WorkerThread):
                                 # convert new params
                                 newParamMap = RefinerUtils.decodeJSON(commentStr)
                                 # change params
-                                for newKey,newVal in newParamMap.iteritems():
+                                for newKey,newVal in iteritems(newParamMap):
                                     if newVal is None:
                                         # delete
                                         if newKey in taskParamMap:
@@ -291,11 +293,11 @@ class TaskCommandoThread (WorkerThread):
                 errStr  = '{0} failed in runImpl() with {1}:{2} '.format(self.__class__.__name__,errtype.__name__,errvalue)
                 errStr += traceback.format_exc()
                 logger.error(errStr)
-        
 
 
-########## launch 
-                
+
+########## launch
+
 def launcher(commuChannel,taskBufferIF,ddmIF,vos=None,prodSourceLabels=None):
     p = TaskCommando(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels)
     p.start()

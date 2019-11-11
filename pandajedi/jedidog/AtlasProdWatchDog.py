@@ -2,6 +2,8 @@ import re
 import sys
 import traceback
 
+from six import iteritems
+
 from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from WatchDogBase import WatchDogBase
@@ -57,7 +59,7 @@ class AtlasProdWatchDog (WatchDogBase):
         # return
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
-    
+
 
 
     # action for priority boost
@@ -101,7 +103,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     parentState = None
                     if parent_tid not in [None, jediTaskID]:
                         parentState = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
-                        if parentState != 'completed': 
+                        if parentState != 'completed':
                             gTmpLog.info('jediTaskID={0} skip prio boost for since parent={1} is in {2}'.format(jediTaskID, parent_tid,
                                                                                                                 parentState))
                             continue
@@ -138,7 +140,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     break
 
 
-        
+
     # action for reassignment
     def doActionForReassgin(self,gTmpLog):
         # get DDM I/F
@@ -218,7 +220,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     isOK = False
                     break
             # succeeded
-            if isOK:    
+            if isOK:
                 # activate task
                 if taskSpec.oldStatus in ['assigning','exhausted',None]:
                     taskSpec.status = 'ready'
@@ -233,7 +235,7 @@ class AtlasProdWatchDog (WatchDogBase):
 
     # action for throttled tasks
     def doActionForThrottled(self,gTmpLog):
-        # release tasks 
+        # release tasks
         nTasks = self.taskBufferIF.releaseThrottledTasks_JEDI(self.vo,self.prodSourceLabel)
         gTmpLog.debug('released {0} tasks'.format(nTasks))
         nTasks = self.taskBufferIF.throttleTasks_JEDI(self.vo,self.prodSourceLabel,
@@ -254,7 +256,7 @@ class AtlasProdWatchDog (WatchDogBase):
                                                                timeoutVal,timeoutForPending,
                                                                minPriority=minPriority)
         if tmpRet is None:
-            # failed                                                                                                             
+            # failed
             gTmpLog.error('failed to reactivate high priority (>{0}) tasks'.format(minPriority))
         else:
             gTmpLog.info('reactivated high priority (>{0}) {1} tasks'.format(minPriority,tmpRet))
@@ -265,7 +267,7 @@ class AtlasProdWatchDog (WatchDogBase):
     def doActionToSetScoutJobData(self,gTmpLog):
         tmpRet = self.taskBufferIF.setScoutJobDataToTasks_JEDI(self.vo,self.prodSourceLabel)
         if tmpRet is None:
-            # failed                                                                                                             
+            # failed
             gTmpLog.error('failed to set scout job data')
         else:
             gTmpLog.info('set scout job data successfully')
@@ -276,10 +278,10 @@ class AtlasProdWatchDog (WatchDogBase):
     def doActionToThrottleJobInPausedTasks(self,gTmpLog):
         tmpRet = self.taskBufferIF.throttleJobsInPausedTasks_JEDI(self.vo,self.prodSourceLabel)
         if tmpRet is None:
-            # failed                                                                                                             
+            # failed
             gTmpLog.error('failed to thottle jobs in paused tasks')
         else:
-            for jediTaskID, pandaIDs in tmpRet.iteritems():
+            for jediTaskID, pandaIDs in iteritems(tmpRet):
                 gTmpLog.info('throttled jobs in paused jediTaskID={0} successfully'.format(jediTaskID))
                 tmpRet = self.taskBufferIF.killJobs(pandaIDs,'reassign','51',True)
                 gTmpLog.info('reassigned {0} jobs in paused jediTaskID={1} with {2}'.format(len(pandaIDs), jediTaskID, tmpRet))

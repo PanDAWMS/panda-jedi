@@ -104,7 +104,7 @@ class MapWithLock:
         return self.dataMap[item]
     
     def iteritems(self):
-        return self.dataMap.iteritems()
+        return iteritems(self.dataMap)
 
 
 

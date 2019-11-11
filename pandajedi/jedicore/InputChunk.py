@@ -1,6 +1,8 @@
 import copy
 import random
 
+from six import iteritems
+
 from JediTaskSpec import JediTaskSpec
 import JediCoreUtils
 
@@ -106,7 +108,7 @@ class InputChunk:
 
     # return dataset with datasetName
     def getDatasetWithName(self,datasetName):
-        for tmpDatasetID,tmpDatasetVal in self.datasetMap.iteritems():
+        for tmpDatasetID,tmpDatasetVal in iteritems(self.datasetMap):
             if tmpDatasetVal['datasetSpec'].datasetName == datasetName:
                 return tmpDatasetVal['datasetSpec']
         return None
@@ -115,7 +117,7 @@ class InputChunk:
 
     # reset used counters
     def resetUsedCounters(self):
-        for tmpKey,tmpVal in self.datasetMap.iteritems():
+        for tmpKey,tmpVal in iteritems(self.datasetMap):
             tmpVal['used'] = 0
 
 
@@ -159,7 +161,7 @@ class InputChunk:
         # get total weight
         totalWeight = 0
         weightList  = []
-        siteCandidateList = self.siteCandidates.values()
+        siteCandidateList = list(self.siteCandidates.values())
         newSiteCandidateList = []
         nNG = 0
         nOK = 0
@@ -225,7 +227,7 @@ class InputChunk:
         # get total weight
         totalWeight = 0
         weightList  = []
-        siteCandidateList = self.siteCandidatesJumbo.values()
+        siteCandidateList = list(self.siteCandidatesJumbo.values())
         newSiteCandidateList = []
         for siteCandidate in siteCandidateList:
             # remove NG sites
@@ -373,7 +375,7 @@ class InputChunk:
 
     # get max output size
     def getOutSize(self,outSizeMap):
-        values = outSizeMap.values()
+        values = list(outSizeMap.values())
         values.sort()
         try:
             return values[-1]
@@ -839,14 +841,14 @@ class InputChunk:
                     or (maxDiskSize is not None and newDiskSize > maxDiskSize):
                 break
         # reset nUsed for repeated datasets
-        for tmpDatasetID,datasetUsage in self.datasetMap.iteritems():
+        for tmpDatasetID,datasetUsage in iteritems(self.datasetMap):
             tmpDatasetSpec = datasetUsage['datasetSpec']
             if tmpDatasetSpec.isRepeated():
                 if len(tmpDatasetSpec.Files) > 0:
                     datasetUsage['used'] %= len(tmpDatasetSpec.Files)
         # make copy to return
         returnList = []
-        for tmpDatasetID,inputFileList in inputFileMap.iteritems():
+        for tmpDatasetID,inputFileList in iteritems(inputFileMap):
             tmpRetList = []
             for tmpFileSpec in inputFileList:
                 # split par site or get atomic subchunk

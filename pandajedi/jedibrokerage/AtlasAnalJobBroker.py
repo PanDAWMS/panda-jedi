@@ -5,6 +5,8 @@ import types
 import random
 import datetime
 
+from six import iteritems
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
@@ -76,7 +78,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 except Exception:
                     pass
         # loop over all sites
-        for siteName,tmpSiteSpec in self.siteMapper.siteSpecList.iteritems():
+        for siteName,tmpSiteSpec in iteritems(self.siteMapper.siteSpecList):
             if tmpSiteSpec.type == 'analysis':
                 scanSiteList.append(siteName)
         # preassigned
@@ -185,7 +187,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 scanSiteList = None
                 scanSiteListOnDisk = None
                 normFactor = 0
-                for datasetName,tmpDataSite in self.dataSiteMap.iteritems():
+                for datasetName,tmpDataSite in iteritems(self.dataSiteMap):
                     normFactor += 1
                     # get sites where replica is available
                     tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=True)
@@ -213,7 +215,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         else:
                             dataWeight[tmpSiteName] += 0.001
                     # make weight map for remote
-                    for tmpSiteName,tmpWeightSrcMap in tmpSatelliteSites.iteritems():
+                    for tmpSiteName,tmpWeightSrcMap in iteritems(tmpSatelliteSites):
                         # skip since local data is available
                         if tmpSiteName in tmpSiteList:
                             continue
@@ -234,13 +236,13 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     # first list
                     if scanSiteList is None:
                         scanSiteList = []
-                        for tmpSiteName in tmpSiteList + tmpSatelliteSites.keys():
+                        for tmpSiteName in tmpSiteList + list(tmpSatelliteSites.keys()):
                             if tmpSiteName not in oldScanUnifiedSiteList:
                                 continue
                             if tmpSiteName not in scanSiteList:
                                 scanSiteList.append(tmpSiteName)
                         scanSiteListOnDisk = set()
-                        for tmpSiteName in tmpDiskSiteList + tmpSatelliteSites.keys():
+                        for tmpSiteName in tmpDiskSiteList + list(tmpSatelliteSites.keys()):
                             if tmpSiteName not in oldScanUnifiedSiteList:
                                 continue
                             scanSiteListOnDisk.add(tmpSiteName)
@@ -248,14 +250,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         continue
                     # pickup sites which have all data
                     newScanList = []
-                    for tmpSiteName in tmpSiteList + tmpSatelliteSites.keys():
+                    for tmpSiteName in tmpSiteList + list(tmpSatelliteSites.keys()):
                         if tmpSiteName in scanSiteList and tmpSiteName not in newScanList:
                             newScanList.append(tmpSiteName)
                     scanSiteList = newScanList
                     tmpLog.debug('{0} is available at {1} sites'.format(datasetName,len(scanSiteList)))
                     # pickup sites which have all data on DISK
                     newScanListOnDisk = set()
-                    for tmpSiteName in tmpDiskSiteList + tmpSatelliteSites.keys():
+                    for tmpSiteName in tmpDiskSiteList + list(tmpSatelliteSites.keys()):
                         if tmpSiteName in scanSiteListOnDisk:
                             newScanListOnDisk.add(tmpSiteName)
                     scanSiteListOnDisk = newScanListOnDisk
@@ -854,7 +856,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             for fileSpec in datasetSpec.Files:
                 totalSize += fileSpec.fsize
             if datasetSpec.datasetName in availableFileMap:
-                for tmpSiteName, tmpAvFileMap in availableFileMap[datasetSpec.datasetName].iteritems():
+                for tmpSiteName, tmpAvFileMap in iteritems(availableFileMap[datasetSpec.datasetName]):
                     totalDiskSizeMap.setdefault(tmpSiteName, 0)
                     totalTapeSizeMap.setdefault(tmpSiteName, 0)
                     for fileSpec in tmpAvFileMap['localdisk']:
@@ -955,7 +957,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 weightMap[weight].append(siteCandidateSpec)
         oldScanSiteList = copy.copy(scanSiteList)
         # sort candidates by weights
-        weightList = weightMap.keys()
+        weightList = list(weightMap.keys())
         weightList.sort()
         weightList.reverse()
         for weightVal in weightList:
@@ -1000,7 +1002,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 isAvailable = True
             else:
                 isAvailable = False
-            for tmpDatasetName,availableFiles in availableFileMap.iteritems():
+            for tmpDatasetName,availableFiles in iteritems(availableFileMap):
                 tmpDatasetSpec = inputChunk.getDatasetWithName(tmpDatasetName)
                 # check remote files
                 if tmpSiteName in remoteSourceList and tmpDatasetName in remoteSourceList[tmpSiteName]:

@@ -54,7 +54,7 @@ class GenJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             else:
                 tmpLog.debug('  skip %s due to status=%s' % (tmpSiteName,tmpSiteSpec.status))
-        scanSiteList = newScanSiteList        
+        scanSiteList = newScanSiteList
         tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
@@ -79,7 +79,7 @@ class GenJobBroker (JobBrokerBase):
                                                                                                          minRamCount))
                     continue
                 newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList        
+            scanSiteList = newScanSiteList
             tmpLog.debug('{0} candidates passed memory check ={1}{2}'.format(len(scanSiteList),
                                                                              minRamCount,taskSpec.ramUnit))
             if scanSiteList == []:
@@ -156,7 +156,7 @@ class GenJobBroker (JobBrokerBase):
                                                                                                            minWalltime))
                     continue
                 newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList        
+            scanSiteList = newScanSiteList
             tmpLog.debug('{0} candidates passed walltime check ={1}{2}'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
@@ -175,7 +175,7 @@ class GenJobBroker (JobBrokerBase):
                 tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
                 #continue
             newScanSiteList.append(tmpSiteName)
-        scanSiteList = newScanSiteList        
+        scanSiteList = newScanSiteList
         tmpLog.debug('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
@@ -217,10 +217,10 @@ class GenJobBroker (JobBrokerBase):
             else:
                 if weight not in weightMap:
                     weightMap[weight] = []
-                weightMap[weight].append(siteCandidateSpec)    
+                weightMap[weight].append(siteCandidateSpec)
         # limit the number of sites
         maxNumSites = 5
-        weightList = weightMap.keys()
+        weightList = list(weightMap.keys())
         weightList.sort()
         weightList.reverse()
         for weightVal in weightList:
@@ -230,7 +230,7 @@ class GenJobBroker (JobBrokerBase):
             random.shuffle(sitesWithWeight)
             candidateSpecList += sitesWithWeight[:(maxNumSites-len(candidateSpecList))]
         # collect site names
-        scanSiteList = []    
+        scanSiteList = []
         for siteCandidateSpec in candidateSpecList:
             scanSiteList.append(siteCandidateSpec.siteName)
         # append candidates
@@ -248,5 +248,5 @@ class GenJobBroker (JobBrokerBase):
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         # return
-        tmpLog.debug('done')        
+        tmpLog.debug('done')
         return self.SC_SUCCEEDED,inputChunk

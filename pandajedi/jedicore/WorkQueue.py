@@ -5,6 +5,9 @@ work queue specification
 
 import re
 import types
+
+from six import iteritems
+
 from pandaserver.taskbuffer.GlobalShares import Share
 
 RESOURCE = 'Resource'
@@ -129,7 +132,7 @@ class WorkQueue(object):
             for tmp_param in self._paramsForSelection:
                 tmp_eval_str = re.sub(tmp_param, tmp_param, tmp_eval_str, re.I)
             # replace bind-variables
-            for tmp_key, tmp_val in self.variables.iteritems():
+            for tmp_key, tmp_val in iteritems(self.variables):
                 if '%' in tmp_val:
                     # wildcard
                     tmp_val = tmp_val.replace('%', '.*')
@@ -180,7 +183,7 @@ class WorkQueue(object):
         if self.isActive():
             # normal queue
             # expand parameters to local namespace
-            for tmp_param_key, tmp_param_val in param_map.iteritems():
+            for tmp_param_key, tmp_param_val in iteritems(param_map):
                 if isinstance(tmp_param_val, types.StringType):
                     # add quotes for string
                     exec('{0}="{1}"'.format(tmp_param_key, tmp_param_val))

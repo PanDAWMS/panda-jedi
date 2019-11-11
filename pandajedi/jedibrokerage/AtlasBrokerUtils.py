@@ -2,6 +2,8 @@ import re
 import sys
 import json
 
+from six import iteritems
+
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import ProcessGroups
@@ -149,7 +151,7 @@ def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[],deepScan=F
         return errtype,'ddmIF.listReplicasPerDataset failed with %s' % errvalue
     # loop over all clouds
     retMap = {}
-    for tmpNucleus,tmpNucleusSpec in siteMapper.nuclei.iteritems():
+    for tmpNucleus,tmpNucleusSpec in iteritems(siteMapper.nuclei):
         if candidateNuclei != [] and tmpNucleus not in candidateNuclei:
             continue
         # loop over all datasets
@@ -159,7 +161,7 @@ def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[],deepScan=F
         avaNumAny = 0
         avaSizeDisk = 0
         avaSizeAny = 0
-        for tmpDataset,tmpRepMap in replicaMap.iteritems():
+        for tmpDataset,tmpRepMap in iteritems(replicaMap):
             tmpTotalNum = 0
             tmpTotalSize = 0
             tmpAvaNumDisk = 0
@@ -167,7 +169,7 @@ def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[],deepScan=F
             tmpAvaSizeDisk = 0
             tmpAvaSizeAny = 0
             # loop over all endpoints
-            for tmpLoc,locData in tmpRepMap.iteritems():
+            for tmpLoc,locData in iteritems(tmpRepMap):
                 # get total
                 if tmpTotalNum == 0:
                     tmpTotalNum = locData[0]['total']
@@ -294,8 +296,8 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
 def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True):
     siteList = []
     siteWithIncomp = []
-    for tmpSiteName,tmpSeValMap in dataSiteMap.iteritems():
-        for tmpSE,tmpValMap in tmpSeValMap.iteritems():
+    for tmpSiteName,tmpSeValMap in iteritems(dataSiteMap):
+        for tmpSE,tmpValMap in iteritems(tmpSeValMap):
             # VP
             if not use_vp and 'vp' in tmpValMap and tmpValMap['vp'] is True:
                 continue
@@ -336,7 +338,7 @@ def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,t
         if tmpStat is False:
             return {}
         # loop over all destinations
-        for tmpD,tmpW in tmpVal.iteritems():
+        for tmpD,tmpW in iteritems(tmpVal):
             # skip source sites
             if tmpD in siteList:
                 continue
@@ -356,12 +358,12 @@ def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_tag=N
         return 0
     nJobs = 0
     # loop over all workQueues
-    for tmpWorkQueue, tmpWorkQueueVal in jobStatMap[computingSite].iteritems():
+    for tmpWorkQueue, tmpWorkQueueVal in iteritems(jobStatMap[computingSite]):
         # workQueue is defined
         if workQueue_tag is not None and workQueue_tag != tmpWorkQueue:
             continue
         # loop over all job status
-        for tmpJobStatus, tmpCount in tmpWorkQueueVal.iteritems():
+        for tmpJobStatus, tmpCount in iteritems(tmpWorkQueueVal):
             if tmpJobStatus == jobStatus:
                 nJobs += tmpCount
     # return
@@ -603,7 +605,7 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, ignore_cc=False):
         tmp_site_spec = site_mapper.getSite(site_name)
 
         # add the schedconfig.ddm endpoints
-        ret_map[site_name] = tmp_site_spec.ddm_endpoints_input.all.keys()
+        ret_map[site_name] = list(tmp_site_spec.ddm_endpoints_input.all.keys())
 
         # add the cloudconfig.tier1SE for T1s
         if not ignore_cc and site_name in t1_map:

@@ -5,13 +5,15 @@ import socket
 import operator
 import traceback
 
+from six import iteritems
+
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedirefine import RefinerUtils
 
 
 # watchdog to take actions for jumbo jobs
 class JumboWatchDog:
-    
+
     # constructor
     def __init__(self, taskBufferIF, ddmIF, log, vo, prodSourceLabel):
         self.taskBufferIF = taskBufferIF
@@ -70,7 +72,7 @@ class JumboWatchDog:
             totEvents = 0
             doneEvents = 0
             nTasks = 0
-            for jediTaskID, taskData in tasksWithJumbo.iteritems():
+            for jediTaskID, taskData in iteritems(tasksWithJumbo):
                 # disable jumbo
                 if taskData['useJumbo'] != JediTaskSpec.enum_useJumbo['disabled'] and taskData['site'] is None:
                     if  taskData['nEvents'] - taskData['nEventsDone'] < nEventsToDisable:
@@ -106,8 +108,8 @@ class JumboWatchDog:
                 # kick pending
                 if taskData['taskStatus'] == 'pending' and taskData['useJumbo'] in [JediTaskSpec.enum_useJumbo['pending'], JediTaskSpec.enum_useJumbo['running']]:
                     nActiveJumbo = 0
-                    for computingSite, jobStatusMap in taskData['jumboJobs'].iteritems():
-                        for jobStatus, nJobs in jobStatusMap.iteritems():
+                    for computingSite, jobStatusMap in iteritems(taskData['jumboJobs']):
+                        for jobStatus, nJobs in iteritems(jobStatusMap):
                             if jobStatus in ['defined', 'assigned', 'activated', 'sent', 'starting', 'running', 'transferring', 'holding']:
                                 nActiveJumbo += nJobs
                     if nActiveJumbo == 0:
@@ -137,7 +139,7 @@ class JumboWatchDog:
                 self.log.debug('component={0} got {1} tasks to check'.format(self.component, len(tasksToEnableJumbo)))
                 # sort by nevents
                 nEventsMap = dict()
-                for jediTaskID, taskData in tasksToEnableJumbo.iteritems():
+                for jediTaskID, taskData in iteritems(tasksToEnableJumbo):
                     nEventsMap[jediTaskID] = taskData['nEvents']
                 sortedList = sorted(nEventsMap.items(), key=operator.itemgetter(1))
                 sortedList.reverse()
@@ -207,4 +209,3 @@ class JumboWatchDog:
             errStr.strip()
             errStr += traceback.format_exc()
             self.log.error(errStr)
-           

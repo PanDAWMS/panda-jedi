@@ -5,6 +5,8 @@ import urllib
 import datetime
 import random
 
+from six import iteritems
+
 from pandajedi.jedicore import Interaction
 from PostProcessorBase import PostProcessorBase
 from pandajedi.jedirefine import RefinerUtils
@@ -64,7 +66,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                                                                                                       len(okFiles),len(ddmFiles)))
                     # check all files
                     toDelete = []
-                    for tmpGUID,attMap in ddmFiles.iteritems():
+                    for tmpGUID,attMap in iteritems(ddmFiles):
                         if attMap['lfn'] not in okFiles:
                             did = {'scope':attMap['scope'], 'name':attMap['lfn']}
                             toDelete.append(did)
@@ -145,8 +147,8 @@ class AtlasAnalPostProcessor (PostProcessorBase):
             msgBody = self.composeMessage(taskSpec,fromAdd,toAdd)
             self.sendMail(taskSpec.jediTaskID,fromAdd,toAdd,msgBody,3,False,tmpLog)
         return self.SC_SUCCEEDED
-            
-    
+
+
 
     # compose mail message
     def composeMessage(self,taskSpec,fromAdd,toAdd):
@@ -257,8 +259,8 @@ PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(\
             dsSummary=dsSummary,
             msgSucceeded=msgSucceeded,
             )
-                    
-        # tailer            
+
+        # tailer
         message += \
 """
 
@@ -270,7 +272,7 @@ Report Panda problems of any sort to
 
   the JIRA portal for software bug
     https://its.cern.ch/jira/browse/ATLASPANDA
-"""        
+"""
         # return
         return message
 
@@ -345,4 +347,3 @@ Report Panda problems of any sort to
         except Exception:
             pass
         return tmpStr
-

@@ -184,6 +184,9 @@ setup(
                'pandajedi.jedibrokerage',
                'pandajedi.jedipprocess',
               ],
+    install_requires=[
+        'six',
+    ],
     data_files=[
                 # config and cron files
                 ('/etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',

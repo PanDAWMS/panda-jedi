@@ -4,6 +4,8 @@ import sys
 import socket
 import traceback
 
+from six import iteritems
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from WatchDogBase import WatchDogBase
 from pandaserver.dataservice.Activator import Activator
@@ -115,7 +117,7 @@ class AtlasAnalWatchDog (WatchDogBase):
             # throttle interval
             thrInterval = 120
             # loop over all users
-            for userName,userDict in dispUserTasks.iteritems():
+            for userName,userDict in iteritems(dispUserTasks):
                 tmpLog.debug('{0} {1} GB'.format(userName, userDict['size']/1024))
                 # too large
                 if userDict['size'] > maxPrestaging:

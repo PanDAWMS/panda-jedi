@@ -1,12 +1,14 @@
 import re
 import json
 
+from six import iteritems
+
 
 # convert UTF-8 to ASCII in json dumps
 def unicodeConvert(input):
     if isinstance(input,dict):
         retMap = {}
-        for tmpKey,tmpVal in input.iteritems():
+        for tmpKey,tmpVal in iteritems(input):
             retMap[unicodeConvert(tmpKey)] = unicodeConvert(tmpVal)
         return retMap
     elif isinstance(input,list):
@@ -47,7 +49,7 @@ def extractStreamName(valStr):
 # extract output filename template and replace the value field
 def extractReplaceOutFileTemplate(valStr,streamName):
     outFileTempl = valStr.split('=')[-1]
-    outFileTempl = outFileTempl.replace("'","") 
+    outFileTempl = outFileTempl.replace("'","")
     valStr = valStr.replace(outFileTempl,'${{{0}}}'.format(streamName))
     return outFileTempl,valStr
 
@@ -85,7 +87,7 @@ def appendDataset(taskParamMap,datasetSpec,fileList):
     tmpItem['param_type'] = datasetSpec.type
     if fileList != []:
         tmpItem['files']  = fileList
-    # append    
+    # append
     if 'jobParameters' not in taskParamMap:
         taskParamMap['jobParameters'] = []
     taskParamMap['jobParameters'].append(tmpItem)
@@ -102,4 +104,3 @@ def useRandomSeed(taskParamMap):
                 if '${RNDMSEED}' in tmpItem['value']:
                     return True
     return False
-

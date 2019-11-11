@@ -2,6 +2,8 @@ import re
 import sys
 import datetime
 
+from six import iteritems
+
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
@@ -448,7 +450,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     cloudHasData = False
                 t1hasData = False
                 if cloudHasData:
-                    for tmpSE,tmpSeVal in self.dataSiteMap[datasetName][cloudName]['t1'].iteritems():
+                    for tmpSE,tmpSeVal in iteritems(self.dataSiteMap[datasetName][cloudName]['t1']):
                         if tmpSeVal['state'] == 'complete':
                             t1hasData = True
                             break
@@ -1365,9 +1367,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             nWorkers = 0
             nWorkersCutoff = 20
             if tmpSiteName in workerStat:
-                for tmpHarvesterID, tmpResStat in workerStat[tmpSiteName].iteritems():
-                    for tmpResType, tmpCounts in tmpResStat.iteritems():
-                        for tmpStatus, tmpNum in tmpCounts.iteritems():
+                for tmpHarvesterID, tmpResStat in iteritems(workerStat[tmpSiteName]):
+                    for tmpResType, tmpCounts in iteritems(tmpResStat):
+                        for tmpStatus, tmpNum in iteritems(tmpCounts):
                             if tmpStatus in ['running', 'submitted']:
                                 nWorkers += tmpNum
                 # cap
@@ -1488,7 +1490,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 useActivated = False
             siteCandidateSpec.nAssignedJobs = nAssigned
             # set available files
-            for tmpDatasetName,availableFiles in availableFileMap.iteritems():
+            for tmpDatasetName,availableFiles in iteritems(availableFileMap):
                 if tmpSiteName in availableFiles:
                     siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
                     siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
@@ -1582,7 +1584,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             if weightMapPrimary == {}:
                 tmpLog.info('available sites all capped')
         # add jumbo sites
-        for weight,tmpList in weightMapJumbo.iteritems():
+        for weight,tmpList in iteritems(weightMapJumbo):
             if weight not in weightMap:
                 weightMap[weight] = []
             for tmpItem in tmpList:
@@ -1593,7 +1595,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             maxSiteCandidates = None
         newScanSiteList = []
-        weightList = weightMap.keys()
+        weightList = list(weightMap.keys())
         weightList.sort()
         weightList.reverse()
         for weightIdx,tmpWeight in enumerate(weightList):

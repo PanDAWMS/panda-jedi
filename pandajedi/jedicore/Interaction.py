@@ -7,6 +7,8 @@ import datetime
 import multiprocessing
 import multiprocessing.reduction
 
+from six import iteritems
+
 # patch multiprocessing
 import JediPatch
 
@@ -51,7 +53,7 @@ statusCodeMap = {'SC_SUCCEEDED': StatusCode(0),
 
 # install the list of status codes to a class
 def installSC(cls):
-    for sc,val in statusCodeMap.iteritems():
+    for sc,val in iteritems(statusCodeMap):
         setattr(cls,sc,val)
 
 
@@ -330,7 +332,7 @@ class CommandReceiveInterface(object):
             tmpKey = '{0}:{1}:'.format(className,methodName)
             for argItem in argList:
                 tmpKey += '{0}:'.format(str(argItem))
-            for argKey,argVal in argMap.iteritems():
+            for argKey,argVal in iteritems(argMap):
                 tmpKey += '{0}={1}:'.format(argKey,str(argVal))
             tmpKey = tmpKey[:-1]
             return tmpKey

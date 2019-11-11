@@ -1,6 +1,8 @@
 import re
 import sys
 
+from six import iteritems
+
 from pandajedi.jedicore import Interaction
 from PostProcessorBase import PostProcessorBase
 
@@ -49,7 +51,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                                                                                                       len(okFiles),len(ddmFiles)))
                     # check all files
                     toDelete = []
-                    for tmpGUID,attMap in ddmFiles.iteritems():
+                    for tmpGUID,attMap in iteritems(ddmFiles):
                         if attMap['lfn'] not in okFiles:
                             did = {'scope':attMap['scope'], 'name':attMap['lfn']}
                             toDelete.append(did)
@@ -129,7 +131,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                         tmpLog.debug('set metadata={0} to datasetID={1}:Name={2}'.format(str(metaData),
                                                                                         datasetSpec.datasetID,
                                                                                         datasetSpec.datasetName))
-                        for metadataName,metadaValue in metaData.iteritems():
+                        for metadataName,metadaValue in iteritems(metaData):
                             ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
                 # collect dataset types
                 datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
@@ -164,7 +166,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
                                                                                                                           taskSpec.parent_tid,
                                                                                                                           datasetSpec.datasetID,
                                                                                                                           datasetSpec.datasetName))
-                                    for metadataName,metadaValue in metaData.iteritems():
+                                    for metadataName,metadaValue in iteritems(metaData):
                                         ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
         # set lifetime to failed datasets
         if taskSpec.status in ['failed','broken','aborted']:
@@ -177,6 +179,6 @@ class AtlasProdPostProcessor (PostProcessorBase):
                     tmpLog.debug('set metadata={0} to failed datasetID={1}:Name={2}'.format(str(metaData),
                                                                                            datasetSpec.datasetID,
                                                                                            datasetSpec.datasetName))
-                    for metadataName,metadaValue in metaData.iteritems():
+                    for metadataName,metadaValue in iteritems(metaData):
                         ddmIF.setDatasetMetadata(datasetSpec.datasetName,metadataName,metadaValue)
         return self.SC_SUCCEEDED

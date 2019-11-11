@@ -4,6 +4,8 @@ import shlex
 import random
 import datetime
 
+from six import iteritems
+
 from pandajedi.jedicore import Interaction
 from TaskRefinerBase import TaskRefinerBase
 
@@ -108,7 +110,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                     if datasetSpec.isMaster() and datasetSpec.type == 'input':
                         datasetSpec.enableCheckConsistency()
             # append attempt number
-            for tmpKey,tmpOutTemplateMapList in self.outputTemplateMap.iteritems():
+            for tmpKey,tmpOutTemplateMapList in iteritems(self.outputTemplateMap):
                 for tmpOutTemplateMap in tmpOutTemplateMapList:
                     outFileTemplate = tmpOutTemplateMap['filenameTemplate']
                     if re.search('\.\d+$',outFileTemplate) is None and not outFileTemplate.endswith('.panda.um'):
@@ -145,7 +147,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                                                                                                                       self.taskSpec.parent_tid,
                                                                                                                       datasetSpec.datasetID,
                                                                                                                       datasetSpec.datasetName))
-                                for metadataName,metadaValue in metaData.iteritems():
+                                for metadataName,metadaValue in iteritems(metaData):
                                     self.ddmIF.getInterface(self.taskSpec.vo).setDatasetMetadata(datasetSpec.datasetName,
                                                                                                  metadataName,metadaValue)
         except Exception:

@@ -3,6 +3,8 @@ import sys
 import uuid
 import json
 
+from six import iteritems
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
 from TaskGeneratorBase import TaskGeneratorBase
@@ -47,7 +49,7 @@ class AtlasTaskGenerator (TaskGeneratorBase):
                             return retFatal
                         missingFilesMap = varMap['missingFilesMap']
                         # check datasets
-                        for datasetName,datasetValMap in missingFilesMap.iteritems():
+                        for datasetName,datasetValMap in iteritems(missingFilesMap):
                             # dataset needs specify container
                             datasetSpec = datasetValMap['datasetSpec']
                             if datasetSpec.containerName in ['',None]:
@@ -57,8 +59,8 @@ class AtlasTaskGenerator (TaskGeneratorBase):
                                 tmpLog.error(errStr)
                                 return retFatal
                         # make parameters for new task
-                        newJsonStrList = []    
-                        for datasetName,datasetValMap in missingFilesMap.iteritems():
+                        newJsonStrList = []
+                        for datasetName,datasetValMap in iteritems(missingFilesMap):
                             datasetSpec = datasetValMap['datasetSpec']
                             newTaskParamMap = {}
                             newTaskParamMap['oldDatasetName']  = datasetName
@@ -88,7 +90,7 @@ class AtlasTaskGenerator (TaskGeneratorBase):
                             # make json
                             jsonStr = json.dumps(newTaskParamMap)
                             newJsonStrList.append(jsonStr)
-                        # change original task parameters to not repeat the same procedure and to use newly produced files 
+                        # change original task parameters to not repeat the same procedure and to use newly produced files
                         taskParamMap['parentGenerated']         = True
                         taskParamMap['useInFilesInContainer']   = True
                         taskParamMap['useInFilesWithNewAttemptNr'] = True
@@ -104,10 +106,9 @@ class AtlasTaskGenerator (TaskGeneratorBase):
                             tmpLog.error('failed to insert/update tasks in DB')
                             return retFatal
             # return
-            tmpLog.info('done')        
+            tmpLog.info('done')
             return retOK
         except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doGenerate failed with {0}:{1}'.format(errtype.__name__,errvalue))
             return retFatal
-            

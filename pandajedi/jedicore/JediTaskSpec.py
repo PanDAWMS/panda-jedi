@@ -1,5 +1,7 @@
 import re
 
+from six import iteritems
+
 
 """
 task specification for JEDI
@@ -188,8 +190,8 @@ class JediTaskSpec(object):
                         'status','oldStatus','lockedBy']:
                 continue
             self.__setattr__(attr,getattr(oldTaskSpec,attr))
-            
-        
+
+
     # reset changed attribute list
     def resetChangedList(self):
         object.__setattr__(self,'_changedAttrs',{})
@@ -207,8 +209,8 @@ class JediTaskSpec(object):
     def forceUpdate(self,name):
         if name in self.attributes:
             self._changedAttrs[name] = getattr(self,name)
-        
-    
+
+
     # return map of values
     def valuesMap(self,useSeq=False,onlyChanged=False):
         ret = {}
@@ -263,11 +265,11 @@ class JediTaskSpec(object):
             else:
                 ret += ":%s," % attr
         ret = ret[:-1]
-        ret += ")"            
+        ret += ")"
         return ret
     bindValuesExpression = classmethod(bindValuesExpression)
 
-    
+
     # return an expression of bind variables for UPDATE to update only changed attributes
     def bindUpdateChangesExpression(self):
         ret = ""
@@ -287,7 +289,7 @@ class JediTaskSpec(object):
             if tmpMatch is not None:
                 nGBPerJob = int(tmpMatch.group(1)) * 1024 * 1024 * 1024
                 return nGBPerJob
-        return None    
+        return None
 
 
 
@@ -298,7 +300,7 @@ class JediTaskSpec(object):
             if tmpMatch is not None:
                 nGBPerJob = int(tmpMatch.group(1)) * 1024 * 1024 * 1024
                 return nGBPerJob
-        return None    
+        return None
 
 
 
@@ -308,7 +310,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['nMaxFilesPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
-        return None    
+        return None
 
 
 
@@ -379,7 +381,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['nFilesPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
-        return None    
+        return None
 
 
 
@@ -389,8 +391,8 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['nFilesPerMergeJob']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
-        return None    
-        
+        return None
+
 
 
     # get the number of events per job if defined
@@ -399,7 +401,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['nEventsPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
-        return None    
+        return None
 
 
 
@@ -440,7 +442,7 @@ class JediTaskSpec(object):
                 # 3 : cannot split. multiple boundayIDs per sub chunk
                 #
                 # * rule for secodary
-                # 1 : must have same boundayID. cannot split 
+                # 1 : must have same boundayID. cannot split
                 #
                 retMap = {}
                 if gbID in [1,2]:
@@ -457,7 +459,7 @@ class JediTaskSpec(object):
 
 
 
-    # use build 
+    # use build
     def useBuild(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['useBuild']+'=(\d+)',self.splitRule)
@@ -497,7 +499,7 @@ class JediTaskSpec(object):
 
 
 
-    # not wait for completion of parent 
+    # not wait for completion of parent
     def noWaitParent(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['noWaitParent']+'=(\d+)',self.splitRule)
@@ -531,7 +533,7 @@ class JediTaskSpec(object):
     # set limited sites
     def setLimitedSites(self,policy):
         tag = None
-        for tmpIdx,tmpPolicy in self.enum_limitedSites.iteritems():
+        for tmpIdx,tmpPolicy in iteritems(self.enum_limitedSites):
             if policy == tmpPolicy:
                 tag = tmpIdx
                 break
@@ -582,7 +584,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['nEventsPerWorker']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
-        return None    
+        return None
 
 
 
@@ -595,7 +597,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['nEsConsumers']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
-        return None    
+        return None
 
 
 
@@ -880,10 +882,10 @@ class JediTaskSpec(object):
             self.status = self.oldStatus
             self.oldStatus = None
             self.errorDialog = None
-        # reset error dialog    
+        # reset error dialog
         self.setErrDiag(None)
-            
-            
+
+
     # set error dialog
     def setErrDiag(self,diag,append=False,prepend=False):
         # set error dialog
@@ -898,9 +900,9 @@ class JediTaskSpec(object):
                 self.errorDialog = diag
         else:
             self.errorDialog = diag
-        
 
-        
+
+
     # use loadXML
     def useLoadXML(self):
         if self.splitRule is not None:
@@ -917,7 +919,7 @@ class JediTaskSpec(object):
         if self.workingGroup is not None:
             fqan = '/{0}/{1}/Role=production'.format(self.vo,self.workingGroup)
         else:
-            if self.vo is not None: 
+            if self.vo is not None:
                 fqan = '/{0}/Role=NULL'.format(self.vo)
             else:
                 return []
@@ -1024,7 +1026,7 @@ class JediTaskSpec(object):
                 return True
         return False
 
-        
+
 
     # wait until input shows up
     def waitInput(self):
@@ -1060,11 +1062,11 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['ddmBackEnd']+'=([^,$]+)',self.splitRule)
             if tmpMatch is not None:
                 return tmpMatch.group(1)
-        return None    
+        return None
 
 
 
-    # get field number to add middle name to LFN 
+    # get field number to add middle name to LFN
     def getFieldNumToLFN(self):
         try:
             if self.splitRule is not None:
@@ -1078,7 +1080,7 @@ class JediTaskSpec(object):
                     return map(int,tmpList)
         except Exception:
             pass
-        return None    
+        return None
 
 
 
@@ -1088,7 +1090,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['scoutSuccessRate']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
-        return None    
+        return None
 
 
 
@@ -1170,7 +1172,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['maxAttemptES']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
-        return None    
+        return None
 
 
 
@@ -1186,7 +1188,7 @@ class JediTaskSpec(object):
 
     # check attribute length
     def checkAttrLength(self):
-        for attrName,attrLength in self._attrLength.iteritems():
+        for attrName,attrLength in iteritems(self._attrLength):
             attrVal = getattr(self,attrName)
             if attrVal is None:
                 continue
@@ -1201,7 +1203,7 @@ class JediTaskSpec(object):
     # set IP connectivity
     def setIpConnectivity(self,value):
         if value in self.enum_ipConnectivity.values():
-            for tmpKey,tmpVal in self.enum_ipConnectivity.iteritems():
+            for tmpKey,tmpVal in iteritems(self.enum_ipConnectivity):
                 if value == tmpVal:
                     self.setSplitRule('ipConnectivity',tmpKey)
                     break
@@ -1307,7 +1309,7 @@ class JediTaskSpec(object):
     # set alternative stage-out
     def setAltStageOut(self,value):
         if value in self.enum_altStageOut.values():
-            for tmpKey,tmpVal in self.enum_altStageOut.iteritems():
+            for tmpKey,tmpVal in iteritems(self.enum_altStageOut):
                 if value == tmpVal:
                     self.setSplitRule('altStageOut',tmpKey)
                     break
@@ -1324,7 +1326,7 @@ class JediTaskSpec(object):
 
 
 
-    # allow WAN for input access 
+    # allow WAN for input access
     def allowInputWAN(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['allowInputWAN']+'=(\d+)',self.splitRule)
@@ -1337,14 +1339,14 @@ class JediTaskSpec(object):
     # set mode for input LAN access
     def setAllowInputLAN(self,value):
         if value in self.enum_inputLAN.values():
-            for tmpKey,tmpVal in self.enum_inputLAN.iteritems():
+            for tmpKey,tmpVal in iteritems(self.enum_inputLAN):
                 if value == tmpVal:
                     self.setSplitRule('allowInputLAN',tmpKey)
                     break
 
 
 
-    # check if LAN is used for input access 
+    # check if LAN is used for input access
     def allowInputLAN(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['allowInputLAN']+'=(\d+)',self.splitRule)
@@ -1471,13 +1473,13 @@ class JediTaskSpec(object):
 
 
 
-    # get max walltime 
+    # get max walltime
     def getMaxWalltime(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['maxWalltime']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1)) * 60 * 60
-        return None    
+        return None
 
 
 
@@ -1487,7 +1489,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['tgtMaxOutputForNG']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
-        return None    
+        return None
 
 
 
@@ -1507,7 +1509,7 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['minCpuEfficiency']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
-        return None    
+        return None
 
 
 
@@ -1544,7 +1546,7 @@ class JediTaskSpec(object):
     # get architecture
     def getArchitecture(self):
         if self.architecture is None or '@' not in self.architecture:
-            return self.architecture 
+            return self.architecture
         return self.architecture.split('@')[0]
 
 
