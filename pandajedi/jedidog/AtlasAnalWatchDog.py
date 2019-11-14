@@ -7,7 +7,7 @@ import traceback
 from six import iteritems
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from WatchDogBase import WatchDogBase
+from .WatchDogBase import WatchDogBase
 from pandaserver.dataservice.Activator import Activator
 
 # logger

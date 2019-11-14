@@ -11,7 +11,7 @@ from six import iteritems
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from JediKnight import JediKnight
+from .JediKnight import JediKnight
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedirefine import RefinerUtils

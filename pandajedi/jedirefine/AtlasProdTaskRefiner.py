@@ -7,7 +7,7 @@ import datetime
 from six import iteritems
 
 from pandajedi.jedicore import Interaction
-from TaskRefinerBase import TaskRefinerBase
+from .TaskRefinerBase import TaskRefinerBase
 
 from pandaserver.dataservice import DataServiceUtils
 

@@ -8,8 +8,8 @@ try:
 except Exception:
     long = int
 
-from JediTaskSpec import JediTaskSpec
-import JediCoreUtils
+from .JediTaskSpec import JediTaskSpec
+from . import JediCoreUtils
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])

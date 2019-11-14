@@ -34,10 +34,10 @@ from pandaserver.taskbuffer import EventServiceUtils
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.userinterface import Client as PandaClient
 
-from JobThrottler import JobThrottler
+from .JobThrottler import JobThrottler
 from JobBroker    import JobBroker
 from JobSplitter  import JobSplitter
-from TaskSetupper import TaskSetupper
+from .TaskSetupper import TaskSetupper
 from JediKnight   import JediKnight
 
 from pandajedi.jediconfig import jedi_config

@@ -6,12 +6,12 @@ from six import iteritems
 
 from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from WatchDogBase import WatchDogBase
+from .WatchDogBase import WatchDogBase
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedibrokerage import AtlasBrokerUtils
 
 from pandaserver.dataservice import DataServiceUtils
-from JumboWatchDog import JumboWatchDog
+from .JumboWatchDog import JumboWatchDog
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger

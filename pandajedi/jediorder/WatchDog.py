@@ -8,7 +8,7 @@ from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.FactoryBase import FactoryBase
-from JediKnight import JediKnight
+from .JediKnight import JediKnight
 from pandajedi.jediconfig import jedi_config
 
 

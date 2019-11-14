@@ -6,7 +6,7 @@ from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.FactoryBase import FactoryBase
-from JediKnight import JediKnight
+from .JediKnight import JediKnight
 
 from pandajedi.jediconfig import jedi_config
 

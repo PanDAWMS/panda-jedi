@@ -7,7 +7,7 @@ from six import iteritems
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
-from TaskGeneratorBase import TaskGeneratorBase
+from .TaskGeneratorBase import TaskGeneratorBase
 
 
 # logger

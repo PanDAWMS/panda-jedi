@@ -7,10 +7,15 @@ import datetime
 import multiprocessing
 import multiprocessing.reduction
 
+try:
+    from multiprocessing.connection import reduce_connection
+except ImportError:
+    from multiprocessing.reduction import reduce_connection
+
 from six import iteritems
 
 # patch multiprocessing
-import JediPatch
+from . import JediPatch
 
 #import multiprocessing
 #logger = multiprocessing.log_to_stderr()
@@ -104,7 +109,7 @@ class ProcessClass(object):
         self.usedMemory = 0
         self.nMemLookup = 20
         # reduce connection to make it picklable
-        self.reduced_pipe = multiprocessing.reduction.reduce_connection(connection)
+        self.reduced_pipe = reduce_connection(connection)
 
     # get connection
     def connection(self):
@@ -113,7 +118,7 @@ class ProcessClass(object):
 
     # reduce connection
     def reduceConnection(self,connection):
-        self.reduced_pipe = multiprocessing.reduction.reduce_connection(connection)
+        self.reduced_pipe = reduce_connection(connection)
 
     # get memory usage
     def getMemUsage(self):

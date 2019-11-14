@@ -3,7 +3,7 @@ import sys
 import random
 
 from pandajedi.jedicore import Interaction
-from TaskRefinerBase import TaskRefinerBase
+from .TaskRefinerBase import TaskRefinerBase
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandaserver.config import panda_config
 

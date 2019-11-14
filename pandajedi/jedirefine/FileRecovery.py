@@ -2,9 +2,9 @@ import re
 import sys
 import copy
 
-import RefinerUtils
+from .import RefinerUtils
 from pandajedi.jedicore import Interaction
-from TaskRefinerBase import TaskRefinerBase
+from .TaskRefinerBase import TaskRefinerBase
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 
@@ -78,7 +78,7 @@ class FileRecovery (TaskRefinerBase):
             provenanceID = None
             dummyStreams = []
             outDatasetSpec = None
-            datasetNameSpecMap = {} 
+            datasetNameSpecMap = {}
             for datasetSpec in datasetSpecList:
                 # for output datasets
                 if datasetSpec.type not in JediDatasetSpec.getInputTypes():
@@ -152,7 +152,7 @@ class FileRecovery (TaskRefinerBase):
             for dummyStream in dummyStreams:
                 self.taskSpec.jobParamsTemplate = self.taskSpec.jobParamsTemplate.replace('${'+dummyStream+'}',
                                                                                           dummyStream.lower()+'.tmp')
-            self.setJobParamsTemplate(self.taskSpec.jobParamsTemplate)    
+            self.setJobParamsTemplate(self.taskSpec.jobParamsTemplate)
             # loop over all lost files
             datasetIDSpecMap = {}
             for lostFileName in taskParamMap['lostFiles']:
@@ -219,7 +219,7 @@ class FileRecovery (TaskRefinerBase):
                     datasetSpec.destination = tmpItem['destination']
                 # use PandaID of original job as provenanceID
                 datasetSpec.provenanceID = pandaID
-                # append                                                                                          
+                # append
                 self.outDatasetSpecList.append(datasetSpec)
                 # extract attempt number from original filename
                 tmpMatch = re.search('\.(\d+)$',lostFileName)
@@ -228,7 +228,7 @@ class FileRecovery (TaskRefinerBase):
                 else:
                     offsetVal = 1 + int(tmpMatch.group(1))
                 # filename without attempt number
-                baseFileName = re.sub('\.(\d+)$','',lostFileName)    
+                baseFileName = re.sub('\.(\d+)$','',lostFileName)
                 # make output template
                 outTemplateMap = {'jediTaskID' : self.taskSpec.jediTaskID,
                                   'serialNr' : offsetVal,
@@ -237,7 +237,7 @@ class FileRecovery (TaskRefinerBase):
                                   'outtype' : datasetSpec.type,
                                   }
                 self.outputTemplateMap[datasetSpec.outputMapKey()] = [outTemplateMap]
-            # append datasets to task parameters    
+            # append datasets to task parameters
             for datasetSpec in datasetNameSpecMap.values():
                 if datasetSpec.Files == []:
                     continue
@@ -260,7 +260,3 @@ class FileRecovery (TaskRefinerBase):
             return self.SC_FAILED
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
-        
-
-            
-    

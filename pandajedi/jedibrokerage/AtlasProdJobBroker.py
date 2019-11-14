@@ -14,8 +14,8 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediCoreUtils
-from JobBrokerBase import JobBrokerBase
-import AtlasBrokerUtils
+from .JobBrokerBase import JobBrokerBase
+from . import AtlasBrokerUtils
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils
 

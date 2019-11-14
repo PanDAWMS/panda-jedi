@@ -7,7 +7,7 @@ import datetime
 
 from six import iteritems
 
-import RefinerUtils
+from . import RefinerUtils
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediException
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec

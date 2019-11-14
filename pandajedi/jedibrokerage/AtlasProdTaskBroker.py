@@ -12,10 +12,10 @@ except Exception:
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
-from TaskBrokerBase import TaskBrokerBase
+from .TaskBrokerBase import TaskBrokerBase
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread,MapWithLock
-import AtlasBrokerUtils
-from AtlasProdJobBroker import AtlasProdJobBroker
+from . import AtlasBrokerUtils
+from .AtlasProdJobBroker import AtlasProdJobBroker
 
 from pandaserver.userinterface import Client as PandaClient
 from pandaserver.dataservice import DataServiceUtils

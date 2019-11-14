@@ -24,16 +24,16 @@ from pandaserver import taskbuffer
 import taskbuffer.OraDBProxy
 from pandaserver.taskbuffer import JobUtils
 from pandaserver.taskbuffer import EventServiceUtils
-from WorkQueueMapper import WorkQueueMapper
+from .WorkQueueMapper import WorkQueueMapper
 
-from JediTaskSpec import JediTaskSpec
-from JediFileSpec import JediFileSpec
-from JediDatasetSpec import JediDatasetSpec
-from InputChunk import InputChunk
-from MsgWrapper import MsgWrapper
+from .JediTaskSpec import JediTaskSpec
+from .JediFileSpec import JediFileSpec
+from .JediDatasetSpec import JediDatasetSpec
+from .InputChunk import InputChunk
+from .MsgWrapper import MsgWrapper
 
-import ParseJobXML
-import JediCoreUtils
+from . import ParseJobXML
+from . import JediCoreUtils
 
 
 # logger

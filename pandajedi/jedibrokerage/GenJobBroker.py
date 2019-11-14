@@ -5,9 +5,9 @@ import random
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
-from JobBrokerBase import JobBrokerBase
+from .JobBrokerBase import JobBrokerBase
 from pandaserver.taskbuffer import PrioUtil
-import AtlasBrokerUtils
+from . import AtlasBrokerUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger

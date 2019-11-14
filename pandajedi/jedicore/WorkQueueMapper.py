@@ -7,7 +7,7 @@ import re
 
 from six import iteritems
 
-from WorkQueue import WorkQueue, RESOURCE, ACTIVE_FUNCTIONS
+from .WorkQueue import WorkQueue, RESOURCE, ACTIVE_FUNCTIONS
 
 class WorkQueueMapper:
 

@@ -9,7 +9,7 @@ from pandajedi.jedicore import JediException
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.FactoryBase import FactoryBase
 from pandajedi.jedirefine import RefinerUtils
-from JediKnight import JediKnight
+from .JediKnight import JediKnight
 
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec

@@ -17,7 +17,7 @@ from six import iteritems
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
-from DDMClientBase import DDMClientBase
+from .DDMClientBase import DDMClientBase
 
 from rucio.client import Client as RucioClient
 from rucio.common.exception import UnsupportedOperation,DataIdentifierNotFound,DataIdentifierAlreadyExists,\

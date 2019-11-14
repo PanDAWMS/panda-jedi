@@ -2,7 +2,7 @@ import re
 import sys
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from WatchDogBase import WatchDogBase
+from .WatchDogBase import WatchDogBase
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger

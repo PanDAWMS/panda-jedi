@@ -2,7 +2,7 @@ import re
 import sys
 
 from pandajedi.jedicore import Interaction
-from PostProcessorBase import PostProcessorBase
+from .PostProcessorBase import PostProcessorBase
 
 
 

@@ -2,7 +2,7 @@ import sys
 import datetime
 import multiprocessing
 
-import JediCoreUtils
+from . import JediCoreUtils
 
 # wrapper for multiprocessing.Process
 class ProcessWrapper(multiprocessing.Process):

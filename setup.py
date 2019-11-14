@@ -186,6 +186,10 @@ setup(
               ],
     install_requires=[
         'six',
+        'python-daemon',
+        'cx-Oracle',
+        'rucio-clients',
+        'numpy',
     ],
     data_files=[
                 # config and cron files

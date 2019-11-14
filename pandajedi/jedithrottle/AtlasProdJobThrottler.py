@@ -1,5 +1,5 @@
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from JobThrottlerBase import JobThrottlerBase
+from .JobThrottlerBase import JobThrottlerBase
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger

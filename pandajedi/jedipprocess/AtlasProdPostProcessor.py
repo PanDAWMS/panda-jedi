@@ -4,7 +4,7 @@ import sys
 from six import iteritems
 
 from pandajedi.jedicore import Interaction
-from PostProcessorBase import PostProcessorBase
+from .PostProcessorBase import PostProcessorBase
 
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils
