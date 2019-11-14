@@ -1482,10 +1482,10 @@ class AtlasProdJobBroker (JobBrokerBase):
             siteCandidateSpec.nRunningJobs = nRunning
             if tmpSiteName not in siteSizeMap or siteSizeMap[tmpSiteName] >= totalSize:
                 siteCandidateSpec.nQueuedJobs = nActivated + nStarting
-                useActivated = True
+                useAssigned = False
             else:
                 siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
-                useActivated = False
+                useAssigned = True
             siteCandidateSpec.nAssignedJobs = nAssigned
             # set available files
             for tmpDatasetName,availableFiles in availableFileMap.iteritems():
@@ -1525,7 +1525,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             if lockedByBrokerage:
                 ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-lock'
-            elif not useActivated and siteCandidateSpec.nQueuedJobs > nRunningCap:
+            elif not useAssigned and siteCandidateSpec.nQueuedJobs > nRunningCap:
                 ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                              weight,
                                                                                              nActivated+nStarting)
@@ -1533,7 +1533,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
-            elif useActivated and siteCandidateSpec.nQueuedJobs > nRunningCap:
+            elif useAssigned and siteCandidateSpec.nQueuedJobs > nRunningCap:
                 ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                                                 weight,
                                                                                                                 nDefined+nActivated+nAssigned+nStarting)
