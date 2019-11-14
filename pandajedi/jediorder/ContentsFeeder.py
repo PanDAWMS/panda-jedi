@@ -268,14 +268,14 @@ class ContentsFeederThread (WorkerThread):
                                                 nPFN = origNumFiles
                                                 if 'nEventsPerJob' in taskParamMap and 'nEventsPerFile' in taskParamMap \
                                                         and taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
-                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] / taskParamMap['nEventsPerJob']
+                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] // taskParamMap['nEventsPerJob']
                                                 elif 'nEventsPerFile' in taskParamMap and 'nEventsPerRange' in taskParamMap:
-                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] / taskParamMap['nEventsPerRange']
+                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] // taskParamMap['nEventsPerRange']
                                             elif 'nEvents' in taskParamMap and 'nEventsPerJob' in taskParamMap:
-                                                nPFN = taskParamMap['nEvents'] / taskParamMap['nEventsPerJob']
+                                                nPFN = taskParamMap['nEvents'] // taskParamMap['nEventsPerJob']
                                             elif 'nEvents' in taskParamMap and 'nEventsPerFile' in taskParamMap \
                                                     and taskSpec.getNumFilesPerJob() is not None:
-                                                nPFN = taskParamMap['nEvents'] / taskParamMap['nEventsPerFile'] / taskSpec.getNumFilesPerJob()
+                                                nPFN = taskParamMap['nEvents'] // taskParamMap['nEventsPerFile'] // taskSpec.getNumFilesPerJob()
                                             else:
                                                 # the default number of records for seq_number
                                                 seqDefNumRecords = 10000

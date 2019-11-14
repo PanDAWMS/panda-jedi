@@ -292,9 +292,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         # get cap
         # set number of jobs to be submitted
         if configQueueCap is None:
-            self.setMaxNumJobs(nJobsInBunch / nParallel)
+            self.setMaxNumJobs(nJobsInBunch // nParallel)
         else:
-            self.setMaxNumJobs(configQueueCap / nParallelCap)
+            self.setMaxNumJobs(configQueueCap // nParallelCap)
 
         # get total walltime
         totWalltime = self.taskBufferIF.getTotalWallTime_JEDI(vo, prodSourceLabel, workQueue, resource_name, cloudName)

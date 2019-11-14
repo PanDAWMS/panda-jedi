@@ -89,13 +89,13 @@ class GenJobBroker (JobBrokerBase):
         ######################################
         # selection for scratch disk
         minDiskCountS = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
-        minDiskCountS = minDiskCountS / 1024 / 1024
+        minDiskCountS = minDiskCountS // 1024 // 1024
         # size for direct IO sites
         if taskSpec.useLocalIO():
             minDiskCountR = minDiskCountS
         else:
             minDiskCountR = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()
-            minDiskCountR = minDiskCountR / 1024 / 1024
+            minDiskCountR = minDiskCountR // 1024 // 1024
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)

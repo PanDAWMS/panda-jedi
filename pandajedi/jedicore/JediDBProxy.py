@@ -514,7 +514,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if tmpNumEvents >= nEventsPerFile:
                         fileSpec.nEvents = nEventsPerFile
                     else:
-                        fileSpec.nEvents = long(tmpNumEvents / nEventsPerJob) * nEventsPerJob
+                        fileSpec.nEvents = long(tmpNumEvents // nEventsPerJob) * nEventsPerJob
                         if fileSpec.nEvents == 0:
                             tmpLog.debug('skip {0} due to nEvents {1} < nEventsPerJob {2}'.format(fileSpec.lfn,
                                                                                                   tmpNumEvents,
@@ -1097,7 +1097,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         numReqFileRecords = nMaxFiles
                         try:
                             if nEventsPerFile > nEventsPerJob:
-                                numReqFileRecords = numReqFileRecords * nEventsPerFile / nEventsPerJob
+                                numReqFileRecords = numReqFileRecords * nEventsPerFile // nEventsPerJob
                         except Exception:
                             pass
                         tmpLog.debug("the number of requested file records : {0}".format(numReqFileRecords))
@@ -1751,7 +1751,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # update task
             sqlU  = "UPDATE {0}.JEDI_Tasks SET {1} ".format(jedi_config.db.schemaJEDI,
                                                             taskSpec.bindUpdateChangesExpression())
-            for tmpKey,tmpVal in taskSpec.valuesMap(useSeq=False,onlyChanged=iteritems(True)):
+            for tmpKey,tmpVal in iteritems(taskSpec.valuesMap(useSeq=False,onlyChanged=True)):
                 varMap[tmpKey] = tmpVal
             tmpLog.debug(sqlU+sql+comment+str(varMap))
             self.cur.execute(sqlU+sql+comment,varMap)
@@ -3556,8 +3556,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             elif taskSpec.getNumEventsPerJob() is not None:
                                 typicalNumFilesPerJob = 1
                                 try:
-                                    if taskSpec.getNumEventsPerJob() > (tmpNumInputEvents / tmpNumInputFiles):
-                                        typicalNumFilesPerJob = taskSpec.getNumEventsPerJob() * tmpNumInputFiles / tmpNumInputEvents
+                                    if taskSpec.getNumEventsPerJob() > (tmpNumInputEvents // tmpNumInputFiles):
+                                        typicalNumFilesPerJob = taskSpec.getNumEventsPerJob() * tmpNumInputFiles // tmpNumInputEvents
                                 except Exception:
                                     pass
                                 if typicalNumFilesPerJob < 1:
@@ -5387,7 +5387,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     elif preOutDiskUnit.startswith('kB'):
                         pass
                     else:
-                        preOutDiskCount = preOutDiskCount / 1024
+                        preOutDiskCount = preOutDiskCount // 1024
         else:
             prodSourceLabel = None
             preOutDiskCount = 0
@@ -5516,8 +5516,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if resNumJobs is not None:
                 totFiles, totFinished, totUsed = resNumJobs
                 if totFinished > 0:
-                    totalJobs = int(totFiles * len(pandaIDList) / totFinished)
-                    nNewJobs = int((totFiles - totUsed) * len(pandaIDList) / totFinished)
+                    totalJobs = int(totFiles * len(pandaIDList) // totFinished)
+                    nNewJobs = int((totFiles - totUsed) * len(pandaIDList) // totFinished)
         extraInfo['expectedNumJobs'] = totalJobs
         extraInfo['numFinishedJobs'] = len(pandaIDList)
         extraInfo['nFiles'] = totFiles
@@ -5751,7 +5751,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             returnMap['ioIntensity'] = maxIoIntent
             returnMap['ioIntensityUnit'] = 'kBPerS'
         if diskIoList != []:
-            aveDiskIo = sum(diskIoList) / len(diskIoList)
+            aveDiskIo = sum(diskIoList) // len(diskIoList)
             aveDiskIo = long(math.ceil(aveDiskIo))
             returnMap['diskIO'] = aveDiskIo
             returnMap['diskIOUnit'] = 'kBPerS'
@@ -5759,7 +5759,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             memVal, origValues = JediCoreUtils.percentile(memSizeList, ramCountRank, memSizeDict)
             for origValue in origValues:
                 addTag(jobTagMap,memSizeDict,origValue,'ramCount')
-            memVal = memVal * (100 + ramCountMargin) / 100
+            memVal = memVal * (100 + ramCountMargin) // 100
             memVal /= 1024
             memVal = long(memVal)
             if memVal < 0:
@@ -5822,7 +5822,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # get NG
                         taskSpec.outDiskCount = returnMap['outDiskCount']
                         taskSpec.outDiskUnit = returnMap['outDiskUnit']
-                        expectedOutSize = outTotal * taskSpec.getTgtMaxOutputForNG() * 1024 * 1024 * 1024 / outBig
+                        expectedOutSize = outTotal * taskSpec.getTgtMaxOutputForNG() * 1024 * 1024 * 1024 // outBig
                         outDiskCount = taskSpec.getOutDiskSize()
                         if 'workDiskCount' in returnMap:
                             taskSpec.workDiskCount = returnMap['workDiskCount']
@@ -5833,11 +5833,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if outDiskCount == 0:
                             # to avoid zero-division
                             outDiskCount = 1
-                        scaleFactor = expectedOutSize / outDiskCount
+                        scaleFactor = expectedOutSize // outDiskCount
                         if preOutputScaleWithEvents:
                             # scaleFactor is num of events
                             try:
-                                expectedInSize = (inFSizeMap[tmpPandaID] + totInSizeMap[tmpPandaID] - masterInSize[tmpPandaID]) * scaleFactor / inEventsMap[tmpPandaID]
+                                expectedInSize = (inFSizeMap[tmpPandaID] + totInSizeMap[tmpPandaID] - masterInSize[tmpPandaID]) * scaleFactor // inEventsMap[tmpPandaID]
                                 newNG = expectedOutSize + expectedInSize  + workDiskCount - InputChunk.defaultOutputSize
                             except Exception:
                                 newNG = None

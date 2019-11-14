@@ -136,7 +136,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                 jobSpec.metadata         = taskSpec.processingType
                 jobSpec.assignedPriority = taskSpec.taskPriority
                 jobSpec.currentPriority  = taskSpec.currentPriority
-                jobSpec.maxDiskCount     = (taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()) / 1024 / 1024
+                jobSpec.maxDiskCount     = (taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()) // 1024 // 1024
                 if taskSpec.useWorldCloud():
                     # use destinationSE to trigger task brokerage in WORLD cloud
                     jobSpec.destinationSE = taskSpec.cloud

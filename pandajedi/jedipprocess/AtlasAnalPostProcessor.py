@@ -7,7 +7,7 @@ import random
 from six import iteritems
 
 try:
-    from urllib.parmase import urlencode
+    from urllib.parse import urlencode
 except ImportError:
     from urllib import urlencode
 

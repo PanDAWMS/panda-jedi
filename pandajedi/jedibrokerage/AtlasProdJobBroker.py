@@ -583,7 +583,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             # normalize task diskIO by site corecount
             diskio_task_tmp = taskSpec.diskIO
             if taskSpec.diskIO is not None and taskSpec.coreCount not in [None, 0, 1] and tmpSiteSpec.coreCount not in [None, 0]:
-                diskio_task_tmp = taskSpec.diskIO / tmpSiteSpec.coreCount
+                diskio_task_tmp = taskSpec.diskIO // tmpSiteSpec.coreCount
 
             try: # generate a log message parseable by logstash for monitoring
                 log_msg = 'diskIO measurements: site={0} jediTaskID={1} '.format(tmpSiteName, taskSpec.jediTaskID)
@@ -769,8 +769,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         minDiskCountL  = minDiskCount
         minDiskCountD  = minDiskCount
         minDiskCountL += inputChunk.getMaxAtomSize()
-        minDiskCountL  = minDiskCountL / 1024 / 1024
-        minDiskCountD  = minDiskCountD / 1024 / 1024
+        minDiskCountL  = minDiskCountL // 1024 // 1024
+        minDiskCountD  = minDiskCountD // 1024 // 1024
         newScanSiteList = []
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)

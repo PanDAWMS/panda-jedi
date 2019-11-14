@@ -47,7 +47,7 @@ class JumboWatchDog:
                 nEventsToEnable = nEventsToDisable * 10
             maxEvents = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_MAX_EVENTS', 'jedi', self.vo)
             if maxEvents is None:
-                maxEvents = maxTasks * nEventsToEnable / 2
+                maxEvents = maxTasks * nEventsToEnable // 2
             nJumboPerTask = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_PER_TASK', 'jedi', self.vo)
             if nJumboPerTask is None:
                 nJumboPerTask = 1
@@ -94,7 +94,7 @@ class JumboWatchDog:
                     self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioWhenDisabled)
                     self.log.info('component={0} priority boost to {1} after disabing jumbo in in jediTaskID={2}'.format(self.component, prioWhenDisabled, jediTaskID))
                 # increase priority when close to completion
-                if taskData['nEvents'] > 0 and (taskData['nEvents'] - taskData['nEventsDone']) * 100 / taskData['nEvents'] < progressToBoost \
+                if taskData['nEvents'] > 0 and (taskData['nEvents'] - taskData['nEventsDone']) * 100 // taskData['nEvents'] < progressToBoost \
                         and taskData['currentPriority'] < prioToBoost and (taskData['nFiles'] - taskData['nFilesDone']) < maxFilesToBoost:
                     # boost
                     tmpStr = 'component={0} priority boost to {5} for jediTaskID={1} due to n_events_done={2} > {3}*{4}% '.format(self.component, jediTaskID,

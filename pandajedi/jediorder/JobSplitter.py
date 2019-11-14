@@ -184,7 +184,7 @@ class JobSplitter:
                 corePower = siteSpec.corepower
                 # max num of event ranges for dynNumEvents
                 if dynNumEvents:
-                    maxNumEventRanges = int(siteSpec.get_n_sim_events() / taskSpec.get_min_granularity())
+                    maxNumEventRanges = int(siteSpec.get_n_sim_events() // taskSpec.get_min_granularity())
                     if maxNumEventRanges == 0:
                         maxNumEventRanges = 1
                 tmpLog.debug('chosen {0} : {1} : nQueue={2} nRunCap={3}'.format(siteName, getCandidateMsg,
