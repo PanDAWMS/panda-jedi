@@ -141,7 +141,7 @@ class JumboWatchDog:
                 nEventsMap = dict()
                 for jediTaskID, taskData in iteritems(tasksToEnableJumbo):
                     nEventsMap[jediTaskID] = taskData['nEvents']
-                sortedList = sorted(nEventsMap.items(), key=operator.itemgetter(1))
+                sortedList = sorted(list(nEventsMap.items()), key=operator.itemgetter(1))
                 sortedList.reverse()
                 for jediTaskID, nEvents in sortedList:
                     taskData = tasksToEnableJumbo[jediTaskID]

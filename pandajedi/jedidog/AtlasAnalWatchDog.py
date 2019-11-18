@@ -134,7 +134,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                     if userName in thrUserTasks:
                         del thrUserTasks[userName]
             # release users
-            for userName,taskIDs in thrUserTasks.items():
+            for userName,taskIDs in iteritems(thrUserTasks):
                 tmpLog.debug('{0} release throttled tasks'.format(userName))
                 # unthrottle tasks
                 for taskID in taskIDs:

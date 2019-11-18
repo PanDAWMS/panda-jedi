@@ -108,11 +108,11 @@ class AtlasProdJobThrottler (JobThrottlerBase):
 
         for status in wq_stats:
             nJobs_rt, nJobs_ms, nJobs_gs = 0, 0, 0
-            stats_list = wq_stats[status].items()
+            stats_list = list(wq_stats[status].items())
             # take into account the number of standby jobs
             if status == 'running':
-                stats_list += standby_num_static.items()
-                stats_list += standby_num_static_dynamic.items()
+                stats_list += list(standby_num_static.items())
+                stats_list += list(standby_num_static_dynamic.items())
             for resource_type, count in stats_list:
                 if resource_type == resource_name:
                     nJobs_rt = count

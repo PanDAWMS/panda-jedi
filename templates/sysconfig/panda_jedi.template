@@ -1,5 +1,8 @@
-# Ensure python is 2.5
-PATH=/bin:/usr/local/bin:/usr/bin:$PATH
+# python
+export PATH=/bin:/usr/local/bin:/usr/bin:${PATH}
+if [[ -n "${VIRTUAL_ENV}" ]]; then
+  PATH=${VIRTUAL_ENV}/bin:${VIRTUAL_ENV}/usr/local/bin:${VIRTUAL_ENV}/usr/bin:${VIRTUAL_ENV}:${PATH}
+fi
 
 # for DQ2
 export X509_CERT_DIR=/etc/grid-security/certificates
@@ -13,4 +16,3 @@ export TZ=UTC
 
 # import panda modules
 export PYTHONPATH=@@install_purelib@@/pandacommon:@@install_purelib@@/pandaserver:@@install_purelib@@
-

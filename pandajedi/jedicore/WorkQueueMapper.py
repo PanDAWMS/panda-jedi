@@ -69,7 +69,7 @@ class WorkQueueMapper:
                     ordered_map[wq.queue_order].append(wq)
                 # make sorted list
                 ordered_list = list(ordered_map.keys())
-                ordered_list.sort()
+                ordered_list.sort(key=lambda x: (x is None, x))
                 new_list = []
                 for order_val in ordered_list:
                     new_list += ordered_map[order_val]
