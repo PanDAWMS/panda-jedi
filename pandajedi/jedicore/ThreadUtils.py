@@ -3,6 +3,8 @@ import time
 import threading
 import multiprocessing
 
+from six import iteritems
+
 
 # list with lock
 class ListWithLock:
@@ -103,7 +105,7 @@ class MapWithLock:
             return 0
         return self.dataMap[item]
 
-    def iteritems(self):
+    def items(self):
         return iteritems(self.dataMap)
 
 
