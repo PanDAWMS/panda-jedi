@@ -1,10 +1,6 @@
-import re
 import sys
-import uuid
-import json
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore import Interaction
 from .TaskSetupperBase import TaskSetupperBase
 
 from pandaserver.dataservice import DataServiceUtils
@@ -68,7 +64,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                         continue
                     # DDM backend
                     ddmBackEnd = taskSpec.getDdmBackEnd()
-                    tmpLog.info('checking {0}'.format(datasetSpec.datasetName)) 
+                    tmpLog.info('checking {0}'.format(datasetSpec.datasetName))
                     # check if dataset and container are available in DDM
                     for targetName in [datasetSpec.datasetName,datasetSpec.containerName]:
                         if targetName is None:
@@ -98,10 +94,12 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                         elif taskSpec.cloud is not None:
                                             # use T1 SE
                                             tmpT1Name = siteMapper.getCloud(taskSpec.cloud)['source']
-                                            location = siteMapper.getDdmEndpoint(tmpT1Name,datasetSpec.storageToken)
+                                            location = siteMapper.getDdmEndpoint(tmpT1Name, datasetSpec.storageToken,
+                                                                                 taskSpec.prodSourceLabel)
                                     else:
                                         tmpLog.info('site={0} token='.format(datasetSpec.site,datasetSpec.storageToken))
-                                        location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
+                                        location = siteMapper.getDdmEndpoint(datasetSpec.site, datasetSpec.storageToken,
+                                                                             taskSpec.prodSourceLabel)
                                 if locForRule is None:
                                     locForRule = location
                                 # set metadata
@@ -109,7 +107,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                     metaData = {}
                                     metaData['task_id'] = taskSpec.jediTaskID
                                     if taskSpec.campaign not in [None,'']:
-                                        metaData['campaign'] = taskSpec.campaign 
+                                        metaData['campaign'] = taskSpec.campaign
                                     if datasetSpec.getTransient() is not None:
                                         metaData['transient'] = datasetSpec.getTransient()
                                 else:
@@ -125,7 +123,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                 if not tmpStat:
                                     tmpLog.error('failed to register {0}'.format(targetName))
                                     return retFatal
-                                # procedures for user 
+                                # procedures for user
                                 if userSetup or DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
                                     # register location
                                     tmpToRegister = False
@@ -177,7 +175,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                             cnDatasetMap[datasetSpec.containerName] = ddmIF.listDatasetsInContainer(datasetSpec.containerName)
                         # add dataset
                         if datasetSpec.datasetName not in cnDatasetMap[datasetSpec.containerName]:
-                            tmpLog.info('adding {0} to {1}'.format(datasetSpec.datasetName,datasetSpec.containerName)) 
+                            tmpLog.info('adding {0} to {1}'.format(datasetSpec.datasetName,datasetSpec.containerName))
                             tmpStat = ddmIF.addDatasetsToContainer(datasetSpec.containerName,[datasetSpec.datasetName],
                                                                    backEnd=ddmBackEnd)
                             if not tmpStat:
@@ -186,7 +184,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                 return retFatal
                             cnDatasetMap[datasetSpec.containerName].append(datasetSpec.datasetName)
                         else:
-                            tmpLog.info('{0} already in {1}'.format(datasetSpec.datasetName,datasetSpec.containerName)) 
+                            tmpLog.info('{0} already in {1}'.format(datasetSpec.datasetName,datasetSpec.containerName))
                     # update dataset
                     datasetSpec.status = 'registered'
                     self.taskBufferIF.updateDataset_JEDI(datasetSpec,{'jediTaskID':taskSpec.jediTaskID,
@@ -207,7 +205,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     tmpLog.error('failed to register ES dataset {0}'.format(targetName))
                     return retFatal
                 # register rule
-                location = 'type=DATADISK' 
+                location = 'type=DATADISK'
                 activity = DataServiceUtils.getActivityForOut(taskSpec.prodSourceLabel)
                 grouping = 'NONE'
                 tmpLog.info('registering location={0} activity={1} grouping={2}'.format(location,
@@ -236,7 +234,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     # unset lifetime
                     ddmIF.setDatasetMetadata(outDataset,'lifetime',None)
             # return
-            tmpLog.info('done')        
+            tmpLog.info('done')
             return retOK
         except Exception:
             errtype,errvalue = sys.exc_info()[:2]

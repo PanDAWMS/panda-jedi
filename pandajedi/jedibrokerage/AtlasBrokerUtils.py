@@ -6,11 +6,11 @@ from six import iteritems
 
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
+from dataservice.DataServiceUtils import select_scope
 from pandaserver.taskbuffer import ProcessGroups
 
-
 # get hospital queues
-def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
+def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucleus=None):
     retMap = {}
     # hospital words
     goodWordList = ['CORE$','VL$','MEM$','MP\d+$','LONG$','_HIMEM','_\d+$','SHORT$']
@@ -29,8 +29,9 @@ def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
         else:
             tmpT1Name = siteInNucleus
         tmpT1Spec = siteMapper.getSite(tmpT1Name)
+        scope_t1_input, scope_t1_output = select_scope(tmpT1Spec, prodSourceLabel)
         # skip if DDM is undefined
-        if tmpT1Spec.ddm_output == []: # TODO: check with Tadashi
+        if not tmpT1Spec.ddm_output[scope_t1_output]:
             continue
         # loop over all sites
         for tmpSiteName in tmpCloudSpec['sites']:
@@ -49,8 +50,9 @@ def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
             if not siteMapper.checkSite(tmpSiteName):
                 continue
             tmpSiteSpec = siteMapper.getSite(tmpSiteName)
+            scope_tmpSite_input, scope_tmpSite_output = select_scope(tmpSiteSpec, prodSourceLabel)
             # check DDM
-            if tmpT1Spec.ddm_output == tmpSiteSpec.ddm_output: # TODO: check with Tadashi
+            if tmpT1Spec.ddm_output[scope_t1_output] == tmpSiteSpec.ddm_output[scope_tmpSite_output]:
                 # append
                 if tmpCloudName not in retMap:
                     retMap[tmpCloudName] = []
@@ -62,7 +64,7 @@ def getHospitalQueues(siteMapper,siteInNucleus=None,cloudForNucleus=None):
 
 
 # get sites where data is available
-def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
+def getSitesWithData(siteMapper, ddmIF, datasetName, prodsourcelabel, storageToken=None):
     # get num of files
     try:
         if not datasetName.endswith('/'):
@@ -128,9 +130,9 @@ def getSitesWithData(siteMapper,ddmIF,datasetName,storageToken=None):
                 # append
                 retMap[tmpCloudName]['t1'][tmpSE] = {'tape':tmpOnTape,'state':tmpDatasetStatus}
         # get T2 list
-        tmpSiteList = DataServiceUtils.getSitesWithDataset(datasetName,siteMapper,replicaMap,
-                                                           tmpCloudName,useHomeCloud=True,
-                                                           useOnlineSite=True,includeT1=False)
+        tmpSiteList = DataServiceUtils.getSitesWithDataset(datasetName, siteMapper, replicaMap,
+                                                           tmpCloudName, prodsourcelabel, useHomeCloud=True,
+                                                           useOnlineSite=True, includeT1=False)
         # append
         retMap[tmpCloudName]['t2'] = tmpSiteList
         # remove if empty
@@ -231,9 +233,15 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
         if not siteMapper.checkSite(tmpSiteName):
             continue
         tmpSiteSpec = siteMapper.getSite(tmpSiteName)
+        scope_input, scope_output = select_scope(tmpSiteSpec, 'user')
+
         # loop over all DDM endpoints
         checkedEndPoints = []
-        for tmpDDM in tmpSiteSpec.ddm_endpoints_input.all.keys():
+        try:
+            input_endpoints = tmpSiteSpec.ddm_endpoints_input[scope_input].all.keys()
+        except Exception:
+            input_endpoints = {}
+        for tmpDDM in input_endpoints:
             # skip empty
             if tmpDDM == '':
                 continue
@@ -586,8 +594,9 @@ def skipProblematicSites(candidateSpecList,ngSites,sitesUsedByTask,preSetSiteSpe
 
 
 
+
 # get mapping between sites and input storage endpoints
-def getSiteInputStorageEndpointMap(site_list, site_mapper, ignore_cc=False):
+def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, ignore_cc=False):
 
     # make a map of the t1 to its respective cloud
     t1_map = {}
@@ -603,9 +612,10 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, ignore_cc=False):
     ret_map = {}
     for site_name in site_list:
         tmp_site_spec = site_mapper.getSite(site_name)
+        scope_input, scope_output = select_scope(tmp_site_spec, prod_source_label)
 
         # add the schedconfig.ddm endpoints
-        ret_map[site_name] = list(tmp_site_spec.ddm_endpoints_input.all.keys())
+        ret_map[site_name] = list(tmp_site_spec.ddm_endpoints_input[scope_input].all.keys())
 
         # add the cloudconfig.tier1SE for T1s
         if not ignore_cc and site_name in t1_map:

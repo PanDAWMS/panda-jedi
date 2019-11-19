@@ -1,17 +1,5 @@
-import os
-import re
-import sys
-import time
-import datetime
-import threading
-
-from pandajedi.jediconfig import jedi_config
-
-from config import panda_config
-
 from taskbuffer.Initializer import initializer
 from pandajedi.jedicore import JediTaskBuffer
-from pandalogger.PandaLogger import PandaLogger
 
 # initialize cx_Oracle using dummy connection
 initializer.init()

@@ -17,11 +17,11 @@ from pandajedi.jedicore import JediCoreUtils
 from .JobBrokerBase import JobBrokerBase
 from . import AtlasBrokerUtils
 from pandaserver.dataservice import DataServiceUtils
+from dataservice.DataServiceUtils import select_scope
 from pandaserver.taskbuffer import EventServiceUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandacommon.pandalogger import logger_config
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 # definitions for network
@@ -50,7 +50,7 @@ class AtlasProdJobBroker (JobBrokerBase):
     # constructor
     def __init__(self,ddmIF,taskBufferIF):
         JobBrokerBase.__init__(self,ddmIF, taskBufferIF)
-        self.hospitalQueueMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper)
+        self.hospitalQueueMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper, 'managed')
         self.dataSiteMap = {}
         self.suppressLogSending = False
 
@@ -175,7 +175,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             else:
                 # pmerge
                 siteListPreAssigned = True
-                scanSiteList = DataServiceUtils.getSitesShareDDM(self.siteMapper,inputChunk.getPreassignedSite())
+                scanSiteList = DataServiceUtils.getSitesShareDDM(self.siteMapper,inputChunk.getPreassignedSite(), 'managed')
                 scanSiteList.append(inputChunk.getPreassignedSite())
                 tmpMsg = 'use site={0} since they share DDM endpoints with orinal_site={1} which is pre-assigned in masterDS '.format(str(scanSiteList),
                                                                                                                                       inputChunk.getPreassignedSite())
@@ -222,7 +222,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
         # sites sharing SE with T1
         if len(t1Sites) > 0:
-            sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper,t1Sites[0])
+            sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper, t1Sites[0], 'managed')
         else:
             sitesShareSeT1 = []
         # all T1
@@ -316,7 +316,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             newSkippedTmp = dict()
             for tmpPandaSiteName in self.get_unified_sites(scanSiteList):
                 try:
-                    tmpAtlasSiteName = storageMapping[tmpPandaSiteName]
+                    tmpAtlasSiteName = storageMapping[tmpPandaSiteName]['default']
                     if nucleus == tmpAtlasSiteName or \
                                     (networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK and \
                                     networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold and \
@@ -433,7 +433,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     # get the list of sites where data is available
                     tmpLog.info('getting the list of sites where {0} is available'.format(datasetName))
                     tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,
-                                                                     self.ddmIF,datasetName,
+                                                                     self.ddmIF,datasetName, 'managed'
                                                                      datasetSpec.storageToken)
                     if tmpSt == self.SC_FAILED:
                         tmpLog.error('failed to get the list of sites where data is available, since %s' % tmpRet)
@@ -810,8 +810,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         newSkippedTmp = dict()
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+            scope_input, scope_output = select_scope(tmpSiteSpec, 'managed')
             # check endpoint
-            tmpEndPoint = tmpSiteSpec.ddm_endpoints_output.getEndPoint(tmpSiteSpec.ddm_output)
+            tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope_output].getEndPoint(tmpSiteSpec.ddm_output[scope_output])
             if tmpEndPoint is not None:
                 # check free size
                 tmpSpaceSize = 0
@@ -822,11 +823,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                 diskThreshold = 200
                 tmpMsg = None
                 if tmpSpaceSize < diskThreshold:
-                    tmpMsg = '  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName, tmpSiteSpec.ddm_output,
+                    tmpMsg = '  skip site={0} due to disk shortage at {1} {2}GB < {3}GB criteria=-disk'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope_output],
                                                                                                                tmpSpaceSize, diskThreshold)
                 # check if blacklisted
                 elif tmpEndPoint['blacklisted'] == 'Y':
-                    tmpMsg = '  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output)
+                    tmpMsg = '  skip site={0} since endpoint={1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope_output])
                 if tmpMsg is not None:
                     newSkippedTmp[tmpSiteName] = tmpMsg
             newScanSiteList.append(tmpSiteName)
@@ -1175,7 +1176,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             try:
                 # mapping between sites and input storage endpoints
                 siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(self.get_unified_sites(scanSiteList),
-                                                                                self.siteMapper, ignore_cc=True)
+                                                                                self.siteMapper, 'managed', ignore_cc=True)
                 # disable file lookup for merge jobs or secondary datasets
                 checkCompleteness = True
                 useCompleteOnly = False
@@ -1424,7 +1425,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
                 tmpAtlasSiteName = None
                 try:
-                    tmpAtlasSiteName = storageMapping[tmpSiteName]
+                    tmpAtlasSiteName = storageMapping[tmpSiteName]['default']
                 except KeyError:
                     tmpLog.debug('Panda site {0} was not in site mapping. Default network values will be given'.
                                  format(tmpSiteName))
@@ -1489,10 +1490,10 @@ class AtlasProdJobBroker (JobBrokerBase):
             siteCandidateSpec.nRunningJobs = nRunning
             if tmpSiteName not in siteSizeMap or siteSizeMap[tmpSiteName] >= totalSize:
                 siteCandidateSpec.nQueuedJobs = nActivated + nStarting
-                useActivated = True
+                useAssigned = False
             else:
                 siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
-                useActivated = False
+                useAssigned = True
             siteCandidateSpec.nAssignedJobs = nAssigned
             # set available files
             for tmpDatasetName,availableFiles in iteritems(availableFileMap):
@@ -1532,7 +1533,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             if lockedByBrokerage:
                 ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-lock'
-            elif not useActivated and siteCandidateSpec.nQueuedJobs > nRunningCap:
+            elif not useAssigned and siteCandidateSpec.nQueuedJobs > nRunningCap:
                 ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                              weight,
                                                                                              nActivated+nStarting)
@@ -1540,7 +1541,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
-            elif useActivated and siteCandidateSpec.nQueuedJobs > nRunningCap:
+            elif useAssigned and siteCandidateSpec.nQueuedJobs > nRunningCap:
                 ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                                                 weight,
                                                                                                                 nDefined+nActivated+nAssigned+nStarting)
