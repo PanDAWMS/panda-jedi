@@ -10,6 +10,7 @@ from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediCoreUtils
 from JobBrokerBase import JobBrokerBase
+from pandaserver.dataservice.DataServiceUtils import select_scope
 import AtlasBrokerUtils
 
 # logger
@@ -25,15 +26,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
         JobBrokerBase.__init__(self,ddmIF,taskBufferIF)
         self.dataSiteMap = {}
 
-
-        
     # wrapper for return
     def sendLogMessage(self,tmpLog):
         # send info to logger
         tmpLog.bulkSendMsg('analy_brokerage')
         tmpLog.debug('sent')
-
-
 
     # main
     def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap):
@@ -77,7 +74,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     pass
         # loop over all sites        
         for siteName,tmpSiteSpec in self.siteMapper.siteSpecList.iteritems():
-            if tmpSiteSpec.type == 'analysis':
+            # TODO prodanaly: way to identify production queues running analysis
+            if tmpSiteSpec.type == 'analysis' or tmpSiteSpec.is_grandly_unified():
                 scanSiteList.append(siteName)
         # preassigned
         if not taskSpec.site in ['',None]:
@@ -571,7 +569,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 # check endpoint
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output.getEndPoint(tmpSiteSpec.ddm_output)
+                scope_input, scope_output = select_scope(tmpSiteSpec, 'user')
+                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope_output].getEndPoint(tmpSiteSpec.ddm_output[scope_output])
                 if tmpEndPoint is not None:
                     # free space must be >= 200GB
                     diskThreshold = 200
@@ -586,7 +585,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         continue
                     # check if blacklisted
                     if tmpEndPoint['blacklisted'] == 'Y':
-                        tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output))
+                        tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope_output]))
                         continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
@@ -820,7 +819,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             if not tmpRemoteSite in fileScanSiteList:
                                 fileScanSiteList.append(tmpRemoteSite)
                 # mapping between sites and input storage endpoints
-                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper)
+                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper, 'user')
                 # disable file lookup for merge jobs
                 if inputChunk.isMerging:
                     checkCompleteness = False
