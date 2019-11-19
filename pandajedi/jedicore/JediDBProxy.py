@@ -7717,7 +7717,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[mapKey] = tmpType
                         self.cur.execute(sqlND+comment,varMap)
                         tmpND = self.cur.fetchone()
-                        if tmpND is not None and tmpND[0] > 0:
+                        if tmpND is not None and tmpND[0] is not None and tmpND[0] > 0:
                             abortingFlag = False
                         else:
                             abortingFlag = True
