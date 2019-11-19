@@ -1,7 +1,11 @@
 import sys
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
+<<<<<<< HEAD
 from .TaskSetupperBase import TaskSetupperBase
+=======
+from TaskSetupperBase import TaskSetupperBase
+>>>>>>> origin
 
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils
@@ -100,7 +104,11 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                         tmpLog.info('site={0} token='.format(datasetSpec.site,datasetSpec.storageToken))
                                         location = siteMapper.getDdmEndpoint(datasetSpec.site, datasetSpec.storageToken,
                                                                              taskSpec.prodSourceLabel)
+<<<<<<< HEAD
                                 if locForRule is None:
+=======
+                                if locForRule == None:
+>>>>>>> origin
                                     locForRule = location
                                 # set metadata
                                 if taskSpec.prodSourceLabel in ['managed','test'] and targetName == datasetSpec.datasetName:

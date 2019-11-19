@@ -1,9 +1,16 @@
+<<<<<<< HEAD
 from taskbuffer.Initializer import initializer
 from pandajedi.jedicore import JediTaskBuffer
 
+=======
+>>>>>>> origin
 # initialize cx_Oracle using dummy connection
 initializer.init()
 
+<<<<<<< HEAD
+=======
+from pandajedi.jedicore import JediTaskBuffer
+>>>>>>> origin
 
 taskBuffer= JediTaskBuffer.JediTaskBuffer(None)
 proxy = taskBuffer.proxyPool.getProxy()
