@@ -4,7 +4,6 @@ from pandajedi.jedicore import JediTaskBuffer
 # initialize cx_Oracle using dummy connection
 initializer.init()
 
-
 taskBuffer= JediTaskBuffer.JediTaskBuffer(None)
 proxy = taskBuffer.proxyPool.getProxy()
 proxy.refreshWorkQueueMap()
