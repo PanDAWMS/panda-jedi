@@ -10,12 +10,16 @@ from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediCoreUtils
 from JobBrokerBase import JobBrokerBase
+from pandaserver.dataservice.DataServiceUtils import select_scope
 import AtlasBrokerUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
+APP = 'jedi'
+COMPONENT = 'jobbroker'
+VO = 'atlas'
 
 # brokerage for ATLAS analysis
 class AtlasAnalJobBroker (JobBrokerBase):
@@ -25,15 +29,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
         JobBrokerBase.__init__(self,ddmIF,taskBufferIF)
         self.dataSiteMap = {}
 
-
-        
     # wrapper for return
     def sendLogMessage(self,tmpLog):
         # send info to logger
         tmpLog.bulkSendMsg('analy_brokerage')
         tmpLog.debug('sent')
-
-
 
     # main
     def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap):
@@ -77,7 +77,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     pass
         # loop over all sites        
         for siteName,tmpSiteSpec in self.siteMapper.siteSpecList.iteritems():
-            if tmpSiteSpec.type == 'analysis':
+            # TODO prodanaly: way to identify production queues running analysis
+            if tmpSiteSpec.type == 'analysis' or tmpSiteSpec.is_grandly_unified():
                 scanSiteList.append(siteName)
         # preassigned
         if not taskSpec.site in ['',None]:
@@ -307,6 +308,67 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 tmpLog.error('no candidates')
                 retVal = retTmpError
                 continue
+
+            ######################################
+            # selection for iointensity limits
+            # get default disk IO limit from GDP config
+            max_diskio_per_core_default = self.taskBufferIF.getConfigValue(COMPONENT, 'MAX_DISKIO_DEFAULT', APP, VO)
+            if not max_diskio_per_core_default:
+                max_diskio_per_core_default = 10 ** 10
+
+            # get the current disk IO usage per site
+            diskio_percore_usage = self.taskBufferIF.getAvgDiskIO_JEDI()
+            unified_site_list = self.get_unified_sites(scanSiteList)
+            newScanSiteList = []
+            for tmpSiteName in unified_site_list:
+
+                tmp_site_spec = self.siteMapper.getSite(tmpSiteName)
+
+                # measured diskIO at queue
+                diskio_usage_tmp = diskio_percore_usage.get(tmpSiteName, 0)
+
+                # figure out queue or default limit
+                if tmp_site_spec.maxDiskio and tmp_site_spec.maxDiskio > 0:
+                    # there is a limit specified in AGIS
+                    diskio_limit_tmp = tmp_site_spec.maxDiskio
+                else:
+                    # we need to use the default value from GDP Config
+                    diskio_limit_tmp = max_diskio_per_core_default
+
+                # normalize task diskIO by site corecount
+                diskio_task_tmp = taskSpec.diskIO
+                if taskSpec.diskIO is not None and taskSpec.coreCount not in [None, 0, 1] \
+                        and tmp_site_spec.coreCount not in [None, 0]:
+                    diskio_task_tmp = taskSpec.diskIO / tmp_site_spec.coreCount
+
+                try:  # generate a log message parseable by logstash for monitoring
+                    log_msg = 'diskIO measurements: site={0} jediTaskID={1} '.format(tmpSiteName, taskSpec.jediTaskID)
+                    if diskio_task_tmp is not None:
+                        log_msg += 'diskIO_task={:.2f} '.format(diskio_task_tmp)
+                    if diskio_usage_tmp is not None:
+                        log_msg += 'diskIO_site_usage={:.2f} '.format(diskio_usage_tmp)
+                    if diskio_limit_tmp is not None:
+                        log_msg += 'diskIO_site_limit={:.2f} '.format(diskio_limit_tmp)
+                    tmpLog.info(log_msg)
+                except:
+                    tmpLog.debug('diskIO measurements: Error generating diskIO message')
+
+                # if the task has a diskIO defined, the queue is over the IO limit and the task IO is over the limit
+                if diskio_task_tmp and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
+                    tmpLog.info('  skip site={0} due to diskIO overload criteria=-diskIO'.format(tmpSiteName))
+                    continue
+
+                newScanSiteList.append(tmpSiteName)
+
+            scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
+
+            tmpLog.info('{0} candidates passed diskIO check'.format(len(scanSiteList)))
+            if not scanSiteList:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+
             ######################################
             # selection for MP
             newScanSiteList = []
@@ -473,54 +535,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     retVal = retTmpError
                     continue
             ######################################
-            # selection for OS matching
-            if taskSpec.osMatching():
-                mandatoryArchs, badArchs = AtlasBrokerUtils.getOkNgArchList(taskSpec)
-                unified_site_list = self.get_unified_sites(scanSiteList)
-                jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
-                # mandatory architectures
-                if mandatoryArchs is not None:
-                    for tmpArch in mandatoryArchs:
-                        tmpSiteList, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
-                                                                        None, None,
-                                                                        tmpArch,
-                                                                        False, True)
-                        tmpSiteList += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                               cmtConfig=tmpArch,
-                                                                               onlyCmtConfig=True,
-                                                                               cmtConfigPattern=True)
-                        for tmpSiteName in unified_site_list:
-                            if tmpSiteName not in tmpSiteList:
-                                # release is unavailable
-                                tmpLog.info('  skip site={0} due to missing architecture={1} criteria=-miss_os'.format(tmpSiteName, tmpArch))
-                        unified_site_list = tmpSiteList
-                # bad architectures
-                if badArchs is not None:
-                    for tmpArch in badArchs:
-                        tmpSiteList, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
-                                                                        None, None,
-                                                                        tmpArch,
-                                                                        False, True)
-                        tmpSiteList += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                               cmtConfig=tmpArch,
-                                                                               onlyCmtConfig=True,
-                                                                               cmtConfigPattern=True)
-                        newSiteList = []
-                        for tmpSiteName in unified_site_list:
-                            if tmpSiteName in tmpSiteList:
-                                # release is unavailable
-                                tmpLog.info('  skip site={0} due to bad architecture={1} criteria=-bad_os'.format(tmpSiteName, tmpArch))
-                            else:
-                                newSiteList.append(tmpSiteName)
-                        unified_site_list = newSiteList
-                scanSiteList = self.get_pseudo_sites(unified_site_list, scanSiteList)
-                tmpLog.info('{0} candidates passed for OS matching with {1}'.format(len(scanSiteList),
-                                                                                    taskSpec.termCondition))
-                if scanSiteList == []:
-                    tmpLog.error('no candidates')
-                    retVal = retTmpError
-                    continue
-            ######################################
             # selection for memory
             minRamCount = inputChunk.getMaxRamCount()
             minRamCount = JediCoreUtils.compensateRamCount(minRamCount)
@@ -619,7 +633,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 # check endpoint
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output.getEndPoint(tmpSiteSpec.ddm_output)
+                scope_input, scope_output = select_scope(tmpSiteSpec, 'user')
+                tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope_output].getEndPoint(tmpSiteSpec.ddm_output[scope_output])
                 if tmpEndPoint is not None:
                     # free space must be >= 200GB
                     diskThreshold = 200
@@ -634,7 +649,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         continue
                     # check if blacklisted
                     if tmpEndPoint['blacklisted'] == 'Y':
-                        tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output))
+                        tmpLog.info('  skip site={0} since {1} is blacklisted in DDM criteria=-blacklist'.format(tmpSiteName, tmpSiteSpec.ddm_output[scope_output]))
                         continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
@@ -868,7 +883,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             if not tmpRemoteSite in fileScanSiteList:
                                 fileScanSiteList.append(tmpRemoteSite)
                 # mapping between sites and input storage endpoints
-                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper)
+                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper, 'user')
                 # disable file lookup for merge jobs
                 if inputChunk.isMerging:
                     checkCompleteness = False

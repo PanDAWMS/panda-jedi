@@ -10963,24 +10963,25 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
 
         sql = """
-        SELECT pdr.panda_site_name, de.site_name
+        SELECT pdr.panda_site_name, de.site_name, nvl(pdr.scope, 'default')
         FROM atlas_panda.panda_ddm_relation pdr, atlas_panda.ddm_endpoint de
         WHERE pdr.default_write = 'Y'
         AND pdr.ddm_endpoint_name = de.ddm_endpoint_name
-        """.format(jedi_config.db.schemaJEDI)
+        """
 
         self.cur.execute(sql+comment)
         resList = self.cur.fetchall()
-        mapping = {}
+        mapping = {}       
+
         for res in resList:
-            pandaSiteName, siteName = res
-            mapping[pandaSiteName] = siteName
+            pandaSiteName, siteName, scope = res
+            mapping.setdefault(pandaSiteName, {})
+            mapping[pandaSiteName][scope] = siteName
 
         # tmpLog.debug('panda site to ATLAS site mapping is: {0}'.format(mapping))
 
         tmpLog.debug('done')
         return mapping
-
 
 
     # get failure counts for a task

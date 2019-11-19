@@ -1,10 +1,6 @@
-import re
 import sys
-import uuid
-import json
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from pandajedi.jedicore import Interaction
 from TaskSetupperBase import TaskSetupperBase
 
 from pandaserver.dataservice import DataServiceUtils
@@ -98,10 +94,12 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                         elif taskSpec.cloud != None:
                                             # use T1 SE
                                             tmpT1Name = siteMapper.getCloud(taskSpec.cloud)['source']
-                                            location = siteMapper.getDdmEndpoint(tmpT1Name,datasetSpec.storageToken)
+                                            location = siteMapper.getDdmEndpoint(tmpT1Name, datasetSpec.storageToken,
+                                                                                 taskSpec.prodSourceLabel)
                                     else:
                                         tmpLog.info('site={0} token={1}'.format(datasetSpec.site, datasetSpec.storageToken))
-                                        location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken)
+                                        location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken,
+                                                                             taskSpec.prodSourceLabel)
                                 if locForRule == None:
                                     locForRule = location
                                 # set metadata
@@ -154,7 +152,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                                 tmpLog.info('skip making double copy as destination={0} is not site={1}'.format(datasetSpec.destination,
                                                                                                                                 datasetSpec.site))
                                             else:
-                                                locForDouble = '(type=SCRATCHDISK)\\notforextracopy=1'
+                                                locForDouble = '(type=SCRATCHDISK)\\notforextracopy=True'
                                                 tmpMsg  = 'registering double copy '
                                                 tmpMsg += 'location="{0}" lifetime={1}days activity={2} for dataset={3}'.format(locForDouble,lifetime,
                                                                                                                                 activity,targetName)
