@@ -122,14 +122,14 @@ class AtlasProdWatchDog (WatchDogBase):
                         if nRemJobs is not None and float(nFilesFinished+nFilesFailed) / float(nFiles) >= toBoostRatio and nRemJobs <= 100:
                             # skip high enough
                             if currentPriority < boostedPrio:
-                                gTmpLog.info('#ATM label=managed >>> action=priority_boosting of jediTaskID={0} to priority={1}'.
+                                gTmpLog.info(' >>> action=priority_boosting of jediTaskID={0} to priority={1} #ATM label=managed '.
                                              format(jediTaskID, boostedPrio))
                                 self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, boostedPrio)
 
                             # skip express or non global share
                             newShare = 'Express'
                             if gshare != newShare and workQueue.is_global_share:
-                                gTmpLog.info('#ATM label=managed >>> action=gshare_reassignment jediTaskID={0} from gshare_old={2} to gshare_new={1}'.
+                                gTmpLog.info(' >>> action=gshare_reassignment jediTaskID={0} from gshare_old={2} to gshare_new={1} #ATM label=managed'.
                                              format(jediTaskID, newShare, gshare))
                                 self.taskBufferIF.reassignShare([jediTaskID], newShare, True)
                             gTmpLog.info('>>> done jediTaskID={0}'.format(jediTaskID))

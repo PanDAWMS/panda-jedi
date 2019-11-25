@@ -115,7 +115,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                 tmpLog.debug('user={0} prestage_size={1} GB'.format(userName, userDict['size']/1024))
                 # too large
                 if userDict['size'] > maxPrestaging:
-                    tmpLog.debug('user={0} has too large prestaging size prestage_size={1}>prestage_limit{2} GB'.
+                    tmpLog.debug('user={0} has too large prestaging size prestage_size={1} > prestage_limit={2} GB'.
                                  format(userName, userDict['size'] / 1024, maxPrestaging / 1024))
                     # throttle tasks
                     for taskID in userDict['tasks']:
