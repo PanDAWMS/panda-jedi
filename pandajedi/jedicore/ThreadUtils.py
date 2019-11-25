@@ -30,6 +30,9 @@ class ListWithLock:
         self.dataIndex += 1
         return val
 
+    def next(self):
+        return self.__next__()
+
     def append(self,item):
         self.lock.acquire()
         appended = False
@@ -107,6 +110,9 @@ class MapWithLock:
 
     def items(self):
         return iteritems(self.dataMap)
+
+    def iteritems(self):
+        return self.items()
 
 
 
