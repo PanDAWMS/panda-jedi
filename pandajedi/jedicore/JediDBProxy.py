@@ -5960,7 +5960,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 minExecTime = 24
                 if not extraInfo['oldCpuTime'] in [0,None] and scoutData['cpuTime'] > 2*extraInfo['oldCpuTime'] \
                         and extraInfo['execTime'] > datetime.timedelta(hours=minExecTime):
-                    errMsg = '#ATM action=set_exhausted reason=scout_cpuTime ({0}) is larger than 2*task_cpuTime ({1})'.format(scoutData['cpuTime'],
+                    errMsg = '#KV #ATM action=set_exhausted reason=scout_cpuTime ({0}) is larger than 2*task_cpuTime ({1})'.format(scoutData['cpuTime'],
                                                                                                                             extraInfo['oldCpuTime'])
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
@@ -5970,7 +5970,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if taskSpec.status != 'exhausted':
                 if taskSpec.ramPerCore() and 'ramCount' in scoutData and extraInfo['oldRamCount'] is not None \
                         and extraInfo['oldRamCount'] < ramThr and scoutData['ramCount'] > ramThr:
-                    errMsg = '#ATM action=set_exhausted reason=scout_ramCount {0} MB is larger than {1} MB '.format(scoutData['ramCount'],
+                    errMsg = '#KV #ATM action=set_exhausted reason=scout_ramCount {0} MB is larger than {1} MB '.format(scoutData['ramCount'],
                                                                                                                  ramThr)
                     errMsg += 'while task_ramCount {0} MB is less than {1} MB'.format(extraInfo['oldRamCount'],
                                                                                       ramThr)
@@ -5998,7 +5998,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
                 if maxShortJobs is not None and 'nShortJobs' in extraInfo and extraInfo['nShortJobs'] >= maxShortJobs and \
                         shortJobCutoff is not None and 'expectedNumJobs' in extraInfo and extraInfo['expectedNumJobs'] > shortJobCutoff:
-                    errMsg = '#ATM action=set_exhausted since reason=many_shorter_jobs '
+                    errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
                     errMsg += '({0} is greater than {1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
                                                                                                                                          maxShortJobs,
                                                                                                                                          extraInfo['shortExecTime'],
@@ -6012,7 +6012,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if taskSpec.status != 'exhausted':
                 if taskSpec.getMinCpuEfficiency() is not None and 'minCpuEfficiency' in extraInfo and \
                         extraInfo['minCpuEfficiency'] < taskSpec.getMinScoutEfficiency():
-                    errMsg = '#ATM action=set_exhausted since reason=low_efficiency '
+                    errMsg = '#ATM #KV action=set_exhausted since reason=low_efficiency '
                     errMsg += 'min CPU efficiency {0} is less than {1}%'.format(extraInfo['minCpuEfficiency'],
                                                                                 taskSpec.getMinScoutEfficiency())
                     tmpLog.info(errMsg)
@@ -6025,7 +6025,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     abuseOffset = 2
                     if extraInfo['maxCpuConsumptionTime'] > \
                             extraInfo['maxExecTime'].total_seconds() * extraInfo['defCoreCount'] * abuseOffset:
-                        errMsg = '#ATM action=set_exhausted since reason=over_cpu_consumption {0} sec '.format(
+                        errMsg = '#ATM #KV action=set_exhausted since reason=over_cpu_consumption {0} sec '.format(
                             extraInfo['maxCpuConsumptionTime'])
                         errMsg += 'is larger than jobDuration*coreCount*safety ({0}*{1}*{2}). '.format(
                             extraInfo['maxExecTime'].total_seconds(),
@@ -9938,7 +9938,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     throttledTime = datetime.datetime.utcnow()
                     releaseTime   = throttledTime + \
                         datetime.timedelta(minutes=waitTime*numThrottled*numThrottled)
-                    errorDialog  = '#ATM action=throttle jediTaskID={0} due to reason=many_attempts {0} > {1}x{2} '.format(jediTaskID,
+                    errorDialog  = '#ATM #KV action=throttle jediTaskID={0} due to reason=many_attempts {0} > {1}x{2} '.format(jediTaskID,
                                                                                                         largestAttemptNr,
                                                                                                         numThrottled,
                                                                                                         attemptInterval)
