@@ -5887,7 +5887,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         comment = ' /* JediDBProxy.setScoutJobData_JEDI */'
         methodName = self.getMethodName(comment)
         jediTaskID = taskSpec.jediTaskID
-        methodName += ' < jediTaskID={0} >'.format(jediTaskID)
+        methodName += ' < jediTaskID={0} label={1}>'.format(jediTaskID, taskSpec.prodSourceLabel)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         # get memory threshold for exausted

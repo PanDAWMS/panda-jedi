@@ -35,7 +35,7 @@ class AtlasAnalWatchDog (WatchDogBase):
             tmpLog.debug('got {0} lib.tgz files'.format(len(libList)))
             # activate or kill orphan jobs which were submitted to use lib.tgz when the lib.tgz was being produced
             for prodUserName,datasetName,tmpFileSpec in libList:
-                tmpLog = MsgWrapper(logger,'< #ATM jediTaskID={0} >'.format(tmpFileSpec.jediTaskID))
+                tmpLog = MsgWrapper(logger,'< #ATM jediTaskID={0} label=user >'.format(tmpFileSpec.jediTaskID))
                 tmpLog.debug('start')
                 # check status of lib.tgz
                 if tmpFileSpec.status == 'failed':
@@ -91,7 +91,7 @@ class AtlasAnalWatchDog (WatchDogBase):
     # throttle tasks if so many prestaging requests
     def doForPreStaging(self):
         try:
-            tmpLog = MsgWrapper(logger, ' #ATM doForPreStaging')
+            tmpLog = MsgWrapper(logger, ' #ATM doForPreStaging label=user')
             # lock
             flagLocked = self.taskBufferIF.lockProcess_JEDI(self.vo, self.prodSourceLabel,
                                                             self.cronActions['forPrestage'],
