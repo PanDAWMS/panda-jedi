@@ -122,14 +122,14 @@ class AtlasProdWatchDog (WatchDogBase):
                         if nRemJobs is not None and float(nFilesFinished+nFilesFailed) / float(nFiles) >= toBoostRatio and nRemJobs <= 100:
                             # skip high enough
                             if currentPriority < boostedPrio:
-                                gTmpLog.info('#ATM >>> boosting priority of jediTaskID={0} to priority={1}'.
+                                gTmpLog.info('#ATM >>> action=priority_boosting of jediTaskID={0} to priority={1}'.
                                              format(jediTaskID, boostedPrio))
                                 self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, boostedPrio)
 
                             # skip express or non global share
                             newShare = 'Express'
                             if gshare != newShare and workQueue.is_global_share:
-                                gTmpLog.info('#ATM >>> reassigning jediTaskID={0} from gshare_old={2} to gshare_new={1}'.
+                                gTmpLog.info('#ATM >>> action=gshare_reassignment jediTaskID={0} from gshare_old={2} to gshare_new={1}'.
                                              format(jediTaskID, newShare, gshare))
                                 self.taskBufferIF.reassignShare([jediTaskID], newShare, True)
                             gTmpLog.info('>>> done jediTaskID={0}'.format(jediTaskID))
@@ -178,7 +178,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     taskSpec.setToRegisterDatasets()
                     self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID': taskSpec.jediTaskID},
                                                       setOldModTime=True)
-                    tmpLog.debug('#ATM set task_status={0} to trigger task brokerage again'.
+                    tmpLog.debug('#ATM action=trigger_new_brokerage by setting task_status={0}'.
                                  format(taskSpec.status))
                     continue
 

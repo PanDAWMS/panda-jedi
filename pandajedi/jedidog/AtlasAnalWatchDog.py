@@ -48,7 +48,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                     if pandaJobSpec != None:
                         # kill
                         self.taskBufferIF.updateJobs([pandaJobSpec],False)
-                        tmpLog.debug('  killed downstream jobs for user="{0}" with libDS={1}'.format(prodUserName,datasetName))
+                        tmpLog.debug('  action=killed_downstream_jobs for user="{0}" with libDS={1}'.format(prodUserName,datasetName))
                     else:
                         # PandaJobSpec not found
                         tmpLog.error('  cannot find PandaJobSpec for user="{0}" with PandaID={1}'.format(prodUserName,
@@ -68,7 +68,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                         aThr = Activator(self.taskBufferIF,dataset)
                         aThr.start()
                         aThr.join()
-                        tmpLog.debug('  activated downstream jobs for user="{0}" with libDS={1}'.format(prodUserName,datasetName))
+                        tmpLog.debug('  action=activated_downstream_jobs for user="{0}" with libDS={1}'.format(prodUserName,datasetName))
                     else:
                         # datasetSpec not found
                         tmpLog.error('  cannot find datasetSpec for user="{0}" with libDS={1}'.format(prodUserName,datasetName))
@@ -120,7 +120,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                     # throttle tasks
                     for taskID in userDict['tasks']:
                         if not userName in thrUserTasks or not taskID in thrUserTasks[userName]:
-                            tmpLog.debug('throttle jediTaskID={0} for user={1}'.format(taskID, userName))
+                            tmpLog.debug('action=throttle_prestage jediTaskID={0} for user={1}'.format(taskID, userName))
                             errDiag = 'throttled for {0} min due to large prestaging from TAPE or transfers from DISK'.format(thrInterval)
                             self.taskBufferIF.throttleTask_JEDI(taskID,thrInterval,errDiag)
                     # remove the user from the list
@@ -131,7 +131,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                 tmpLog.debug('user={0} release throttled tasks'.format(userName))
                 # unthrottle tasks
                 for taskID in taskIDs:
-                    tmpLog.debug('unthrottle jediTaskID={0} for user={1}'.format(taskID, userName))
+                    tmpLog.debug('action=release_prestage jediTaskID={0} for user={1}'.format(taskID, userName))
                     self.taskBufferIF.releaseThrottledTask_JEDI(taskID)
             tmpLog.debug('done')
         except:
