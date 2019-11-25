@@ -1,4 +1,3 @@
-import re
 import os
 import sys
 import socket
@@ -13,7 +12,6 @@ from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 
-
 # watchdog for ATLAS analysis
 class AtlasAnalWatchDog (WatchDogBase):
 
@@ -22,8 +20,6 @@ class AtlasAnalWatchDog (WatchDogBase):
         WatchDogBase.__init__(self,ddmIF,taskBufferIF)
         self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0],os.getpid())
         self.cronActions = {'forPrestage':'atlas_prs'}
-
-
 
     # main
     def doAction(self):
@@ -39,7 +35,7 @@ class AtlasAnalWatchDog (WatchDogBase):
             tmpLog.debug('got {0} lib.tgz files'.format(len(libList)))
             # activate or kill orphan jobs which were submitted to use lib.tgz when the lib.tgz was being produced
             for prodUserName,datasetName,tmpFileSpec in libList:
-                tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(tmpFileSpec.jediTaskID))
+                tmpLog = MsgWrapper(logger,'< #ATM jediTaskID={0} >'.format(tmpFileSpec.jediTaskID))
                 tmpLog.debug('start')
                 # check status of lib.tgz
                 if tmpFileSpec.status == 'failed':
@@ -95,7 +91,7 @@ class AtlasAnalWatchDog (WatchDogBase):
     # throttle tasks if so many prestaging requests
     def doForPreStaging(self):
         try:
-            tmpLog = MsgWrapper(logger,'doForPreStaging')
+            tmpLog = MsgWrapper(logger, ' #ATM doForPreStaging')
             # lock
             flagLocked = self.taskBufferIF.lockProcess_JEDI(self.vo, self.prodSourceLabel,
                                                             self.cronActions['forPrestage'],
@@ -116,30 +112,28 @@ class AtlasAnalWatchDog (WatchDogBase):
             thrInterval = 120
             # loop over all users
             for userName,userDict in dispUserTasks.iteritems():
-                tmpLog.debug('{0} {1} GB'.format(userName, userDict['size']/1024))
+                tmpLog.debug('user={0} prestage_size={1} GB'.format(userName, userDict['size']/1024))
                 # too large
                 if userDict['size'] > maxPrestaging:
-                    tmpLog.debug('{0} has too large prestaging {1}>{2} GB'.format(userName,
-                                                                                  userDict['size']/1024,
-                                                                                  maxPrestaging/1024))
+                    tmpLog.debug('user={0} has too large prestaging size prestage_size={1}>prestage_limit{2} GB'.
+                                 format(userName, userDict['size'] / 1024, maxPrestaging / 1024))
                     # throttle tasks
                     for taskID in userDict['tasks']:
                         if not userName in thrUserTasks or not taskID in thrUserTasks[userName]:
-                            tmpLog.debug('thottle jediTaskID={0}'.format(taskID))
+                            tmpLog.debug('throttle jediTaskID={0} for user={1}'.format(taskID, userName))
                             errDiag = 'throttled for {0} min due to large prestaging from TAPE or transfers from DISK'.format(thrInterval)
                             self.taskBufferIF.throttleTask_JEDI(taskID,thrInterval,errDiag)
                     # remove the user from the list
                     if userName in thrUserTasks:
                         del thrUserTasks[userName]
             # release users
-            for userName,taskIDs in thrUserTasks.items():
-                tmpLog.debug('{0} release throttled tasks'.format(userName))
+            for userName, taskIDs in thrUserTasks.items():
+                tmpLog.debug('user={0} release throttled tasks'.format(userName))
                 # unthrottle tasks
                 for taskID in taskIDs:
-                    tmpLog.debug('unthottle jediTaskID={0}'.format(taskID))
+                    tmpLog.debug('unthrottle jediTaskID={0} for user={1}'.format(taskID, userName))
                     self.taskBufferIF.releaseThrottledTask_JEDI(taskID)
             tmpLog.debug('done')
         except:
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('failed with {0} {1} {2}'.format(errtype,errvalue,traceback.format_exc()))
-            
+            errtype, errvalue = sys.exc_info()[:2]
+            tmpLog.error('failed with {0} {1} {2}'.format(errtype, errvalue, traceback.format_exc()))
