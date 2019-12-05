@@ -5301,10 +5301,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # sql to get preset values
         if not mergeScout:
             sqlGPV  = "SELECT "
-            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit "
+            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit,memory_leak_core "
         else:
             sqlGPV  = "SELECT "
-            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit "
+            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit,memory_leak_core "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
         # sql to get scout job data from JEDI
@@ -5328,23 +5328,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlSCF += "AND tabF.PandaID=:usePandaID "
         # sql to get normal scout job data from Panda
         sqlSCDN  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
+        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
         sqlSCDN += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "UNION "
         sqlSCDN += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
+        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
         sqlSCDN += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "AND modificationTime>(CURRENT_DATE-14) "
         # sql to get ES scout job data from Panda
         sqlSCDE  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
+        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
         sqlSCDE += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "UNION "
         sqlSCDE += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes "
+        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
         sqlSCDE += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "AND modificationTime>(CURRENT_DATE-14) "
@@ -5375,7 +5375,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         resGPV = self.cur.fetchone()
         if resGPV is not None:
             prodSourceLabel,preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,\
-                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime,splitRule,preCpuTimeUnit \
+                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime,splitRule,preCpuTimeUnit,memory_leak_core \
                 = resGPV
             # get preOutDiskCount in kB
             if preOutDiskCount not in [0,None]:
@@ -5402,6 +5402,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preBaseWalltime = None
             splitRule = None
             preCpuTimeUnit = None
+            memory_leak_core = 0
         if preOutDiskUnit is not None and preOutDiskUnit.endswith('PerEvent'):
             preOutputScaleWithEvents = True
         else:
@@ -5466,6 +5467,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         walltimeDict = {}
         memSizeList  = []
         memSizeDict  = {}
+        leak_list    = []
+        leak_dict    = {}
         workSizeList = []
         cpuTimeList  = []
         cpuTimeDict  = {}
@@ -5549,7 +5552,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # loop over all jobs
                 for oneResData in resDataList:
                     eventServiceJob,jobsetID,pandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,\
-                        defCoreCount,startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileByte = oneResData
+                        defCoreCount,startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileByte,memory_leak = oneResData
                     # add inputSize and nEvents
                     if pandaID not in inFSizeMap:
                         inFSizeMap[pandaID] = totalFSize
@@ -5651,6 +5654,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpVal /= float(tmpTimeDelta.seconds+tmpTimeDelta.days*24*3600)
                             diskIoList.append(tmpVal)
                         except Exception:
+                            pass
+                    # memory leak
+                    if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
+                        try:
+                            memory_leak_core_tmp = float(memory_leak) / float(coreCount)
+                            memory_leak_core_tmp = long(math.ceil(memory_leak_core_tmp))
+                            leak_list.append(memory_leak_core_tmp)
+                            leak_dict[memory_leak_core_tmp] = pandaID
+                        except:
                             pass
                     # RAM size
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
@@ -5755,6 +5767,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             aveDiskIo = long(math.ceil(aveDiskIo))
             returnMap['diskIO'] = aveDiskIo
             returnMap['diskIOUnit'] = 'kBPerS'
+        if leak_list:
+            ave_leak = long(math.ceil(sum(leak_list) / len(leak_list)))
+            returnMap['memory_leak_core'] = ave_leak
         if memSizeList != []:
             memVal, origValues = JediCoreUtils.percentile(memSizeList, ramCountRank, memSizeDict)
             for origValue in origValues:
@@ -5879,7 +5894,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         comment = ' /* JediDBProxy.setScoutJobData_JEDI */'
         methodName = self.getMethodName(comment)
         jediTaskID = taskSpec.jediTaskID
-        methodName += ' < jediTaskID={0} >'.format(jediTaskID)
+        methodName += ' < jediTaskID={0} label={1}>'.format(jediTaskID, taskSpec.prodSourceLabel)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         # get memory threshold for exausted
@@ -5951,22 +5966,35 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 minExecTime = 24
                 if extraInfo['oldCpuTime'] not in [0,None] and scoutData['cpuTime'] > 2*extraInfo['oldCpuTime'] \
                         and extraInfo['execTime'] > datetime.timedelta(hours=minExecTime):
-                    errMsg = 'status=exhausted since reason=scout_cpuTime ({0}) is larger than 2*task_cpuTime ({1})'.format(scoutData['cpuTime'],
+                    errMsg = '#KV #ATM action=set_exhausted reason=scout_cpuTime ({0}) is larger than 2*task_cpuTime ({1})'.format(scoutData['cpuTime'],
                                                                                                                             extraInfo['oldCpuTime'])
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
+
             # check ramCount
             if taskSpec.status != 'exhausted':
                 if taskSpec.ramPerCore() and 'ramCount' in scoutData and extraInfo['oldRamCount'] is not None \
                         and extraInfo['oldRamCount'] < ramThr and scoutData['ramCount'] > ramThr:
-                    errMsg = 'status=exhausted since reason=scout_ramCount {0} MB is larger than {1} MB '.format(scoutData['ramCount'],
+                    errMsg = '#KV #ATM action=set_exhausted reason=scout_ramCount {0} MB is larger than {1} MB '.format(scoutData['ramCount'],
                                                                                                                  ramThr)
                     errMsg += 'while task_ramCount {0} MB is less than {1} MB'.format(extraInfo['oldRamCount'],
                                                                                       ramThr)
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
+
+            # check memory leak
+            if taskSpec.status != 'exhausted':
+                memory_leak_core_max = self.getConfigValue('dbproxy','SCOUT_MEM_LEAK_PER_CORE_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
+                memory_leak_core = scoutData.get('memory_leak_core')
+                if memory_leak_core and memory_leak_core_max and memory_leak_core > memory_leak_core_max:
+                    errMsg = '#ATM #KV action=set_exhausted since reason=scout_memory_leak {0} is larger than {1}'.\
+                        format(memory_leak_core, memory_leak_core_max)
+                    tmpLog.info(errMsg)
+                    taskSpec.setErrDiag(errMsg)
+                    # taskSpec.status = 'exhausted'
+
         # short job check
         if scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
             # check execution time
@@ -5976,8 +6004,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
                 if maxShortJobs is not None and 'nShortJobs' in extraInfo and extraInfo['nShortJobs'] >= maxShortJobs and \
                         shortJobCutoff is not None and 'expectedNumJobs' in extraInfo and extraInfo['expectedNumJobs'] > shortJobCutoff:
-                    errMsg = 'status=exhausted since reason=many_shorter_jobs '
-                    errMsg += '({0} is grather than {1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
+                    errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
+                    errMsg += '({0} is greater than {1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
                                                                                                                                          maxShortJobs,
                                                                                                                                          extraInfo['shortExecTime'],
                                                                                                                                          extraInfo['expectedNumJobs'],
@@ -5985,30 +6013,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
+
             # check CPU efficiency
             if taskSpec.status != 'exhausted':
                 if taskSpec.getMinCpuEfficiency() is not None and 'minCpuEfficiency' in extraInfo and \
                         extraInfo['minCpuEfficiency'] < taskSpec.getMinScoutEfficiency():
-                    errMsg = 'status=exhausted since reason=low_efficiency '
+                    errMsg = '#ATM #KV action=set_exhausted since reason=low_efficiency '
                     errMsg += 'min CPU efficiency {0} is less than {1}%'.format(extraInfo['minCpuEfficiency'],
                                                                                 taskSpec.getMinScoutEfficiency())
                     tmpLog.info(errMsg)
                     taskSpec.setErrDiag(errMsg)
                     taskSpec.status = 'exhausted'
+
             # cpu abuse
             if taskSpec.status != 'exhausted':
                 try:
                     abuseOffset = 2
                     if extraInfo['maxCpuConsumptionTime'] > \
                             extraInfo['maxExecTime'].total_seconds() * extraInfo['defCoreCount'] * abuseOffset:
-                        errMsg = 'status=exhausted since reason=over_cpu_consumption {0} sec '.format(
+                        errMsg = '#ATM #KV action=set_exhausted since reason=over_cpu_consumption {0} sec '.format(
                             extraInfo['maxCpuConsumptionTime'])
                         errMsg += 'is larger than jobDuration*coreCount*safety ({0}*{1}*{2}). '.format(
                             extraInfo['maxExecTime'].total_seconds(),
                             extraInfo['defCoreCount'],
                             abuseOffset
                         )
-                        errMsg += 'Running multi-core payload on single core queues?'
+                        errMsg += 'Running multi-core payload on single core queues? #ATM'
                         tmpLog.info(errMsg)
                         taskSpec.setErrDiag(errMsg)
                         taskSpec.status = 'exhausted'
@@ -7644,7 +7674,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def reactivatePendingTasks_JEDI(self,vo,prodSourceLabel,timeLimit,timeoutLimit=None,minPriority=None):
         comment = ' /* JediDBProxy.reactivatePendingTasks_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} limit={2}min timeout={3}days minPrio={4}>".format(vo,prodSourceLabel,timeLimit,
+        methodName += " <vo={0} label={1} limit={2} min timeout={3} days minPrio={4}>".format(vo,prodSourceLabel,timeLimit,
                                                                                             timeoutLimit,minPriority)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -7736,11 +7766,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         sql = sqlTU
                 self.cur.execute(sql+comment,varMap)
                 if timeoutFlag:
-                    tmpLog.debug('jediTaskID={0} timeout'.format(jediTaskID))
+                    tmpLog.info('#ATM #KV jediTaskID={0} timeout'.format(jediTaskID))
                 elif keepFlag:
-                    tmpLog.debug('jediTaskID={0} keep pending'.format(jediTaskID))
+                    tmpLog.info('#ATM #KV jediTaskID={0} action=keep_pending'.format(jediTaskID))
                 else:
-                    tmpLog.debug('jediTaskID={0} reactivated'.format(jediTaskID))
+                    tmpLog.info('#ATM #KV jediTaskID={0} action=reactivate'.format(jediTaskID))
                 nRow += self.cur.rowcount
                 # update DEFT for timeout
                 if timeoutFlag:
@@ -9914,9 +9944,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     throttledTime = datetime.datetime.utcnow()
                     releaseTime   = throttledTime + \
                         datetime.timedelta(minutes=waitTime*numThrottled*numThrottled)
-                    errorDialog  = 'throttled due to many attempts {0}>={1}x{2} '.format(largestAttemptNr,
-                                                                                         numThrottled,
-                                                                                         attemptInterval)
+                    errorDialog  = '#ATM #KV action=throttle jediTaskID={0} due to reason=many_attempts {0} > {1}x{2} '.format(jediTaskID,
+                                                                                                        largestAttemptNr,
+                                                                                                        numThrottled,
+                                                                                                        attemptInterval)
                     errorDialog += 'from {0} '.format(throttledTime.strftime('%Y/%m/%d %H:%M:%S'))
                     errorDialog += 'till {0}'.format(releaseTime.strftime('%Y/%m/%d %H:%M:%S'))
                     varMap = {}
@@ -10014,29 +10045,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if prodSourceLabel not in [None,'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlTL += "AND tabT.prodSourceLabel=:prodSourceLabel "
+
             # sql to update tasks
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=oldStatus,oldStatus=NULL,errorDialog=NULL,modificationtime=CURRENT_DATE "
             sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:oldStatus AND lockedBy IS NULL "
+
             # start transaction
             self.conn.begin()
             tmpLog.debug(sqlTL+comment+str(varMap))
             self.cur.execute(sqlTL+comment,varMap)
             resTL = self.cur.fetchall()
+
             # loop over all tasks
             nRow = 0
             for jediTaskID,oldStatus in resTL:
                 if oldStatus in [None,'']:
                     tmpLog.debug('cannot release jediTaskID={0} since oldStatus is invalid'.format(jediTaskID))
                     continue
-                timeoutFlag = False
                 varMap = {}
                 varMap[':jediTaskID'] = jediTaskID
                 varMap[':oldStatus'] = 'throttled'
                 self.cur.execute(sqlTU+comment,varMap)
                 iRow = self.cur.rowcount
-                tmpLog.debug('released jediTaskID={0} with {1}'.format(jediTaskID,iRow))
+                tmpLog.info('#ATM #KV action=released jediTaskID={0} with {1}'.format(jediTaskID,iRow))
                 nRow += iRow
+
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -10943,7 +10977,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         self.cur.execute(sql+comment)
         resList = self.cur.fetchall()
-        mapping = {}       
+        mapping = {}
 
         for res in resList:
             pandaSiteName, siteName, scope = res
@@ -11918,7 +11952,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if nJumbo > maxJumbo:
                 tmpLog.debug('False since nJumbo={0} > maxJumbo={1}'.format(nJumbo, maxJumbo))
                 return False
-            tmpLog.debug('True since nJumbo={0} <= maxJumbo={1} and nEvents={0} >= minEventsJumbo={1}'.format(nJumbo, maxJumbo,
+            tmpLog.debug('True since nJumbo={0} < maxJumbo={1} and nEvents={0} > minEventsJumbo={1}'.format(nJumbo, maxJumbo,
                                                                                                               nEvents, minEvents))
             return True
         except Exception:

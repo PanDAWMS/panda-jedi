@@ -1,4 +1,3 @@
-import re
 import os
 import sys
 import socket
@@ -15,7 +14,6 @@ from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 
-
 # watchdog for ATLAS analysis
 class AtlasAnalWatchDog (WatchDogBase):
 
@@ -24,8 +22,6 @@ class AtlasAnalWatchDog (WatchDogBase):
         WatchDogBase.__init__(self,ddmIF,taskBufferIF)
         self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0],os.getpid())
         self.cronActions = {'forPrestage':'atlas_prs'}
-
-
 
     # main
     def doAction(self):
@@ -41,7 +37,7 @@ class AtlasAnalWatchDog (WatchDogBase):
             tmpLog.debug('got {0} lib.tgz files'.format(len(libList)))
             # activate or kill orphan jobs which were submitted to use lib.tgz when the lib.tgz was being produced
             for prodUserName,datasetName,tmpFileSpec in libList:
-                tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(tmpFileSpec.jediTaskID))
+                tmpLog = MsgWrapper(logger,'< #ATM jediTaskID={0} label=user >'.format(tmpFileSpec.jediTaskID))
                 tmpLog.debug('start')
                 # check status of lib.tgz
                 if tmpFileSpec.status == 'failed':
@@ -54,7 +50,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                     if pandaJobSpec is not None:
                         # kill
                         self.taskBufferIF.updateJobs([pandaJobSpec],False)
-                        tmpLog.debug('  killed downstream jobs for user="{0}" with libDS={1}'.format(prodUserName,datasetName))
+                        tmpLog.debug('  action=killed_downstream_jobs for user="{0}" with libDS={1}'.format(prodUserName,datasetName))
                     else:
                         # PandaJobSpec not found
                         tmpLog.error('  cannot find PandaJobSpec for user="{0}" with PandaID={1}'.format(prodUserName,
@@ -74,7 +70,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                         aThr = Activator(self.taskBufferIF,dataset)
                         aThr.start()
                         aThr.join()
-                        tmpLog.debug('  activated downstream jobs for user="{0}" with libDS={1}'.format(prodUserName,datasetName))
+                        tmpLog.debug('  action=activated_downstream_jobs for user="{0}" with libDS={1}'.format(prodUserName,datasetName))
                     else:
                         # datasetSpec not found
                         tmpLog.error('  cannot find datasetSpec for user="{0}" with libDS={1}'.format(prodUserName,datasetName))
@@ -97,7 +93,7 @@ class AtlasAnalWatchDog (WatchDogBase):
     # throttle tasks if so many prestaging requests
     def doForPreStaging(self):
         try:
-            tmpLog = MsgWrapper(logger,'doForPreStaging')
+            tmpLog = MsgWrapper(logger, ' #ATM doForPreStaging label=user')
             # lock
             flagLocked = self.taskBufferIF.lockProcess_JEDI(self.vo, self.prodSourceLabel,
                                                             self.cronActions['forPrestage'],
@@ -118,29 +114,28 @@ class AtlasAnalWatchDog (WatchDogBase):
             thrInterval = 120
             # loop over all users
             for userName,userDict in iteritems(dispUserTasks):
-                tmpLog.debug('{0} {1} GB'.format(userName, userDict['size']/1024))
+                tmpLog.debug('user={0} prestage_size={1} GB'.format(userName, userDict['size']/1024))
                 # too large
                 if userDict['size'] > maxPrestaging:
-                    tmpLog.debug('{0} has too large prestaging {1}>{2} GB'.format(userName,
-                                                                                  userDict['size']/1024,
-                                                                                  maxPrestaging/1024))
+                    tmpLog.debug('user={0} has too large prestaging size prestage_size={1} > prestage_limit={2} GB'.
+                                 format(userName, userDict['size'] / 1024, maxPrestaging / 1024))
                     # throttle tasks
                     for taskID in userDict['tasks']:
                         if userName not in thrUserTasks or taskID not in thrUserTasks[userName]:
-                            tmpLog.debug('thottle jediTaskID={0}'.format(taskID))
+                            tmpLog.debug('action=throttle_prestage jediTaskID={0} for user={1}'.format(taskID, userName))
                             errDiag = 'throttled for {0} min due to large prestaging from TAPE or transfers from DISK'.format(thrInterval)
                             self.taskBufferIF.throttleTask_JEDI(taskID,thrInterval,errDiag)
                     # remove the user from the list
                     if userName in thrUserTasks:
                         del thrUserTasks[userName]
             # release users
-            for userName,taskIDs in iteritems(thrUserTasks):
-                tmpLog.debug('{0} release throttled tasks'.format(userName))
+            for userName, taskIDs in iteritems(thrUserTasks):
+                tmpLog.debug('user={0} release throttled tasks'.format(userName))
                 # unthrottle tasks
                 for taskID in taskIDs:
-                    tmpLog.debug('unthottle jediTaskID={0}'.format(taskID))
+                    tmpLog.debug('action=release_prestage jediTaskID={0} for user={1}'.format(taskID, userName))
                     self.taskBufferIF.releaseThrottledTask_JEDI(taskID)
             tmpLog.debug('done')
         except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('failed with {0} {1} {2}'.format(errtype,errvalue,traceback.format_exc()))
+            errtype, errvalue = sys.exc_info()[:2]
+            tmpLog.error('failed with {0} {1} {2}'.format(errtype, errvalue, traceback.format_exc()))

@@ -19,6 +19,9 @@ from . import AtlasBrokerUtils
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
+APP = 'jedi'
+COMPONENT = 'jobbroker'
+VO = 'atlas'
 
 # brokerage for ATLAS analysis
 class AtlasAnalJobBroker (JobBrokerBase):
@@ -307,6 +310,67 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 tmpLog.error('no candidates')
                 retVal = retTmpError
                 continue
+
+            ######################################
+            # selection for iointensity limits
+            # get default disk IO limit from GDP config
+            max_diskio_per_core_default = self.taskBufferIF.getConfigValue(COMPONENT, 'MAX_DISKIO_DEFAULT', APP, VO)
+            if not max_diskio_per_core_default:
+                max_diskio_per_core_default = 10 ** 10
+
+            # get the current disk IO usage per site
+            diskio_percore_usage = self.taskBufferIF.getAvgDiskIO_JEDI()
+            unified_site_list = self.get_unified_sites(scanSiteList)
+            newScanSiteList = []
+            for tmpSiteName in unified_site_list:
+
+                tmp_site_spec = self.siteMapper.getSite(tmpSiteName)
+
+                # measured diskIO at queue
+                diskio_usage_tmp = diskio_percore_usage.get(tmpSiteName, 0)
+
+                # figure out queue or default limit
+                if tmp_site_spec.maxDiskio and tmp_site_spec.maxDiskio > 0:
+                    # there is a limit specified in AGIS
+                    diskio_limit_tmp = tmp_site_spec.maxDiskio
+                else:
+                    # we need to use the default value from GDP Config
+                    diskio_limit_tmp = max_diskio_per_core_default
+
+                # normalize task diskIO by site corecount
+                diskio_task_tmp = taskSpec.diskIO
+                if taskSpec.diskIO is not None and taskSpec.coreCount not in [None, 0, 1] \
+                        and tmp_site_spec.coreCount not in [None, 0]:
+                    diskio_task_tmp = taskSpec.diskIO / tmp_site_spec.coreCount
+
+                try:  # generate a log message parseable by logstash for monitoring
+                    log_msg = 'diskIO measurements: site={0} jediTaskID={1} '.format(tmpSiteName, taskSpec.jediTaskID)
+                    if diskio_task_tmp is not None:
+                        log_msg += 'diskIO_task={:.2f} '.format(diskio_task_tmp)
+                    if diskio_usage_tmp is not None:
+                        log_msg += 'diskIO_site_usage={:.2f} '.format(diskio_usage_tmp)
+                    if diskio_limit_tmp is not None:
+                        log_msg += 'diskIO_site_limit={:.2f} '.format(diskio_limit_tmp)
+                    tmpLog.info(log_msg)
+                except:
+                    tmpLog.debug('diskIO measurements: Error generating diskIO message')
+
+                # if the task has a diskIO defined, the queue is over the IO limit and the task IO is over the limit
+                if diskio_task_tmp and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
+                    tmpLog.info('  skip site={0} due to diskIO overload criteria=-diskIO'.format(tmpSiteName))
+                    continue
+
+                newScanSiteList.append(tmpSiteName)
+
+            scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
+
+            tmpLog.info('{0} candidates passed diskIO check'.format(len(scanSiteList)))
+            if not scanSiteList:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+
             ######################################
             # selection for MP
             newScanSiteList = []

@@ -614,6 +614,10 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, ig
         tmp_site_spec = site_mapper.getSite(site_name)
         scope_input, scope_output = select_scope(tmp_site_spec, prod_source_label)
 
+        # skip if scope not available
+        if scope_input not in tmp_site_spec.ddm_endpoints_input:
+            continue
+
         # add the schedconfig.ddm endpoints
         ret_map[site_name] = list(tmp_site_spec.ddm_endpoints_input[scope_input].all.keys())
 
