@@ -3,21 +3,21 @@ import re
 import sys
 import time
 import datetime
-import commands
 import threading
 
 from pandajedi.jediconfig import jedi_config
 
 from config import panda_config
 
+from taskbuffer.Initializer import initializer
+from pandajedi.jedicore import JediTaskBuffer
+from pandalogger.PandaLogger import PandaLogger
+
 jediTaskID = sys.argv[1]
 
 # initialize cx_Oracle using dummy connection
-from taskbuffer.Initializer import initializer
 initializer.init()
 
-from pandajedi.jedicore import JediTaskBuffer
-from pandalogger.PandaLogger import PandaLogger
 
 taskBuffer= JediTaskBuffer.JediTaskBuffer(None)
 proxy = taskBuffer.proxyPool.getProxy()

@@ -19,4 +19,4 @@ workQueues = wqMap.getAlignedQueueList(vo, prodSourceLabel)
 resource_types = tbIF.load_resource_types()
 for workQueue in workQueues:
     for resource_type in resource_types:
-        print jt.toBeThrottled(vo, prodSourceLabel, cloud, workQueue, resource_type.resource_name)
+        print(jt.toBeThrottled(vo, prodSourceLabel, cloud, workQueue, resource_type.resource_name))

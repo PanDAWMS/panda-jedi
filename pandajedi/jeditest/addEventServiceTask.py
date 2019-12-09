@@ -1,8 +1,9 @@
 from userinterface import Client
 
 import sys
-site = sys.argv[1]
 import uuid
+
+site = sys.argv[1]
 
 dsName = 'mc12_8TeV.189659.gg2VVPythia8_AU2CT10_ggH125p5_VV_2mu2numu_m2l4_2pt3.evgen.EVNT.e2872_tid01461041_00'
 logDatasetName = 'panda.jeditest.log.{0}'.format(uuid.uuid4())
@@ -47,7 +48,7 @@ taskParamMap['jobParameters'] = [
     {'type':'constant',
      'value': '--AMITag s1831 --DBRelease=current --athenaopts=--preloadlib=${ATLASMKLLIBDIR_PRELOAD}/libimf.so --conditionsTag=OFLCOND-MC12-SIM-00',
      },
-    {'type':'template',    
+    {'type':'template',
      'value':'firstEvent=${FIRSTEVENT}',
      'param_type':'number',
      },
@@ -59,24 +60,24 @@ taskParamMap['jobParameters'] = [
      'value':'--inputEvgenFile=${IN}',
      'dataset':dsName,
      },
-    {'type':'template',    
+    {'type':'template',
      'value':'--maxEvents=${MAXEVENTS}',
      'param_type':'number',
      },
     {'type':'template',
      'param_type':'output',
-     'token':'ATLASDATADISK',     
+     'token':'ATLASDATADISK',
      'value':' --outputHitsFile={0}.${{SN}}.pool.root'.format(outDatasetName),
      'dataset':outDatasetName,
      },
-    {'type':'constant',    
+    {'type':'constant',
      'value':'--physicsList=QGSP_BERT --postInclude=RecJobTransforms/UseFrontierFallbackDBRelease.py --preInclude=SimulationJobOptions/preInclude.FrozenShowersFCalOnly.py,SimulationJobOptions/preInclude.BeamPipeKill.py',
      },
-    {'type':'template',    
+    {'type':'template',
      'value':'--skipEvents=${SKIPEVENTS}',
      'param_type':'number',
      },
-    {'type':'template',    
+    {'type':'template',
      'value':'--randomSeed=${RNDMSEED}',
      'param_type':'number',
      },
@@ -86,4 +87,4 @@ taskParamMap['esmergeSpec'] = {}
 taskParamMap['esmergeSpec']['transPath'] = 'Merge_trf.py'
 taskParamMap['esmergeSpec']['jobParameters'] = "aaa bbb"
 
-print Client.insertTaskParams(taskParamMap)
+print(Client.insertTaskParams(taskParamMap))

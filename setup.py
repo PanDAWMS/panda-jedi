@@ -5,25 +5,28 @@
 #
 # set PYTHONPATH to use the current directory first
 import sys
-sys.path.insert(0,'.')
+sys.path.insert(0,'.')  # noqa: E402
 
-# get release version
 import os
+import re
+import sys
+import socket
+import getpass
+import grp
+
 import PandaPkgInfo
-release_version = PandaPkgInfo.release_version
-if os.environ.has_key('BUILD_NUMBER'):
-    release_version = '{0}.{1}'.format(release_version,os.environ['BUILD_NUMBER'])
+from setuptools import setup
+from setuptools.command.install import install as install_org
+from distutils.command.install_data import install_data as install_data_org
 
 # define user name and group
 panda_user = 'atlpan'
 panda_group = 'zp'
 
-import re
-import sys
-import commands
-from distutils.core import setup
-from distutils.command.install import install as install_org
-from distutils.command.install_data import install_data as install_data_org
+# get release version
+release_version = PandaPkgInfo.release_version
+if 'BUILD_NUMBER' in os.environ:
+    release_version = '{0}.{1}'.format(release_version,os.environ['BUILD_NUMBER'])
 
 # get panda specific params
 optPanda = {}
@@ -33,7 +36,7 @@ while idx < len(sys.argv):
     tmpArg = sys.argv[idx]
     if tmpArg.startswith('--panda_'):
         # panda params
-        idx += 1            
+        idx += 1
         if len(tmpArg.split('=')) == 2:
             # split to par and val if = is contained
             tmpVal = tmpArg.split('=')[-1]
@@ -42,8 +45,8 @@ while idx < len(sys.argv):
             tmpVal = sys.argv[idx]
             idx += 1
         else:
-            raise RuntimeError,"invalid panda option : %s" % tmpArg
-        # get key             
+            raise RuntimeError("invalid panda option : %s" % tmpArg)
+        # get key
         tmpKey = re.sub('--panda_','',tmpArg)
         # set params
         optPanda[tmpKey] = tmpVal
@@ -69,7 +72,7 @@ class install_data_panda (install_data_org):
         self.install_purelib = None
         self.panda_user = panda_user
         self.panda_group = panda_group
-        
+
     def finalize_options (self):
         # set install_purelib
         self.set_undefined_options('install',
@@ -77,29 +80,29 @@ class install_data_panda (install_data_org):
         # set reaming params
         install_data_org.finalize_options(self)
         # set hostname
-        if optPanda.has_key('hostname') and optPanda['hostname'] != '':
+        if 'hostname' in optPanda and optPanda['hostname'] != '':
             self.hostname = optPanda['hostname']
         else:
-            self.hostname = commands.getoutput('hostname -f')
+            self.hostname = socket.gethostname()
         # set user and group
-        if optPanda.has_key('username') and optPanda['username'] != '':
-            self.username  = optPanda['username']
+        if 'username' in optPanda and optPanda['username'] != '':
+            self.username = optPanda['username']
         else:
-            self.username  = commands.getoutput('id -un')
-        if optPanda.has_key('usergroup') and optPanda['usergroup'] != '':
+            self.username = getpass.getuser()
+        if 'usergroup' in optPanda and optPanda['usergroup'] != '':
             self.usergroup = optPanda['usergroup']
         else:
-            self.usergroup = commands.getoutput('id -gn')             
-        
-    
+            self.usergroup = grp.getgrnam(self.username).gr_name
+
+
     def run (self):
         # remove /usr for bdist/bdist_rpm
         match = re.search('(build/[^/]+/dumb)/usr',self.install_dir)
-        if match != None:
+        if match is not None:
             self.install_dir = re.sub(match.group(0),match.group(1),self.install_dir)
         # remove /var/tmp/*-buildroot for bdist_rpm
         match = re.search('(/var/tmp/.*-buildroot)/usr',self.install_dir)
-        if match != None:
+        if match is not None:
             self.install_dir = re.sub(match.group(0),match.group(1),self.install_dir)
         # create tmp area
         tmpDir = 'build/tmp'
@@ -110,7 +113,7 @@ class install_data_panda (install_data_org):
             for srcFile in dataFiles:
                 # check extension
                 if not srcFile.endswith('.template'):
-                    raise RuntimeError,"%s doesn't have the .template extension" % srcFile
+                    raise RuntimeError("%s doesn't have the .template extension" % srcFile)
                 # dest filename
                 destFile = re.sub('(\.exe)*\.template$','',srcFile)
                 destFile = re.sub(r'^templates/', '', destFile)
@@ -124,7 +127,7 @@ class install_data_panda (install_data_org):
                 # replace patterns
                 for item in re.findall('@@([^@]+)@@',filedata):
                     if not hasattr(self,item):
-                        raise RuntimeError,'unknown pattern %s in %s' % (item,srcFile)
+                        raise RuntimeError('unknown pattern %s in %s' % (item,srcFile))
                     # get pattern
                     patt = getattr(self,item)
                     # remove install root, if any
@@ -133,7 +136,7 @@ class install_data_panda (install_data_org):
                     # remove build/*/dump for bdist
                     patt = re.sub('build/[^/]+/dumb','',patt)
                     # remove /var/tmp/*-buildroot for bdist_rpm
-                    patt = re.sub('/var/tmp/.*-buildroot','',patt)                    
+                    patt = re.sub('/var/tmp/.*-buildroot','',patt)
                     # replace
                     filedata = filedata.replace('@@%s@@' % item, patt)
                 # write to dest
@@ -146,7 +149,7 @@ class install_data_panda (install_data_org):
                 oFile.close()
                 # chmod for exe
                 if srcFile.endswith('.exe.template'):
-                    commands.getoutput('chmod +x %s' % destFile)
+                    os.chmod(destFile, 0o755)
                 # append
                 newFilesList.append(destFile)
             # replace dataFiles to install generated file
@@ -154,8 +157,8 @@ class install_data_panda (install_data_org):
         # install
         self.data_files = new_data_files
         install_data_org.run(self)
-        
-        
+
+
 # setup for distutils
 setup(
     name="panda-jedi",
@@ -169,18 +172,25 @@ setup(
     packages=[ 'pandajedi',
                'pandajedi.jedicore',
                'pandajedi.jediexec',
-               'pandajedi.jeditest',               
+               'pandajedi.jeditest',
                'pandajedi.jedidog',
                'pandajedi.jediddm',
                'pandajedi.jedigen',
                'pandajedi.jedisetup',
-               'pandajedi.jediorder',               
+               'pandajedi.jediorder',
                'pandajedi.jediconfig',
-               'pandajedi.jedirefine',               
+               'pandajedi.jedirefine',
                'pandajedi.jedithrottle',
                'pandajedi.jedibrokerage',
                'pandajedi.jedipprocess',
               ],
+    install_requires=[
+        'six',
+        'python-daemon',
+        'cx-Oracle',
+        'rucio-clients',
+        'numpy',
+    ],
     data_files=[
                 # config and cron files
                 ('/etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',

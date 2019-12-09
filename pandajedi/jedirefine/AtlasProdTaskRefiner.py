@@ -4,8 +4,10 @@ import shlex
 import random
 import datetime
 
+from six import iteritems
+
 from pandajedi.jedicore import Interaction
-from TaskRefinerBase import TaskRefinerBase
+from .TaskRefinerBase import TaskRefinerBase
 
 from pandaserver.dataservice import DataServiceUtils
 
@@ -23,11 +25,11 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
     def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule):
         tmpLog = self.tmpLog
         # set ddmBackEnd
-        if not 'ddmBackEnd' in taskParamMap:
+        if 'ddmBackEnd' not in taskParamMap:
             taskParamMap['ddmBackEnd'] = 'rucio'
         # get number of unprocessed events for event service
         autoEsConversion = False
-        if 'esConvertible' in taskParamMap and taskParamMap['esConvertible'] == True:
+        if 'esConvertible' in taskParamMap and taskParamMap['esConvertible'] is True:
             maxPrio = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_MAXTASKPRIORITY', 'jedi', 'atlas')
             minPrio = self.taskBufferIF.getConfigValue('taskrefiner', 'AES_MINTASKPRIORITY', 'jedi', 'atlas')
             if maxPrio is not None and maxPrio < taskParamMap['taskPriority']:
@@ -96,65 +98,65 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
         tmpLog = self.tmpLog
         tmpLog.debug('start taskType={0}'.format(self.taskSpec.taskType))
         try:
-            # basic refine    
+            # basic refine
             self.doBasicRefine(taskParamMap)
             # set nosplit+repeat for DBR
             for datasetSpec in self.inSecDatasetSpecList:
                 if DataServiceUtils.isDBR(datasetSpec.datasetName):
                     datasetSpec.attributes = 'repeat,nosplit'
             # enable consistency check
-            if not self.taskSpec.parent_tid in [None,self.taskSpec.jediTaskID]:
+            if self.taskSpec.parent_tid not in [None,self.taskSpec.jediTaskID]:
                 for datasetSpec in self.inMasterDatasetSpec:
                     if datasetSpec.isMaster() and datasetSpec.type == 'input':
                         datasetSpec.enableCheckConsistency()
             # append attempt number
-            for tmpKey,tmpOutTemplateMapList in self.outputTemplateMap.iteritems():
+            for tmpKey,tmpOutTemplateMapList in iteritems(self.outputTemplateMap):
                 for tmpOutTemplateMap in tmpOutTemplateMapList:
                     outFileTemplate = tmpOutTemplateMap['filenameTemplate']
-                    if re.search('\.\d+$',outFileTemplate) == None and not outFileTemplate.endswith('.panda.um'):
+                    if re.search('\.\d+$',outFileTemplate) is None and not outFileTemplate.endswith('.panda.um'):
                         tmpOutTemplateMap['filenameTemplate'] = outFileTemplate + '.1'
             # extract input datatype
             datasetTypeListIn = []
             for datasetSpec in self.inMasterDatasetSpec+self.inSecDatasetSpecList:
                 datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
-                if not datasetType in ['',None]:
+                if datasetType not in ['',None]:
                     datasetTypeListIn.append(datasetType)
             # extract datatype and set destination if nessesary
             datasetTypeList = []
             for datasetSpec in self.outDatasetSpecList:
                 datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
-                if not datasetType in ['',None]:
+                if datasetType not in ['',None]:
                     datasetTypeList.append(datasetType)
             # set numThrottled to use the task throttling mechanism
-            if not 'noThrottle' in taskParamMap:
+            if 'noThrottle' not in taskParamMap:
                 self.taskSpec.numThrottled = 0
             # set to register datasets
             self.taskSpec.setToRegisterDatasets()
             # set transient to parent datasets
-            if self.taskSpec.processingType in ['merge'] and not self.taskSpec.parent_tid in [None,self.taskSpec.jediTaskID]:
+            if self.taskSpec.processingType in ['merge'] and self.taskSpec.parent_tid not in [None,self.taskSpec.jediTaskID]:
                 # get parent
                 tmpStat,parentTaskSpec = self.taskBufferIF.getTaskDatasetsWithID_JEDI(self.taskSpec.parent_tid,None,False)
-                if tmpStat and parentTaskSpec != None:
+                if tmpStat and parentTaskSpec is not None:
                     # set transient to parent datasets
                     metaData = {'transient':True}
                     for datasetSpec in parentTaskSpec.datasetSpecList:
                         if datasetSpec.type in ['log','output']:
                             datasetType = DataServiceUtils.getDatasetType(datasetSpec.datasetName)
-                            if not datasetType in ['',None] and datasetType in datasetTypeList and datasetType in datasetTypeListIn:
+                            if datasetType not in ['',None] and datasetType in datasetTypeList and datasetType in datasetTypeListIn:
                                 tmpLog.info('set metadata={0} to parent jediTaskID={1}:datasetID={2}:Name={3}'.format(str(metaData),
                                                                                                                       self.taskSpec.parent_tid,
                                                                                                                       datasetSpec.datasetID,
                                                                                                                       datasetSpec.datasetName))
-                                for metadataName,metadaValue in metaData.iteritems():
+                                for metadataName,metadaValue in iteritems(metaData):
                                     self.ddmIF.getInterface(self.taskSpec.vo).setDatasetMetadata(datasetSpec.datasetName,
                                                                                                  metadataName,metadaValue)
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))
-            raise errtype,errvalue
+            raise errtype(errvalue)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
-            
+
 
 
     # insert string
@@ -162,7 +164,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
         items = shlex.split(origStr,posix=False)
         newStr = ''
         for item in items:
-            if not paramName in item:
+            if paramName not in item:
                 newStr += item
             else:
                 newStr += item[:-1]
@@ -170,5 +172,3 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                 newStr += item[-1]
             newStr += ' '
         return newStr
-
-

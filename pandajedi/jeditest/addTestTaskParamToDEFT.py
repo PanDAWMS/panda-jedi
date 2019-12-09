@@ -1,7 +1,7 @@
 import sys
 try:
     metaID = sys.argv[1]
-except:
+except Exception:
     metaID = None
 import json
 import uuid
@@ -42,12 +42,12 @@ taskParamMap['jobParameters'] = [
      'dataset':'ddo.000001.Atlas.Ideal.DBRelease.v220701',
      'attributes':'repeat,nosplit',
      },
-    {'type':'constant',    
+    {'type':'constant',
      'value':'AMITag=p1462'
      },
     {'type':'template',
      'param_type':'output',
-     'token':'ATLASDATADISK',     
+     'token':'ATLASDATADISK',
      'value':'outputNTUP_EMBLLDNFile={0}.${{SN}}.pool.root'.format(outDatasetName),
      'dataset':outDatasetName,
      }
@@ -55,9 +55,8 @@ taskParamMap['jobParameters'] = [
 
 jonStr = json.dumps(taskParamMap)
 
-from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
+from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface  # noqa: E402
 
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()
 tbIF.insertTaskParams_JEDI(taskParamMap['vo'],taskParamMap['prodSourceLabel'],taskParamMap['userName'],taskParamMap['taskName'],jonStr)
-

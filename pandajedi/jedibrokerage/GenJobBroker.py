@@ -5,9 +5,9 @@ import random
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
-from JobBrokerBase import JobBrokerBase
+from .JobBrokerBase import JobBrokerBase
 from pandaserver.taskbuffer import PrioUtil
-import AtlasBrokerUtils
+from . import AtlasBrokerUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -31,10 +31,10 @@ class GenJobBroker (JobBrokerBase):
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
         # get sites in the cloud
-        if not taskSpec.site in ['',None]:
+        if taskSpec.site not in ['',None]:
             scanSiteList = [taskSpec.site]
             tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
-        elif inputChunk.getPreassignedSite() != None:
+        elif inputChunk.getPreassignedSite() is not None:
             scanSiteList = [inputChunk.getPreassignedSite()]
             tmpLog.debug('site={0} is pre-assigned in masterDS'.format(inputChunk.getPreassignedSite()))
         else:
@@ -54,7 +54,7 @@ class GenJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             else:
                 tmpLog.debug('  skip %s due to status=%s' % (tmpSiteName,tmpSiteSpec.status))
-        scanSiteList = newScanSiteList        
+        scanSiteList = newScanSiteList
         tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
@@ -63,7 +63,7 @@ class GenJobBroker (JobBrokerBase):
         ######################################
         # selection for memory
         minRamCount  = max(taskSpec.ramCount, inputChunk.ramCount)
-        if not minRamCount in [0,None]:
+        if minRamCount not in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -79,7 +79,7 @@ class GenJobBroker (JobBrokerBase):
                                                                                                          minRamCount))
                     continue
                 newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList        
+            scanSiteList = newScanSiteList
             tmpLog.debug('{0} candidates passed memory check ={1}{2}'.format(len(scanSiteList),
                                                                              minRamCount,taskSpec.ramUnit))
             if scanSiteList == []:
@@ -89,13 +89,13 @@ class GenJobBroker (JobBrokerBase):
         ######################################
         # selection for scratch disk
         minDiskCountS = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
-        minDiskCountS = minDiskCountS / 1024 / 1024
+        minDiskCountS = minDiskCountS // 1024 // 1024
         # size for direct IO sites
         if taskSpec.useLocalIO():
             minDiskCountR = minDiskCountS
         else:
             minDiskCountR = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()
-            minDiskCountR = minDiskCountR / 1024 / 1024
+            minDiskCountR = minDiskCountR // 1024 // 1024
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -140,7 +140,7 @@ class GenJobBroker (JobBrokerBase):
         ######################################
         # selection for walltime
         minWalltime = taskSpec.walltime
-        if not minWalltime in [0,None]:
+        if minWalltime not in [0,None]:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -156,7 +156,7 @@ class GenJobBroker (JobBrokerBase):
                                                                                                            minWalltime))
                     continue
                 newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList        
+            scanSiteList = newScanSiteList
             tmpLog.debug('{0} candidates passed walltime check ={1}{2}'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
@@ -169,13 +169,13 @@ class GenJobBroker (JobBrokerBase):
         for tmpSiteName in scanSiteList:
             # check at the site
             nPilot = 0
-            if nWNmap.has_key(tmpSiteName):
+            if tmpSiteName in nWNmap:
                 nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
-            if nPilot == 0 and not taskSpec.prodSourceLabel in ['test']:
+            if nPilot == 0 and taskSpec.prodSourceLabel not in ['test']:
                 tmpLog.debug('  skip %s due to no pilot' % tmpSiteName)
                 #continue
             newScanSiteList.append(tmpSiteName)
-        scanSiteList = newScanSiteList        
+        scanSiteList = newScanSiteList
         tmpLog.debug('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
         if scanSiteList == []:
             tmpLog.error('no candidates')
@@ -215,12 +215,12 @@ class GenJobBroker (JobBrokerBase):
             if tmpSiteName in sitesUsedByTask:
                 candidateSpecList.append(siteCandidateSpec)
             else:
-                if not weightMap.has_key(weight):
+                if weight not in weightMap:
                     weightMap[weight] = []
-                weightMap[weight].append(siteCandidateSpec)    
+                weightMap[weight].append(siteCandidateSpec)
         # limit the number of sites
         maxNumSites = 5
-        weightList = weightMap.keys()
+        weightList = list(weightMap.keys())
         weightList.sort()
         weightList.reverse()
         for weightVal in weightList:
@@ -230,7 +230,7 @@ class GenJobBroker (JobBrokerBase):
             random.shuffle(sitesWithWeight)
             candidateSpecList += sitesWithWeight[:(maxNumSites-len(candidateSpecList))]
         # collect site names
-        scanSiteList = []    
+        scanSiteList = []
         for siteCandidateSpec in candidateSpecList:
             scanSiteList.append(siteCandidateSpec.siteName)
         # append candidates
@@ -248,5 +248,5 @@ class GenJobBroker (JobBrokerBase):
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         # return
-        tmpLog.debug('done')        
+        tmpLog.debug('done')
         return self.SC_SUCCEEDED,inputChunk

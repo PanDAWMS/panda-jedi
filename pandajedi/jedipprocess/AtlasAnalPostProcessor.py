@@ -1,12 +1,18 @@
 import re
 import sys
 import time
-import urllib
 import datetime
 import random
 
+from six import iteritems
+
+try:
+    from urllib.parse import urlencode
+except ImportError:
+    from urllib import urlencode
+
 from pandajedi.jedicore import Interaction
-from PostProcessorBase import PostProcessorBase
+from .PostProcessorBase import PostProcessorBase
 from pandajedi.jedirefine import RefinerUtils
 
 
@@ -54,7 +60,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 if not closedFlag and datasetSpec.type in ['output']:
                     # get successful files
                     okFiles = self.taskBufferIF.getSuccessfulFiles_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID)
-                    if okFiles == None:
+                    if okFiles is None:
                         tmpLog.warning('failed to get successful files for {0}'.format(datasetSpec.datasetName))
                         return self.SC_FAILED
                     # get files in dataset
@@ -64,7 +70,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                                                                                                       len(okFiles),len(ddmFiles)))
                     # check all files
                     toDelete = []
-                    for tmpGUID,attMap in ddmFiles.iteritems():
+                    for tmpGUID,attMap in iteritems(ddmFiles):
                         if attMap['lfn'] not in okFiles:
                             did = {'scope':attMap['scope'], 'name':attMap['lfn']}
                             toDelete.append(did)
@@ -73,11 +79,11 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                     if toDelete != []:
                         ddmIF.deleteFilesFromDataset(datasetSpec.datasetName,toDelete)
                 # freeze datasets
-                if not closedFlag and not (datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']):
+                if not closedFlag and not (datasetSpec.type.startswith('trn_') and datasetSpec.type not in ['trn_log']):
                     tmpLog.debug('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
                     ddmIF.freezeDataset(datasetSpec.datasetName,ignoreUnknown=True)
                 else:
-                    if datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']:
+                    if datasetSpec.type.startswith('trn_') and datasetSpec.type not in ['trn_log']:
                         tmpLog.debug('skip freezing transient datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
                 # update dataset
                 datasetSpec.state = 'closed'
@@ -90,7 +96,7 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 # delete transient or empty datasets
                 if not closedFlag:
                     emptyOnly = True
-                    if datasetSpec.type.startswith('trn_') and not datasetSpec.type in ['trn_log']:
+                    if datasetSpec.type.startswith('trn_') and datasetSpec.type not in ['trn_log']:
                         emptyOnly = False
                     retStr = ddmIF.deleteDataset(datasetSpec.datasetName,emptyOnly,ignoreUnknown=True)
                     tmpLog.debug(retStr)
@@ -111,13 +117,13 @@ class AtlasAnalPostProcessor (PostProcessorBase):
             # dialog
             if useLib and nOkLib == 0:
                 taskSpec.setErrDiag('No build jobs succeeded',True)
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.warning('failed to freeze datasets with {0}:{1}'.format(errtype.__name__,errvalue))
         retVal = self.SC_SUCCEEDED
         try:
             self.doBasicPostProcess(taskSpec,tmpLog)
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicPostProcess failed with {0}:{1}'.format(errtype.__name__,errvalue))
             retVal = self.SC_FATAL
@@ -133,11 +139,11 @@ class AtlasAnalPostProcessor (PostProcessorBase):
         try:
             taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
             self.taskParamMap = RefinerUtils.decodeJSON(taskParam)
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
-        if toAdd == None or \
-                (self.taskParamMap != None and self.taskParamMap.has_key('noEmail') and self.taskParamMap['noEmail'] == True):
+        if toAdd is None or \
+                (self.taskParamMap is not None and 'noEmail' in self.taskParamMap and self.taskParamMap['noEmail'] is True):
             tmpLog.debug('email notification is suppressed')
         else:
             # send email notification
@@ -145,8 +151,8 @@ class AtlasAnalPostProcessor (PostProcessorBase):
             msgBody = self.composeMessage(taskSpec,fromAdd,toAdd)
             self.sendMail(taskSpec.jediTaskID,fromAdd,toAdd,msgBody,3,False,tmpLog)
         return self.SC_SUCCEEDED
-            
-    
+
+
 
     # compose mail message
     def composeMessage(self,taskSpec,fromAdd,toAdd):
@@ -171,13 +177,13 @@ class AtlasAnalPostProcessor (PostProcessorBase):
         for datasetSpec in taskSpec.datasetSpecList:
             # dataset summary
             if datasetSpec.type == 'log':
-                if not datasetSpec.containerName in listLogDS:
+                if datasetSpec.containerName not in listLogDS:
                     listLogDS.append(datasetSpec.containerName)
             elif datasetSpec.type == 'input':
-                if not datasetSpec.containerName in listInDS:
+                if datasetSpec.containerName not in listInDS:
                     listInDS.append(datasetSpec.containerName)
             elif datasetSpec.type == 'output':
-                if not datasetSpec.containerName in listOutDS:
+                if datasetSpec.containerName not in listOutDS:
                     listOutDS.append(datasetSpec.containerName)
             # process summary
             if datasetSpec.isMasterInput():
@@ -185,11 +191,11 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                     numTotal += datasetSpec.nFiles
                     numOK    += datasetSpec.nFilesFinished
                     numNG    += datasetSpec.nFilesFailed
-                except:
+                except Exception:
                     pass
         try:
             numCancel = numTotal - numOK - numNG
-        except:
+        except Exception:
             pass
         if numOK == numTotal:
             msgSucceeded = 'All Succeeded'
@@ -248,8 +254,8 @@ PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(\
             errorDialog=self.removeTags(taskSpec.errorDialog),
             params=cliParams,
             taskName=taskSpec.taskName,
-            oldPandaMon=urllib.urlencode(urlData),
-            newPandaMon=urllib.urlencode(newUrlData),
+            oldPandaMon=urlencode(urlData),
+            newPandaMon=urlencode(newUrlData),
             numTotal=numTotal,
             numOK=numOK,
             numNG=numNG,
@@ -257,8 +263,8 @@ PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(\
             dsSummary=dsSummary,
             msgSucceeded=msgSucceeded,
             )
-                    
-        # tailer            
+
+        # tailer
         message += \
 """
 
@@ -270,7 +276,7 @@ Report Panda problems of any sort to
 
   the JIRA portal for software bug
     https://its.cern.ch/jira/browse/ATLASPANDA
-"""        
+"""
         # return
         return message
 
@@ -287,7 +293,7 @@ Report Panda problems of any sort to
         tmpLog.debug("email from MetaDB : {0}".format(mailAddrInDB))
         # email mortification is suppressed
         notSendMail = False
-        if mailAddrInDB != None and mailAddrInDB.startswith('notsend'):
+        if mailAddrInDB is not None and mailAddrInDB.startswith('notsend'):
             notSendMail = True
         # DN is unavilable
         if dn in ['',None]:
@@ -295,7 +301,7 @@ Report Panda problems of any sort to
             notSendMail = True
         else:
             # avoid too frequently lookup
-            if dbUptime != None and datetime.datetime.utcnow()-dbUptime < datetime.timedelta(hours=1):
+            if dbUptime is not None and datetime.datetime.utcnow()-dbUptime < datetime.timedelta(hours=1):
                 tmpLog.debug("no lookup")
                 if notSendMail or mailAddrInDB in [None,'']:
                     return retSupp
@@ -310,7 +316,7 @@ Report Panda problems of any sort to
                         userInfo = self.ddmIF.getInterface(vo).finger(dn)
                         mailAddr = userInfo['email']
                         tmpLog.debug("email from DQ2 : {0}".format(mailAddr))
-                        if mailAddr == None:
+                        if mailAddr is None:
                             mailAddr = ''
                         # make email field to update DB
                         mailAddrToDB = ''
@@ -324,7 +330,7 @@ Report Panda problems of any sort to
                         if notSendMail or mailAddr == '':
                             return retSupp
                         return mailAddr
-                    except:
+                    except Exception:
                         if iDDMTry+1 < nTry:
                             tmpLog.debug("sleep for retry {0}/{1}".format(iDDMTry,nTry))
                             time.sleep(10)
@@ -339,10 +345,9 @@ Report Panda problems of any sort to
     # remove tags
     def removeTags(self,tmpStr):
         try:
-            if tmpStr != None:
+            if tmpStr is not None:
                 tmpStr = re.sub('>[^<]+<','><',tmpStr)
                 tmpStr = re.sub('<[^<]+>','',tmpStr)
-        except:
+        except Exception:
             pass
         return tmpStr
-

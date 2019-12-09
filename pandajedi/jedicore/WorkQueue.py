@@ -5,6 +5,9 @@ work queue specification
 
 import re
 import types
+
+from six import iteritems
+
 from pandaserver.taskbuffer.GlobalShares import Share
 
 RESOURCE = 'Resource'
@@ -100,7 +103,7 @@ class WorkQueue(object):
                     continue
                 # add
                 tmp_map[':%s' % items[0]] = items[1]
-        except:
+        except Exception:
             pass
         # assign map
         self.variables = tmp_map
@@ -118,7 +121,7 @@ class WorkQueue(object):
             tmp_eval_str = tmp_eval_str.replace('=', '==')
             # replace LIKE
             tmp_eval_str = re.sub('(?P<var>[^ \(]+)\s+LIKE\s+(?P<pat>[^ \(]+)',
-                                  "re.search(\g<pat>,\g<var>,re.I) != None",
+                                  "re.search(\g<pat>,\g<var>,re.I) is not None",
                                   tmp_eval_str, re.I)
             # NULL
             tmp_eval_str = re.sub(' IS NULL', '==None', tmp_eval_str)
@@ -129,7 +132,7 @@ class WorkQueue(object):
             for tmp_param in self._paramsForSelection:
                 tmp_eval_str = re.sub(tmp_param, tmp_param, tmp_eval_str, re.I)
             # replace bind-variables
-            for tmp_key, tmp_val in self.variables.iteritems():
+            for tmp_key, tmp_val in iteritems(self.variables):
                 if '%' in tmp_val:
                     # wildcard
                     tmp_val = tmp_val.replace('%', '.*')
@@ -171,7 +174,7 @@ class WorkQueue(object):
                     self.throttled = False
 
             self.variables = tmp_map
-        except:
+        except Exception:
             pass
 
     # evaluate in python
@@ -180,18 +183,18 @@ class WorkQueue(object):
         if self.isActive():
             # normal queue
             # expand parameters to local namespace
-            for tmp_param_key, tmp_param_val in param_map.iteritems():
-                if isinstance(tmp_param_val, types.StringType):
+            for tmp_param_key, tmp_param_val in iteritems(param_map):
+                if isinstance(tmp_param_val, str):
                     # add quotes for string
-                    exec '{0}="{1}"'.format(tmp_param_key, tmp_param_val)
+                    exec('{0}="{1}"'.format(tmp_param_key, tmp_param_val))
                 else:
-                    exec '{0}={1}'.format(tmp_param_key, tmp_param_val)
+                    exec('{0}={1}'.format(tmp_param_key, tmp_param_val))
             # add default parameters if missing
             for tmp_param in self._paramsForSelection:
                 if tmp_param not in param_map:
-                    exec '{0}=None'.format(tmp_param)
+                    exec('{0}=None'.format(tmp_param))
             # evaluate
-            exec "ret_var = {0}".format(self.evalString)
+            exec("ret_var = {0}".format(self.evalString))
             return self, ret_var
 
         # return False

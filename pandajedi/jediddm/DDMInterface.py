@@ -1,10 +1,10 @@
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore import Interaction
-    
+
 
 # interface to DDM
 class DDMInterface:
-    
+
     # constructor
     def __init__(self):
         self.interfaceMap = {}
@@ -22,7 +22,7 @@ class DDMInterface:
                 maxSize = int(items[1])
                 moduleName = items[2]
                 className  = items[3]
-            except:
+            except Exception:
                 # TODO add config error message
                 continue
             # add VO interface
@@ -33,29 +33,29 @@ class DDMInterface:
 
     # get interface with VO
     def getInterface(self,vo):
-        if self.interfaceMap.has_key(vo):
+        if vo in self.interfaceMap:
             return self.interfaceMap[vo]
         # catchall
         cacheAll = 'any'
-        if self.interfaceMap.has_key(cacheAll):
+        if cacheAll in self.interfaceMap:
             return self.interfaceMap[cacheAll]
         # not found
         return None
 
 
-    
+
 if __name__ == '__main__':
     def dummyClient(dif):
-        print "client test"
+        print("client test")
         dif.getInterface('atlas').test()
-        print 'client done'
+        print('client done')
 
     dif = DDMInterface()
     dif.setupInterface()
-    print "master test"
+    print("master test")
     atlasIF = dif.getInterface('atlas')
     atlasIF.test()
-    print "master done"
+    print("master done")
     import multiprocessing
     p = multiprocessing.Process(target=dummyClient,
                                 args=(dif,))

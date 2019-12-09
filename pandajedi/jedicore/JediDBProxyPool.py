@@ -2,7 +2,7 @@ from pandaserver import taskbuffer
 import taskbuffer.DBProxyPool
 
 # use customized proxy
-import JediDBProxy
+from . import JediDBProxy
 taskbuffer.DBProxyPool.DBProxy = JediDBProxy
 
 class DBProxyPool(taskbuffer.DBProxyPool.DBProxyPool):

@@ -1,6 +1,6 @@
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
-from DDMClientBase import DDMClientBase
+from .DDMClientBase import DDMClientBase
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger

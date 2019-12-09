@@ -1,20 +1,10 @@
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-logger = PandaLogger().getLogger('JobGenerator')
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-tmpLog = MsgWrapper(logger)
 
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 
-tbIF = JediTaskBufferInterface()
-tbIF.setupInterface()
-
-siteMapper = tbIF.getSiteMapper()
-
 from pandajedi.jediddm.DDMInterface import DDMInterface
-
-ddmIF = DDMInterface()
-ddmIF.setupInterface()
 
 from pandajedi.jediorder.JobBroker import JobBroker
 from pandajedi.jediorder.JobSplitter import JobSplitter
@@ -23,6 +13,18 @@ from pandajedi.jedicore.ThreadUtils import ThreadPool
 from pandajedi.jediorder.TaskSetupper import TaskSetupper
 
 import sys
+
+logger = PandaLogger().getLogger('JobGenerator')
+tmpLog = MsgWrapper(logger)
+
+tbIF = JediTaskBufferInterface()
+tbIF.setupInterface()
+
+siteMapper = tbIF.getSiteMapper()
+
+ddmIF = DDMInterface()
+ddmIF.setupInterface()
+
 jediTaskID = int(sys.argv[1])
 
 datasetIDs = None

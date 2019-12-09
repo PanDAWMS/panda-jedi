@@ -6,10 +6,12 @@ import socket
 import datetime
 import traceback
 
+from six import iteritems
+
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from JediKnight import JediKnight
+from .JediKnight import JediKnight
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedirefine import RefinerUtils
@@ -48,7 +50,7 @@ class TaskCommando (JediKnight):
                     for prodSourceLabel in self.prodSourceLabels:
                         # get the list of tasks to exec command
                         tmpList = self.taskBufferIF.getTasksToExecCommand_JEDI(vo,prodSourceLabel)
-                        if tmpList == None:
+                        if tmpList is None:
                             # failed
                             tmpLog.error('failed to get the task list for vo={0} label={1}'.format(vo,prodSourceLabel))
                         else:
@@ -68,7 +70,7 @@ class TaskCommando (JediKnight):
                             # join
                             threadPool.join()
                 tmpLog.debug('done')
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
             # sleep if needed
@@ -125,13 +127,13 @@ class TaskCommandoThread (WorkerThread):
                         # loop twice to see immediate result
                         for iLoop in range(2):
                             # get active PandaIDs to be killed
-                            if commandStr == 'reassign' and commentStr != None and 'soft reassign' in commentStr:
+                            if commandStr == 'reassign' and commentStr is not None and 'soft reassign' in commentStr:
                                 pandaIDs = self.taskBufferIF.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
-                            elif commandStr == 'reassign' and commentStr != None and 'nokill reassign' in commentStr:
+                            elif commandStr == 'reassign' and commentStr is not None and 'nokill reassign' in commentStr:
                                 pandaIDs = []
                             else:
                                 pandaIDs = self.taskBufferIF.getPandaIDsWithTask_JEDI(jediTaskID,True)
-                            if pandaIDs == None:
+                            if pandaIDs is None:
                                 tmpLog.error('failed to get PandaIDs for jediTaskID={0}'.format(jediTaskID))
                                 tmpStat = Interaction.SC_FAILED
                             # kill jobs or update task
@@ -150,7 +152,7 @@ class TaskCommandoThread (WorkerThread):
                                         tmpTaskSpec.forceUpdate('oldStatus')
                                     else:
                                         # extract cloud or site
-                                        if commentStr != None:
+                                        if commentStr is not None:
                                             tmpItems = commentStr.split(':')
                                             if tmpItems[0] == 'cloud':
                                                 tmpTaskSpec.cloud = tmpItems[1]
@@ -161,7 +163,7 @@ class TaskCommandoThread (WorkerThread):
                                             tmpMsg = 'set {0}={1}'.format(tmpItems[0],tmpItems[1])
                                             tmpLog.sendMsg(tmpMsg,self.msgType)
                                             tmpLog.info(tmpMsg)
-                                            # back to oldStatus if necessary 
+                                            # back to oldStatus if necessary
                                             if tmpItems[2] == 'y':
                                                 tmpTaskSpec.status = oldStatus
                                                 tmpTaskSpec.forceUpdate('oldStatus')
@@ -191,7 +193,7 @@ class TaskCommandoThread (WorkerThread):
                                     # kill only in the first loop
                                     if iLoop > 0:
                                         break
-                                    # wait or kill jobs 
+                                    # wait or kill jobs
                                     if 'soft finish' in commentStr:
                                         queuedPandaIDs = self.taskBufferIF.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
                                         tmpMsg = "trying to kill {0} queued jobs for soft finish".format(len(queuedPandaIDs))
@@ -230,13 +232,13 @@ class TaskCommandoThread (WorkerThread):
                                 for newKey in ['nFiles','fixedSandbox']:
                                     try:
                                         del taskParamMap[newKey]
-                                    except:
+                                    except Exception:
                                         pass
                                 # convert new params
                                 newParamMap = RefinerUtils.decodeJSON(commentStr)
                                 # change params
-                                for newKey,newVal in newParamMap.iteritems():
-                                    if newVal == None:
+                                for newKey,newVal in iteritems(newParamMap):
+                                    if newVal is None:
                                         # delete
                                         if newKey in taskParamMap:
                                             del taskParamMap[newKey]
@@ -247,22 +249,22 @@ class TaskCommandoThread (WorkerThread):
                                 if 'fixedSandbox' in taskParamMap:
                                     # noBuild
                                     for tmpParam in taskParamMap['jobParameters']:
-                                        if tmpParam['type'] == 'constant' and re.search('^-a [^ ]+$',tmpParam['value']) != None:
+                                        if tmpParam['type'] == 'constant' and re.search('^-a [^ ]+$',tmpParam['value']) is not None:
                                             tmpParam['value'] = '-a {0}'.taskParamMap['fixedSandbox']
                                     # build
-                                    if taskParamMap.has_key('buildSpec'):
+                                    if 'buildSpec' in taskParamMap:
                                         taskParamMap['buildSpec']['archiveName'] = taskParamMap['fixedSandbox']
                                     # merge
-                                    if taskParamMap.has_key('mergeSpec'):
+                                    if 'mergeSpec' in taskParamMap:
                                         taskParamMap['mergeSpec']['jobParameters'] = \
                                             re.sub('-a [^ ]+','-a {0}'.format(taskParamMap['fixedSandbox']),taskParamMap['mergeSpec']['jobParameters'])
                                 # encode new param
                                 strTaskParams = RefinerUtils.encodeJSON(taskParamMap)
                                 tmpRet = self.taskBufferIF.updateTaskParams_JEDI(jediTaskID,strTaskParams)
-                                if tmpRet != True:
+                                if tmpRet is not True:
                                     tmpLog.error('failed to update task params')
                                     continue
-                            except:
+                            except Exception:
                                 errtype,errvalue = sys.exc_info()[:2]
                                 tmpLog.error('failed to change task params with {0}:{1}'.format(errtype.__name__,errvalue))
                                 continue
@@ -279,23 +281,23 @@ class TaskCommandoThread (WorkerThread):
                         tmpRet,newTaskStatus = self.taskBufferIF.retryTask_JEDI(jediTaskID,commandStr,
                                                                                 retryChildTasks=retryChildTasks,
                                                                                 discardEvents=discardEvents)
-                        if tmpRet == True:
+                        if tmpRet is True:
                             tmpMsg = 'set task_status={0}'.format(newTaskStatus)
                             tmpLog.sendMsg(tmpMsg,self.msgType)
                             tmpLog.info(tmpMsg)
                         tmpLog.info('done with {0}'.format(tmpRet))
                     else:
                         tmpLog.error('unknown command')
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 errStr  = '{0} failed in runImpl() with {1}:{2} '.format(self.__class__.__name__,errtype.__name__,errvalue)
                 errStr += traceback.format_exc()
                 logger.error(errStr)
-        
 
 
-########## launch 
-                
+
+########## launch
+
 def launcher(commuChannel,taskBufferIF,ddmIF,vos=None,prodSourceLabels=None):
     p = TaskCommando(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels)
     p.start()

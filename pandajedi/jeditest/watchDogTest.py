@@ -1,22 +1,23 @@
 import sys
 try:
     testTaskType = sys.argv[1]
-except:
+except Exception:
     testTaskType = 'test'
 
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
-
-tbIF = JediTaskBufferInterface()
-tbIF.setupInterface()
-
 from pandajedi.jediddm.DDMInterface import DDMInterface
-
-ddmIF = DDMInterface()
-ddmIF.setupInterface()
 
 import multiprocessing
 
 from pandajedi.jediorder import WatchDog
+
+tbIF = JediTaskBufferInterface()
+tbIF.setupInterface()
+
+
+ddmIF = DDMInterface()
+ddmIF.setupInterface()
+
 
 parent_conn, child_conn = multiprocessing.Pipe()
 

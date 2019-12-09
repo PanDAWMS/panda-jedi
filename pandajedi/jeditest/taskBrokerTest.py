@@ -7,7 +7,7 @@ from pandajedi.jediorder import TaskBroker
 
 try:
     testTaskType = sys.argv[1]
-except:
+except Exception:
     testTaskType = 'test'
 
 tbIF = JediTaskBufferInterface()

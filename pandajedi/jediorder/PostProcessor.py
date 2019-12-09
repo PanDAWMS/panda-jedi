@@ -8,7 +8,7 @@ from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.FactoryBase import FactoryBase
-from JediKnight import JediKnight
+from .JediKnight import JediKnight
 from pandajedi.jediconfig import jedi_config
 
 
@@ -52,14 +52,14 @@ class PostProcessor (JediKnight,FactoryBase):
                         tmpRet = self.taskBufferIF.prepareTasksToBeFinished_JEDI(vo,prodSourceLabel,
                                                                                  jedi_config.postprocessor.nTasks,
                                                                                  pid=self.pid)
-                        if tmpRet == None:
+                        if tmpRet is None:
                             # failed
                             tmpLog.error('failed to prepare tasks')
                         # get tasks to be finished
                         tmpLog.info('getting tasks to be finished') 
                         tmpList = self.taskBufferIF.getTasksToBeFinished_JEDI(vo,prodSourceLabel,self.pid,
                                                                               jedi_config.postprocessor.nTasks)
-                        if tmpList == None: 
+                        if tmpList is None: 
                             # failed
                             tmpLog.error('failed to get tasks to be finished')
                         else:
@@ -79,7 +79,7 @@ class PostProcessor (JediKnight,FactoryBase):
                             # join
                             threadPool.join()
                 tmpLog.info('done')
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
             # sleep if needed
@@ -125,7 +125,7 @@ class PostProcessorThread (WorkerThread):
                     # get impl
                     impl = self.implFactory.instantiateImpl(taskSpec.vo,taskSpec.prodSourceLabel,None,
                                                             self.taskBufferIF,self.ddmIF)
-                    if impl == None:
+                    if impl is None:
                         # post processor is undefined
                         tmpLog.error('post-processor is undefined for vo={0} sourceLabel={1}'.format(taskSpec.vo,taskSpec.prodSourceLabel))
                         tmpStat = Interaction.SC_FATAL
@@ -134,7 +134,7 @@ class PostProcessorThread (WorkerThread):
                         tmpLog.info('post-process with {0}'.format(impl.__class__.__name__))
                         try:
                             impl.doPostProcess(taskSpec,tmpLog)
-                        except:
+                        except Exception:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('doPostProcess failed with {0}:{1}'.format(errtype.__name__,errvalue))
                             tmpStat = Interaction.SC_FATAL
@@ -158,12 +158,12 @@ class PostProcessorThread (WorkerThread):
                     # final procedure
                     try:
                         impl.doFinalProcedure(taskSpec,tmpLog)
-                    except:
+                    except Exception:
                         errtype,errvalue = sys.exc_info()[:2]
                         tmpLog.error('doFinalProcedure failed with {0}:{1}'.format(errtype.__name__,errvalue))
                     # done
                     tmpLog.info('done')
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
         

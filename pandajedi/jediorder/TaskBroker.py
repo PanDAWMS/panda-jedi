@@ -6,7 +6,7 @@ from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.FactoryBase import FactoryBase
-from JediKnight import JediKnight
+from .JediKnight import JediKnight
 
 from pandajedi.jediconfig import jedi_config
 
@@ -59,7 +59,7 @@ class TaskBroker (JediKnight,FactoryBase):
                                 tmpList = self.taskBufferIF.getTasksToCheckAssignment_JEDI(vo, prodSourceLabel,
                                                                                            workQueue,
                                                                                            resource_type.resource_name)
-                                if tmpList == None:
+                                if tmpList is None:
                                     # failed
                                     tmpLog.error(msgLabel+'failed to get the list of tasks to check')
                                 else:
@@ -81,7 +81,7 @@ class TaskBroker (JediKnight,FactoryBase):
                                 # get the list of tasks to assign
                                 tmpList = self.taskBufferIF.getTasksToAssign_JEDI(vo, prodSourceLabel,
                                                                                   workQueue, resource_type.resource_name)
-                                if tmpList == None:
+                                if tmpList is None:
                                     # failed
                                     tmpLog.error(msgLabel+'failed to get the list of tasks to assign')
                                 else:
@@ -102,7 +102,7 @@ class TaskBroker (JediKnight,FactoryBase):
                                     # join
                                     threadPool.join()
                                 tmpLog.debug(msgLabel+'done')
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
                                                                          errtype.__name__,errvalue))
@@ -155,7 +155,7 @@ class TaskCheckerThread (WorkerThread):
                 taskSpecList = []
                 for jediTaskID in taskList:
                     tmpRet,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID,False)
-                    if tmpRet and taskSpec != None:
+                    if tmpRet and taskSpec is not None:
                         taskSpecList.append(taskSpec)
                     else:
                         tmpLog.error('failed to get taskSpec for jediTaskID={0}'.format(jediTaskID))
@@ -165,11 +165,11 @@ class TaskCheckerThread (WorkerThread):
                         tmpLog.info('getting Impl')
                         try:
                             impl = self.implFactory.getImpl(self.vo,self.prodSourceLabel)
-                            if impl == None:
+                            if impl is None:
                                 # task brokerage is undefined
                                 tmpLog.error('task broker is undefined for vo={0} sourceLabel={1}'.format(self.vo,self.prodSourceLabel))
                                 tmpStat = Interaction.SC_FAILED
-                        except:
+                        except Exception:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('getImpl failed with {0}:{1}'.format(errtype.__name__,errvalue))
                             tmpStat = Interaction.SC_FAILED
@@ -178,7 +178,7 @@ class TaskCheckerThread (WorkerThread):
                         tmpLog.info('check with {0}'.format(impl.__class__.__name__))
                         try:
                             tmpStat,taskCloudMap = impl.doCheck(taskSpecList)
-                        except:
+                        except Exception:
                             errtype,errvalue = sys.exc_info()[:2]
                             tmpLog.error('doCheck failed with {0}:{1}'.format(errtype.__name__,errvalue))
                             tmpStat = Interaction.SC_FAILED
@@ -188,7 +188,7 @@ class TaskCheckerThread (WorkerThread):
                     else:
                         tmpRet = self.taskBufferIF.setCloudToTasks_JEDI(taskCloudMap)
                         tmpLog.info('done with {0} for {1}'.format(tmpRet,str(taskCloudMap)))
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
 
@@ -234,7 +234,7 @@ class TaskBrokerThread (WorkerThread):
                     tmpListItem = self.taskBufferIF.getTasksToBeProcessed_JEDI(None, None, None, None, None,
                                                                                simTasks=[tmpTaskItem],
                                                                                readMinFiles=True)
-                    if tmpListItem == None:
+                    if tmpListItem is None:
                         # failed
                         tmpLog.error('failed to get the input chunks for jediTaskID={0}'.format(tmpTaskItem))
                         tmpStat = Interaction.SC_FAILED
@@ -245,11 +245,11 @@ class TaskBrokerThread (WorkerThread):
                     tmpLog.info('getting Impl')
                     try:
                         impl = self.implFactory.getImpl(self.vo,self.prodSourceLabel)
-                        if impl == None:
+                        if impl is None:
                             # task refiner is undefined
                             tmpLog.error('task broker is undefined for vo={0} sourceLabel={1}'.format(self.vo,self.prodSourceLabel))
                             tmpStat = Interaction.SC_FAILED
-                    except:
+                    except Exception:
                         errtype,errvalue = sys.exc_info()[:2]
                         tmpLog.error('getImpl failed with {0}:{1}'.format(errtype.__name__,errvalue))
                         tmpStat = Interaction.SC_FAILED
@@ -259,7 +259,7 @@ class TaskBrokerThread (WorkerThread):
                     try:
                         tmpStat = impl.doBrokerage(tmpListToAssign, self.vo,
                                                    self.prodSourceLabel, self.workQueue, self.resource_name)
-                    except:
+                    except Exception:
                         errtype,errvalue = sys.exc_info()[:2]
                         tmpLog.error('doBrokerage failed with {0}:{1}'.format(errtype.__name__,errvalue))
                         tmpStat = Interaction.SC_FAILED
@@ -268,7 +268,7 @@ class TaskBrokerThread (WorkerThread):
                     tmpLog.error('failed')
                 else:
                     tmpLog.info('done')                    
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
         

@@ -11,19 +11,19 @@ class MsgWrapper:
     def __init__(self,logger,token=None,lineLimit=500,monToken=None):
         self.logger = logger
         # use timestamp as token if undefined
-        if token == None:
+        if token is None:
             self.token = "<{0}>".format(datetime.datetime.utcnow().isoformat('/'))
         else:
             self.token = token
         # token for http logger
-        if monToken == None:
+        if monToken is None:
             self.monToken = self.token
         else:
             self.monToken = monToken
         # remove <> for django
         try:
             self.monToken = re.sub('<(?P<name>[^>]+)>','\g<name>',self.monToken)
-        except:
+        except Exception:
             pass
         # message buffer
         self.msgBuffer = []
@@ -106,7 +106,7 @@ class MsgWrapper:
                 tmpLogger.debug(message)                
             # release HTTP handler
             tmpPandaLogger.release()
-        except:
+        except Exception:
             pass
 
 
@@ -115,7 +115,7 @@ class MsgWrapper:
     def bulkSendMsg(self,msgType,msgLevel='info',loggerName=None):
         try:
             nChunk = 20
-            if loggerName == None:
+            if loggerName is None:
                 loggerName = jedi_config.master.loggername
             for iMsg,message in enumerate(self.msgBuffer):
                 # get logger
@@ -139,5 +139,5 @@ class MsgWrapper:
                 tmpPandaLogger.release()
                 if (iMsg+1) % nChunk == 0:
                     time.sleep(1)
-        except:
+        except Exception:
             pass

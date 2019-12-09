@@ -3,8 +3,11 @@ mapper to map task/job to a work queue
 
 """
 
-from WorkQueue import WorkQueue, RESOURCE, ACTIVE_FUNCTIONS
 import re
+
+from six import iteritems
+
+from .WorkQueue import WorkQueue, RESOURCE, ACTIVE_FUNCTIONS
 
 class WorkQueueMapper:
 
@@ -46,7 +49,7 @@ class WorkQueueMapper:
                 self.work_queue_map[work_queue.VO] = {}
 
             # add type
-            if not self.work_queue_map[work_queue.VO].has_key(work_queue.queue_type):
+            if work_queue.queue_type not in self.work_queue_map[work_queue.VO]:
                 self.work_queue_map[work_queue.VO][work_queue.queue_type] = []
 
             self.work_queue_map[work_queue.VO][work_queue.queue_type].append(work_queue)
@@ -65,8 +68,8 @@ class WorkQueueMapper:
                     # append
                     ordered_map[wq.queue_order].append(wq)
                 # make sorted list
-                ordered_list = ordered_map.keys()
-                ordered_list.sort()
+                ordered_list = list(ordered_map.keys())
+                ordered_list.sort(key=lambda x: (x is None, x))
                 new_list = []
                 for order_val in ordered_list:
                     new_list += ordered_map[order_val]
@@ -86,7 +89,7 @@ class WorkQueueMapper:
             if vo not in self.work_queue_map:
                 self.work_queue_map[vo] = {}
 
-            if not self.work_queue_map[vo].has_key(work_queue_gs.queue_type):
+            if work_queue_gs.queue_type not in self.work_queue_map[vo]:
                 self.work_queue_map[vo][work_queue_gs.queue_type] = []
 
             self.work_queue_map[vo][work_queue_gs.queue_type].append(work_queue_gs)
@@ -122,7 +125,7 @@ class WorkQueueMapper:
         ret_str = ''
         if vo not in self.work_queue_map:
             ret_str = 'queues for vo=%s are undefined' % vo
-        elif not self.work_queue_map[vo].has_key(type):
+        elif type not in self.work_queue_map[vo]:
             # check type
             ret_str = 'queues for type=%s are undefined in vo=%s' % (type, vo)
         else:
@@ -137,13 +140,13 @@ class WorkQueueMapper:
                     ret_queue, result = wq.evaluate(param_map)
                     if result:
                         return ret_queue, ret_str
-                except:
+                except Exception:
                     ret_str += '{0},'.format(wq.queue_name)
 
             ret_str = ret_str[:-1]
             if ret_str != '':
                 new_ret_str = 'eval with VO={0} '.format(vo)
-                for tmp_param_key, tmp_param_val in param_map.iteritems():
+                for tmp_param_key, tmp_param_val in iteritems(param_map):
                     new_ret_str += '{0}={1} failed for {0}'.format(tmp_param_key, tmp_param_val, ret_str)
                 ret_str = new_ret_str
 
@@ -167,11 +170,11 @@ class WorkQueueMapper:
     # get queue with ID
     def getQueueWithIDGshare(self, queue_id, gshare_name):
         # 1. Check for a Resource queue
-        if self.work_queue_global_dic_by_id.has_key(queue_id) and self.work_queue_global_dic_by_id[queue_id].queue_function == 'Resource':
+        if queue_id in self.work_queue_global_dic_by_id and self.work_queue_global_dic_by_id[queue_id].queue_function == 'Resource':
             return self.work_queue_global_dic_by_id[queue_id]
 
         # 2. If it wasn't a resource queue, return the global share work queue
-        if self.work_queue_global_dic_by_name.has_key(gshare_name):
+        if gshare_name in self.work_queue_global_dic_by_name:
             return self.work_queue_global_dic_by_name[gshare_name]
 
         # not found
@@ -184,7 +187,7 @@ class WorkQueueMapper:
         """
         ret_list = []
 
-        if self.work_queue_map.has_key(vo):
+        if vo in self.work_queue_map:
             # if queue type was specified
             if queue_type not in ['', None, 'any']:
                 for map_queue_type in self.work_queue_map[vo]:
@@ -195,7 +198,7 @@ class WorkQueueMapper:
 
             # include all queue types
             else:
-                for tmp_type, tmp_wq_list in self.work_queue_map[vo].iteritems():
+                for tmp_type, tmp_wq_list in iteritems(self.work_queue_map[vo]):
                     for tmp_wq in tmp_wq_list:
                         if tmp_wq.isAligned():
                             ret_list.append(tmp_wq)

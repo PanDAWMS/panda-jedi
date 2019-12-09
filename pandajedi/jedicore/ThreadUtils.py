@@ -3,6 +3,8 @@ import time
 import threading
 import multiprocessing
 
+from six import iteritems
+
 
 # list with lock
 class ListWithLock:
@@ -20,7 +22,7 @@ class ListWithLock:
         self.lock.release()
         return ret
 
-    def next(self):
+    def __next__(self):
         if self.dataIndex >= len(self.dataList):
             self.dataIndex = 0
             raise StopIteration
@@ -28,10 +30,13 @@ class ListWithLock:
         self.dataIndex += 1
         return val
 
+    def next(self):
+        return self.__next__()
+
     def append(self,item):
         self.lock.acquire()
         appended = False
-        if not item in self.dataList:
+        if item not in self.dataList:
             self.dataList.append(item)
             appended = True
         self.lock.release()
@@ -65,14 +70,14 @@ class ListWithLock:
             ret = 'None'
         self.lock.release()
         return ret
-        
+
 
 
 # map with lock
 class MapWithLock:
     def __init__(self,dataMap=None):
         self.lock = threading.Lock()
-        if dataMap == None:
+        if dataMap is None:
             dataMap = {}
         self.dataMap  = dataMap
 
@@ -94,17 +99,20 @@ class MapWithLock:
         self.lock.release()
 
     def add(self,item,value):
-        if not item in self.dataMap:
+        if item not in self.dataMap:
             self.dataMap[item] = 0
         self.dataMap[item] += value
 
     def get(self,item):
-        if not item in self.dataMap:
+        if item not in self.dataMap:
             return 0
         return self.dataMap[item]
-    
+
+    def items(self):
+        return iteritems(self.dataMap)
+
     def iteritems(self):
-        return self.dataMap.iteritems()
+        return self.items()
 
 
 
@@ -119,16 +127,16 @@ class ThreadPool:
         self.lock.acquire()
         self.list.append(obj)
         self.lock.release()
-        
+
     # remove thread
     def remove(self,obj):
         self.lock.acquire()
         try:
             self.list.remove(obj)
-        except:
+        except Exception:
             pass
         self.lock.release()
-        
+
     # join
     def join(self,timeOut=None):
         thrlist = tuple(self.list)
@@ -137,7 +145,7 @@ class ThreadPool:
                 thr.join(timeOut)
                 if thr.isAlive():
                     break
-            except:
+            except Exception:
                 pass
 
     # remove inactive threads
@@ -146,7 +154,7 @@ class ThreadPool:
         for thr in thrlist:
             if not thr.isAlive():
                 self.remove(thr)
-        
+
     # dump contents
     def dump(self):
         thrlist = tuple(self.list)
@@ -173,21 +181,21 @@ class WorkerThread (threading.Thread):
     # main loop
     def run(self):
         # get slot
-        if self.workerSemaphore != None:
+        if self.workerSemaphore is not None:
             self.workerSemaphore.acquire()
         # execute real work
         try:
             self.runImpl()
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             self.logger.error("%s crashed in WorkerThread.run() with %s:%s" % \
                               (self.__class__.__name__,errtype.__name__,errvalue))
         # remove self from thread pool
         self.threadPool.remove(self)
         # release slot
-        if self.workerSemaphore != None:
+        if self.workerSemaphore is not None:
             self.workerSemaphore.release()
-            
+
 
 
 # thread class to cleanup zombi processes

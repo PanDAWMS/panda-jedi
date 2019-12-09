@@ -5,13 +5,15 @@ import socket
 import operator
 import traceback
 
+from six import iteritems
+
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedirefine import RefinerUtils
 
 
 # watchdog to take actions for jumbo jobs
 class JumboWatchDog:
-    
+
     # constructor
     def __init__(self, taskBufferIF, ddmIF, log, vo, prodSourceLabel):
         self.taskBufferIF = taskBufferIF
@@ -45,7 +47,7 @@ class JumboWatchDog:
                 nEventsToEnable = nEventsToDisable * 10
             maxEvents = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_MAX_EVENTS', 'jedi', self.vo)
             if maxEvents is None:
-                maxEvents = maxTasks * nEventsToEnable / 2
+                maxEvents = maxTasks * nEventsToEnable // 2
             nJumboPerTask = self.taskBufferIF.getConfigValue(self.component, 'JUMBO_PER_TASK', 'jedi', self.vo)
             if nJumboPerTask is None:
                 nJumboPerTask = 1
@@ -70,7 +72,7 @@ class JumboWatchDog:
             totEvents = 0
             doneEvents = 0
             nTasks = 0
-            for jediTaskID, taskData in tasksWithJumbo.iteritems():
+            for jediTaskID, taskData in iteritems(tasksWithJumbo):
                 # disable jumbo
                 if taskData['useJumbo'] != JediTaskSpec.enum_useJumbo['disabled'] and taskData['site'] is None:
                     if  taskData['nEvents'] - taskData['nEventsDone'] < nEventsToDisable:
@@ -92,7 +94,7 @@ class JumboWatchDog:
                     self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioWhenDisabled)
                     self.log.info('component={0} priority boost to {1} after disabing jumbo in in jediTaskID={2}'.format(self.component, prioWhenDisabled, jediTaskID))
                 # increase priority when close to completion
-                if taskData['nEvents'] > 0 and (taskData['nEvents'] - taskData['nEventsDone']) * 100 / taskData['nEvents'] < progressToBoost \
+                if taskData['nEvents'] > 0 and (taskData['nEvents'] - taskData['nEventsDone']) * 100 // taskData['nEvents'] < progressToBoost \
                         and taskData['currentPriority'] < prioToBoost and (taskData['nFiles'] - taskData['nFilesDone']) < maxFilesToBoost:
                     # boost
                     tmpStr = 'component={0} priority boost to {5} for jediTaskID={1} due to n_events_done={2} > {3}*{4}% '.format(self.component, jediTaskID,
@@ -106,8 +108,8 @@ class JumboWatchDog:
                 # kick pending
                 if taskData['taskStatus'] == 'pending' and taskData['useJumbo'] in [JediTaskSpec.enum_useJumbo['pending'], JediTaskSpec.enum_useJumbo['running']]:
                     nActiveJumbo = 0
-                    for computingSite, jobStatusMap in taskData['jumboJobs'].iteritems():
-                        for jobStatus, nJobs in jobStatusMap.iteritems():
+                    for computingSite, jobStatusMap in iteritems(taskData['jumboJobs']):
+                        for jobStatus, nJobs in iteritems(jobStatusMap):
                             if jobStatus in ['defined', 'assigned', 'activated', 'sent', 'starting', 'running', 'transferring', 'holding']:
                                 nActiveJumbo += nJobs
                     if nActiveJumbo == 0:
@@ -137,9 +139,9 @@ class JumboWatchDog:
                 self.log.debug('component={0} got {1} tasks to check'.format(self.component, len(tasksToEnableJumbo)))
                 # sort by nevents
                 nEventsMap = dict()
-                for jediTaskID, taskData in tasksToEnableJumbo.iteritems():
+                for jediTaskID, taskData in iteritems(tasksToEnableJumbo):
                     nEventsMap[jediTaskID] = taskData['nEvents']
-                sortedList = sorted(nEventsMap.items(), key=operator.itemgetter(1))
+                sortedList = sorted(list(nEventsMap.items()), key=operator.itemgetter(1))
                 sortedList.reverse()
                 for jediTaskID, nEvents in sortedList:
                     taskData = tasksToEnableJumbo[jediTaskID]
@@ -207,4 +209,3 @@ class JumboWatchDog:
             errStr.strip()
             errStr += traceback.format_exc()
             self.log.error(errStr)
-           

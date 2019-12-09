@@ -6,12 +6,18 @@ import random
 import datetime
 import json
 import types
-import urllib2
 import traceback
+
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib2 import urlopen
+
+from six import iteritems
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 
-from DDMClientBase import DDMClientBase
+from .DDMClientBase import DDMClientBase
 
 from rucio.client import Client as RucioClient
 from rucio.common.exception import UnsupportedOperation,DataIdentifierNotFound,DataIdentifierAlreadyExists,\
@@ -63,7 +69,7 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # get Rucio API            
+            # get Rucio API
             client = RucioClient()
             # extract scope from dataset
             scope,dsn = self.extract_scope(datasetName)
@@ -98,9 +104,9 @@ class AtlasDDMClient(DDMClientBase):
                         attNr = -1
                     else:
                         attNr = int(attNr)
-                    # compare attempt numbers    
-                    addMap = False    
-                    if baseLFNmap.has_key(baseLFN):
+                    # compare attempt numbers
+                    addMap = False
+                    if baseLFN in baseLFNmap:
                         # use larger attempt number
                         oldMap = baseLFNmap[baseLFN]
                         if oldMap['attNr'] < attNr:
@@ -108,15 +114,15 @@ class AtlasDDMClient(DDMClientBase):
                             addMap = True
                     else:
                         addMap = True
-                    # append    
-                    if not addMap:    
+                    # append
+                    if not addMap:
                         continue
                     baseLFNmap[baseLFN] = {'guid':guid,
                                            'attNr':attNr}
                 fileMap[guid] = attrs
             tmpLog.debug('done')
             return self.SC_SUCCEEDED, fileMap
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errStr = '{0} {1}'.format(errtype.__name__,errvalue)
@@ -156,7 +162,7 @@ class AtlasDDMClient(DDMClientBase):
                         totalFiles = 0
                     tmpRet = self.convertOutListDatasetReplicas(tmpName, use_vp=use_vp)
                     # loop over all sites
-                    for tmpSite,tmpValMap in tmpRet.iteritems():
+                    for tmpSite,tmpValMap in iteritems(tmpRet):
                         # add site
                         retMap.setdefault(tmpSite, [{'found': 0}])
                         # sum
@@ -177,7 +183,7 @@ class AtlasDDMClient(DDMClientBase):
                 # return
                 tmpLog.debug('got '+str(retMap))
                 return self.SC_SUCCEEDED,retMap
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errStr = '{0} {1}'.format(errtype.__name__,errvalue)
@@ -209,7 +215,7 @@ class AtlasDDMClient(DDMClientBase):
                 retMap[tmpName] = self.convertOutListDatasetReplicas(tmpName,deepScan)
                 tmpLog.debug('got '+str(retMap))
             return self.SC_SUCCEEDED,retMap
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errStr = '{0} {1}'.format(errtype.__name__,errvalue)
@@ -223,10 +229,10 @@ class AtlasDDMClient(DDMClientBase):
         self.updateEndPointDict()
         try:
             retVal = self.endPointDict[seName][attribute]
-            if isinstance(retVal,types.UnicodeType):
+            if not isinstance(retVal, str):
                 retVal = str(retVal)
             return self.SC_SUCCEEDED,retVal
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             return errCode,'%s : %s %s' % (methodName,errtype.__name__,errvalue)
@@ -242,7 +248,7 @@ class AtlasDDMClient(DDMClientBase):
     def getAssociatedEndpoints(self,altName):
         self.updateEndPointDict()
         epList = []
-        for seName,seVal in self.endPointDict.iteritems():
+        for seName,seVal in iteritems(self.endPointDict):
             if seVal['site'] == altName:
                 epList.append(seName)
         return epList
@@ -252,16 +258,16 @@ class AtlasDDMClient(DDMClientBase):
         self.updateEndPointDict()
         try:
             altName = self.getSiteAlternateName(baseSeName)[0]
-            if altName != None:
-                for seName,seVal in self.endPointDict.iteritems():
+            if altName is not None:
+                for seName,seVal in iteritems(self.endPointDict):
                     if seVal['site'] == altName:
                         # space token
                         if seVal['token'] == token:
                             return seName
                         # pattern matching
-                        if re.search(token,seName) != None:
+                        if re.search(token,seName) is not None:
                             return seName
-        except:
+        except Exception:
             pass
         return None
 
@@ -347,7 +353,7 @@ class AtlasDDMClient(DDMClientBase):
             rse_list = []
 
             # figure out complete replicas and storage types
-            for site_name, endpoint_list in site_endpoint_map.iteritems():
+            for site_name, endpoint_list in iteritems(site_endpoint_map):
                 tmp_site_spec = site_mapper.getSite(site_name)
 
                 # loop over all endpoints
@@ -400,7 +406,7 @@ class AtlasDDMClient(DDMClientBase):
             # initialize the return map and add complete/cached replicas
             return_map = {}
             checked_dst = set()
-            for site_name, tmp_endpoints in site_endpoint_map.iteritems():
+            for site_name, tmp_endpoints in iteritems(site_endpoint_map):
 
                 return_map.setdefault(site_name, {'localdisk': [], 'localtape': [], 'cache': [], 'remote': []})
                 tmp_site_spec = site_mapper.getSite(site_name)
@@ -413,13 +419,13 @@ class AtlasDDMClient(DDMClientBase):
                 # complete replicas
                 if not check_LFC:
                     for tmp_endpoint in tmp_endpoints:
-                        if complete_replica_map.has_key(tmp_endpoint):
+                        if tmp_endpoint in complete_replica_map:
                             storage_type = complete_replica_map[tmp_endpoint]
                             return_map[site_name][storage_type] += dataset_spec.Files
                             checked_dst.add(site_name)
 
             # loop over all available LFNs
-            available_lfns = rucio_lfn_to_rse_map.keys()
+            available_lfns = list(rucio_lfn_to_rse_map.keys())
             available_lfns.sort()
             for tmp_lfn in available_lfns:
                 tmp_filespec_list = lfn_filespec_map[tmp_lfn]
@@ -428,24 +434,24 @@ class AtlasDDMClient(DDMClientBase):
                     for endpoint in site_endpoint_map[site]:
                         if endpoint in rucio_lfn_to_rse_map[tmp_lfn] and endpoint in endpoint_storagetype_map:
                             storage_type = endpoint_storagetype_map[endpoint]
-                            if not tmp_filespec in return_map[site][storage_type]:
+                            if tmp_filespec not in return_map[site][storage_type]:
                                 return_map[site][storage_type] += tmp_filespec_list
                             checked_dst.add(site)
                             break
 
             # aggregate all types of storage types into the 'all' key
-            for site, storage_type_files in return_map.iteritems():
+            for site, storage_type_files in iteritems(return_map):
                 site_all_file_list = set()
-                for storage_type, file_list in storage_type_files.iteritems():
+                for storage_type, file_list in iteritems(storage_type_files):
                     for tmp_file_spec in file_list:
                         site_all_file_list.add(tmp_file_spec)
                 storage_type_files['all'] = site_all_file_list
 
             # dump for logging
             logging_str = ''
-            for site, storage_type_file in return_map.iteritems():
+            for site, storage_type_file in iteritems(return_map):
                 logging_str += '{0}:('.format(site)
-                for storage_type, file_list in storage_type_file.iteritems():
+                for storage_type, file_list in iteritems(storage_type_file):
                     logging_str += '{0}:{1},'.format(storage_type, len(file_list))
                 logging_str = logging_str[:-1]
                 logging_str += ') '
@@ -455,7 +461,7 @@ class AtlasDDMClient(DDMClientBase):
             # return
             tmp_log.debug('done')
             return self.SC_SUCCEEDED, return_map
-        except:
+        except Exception:
             error_type, error_value = sys.exc_info()[:2]
             error_message = 'failed with {0} {1} '.format(error_type.__name__, error_value)
             error_message += traceback.format_exc()
@@ -472,7 +478,7 @@ class AtlasDDMClient(DDMClientBase):
             max_guid = 1000 # do 1000 guids in each Rucio call
             lfn_to_rses_map = {}
             dids = []
-            for guid, lfn in files.iteritems():
+            for guid, lfn in iteritems(files):
                 i_guid += 1
                 scope = scopes[lfn]
                 dids.append({'scope': scope, 'name': lfn})
@@ -491,7 +497,7 @@ class AtlasDDMClient(DDMClientBase):
                     # reset the dids list for the next bulk for Rucio
                     dids = []
                     tmp_log.debug('lookup end')
-        except:
+        except Exception:
             err_type, err_value = sys.exc_info()[:2]
             return self.SC_FAILED, "file lookup failed with {0}:{1} {2}".format(err_type, err_value, traceback.format_exc())
 
@@ -511,7 +517,7 @@ class AtlasDDMClient(DDMClientBase):
                 except Exception:
                     continue
                 lfn_to_rses_map[tmp_LFN] = tmp_dict['rses']
-        except:
+        except Exception:
             err_type, err_value = sys.exc_info()[:2]
             return self.SC_FAILED, "file lookup failed with {0}:{1} {2}".format(err_type, err_value, traceback.format_exc())
         return self.SC_SUCCEEDED, lfn_to_rses_map
@@ -535,13 +541,13 @@ class AtlasDDMClient(DDMClientBase):
                 dsn = dsn[:-1]
             tmpRet = client.get_metadata(scope,dsn)
             # set state
-            if tmpRet['is_open'] == True and tmpRet['did_type'] != 'CONTAINER':
+            if tmpRet['is_open'] is True and tmpRet['did_type'] != 'CONTAINER':
                 tmpRet['state'] = 'open'
             else:
                 tmpRet['state'] = 'closed'
-            tmpLog.debug(str(tmpRet))    
+            tmpLog.debug(str(tmpRet))
             return self.SC_SUCCEEDED,tmpRet
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errMsg = 'failed with {0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
@@ -587,13 +593,13 @@ class AtlasDDMClient(DDMClientBase):
             if ignorePandaDS:
                 tmpDsList = []
                 for tmpDS in dsList:
-                    if re.search('_dis\d+$',tmpDS) != None or re.search('_sub\d+$',tmpDS):
+                    if re.search('_dis\d+$',tmpDS) is not None or re.search('_sub\d+$',tmpDS):
                         continue
                     tmpDsList.append(tmpDS)
                 dsList = tmpDsList
             tmpLog.debug('got '+str(dsList))
             return self.SC_SUCCEEDED,dsList
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errStr = '{0} {1}'.format(errtype.__name__,errvalue)
@@ -615,7 +621,7 @@ class AtlasDDMClient(DDMClientBase):
             # get scope and name
             scope,dsn = self.extract_scope(datasetName)
             # lifetime
-            if lifetime != None:
+            if lifetime is not None:
                 lifetime=lifetime*86400
             # register
             if not datasetName.endswith('/'):
@@ -626,18 +632,18 @@ class AtlasDDMClient(DDMClientBase):
                 # register container
                 name = dsn[:-1]
                 client.add_container(scope=scope,name=name)
-        except DataIdentifierAlreadyExists: 
+        except DataIdentifierAlreadyExists:
             pass
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
-            if not 'DataIdentifierAlreadyExists' in str(errvalue):
+            if 'DataIdentifierAlreadyExists' not in str(errvalue):
                 resurrected = False
                 # try to resurrect
                 if 'DELETED_DIDS_PK violated' in str(errvalue) and resurrect:
                     try:
                         client.resurrect([{'scope': scope, 'name': name}])
                         resurrected = True
-                    except:
+                    except Exception:
                         pass
                 if not resurrected:
                     errCode = self.checkError(errtype)
@@ -646,9 +652,9 @@ class AtlasDDMClient(DDMClientBase):
                     return errCode,'{0} : {1}'.format(methodName,errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
-            
 
-    
+
+
     # wrapper for list_content
     def wp_list_content(self,client,scope,dsn):
         if dsn.endswith('/'):
@@ -682,14 +688,14 @@ class AtlasDDMClient(DDMClientBase):
             dsList = self.wp_list_content(client,scope,dsn)
             tmpLog.debug('got '+str(dsList))
             return self.SC_SUCCEEDED,dsList
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errMsg)
             return errCode,'{0} : {1}'.format(methodName,errMsg)
 
-        
+
 
     # expand Container
     def expandContainer(self,containerName):
@@ -718,20 +724,20 @@ class AtlasDDMClient(DDMClientBase):
                     tmpO = [tmpRealName]
                 # collect dataset names
                 for tmpStr in tmpO:
-                    if not tmpStr in dsList:
+                    if tmpStr not in dsList:
                         dsList.append(tmpStr)
-            dsList.sort()        
+            dsList.sort()
             # return
             tmpLog.debug('got {0}'.format(str(dsList)))
             return self.SC_SUCCEEDED,dsList
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error('failed with {0}'.format(errMsg))
             return errCode,'{0} : {1}'.format(methodName,errMsg)
 
-        
+
 
     # add dataset to container
     def addDatasetsToContainer(self,containerName,datasetNames,backEnd='rucio'):
@@ -761,7 +767,7 @@ class AtlasDDMClient(DDMClientBase):
                         client.add_datasets_to_container(scope=c_scope, name=c_name, dsns=[ds])
                     except DuplicateContent:
                         pass
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
@@ -783,7 +789,7 @@ class AtlasDDMClient(DDMClientBase):
         if tmpStat != self.SC_SUCCEEDED or ddoDatasets == {}:
             tmpLog.error('failed to get a list of DBRelease datasets from DDM')
             return self.SC_FAILED,None
-        # reverse sort to avoid redundant lookup   
+        # reverse sort to avoid redundant lookup
         ddoDatasets.sort()
         ddoDatasets.reverse()
         # extract version number
@@ -800,10 +806,10 @@ class AtlasDDMClient(DDMClientBase):
             if tmpName.startswith('ddo.user'):
                 continue
             # use Atlas.Ideal
-            if not ".Atlas.Ideal." in tmpName:
+            if ".Atlas.Ideal." not in tmpName:
                 continue
             match = re.search('\.v(\d+)(_*[^\.]*)$',tmpName)
-            if match == None:
+            if match is None:
                 tmpLog.warning('cannot extract version number from %s' % tmpName)
                 continue
             # ignore special DBRs
@@ -817,21 +823,21 @@ class AtlasDDMClient(DDMClientBase):
             tmpVerRev   = 0
             try:
                 tmpVerMajor = int(tmpVerStr[0:2])
-            except:
+            except Exception:
                 pass
             try:
                 tmpVerMinor = int(tmpVerStr[2:4])
-            except:
+            except Exception:
                 pass
             try:
                 tmpVerBuild = int(tmpVerStr[4:6])
-            except:
+            except Exception:
                 pass
             try:
                 tmpVerRev = int(tmpVerStr[6:])
                 # use only three digit DBR
                 continue
-            except:
+            except Exception:
                 pass
             # compare
             if latestVerMajor > tmpVerMajor:
@@ -890,7 +896,7 @@ class AtlasDDMClient(DDMClientBase):
                 pass
             else:
                 isOK = False
-        except:
+        except Exception:
             isOK = False
         if isOK:
             tmpLog.debug('done')
@@ -922,7 +928,7 @@ class AtlasDDMClient(DDMClientBase):
                     userInfo = {'nickname':i['account'],
                                 'email':i['email']}
                     break
-                if userInfo == None:
+                if userInfo is None:
                     # remove /CN=\d
                     userName = re.sub('(/CN=\d+)+$','',userName)
                     for i in client.list_accounts(account_type=accType, identity=userName):
@@ -931,11 +937,11 @@ class AtlasDDMClient(DDMClientBase):
                         break
                 if userInfo is not None:
                     break
-            if userInfo == None:
+            if userInfo is None:
                 tmpLog.error('failed to get account info')
                 return self.SC_FAILED,None
             tmpRet = userInfo
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
@@ -963,7 +969,7 @@ class AtlasDDMClient(DDMClientBase):
             client.set_metadata(scope,dsn,metadataName,metadaValue)
         except (UnsupportedOperation,DataIdentifierNotFound):
             pass
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
@@ -991,19 +997,19 @@ class AtlasDDMClient(DDMClientBase):
             # get scope and name
             scope,dsn = self.extract_scope(datasetName)
             # lifetime
-            if lifetime != None:
+            if lifetime is not None:
                 lifetime = lifetime * 86400
             elif 'SCRATCHDISK' in location:
                 lifetime = 14 * 86400
             # get owner
-            if owner != None:
+            if owner is not None:
                 tmpStat,userInfo = self.finger(owner)
                 if tmpStat != self.SC_SUCCEEDED:
-                    raise RuntimeError,'failed to get nickname for {0}'.format(owner)
+                    raise RuntimeError('failed to get nickname for {0}'.format(owner))
                 owner = userInfo['nickname']
             else:
                 owner = client.account
-            if grouping == None:
+            if grouping is None:
                 grouping = 'DATASET'
             # add rule
             dids = []
@@ -1017,7 +1023,7 @@ class AtlasDDMClient(DDMClientBase):
                                             weight=weight)
         except DuplicateRule:
             pass
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
@@ -1059,7 +1065,7 @@ class AtlasDDMClient(DDMClientBase):
                 pass
             else:
                 isOK = False
-        except:
+        except Exception:
             isOK = False
         if isOK:
             tmpLog.debug('done')
@@ -1084,7 +1090,7 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug('start')
         isOK = True
         try:
-            if lifetime != None:
+            if lifetime is not None:
                 lifetime = lifetime*24*60*60
             # get rucio API
             client = RucioClient()
@@ -1103,7 +1109,7 @@ class AtlasDDMClient(DDMClientBase):
             pass
         except DataIdentifierNotFound:
             pass
-        except:
+        except Exception:
             isOK = False
         if not isOK:
             errtype,errvalue = sys.exc_info()[:2]
@@ -1133,7 +1139,7 @@ class AtlasDDMClient(DDMClientBase):
             hasCompReplica = False
             datasetReplicaMap = tmpOut
             for tmpEndPoint in datasetReplicaMap.keys():
-                if datasetReplicaMap[tmpEndPoint][-1]['found'] != None and \
+                if datasetReplicaMap[tmpEndPoint][-1]['found'] is not None and \
                         datasetReplicaMap[tmpEndPoint][-1]['total'] == datasetReplicaMap[tmpEndPoint][-1]['found']:
                     hasCompReplica = True
                     break
@@ -1150,20 +1156,20 @@ class AtlasDDMClient(DDMClientBase):
                 scopeMap[tmpLFN] = fileMap[tmpGUID]['scope']
 
             # get SURLs
-            seList = datasetReplicaMap.keys()
+            seList = list(datasetReplicaMap.keys())
             tmpStat, tmpRetMap = self.jedi_list_replicas_with_dataset(datasetName)
             if tmpStat != self.SC_SUCCEEDED:
                 tmpLog.error('failed to get SURLs with {0}'.format(tmpRetMap))
                 return tmpStat,tmpRetMap
             # look for missing files
             lfnMap = {}
-            for tmpGUID,tmpLFN in lfnMap.iteritems():
-                if not tmpLFN in tmpRetMap:
+            for tmpGUID,tmpLFN in iteritems(lfnMap):
+                if tmpLFN not in tmpRetMap:
                     lfnMap[tmpGUID] = tmpLFN
 
             tmpLog.debug('done with lost '+','.join(str(tmpLFN) for tmpLFN in lfnMap.values()))
             return self.SC_SUCCEEDED,lfnMap
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
@@ -1241,7 +1247,7 @@ class AtlasDDMClient(DDMClientBase):
                 pass
             # exec
             client.detach_dids(scope=scope, name=dsn, dids=filesToDelete)
-        except:
+        except Exception:
             isOK = False
         if not isOK:
             errtype,errvalue = sys.exc_info()[:2]
@@ -1283,7 +1289,7 @@ class AtlasDDMClient(DDMClientBase):
                 client.set_status(scope,dsn,open=True)
             except (UnsupportedOperation,DataIdentifierNotFound):
                 pass
-        except:
+        except Exception:
             isOK = False
         if not isOK:
             errtype,errvalue = sys.exc_info()[:2]
@@ -1303,17 +1309,17 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         # check freashness
         timeNow = datetime.datetime.utcnow()
-        if self.lastUpdateBL != None and timeNow-self.lastUpdateBL < self.timeIntervalBL:
+        if self.lastUpdateBL is not None and timeNow-self.lastUpdateBL < self.timeIntervalBL:
             return
         self.lastUpdateBL = timeNow
         # get json
         try:
             tmpLog.debug('start')
-            res = urllib2.urlopen('http://atlas-agis-api.cern.ch/request/ddmendpointstatus/query/list/?json&fstate=OFF&activity=w')
+            res = urlopen('http://atlas-agis-api.cern.ch/request/ddmendpointstatus/query/list/?json&fstate=OFF&activity=w')
             jsonStr = res.read()
-            self.blackListEndPoints = json.loads(jsonStr).keys()
+            self.blackListEndPoints = list(json.loads(jsonStr).keys())
             tmpLog.debug('{0} endpoints blacklisted'.format(len(self.blackListEndPoints)))
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errStr = 'failed to update BL with {0} {1}'.format(errtype.__name__,errvalue)
             tmpLog.error(errStr)
@@ -1332,7 +1338,7 @@ class AtlasDDMClient(DDMClientBase):
             self.updateBlackList()
             if endPoint in self.blackListEndPoints:
                 return self.SC_SUCCEEDED,True
-        except:
+        except Exception:
             pass
         return self.SC_SUCCEEDED,False
 
@@ -1356,21 +1362,21 @@ class AtlasDDMClient(DDMClientBase):
                 if item['source'] == src:
                     try:
                         total = item['total']/1024/1024/1024
-                    except:
+                    except Exception:
                         total = None
                     try:
                         used = item['used']/1024/1024/1024
-                    except:
+                    except Exception:
                         used = None
                     try:
                         free = item['free']/1024/1024/1024
-                    except:
+                    except Exception:
                         free = None
                     retMap = {'total':total,
                               'used':used,
                               'free':free}
                     break
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errCode = self.checkError(errtype)
             errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
@@ -1388,18 +1394,18 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog = MsgWrapper(logger,methodName)
         # check freshness
         timeNow = datetime.datetime.utcnow()
-        if self.lastUpdateEP != None and timeNow-self.lastUpdateEP < self.timeIntervalEP:
+        if self.lastUpdateEP is not None and timeNow-self.lastUpdateEP < self.timeIntervalEP:
             return
         self.lastUpdateEP = timeNow
         # get json
         try:
             tmpLog.debug('start')
             jsonStr = ''
-            res = urllib2.urlopen('http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&state=ACTIVE&preset=dict')
+            res = urlopen('http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&state=ACTIVE&preset=dict')
             jsonStr = res.read()
             self.endPointDict = json.loads(jsonStr)
             tmpLog.debug('got {0} endpoints '.format(len(self.endPointDict)))
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             errStr = 'failed to update EP with {0} {1} jsonStr={2}'.format(errtype.__name__,
                                                                            errvalue,
@@ -1428,12 +1434,12 @@ class AtlasDDMClient(DDMClientBase):
                 if rule['grouping'] != 'NONE':
                     isDDS = False
                     break
-                elif isDDS == None:
+                elif isDDS is None:
                     isDDS = True
             # use False when there is no rule
-            if isDDS == None:
+            if isDDS is None:
                 isDDS = False
-        except:
+        except Exception:
             isOK = False
         if not isOK:
             errtype,errvalue = sys.exc_info()[:2]
@@ -1460,13 +1466,13 @@ class AtlasDDMClient(DDMClientBase):
             scope,dsn = self.extract_scope(datasetName)
             # get rules
             for rule in client.list_did_rules(scope=scope, name=dsn):
-                for dataKey,data in dataMap.iteritems():
+                for dataKey,data in iteritems(dataMap):
                     if rule['rse_expression'] == dataKey or re.search(dataKey,rule['rse_expression']) is not None:
                         tmpLog.debug('set data={0} on {1}'.format(str(data),rule['rse_expression']))
                         client.update_replication_rule(rule['id'],data)
         except DataIdentifierNotFound:
             pass
-        except:
+        except Exception:
             isOK = False
         if not isOK:
             errtype,errvalue = sys.exc_info()[:2]

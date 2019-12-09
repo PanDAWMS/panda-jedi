@@ -6,8 +6,8 @@ from pandajedi.jediconfig import jedi_config
 
 from pandaserver.taskbuffer import TaskBuffer
 from pandaserver.brokerage.SiteMapper import SiteMapper
-import JediDBProxyPool
-from Interaction import CommandReceiveInterface
+from . import JediDBProxyPool
+from .Interaction import CommandReceiveInterface
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -42,7 +42,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             self.dateTimeForSM = timeNow
         return self.siteMapper
 
-    
+
 
     # get work queue map
     def getWorkQueueMap(self):
@@ -195,11 +195,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retStat,datasetSpecList = proxy.getDatasetsWithJediTaskID_JEDI(jediTaskID,datasetTypes=datasetTypes)
-        if retStat == True and getFiles == True:
+        if retStat is True and getFiles is True:
             for datasetSpec in datasetSpecList:
                 # read files
                 retStat,fileSpecList = proxy.getFilesInDatasetWithID_JEDI(jediTaskID,datasetSpec.datasetID,None,None)
-                if retStat == False:
+                if retStat is False:
                     break
                 for fileSpec in fileSpecList:
                     datasetSpec.addFile(fileSpec)
@@ -359,7 +359,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         return retVal
 
 
-        
+
     # get job statistics with work queue
     def getJobStatisticsWithWorkQueue_JEDI(self,vo,prodSourceLabel,minPriority=None):
         # get DBproxy
@@ -1029,7 +1029,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
 
-    # check parent task status 
+    # check parent task status
     def checkParentTask_JEDI(self,jediTaskID):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
@@ -1042,7 +1042,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
 
-    # get task status 
+    # get task status
     def getTaskStatus_JEDI(self,jediTaskID):
         # get DBproxy
         proxy = self.proxyPool.getProxy()

@@ -1,6 +1,8 @@
 import re
 import sys
 
+from six import iteritems
+
 from pandaserver.config import panda_config
 
 from liveconfigparser.LiveConfigParser import LiveConfigParser
@@ -24,7 +26,7 @@ for tmpSection in tmpConf.sections():
     # update module dict
     sys.modules[ __name__ ].__dict__[tmpSection] = tmpSelf
     # expand all values
-    for tmpKey,tmpVal in tmpDict.iteritems():
+    for tmpKey,tmpVal in iteritems(tmpDict):
         # convert string to bool/int
         if tmpVal == 'True':
             tmpVal = True

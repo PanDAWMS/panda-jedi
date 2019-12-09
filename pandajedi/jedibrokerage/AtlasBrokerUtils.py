@@ -2,6 +2,8 @@ import re
 import sys
 import json
 
+from six import iteritems
+
 from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
 from dataservice.DataServiceUtils import select_scope
@@ -13,7 +15,7 @@ def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucl
     # hospital words
     goodWordList = ['CORE$','VL$','MEM$','MP\d+$','LONG$','_HIMEM','_\d+$','SHORT$']
     # loop over all clouds
-    if siteInNucleus == None:
+    if siteInNucleus is None:
         cloudList = siteMapper.getCloudList()
     else:
         # WORLD
@@ -21,7 +23,7 @@ def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucl
     for tmpCloudName in cloudList:
         # get cloud
         tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
-        if siteInNucleus == None:
+        if siteInNucleus is None:
             # get T1
             tmpT1Name = tmpCloudSpec['source']
         else:
@@ -39,7 +41,7 @@ def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucl
             # check hospital words
             checkHospWord = False
             for tmpGoodWord in goodWordList:
-                if re.search(tmpGoodWord,tmpSiteName) != None:
+                if re.search(tmpGoodWord,tmpSiteName) is not None:
                     checkHospWord = True
                     break
             if not checkHospWord:
@@ -52,14 +54,14 @@ def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucl
             # check DDM
             if tmpT1Spec.ddm_output[scope_t1_output] == tmpSiteSpec.ddm_output[scope_tmpSite_output]:
                 # append
-                if not retMap.has_key(tmpCloudName):
+                if tmpCloudName not in retMap:
                     retMap[tmpCloudName] = []
-                if not tmpSiteName in retMap[tmpCloudName]:
+                if tmpSiteName not in retMap[tmpCloudName]:
                     retMap[tmpCloudName].append(tmpSiteName)
     # return
     return retMap
 
-    
+
 
 # get sites where data is available
 def getSitesWithData(siteMapper, ddmIF, datasetName, prodsourcelabel, storageToken=None):
@@ -70,14 +72,14 @@ def getSitesWithData(siteMapper, ddmIF, datasetName, prodsourcelabel, storageTok
         else:
             tmpDsMap = ddmIF.listDatasetsInContainer(datasetName)
             totalNumDatasets = len(tmpDsMap)
-    except:
+    except Exception:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.listDatasetsInContainer failed with %s' % errvalue
     # get replicas
     try:
         replicaMap= {}
         replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName)
-    except:
+    except Exception:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.listDatasetReplicas failed with %s' % errvalue
     # loop over all clouds
@@ -88,7 +90,7 @@ def getSitesWithData(siteMapper, ddmIF, datasetName, prodsourcelabel, storageTok
         tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
         # FIXME until CERN-PROD_TZERO is added to cloudconfig.tier1SE
         if tmpCloudName == 'CERN':
-            if not 'CERN-PROD_TZERO' in tmpCloudSpec['tier1SE']:
+            if 'CERN-PROD_TZERO' not in tmpCloudSpec['tier1SE']:
                 tmpCloudSpec['tier1SE'].append('CERN-PROD_TZERO')
         for tmpSePat in tmpCloudSpec['tier1SE']:
             if '*' in tmpSePat:
@@ -96,29 +98,29 @@ def getSitesWithData(siteMapper, ddmIF, datasetName, prodsourcelabel, storageTok
             tmpSePat = '^' + tmpSePat +'$'
             for tmpSE in replicaMap[datasetName].keys():
                 # check name with regexp pattern
-                if re.search(tmpSePat,tmpSE) == None:
+                if re.search(tmpSePat,tmpSE) is None:
                     continue
                 # check space token
-                if not storageToken in ['',None,'NULL']:
+                if storageToken not in ['',None,'NULL']:
                     seStr = ddmIF.getSiteProperty(tmpSE,'se')
                     try:
                         if seStr.split(':')[1] != storageToken:
                             continue
-                    except:
+                    except Exception:
                         pass
                 # check archived metadata
-                # FIXME 
+                # FIXME
                 pass
                 # check tape attribute
                 try:
                     tmpOnTape = ddmIF.getSiteProperty(tmpSE,'is_tape')
-                except:
+                except Exception:
                     continue
                     # errtype,errvalue = sys.exc_info()[:2]
                     # return errtype,'ddmIF.getSiteProperty for %s:tape failed with %s' % (tmpSE,errvalue)
                 # check completeness
-                tmpStatistics = replicaMap[datasetName][tmpSE][-1] 
-                if tmpStatistics['found'] == None:
+                tmpStatistics = replicaMap[datasetName][tmpSE][-1]
+                if tmpStatistics['found'] is None:
                     tmpDatasetStatus = 'unknown'
                     pass
                 elif tmpStatistics['total'] == tmpStatistics['found'] and tmpStatistics['total'] >= totalNumDatasets:
@@ -146,13 +148,13 @@ def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[],deepScan=F
     # get replicas
     try:
         replicaMap = ddmIF.listReplicasPerDataset(datasetName,deepScan)
-    except:
+    except Exception:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.listReplicasPerDataset failed with %s' % errvalue
     # loop over all clouds
     retMap = {}
-    for tmpNucleus,tmpNucleusSpec in siteMapper.nuclei.iteritems():
-        if candidateNuclei != [] and not tmpNucleus in candidateNuclei:
+    for tmpNucleus,tmpNucleusSpec in iteritems(siteMapper.nuclei):
+        if candidateNuclei != [] and tmpNucleus not in candidateNuclei:
             continue
         # loop over all datasets
         totalNum = 0
@@ -161,7 +163,7 @@ def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[],deepScan=F
         avaNumAny = 0
         avaSizeDisk = 0
         avaSizeAny = 0
-        for tmpDataset,tmpRepMap in replicaMap.iteritems():
+        for tmpDataset,tmpRepMap in iteritems(replicaMap):
             tmpTotalNum = 0
             tmpTotalSize = 0
             tmpAvaNumDisk = 0
@@ -169,7 +171,7 @@ def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[],deepScan=F
             tmpAvaSizeDisk = 0
             tmpAvaSizeAny = 0
             # loop over all endpoints
-            for tmpLoc,locData in tmpRepMap.iteritems():
+            for tmpLoc,locData in iteritems(tmpRepMap):
                 # get total
                 if tmpTotalNum == 0:
                     tmpTotalNum = locData[0]['total']
@@ -196,7 +198,7 @@ def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[],deepScan=F
                         tmpAvaNumAny  = tmpAvaNum
                         tmpAvaSizeAny = tmpAvaSize
             # total
-            totalNum     = tmpTotalNum 
+            totalNum     = tmpTotalNum
             totalSize    = tmpTotalSize
             avaNumDisk  += tmpAvaNumDisk
             avaNumAny   += tmpAvaNumAny
@@ -222,7 +224,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
     try:
         replicaMap= {}
         replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName, use_vp=True)
-    except:
+    except Exception:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.listDatasetReplicas failed with %s' % errvalue
     # loop over all clouds
@@ -237,7 +239,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
         checkedEndPoints = []
         try:
             input_endpoints = tmpSiteSpec.ddm_endpoints_input[scope_input].all.keys()
-        except:
+        except Exception:
             input_endpoints = {}
         for tmpDDM in input_endpoints:
             # skip empty
@@ -252,8 +254,8 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
                 continue
             # DBR
             if DataServiceUtils.isCachedFile(datasetName,tmpSiteSpec):
-                # no replica check since it is cached 
-                if not retMap.has_key(tmpSiteName):
+                # no replica check since it is cached
+                if tmpSiteName not in retMap:
                     retMap[tmpSiteName] = {}
                 retMap[tmpSiteName][tmpDDM] = {'tape': False, 'state': 'complete'}
                 checkedEndPoints.append(tmpPrefix)
@@ -262,24 +264,24 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
             tmpSePat = '^' + tmpPrefix
             for tmpSE in replicaMap[datasetName].keys():
                 # check name with regexp pattern
-                if re.search(tmpSePat,tmpSE) == None:
+                if re.search(tmpSePat,tmpSE) is None:
                     continue
                 # skip staging
-                if re.search('STAGING$',tmpSE) != None:
+                if re.search('STAGING$',tmpSE) is not None:
                     continue
                 # check archived metadata
-                # FIXME 
+                # FIXME
                 pass
                 # check tape attribute
                 try:
                     tmpOnTape = ddmIF.getSiteProperty(tmpSE,'is_tape')
-                except:
+                except Exception:
                     continue
                     # errtype,errvalue = sys.exc_info()[:2]
                     # return errtype,'ddmIF.getSiteProperty for %s:tape failed with %s' % (tmpSE,errvalue)
                 # check completeness
-                tmpStatistics = replicaMap[datasetName][tmpSE][-1] 
-                if tmpStatistics['found'] == None:
+                tmpStatistics = replicaMap[datasetName][tmpSE][-1]
+                if tmpStatistics['found'] is None:
                     tmpDatasetStatus = 'unknown'
                     # refresh request
                     pass
@@ -288,7 +290,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
                 else:
                     tmpDatasetStatus = 'incomplete'
                 # append
-                if not retMap.has_key(tmpSiteName):
+                if tmpSiteName not in retMap:
                     retMap[tmpSiteName] = {}
                 retMap[tmpSiteName][tmpSE] = {'tape':tmpOnTape,'state':tmpDatasetStatus}
                 if 'vp' in tmpStatistics:
@@ -302,8 +304,8 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
 def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True):
     siteList = []
     siteWithIncomp = []
-    for tmpSiteName,tmpSeValMap in dataSiteMap.iteritems():
-        for tmpSE,tmpValMap in tmpSeValMap.iteritems():
+    for tmpSiteName,tmpSeValMap in iteritems(dataSiteMap):
+        for tmpSE,tmpValMap in iteritems(tmpSeValMap):
             # VP
             if not use_vp and 'vp' in tmpValMap and tmpValMap['vp'] is True:
                 continue
@@ -311,12 +313,12 @@ def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True):
             if includeTape or not tmpValMap['tape']:
                 if tmpValMap['state'] == 'complete':
                     # complete replica at disk
-                    if not tmpSiteName in siteList:
+                    if tmpSiteName not in siteList:
                         siteList.append(tmpSiteName)
                     break
                 else:
                     # incomplete replica at disk
-                    if not tmpSiteName in siteWithIncomp:
+                    if tmpSiteName not in siteWithIncomp:
                         siteWithIncomp.append(tmpSiteName)
     # return sites with complete
     if siteList != []:
@@ -341,35 +343,35 @@ def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,t
                                                                 threshold,cutoff,maxWeight,
                                                                 useResultCache=3600)
         # DB failure
-        if tmpStat == False:
+        if tmpStat is False:
             return {}
-        # loop over all destinations 
-        for tmpD,tmpW in tmpVal.iteritems():
+        # loop over all destinations
+        for tmpD,tmpW in iteritems(tmpVal):
             # skip source sites
             if tmpD in siteList:
                 continue
             # use first or larger value
             tmpSiteSpec = siteMapper.getSite(tmpD)
-            if not retVal.has_key(tmpD) or retVal[tmpD]['weight'] < tmpW:
+            if tmpD not in retVal or retVal[tmpD]['weight'] < tmpW:
                 retVal[tmpD] = {'weight':tmpW,'source':[siteName]}
-            elif retVal.has_key(tmpD) and retVal[tmpD]['weight'] == tmpW:
+            elif tmpD in retVal and retVal[tmpD]['weight'] == tmpW:
                 retVal[tmpD]['source'].append(siteName)
     return retVal
-                        
+
 
 
 # get the number of jobs in a status
 def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_tag=None):
-    if not jobStatMap.has_key(computingSite):
+    if computingSite not in jobStatMap:
         return 0
     nJobs = 0
     # loop over all workQueues
-    for tmpWorkQueue, tmpWorkQueueVal in jobStatMap[computingSite].iteritems():
+    for tmpWorkQueue, tmpWorkQueueVal in iteritems(jobStatMap[computingSite]):
         # workQueue is defined
         if workQueue_tag is not None and workQueue_tag != tmpWorkQueue:
             continue
         # loop over all job status
-        for tmpJobStatus, tmpCount in tmpWorkQueueVal.iteritems():
+        for tmpJobStatus, tmpCount in iteritems(tmpWorkQueueVal):
             if tmpJobStatus == jobStatus:
                 nJobs += tmpCount
     # return
@@ -413,22 +415,22 @@ def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
             return False
         # loop over all policies
         for tmpItem in siteSpec.fairsharePolicy.split(','):
-            if re.search('(^|,|:)id=',tmpItem) != None: 
+            if re.search('(^|,|:)id=',tmpItem) is not None:
                 # new format
                 tmpMatch = re.search('(^|,|:)id={0}:'.format(taskSpec.workQueue_ID),tmpItem)
-                if tmpMatch != None:
+                if tmpMatch is not None:
                     # check priority if any
                     tmpPrio = None
                     for tmpStr in tmpItem.split(':'):
                         if tmpStr.startswith('priority'):
                             tmpPrio = re.sub('priority','',tmpStr)
                             break
-                    if tmpPrio != None:
+                    if tmpPrio is not None:
                         try:
-                            exec "tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio)
+                            exec("tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio))
                             if not tmpStat:
                                 continue
-                        except:
+                        except Exception:
                             pass
                     # check share
                     tmpShare = tmpItem.split(':')[-1]
@@ -451,26 +453,26 @@ def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
                     elif tmpStr.startswith('priority'):
                         tmpPrio = re.sub('priority','',tmpStr)
                 # check matching for type
-                if not tmpType in ['any',None]:
+                if tmpType not in ['any',None]:
                     if '*' in tmpType:
                         tmpType = tmpType.replace('*','.*')
                     # type mismatch
-                    if re.search('^'+tmpType+'$',tmpProGroup) == None:
+                    if re.search('^'+tmpType+'$',tmpProGroup) is None:
                         continue
                 # check matching for group
-                if not tmpGroup in ['any',None] and taskSpec.workingGroup != None:
+                if tmpGroup not in ['any',None] and taskSpec.workingGroup is not None:
                     if '*' in tmpGroup:
                         tmpGroup = tmpGroup.replace('*','.*')
                     # group mismatch
-                    if re.search('^'+tmpGroup+'$',taskSpec.workingGroup) == None:
+                    if re.search('^'+tmpGroup+'$',taskSpec.workingGroup) is None:
                         continue
                 # check priority
-                if tmpPrio != None and not ignorePrio:
+                if tmpPrio is not None and not ignorePrio:
                     try:
-                        exec "tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio)
+                        exec("tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio))
                         if not tmpStat:
                             continue
-                    except:
+                    except Exception:
                         pass
                 # check share
                 tmpShare = tmpItem.split(':')[-1]
@@ -478,7 +480,7 @@ def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
                     return True
                 else:
                     return False
-    except:
+    except Exception:
         errtype,errvalue = sys.exc_info()[:2]
         tmpLog.error('hasZeroShare failed with {0}:{1}'.format(errtype,errvalue))
     # return
@@ -495,7 +497,7 @@ def isMatched(siteName,nameList):
         # wild card
         if '*' in tmpName:
             tmpName = tmpName.replace('*','.*')
-            if re.search(tmpName,siteName) != None:
+            if re.search(tmpName,siteName) is not None:
                 return True
         else:
             # normal pattern
@@ -512,15 +514,15 @@ def getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs):
     retMap = {'datasets':[],'nucleus':nucleusSpec.name}
     for datasetSpec in tmpDatasetSpecs:
         # skip distributed datasets
-        if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+        if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
             continue
         # get token
         endPoint = nucleusSpec.getAssociatedEndpoint(datasetSpec.storageToken)
-        if endPoint == None:
+        if endPoint is None:
             continue
         token = endPoint['ddm_endpoint_name']
         # add origianl token
-        if not datasetSpec.storageToken in ['',None]:
+        if datasetSpec.storageToken not in ['',None]:
             token += '/{0}'.format(datasetSpec.storageToken.split('/')[-1])
         retMap['datasets'].append({'datasetID':datasetSpec.datasetID,
                                    'token':'dst:{0}'.format(token),
@@ -542,7 +544,7 @@ def skipProblematicSites(candidateSpecList,ngSites,sitesUsedByTask,preSetSiteSpe
         # check if problematic
         isGood = True
         if candidateSpec.siteName in ngSites and \
-                (preSetSiteSpec == None or candidateSpec.siteName != preSetSiteSpec.siteName):
+                (preSetSiteSpec is None or candidateSpec.siteName != preSetSiteSpec.siteName):
             isGood = False
             skippedSites.add(candidateSpec.siteName)
         # check if used
@@ -583,7 +585,7 @@ def skipProblematicSites(candidateSpecList,ngSites,sitesUsedByTask,preSetSiteSpe
                 newcandidateSpecList = usedSitesGood+newSitesGood[:maxNumSites-len(usedSitesAll)]
             else:
                 # only good used sites
-                newcandidateSpecList = usedSitesGood 
+                newcandidateSpecList = usedSitesGood
     # dump
     for skippedSite in skippedSites:
         #tmpLog.debug('  skip {0} too many closed or failed for last {1}hr'.format(skippedSite,timeWindow))
@@ -617,10 +619,10 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, ig
             continue
 
         # add the schedconfig.ddm endpoints
-        ret_map[site_name] = tmp_site_spec.ddm_endpoints_input[scope_input].all.keys()
+        ret_map[site_name] = list(tmp_site_spec.ddm_endpoints_input[scope_input].all.keys())
 
         # add the cloudconfig.tier1SE for T1s
-        if not ignore_cc and t1_map.has_key(site_name):
+        if not ignore_cc and site_name in t1_map:
             tmp_cloud_name = t1_map[site_name]
             tmp_cloud_spec = site_mapper.getCloud(tmp_cloud_name)
             for tmp_endpoint in tmp_cloud_spec['tier1SE']:
@@ -638,7 +640,7 @@ def getOkNgArchList(task_spec):
         if '.el7.' in task_spec.termCondition:
             return (['x86_64-centos7-%'], None)
     return (None, None)
-    
+
 
 # check SW with json
 class JsonSoftwareCheck:
@@ -651,7 +653,7 @@ class JsonSoftwareCheck:
             self.swDict = json.load(open(json_name))
         except Exception:
             self.swDict = dict()
-            
+
     # get lists
     def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only,
               need_container=False):

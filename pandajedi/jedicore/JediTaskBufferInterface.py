@@ -4,7 +4,7 @@ from pandajedi.jedicore import Interaction
 
 # interface to JediTaskBuffer
 class JediTaskBufferInterface:
-    
+
     # constructor
     def __init__(self):
         self.interface = None
@@ -20,7 +20,7 @@ class JediTaskBufferInterface:
                                                           moduleName,
                                                           className)
         self.interface.initialize()
-        
+
 
     # method emulation
     def __getattr__(self,attrName):
@@ -29,21 +29,21 @@ class JediTaskBufferInterface:
 
 if __name__ == '__main__':
     def dummyClient(dif,stime):
-        print "client test"
+        print("client test")
         import time
         for i in range(3):
             #time.sleep(i*stime)
             try:
-                print dif.getCloudList()
-            except:
-                print "exp"
-        print 'client done'
+                print(dif.getCloudList())
+            except Exception:
+                print("exp")
+        print('client done')
 
     dif = JediTaskBufferInterface()
     dif.setupInterface()
-    print "master test"
-    print dif.getCloudList()
-    print "master done"
+    print("master test")
+    print(dif.getCloudList())
+    print("master done")
     import multiprocessing
     pList = []
     for i in range(5):

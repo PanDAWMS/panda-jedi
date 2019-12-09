@@ -14,7 +14,7 @@ from pandaserver.config import panda_config
 smtpPortList = [25,587]
 
 
-# wrapper to patch smtplib.stderr to send debug info to logger 
+# wrapper to patch smtplib.stderr to send debug info to logger
 class StderrLogger(object):
     def __init__(self,tmpLog):
         self.tmpLog = tmpLog
@@ -36,7 +36,7 @@ class PostProcessorBase (object):
         self.refresh()
 
 
-    # refresh 
+    # refresh
     def refresh(self):
         self.siteMapper = self.taskBufferIF.getSiteMapper()
 
@@ -81,7 +81,7 @@ class PostProcessorBase (object):
         taskSpec.endTime = datetime.datetime.utcnow()
         # update task
         self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID},
-                                          updateDEFT=True)    
+                                          updateDEFT=True)
         # kill or kick child tasks
         if taskSpec.status in ['failed','broken','aborted']:
             self.taskBufferIF.killChildTasks_JEDI(taskSpec.jediTaskID,taskSpec.status)
@@ -96,7 +96,7 @@ class PostProcessorBase (object):
     def doFinalProcedure(self,taskSpec,tmpLog):
         return self.SC_SUCCEEDED
 
-    
+
 
     # send mail
     def sendMail(self,jediTaskID,fromAdd,toAdd,msgBody,nTry,fileBackUp,tmpLog):
@@ -114,7 +114,7 @@ class PostProcessorBase (object):
                 tmpLog.debug(str(out))
                 server.quit()
                 break
-            except:
+            except Exception:
                 errType,errValue = sys.exc_info()[:2]
                 if iTry+1 < nTry:
                     # sleep for retry
@@ -124,14 +124,14 @@ class PostProcessorBase (object):
                     tmpLog.error("failed to send notification with {0}:{1}".format(errType,errValue))
                     if fileBackUp:
                         # write to file which is processed in add.py
-                        mailFile = '{0}/jmail_{1}_{2}' % (panda_config.logdir,jediTaskID,commands.getoutput('uuidgen'))
+                        mailFile = '{0}/jmail_{1}_{2}' % (panda_config.logdir, jediTaskID, uuid.uuid4())
                         oMail = open(mailFile,"w")
                         oMail.write(str(jediTaskID)+'\n'+toAdd+'\n'+msgBody)
                         oMail.close()
                 break
         try:
             smtplib.stderr = org_smtpstderr
-        except:
+        except Exception:
             pass
 
 
@@ -154,11 +154,11 @@ class PostProcessorBase (object):
                 nFilesFinished += datasetSpec.nFilesFinished
                 try:
                     totalInputEvents += datasetSpec.nEvents
-                except:
+                except Exception:
                     pass
                 try:
                     totalOkEvents += datasetSpec.nEventsUsed
-                except:
+                except Exception:
                     pass
         # completeness
         if totalInputEvents != 0:
@@ -184,7 +184,7 @@ class PostProcessorBase (object):
             status = 'paused'
         elif nFiles == nFilesFinished:
             # check parent status
-            if checkParent and not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
+            if checkParent and taskSpec.parent_tid not in [None,taskSpec.jediTaskID]:
                 if self.taskBufferIF.getTaskStatus_JEDI(taskSpec.parent_tid) != 'done':
                     status = 'finished'
                 else:
@@ -197,7 +197,7 @@ class PostProcessorBase (object):
                     if inputMutable:
                         status = 'finished'
                     else:
-                        status = 'done'    
+                        status = 'done'
             else:
                 status = 'done'
         elif nFilesFinished == 0:
@@ -205,7 +205,7 @@ class PostProcessorBase (object):
         else:
             status = 'finished'
         # task goal
-        if taskSpec.goal == None:
+        if taskSpec.goal is None:
             taskGoal = 1000
         else:
             taskGoal = taskSpec.goal
@@ -217,7 +217,7 @@ class PostProcessorBase (object):
         # check goal only
         if checkGoal:
             # no goal
-            if taskSpec.goal != None and taskCompleteness >= taskGoal:
+            if taskSpec.goal is not None and taskCompleteness >= taskGoal:
                 return True
             return False
         # return status
@@ -228,7 +228,7 @@ class PostProcessorBase (object):
     # pre-check
     def doPreCheck(self,taskSpec,tmpLog):
         # send task to exhausted
-        if taskSpec.useExhausted() and not taskSpec.status in ['passed'] \
+        if taskSpec.useExhausted() and taskSpec.status not in ['passed'] \
                 and self.getFinalTaskStatus(taskSpec) in ['finished'] \
                 and not self.getFinalTaskStatus(taskSpec,checkGoal=True):
             taskSpec.status = 'exhausted'
@@ -245,5 +245,5 @@ class PostProcessorBase (object):
 
 
 
-    
+
 Interaction.installSC(PostProcessorBase)

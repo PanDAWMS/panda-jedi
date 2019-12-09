@@ -29,7 +29,7 @@ class JediKnight (Interaction.CommandReceiveInterface):
     def startImpl(self):
         try:
             Interaction.CommandReceiveInterface.start(self)
-        except:
+        except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             self.logger.error('crashed in JediKnight.startImpl() with %s %s' % (errtype.__name__,errvalue))
 
@@ -40,7 +40,7 @@ class JediKnight (Interaction.CommandReceiveInterface):
             return par
         try:
             return par.split('|')
-        except:
+        except Exception:
             return [par]
 
 

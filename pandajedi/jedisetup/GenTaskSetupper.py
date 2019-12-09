@@ -1,6 +1,6 @@
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
-from TaskSetupperBase import TaskSetupperBase
+from .TaskSetupperBase import TaskSetupperBase
 
 
 # logger

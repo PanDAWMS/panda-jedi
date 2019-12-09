@@ -1,5 +1,5 @@
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from JobThrottlerBase import JobThrottlerBase
+from .JobThrottlerBase import JobThrottlerBase
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -85,11 +85,11 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         # get job statistics
         status, wq_stats = self.taskBufferIF.getJobStatisticsByResourceType(workQueue)
         if not status:
-            raise RuntimeError, 'failed to get job statistics'
+            raise RuntimeError('failed to get job statistics')
 
         # get the number of standby jobs which is used as the number of running jobs
         standby_num_static, standby_num_static_dynamic = self.taskBufferIF.getNumMapForStandbyJobs_JEDI(workQueue)
-        
+
         # add running if the original stat doesn't have running and standby jobs are required
         if 'running' not in wq_stats and (len(standby_num_static) > 0 or len(standby_num_static_dynamic) > 0):
             wq_stats['running'] = {}
@@ -108,11 +108,11 @@ class AtlasProdJobThrottler (JobThrottlerBase):
 
         for status in wq_stats:
             nJobs_rt, nJobs_ms, nJobs_gs = 0, 0, 0
-            stats_list = wq_stats[status].items()
+            stats_list = list(wq_stats[status].items())
             # take into account the number of standby jobs
             if status == 'running':
-                stats_list += standby_num_static.items()
-                stats_list += standby_num_static_dynamic.items()
+                stats_list += list(standby_num_static.items())
+                stats_list += list(standby_num_static_dynamic.items())
             for resource_type, count in stats_list:
                 if resource_type == resource_name:
                     nJobs_rt = count
@@ -139,7 +139,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
                 nNotRun_rt -= nJobs_rt
                 nNotRun_ms -= nJobs_ms
                 nNotRun_gs -= nJobs_gs
-                
+
 
         # Get the job stats at the same level as the configured parameters
         # nRunning is compared with the nRunningCap
@@ -292,9 +292,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         # get cap
         # set number of jobs to be submitted
         if configQueueCap is None:
-            self.setMaxNumJobs(nJobsInBunch / nParallel)
+            self.setMaxNumJobs(nJobsInBunch // nParallel)
         else:
-            self.setMaxNumJobs(configQueueCap / nParallelCap)
+            self.setMaxNumJobs(configQueueCap // nParallelCap)
 
         # get total walltime
         totWalltime = self.taskBufferIF.getTotalWallTime_JEDI(vo, prodSourceLabel, workQueue, resource_name, cloudName)

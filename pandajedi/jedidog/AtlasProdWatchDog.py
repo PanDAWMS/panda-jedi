@@ -1,14 +1,16 @@
 import sys
 import traceback
 
+from six import iteritems
+
 from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from WatchDogBase import WatchDogBase
+from .WatchDogBase import WatchDogBase
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedibrokerage import AtlasBrokerUtils
 
 from pandaserver.dataservice import DataServiceUtils
-from JumboWatchDog import JumboWatchDog
+from .JumboWatchDog import JumboWatchDog
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
@@ -51,13 +53,13 @@ class AtlasProdWatchDog (WatchDogBase):
             # action for jumbo
             jumbo = JumboWatchDog(self.taskBufferIF, self.ddmIF, tmpLog, 'atlas', 'managed')
             jumbo.run()
-        except:
+        except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             tmpLog.error('failed with {0}:{1} {2}'.format(errtype.__name__, errvalue, traceback.format_exc()))
         # return
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
-    
+
     # action for priority boost
     def doActionForPriorityBoost(self, gTmpLog):
         # get work queue mapper
@@ -99,7 +101,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     parentState = None
                     if parent_tid not in [None, jediTaskID]:
                         parentState = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
-                        if parentState != 'completed': 
+                        if parentState != 'completed':
                             gTmpLog.info('#ATM label=managed jediTaskID={0} skip prio boost since parent_id={1} has parent_status={2}'
                                          .format(jediTaskID, parent_tid, parentState))
                             continue
@@ -112,7 +114,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     if nJobs is not None:
                         try:
                             nRemJobs = int(float(nFiles-nFilesFinished-nFilesFailed) * float(nJobs) / float(nFiles))
-                        except:
+                        except Exception:
                             pass
                     tmpStr = 'jediTaskID={0} nFiles={1} nFilesFinishedFailed={2} '.format(jediTaskID,nFiles,nFilesFinished+nFilesFailed)
                     tmpStr += 'nJobs={0} nRemJobs={1} parent_tid={2} parentStatus={3}'.format(nJobs, nRemJobs, parent_tid, parentState)
@@ -133,7 +135,7 @@ class AtlasProdWatchDog (WatchDogBase):
                                              format(jediTaskID, newShare, gshare))
                                 self.taskBufferIF.reassignShare([jediTaskID], newShare, True)
                             gTmpLog.info('>>> done jediTaskID={0}'.format(jediTaskID))
-                    except:
+                    except Exception:
                         pass
 
                 if break_loop:
@@ -156,7 +158,7 @@ class AtlasProdWatchDog (WatchDogBase):
             ddmBackEnd = taskSpec.getDdmBackEnd()
             # get datasets
             tmpStat,datasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,['output','log'])
-            if tmpStat != True:
+            if tmpStat is not True:
                 tmpLog.error('failed to get datasets')
                 continue
             # update DB
@@ -184,7 +186,7 @@ class AtlasProdWatchDog (WatchDogBase):
 
                 # get nucleus
                 nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)
-                if nucleusSpec == None:
+                if nucleusSpec is None:
                     tmpLog.error("nucleus={0} doesn't exist".format(taskSpec.nucleus))
                     continue
 
@@ -203,7 +205,7 @@ class AtlasProdWatchDog (WatchDogBase):
             isOK = True
             for datasetSpec in datasetSpecList:
                 tmpLog.debug('dataset={0}'.format(datasetSpec.datasetName))
-                if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+                if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
                     tmpLog.debug('skip {0} is distributed'.format(datasetSpec.datasetName))
                     continue
                 # get location
@@ -214,17 +216,17 @@ class AtlasProdWatchDog (WatchDogBase):
                                                                                            ddmBackEnd))
                     tmpStat = ddmIF.registerDatasetSubscription(datasetSpec.datasetName,location,
                                                                 'Production Output',asynchronous=True)
-                    if tmpStat != True:
+                    if tmpStat is not True:
                         tmpLog.error("failed to make subscription")
                         isOK = False
                         break
-                except:
+                except Exception:
                     errtype,errvalue = sys.exc_info()[:2]
                     tmpLog.warning('failed to make subscription with {0}:{1}'.format(errtype.__name__,errvalue))
                     isOK = False
                     break
             # succeeded
-            if isOK:    
+            if isOK:
                 # activate task
                 if taskSpec.oldStatus in ['assigning','exhausted',None]:
                     taskSpec.status = 'ready'
@@ -237,7 +239,7 @@ class AtlasProdWatchDog (WatchDogBase):
 
     # action for throttled tasks
     def doActionForThrottled(self,gTmpLog):
-        # release tasks 
+        # release tasks
         nTasks = self.taskBufferIF.releaseThrottledTasks_JEDI(self.vo,self.prodSourceLabel)
         gTmpLog.debug('released {0} tasks'.format(nTasks))
 
@@ -252,14 +254,14 @@ class AtlasProdWatchDog (WatchDogBase):
         # try to get the timeout from the config files
         if hasattr(jedi_config.watchdog,'timeoutForPendingVoLabel'):
             timeoutForPending = JediCoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel,self.vo,self.prodSourceLabel)
-        if timeoutForPending == None:
+        if timeoutForPending is None:
             timeoutForPending = jedi_config.watchdog.timeoutForPending
         timeoutForPending = int(timeoutForPending)
         tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(self.vo, self.prodSourceLabel,
                                                                timeoutVal, timeoutForPending,
                                                                minPriority=minPriority)
-        if tmpRet == None:
-            # failed                                                                                                             
+        if tmpRet is None:
+            # failed
             gTmpLog.error('failed to reactivate high priority (>{0}) tasks'.format(minPriority))
         else:
             gTmpLog.info('reactivated high priority (>{0}) {1} tasks'.format(minPriority,tmpRet))
@@ -267,8 +269,8 @@ class AtlasProdWatchDog (WatchDogBase):
     # action to set scout job data w/o scouts
     def doActionToSetScoutJobData(self,gTmpLog):
         tmpRet = self.taskBufferIF.setScoutJobDataToTasks_JEDI(self.vo,self.prodSourceLabel)
-        if tmpRet == None:
-            # failed                                                                                                             
+        if tmpRet is None:
+            # failed
             gTmpLog.error('failed to set scout job data')
         else:
             gTmpLog.info('set scout job data successfully')
@@ -277,10 +279,10 @@ class AtlasProdWatchDog (WatchDogBase):
     def doActionToThrottleJobInPausedTasks(self,gTmpLog):
         tmpRet = self.taskBufferIF.throttleJobsInPausedTasks_JEDI(self.vo,self.prodSourceLabel)
         if tmpRet is None:
-            # failed                                                                                                             
+            # failed
             gTmpLog.error('failed to thottle jobs in paused tasks')
         else:
-            for jediTaskID, pandaIDs in tmpRet.iteritems():
+            for jediTaskID, pandaIDs in iteritems(tmpRet):
                 gTmpLog.info('throttled jobs in paused jediTaskID={0} successfully'.format(jediTaskID))
                 tmpRet = self.taskBufferIF.killJobs(pandaIDs,'reassign','51',True)
                 gTmpLog.info('reassigned {0} jobs in paused jediTaskID={1} with {2}'.format(len(pandaIDs), jediTaskID, tmpRet))

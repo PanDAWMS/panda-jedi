@@ -1,6 +1,6 @@
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from JobThrottlerBase import JobThrottlerBase
+from .JobThrottlerBase import JobThrottlerBase
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -22,7 +22,7 @@ class GenJobThrottler (JobThrottlerBase):
         tmpLog.debug('start vo={0} label={1} cloud={2} workQueue={3}'.format(vo,prodSourceLabel,cloudName,
                                                                              workQueue.queue_name))
         # check if unthrottled
-        if workQueue.queue_share == None:
+        if workQueue.queue_share is None:
             tmpLog.debug("  done : unthrottled since share=None")
             return self.retUnThrottled
         tmpLog.debug("  done : SKIP")

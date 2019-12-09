@@ -7,12 +7,14 @@ import socket
 import datetime
 import traceback
 
+from six import iteritems
+
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedirefine import RefinerUtils
-from JediKnight import JediKnight
-from TaskGenerator import TaskGenerator
+from .JediKnight import JediKnight
+from .TaskGenerator import TaskGenerator
 
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jediconfig import jedi_config
@@ -47,7 +49,7 @@ class ContentsFeeder (JediKnight):
                     for prodSourceLabel in self.prodSourceLabels:
                         # get the list of datasets to feed contents to DB
                         tmpList = self.taskBufferIF.getDatasetsToFeedContents_JEDI(vo,prodSourceLabel)
-                        if tmpList == None:
+                        if tmpList is None:
                             # failed
                             logger.error('failed to get the list of datasets to feed contents')
                         else:
@@ -55,7 +57,7 @@ class ContentsFeeder (JediKnight):
                             # put to a locked list
                             dsList = ListWithLock(tmpList)
                             # make thread pool
-                            threadPool = ThreadPool() 
+                            threadPool = ThreadPool()
                             # make workers
                             nWorker = jedi_config.confeeder.nWorkers
                             for iWorker in range(nWorker):
@@ -65,7 +67,7 @@ class ContentsFeeder (JediKnight):
                                 thr.start()
                             # join
                             threadPool.join()
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('failed in %s.start() with %s %s' % (self.__class__.__name__,errtype.__name__,errvalue))
             # sleep if needed
@@ -117,14 +119,14 @@ class ContentsFeederThread (WorkerThread):
 
                     # get task
                     tmpStat,taskSpec = self.taskBufferIF.getTaskWithID_JEDI(jediTaskID,False,True,self.pid,10)
-                    if not tmpStat or taskSpec == None:
+                    if not tmpStat or taskSpec is None:
                         self.logger.error('failed to get taskSpec for jediTaskID={0}'.format(jediTaskID))
                         continue
 
                     # make logger
                     try:
                         gshare = '_'.join(taskSpec.gshare.split(' '))
-                    except:
+                    except Exception:
                         gshare = 'Undefined'
                     tmpLog = MsgWrapper(self.logger,'<jediTaskID={0} gshare={1}>'.format(jediTaskID, gshare))
 
@@ -132,16 +134,16 @@ class ContentsFeederThread (WorkerThread):
                         # get task parameters
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                         taskParamMap = RefinerUtils.decodeJSON(taskParam)
-                    except:
+                    except Exception:
                         errtype,errvalue = sys.exc_info()[:2]
                         tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
                         taskBroken = True
                     # renaming of parameters
-                    if taskParamMap.has_key('nEventsPerInputFile'):
+                    if 'nEventsPerInputFile' in taskParamMap:
                         taskParamMap['nEventsPerFile'] = taskParamMap['nEventsPerInputFile']
                     # the number of files per job
                     nFilesPerJob = taskSpec.getNumFilesPerJob()
-                    # the number of chunks used by scout 
+                    # the number of chunks used by scout
                     nChunksForScout = 10
                     # load XML
                     if taskSpec.useLoadXML():
@@ -156,7 +158,7 @@ class ContentsFeederThread (WorkerThread):
                     # check no wait
                     noWaitParent = False
                     parentOutDatasets = set()
-                    if taskSpec.noWaitParent() and not taskSpec.parent_tid in [None,taskSpec.jediTaskID]:
+                    if taskSpec.noWaitParent() and taskSpec.parent_tid not in [None,taskSpec.jediTaskID]:
                         tmpStat = self.taskBufferIF.checkParentTask_JEDI(taskSpec.parent_tid)
                         if tmpStat == 'running':
                             noWaitParent = True
@@ -171,9 +173,9 @@ class ContentsFeederThread (WorkerThread):
                     checkedMaster = False
                     setFrozenTime = True
                     if not taskBroken:
-                        ddmIF = self.ddmIF.getInterface(taskSpec.vo) 
+                        ddmIF = self.ddmIF.getInterface(taskSpec.vo)
                         origNumFiles = None
-                        if taskParamMap.has_key('nFiles'):
+                        if 'nFiles' in taskParamMap:
                             origNumFiles = taskParamMap['nFiles']
                         for datasetSpec in dsList:
                             tmpLog.debug('start loop for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))
@@ -183,14 +185,14 @@ class ContentsFeederThread (WorkerThread):
                             # get dataset metadata
                             tmpLog.debug('get metadata')
                             gotMetadata = False
-                            stateUpdateTime = datetime.datetime.utcnow()                    
+                            stateUpdateTime = datetime.datetime.utcnow()
                             try:
                                 if not datasetSpec.isPseudo():
                                     tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
                                 else:
                                     # dummy metadata for pseudo dataset
                                     tmpMetadata = {'state':'closed'}
-                                # set mutable when and the dataset is open and parent is running or task is configured to run until the dataset is closed 
+                                # set mutable when and the dataset is open and parent is running or task is configured to run until the dataset is closed
                                 if (noWaitParent or taskSpec.runUntilClosed()) and \
                                         (tmpMetadata['state'] == 'open' \
                                              or datasetSpec.datasetName in parentOutDatasets \
@@ -198,7 +200,7 @@ class ContentsFeederThread (WorkerThread):
                                     # dummy metadata when parent is running
                                     tmpMetadata = {'state':'mutable'}
                                 gotMetadata = True
-                            except:
+                            except Exception:
                                 errtype,errvalue = sys.exc_info()[:2]
                                 tmpLog.error('{0} failed to get metadata to {1}:{2}'.format(self.__class__.__name__,
                                                                                             errtype.__name__,errvalue))
@@ -206,14 +208,14 @@ class ContentsFeederThread (WorkerThread):
                                     # fatal error
                                     datasetStatus = 'broken'
                                     taskBroken = True
-                                    # update dataset status    
+                                    # update dataset status
                                     self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
                                 else:
                                     if not taskSpec.ignoreMissingInDS():
                                         # temporary error
                                         taskOnHold = True
                                     else:
-                                        # ignore missing 
+                                        # ignore missing
                                         datasetStatus = 'failed'
                                         # update dataset status
                                         self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
@@ -222,9 +224,9 @@ class ContentsFeederThread (WorkerThread):
                                     allUpdated = False
                             else:
                                 # get file list specified in task parameters
-                                fileList,includePatt,excludePatt = RefinerUtils.extractFileList(taskParamMap,datasetSpec.datasetName)   
+                                fileList,includePatt,excludePatt = RefinerUtils.extractFileList(taskParamMap,datasetSpec.datasetName)
                                 # get the number of events in metadata
-                                if taskParamMap.has_key('getNumEventsInMetadata'):
+                                if 'getNumEventsInMetadata' in taskParamMap:
                                     getNumEvents = True
                                 else:
                                     getNumEvents = False
@@ -234,8 +236,8 @@ class ContentsFeederThread (WorkerThread):
                                     useInFilesWithNewAttemptNr = False
                                     skipDuplicate = not datasetSpec.useDuplicatedFiles()
                                     if not datasetSpec.isPseudo():
-                                        if fileList != [] and taskParamMap.has_key('useInFilesInContainer') and \
-                                                not datasetSpec.containerName in ['',None]:
+                                        if fileList != [] and 'useInFilesInContainer' in taskParamMap and \
+                                                datasetSpec.containerName not in ['',None]:
                                             # read files from container if file list is specified in task parameters
                                             tmpDatasetName = datasetSpec.containerName
                                         else:
@@ -254,26 +256,26 @@ class ContentsFeederThread (WorkerThread):
                                         tmpLostFiles = ddmIF.findLostFiles(tmpDatasetName,tmpRet)
                                         if tmpLostFiles != {}:
                                             tmpLog.debug('found {0} lost files in {1}'.format(len(tmpLostFiles),tmpDatasetName))
-                                            for tmpListGUID,tmpLostLFN in tmpLostFiles.iteritems():
+                                            for tmpListGUID,tmpLostLFN in iteritems(tmpLostFiles):
                                                 tmpLog.debug('removed {0}'.format(tmpLostLFN))
                                                 del tmpRet[tmpListGUID]
                                     else:
                                         if datasetSpec.isSeqNumber():
                                             # make dummy files for seq_number
-                                            if datasetSpec.getNumRecords() != None:
+                                            if datasetSpec.getNumRecords() is not None:
                                                 nPFN = datasetSpec.getNumRecords()
-                                            elif origNumFiles != None:
+                                            elif origNumFiles is not None:
                                                 nPFN = origNumFiles
-                                                if taskParamMap.has_key('nEventsPerJob') and taskParamMap.has_key('nEventsPerFile') \
+                                                if 'nEventsPerJob' in taskParamMap and 'nEventsPerFile' in taskParamMap \
                                                         and taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
-                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] / taskParamMap['nEventsPerJob']
-                                                elif taskParamMap.has_key('nEventsPerFile') and taskParamMap.has_key('nEventsPerRange'):
-                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] / taskParamMap['nEventsPerRange']
+                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] // taskParamMap['nEventsPerJob']
+                                                elif 'nEventsPerFile' in taskParamMap and 'nEventsPerRange' in taskParamMap:
+                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] // taskParamMap['nEventsPerRange']
                                             elif 'nEvents' in taskParamMap and 'nEventsPerJob' in taskParamMap:
-                                                nPFN = taskParamMap['nEvents'] / taskParamMap['nEventsPerJob']
+                                                nPFN = taskParamMap['nEvents'] // taskParamMap['nEventsPerJob']
                                             elif 'nEvents' in taskParamMap and 'nEventsPerFile' in taskParamMap \
                                                     and taskSpec.getNumFilesPerJob() is not None:
-                                                nPFN = taskParamMap['nEvents'] / taskParamMap['nEventsPerFile'] / taskSpec.getNumFilesPerJob()
+                                                nPFN = taskParamMap['nEvents'] // taskParamMap['nEventsPerFile'] // taskSpec.getNumFilesPerJob()
                                             else:
                                                 # the default number of records for seq_number
                                                 seqDefNumRecords = 10000
@@ -286,8 +288,8 @@ class ContentsFeederThread (WorkerThread):
                                                     nPFN = tmpMasterAtt['nFiles']
                                                 else:
                                                     nPFN = seqDefNumRecords
-                                                # check usedBy 
-                                                if skipFilesUsedBy != None:
+                                                # check usedBy
+                                                if skipFilesUsedBy is not None:
                                                     for tmpJediTaskID in str(skipFilesUsedBy).split(','):
                                                         tmpParentAtt = self.taskBufferIF.getDatasetAttributesWithMap_JEDI(tmpJediTaskID,
                                                                                                                           {'datasetName':datasetSpec.datasetName},
@@ -314,7 +316,7 @@ class ContentsFeederThread (WorkerThread):
                                                       }
                                         else:
                                             # make dummy file list for PFN list
-                                            if taskParamMap.has_key('nFiles'):
+                                            if 'nFiles' in taskParamMap:
                                                 nPFN = taskParamMap['nFiles']
                                             else:
                                                 nPFN = 1
@@ -325,7 +327,7 @@ class ContentsFeederThread (WorkerThread):
                                                                              'filesize':0,
                                                                              'checksum':None,
                                                                              }
-                                except:
+                                except Exception:
                                     errtype,errvalue = sys.exc_info()[:2]
                                     tmpLog.error('failed to get files due to {0}:{1} {2}'.format(self.__class__.__name__,
                                                                                                  errtype.__name__,errvalue))
@@ -333,7 +335,7 @@ class ContentsFeederThread (WorkerThread):
                                         # fatal error
                                         datasetStatus = 'broken'
                                         taskBroken = True
-                                        # update dataset status    
+                                        # update dataset status
                                         self.updateDatasetStatus(datasetSpec,datasetStatus,tmpLog)
                                     else:
                                         # temporary error
@@ -354,16 +356,16 @@ class ContentsFeederThread (WorkerThread):
                                     nEventsPerJob   = None
                                     nEventsPerRange = None
                                     tgtNumEventsPerJob = None
-                                    if (datasetSpec.isMaster() and (taskParamMap.has_key('nEventsPerFile') or useRealNumEvents)) or \
-                                            (datasetSpec.isPseudo() and taskParamMap.has_key('nEvents') and not datasetSpec.isSeqNumber()):
-                                        if taskParamMap.has_key('nEventsPerFile'):
+                                    if (datasetSpec.isMaster() and ('nEventsPerFile' in taskParamMap or useRealNumEvents)) or \
+                                            (datasetSpec.isPseudo() and 'nEvents' in taskParamMap and not datasetSpec.isSeqNumber()):
+                                        if 'nEventsPerFile' in taskParamMap:
                                             nEventsPerFile = taskParamMap['nEventsPerFile']
-                                        elif datasetSpec.isMaster() and datasetSpec.isPseudo() and taskParamMap.has_key('nEvents'):
+                                        elif datasetSpec.isMaster() and datasetSpec.isPseudo() and 'nEvents' in taskParamMap:
                                             # use nEvents as nEventsPerFile for pseudo input
                                             nEventsPerFile = taskParamMap['nEvents']
-                                        if taskParamMap.has_key('nEventsPerJob'):
+                                        if 'nEventsPerJob' in taskParamMap:
                                             nEventsPerJob = taskParamMap['nEventsPerJob']
-                                        elif taskParamMap.has_key('nEventsPerRange'):
+                                        elif 'nEventsPerRange' in taskParamMap:
                                             nEventsPerRange = taskParamMap['nEventsPerRange']
                                         if 'tgtNumEventsPerJob' in taskParamMap:
                                             tgtNumEventsPerJob = taskParamMap['tgtNumEventsPerJob']
@@ -373,11 +375,11 @@ class ContentsFeederThread (WorkerThread):
                                     maxAttempt = None
                                     maxFailure = None
                                     if datasetSpec.isMaster() or datasetSpec.toKeepTrack():
-                                        # max attempts 
+                                        # max attempts
                                         if taskSpec.disableAutoRetry():
-                                            # disable auto retry 
+                                            # disable auto retry
                                             maxAttempt = 1
-                                        elif taskParamMap.has_key('maxAttempt'):
+                                        elif 'maxAttempt' in taskParamMap:
                                             maxAttempt = taskParamMap['maxAttempt']
                                         else:
                                             # use default value
@@ -391,34 +393,34 @@ class ContentsFeederThread (WorkerThread):
                                         # first event number
                                         firstEventNumber = 1 + taskSpec.getFirstEventOffset()
                                     # nMaxEvents
-                                    nMaxEvents = None 
-                                    if datasetSpec.isMaster() and taskParamMap.has_key('nEvents'):
+                                    nMaxEvents = None
+                                    if datasetSpec.isMaster() and 'nEvents' in taskParamMap:
                                         nMaxEvents = taskParamMap['nEvents']
                                     # nMaxFiles
                                     nMaxFiles = None
-                                    if taskParamMap.has_key('nFiles'):
+                                    if 'nFiles' in taskParamMap:
                                         if datasetSpec.isMaster():
                                             nMaxFiles = taskParamMap['nFiles']
                                         else:
                                             # calculate for secondary
                                             nMaxFiles = datasetSpec.getNumMultByRatio(origNumFiles)
                                             # multipled by the number of jobs per file for event-level splitting
-                                            if nMaxFiles != None and taskParamMap.has_key('nEventsPerFile'):
-                                                if taskParamMap.has_key('nEventsPerJob'):
+                                            if nMaxFiles is not None and 'nEventsPerFile' in taskParamMap:
+                                                if 'nEventsPerJob' in taskParamMap:
                                                     if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
                                                         nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerJob'])
                                                         nMaxFiles = int(math.ceil(nMaxFiles))
-                                                elif taskParamMap.has_key('nEventsPerRange'):
+                                                elif 'nEventsPerRange' in taskParamMap:
                                                     if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerRange']:
                                                         nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerRange'])
                                                         nMaxFiles = int(math.ceil(nMaxFiles))
                                     # use scout
-                                    useScout = False    
+                                    useScout = False
                                     if datasetSpec.isMaster() and taskSpec.useScout() and (datasetSpec.status != 'toupdate' or not taskSpec.isPostScout()):
                                         useScout = True
-                                    # use files with new attempt numbers    
+                                    # use files with new attempt numbers
                                     useFilesWithNewAttemptNr = False
-                                    if not datasetSpec.isPseudo() and fileList != [] and taskParamMap.has_key('useInFilesWithNewAttemptNr'):
+                                    if not datasetSpec.isPseudo() and fileList != [] and 'useInFilesWithNewAttemptNr' in taskParamMap:
                                         useFilesWithNewAttemptNr = True
                                     # ramCount
                                     ramCount = 0
@@ -426,7 +428,7 @@ class ContentsFeederThread (WorkerThread):
                                     if datasetSpec.isMaster() and not datasetSpec.isPseudo() \
                                             and nEventsPerFile is not None and nEventsPerJob is not None \
                                             and nEventsPerFile >= nEventsPerJob \
-                                            and 'skipShortInput' in taskParamMap and taskParamMap['skipShortInput'] == True:
+                                            and 'skipShortInput' in taskParamMap and taskParamMap['skipShortInput'] is True:
                                         skipShortInput = True
                                     else:
                                         skipShortInput = False
@@ -461,13 +463,13 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                               ramCount,
                                                                                                                               taskSpec,
                                                                                                                               skipShortInput)
-                                    if retDB == False:
+                                    if retDB is False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))
                                         allUpdated = False
                                         taskBroken = True
                                         break
-                                    elif retDB == None:
+                                    elif retDB is None:
                                         # the dataset is locked by another or status is not applicable
                                         allUpdated = False
                                         tmpLog.debug('escape since task or dataset is locked')
@@ -480,10 +482,10 @@ class ContentsFeederThread (WorkerThread):
                                         allUpdated = False
                                         taskOnHold = True
                                         missingMap[datasetSpec.datasetName] = {'datasetSpec':datasetSpec,
-                                                                               'missingFiles':missingFileList} 
+                                                                               'missingFiles':missingFileList}
                                     else:
                                         # reduce the number of files to be read
-                                        if taskParamMap.has_key('nFiles'):
+                                        if 'nFiles' in taskParamMap:
                                             if datasetSpec.isMaster():
                                                 taskParamMap['nFiles'] -= nFilesUnique
                                         # reduce the number of files for scout
@@ -531,7 +533,7 @@ class ContentsFeederThread (WorkerThread):
                     if not runningTask:
                         if taskOnHold:
                             # go to pending state
-                            if not taskSpec.status in ['broken','tobroken']:
+                            if taskSpec.status not in ['broken','tobroken']:
                                 taskSpec.setOnHold()
                             tmpMsg = 'set task_status={0}'.format(taskSpec.status)
                             tmpLog.info(tmpMsg)
@@ -552,7 +554,7 @@ class ContentsFeederThread (WorkerThread):
                         retUnlock = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID,self.pid)
                         tmpLog.debug('unlock task with {0}'.format(retUnlock))
                     tmpLog.debug('done')
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
 
@@ -562,17 +564,17 @@ class ContentsFeederThread (WorkerThread):
         # update dataset status
         datasetSpec.status   = datasetStatus
         datasetSpec.lockedBy = None
-        tmpLog.info('update dataset status with {0}'.format(datasetSpec.status))                    
+        tmpLog.info('update dataset status with {0}'.format(datasetSpec.status))
         self.taskBufferIF.updateDataset_JEDI(datasetSpec,
                                              {'datasetID':datasetSpec.datasetID,
                                               'jediTaskID':datasetSpec.jediTaskID},
                                              lockTask=True)
 
-        
 
 
-########## lauch 
-                
+
+########## lauch
+
 def launcher(commuChannel,taskBufferIF,ddmIF,vos=None,prodSourceLabels=None):
     p = ContentsFeeder(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels)
     p.start()

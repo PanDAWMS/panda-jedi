@@ -109,14 +109,14 @@ class JediDatasetSpec(object):
         ret = {}
         for attr in self._attributes:
             # use sequence
-            if useSeq and self._seqAttrMap.has_key(attr):
+            if useSeq and attr in self._seqAttrMap:
                 continue
             # only changed attributes
             if onlyChanged:
-                if not self._changedAttrs.has_key(attr):
+                if attr not in self._changedAttrs:
                     continue
             val = getattr(self,attr)
-            if val == None:
+            if val is None:
                 if attr in self._zeroAttrs:
                     val = 0
                 else:
@@ -139,7 +139,7 @@ class JediDatasetSpec(object):
     def columnNames(cls,prefix=None):
         ret = ""
         for attr in cls._attributes:
-            if prefix != None:
+            if prefix is not None:
                 ret += '{0}.'.format(prefix)
             ret += '{0},'.format(attr)
         ret = ret[:-1]    
@@ -152,7 +152,7 @@ class JediDatasetSpec(object):
     def bindValuesExpression(cls,useSeq=True):
         ret = "VALUES("
         for attr in cls._attributes:
-            if useSeq and cls._seqAttrMap.has_key(attr):
+            if useSeq and attr in cls._seqAttrMap:
                 ret += "%s," % cls._seqAttrMap[attr]
             else:
                 ret += ":%s," % attr
@@ -167,7 +167,7 @@ class JediDatasetSpec(object):
     def bindUpdateChangesExpression(self):
         ret = ""
         for attr in self._attributes:
-            if self._changedAttrs.has_key(attr):
+            if attr in self._changedAttrs:
                 ret += '%s=:%s,' % (attr,attr)
         ret  = ret[:-1]
         ret += ' '
@@ -177,7 +177,7 @@ class JediDatasetSpec(object):
 
     # set dataset attribute
     def setDatasetAttribute(self,attr):
-        if self.attributes == None:
+        if self.attributes is None:
             self.attributes = ''
         else:
             self.attributes += ','
@@ -190,7 +190,7 @@ class JediDatasetSpec(object):
         if label not in self.attrToken:
             return
         attr = self.attrToken[label]
-        if self.attributes == None:
+        if self.attributes is None:
             self.attributes = ''
         else:
             self.attributes += ','
@@ -203,7 +203,7 @@ class JediDatasetSpec(object):
         totalSize = 0
         checkedList = []
         for tmpFileSpec in self.Files:
-            if not tmpFileSpec.lfn in checkedList:
+            if tmpFileSpec.lfn not in checkedList:
                 totalSize += tmpFileSpec.fsize
                 checkedList.append(tmpFileSpec.lfn)
         return totalSize    
@@ -258,7 +258,7 @@ class JediDatasetSpec(object):
 
     # check if it is not split
     def isNoSplit(self):
-        if self.attributes != None and 'nosplit' in self.attributes:
+        if self.attributes is not None and 'nosplit' in self.attributes:
             return True
         else:
             return False
@@ -267,7 +267,7 @@ class JediDatasetSpec(object):
 
     # check if it is repeatedly used
     def isRepeated(self):
-        if self.attributes != None and 'repeat' in self.attributes:
+        if self.attributes is not None and 'repeat' in self.attributes:
             return True
         else:
             return False
@@ -276,7 +276,7 @@ class JediDatasetSpec(object):
 
     # check if it is randomly used
     def isRandom(self):
-        if self.attributes != None and 'rd' in self.attributes.split(','):
+        if self.attributes is not None and 'rd' in self.attributes.split(','):
             return True
         else:
             return False
@@ -285,7 +285,7 @@ class JediDatasetSpec(object):
 
     # check if it is reusable
     def isReusable(self):
-        if self.attributes != None and 'ru' in self.attributes.split(','):
+        if self.attributes is not None and 'ru' in self.attributes.split(','):
             return True
         else:
             return False
@@ -294,7 +294,7 @@ class JediDatasetSpec(object):
 
     # check if consistency is checked
     def checkConsistency(self):
-        if self.attributes != None and 'cc' in self.attributes.split(','):
+        if self.attributes is not None and 'cc' in self.attributes.split(','):
             return True
         else:
             return False
@@ -305,7 +305,7 @@ class JediDatasetSpec(object):
     def enableCheckConsistency(self):
         if self.attributes in [None,'']:
             self.attributes = 'cc'
-        elif not 'cc' in self.attributes.split(','):
+        elif 'cc' not in self.attributes.split(','):
             self.attributes += ',cc'
 
 
@@ -315,7 +315,7 @@ class JediDatasetSpec(object):
         if self.datasetName in ['pseudo_dataset','seq_number'] \
                 or self.type in ['pp_input']:
             return True
-        if self.attributes != None and self.attrToken['pseudo'] in self.attributes.split(','):
+        if self.attributes is not None and self.attrToken['pseudo'] in self.attributes.split(','):
             return True
         return False
 
@@ -323,7 +323,7 @@ class JediDatasetSpec(object):
 
     # check if it is a many-time dataset which is treated as long-standing at T2s
     def isManyTime(self):
-        if self.attributes != None and 'manytime' in self.attributes:
+        if self.attributes is not None and 'manytime' in self.attributes:
             return True
         else:
             return False
@@ -341,7 +341,7 @@ class JediDatasetSpec(object):
 
     # check if duplicated files are used
     def useDuplicatedFiles(self):
-        if self.attributes != None and ('usedup' in self.attributes or \
+        if self.attributes is not None and ('usedup' in self.attributes or \
                                             'ud' in  self.attributes.split(',')):
             return True
         else:
@@ -351,7 +351,7 @@ class JediDatasetSpec(object):
 
     # check if it is a master dataset
     def isMaster(self):
-        if self.masterID == None and self.type in self.getProcessTypes():
+        if self.masterID is None and self.type in self.getProcessTypes():
             return True
         else:
             return False
@@ -360,7 +360,7 @@ class JediDatasetSpec(object):
 
     # check if it is a master input dataset
     def isMasterInput(self):
-        if self.masterID == None and self.type in self.getInputTypes():
+        if self.masterID is None and self.type in self.getInputTypes():
             return True
         else:
             return False
@@ -369,7 +369,7 @@ class JediDatasetSpec(object):
 
     # remove nosplit attribute
     def remAttribute(self,attrName):
-        if self.attributes != None:
+        if self.attributes is not None:
             self.attributes = re.sub(attrName,'',self.attributes)
             self.attributes = re.sub(',,',',',self.attributes)
             self.attributes = re.sub('^,','',self.attributes)
@@ -395,19 +395,19 @@ class JediDatasetSpec(object):
     def getRatioToMaster(self):
         try:
             tmpMatch = re.search('ratio=(\d+(\.\d+)*)',self.attributes)
-            if tmpMatch != None:
+            if tmpMatch is not None:
                 ratioStr = tmpMatch.group(1)
                 try:
                     # integer
                     return int(ratioStr)
-                except:
+                except Exception:
                     pass
                 try:
                     # float
                     return float(ratioStr)
-                except:
+                except Exception:
                     pass
-        except:
+        except Exception:
             pass
         return 1
 
@@ -452,9 +452,9 @@ class JediDatasetSpec(object):
 
     # get offset
     def getOffset(self):
-        if self.attributes != None:
+        if self.attributes is not None:
             tmpMatch = re.search(self.attrToken['offset']+'=(\d+)',self.attributes)
-            if tmpMatch != None:
+            if tmpMatch is not None:
                 offset = int(tmpMatch.group(1))
                 return offset
         return 0
@@ -469,10 +469,10 @@ class JediDatasetSpec(object):
 
     # get number of records
     def getNumRecords(self):
-        if self.attributes != None:
+        if self.attributes is not None:
             for item in self.attributes.split(','):
                 tmpMatch = re.search(self.attrToken['num_records']+'=(\d+)',item)
-                if tmpMatch != None:
+                if tmpMatch is not None:
                     num_records = int(tmpMatch.group(1))
                     return num_records
         return None
@@ -487,9 +487,9 @@ class JediDatasetSpec(object):
 
     # get object store
     def getObjectStore(self):
-        if self.attributes != None:
+        if self.attributes is not None:
             tmpMatch = re.search(self.attrToken['objectStore']+'=([^,]+)',self.attributes)
-            if tmpMatch != None:
+            if tmpMatch is not None:
                 return tmpMatch.group(1)
         return None
 
@@ -503,9 +503,9 @@ class JediDatasetSpec(object):
 
     # get the number of files per job
     def getNumFilesPerJob(self):
-        if self.attributes != None:
+        if self.attributes is not None:
             tmpMatch = re.search(self.attrToken['nFilesPerJob']+'=(\d+)',self.attributes)
-            if tmpMatch != None:
+            if tmpMatch is not None:
                 num = int(tmpMatch.group(1))
                 return num
         # use continuous numbers for seq_number
@@ -525,7 +525,7 @@ class JediDatasetSpec(object):
 
     # set transient
     def setTransient(self,val):
-        if val == True:
+        if val is True:
             val = 1
         else:
             val = 0
@@ -535,10 +535,10 @@ class JediDatasetSpec(object):
 
     # get transient
     def getTransient(self):
-        if self.attributes != None:
+        if self.attributes is not None:
             for item in self.attributes.split(','):
                 tmpMatch = re.search(self.attrToken['transient']+'=(\d+)',item)
-                if tmpMatch != None:
+                if tmpMatch is not None:
                     val = int(tmpMatch.group(1))
                     if val == 1:
                         return True
@@ -550,7 +550,7 @@ class JediDatasetSpec(object):
 
     # check if no output is allowed
     def isAllowedNoOutput(self):
-        if self.attributes != None and self.attrToken['allowNoOutput'] in self.attributes.split(','):
+        if self.attributes is not None and self.attrToken['allowNoOutput'] in self.attributes.split(','):
             return True
         else:
             return False
@@ -563,7 +563,7 @@ class JediDatasetSpec(object):
             items = []
         else:
             items = self.attributes.split(',')
-        if not self.attrToken['allowNoOutput'] in items:
+        if self.attrToken['allowNoOutput'] not in items:
             items.append(self.attrToken['allowNoOutput'])
             self.attributes = ','.join(items)
 
@@ -571,7 +571,7 @@ class JediDatasetSpec(object):
 
     # check if index consistency is required
     def indexConsistent(self):
-        if self.attributes != None and self.attrToken['indexConsistent'] in self.attributes.split(','):
+        if self.attributes is not None and self.attrToken['indexConsistent'] in self.attributes.split(','):
             return True
         else:
             return False
@@ -598,20 +598,20 @@ class JediDatasetSpec(object):
 
     # get event ratio
     def getEventRatio(self):
-        if self.attributes != None:
+        if self.attributes is not None:
             for item in self.attributes.split(','):
                 tmpMatch = re.search(self.attrToken['eventRatio']+'=(\d+(\.\d+)*)',item)
-                if tmpMatch != None:
+                if tmpMatch is not None:
                     ratioStr = tmpMatch.group(1)
                     try:
                         # integer
                         return int(ratioStr)
-                    except:
+                    except Exception:
                         pass
                     try:
                         # float
                         return float(ratioStr)
-                    except:
+                    except Exception:
                         pass
         return None
 
@@ -623,6 +623,6 @@ class JediDatasetSpec(object):
             items = []
         else:
             items = self.attributes.split(',')
-        if not self.attrToken['pseudo'] in items:
+        if self.attrToken['pseudo'] not in items:
             items.append(self.attrToken['pseudo'])
             self.attributes = ','.join(items)

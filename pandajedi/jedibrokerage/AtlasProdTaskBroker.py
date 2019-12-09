@@ -2,12 +2,19 @@ import sys
 import random
 import traceback
 
+from six import iteritems
+
+try:
+    long()
+except Exception:
+    long = int
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
-from TaskBrokerBase import TaskBrokerBase
+from .TaskBrokerBase import TaskBrokerBase
 from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread,MapWithLock
-import AtlasBrokerUtils
-from AtlasProdJobBroker import AtlasProdJobBroker
+from . import AtlasBrokerUtils
+from .AtlasProdJobBroker import AtlasProdJobBroker
 
 from pandaserver.userinterface import Client as PandaClient
 from pandaserver.dataservice import DataServiceUtils
@@ -51,9 +58,9 @@ class AtlasProdTaskBroker (TaskBrokerBase):
             return retTmpError
         # make return map
         retMap = {}
-        for tmpTaskID,tmpCoreName in cloudsInPanda.iteritems():
+        for tmpTaskID,tmpCoreName in iteritems(cloudsInPanda):
             tmpLog.debug('jediTaskID={0} -> {1}'.format(tmpTaskID,tmpCoreName))
-            if not tmpCoreName in ['NULL','',None]:
+            if tmpCoreName not in ['NULL','',None]:
                 taskSpec = taskSpecMap[tmpTaskID]
                 if taskSpec.useWorldCloud():
                     # get destinations for WORLD cloud
@@ -69,15 +76,15 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                     retMap[tmpTaskID] = {'datasets':[],'nucleus':nucleus}
                     for datasetSpec in tmpDatasetSpecs:
                         # skip distributed datasets
-                        if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) != None:
+                        if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
                             continue
                         # get token
                         token = ddmIF.convertTokenToEndpoint(siteSpec.ddm_output[scopeSiteSpec_output], datasetSpec.storageToken)
                         # use default endpoint
-                        if token == None:
+                        if token is None:
                             token = siteSpec.ddm_output[scopeSiteSpec_output]
                         # add origianl token
-                        if not datasetSpec.storageToken in ['',None]:
+                        if datasetSpec.storageToken not in ['',None]:
                             token += '/{0}'.format(datasetSpec.storageToken)
                         retMap[tmpTaskID]['datasets'].append({'datasetID':datasetSpec.datasetID,
                                                               'token':'dst:{0}'.format(token),
@@ -86,7 +93,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                     retMap[tmpTaskID] = tmpCoreName
         tmpLog.debug('ret {0}'.format(str(retMap)))
         # return
-        tmpLog.debug('done')        
+        tmpLog.debug('done')
         return self.SC_SUCCEEDED,retMap
 
 
@@ -129,7 +136,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                 jobSpec.metadata         = taskSpec.processingType
                 jobSpec.assignedPriority = taskSpec.taskPriority
                 jobSpec.currentPriority  = taskSpec.currentPriority
-                jobSpec.maxDiskCount     = (taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()) / 1024 / 1024
+                jobSpec.maxDiskCount     = (taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize()) // 1024 // 1024
                 if taskSpec.useWorldCloud():
                     # use destinationSE to trigger task brokerage in WORLD cloud
                     jobSpec.destinationSE = taskSpec.cloud
@@ -144,23 +151,23 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                         tmpInFileSpec = fileSpec.convertToJobFileSpec(datasetSpec)
                         jobSpec.addFile(tmpInFileSpec)
                 # use secondary dataset name as prodDBlock
-                if setProdDBlock == False and prodDBlock != None:
+                if setProdDBlock is False and prodDBlock is not None:
                     jobSpec.prodDBlock = prodDBlock
                 # append
                 jobSpecList.append(jobSpec)
                 prioMap[jobSpec.taskID] = jobSpec.currentPriority
                 tt2Map[jobSpec.taskID]  = jobSpec.processingType
                 # get RW for a priority
-                if not allRwMap.has_key(jobSpec.currentPriority):
+                if jobSpec.currentPriority not in allRwMap:
                     tmpRW = self.taskBufferIF.calculateRWwithPrio_JEDI(vo,prodSourceLabel,workQueue,
-                                                                       jobSpec.currentPriority) 
-                    if tmpRW == None:
+                                                                       jobSpec.currentPriority)
+                    if tmpRW is None:
                         tmpLog.error('failed to calculate RW with prio={0}'.format(jobSpec.currentPriority))
                         return retTmpError
                     allRwMap[jobSpec.currentPriority] = tmpRW
                 # get expected RW
                 expRW = self.taskBufferIF.calculateTaskRW_JEDI(jobSpec.jediTaskID)
-                if expRW == None:
+                if expRW is None:
                     tmpLog.error('failed to calculate RW for jediTaskID={0}'.format(jobSpec.jediTaskID))
                     return retTmpError
                 expRWs[jobSpec.taskID] = expRW
@@ -168,7 +175,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
         if jobSpecList != []:
             # get fullRWs
             fullRWs = self.taskBufferIF.calculateRWwithPrio_JEDI(vo,prodSourceLabel,None,None)
-            if fullRWs == None:
+            if fullRWs is None:
                 tmpLog.error('failed to calculate full RW')
                 return retTmpError
             # set metadata
@@ -199,15 +206,15 @@ class AtlasProdTaskBroker (TaskBrokerBase):
             threadPool = ThreadPool()
             # get full RW for WORLD
             fullRWs = self.taskBufferIF.calculateWorldRWwithPrio_JEDI(vo,prodSourceLabel,None,None)
-            if fullRWs == None:
+            if fullRWs is None:
                 tmpLog.error('failed to calculate full WORLD RW')
                 return retTmpError
             # get RW per priority
             for taskSpec,inputChunk in inputListWorld:
-                if not taskSpec.currentPriority in allRwMap:
+                if taskSpec.currentPriority not in allRwMap:
                     tmpRW = self.taskBufferIF.calculateWorldRWwithPrio_JEDI(vo,prodSourceLabel,workQueue,
                                                                             taskSpec.currentPriority)
-                    if tmpRW == None:
+                    if tmpRW is None:
                         tmpLog.error('failed to calculate RW with prio={0}'.format(taskSpec.currentPriority))
                         return retTmpError
                     allRwMap[taskSpec.currentPriority] = tmpRW
@@ -315,8 +322,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         ######################################
                         # check status
                         newNucleusList = {}
-                        for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
-                            if not tmpNucleusSpec.state in ['ACTIVE']:
+                        for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
+                            if tmpNucleusSpec.state not in ['ACTIVE']:
                                 tmpLog.info('  skip nucleus={0} due to status={1} criteria=-status'.format(tmpNucleus,
                                                                                                             tmpNucleusSpec.state))
                             else:
@@ -336,7 +343,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         else:
                             newNucleusList = {}
                             backlogged_nuclei = self.taskBufferIF.getBackloggedNuclei()
-                            for tmpNucleus, tmpNucleusSpec in nucleusList.iteritems():
+                            for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
                                 if tmpNucleus in backlogged_nuclei:
                                     tmpLog.info('  skip nucleus={0} due to long transfer backlog criteria=-transfer_backlog'.
                                                  format(tmpNucleus))
@@ -355,28 +362,28 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         newNucleusList = {}
                         tmpStat,tmpDatasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,
                                                                                                       ['output','log'])
-                        for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                        for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
                             toSkip = False
                             for tmpDatasetSpec in tmpDatasetSpecList:
                                 # ignore distributed datasets
-                                if DataServiceUtils.getDistributedDestination(tmpDatasetSpec.storageToken) != None:
+                                if DataServiceUtils.getDistributedDestination(tmpDatasetSpec.storageToken) is not None:
                                     continue
                                 # get endpoint with the pattern
                                 tmpEP = tmpNucleusSpec.getAssociatedEndpoint(tmpDatasetSpec.storageToken)
-                                if tmpEP == None:
+                                if tmpEP is None:
                                     tmpLog.info('  skip nucleus={0} since no endpoint with {1} criteria=-match'.format(tmpNucleus,
                                                                                                                         tmpDatasetSpec.storageToken))
                                     toSkip = True
                                     break
                                 # check state
                                 """
-                                if not tmpEP['state'] in ['ACTIVE']:
+                                if tmpEP['state'] not in ['ACTIVE']:
                                     tmpLog.info('  skip nucleus={0} since endpoint {1} is in {2} criteria=-epstatus'.format(tmpNucleus,
                                                                                                                              tmpEP['ddm_endpoint_name'],
                                                                                                                              tmpEP['state']))
                                     toSkip = True
                                     break
-                                """    
+                                """
                                 # check space
                                 tmpSpaceSize = tmpEP['space_free'] + tmpEP['space_expired']
                                 tmpSpaceToUse = 0
@@ -392,18 +399,18 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     toSkip = True
                                     break
                                 # keep fraction of free space
-                                if not tmpNucleus in fractionFreeSpace:
+                                if tmpNucleus not in fractionFreeSpace:
                                     fractionFreeSpace[tmpNucleus] = {'total':0,'free':0}
                                 try:
                                     tmpOld = float(fractionFreeSpace[tmpNucleus]['free']) / \
                                         float(fractionFreeSpace[tmpNucleus]['total'])
-                                except:
+                                except Exception:
                                     tmpOld = None
                                 try:
                                     tmpNew = float(tmpSpaceSize-tmpSpaceToUse)/float(tmpEP['space_total'])
-                                except:
+                                except Exception:
                                     tmpNew = None
-                                if tmpNew != None and (tmpOld == None or tmpNew < tmpOld):
+                                if tmpNew is not None and (tmpOld is None or tmpNew < tmpOld):
                                     fractionFreeSpace[tmpNucleus] = {'total':tmpEP['space_total'],
                                                                      'free':tmpSpaceSize-tmpSpaceToUse}
                             if not toSkip:
@@ -420,7 +427,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         newNucleusList = {}
                         # get all panda sites
                         tmpSiteList = []
-                        for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                        for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
                             tmpSiteList += tmpNucleusSpec.allPandaSites
                         tmpSiteList = list(set(tmpSiteList))
                         tmpLog.debug('===== start for job check')
@@ -437,7 +444,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         for tmpSite in tmpRet:
                             siteSpec = siteMapper.getSite(tmpSite)
                             okNuclei.add(siteSpec.pandasite)
-                        for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                        for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
                             if tmpNucleus in okNuclei:
                                 newNucleusList[tmpNucleus] = tmpNucleusSpec
                             else:
@@ -449,7 +456,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                             self.sendLogMessage(tmpLog)
                             continue
-                        ###################################### 
+                        ######################################
                         # data locality
                         toSkip = False
                         availableData = {}
@@ -471,7 +478,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             # get nuclei where data is available
                             tmpSt,tmpRet = AtlasBrokerUtils.getNucleiWithData(siteMapper,self.ddmIF,
                                                                               datasetSpec.datasetName,
-                                                                              nucleusList.keys(),
+                                                                              list(nucleusList.keys()),
                                                                               deepScan)
                             if tmpSt != Interaction.SC_SUCCEEDED:
                                 tmpLog.error('failed to get nuclei where data is available, since {0}'.format(tmpRet))
@@ -480,18 +487,18 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 toSkip = True
                                 break
                             # sum
-                            for tmpNucleus,tmpVals in tmpRet.iteritems():
-                                if not tmpNucleus in availableData:
+                            for tmpNucleus,tmpVals in iteritems(tmpRet):
+                                if tmpNucleus not in availableData:
                                     availableData[tmpNucleus] = tmpVals
                                 else:
-                                    availableData[tmpNucleus] = dict((k,v+tmpVals[k]) for (k,v) in availableData[tmpNucleus].iteritems())
+                                    availableData[tmpNucleus] = dict((k,v+tmpVals[k]) for (k,v) in iteritems(availableData[tmpNucleus]))
                         if toSkip:
                             continue
                         if availableData != {}:
                             newNucleusList = {}
                             # skip if no data
                             skipMsgList = []
-                            for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
+                            for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
                                 if len(nucleusList) == 1:
                                     tmpLog.info('  disable data locality check for nucleus={0} since no other candidate'.format(tmpNucleus))
                                     newNucleusList[tmpNucleus] = tmpNucleusSpec
@@ -524,15 +531,15 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                                 self.sendLogMessage(tmpLog)
                                 continue
-                        ###################################### 
+                        ######################################
                         # weight
                         self.prioRW.acquire()
                         nucleusRW = self.prioRW[taskSpec.currentPriority]
                         self.prioRW.release()
                         totalWeight = 0
                         nucleusweights = []
-                        for tmpNucleus,tmpNucleusSpec in nucleusList.iteritems():
-                            if not tmpNucleus in nucleusRW:
+                        for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
+                            if tmpNucleus not in nucleusRW:
                                 nucleusRW[tmpNucleus] = 0
                             wStr = '1'
                             # with RW
@@ -561,13 +568,13 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     weight *= tmpFrac
                                     wStr += '*( free_space={0} )/( total_space={1} )'.format(fractionFreeSpace[tmpNucleus]['free'],
                                                                                          fractionFreeSpace[tmpNucleus]['total'])
-                                except:
+                                except Exception:
                                     pass
                             tmpLog.info('  use nucleus={0} weight={1} {2} criteria=+use'.format(tmpNucleus,weight,wStr))
                             totalWeight += weight
                             nucleusweights.append((tmpNucleus,weight))
                         tmpLog.info('final {0} candidates'.format(len(nucleusList)))
-                        ###################################### 
+                        ######################################
                         # final selection
                         tgtWeight = random.uniform(0,totalWeight)
                         candidateNucleus = None
@@ -576,9 +583,9 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             if tgtWeight <= 0:
                                 candidateNucleus = tmpNucleus
                                 break
-                        if candidateNucleus == None:
+                        if candidateNucleus is None:
                             candidateNucleus = nucleusweights[-1][0]
-                    ###################################### 
+                    ######################################
                     # update
                     nucleusSpec = nucleusList[candidateNucleus]
                     # get output/log datasets
@@ -594,7 +601,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         tmpLog.sendMsg(tmpMsg,self.msgType)
                     # update RW table
                     self.prioRW.acquire()
-                    for prio,rwMap in self.prioRW.iteritems():
+                    for prio,rwMap in iteritems(self.prioRW):
                         if prio > taskSpec.currentPriority:
                             continue
                         if candidateNucleus in rwMap:
@@ -602,10 +609,9 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         else:
                             rwMap[candidateNucleus] = taskRW
                     self.prioRW.release()
-            except:
+            except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 errMsg  = '{0}.runImpl() failed with {1} {2} '.format(self.__class__.__name__,errtype.__name__,errvalue)
                 errMsg += 'lastJediTaskID={0} '.format(lastJediTaskID)
                 errMsg += traceback.format_exc()
                 logger.error(errMsg)
-            

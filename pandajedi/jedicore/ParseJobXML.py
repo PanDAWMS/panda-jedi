@@ -1,7 +1,15 @@
 #!/usr/bin/env python
-import sys,re
-import urllib
+import sys
+import re
 import xml.dom.minidom
+
+try:
+    from urllib.parse import quote
+except ImportError:
+    from urllib import quote
+
+
+from six import iteritems
 
 class dom_job:
     """ infiles[inds]=[file1,file2...]
@@ -33,7 +41,7 @@ class dom_job:
             for file in files:
                 s.infiles[name].append(dom_parser.text(file))
         if primaryds and primaryds not in s.infiles.keys():
-            print 'ERROR: primaryds=%s must be present in each job'%primaryds
+            print('ERROR: primaryds=%s must be present in each job'%primaryds)
             sys.exit(0)
         # output files (also, drop duplicates within this job)
         outfiles = set(defaultout)
@@ -105,12 +113,12 @@ class dom_job:
         This way, all options will be set inside run.sh
         """
         comStr = '%s %s'%(s.forward_opts(),s.command)
-        return urllib.quote(comStr)
+        return quote(comStr)
     def get_outmap_str(s,outMap):
-        """ return mapping of original and new filenames 
+        """ return mapping of original and new filenames
         """
         newMap = {}
-        for oldLFN,fileSpec in outMap.iteritems():
+        for oldLFN,fileSpec in iteritems(outMap):
             newMap[oldLFN] = str(fileSpec.lfn)
         return str(newMap)
     def outputs_list(s,prepend=False):
@@ -140,7 +148,7 @@ class dom_parser:
             s.dom = xml.dom.minidom.parse(fname)
             s.parse()
             s.check()
-        if xmlStr != None:
+        if xmlStr is not None:
             s.dom = xml.dom.minidom.parseString(xmlStr)
             s.parse()
             s.check()
@@ -213,8 +221,8 @@ class dom_parser:
                 s.primaryds = None
             for job in s.dom.getElementsByTagName('job'):
                 s.jobs.append(dom_job(job,primaryds=s.primaryds,defaultcmd=s.command,defaultout=s.global_outfiles))
-        except:
-            print 'ERROR: failed to parse',s.fname
+        except Exception:
+            print('ERROR: failed to parse' + ' ' + s.fname)
             raise
     def to_dom(s):
         """ Converts this submission to a dom tree branch """
@@ -226,7 +234,7 @@ class dom_parser:
         if s.tag:
             submission.appendChild(x.createElement('tag'))
             submission.childNodes[-1].appendChild(x.createTextNode(s.tag))
-        for name,stream in s.inds.iteritems():
+        for name,stream in iteritems(s.inds):
             submission.appendChild(x.createElement('inds'))
             if name==s.primaryds:
                 submission.childNodes[-1].setAttribute('primary','true')
@@ -253,8 +261,8 @@ class dom_parser:
         for j in s.jobs:
             quals+=j.outputs_list(True)
         if len(list(set(quals))) != len(quals):
-            print 'ERROR: found non-unique output file names across the jobs'
-            print '(you likely need to review xml options with prepend=true)'
+            print('ERROR: found non-unique output file names across the jobs')
+            print('(you likely need to review xml options with prepend=true)')
             sys.exit(0)
     def input_datasets(s):
         """ returns a list of all used input datasets """
@@ -331,10 +339,9 @@ class dom_parser:
         """ prints a summary of this submission """
         def P(key,value=''):
             if value=='':
-                print key
+                print(key)
             else:
-                print (key+':').ljust(14),
-                print value
+                print((key+':').ljust(14) + ' ' + value)
         P('XML FILE LOADED',s.fname)
         P('Title',s.title)
         P('Command',s.command)
@@ -348,7 +355,7 @@ class dom_parser:
                 P('outfiles',job.outputs())
                 P('INPUTS:')
                 j=0
-                for dsname,files in job.infiles.iteritems():
+                for dsname,files in iteritems(job.infiles):
                     P('  Dataset%d'%j,dsname)
                     for k,fname in enumerate(files):
                         P('     File%d'%k,fname)
