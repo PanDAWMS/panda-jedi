@@ -1,5 +1,5 @@
 import re
-import sys
+import traceback
 import datetime
 
 from six import iteritems
@@ -1146,6 +1146,39 @@ class AtlasProdJobBroker (JobBrokerBase):
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError
+        ######################################
+        # cap with resource type
+        if not sitePreAssigned and workQueue.is_global_share:
+            # count jobs per resource type
+            tmpRet, tmpStatMap = self.taskBufferIF.getJobStatisticsByResourceTypeSite(workQueue)
+            newScanSiteList = []
+            newSkippedTmp = dict()
+            RT_Cap = 2
+            for tmpSiteName in self.get_unified_sites(scanSiteList):
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                tmpUnifiedName = tmpSiteSpec.get_unified_name()
+                if tmpUnifiedName in tmpStatMap and taskSpec.resource_type in tmpStatMap[tmpUnifiedName]:
+                    tmpSiteStatMap = tmpStatMap[tmpUnifiedName][taskSpec.resource_type]
+                    tmpRTrunning = tmpSiteStatMap.get('running', 0)
+                    tmpRTrunning = max(tmpRTrunning, 20)
+                    tmpRTqueue = tmpSiteStatMap.get('defined', 0)
+                    tmpRTqueue += tmpSiteStatMap.get('assigned', 0)
+                    tmpRTqueue += tmpSiteStatMap.get('activated', 0)
+                    if tmpRTqueue > tmpRTrunning * RT_Cap:
+                        tmpMsg = '  skip site={0} since nQueue/nRun with gshare+resource_type is '.format(tmpSiteName)
+                        tmpMsg += '{0}/{1} > {2} '.format(tmpRTqueue, tmpRTrunning, RT_Cap)
+                        tmpMsg += 'criteria=-cap_rt'
+                        # temporary problem
+                        newSkippedTmp[tmpSiteName] = tmpMsg
+                newScanSiteList.append(tmpSiteName)
+            siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
+            scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
+            tmpLog.info('{0} candidates passed for cap with gshare+resource_type check'.format(len(scanSiteList)))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
         # return if to give a hint for task brokerage
         if hintForTB:
             ######################################
@@ -1195,9 +1228,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if tmpAvFileMap is None:
                     raise Interaction.JEDITemporaryError('ddmIF.getAvailableFiles failed')
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
-            except Exception:
-                errtype,errvalue = sys.exc_info()[:2]
-                tmpLog.error('failed to get available files with %s %s' % (errtype.__name__,errvalue))
+            except Exception as e:
+                tmpLog.error('failed to get available files with {0} {1}'.format(str(e), traceback.format_exc()))
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError

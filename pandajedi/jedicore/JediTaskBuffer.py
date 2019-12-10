@@ -388,6 +388,14 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         return retVal
 
 
+    # get job statistics by site and resource type
+    def getJobStatisticsByResourceTypeSite(self, workqueue):
+        proxy = self.proxyPool.getProxy()
+        retVal = proxy.getJobStatisticsByResourceTypeSite(workqueue)
+        self.proxyPool.putProxy(proxy)
+        return retVal
+
+
     # generate output files for task
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None,
                             isUnMerging=False,isPrePro=False,xmlConfigJob=None,siteDsMap=None,middleName='',

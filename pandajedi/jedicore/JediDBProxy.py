@@ -2453,6 +2453,66 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False, {}
 
 
+    def getJobStatisticsByResourceTypeSite(self, workqueue):
+        """
+        This function will return the job statistics per site for a particular workqueue, broken down by resource type
+        (SCORE, MCORE, etc.)
+        :param workqueue: workqueue object
+        """
+        comment = ' /* DBProxy.getJobStatisticsByResourceTypeSite */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < workqueue={0} >'.format(workqueue)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+
+        # define the var map of query parameters
+        var_map = {':vo': workqueue.VO}
+
+        # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
+        sql_jt = "SELECT jobstatus, resource_type, computingSite, COUNT(*) FROM %s WHERE vo=:vo "
+
+        if workqueue.is_global_share:
+            sql_jt += "AND gshare=:gshare "
+            sql_jt += "AND workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaPANDA)
+            var_map[':gshare'] = workqueue.queue_name
+        else:
+            sql_jt += "AND workqueue_id=:workqueue_id "
+            var_map[':workqueue_id'] = workqueue.queue_id
+
+        sql_jt += "GROUP BY jobstatus, resource_type, computingSite "
+
+        # sql to query on the jobs_share_stats table with already aggregated data
+        sql_jss = sql_jt
+        sql_jss = re.sub('COUNT\(\*\)', 'SUM(njobs)', sql_jss)
+        sql_jss = re.sub('SELECT ', 'SELECT /*+ RESULT_CACHE */ ', sql_jss)
+
+        tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
+                  '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
+
+        return_map = {}
+        try:
+            for table in tables:
+                self.cur.arraysize = 10000
+                if table == '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA):
+                    stats_table = '{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA)
+                    sql_exe = (sql_jss + comment) % stats_table
+                else:
+                    sql_exe = (sql_jt + comment) % table
+                self.cur.execute(sql_exe, var_map)
+                res = self.cur.fetchall()
+
+                # create map
+                for status, resource_type, computingSite, n_count in res:
+                    return_map.setdefault(computingSite, {})
+                    return_map[computingSite].setdefault(resource_type, {})
+                    return_map[computingSite][resource_type][status] = n_count
+
+            tmpLog.debug('done')
+            return True, return_map
+        except Exception:
+            self.dumpErrorMessage(tmpLog)
+            return False, {}
+
 
     # generate output files for task, and instantiate template datasets if necessary
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSites,isUnMerging,

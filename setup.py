@@ -63,6 +63,11 @@ class install_panda(install_org):
     def initialize_options (self):
         install_org.initialize_options(self)
 
+    # disable egg
+    def finalize_options(self):
+        install_org.finalize_options(self)
+        self.single_version_externally_managed = True
+
 
 # generates files using templates and install them
 class install_data_panda (install_data_org):
