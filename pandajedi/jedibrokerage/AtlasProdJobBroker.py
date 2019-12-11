@@ -1165,8 +1165,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpRTqueue += tmpSiteStatMap.get('assigned', 0)
                     tmpRTqueue += tmpSiteStatMap.get('activated', 0)
                     if tmpRTqueue > tmpRTrunning * RT_Cap:
-                        tmpMsg = '  skip site={0} since nQueue/nRun with gshare+resource_type is '.format(tmpSiteName)
-                        tmpMsg += '{0}/{1} > {2} '.format(tmpRTqueue, tmpRTrunning, RT_Cap)
+                        tmpMsg = '  skip site={0} '.format(tmpSiteName)
+                        tmpMsg += 'since nQueue/max(20,nRun) with gshare+resource_type is '
+                        tmpMsg += '{0}/max(20,{1}) > {2} '.format(tmpRTqueue, tmpRTrunning, RT_Cap)
                         tmpMsg += 'criteria=-cap_rt'
                         # temporary problem
                         newSkippedTmp[tmpSiteName] = tmpMsg
