@@ -27,6 +27,7 @@ class MsgWrapper:
             pass
         # message buffer
         self.msgBuffer = []
+        self.bareMsg = []
         self.lineLimit = lineLimit
 
 
@@ -34,8 +35,10 @@ class MsgWrapper:
         # keep max message depth
         if len(self.msgBuffer) > self.lineLimit:
             self.msgBuffer.pop(0)
+            self.bareMsg.pop(0)
         timeNow = datetime.datetime.utcnow()
         self.msgBuffer.append('{0} : {1}'.format(timeNow.isoformat(' '),msg))
+        self.bareMsg.append(msg)
 
 
     def info(self,msg):
@@ -76,7 +79,7 @@ class MsgWrapper:
         if s != 0:
             return "failed to upload log with {0}.".format(s)
         if o.startswith('http'):
-            return '<a href="{0}">log</a>'.format(o)
+            return '<a href="{0}">log</a> : {1}.'.format(o, '. '.join(self.bareMsg[-2:]))
         return o
 
 

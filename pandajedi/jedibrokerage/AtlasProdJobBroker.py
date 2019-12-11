@@ -1229,7 +1229,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     raise Interaction.JEDITemporaryError('ddmIF.getAvailableFiles failed')
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
             except Exception as e:
-                tmpLog.error('failed to get available files with {0}'.format(str(e)))
+                tmpLog.error('failed to get available files with {0}'.format(str(e).replace('\n', ' ')))
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError

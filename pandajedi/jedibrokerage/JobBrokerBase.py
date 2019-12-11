@@ -1,6 +1,6 @@
 from pandajedi.jedicore import Interaction
 
-# base class for job brokerge
+# base class for job brokerage
 class JobBrokerBase (object):
 
     def __init__(self,ddmIF,taskBufferIF):
