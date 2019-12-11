@@ -1160,11 +1160,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if tmpUnifiedName in tmpStatMap and taskSpec.resource_type in tmpStatMap[tmpUnifiedName]:
                     tmpSiteStatMap = tmpStatMap[tmpUnifiedName][taskSpec.resource_type]
                     tmpRTrunning = tmpSiteStatMap.get('running', 0)
-                    tmpRTrunning = max(tmpRTrunning, 20)
                     tmpRTqueue = tmpSiteStatMap.get('defined', 0)
                     tmpRTqueue += tmpSiteStatMap.get('assigned', 0)
                     tmpRTqueue += tmpSiteStatMap.get('activated', 0)
-                    if tmpRTqueue > tmpRTrunning * RT_Cap:
+                    tmpRTqueue += tmpSiteStatMap.get('starting', 0)
+                    if tmpRTqueue > max(20, tmpRTrunning*RT_Cap):
                         tmpMsg = '  skip site={0} '.format(tmpSiteName)
                         tmpMsg += 'since nQueue/max(20,nRun) with gshare+resource_type is '
                         tmpMsg += '{0}/max(20,{1}) > {2} '.format(tmpRTqueue, tmpRTrunning, RT_Cap)
