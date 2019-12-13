@@ -229,8 +229,6 @@ class AtlasDDMClient(DDMClientBase):
         self.updateEndPointDict()
         try:
             retVal = self.endPointDict[seName][attribute]
-            if not isinstance(retVal, str):
-                retVal = str(retVal)
             return self.SC_SUCCEEDED,retVal
         except Exception:
             errtype,errvalue = sys.exc_info()[:2]
