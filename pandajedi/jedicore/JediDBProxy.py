@@ -5347,6 +5347,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start mergeScout={0}'.format(mergeScout))
         returnMap = {}
         extraInfo = {}
+
         # get percentile rank and margin for memory
         ramCountRank = self.getConfigValue('dbproxy','SCOUT_RAMCOUNT_RANK','jedi')
         if ramCountRank is None:
@@ -5358,15 +5359,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         cpuTimeRank = self.getConfigValue('dbproxy','SCOUT_CPUTIME_RANK','jedi')
         if cpuTimeRank is None:
             cpuTimeRank = 95
+
         # sql to get preset values
         if not mergeScout:
             sqlGPV  = "SELECT "
-            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,walltime,ramCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit,memory_leak_core "
+            sqlGPV += "prodSourceLabel, outDiskCount, outDiskUnit, walltime, ramCount, ramUnit, baseRamCount, "
+            sqlGPV += "workDiskCount, cpuTime, cpuEfficiency, baseWalltime, splitRule, cpuTimeUnit, "
+            sqlGPV += "memory_leak_core, memory_leak_x2 "
         else:
             sqlGPV  = "SELECT "
-            sqlGPV += "prodSourceLabel,outDiskCount,outDiskUnit,mergeWalltime,mergeRamCount,ramUnit,baseRamCount,workDiskCount,cpuTime,cpuEfficiency,baseWalltime,splitRule,cpuTimeUnit,memory_leak_core "
+            sqlGPV += "prodSourceLabel, outDiskCount, outDiskUnit, mergeWalltime, mergeRamCount, ramUnit, baseRamCount, "
+            sqlGPV += "workDiskCount, cpuTime, cpuEfficiency, baseWalltime, splitRule, cpuTimeUnit, "
+            sqlGPV += "memory_leak_core, memory_leak_x2 "
         sqlGPV += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
+
         # sql to get scout job data from JEDI
         sqlSCF  = "SELECT tabF.PandaID,tabF.fsize,tabF.startEvent,tabF.endEvent,tabF.nEvents "
         sqlSCF += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
@@ -5382,40 +5389,49 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for tmpType in JediDatasetSpec.getMergeProcessTypes():
                 mapKey = ':type_'+tmpType
                 sqlSCF += '{0},'.format(mapKey)
-        sqlSCF  = sqlSCF[:-1]
+        sqlSCF = sqlSCF[:-1]
         sqlSCF += ") AND tabD.masterID IS NULL "
         if setPandaID is not None:
             sqlSCF += "AND tabF.PandaID=:usePandaID "
+        
         # sql to get normal scout job data from Panda
-        sqlSCDN  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
+        sqlSCDN = "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
+        sqlSCDN += "actualCoreCount, coreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents, "
+        sqlSCDN += "totRBYTES, totWBYTES, inputFileBytes, memory_leak, memory_leak_x2 "
         sqlSCDN += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "UNION "
-        sqlSCDN += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDN += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
+        sqlSCDN += "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
+        sqlSCDN += "actualCoreCount, coreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents, "
+        sqlSCDN += "totRBYTES, totWBYTES, inputFileBytes, memory_leak, memory_leak_x2 "
         sqlSCDN += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "AND modificationTime>(CURRENT_DATE-14) "
+        
         # sql to get ES scout job data from Panda
-        sqlSCDE  = "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
+        sqlSCDE  = "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
+        sqlSCDE += "actualCoreCount, coreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents, "
+        sqlSCDE += "totRBYTES, totWBYTES, inputFileBytes, memory_leak, memory_leak_x2 "
         sqlSCDE += "FROM {0}.jobsArchived4 ".format(jedi_config.db.schemaPANDA)
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "UNION "
-        sqlSCDE += "SELECT eventService,jobsetID,PandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,coreCount,"
-        sqlSCDE += "startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileBytes,memory_leak "
+        sqlSCDE += "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
+        sqlSCDE += "actualCoreCount, coreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents, "
+        sqlSCDE += "totRBYTES, totWBYTES, inputFileBytes, memory_leak, memory_leak_x2 "
         sqlSCDE += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "AND modificationTime>(CURRENT_DATE-14) "
+        
         # get size of lib
         sqlLIB  = "SELECT MAX(fsize) "
         sqlLIB += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
         sqlLIB += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status AND "
         sqlLIB += "tabD.type=:type AND tabF.type=:type "
+        
         # get core power
         sqlCore  = "SELECT corepower FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
         sqlCore += "WHERE siteID=:site "
+        
         # get nJobs
         sqlNumJobs = "SELECT SUM(nFiles),SUM(nFilesFinished),SUM(nFilesUsed) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
         sqlNumJobs += "WHERE jediTaskID=:jediTaskID AND type IN ("
@@ -5424,6 +5440,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlNumJobs += '{0},'.format(mapKey)
         sqlNumJobs = sqlNumJobs[:-1]
         sqlNumJobs += ") AND masterID IS NULL "
+
         if useTransaction:
             # begin transaction
             self.conn.begin()
@@ -5434,8 +5451,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.cur.execute(sqlGPV+comment,varMap)
         resGPV = self.cur.fetchone()
         if resGPV is not None:
-            prodSourceLabel,preOutDiskCount,preOutDiskUnit,preWalltime,preRamCount,preRamUnit,preBaseRamCount,\
-                preWorkDiskCount,preCpuTime,preCpuEfficiency,preBaseWalltime,splitRule,preCpuTimeUnit,memory_leak_core \
+            prodSourceLabel, preOutDiskCount, preOutDiskUnit, preWalltime, preRamCount, preRamUnit, preBaseRamCount,\
+            preWorkDiskCount, preCpuTime, preCpuEfficiency, preBaseWalltime, splitRule, preCpuTimeUnit, \
+            memory_leak_core, memory_leak_x2 \
                 = resGPV
             # get preOutDiskCount in kB
             if preOutDiskCount not in [0,None]:
@@ -5462,7 +5480,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             preBaseWalltime = None
             splitRule = None
             preCpuTimeUnit = None
-            memory_leak_core = 0
         if preOutDiskUnit is not None and preOutDiskUnit.endswith('PerEvent'):
             preOutputScaleWithEvents = True
         else:
@@ -5529,6 +5546,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         memSizeDict  = {}
         leak_list    = []
         leak_dict    = {}
+        leak_x2_list = []
+        leak_x2_dict = {}
         workSizeList = []
         cpuTimeList  = []
         cpuTimeDict  = {}
@@ -5611,14 +5630,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     resDataList = self.cur.fetchall()
                 # loop over all jobs
                 for oneResData in resDataList:
-                    eventServiceJob,jobsetID,pandaID,jobStatus,outputFileBytes,jobMetrics,cpuConsumptionTime,actualCoreCount,\
-                        defCoreCount,startTime,endTime,computingSite,maxPSS,jobMetrics,nEvents,totRBYTES,totWBYTES,inputFileByte,memory_leak = oneResData
+                    eventServiceJob, jobsetID, pandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime,\
+                    actualCoreCount, defCoreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents,\
+                    totRBYTES, totWBYTES, inputFileByte, memory_leak, memory_leak_x2 = oneResData
+
                     # add inputSize and nEvents
                     if pandaID not in inFSizeMap:
                         inFSizeMap[pandaID] = totalFSize
                     if pandaID not in inEventsMap or eventServiceJob == EventServiceUtils.esJobFlagNumber:
                         inEventsMap[pandaID] = nEvents
                     totInSizeMap[pandaID] = inputFileByte
+
                     # get core power
                     if computingSite not in corePowerMap:
                         varMap = {}
@@ -5636,9 +5658,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     finishedJobs.append(pandaID)
                     inFSizeList.append(totalFSize)
                     jMetricsMap[pandaID] = jobMetrics
+
                     # core count
                     coreCount = JobUtils.getCoreCount(actualCoreCount,defCoreCount,jobMetrics)
                     coreCountMap[pandaID] = coreCount
+
                     # output size
                     tmpWorkSize = 0
                     if eventServiceJob != EventServiceUtils.esJobFlagNumber:
@@ -5666,6 +5690,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     outSizeDict[tmpVal] = pandaID
                         except Exception:
                             pass
+
                     # execution time
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
@@ -5678,6 +5703,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             execTimeMap[pandaID] = endTime-startTime
                         except Exception:
                             pass
+
                     # CPU time
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
@@ -5695,6 +5721,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     cpuTimeDict[tmpVal] = pandaID
                         except Exception:
                             pass
+
                     # IO
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
@@ -5706,6 +5733,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             ioIntentDict[tmpVal] = pandaID
                         except Exception:
                             pass
+
                     # disk IO
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
@@ -5715,6 +5743,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             diskIoList.append(tmpVal)
                         except Exception:
                             pass
+
                     # memory leak
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
@@ -5724,6 +5753,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             leak_dict[memory_leak_core_tmp] = pandaID
                         except:
                             pass
+                        # memory leak chi2 measurement
+                        try:
+                            memory_leak_x2_tmp = long(memory_leak_x2)
+                            leak_x2_list.append(memory_leak_x2_tmp)
+                            leak_x2_dict[memory_leak_x2_tmp] = pandaID
+                        except:
+                            pass
+                    
                     # RAM size
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
@@ -5748,11 +5785,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 memSizeDict[tmpMEM]= pandaID
                         except Exception:
                             pass
+
                     # use lib size as workdir size
                     if tmpWorkSize is None or (libSize is not None and libSize > tmpWorkSize):
                         tmpWorkSize = libSize
                     if tmpWorkSize is not None:
                         workSizeList.append(tmpWorkSize)
+
                     # CPU efficiency
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
@@ -5830,6 +5869,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if leak_list:
             ave_leak = long(math.ceil(sum(leak_list) / len(leak_list)))
             returnMap['memory_leak_core'] = ave_leak
+        if leak_x2_list:
+            ave_leak_x2 = long(math.ceil(sum(leak_x2_list) / len(leak_x2_list)))
+            returnMap['memory_leak_x2'] = ave_leak_x2
         if memSizeList != []:
             memVal, origValues = JediCoreUtils.percentile(memSizeList, ramCountRank, memSizeDict)
             for origValue in origValues:
@@ -5966,9 +6008,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
         # set average job data
-        scoutSucceeded,scoutData,extraInfo = self.getScoutJobData_JEDI(jediTaskID,
-                                                                       scoutSuccessRate=taskSpec.getScoutSuccessRate(),
-                                                                       flagJob=True)
+        scoutSucceeded, scoutData, extraInfo = self.getScoutJobData_JEDI(jediTaskID,
+                                                                         scoutSuccessRate=taskSpec.getScoutSuccessRate(),
+                                                                         flagJob=True)
         # sql to update task data
         if scoutData != {}:
             varMap = {}
@@ -6048,6 +6090,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if taskSpec.status != 'exhausted':
                 memory_leak_core_max = self.getConfigValue('dbproxy','SCOUT_MEM_LEAK_PER_CORE_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
                 memory_leak_core = scoutData.get('memory_leak_core')
+                memory_leak_x2 = scoutData.get('memory_leak_x2') # TODO: decide what to do with it
                 if memory_leak_core and memory_leak_core_max and memory_leak_core > memory_leak_core_max:
                     errMsg = '#ATM #KV action=set_exhausted since reason=scout_memory_leak {0} is larger than {1}'.\
                         format(memory_leak_core, memory_leak_core_max)
