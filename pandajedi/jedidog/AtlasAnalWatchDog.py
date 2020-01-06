@@ -124,7 +124,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                         continue
                     tmpLog.debug('user={0} {1} total={2} GB'.format(userName, transferType, userDict[transferType]['size']))
                     # too large
-                    userTotal = userDict[transferType]['size'] / (1024*1024*1024)
+                    userTotal = userDict[transferType]['size'] / 1024
                     if userTotal > maxSize:
                         tmpLog.debug('user={0} has too large {1} total={2} GB > limit={3} GB'.
                                      format(userName, transferType, userTotal, maxSize))
