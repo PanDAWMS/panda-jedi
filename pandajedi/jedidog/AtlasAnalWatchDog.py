@@ -124,9 +124,10 @@ class AtlasAnalWatchDog (WatchDogBase):
                         continue
                     tmpLog.debug('user={0} {1} total={2} GB'.format(userName, transferType, userDict[transferType]['size']))
                     # too large
-                    if userDict[transferType]['size'] > maxSize * 1024:
-                        tmpLog.debug('user={0} has too large {1} total={1} > limit={2} GB'.
-                                     format(userName, userDict[transferType]['size'], maxSize))
+                    userTotal = userDict[transferType]['size'] / (1024*1024*1024)
+                    if userTotal > maxSize:
+                        tmpLog.debug('user={0} has too large {1} total={2} GB > limit={3} GB'.
+                                     format(userName, transferType, userTotal, maxSize))
                         # throttle tasks
                         for taskID in userDict[transferType]['tasks']:
                             if userName not in thrUserTasks or transferType not in thrUserTasks[userName] \
