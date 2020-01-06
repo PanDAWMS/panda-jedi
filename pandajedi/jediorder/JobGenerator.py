@@ -1003,6 +1003,7 @@ class JobGeneratorThread (WorkerThread):
                     totalFileSize = 0
                     lumiBlockNr = None
                     setSpecialHandlingForJC = False
+                    setInputPrestaging = False
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
                         # get boundaryID if grouping is done with boundaryID
                         if useBoundary is not None and boundaryID is None:
@@ -1026,6 +1027,8 @@ class JobGeneratorThread (WorkerThread):
                                 tmpInFileSpec.status = 'ready'
                             elif tmpFileSpec.locality == 'cache':
                                 tmpInFileSpec.status = 'cached'
+                            elif tmpFileSpec.locality == 'localtape':
+                                setInputPrestaging = True
                             # local IO
                             if taskSpec.useLocalIO() or (inputChunk.isMerging and 'useLocalIO' in taskParamMap['mergeSpec']):
                                 tmpInFileSpec.prodDBlockToken = 'local'
@@ -1170,6 +1173,9 @@ class JobGeneratorThread (WorkerThread):
                     # scout
                     if inputChunk.useScout():
                         jobSpec.setScoutJobFlag()
+                    # prestaging
+                    if setInputPrestaging:
+                        jobSpec.setInputPrestaging()
                     # extract middle name
                     middleName = ''
                     if taskSpec.getFieldNumToLFN() is not None and jobSpec.prodDBlock not in [None,'NULL','']:

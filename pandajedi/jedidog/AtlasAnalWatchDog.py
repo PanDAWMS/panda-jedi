@@ -105,36 +105,49 @@ class AtlasAnalWatchDog (WatchDogBase):
             thrUserTasks = self.taskBufferIF.getThrottledUsersTasks_JEDI(self.vo,self.prodSourceLabel)
             # get dispatch datasets
             dispUserTasks = self.taskBufferIF.getDispatchDatasetsPerUser(self.vo,self.prodSourceLabel,True,True)
-            # max size of prestaging requests in MB
-            maxPrestaging = self.taskBufferIF.getConfigValue('anal_watchdog', 'PRESTAGE_LIMIT', 'jedi', 'atlas')
+            # max size of prestaging requests in GB
+            maxPrestaging = self.taskBufferIF.getConfigValue('anal_watchdog', 'USER_PRESTAGE_LIMIT', 'jedi', 'atlas')
             if maxPrestaging is None:
-                maxPrestaging = 1
-            maxPrestaging *= 1024*1024
+                maxPrestaging = 1024
+            # max size of transfer requests in GB
+            maxTransfer = self.taskBufferIF.getConfigValue('anal_watchdog', 'USER_TRANSFER_LIMIT', 'jedi', 'atlas')
+            if maxTransfer is None:
+                maxTransfer = 1024
             # throttle interval
             thrInterval = 120
             # loop over all users
-            for userName,userDict in iteritems(dispUserTasks):
-                tmpLog.debug('user={0} prestage_size={1} GB'.format(userName, userDict['size']/1024))
-                # too large
-                if userDict['size'] > maxPrestaging:
-                    tmpLog.debug('user={0} has too large prestaging size prestage_size={1} > prestage_limit={2} GB'.
-                                 format(userName, userDict['size'] / 1024, maxPrestaging / 1024))
-                    # throttle tasks
-                    for taskID in userDict['tasks']:
-                        if userName not in thrUserTasks or taskID not in thrUserTasks[userName]:
-                            tmpLog.debug('action=throttle_prestage jediTaskID={0} for user={1}'.format(taskID, userName))
-                            errDiag = 'throttled for {0} min due to large prestaging from TAPE or transfers from DISK'.format(thrInterval)
-                            self.taskBufferIF.throttleTask_JEDI(taskID,thrInterval,errDiag)
-                    # remove the user from the list
-                    if userName in thrUserTasks:
-                        del thrUserTasks[userName]
+            for userName, userDict in iteritems(dispUserTasks):
+                # loop over all transfer types
+                for transferType, maxSize in [('prestaging', maxPrestaging),
+                                               ('transfer', maxTransfer)]:
+                    if transferType not in userDict:
+                        continue
+                    tmpLog.debug('user={0} {1} total={2} GB'.format(userName, transferType, userDict[transferType]['size']))
+                    # too large
+                    if userDict[transferType]['size'] > maxSize * 1024:
+                        tmpLog.debug('user={0} has too large {1} total={1} > limit={2} GB'.
+                                     format(userName, userDict[transferType]['size'], maxSize))
+                        # throttle tasks
+                        for taskID in userDict[transferType]['tasks']:
+                            if userName not in thrUserTasks or transferType not in thrUserTasks[userName] \
+                                    or taskID not in thrUserTasks[userName][transferType]:
+                                tmpLog.debug('action=throttle_{0} jediTaskID={1} for user={2}'.format(transferType,
+                                                                                                      taskID, userName))
+                                errDiag = 'throttled for {0} min due to large data motion type={0}'.format(thrInterval,
+                                                                                                           transferType)
+                                self.taskBufferIF.throttleTask_JEDI(taskID,thrInterval,errDiag)
+                        # remove the user from the list
+                        if userName in thrUserTasks and transferType in thrUserTasks[userName]:
+                            del thrUserTasks[userName][transferType]
             # release users
-            for userName, taskIDs in iteritems(thrUserTasks):
-                tmpLog.debug('user={0} release throttled tasks'.format(userName))
-                # unthrottle tasks
-                for taskID in taskIDs:
-                    tmpLog.debug('action=release_prestage jediTaskID={0} for user={1}'.format(taskID, userName))
-                    self.taskBufferIF.releaseThrottledTask_JEDI(taskID)
+            for userName, taskData in iteritems(thrUserTasks):
+                for transferType, taskIDs in iteritems(taskData):
+                    tmpLog.debug('user={0} release throttled tasks with {1}'.format(userName, transferType))
+                    # unthrottle tasks
+                    for taskID in taskIDs:
+                        tmpLog.debug('action=release_{0} jediTaskID={1} for user={2}'.format(transferType,
+                                                                                             taskID, userName))
+                        self.taskBufferIF.releaseThrottledTask_JEDI(taskID)
             tmpLog.debug('done')
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]

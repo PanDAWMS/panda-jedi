@@ -10191,7 +10191,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get tasks
             varMap = {}
             varMap[':status'] = 'throttled'
-            sqlTL  = "SELECT jediTaskID,userName "
+            sqlTL  = "SELECT jediTaskID,userName,errorDialog "
             sqlTL += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTL += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlTL += "AND tabT.status=:status AND tabT.lockedBy IS NULL "
@@ -10207,10 +10207,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resTL = self.cur.fetchall()
             # loop over all tasks
             userTaskMap = {}
-            for jediTaskID,userName in resTL:
-                if userName not in userTaskMap:
-                    userTaskMap[userName] = set()
-                userTaskMap[userName].add(jediTaskID)
+            for jediTaskID, userName, errorDialog in resTL:
+                userTaskMap.setdefault(userName, {})
+                if 'type=prestaging' in errorDialog:
+                    trasnferType = 'prestaging'
+                else:
+                    trasnferType = 'transfer'
+                userTaskMap[userName].setdefault(trasnferType, set())
+                userTaskMap[userName][trasnferType].add(jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
