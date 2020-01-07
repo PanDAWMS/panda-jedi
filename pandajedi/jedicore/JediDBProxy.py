@@ -5890,11 +5890,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 returnMap['ramUnit'] = preRamUnit
             else:
                 returnMap['ramUnit'] = 'MB'
-                # use preset value if larger
-                if preRamCount is not None and preRamCount > memVal:
-                    returnMap['ramCount'] = preRamCount
-                else:
-                    returnMap['ramCount'] = memVal
+                returnMap['ramCount'] = memVal
         if workSizeList != []:
             median = max(workSizeList)
             returnMap['workDiskCount'] = long(median)
