@@ -1,7 +1,6 @@
 import re
 import sys
 import copy
-import types
 import random
 import datetime
 
@@ -57,6 +56,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
         siteAccessMap = {}
         for tmpSiteName,tmpAccess in siteAccessList:
             siteAccessMap[tmpSiteName] = tmpAccess
+        # disable VP for merging and forceStaged
+        if inputChunk.isMerging or taskSpec.useLocalIO():
+            useVP = False
+        else:
+            useVP = True
         # site limitation
         if taskSpec.useLimitedSites():
             if 'excludedSite' in taskParamMap:
@@ -192,11 +196,12 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     normFactor += 1
                     # get sites where replica is available
                     tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=True)
-                    tmpDiskSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=False)
+                    tmpDiskSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=False,
+                                                                                use_vp=useVP)
                     tmpNonVpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite, includeTape=True,
                                                                                  use_vp=False)
                     # get sites which can remotely access source sites
-                    if inputChunk.isMerging:
+                    if inputChunk.isMerging or taskSpec.useLocalIO():
                         # disable remote access for merging
                         tmpSatelliteSites = {}
                     elif (not sitePreAssigned) or (sitePreAssigned and taskSpec.site not in tmpSiteList):
@@ -889,10 +894,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # disable file lookup for merge jobs
                 if inputChunk.isMerging:
                     checkCompleteness = False
-                    useVP = False
                 else:
                     checkCompleteness = True
-                    useVP = True
                 # get available files per site/endpoint
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
                                                             siteStorageEP,
