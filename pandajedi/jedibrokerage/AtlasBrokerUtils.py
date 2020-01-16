@@ -52,7 +52,7 @@ def getHospitalQueues(siteMapper,prodSourceLabel,siteInNucleus=None,cloudForNucl
             tmpSiteSpec = siteMapper.getSite(tmpSiteName)
             scope_tmpSite_input, scope_tmpSite_output = select_scope(tmpSiteSpec, prodSourceLabel)
             # check DDM
-            if tmpT1Spec.ddm_output[scope_t1_output] == tmpSiteSpec.ddm_output[scope_tmpSite_output]:
+            if scope_t1_output in tmpT1Spec.ddm_output and scope_tmpSite_output in tmpSiteSpec.ddm_output and tmpT1Spec.ddm_output[scope_t1_output] == tmpSiteSpec.ddm_output[scope_tmpSite_output]:
                 # append
                 if tmpCloudName not in retMap:
                     retMap[tmpCloudName] = []
