@@ -357,7 +357,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     if diskio_limit_tmp is not None:
                         log_msg += 'diskIO_site_limit={:.2f} '.format(diskio_limit_tmp)
                     tmpLog.info(log_msg)
-                except:
+                except Exception:
                     tmpLog.debug('diskIO measurements: Error generating diskIO message')
 
                 # if the task has a diskIO defined, the queue is over the IO limit and the task IO is over the limit

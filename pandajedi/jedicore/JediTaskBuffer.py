@@ -1614,3 +1614,16 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+
+    # update DB according to message from idds in tape carousel use case
+    def updateAboutIddsMsgTapeCarousel_JEDI(self):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.updateAboutIddsMsgTapeCarousel_JEDI()
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
