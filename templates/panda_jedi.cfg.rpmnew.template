@@ -308,3 +308,15 @@ modConfig = atlas:managed|test:pandajedi.jedigen.AtlasTaskGenerator:AtlasTaskGen
 #modConfig = atlas:any:pandajedi.jedisetup.AtlasTaskSetupper:AtlasTaskSetupper,vo_example:any:pandajedi.jedisetup.GenTaskSetupper:GenTaskSetupper
 modConfig = atlas:any:pandajedi.jedisetup.AtlasTaskSetupper:AtlasTaskSetupper
 
+
+
+
+##########################
+#
+# Message Processor parameters
+#
+
+[msgprocessor]
+
+# json config file of message processors
+#configFile = /some/config.json
