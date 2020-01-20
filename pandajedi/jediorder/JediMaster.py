@@ -172,6 +172,13 @@ class JediMaster:
                                                      vo,plabel))
                 proc.start()
                 knightList.append(proc)
+        # setup JetiMsgProcessor agent (only one system process)
+        if hasattr(jedi_config, 'msgprocessor') and hasattr(jedi_config.msgprocessor, 'configFile') and jedi_config.msgprocessor.configFile:
+            parent_conn, child_conn = multiprocessing.Pipe()
+            proc = multiprocessing.Process(target=self.launcher,
+                                           args=('pandajedi.jediorder.JediMsgProcessor',))
+            proc.start()
+            knightList.append(proc)
         # check initial failures
         time.sleep(5)
         for knight in knightList:

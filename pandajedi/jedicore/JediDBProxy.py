@@ -5393,7 +5393,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlSCF += ") AND tabD.masterID IS NULL "
         if setPandaID is not None:
             sqlSCF += "AND tabF.PandaID=:usePandaID "
-        
+
         # sql to get normal scout job data from Panda
         sqlSCDN = "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
         sqlSCDN += "actualCoreCount, coreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents, "
@@ -5407,7 +5407,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlSCDN += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDN += "AND modificationTime>(CURRENT_DATE-14) "
-        
+
         # sql to get ES scout job data from Panda
         sqlSCDE  = "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
         sqlSCDE += "actualCoreCount, coreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents, "
@@ -5421,17 +5421,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlSCDE += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDE += "WHERE jobsetID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
         sqlSCDE += "AND modificationTime>(CURRENT_DATE-14) "
-        
+
         # get size of lib
         sqlLIB  = "SELECT MAX(fsize) "
         sqlLIB += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
         sqlLIB += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status AND "
         sqlLIB += "tabD.type=:type AND tabF.type=:type "
-        
+
         # get core power
         sqlCore  = "SELECT corepower FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
         sqlCore += "WHERE siteID=:site "
-        
+
         # get nJobs
         sqlNumJobs = "SELECT SUM(nFiles),SUM(nFilesFinished),SUM(nFilesUsed) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
         sqlNumJobs += "WHERE jediTaskID=:jediTaskID AND type IN ("
@@ -5751,16 +5751,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             memory_leak_core_tmp = long(math.ceil(memory_leak_core_tmp))
                             leak_list.append(memory_leak_core_tmp)
                             leak_dict[memory_leak_core_tmp] = pandaID
-                        except:
+                        except Exception:
                             pass
                         # memory leak chi2 measurement
                         try:
                             memory_leak_x2_tmp = long(memory_leak_x2)
                             leak_x2_list.append(memory_leak_x2_tmp)
                             leak_x2_dict[memory_leak_x2_tmp] = pandaID
-                        except:
+                        except Exception:
                             pass
-                    
+
                     # RAM size
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
@@ -12583,6 +12583,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return {}
 
+
+
     # get nQ/nR ratio
     def get_nq_nr_ratio_JEDI(self, source_label):
         comment = ' /* JediDBProxy.get_nq_nr_ratio_JEDI */'
@@ -12613,6 +12615,25 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 retMap[computingSite] = avg
             tmpLog.debug('done')
             return retMap
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return {}
+
+
+
+    # update DB according to message from idds in tape carousel use case
+    def updateAboutIddsMsgTapeCarousel_JEDI(self):
+        comment = ' /* JediDBProxy.updateAboutIddsMsgTapeCarousel_JEDI */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # TODO
+            # sql
+            pass
         except Exception:
             # roll back
             self._rollback()
