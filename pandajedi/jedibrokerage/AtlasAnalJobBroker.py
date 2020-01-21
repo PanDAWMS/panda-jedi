@@ -57,7 +57,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         for tmpSiteName,tmpAccess in siteAccessList:
             siteAccessMap[tmpSiteName] = tmpAccess
         # disable VP for merging and forceStaged
-        if inputChunk.isMerging or taskSpec.useLocalIO():
+        if inputChunk.isMerging:
             useVP = False
         else:
             useVP = True
