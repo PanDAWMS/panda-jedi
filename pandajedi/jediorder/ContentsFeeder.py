@@ -193,10 +193,11 @@ class ContentsFeederThread (WorkerThread):
                                     # dummy metadata for pseudo dataset
                                     tmpMetadata = {'state':'closed'}
                                 # set mutable when and the dataset is open and parent is running or task is configured to run until the dataset is closed
-                                if (noWaitParent or taskSpec.runUntilClosed()) and \
-                                        (tmpMetadata['state'] == 'open' \
-                                             or datasetSpec.datasetName in parentOutDatasets \
-                                             or datasetSpec.datasetName.split(':')[-1] in parentOutDatasets):
+                                if (noWaitParent or taskSpec.runUntilClosed() or taskSpec.inputPreStaging()) and \
+                                        (tmpMetadata['state'] == 'open'
+                                        or datasetSpec.datasetName in parentOutDatasets
+                                        or datasetSpec.datasetName.split(':')[-1] in parentOutDatasets
+                                        or taskSpec.inputPreStaging()):
                                     # dummy metadata when parent is running
                                     tmpMetadata = {'state':'mutable'}
                                 gotMetadata = True
@@ -499,7 +500,9 @@ class ContentsFeederThread (WorkerThread):
                                     if diagMap['isRunningTask']:
                                         runningTask = True
                                     # no activated pending input for noWait
-                                    if noWaitParent and diagMap['nActivatedPending'] == 0 and not (useScout and nChunksForScout <= 0) \
+                                    if (noWaitParent or taskSpec.inputPreStaging()) \
+                                            and diagMap['nActivatedPending'] == 0 \
+                                            and not (useScout and nChunksForScout <= 0) \
                                             and tmpMetadata['state'] != 'closed' and datasetSpec.isMaster():
                                         tmpErrStr = 'insufficient inputs are ready. '
                                         tmpErrStr += diagMap['errMsg']
