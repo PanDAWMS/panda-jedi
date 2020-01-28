@@ -33,6 +33,8 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
                 target_list = msg_dict['files']
             elif msg_type == 'collection_stagein':
                 target_list = msg_dict['collections']
+            else:
+                raise ValueError('invalid msg_type value: {0}'.format(msg_type))
         except Exception as e:
             err_str = 'failed to parse message object dict {2}, skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_dict)
             tmp_log.error(err_str)
