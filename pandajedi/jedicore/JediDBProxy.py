@@ -12624,19 +12624,92 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
-    # update DB according to message from idds in tape carousel use case
-    def updateAboutIddsMsgTapeCarousel_JEDI(self):
-        comment = ' /* JediDBProxy.updateAboutIddsMsgTapeCarousel_JEDI */'
+    # update input files stage-in done according to message from idds
+    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames):
+        comment = ' /* JediDBProxy.updateInputFilesStagedAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # TODO
+            retVal = 0
+            # varMap
+            varMap = dict()
+            varMap[':jediTaskID'] = jeditaskid
+            varMap[':scope'] = scope
+            varMap[':type'] = 'input'
+            varMap[':old_status'] = 'staging'
+            varMap[':new_status'] = 'pending'
             # sql
-            pass
+            sqlUF = ('UPDATE FROM {0}.JEDI_Dataset_Contents as c, {0}.JEDI_Datasets as d '
+                        'SET c.status=:new_status '
+                        'WHERE d.jediTaskID=:jediTaskID '
+                        'AND d.type=:type '
+                        'AND c.datasetID=d.datasetID '
+                        'AND c.status=:old_status '
+                        'AND c.scope=:scope '
+                        'AND c.lfn=:lfn '
+                    ).format(jedi_config.db.schemaJEDI)
+            # begin transaction
+            self.conn.begin()
+            # loop over filenames
+            i_count = 0
+            for filename in filenames:
+                varMap[':lfn'] = filename
+                self.cur.execute(sqlUF, varMap)
+                i_count += 1
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            retVal = i_count
+            return retVal
         except Exception:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return {}
+            return None
+
+
+
+    # update input datasets stage-in done according to message from idds
+    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames):
+        comment = ' /* JediDBProxy.updateInputDatasetsStagedAboutIdds_JEDI */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = 0
+            # varMap
+            varMap = dict()
+            varMap[':jediTaskID'] = jeditaskid
+            varMap[':scope'] = scope
+            varMap[':type'] = 'input'
+            varMap[':old_status'] = 'staging'
+            varMap[':new_status'] = 'pending'
+            # sql
+            sqlUD = ('UPDATE FROM {0}.JEDI_Dataset_Contents as c, {0}.JEDI_Datasets as d '
+                        'SET c.status=:new_status '
+                        'WHERE d.jediTaskID=:jediTaskID '
+                        'AND d.type=:type '
+                        'AND d.datasetName=:datasetName '
+                        'AND c.datasetID=d.datasetID '
+                        'AND c.status=:old_status '
+                        'AND c.scope=:scope '
+                    ).format(jedi_config.db.schemaJEDI)
+            # begin transaction
+            self.conn.begin()
+            for dsname in dsnames:
+                varMap[':datasetName'] = dsname
+                self.cur.execute(sqlUD, varMap)
+                i_count += 1
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            retVal = i_count
+            return retVal
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
