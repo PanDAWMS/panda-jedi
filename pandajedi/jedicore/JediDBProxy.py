@@ -3,7 +3,6 @@ import os
 import sys
 import copy
 import math
-import types
 import numpy
 import random
 import logging
@@ -308,7 +307,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('datasetState={0} dataset.state={1}'.format(datasetState,datasetSpec.state))
         tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1} skipFilesUsedBy={2} ramCount={3}'.format(respectLB,tgtNumEventsPerJob,
                                                                                        skipFilesUsedBy, ramCount))
-        tmpLog.debug('skipShortInput={0}'.format(skipShortInput))
+        tmpLog.debug('skipShortInput={0} inputPreStaging={1}'.format(skipShortInput, taskSpec.inputPreStaging()))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -320,7 +319,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # max number of file records per dataset
         maxFileRecords = 200000
         # mutable
-        if noWaitParent and datasetState == 'mutable':
+        if (noWaitParent or taskSpec.inputPreStaging()) and datasetState == 'mutable':
             isMutableDataset = True
         else:
             isMutableDataset = False
@@ -675,6 +674,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nPending = 0
             nUsed    = 0
             nLost    = 0
+            nStaging = 0
             pendingFID = []
             oldDsStatus = None
             newDsStatus = None
@@ -817,6 +817,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                             nFilesToUseEventSplit += 1
                                     except Exception:
                                         pass
+                            elif status == 'staging':
+                                nStaging += 1
                             elif status not in ['lost','missing']:
                                 nUsed += 1
                             elif status in ['lost','missing']:
@@ -827,7 +829,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     nEventsLost += existingFiles[uniqueFileKey]['nevents']
                                 else:
                                     nEventsExist += existingFiles[uniqueFileKey]['nevents']
-                        tmpLog.debug('inDB nReady={0} nPending={1} nUsed={2} nLost={3}'.format(nReady,nPending,nUsed,nLost))
+                        tmpLog.debug('inDB nReady={0} nPending={1} nUsed={2} nLost={3} nStaging={4}'.format(
+                            nReady, nPending, nUsed, nLost, nStaging))
                         # insert files
                         uniqueLfnList = {}
                         totalNumEventsF = 0
@@ -862,8 +865,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             # avoid duplication
                             if uniqueFileKey in existingFiles:
                                 continue
-                            # go pending if no wait
-                            if isMutableDataset:
+                            if taskSpec.inputPreStaging():
+                                # go to staging
+                                fileSpec.status = 'staging'
+                            elif isMutableDataset:
+                                # go pending if no wait
                                 fileSpec.status = 'pending'
                                 nPending += 1
                             nInsert += 1
@@ -890,7 +896,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             resFID = self.cur.fetchall()
                             for fileID, in resFID:
                                 newFileIDs.append(fileID)
-                        if isMutableDataset:
+                        if not taskSpec.inputPreStaging() and isMutableDataset:
                             pendingFID += newFileIDs
                         # sort fileID
                         tmpLog.debug('sort fileIDs')
@@ -953,7 +959,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 if not enoughPendingWithSL:
                                     break
                             numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
-                            tmpLog.debug('respecting SL nFiles={0} isEnough={1} nFilesPerJob={2} maxSize={3}'.format(numFilesWithSL, enoughPendingWithSL,
+                            tmpLog.debug('respecting SR nFiles={0} isEnough={1} nFilesPerJob={2} maxSize={3}'.format(numFilesWithSL, enoughPendingWithSL,
                                                                                                                      taskSpec.getNumFilesPerJob(),
                                                                                                                      maxSizePerJob))
                         # activate pending
@@ -1127,13 +1133,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
-            tmpLog.debug('inserted {0} rows with {1} activated, {2} pending, {3} ready, {4} unprocessed, status={5}->{6}'.format(nInsert,
-                                                                                                                                 nActivatedPending,
-                                                                                                                                 nPending-nActivatedPending,
-                                                                                                                                 nReady,
-                                                                                                                                 nFilesUnprocessed,
-                                                                                                                                 oldDsStatus,
-                                                                                                                                 newDsStatus))
+            tmpLog.debug(('inserted rows={0} with activated={1}, pending={2}, ready={3},'
+                         'unprocessed={4}, staging={5} status={6}->{7}').format(nInsert, nActivatedPending,
+                                                                    nPending-nActivatedPending,
+                                                                    nReady,
+                                                                    nStaging,
+                                                                    nFilesUnprocessed,
+                                                                    oldDsStatus,
+                                                                    newDsStatus))
             regTime = datetime.datetime.utcnow() - regStart
             tmpLog.debug('took %s.%03d sec' % (regTime.seconds,regTime.microseconds/1000))
             return retVal

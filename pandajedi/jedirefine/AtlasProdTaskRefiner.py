@@ -6,7 +6,6 @@ import datetime
 
 from six import iteritems
 
-from pandajedi.jedicore import Interaction
 from .TaskRefinerBase import TaskRefinerBase
 
 from pandaserver.dataservice import DataServiceUtils
@@ -150,6 +149,10 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                                 for metadataName,metadaValue in iteritems(metaData):
                                     self.ddmIF.getInterface(self.taskSpec.vo).setDatasetMetadata(datasetSpec.datasetName,
                                                                                                  metadataName,metadaValue)
+            # input prestaging
+            if self.taskSpec.inputPreStaging() and 'prestagingRuleID' in taskParamMap:
+                # send request to iDDS
+                pass
         except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             tmpLog.error('doBasicRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))

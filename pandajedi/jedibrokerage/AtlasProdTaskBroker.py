@@ -287,6 +287,18 @@ class AtlasProdTaskBrokerThread (WorkerThread):
         thrInputNumFrac = float(thrInputNumFrac) / 100
         cutOffRW = 50
         negWeightTape = 0.001
+        minIoIntensityWithLD = self.taskBufferIF.getConfigValue(self.msgType, 'MIN_IO_INTENSITY_WITH_LOCAL_DATA',
+                                                                'jedi', 'atlas')
+        if minIoIntensityWithLD is None:
+            minIoIntensityWithLD = 200
+        minInputSizeWithLD = self.taskBufferIF.getConfigValue(self.msgType, 'MIN_INPUT_SIZE_WITH_LOCAL_DATA',
+                                                                'jedi', 'atlas')
+        if minInputSizeWithLD is None:
+            minInputSizeWithLD = 10000
+        maxTaskPrioWithLD = self.taskBufferIF.getConfigValue(self.msgType, 'MAX_TASK_PRIO_WITH_LOCAL_DATA',
+                                                                'jedi', 'atlas')
+        if maxTaskPrioWithLD is None:
+            maxTaskPrioWithLD = 800
         # main
         lastJediTaskID = None
         siteMapper = self.taskBufferIF.getSiteMapper()
@@ -518,13 +530,24 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     skipMsgList.append(tmpMsg)
                                 else:
                                     newNucleusList[tmpNucleus] = tmpNucleusSpec
+                            totInputSize = availableData.values()[0]['tot_size']/1024/1024/1024
                             if len(newNucleusList) > 0:
                                 nucleusList = newNucleusList
                                 for tmpMsg in skipMsgList:
                                     tmpLog.info(tmpMsg)
-                            else:
+                            elif ((taskSpec.ioIntensity is None
+                                  or taskSpec.ioIntensity <= minIoIntensityWithLD)
+                                  and totInputSize <= minInputSizeWithLD) \
+                                  or taskSpec.taskPriority >= maxTaskPrioWithLD:
                                 availableData = {}
-                                tmpLog.info('  disable data locality check since no nucleus has input data')
+                                tmpLog.info(('  disable data locality check since no nucleus has input data, '
+                                            '(ioIntensity {0} kBPerS is None or less than {1} '
+                                            'and input size {2} GB is less than {3}) '
+                                            'or task priority {4} is higher than or equal to {5}').format(
+                                    taskSpec.ioIntensity, minIoIntensityWithLD,
+                                    totInputSize, minInputSizeWithLD,
+                                    taskSpec.taskPriority, maxTaskPrioWithLD)
+                                )
                             tmpLog.info('{0} candidates passed data check'.format(len(nucleusList)))
                             if nucleusList == {}:
                                 tmpLog.error('no candidates')

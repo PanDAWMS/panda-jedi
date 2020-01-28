@@ -60,6 +60,7 @@ class JediTaskSpec(object):
         'allowInputLAN'      : 'IL',
         'ignoreMissingInDS'  : 'IM',
         'ipConnectivity'     : 'IP',
+        'inputPreStaging'    : 'IS',
         'instantiateTmpl'    : 'IT',
         'allowInputWAN'      : 'IW',
         'useLocalIO'         : 'LI',
@@ -151,6 +152,10 @@ class JediTaskSpec(object):
                      'pending': 'P',
                      'lack': 'L',
                      'disabled': 'D'}
+
+    # enum for input prestaging
+    enum_inputPreStaging = {'use': '1',
+                            'notUse': '0'}
 
 
     # constructor
@@ -1036,6 +1041,15 @@ class JediTaskSpec(object):
                 return True
         return False
 
+
+    # input prestaging
+    def inputPreStaging(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['inputPreStaging']+'='+self.enum_inputPreStaging['use'],
+                                 self.splitRule)
+            if tmpMatch is not None:
+                return True
+        return False
 
 
     # set DDM backend

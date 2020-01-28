@@ -326,6 +326,9 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['useZipToPin'])
         if 'osMatching' in taskParamMap and taskParamMap['osMatching'] is True:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['osMatching'])
+        if 'inputPreStaging' in taskParamMap and taskParamMap['inputPreStaging'] is True:
+            self.setSplitRule(None, JediTaskSpec.enum_inputPreStaging['use'],
+                              JediTaskSpec.splitRuleToken['inputPreStaging'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
