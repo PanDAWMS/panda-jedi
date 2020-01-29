@@ -12631,19 +12631,106 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
-    # update DB according to message from idds in tape carousel use case
-    def updateAboutIddsMsgTapeCarousel_JEDI(self):
-        comment = ' /* JediDBProxy.updateAboutIddsMsgTapeCarousel_JEDI */'
+    # update input files stage-in done according to message from idds
+    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames):
+        comment = ' /* JediDBProxy.updateInputFilesStagedAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} >".format(jeditaskid)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # TODO
-            # sql
-            pass
+            retVal = 0
+            # varMap
+            varMap = dict()
+            varMap[':jediTaskID'] = jeditaskid
+            varMap[':type'] = 'input'
+            # sql to get datasetIDs
+            sqlGD = ('SELECT datasetID FROM {0}.JEDI_Datasets'
+                     ' WHERE jediTaskID=:jediTaskID AND type=:type '
+                     ).format(jedi_config.db.schemaJEDI)
+            # sql to update file status
+            sqlUF = ('UPDATE {0}.JEDI_Dataset_Contents '
+                     'SET status=:new_status '
+                     'WHERE jediTaskID=:jediTaskID '
+                     'AND status=:old_status '
+                     'AND scope=:scope '
+                     'AND lfn=:lfn '
+                     'AND datasetID IN ('
+                    ).format(jedi_config.db.schemaJEDI)
+            # begin transaction
+            self.conn.begin()
+            # get datasetIDs
+            self.cur.execute(sqlGD+comment, varMap)
+            varMap = dict()
+            varMap[':jediTaskID'] = jeditaskid
+            varMap[':scope'] = scope
+            varMap[':old_status'] = 'staging'
+            varMap[':new_status'] = 'pending'
+            resGD = self.cur.fetchall()
+            if len(resGD) > 0:
+                for idx, (id,) in enumerate(resGD):
+                    key = ':datasetID_{0}'.format(idx)
+                    sqlUF += '{0},'.format(key)
+                    varMap[key] = id
+                sqlUF = sqlUF[:-1]
+                sqlUF += ') '
+                # loop over filenames
+                for filename in filenames:
+                    varMap[':lfn'] = filename
+                    self.cur.execute(sqlUF+comment, varMap)
+                    retVal += self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('updated {0} files'.format(retVal))
+            return retVal
         except Exception:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return {}
+            return None
+
+
+
+    # update input datasets stage-in done according to message from idds
+    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames):
+        comment = ' /* JediDBProxy.updateInputDatasetsStagedAboutIdds_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} >".format(jeditaskid)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = 0
+            # varMap
+            varMap = dict()
+            varMap[':jediTaskID'] = jeditaskid
+            varMap[':type'] = 'input'
+            varMap[':old_status'] = 'staging'
+            varMap[':new_status'] = 'pending'
+            # sql
+            sqlUD = ('UPDATE {0}.JEDI_Dataset_Contents '
+                     'SET status=:new_status '
+                     'WHERE jediTaskID=:jediTaskID '
+                     'AND datasetID IN ('
+                     'SELECT datasetID FROM {0}.JEDI_Datasets '
+                     'WHERE jediTaskID=:jediTaskID AND type=:type AND datasetName=:datasetName) '
+                     'AND status=:old_status '
+                    ).format(jedi_config.db.schemaJEDI)
+            # begin transaction
+            self.conn.begin()
+            for dsname in dsnames:
+                varMap[':datasetName'] = '{0}:{1}'.format(scope, dsname)
+                self.cur.execute(sqlUD+comment, varMap)
+                retVal += self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('updated {0} files'.format(retVal))
+            return retVal
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
