@@ -511,10 +511,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             # skip if no data
                             skipMsgList = []
                             for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
-                                if len(nucleusList) == 1:
-                                    tmpLog.info('  disable data locality check for nucleus={0} since no other candidate'.format(tmpNucleus))
-                                    newNucleusList[tmpNucleus] = tmpNucleusSpec
-                                elif availableData[tmpNucleus]['tot_size'] > thrInputSize and \
+                                if availableData[tmpNucleus]['tot_size'] > thrInputSize and \
                                         availableData[tmpNucleus]['ava_size_any'] < availableData[tmpNucleus]['tot_size'] * thrInputSizeFrac:
                                     tmpMsg = '  skip nucleus={0} due to insufficient input size {1}B < {2}*{3} criteria=-insize'.format(tmpNucleus,
                                                                                                                                         availableData[tmpNucleus]['ava_size_any'],
@@ -548,6 +545,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     totInputSize, minInputSizeWithLD,
                                     taskSpec.taskPriority, maxTaskPrioWithLD)
                                 )
+                            else:
+                                nucleusList = newNucleusList
                             tmpLog.info('{0} candidates passed data check'.format(len(nucleusList)))
                             if nucleusList == {}:
                                 tmpLog.error('no candidates')
