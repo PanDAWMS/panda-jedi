@@ -26,18 +26,18 @@ VO = 'atlas'
 class AtlasAnalJobBroker (JobBrokerBase):
 
     # constructor
-    def __init__(self,ddmIF,taskBufferIF):
-        JobBrokerBase.__init__(self,ddmIF,taskBufferIF)
+    def __init__(self, ddmIF, taskBufferIF):
+        JobBrokerBase.__init__(self, ddmIF, taskBufferIF)
         self.dataSiteMap = {}
 
     # wrapper for return
-    def sendLogMessage(self,tmpLog):
+    def sendLogMessage(self, tmpLog):
         # send info to logger
         tmpLog.bulkSendMsg('analy_brokerage')
         tmpLog.debug('sent')
 
     # main
-    def doBrokerage(self,taskSpec,cloudName,inputChunk,taskParamMap):
+    def doBrokerage(self, taskSpec, cloudName, inputChunk, taskParamMap):
         # make logger
         tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),
                             monToken='<jediTaskID={0} {1}>'.format(taskSpec.jediTaskID,
@@ -52,7 +52,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
         includeList = None
         scanSiteList = []
         # get list of site access
-        siteAccessList = self.taskBufferIF.listSiteAccess(None,taskSpec.userName)
+        siteAccessList = self.taskBufferIF.listSiteAccess(None, taskSpec.userName)
         siteAccessMap = {}
         for tmpSiteName,tmpAccess in siteAccessList:
             siteAccessMap[tmpSiteName] = tmpAccess
@@ -818,25 +818,24 @@ class AtlasAnalJobBroker (JobBrokerBase):
             overloadedNonVP = []
             msgList = []
             msgListVP = []
-            minQueue = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_MIN_QUEUE',
-                                                        'jedi', taskSpec.vo)
+            minQueue = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_MIN_QUEUE', 'jedi', taskSpec.vo)
             if minQueue is None:
                 minQueue = 20
-            ratioOffset = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_RATIO_OFFSET',
-                                                        'jedi', taskSpec.vo)
+            ratioOffset = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_RATIO_OFFSET', 'jedi',
+                                                           taskSpec.vo)
             if ratioOffset is None:
                 ratioOffset = 1.2
-            grandRatio = AtlasBrokerUtils.get_total_nq_nr_ratio(jobStatPrioMap)
+            grandRatio = AtlasBrokerUtils.get_total_nq_nr_ratio(jobStatPrioMap, taskSpec.gshare)
             tmpLog.info('grand nQueue/nRunning ratio : {0}'.format(grandRatio))
             tmpLog.info('sites with non-VP data : {0}'.format(','.join(scanSiteWoVP)))
             for tmpPseudoSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
                 tmpSiteName = tmpSiteSpec.get_unified_name()
                 # get nQueue and nRunning
-                nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', None, None)
+                nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', workQueue_tag=taskSpec.gshare)
                 nQueue = 0
                 for jobStatus in ['defined', 'assigned', 'activated', 'starting']:
-                    nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus, None, None)
+                    nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus, workQueue_tag=taskSpec.gshare)
                 # skip if overloaded
                 if nQueue > minQueue and \
                         (nRunning == 0 or float(nQueue) / float(nRunning) > grandRatio * ratioOffset):
@@ -951,12 +950,11 @@ class AtlasAnalJobBroker (JobBrokerBase):
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
-            # get number of jobs in each job status. Using workQueueID=None to include non-JEDI jobs
-            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'running',  None,None)
-            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'defined',  None,None)
-            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'assigned', None,None)
-            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'activated',None,None)
-            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'starting', None,None)
+            nRunning   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', workQueue_tag=taskSpec.gshare)
+            nDefined   = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'defined', workQueue_tag=taskSpec.gshare)
+            nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'assigned', workQueue_tag=taskSpec.gshare)
+            nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'activated', workQueue_tag=taskSpec.gshare)
+            nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'starting', workQueue_tag=taskSpec.gshare)
             nFailed    = 0
             nClosed    = 0
             nFinished  = 0
@@ -974,9 +972,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
             weight = float(nRunning + 1) / float(nActivated + nAssigned + nDefined + nStarting + 1)
             nThrottled = 0
             if tmpSiteName in remoteSourceList:
-                nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap,tmpSiteName,'throttled',None,None)
+                nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'throttled', workQueue_tag=taskSpec.gshare)
                 weight /= float(nThrottled + 1)
-            # noramize weights by taking data availability into account
+            # normalize weights by taking data availability into account
             diskNorm = 10
             tapeNorm = 1000
             localSize = totalSize
