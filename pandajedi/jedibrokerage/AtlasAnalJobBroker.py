@@ -821,7 +821,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # count jobs per resource type
                 tmpRet, tmpStatMap = self.taskBufferIF.getJobStatisticsByResourceTypeSite(workQueue)
                 newScanSiteList = []
-                newSkippedTmp = dict()
                 RT_Cap = 2
                 for tmpSiteName in self.get_unified_sites(scanSiteList):
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -838,10 +837,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             tmpMsg += 'since nQueue/max(20,nRun) with gshare+resource_type is '
                             tmpMsg += '{0}/max(20,{1}) > {2} '.format(tmpRTqueue, tmpRTrunning, RT_Cap)
                             tmpMsg += 'criteria=-cap_rt'
-                            # temporary problem
-                            newSkippedTmp[tmpSiteName] = tmpMsg
                     newScanSiteList.append(tmpSiteName)
-                siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
                 scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
                 tmpLog.info('{0} candidates passed for cap with gshare+resource_type check'.format(len(scanSiteList)))
                 if not scanSiteList:
