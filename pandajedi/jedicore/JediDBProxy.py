@@ -12635,8 +12635,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames):
         comment = ' /* JediDBProxy.updateInputFilesStagedAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jeditaskid)
-        tmpLog = MsgWrapper(logger,methodName)
+        methodName += ' < jediTaskID={0} >'.format(jeditaskid)
+        tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
         try:
             retVal = 0
@@ -12660,6 +12660,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             # get datasetIDs
+            tmpLog.debug('running sql: {0} {1}'.format(sqlGD, varMap))
             self.cur.execute(sqlGD+comment, varMap)
             varMap = dict()
             varMap[':jediTaskID'] = jeditaskid
@@ -12677,6 +12678,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # loop over filenames
                 for filename in filenames:
                     varMap[':lfn'] = filename
+                    tmpLog.debug('running sql: {0} {1}'.format(sqlUF, varMap))
                     self.cur.execute(sqlUF+comment, varMap)
                     retVal += self.cur.rowcount
             # commit
@@ -12697,8 +12699,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames):
         comment = ' /* JediDBProxy.updateInputDatasetsStagedAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jeditaskid)
-        tmpLog = MsgWrapper(logger,methodName)
+        methodName += ' < jediTaskID={0} >'.format(jeditaskid)
+        tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
         try:
             retVal = 0
@@ -12721,6 +12723,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.conn.begin()
             for dsname in dsnames:
                 varMap[':datasetName'] = '{0}:{1}'.format(scope, dsname)
+                tmpLog.debug('running sql: {0} {1}'.format(sqlUD, varMap))
                 self.cur.execute(sqlUD+comment, varMap)
                 retVal += self.cur.rowcount
             # commit
