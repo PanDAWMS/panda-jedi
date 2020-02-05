@@ -22,9 +22,9 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
         try:
             msg_dict = json.loads(msg_obj.data)
         except Exception as e:
-            err_str = 'failed to parse message object {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_obj.data)
+            err_str = 'failed to parse message json {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_obj.data)
             tmp_log.error(err_str)
-            return
+            raise
         # sanity check
         try:
             msg_type = msg_dict['msg_type']
@@ -36,9 +36,9 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
             else:
                 raise ValueError('invalid msg_type value: {0}'.format(msg_type))
         except Exception as e:
-            err_str = 'failed to parse message object dict {2}, skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_dict)
+            err_str = 'failed to parse message object dict {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_dict)
             tmp_log.error(err_str)
-            return
+            raise
         # run
         try:
             # map
@@ -51,7 +51,7 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
                 name = target['name']
                 scope = target['scope']
                 scope_name_list_map.setdefault(scope, [])
-                scope_name_list_map['scope'].append(name)
+                scope_name_list_map[scope].append(name)
             # run by each scope
             for scope, name_list in scope_name_list_map.items():
                 # about files or datasets
@@ -71,6 +71,6 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
         except Exception as e:
             err_str = 'failed to parse message object, skipped. {0} : {1}'.format(e.__class__.__name__, e)
             tmp_log.error(err_str)
-            return
+            raise
         # done
         tmp_log.info('done')

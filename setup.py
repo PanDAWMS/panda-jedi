@@ -188,6 +188,7 @@ setup(
                'pandajedi.jedithrottle',
                'pandajedi.jedibrokerage',
                'pandajedi.jedipprocess',
+               'pandajedi.jedimsgprocessor',
               ],
     install_requires=[
         'six',
