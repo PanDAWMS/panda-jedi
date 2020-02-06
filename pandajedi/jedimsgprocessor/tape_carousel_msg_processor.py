@@ -28,7 +28,7 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
         # sanity check
         try:
             msg_type = msg_dict['msg_type']
-            jeditaskid = msg_dict['workload_id']
+            jeditaskid = int(msg_dict['workload_id'])
             if msg_type == 'file_stagein':
                 target_list = msg_dict['files']
             elif msg_type == 'collection_stagein':
