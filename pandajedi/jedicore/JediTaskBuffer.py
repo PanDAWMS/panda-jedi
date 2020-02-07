@@ -77,7 +77,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,
                                    excludePatt,xmlConfig,noWaitParent,parent_tid,pid,maxFailure,
                                    useRealNumEvents,respectLB,tgtNumEventsPerJob,skipFilesUsedBy,
-                                   ramCount,taskSpec,skipShortInput):
+                                   ramCount,taskSpec,skipShortInput, inputPreStaging):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -90,7 +90,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
                                                   noWaitParent,parent_tid,pid,maxFailure,
                                                   useRealNumEvents,respectLB,
                                                   tgtNumEventsPerJob,skipFilesUsedBy,
-                                                  ramCount,taskSpec,skipShortInput)
+                                                  ramCount,taskSpec,skipShortInput, inputPreStaging)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1636,6 +1636,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         proxy = self.proxyPool.getProxy()
         # exec
         retVal = proxy.updateInputDatasetsStagedAboutIdds_JEDI(jeditaskid, scope, dsnames)
+        # release proxy
+        self.proxyPool.putProxy(proxy)
+        # return
+        return retVal
+
+
+
+   # get number of staging files
+    def getNumStagingFiles_JEDI(self, jeditaskid):
+        # get DBproxy
+        proxy = self.proxyPool.getProxy()
+        # exec
+        retVal = proxy.getNumStagingFiles_JEDI(jeditaskid)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
