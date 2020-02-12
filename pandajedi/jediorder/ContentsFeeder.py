@@ -182,6 +182,15 @@ class ContentsFeederThread (WorkerThread):
                             # index consistency
                             if datasetSpec.indexConsistent():
                                 datasetsIdxConsistency.append(datasetSpec.datasetID)
+                            # prestaging
+                            if taskSpec.inputPreStaging():
+                                nStaging = self.taskBufferIF.getNumStagingFiles_JEDI(taskSpec.jediTaskID)
+                                if nStaging is not None and nStaging == 0 and datasetSpec.nFiles > 0:
+                                    inputPreStaging = False
+                                else:
+                                    inputPreStaging = True
+                            else:
+                                inputPreStaging = False
                             # get dataset metadata
                             tmpLog.debug('get metadata')
                             gotMetadata = False
@@ -192,12 +201,12 @@ class ContentsFeederThread (WorkerThread):
                                 else:
                                     # dummy metadata for pseudo dataset
                                     tmpMetadata = {'state':'closed'}
-                                # set mutable when and the dataset is open and parent is running or task is configured to run until the dataset is closed
-                                if (noWaitParent or taskSpec.runUntilClosed() or taskSpec.inputPreStaging()) and \
+                                # set mutable when the dataset is open and parent is running or task is configured to run until the dataset is closed
+                                if (noWaitParent or taskSpec.runUntilClosed() or inputPreStaging) and \
                                         (tmpMetadata['state'] == 'open'
                                         or datasetSpec.datasetName in parentOutDatasets
                                         or datasetSpec.datasetName.split(':')[-1] in parentOutDatasets
-                                        or taskSpec.inputPreStaging()):
+                                        or inputPreStaging):
                                     # dummy metadata when parent is running
                                     tmpMetadata = {'state':'mutable'}
                                 gotMetadata = True
@@ -435,35 +444,37 @@ class ContentsFeederThread (WorkerThread):
                                         skipShortInput = False
                                     # feed files to the contents table
                                     tmpLog.debug('update contents')
-                                    retDB,missingFileList,nFilesUnique,diagMap = self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
-                                                                                                                              tmpMetadata['state'],
-                                                                                                                              stateUpdateTime,
-                                                                                                                              nEventsPerFile,
-                                                                                                                              nEventsPerJob,
-                                                                                                                              maxAttempt,
-                                                                                                                              firstEventNumber,
-                                                                                                                              nMaxFiles,
-                                                                                                                              nMaxEvents,
-                                                                                                                              useScout,
-                                                                                                                              fileList,
-                                                                                                                              useFilesWithNewAttemptNr,
-                                                                                                                              nFilesPerJob,
-                                                                                                                              nEventsPerRange,
-                                                                                                                              nChunksForScout,
-                                                                                                                              includePatt,
-                                                                                                                              excludePatt,
-                                                                                                                              xmlConfig,
-                                                                                                                              noWaitParent,
-                                                                                                                              taskSpec.parent_tid,
-                                                                                                                              self.pid,
-                                                                                                                              maxFailure,
-                                                                                                                              useRealNumEvents,
-                                                                                                                              respectLB,
-                                                                                                                              tgtNumEventsPerJob,
-                                                                                                                              skipFilesUsedBy,
-                                                                                                                              ramCount,
-                                                                                                                              taskSpec,
-                                                                                                                              skipShortInput)
+                                    retDB,missingFileList,nFilesUnique,diagMap = \
+                                        self.taskBufferIF.insertFilesForDataset_JEDI(datasetSpec,tmpRet,
+                                                                                     tmpMetadata['state'],
+                                                                                     stateUpdateTime,
+                                                                                     nEventsPerFile,
+                                                                                     nEventsPerJob,
+                                                                                     maxAttempt,
+                                                                                     firstEventNumber,
+                                                                                     nMaxFiles,
+                                                                                     nMaxEvents,
+                                                                                     useScout,
+                                                                                     fileList,
+                                                                                     useFilesWithNewAttemptNr,
+                                                                                     nFilesPerJob,
+                                                                                     nEventsPerRange,
+                                                                                     nChunksForScout,
+                                                                                     includePatt,
+                                                                                     excludePatt,
+                                                                                     xmlConfig,
+                                                                                     noWaitParent,
+                                                                                     taskSpec.parent_tid,
+                                                                                     self.pid,
+                                                                                     maxFailure,
+                                                                                     useRealNumEvents,
+                                                                                     respectLB,
+                                                                                     tgtNumEventsPerJob,
+                                                                                     skipFilesUsedBy,
+                                                                                     ramCount,
+                                                                                     taskSpec,
+                                                                                     skipShortInput,
+                                                                                     inputPreStaging)
                                     if retDB is False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))
@@ -500,7 +511,7 @@ class ContentsFeederThread (WorkerThread):
                                     if diagMap['isRunningTask']:
                                         runningTask = True
                                     # no activated pending input for noWait
-                                    if (noWaitParent or taskSpec.inputPreStaging()) \
+                                    if (noWaitParent or inputPreStaging) \
                                             and diagMap['nActivatedPending'] == 0 \
                                             and not (useScout and nChunksForScout <= 0) \
                                             and tmpMetadata['state'] != 'closed' and datasetSpec.isMaster():

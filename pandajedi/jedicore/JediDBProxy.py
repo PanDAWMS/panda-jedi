@@ -284,7 +284,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
                                    xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents,
                                    respectLB,tgtNumEventsPerJob,skipFilesUsedBy,ramCount,taskSpec,
-                                   skipShortInput):
+                                   skipShortInput, inputPreStaging):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -307,7 +307,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('datasetState={0} dataset.state={1}'.format(datasetState,datasetSpec.state))
         tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1} skipFilesUsedBy={2} ramCount={3}'.format(respectLB,tgtNumEventsPerJob,
                                                                                        skipFilesUsedBy, ramCount))
-        tmpLog.debug('skipShortInput={0} inputPreStaging={1}'.format(skipShortInput, taskSpec.inputPreStaging()))
+        tmpLog.debug('skipShortInput={0} inputPreStaging={1}'.format(skipShortInput, inputPreStaging))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -319,7 +319,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # max number of file records per dataset
         maxFileRecords = 200000
         # mutable
-        if (noWaitParent or taskSpec.inputPreStaging()) and datasetState == 'mutable':
+        if (noWaitParent or inputPreStaging) and datasetState == 'mutable':
             isMutableDataset = True
         else:
             isMutableDataset = False
@@ -865,7 +865,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             # avoid duplication
                             if uniqueFileKey in existingFiles:
                                 continue
-                            if taskSpec.inputPreStaging():
+                            if inputPreStaging:
                                 # go to staging
                                 fileSpec.status = 'staging'
                             elif isMutableDataset:
@@ -896,7 +896,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             resFID = self.cur.fetchall()
                             for fileID, in resFID:
                                 newFileIDs.append(fileID)
-                        if not taskSpec.inputPreStaging() and isMutableDataset:
+                        if not inputPreStaging and isMutableDataset:
                             pendingFID += newFileIDs
                         # sort fileID
                         tmpLog.debug('sort fileIDs')
@@ -12730,6 +12730,43 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError('Commit error')
             tmpLog.debug('updated {0} files'.format(retVal))
+            return retVal
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+   # get number of staging files
+    def getNumStagingFiles_JEDI(self, jeditaskid):
+        comment = ' /* JediDBProxy.getNumStagingFiles_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jeditaskid)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = 0
+            # varMap
+            varMap = dict()
+            varMap[':jediTaskID'] = jeditaskid
+            varMap[':type'] = 'input'
+            varMap[':status'] = 'staging'
+            # sql
+            sqlNS = ('SELECT COUNT(*) FROM {0}.JEDI_Datasets d, {0}.JEDI_Dataset_Contents c '
+                     'WHERE d.jediTaskID=:jediTaskID AND d.type=:type '
+                     'AND c.jediTaskID=d.jediTaskID AND c.datasetID=d.datasetID '
+                     'AND c.status=:status '
+                    ).format(jedi_config.db.schemaJEDI)
+            # begin transaction
+            self.conn.begin()
+            self.cur.execute(sqlNS+comment, varMap)
+            retVal, = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('got {0} staging files'.format(retVal))
             return retVal
         except Exception:
             # roll back

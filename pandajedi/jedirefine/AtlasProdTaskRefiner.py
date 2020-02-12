@@ -6,6 +6,7 @@ import traceback
 from six import iteritems
 
 from .TaskRefinerBase import TaskRefinerBase
+from pandajedi.jedicore import Interaction
 from pandaserver.dataservice import DataServiceUtils
 
 try:
@@ -156,33 +157,36 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                                                                                                  metadataName,metadaValue)
             # input prestaging
             if self.taskSpec.inputPreStaging() and 'prestagingRuleID' in taskParamMap:
-                c = iDDS_Client(idds.common.utils.get_rest_host())
-                # send request to iDDS
-                for datasetSpec in self.inMasterDatasetSpec+self.inSecDatasetSpecList:
-                    try:
-                        tmp_scope, tmp_name = datasetSpec.datasetName.split(':')
-                    except Exception:
-                        continue
-                    if tmp_name not in taskParamMap['prestagingRuleID']:
-                        continue
-                    tmpLog.debug('sending request to iDDS for {0}'.format(datasetSpec.datasetName))
-                    req = {
-                        'scope': tmp_scope,
-                        'name': tmp_name,
-                        'requester': 'panda',
-                        'request_type': idds.common.constants.RequestType.StageIn,
-                        'transform_tag': idds.common.constants.RequestType.StageIn.value,
-                        'status': idds.common.constants.RequestStatus.New,
-                        'priority': 0,
-                        'lifetime': 30,
-                        'request_metadata': {
-                            'workload_id': self.taskSpec.jediTaskID,
-                            'rule_id': taskParamMap['prestagingRuleID'][tmp_name],
-                        },
-                    }
-                    tmpLog.debug('req {0}'.format(str(req)))
-                    ret = c.add_request(**req)
-                    tmpLog.debug('got requestID={0}'.format(str(ret)))
+                try:
+                    c = iDDS_Client(idds.common.utils.get_rest_host())
+                    # send request to iDDS
+                    for datasetSpec in self.inMasterDatasetSpec+self.inSecDatasetSpecList:
+                        try:
+                            tmp_scope, tmp_name = datasetSpec.datasetName.split(':')
+                        except Exception:
+                            continue
+                        if tmp_name not in taskParamMap['prestagingRuleID']:
+                            continue
+                        tmpLog.debug('sending request to iDDS for {0}'.format(datasetSpec.datasetName))
+                        req = {
+                            'scope': tmp_scope,
+                            'name': tmp_name,
+                            'requester': 'panda',
+                            'request_type': idds.common.constants.RequestType.StageIn,
+                            'transform_tag': idds.common.constants.RequestType.StageIn.value,
+                            'status': idds.common.constants.RequestStatus.New,
+                            'priority': 0,
+                            'lifetime': 30,
+                            'request_metadata': {
+                                'workload_id': self.taskSpec.jediTaskID,
+                                'rule_id': taskParamMap['prestagingRuleID'][tmp_name],
+                            },
+                        }
+                        tmpLog.debug('req {0}'.format(str(req)))
+                        ret = c.add_request(**req)
+                        tmpLog.debug('got requestID={0}'.format(str(ret)))
+                except Exception as e:
+                    raise Interaction.JEDITemporaryError('iDDS error : {0}'.format(str(e)))
         except Exception as e:
             tmpLog.error('doBasicRefine failed with {0} {1}'.format(str(e), traceback.format_exc()))
             raise e
