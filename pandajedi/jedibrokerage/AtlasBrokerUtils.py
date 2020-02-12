@@ -301,7 +301,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
 
 
 # get analysis sites where data is available at disk
-def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True):
+def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True, use_incomplete=True):
     siteList = []
     siteWithIncomp = []
     for tmpSiteName,tmpSeValMap in iteritems(dataSiteMap):
@@ -321,7 +321,7 @@ def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True):
                     if tmpSiteName not in siteWithIncomp:
                         siteWithIncomp.append(tmpSiteName)
     # return sites with complete
-    if siteList != []:
+    if siteList != [] or not use_incomplete:
         return siteList
     # return sites with incomplete if complete is unavailable
     return siteWithIncomp
