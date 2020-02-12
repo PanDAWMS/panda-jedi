@@ -200,7 +200,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     # get sites where replica is available
                     tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=True)
                     tmpDiskSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=False,
-                                                                                use_vp=useVP, use_incomplete=False)
+                                                                                use_vp=useVP)
                     tmpNonVpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite, includeTape=True,
                                                                                  use_vp=False)
                     # get sites which can remotely access source sites

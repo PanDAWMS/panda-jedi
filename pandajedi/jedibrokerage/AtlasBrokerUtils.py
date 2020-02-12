@@ -301,7 +301,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
 
 
 # get analysis sites where data is available at disk
-def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True, use_incomplete=True):
+def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True, use_incomplete=False):
     siteList = []
     siteWithIncomp = []
     for tmpSiteName,tmpSeValMap in iteritems(dataSiteMap):
