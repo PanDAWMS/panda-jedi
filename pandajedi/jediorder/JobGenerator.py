@@ -1773,7 +1773,7 @@ class JobGeneratorThread (WorkerThread):
                 if tmpPatt != tmpStream and tmpStream in streamLFNsMap:
                     try:
                         exec("streamLFNsMap['{0}']=streamLFNsMap['{1}']{2}".format(tmpPatt,tmpStream,
-                                                                                   tmpRange))
+                                                                                   tmpRange), globals())
                     except Exception:
                         pass
         # loop over all streams to collect transient and final steams
