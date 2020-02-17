@@ -921,9 +921,9 @@ class InputChunk:
     # get max ramCount
     def getMaxRamCount(self):
         if self.isMerging:
-            return max (self.taskSpec.mergeRamCount,self.ramCount)
+            return max(self.taskSpec.mergeRamCount, self.ramCount) if self.taskSpec.mergeRamCount else self.ramCount
         else:
-            return max (self.taskSpec.ramCount,self.ramCount)
+            return max(self.taskSpec.ramCount, self.ramCount) if self.taskSpec.ramCount else self.ramCount
 
 
     # get site candidate

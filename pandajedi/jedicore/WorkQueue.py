@@ -186,15 +186,15 @@ class WorkQueue(object):
             for tmp_param_key, tmp_param_val in iteritems(param_map):
                 if isinstance(tmp_param_val, str):
                     # add quotes for string
-                    exec('{0}="{1}"'.format(tmp_param_key, tmp_param_val))
+                    exec('{0}="{1}"'.format(tmp_param_key, tmp_param_val), globals())
                 else:
-                    exec('{0}={1}'.format(tmp_param_key, tmp_param_val))
+                    exec('{0}={1}'.format(tmp_param_key, tmp_param_val), globals())
             # add default parameters if missing
             for tmp_param in self._paramsForSelection:
                 if tmp_param not in param_map:
-                    exec('{0}=None'.format(tmp_param))
+                    exec('{0}=None'.format(tmp_param), globals())
             # evaluate
-            exec("ret_var = {0}".format(self.evalString))
+            exec("ret_var = {0}".format(self.evalString), globals())
             return self, ret_var
 
         # return False
