@@ -56,18 +56,19 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
             for scope, name_list in scope_name_list_map.items():
                 # about files or datasets
                 if msg_type == 'file_stagein':
-                    tmp_log.debug('scope={0}, update about files...'.format(scope))
+                    tmp_log.debug('jeditaskid={0}, scope={1}, update about files...'.format(jeditaskid, scope))
                     res = self.tbIF.updateInputFilesStagedAboutIdds_JEDI(jeditaskid, scope, name_list)
-                    tmp_log.info('scope={0}, updated {1} files'.format(scope, res))
+                    tmp_log.info('jeditaskid={0}, scope={1}, updated {2} files'.format(jeditaskid, scope, res))
                 elif msg_type == 'collection_stagein':
-                    tmp_log.debug('scope={0}, update about datasets...'.format(scope))
+                    tmp_log.debug('jeditaskid={0}, scope={1}, update about datasets...'.format(jeditaskid, scope))
                     res = self.tbIF.updateInputDatasetsStagedAboutIdds_JEDI(jeditaskid, scope, name_list)
-                    tmp_log.info('scope={0}, updated {1} datasets'.format(scope, res))
+                    tmp_log.info('jeditaskid={0}, scope={1}, updated {2} datasets'.format(jeditaskid, scope, res))
                 # check if all ok
                 if res == len(target_list):
-                    tmp_log.debug('scope={0}, all OK'.format(scope))
+                    tmp_log.debug('jeditaskid={0}, scope={1}, all OK'.format(jeditaskid, scope))
                 else:
-                    tmp_log.warning('scope={0}, only {1} out of {2} done...'.format(scope, res, len(target_list)))
+                    tmp_log.warning('jeditaskid={0}, scope={1}, only {2} out of {3} done...'.format(
+                                                                            jeditaskid, scope, res, len(target_list)))
         except Exception as e:
             err_str = 'failed to parse message object, skipped. {0} : {1}'.format(e.__class__.__name__, e)
             tmp_log.error(err_str)
