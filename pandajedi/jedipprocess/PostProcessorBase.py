@@ -62,7 +62,7 @@ class PostProcessorBase (object):
                 # set dataset status
                 if datasetSpec.type in ['output','log','lib']:
                     # normal output datasets
-                    if datasetSpec.nFiles > datasetSpec.nFilesFinished:
+                    if datasetSpec.nFiles and datasetSpec.nFilesFinished and datasetSpec.nFiles > datasetSpec.nFilesFinished:
                         datasetSpec.status = 'finished'
                     else:
                         datasetSpec.status = 'done'

@@ -597,7 +597,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpLog.debug('diskIO measurements: Error generating diskIO message')
 
             # if the task has a diskIO defined, the queue is over the IO limit and the task IO is over the limit
-            if diskio_task_tmp and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
+            if diskio_task_tmp and diskio_usage_tmp and diskio_limit_tmp \
+                and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
                 tmpLog.info('  skip site={0} due to diskIO overload criteria=-diskIO'.format(tmpSiteName))
                 continue
 
