@@ -430,7 +430,7 @@ class InputChunk:
         # set default max number of events
         maxNumEvents = None
         # ignore negative walltime gradient
-        if walltimeGradient is not None and walltimeGradient < 0:
+        if walltimeGradient is None or walltimeGradient < 0:
             walltimeGradient = 0
         # overwrite parameters when nFiles/EventsPerJob is used
         if nFilesPerJob is not None and not dynNumEvents:
