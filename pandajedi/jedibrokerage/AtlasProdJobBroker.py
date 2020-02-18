@@ -1440,14 +1440,18 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                                                                              maxNumFiles,
                                                                                                                                              corrNumPilotStr)
             # reduce weights by taking data availability into account
+            skipRemoteData = False
             if totalSize > 0:
                 # file size to move in MB
                 mbToMove = long((totalSize-siteSizeMap[tmpSiteName])/(1024*1024))
                 # number of files to move
                 nFilesToMove = maxNumFiles-len(siteFilesMap[tmpSiteName])
                 # consider size and # of files
-                weight = weight * (totalSize+siteSizeMap[tmpSiteName]) / totalSize / (nFilesToMove/100+1)
-                weightStr += 'fileSizeToMoveMB={0} nFilesToMove={1} '.format(mbToMove,nFilesToMove)
+                if tmpSiteSpec.use_only_local_data() and (mbToMove>0 or nFilesToMove>0):
+                    skipRemoteData = True
+                else:
+                    weight = weight * (totalSize+siteSizeMap[tmpSiteName]) / totalSize / (nFilesToMove/100+1)
+                    weightStr += 'fileSizeToMoveMB={0} nFilesToMove={1} '.format(mbToMove,nFilesToMove)
             # T1 weight
             if tmpSiteName in t1Sites+sitesShareSeT1:
                 weight *= t1Weight
@@ -1566,6 +1570,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             if lockedByBrokerage:
                 ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-lock'
+            elif skipRemoteData:
+                ngMsg = '  skip site={0} due to non-local data '.format(tmpPseudoSiteName)
+                ngMsg += 'criteria=-non_local'
             elif not useAssigned and siteCandidateSpec.nQueuedJobs > nRunningCap:
                 ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                              weight,
@@ -1606,22 +1613,16 @@ class AtlasProdJobBroker (JobBrokerBase):
             if weight not in weightMap:
                 weightMap[weight] = []
             weightMap[weight].append((siteCandidateSpec,okMsg,ngMsg))
-        # use second candidates if no primary candidates passed cap/lock check
-        if False: #weightMapPrimary == {}:
-            tmpLog.info('use second candidates since no sites pass cap/lock check')
-            weightMap = weightMapSecondary
-            # use hightest 3 weights
-            weightRank = 3
-        else:
-            weightMap = weightMapPrimary
-            # use all weights
-            weightRank = None
-            # dump NG message
-            for tmpWeight in weightMapSecondary.keys():
-                for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMapSecondary[tmpWeight]:
-                    tmpLog.info(tmpNgMsg)
-            if weightMapPrimary == {}:
-                tmpLog.info('available sites all capped')
+        # use only primary candidates
+        weightMap = weightMapPrimary
+        # use all weights
+        weightRank = None
+        # dump NG message
+        for tmpWeight in weightMapSecondary.keys():
+            for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMapSecondary[tmpWeight]:
+                tmpLog.info(tmpNgMsg)
+        if weightMapPrimary == {}:
+            tmpLog.info('available sites all capped')
         # add jumbo sites
         for weight,tmpList in iteritems(weightMapJumbo):
             if weight not in weightMap:
