@@ -920,7 +920,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteMaxTime *= float(taskSpec.cpuEfficiency) / 100.0
                     siteMaxTime = long(siteMaxTime)
                     tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
-                if origSiteMaxTime != 0 and minWalltime > siteMaxTime:
+                if origSiteMaxTime != 0 and minWalltime and minWalltime > siteMaxTime:
                     tmpMsg = '  skip site={0} due to short site walltime {1} (site upper limit) less than {2} '.format(tmpSiteName,
                                                                                                                        tmpSiteStr,
                                                                                                                        strMinWalltime)
@@ -945,7 +945,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteMinTime *= float(taskSpec.cpuEfficiency) / 100.0
                     siteMinTime = long(siteMinTime)
                     tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
-                if origSiteMinTime != 0 and minWalltime < siteMinTime:
+                if origSiteMinTime != 0 and (minWalltime is None or minWalltime < siteMinTime):
                     tmpMsg = '  skip site {0} due to short job walltime {1} (site lower limit) greater than {2} '.format(tmpSiteName,
                                                                                                                          tmpSiteStr,
                                                                                                                          strMinWalltime)
