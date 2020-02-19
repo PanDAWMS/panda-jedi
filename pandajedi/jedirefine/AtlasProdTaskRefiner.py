@@ -7,6 +7,7 @@ from six import iteritems
 
 from .TaskRefinerBase import TaskRefinerBase
 from pandajedi.jedicore import Interaction
+from pandajedi.jedicore import JediException
 from pandaserver.dataservice import DataServiceUtils
 
 try:
@@ -187,8 +188,11 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                         tmpLog.debug('got requestID={0}'.format(str(ret)))
                 except Exception as e:
                     raise Interaction.JEDITemporaryError('iDDS error : {0}'.format(str(e)))
+        except JediException.UnknownDatasetError as e:
+            tmpLog.debug('in doRefine. {0}'.format(str(e)))
+            raise e
         except Exception as e:
-            tmpLog.error('doBasicRefine failed with {0} {1}'.format(str(e), traceback.format_exc()))
+            tmpLog.error('doRefine failed with {0} {1}'.format(str(e), traceback.format_exc()))
             raise e
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
