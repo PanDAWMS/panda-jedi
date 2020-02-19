@@ -193,10 +193,14 @@ setup(
     install_requires=[
         'six',
         'python-daemon',
-        'cx-Oracle',
-        'rucio-clients',
         'numpy',
     ],
+    extras_require={
+        'oracle': ['cx_Oracle'],
+        'mysql': ['mysqlclient'],
+        'rucio': ['rucio-clients'],
+        'atlasprod': ['cx_Oracle', 'rucio-clients'],
+    },
     data_files=[
                 # config and cron files
                 ('/etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',

@@ -1,9 +1,5 @@
-import re
-import sys
 import uuid
-import copy
 import time
-import types
 import smtplib
 import datetime
 
@@ -23,6 +19,24 @@ class StderrLogger(object):
         if message != '':
             self.tmpLog.debug(message)
 
+
+# wrapper of SMTP to redirect messages
+class MySMTP (smtplib.SMTP):
+
+    def set_log(self, tmp_log):
+        self.tmpLog = tmp_log
+        try:
+            self.org_stderr = getattr(smtplib, 'stderr')
+            setattr(smtplib, 'stderr', tmp_log)
+        except Exception:
+            self.org_stderr = None
+
+    def _print_debug(self, *args):
+        self.tmpLog.write(' '.join(map(str, args)))
+
+    def reset_log(self):
+        if self.org_stderr is not None:
+            setattr(smtplib, 'stderr', self.org_stderr)
 
 
 # base class for post process
@@ -103,25 +117,24 @@ class PostProcessorBase (object):
         tmpLog.debug("sending notification to {0}\n{1}".format(toAdd,msgBody))
         for iTry in range(nTry):
             try:
-                org_smtpstderr = smtplib.stderr
-                smtplib.stderr = StderrLogger(tmpLog)
+                stderrLog = StderrLogger(tmpLog)
                 smtpPort = smtpPortList[iTry % len(smtpPortList)]
-                server = smtplib.SMTP(panda_config.emailSMTPsrv,smtpPort)
+                server = MySMTP(panda_config.emailSMTPsrv,smtpPort)
                 server.set_debuglevel(1)
+                server.set_log(stderrLog)
                 server.ehlo()
                 server.starttls()
                 out = server.sendmail(fromAdd,toAdd,msgBody)
                 tmpLog.debug(str(out))
                 server.quit()
                 break
-            except Exception:
-                errType,errValue = sys.exc_info()[:2]
+            except Exception as e:
                 if iTry+1 < nTry:
                     # sleep for retry
-                    tmpLog.debug("sleep {0} due to {1}:{2}".format(iTry,errType,errValue))
+                    tmpLog.debug("sleep {0} due to {1}".format(iTry, str(e)))
                     time.sleep(30)
                 else:
-                    tmpLog.error("failed to send notification with {0}:{1}".format(errType,errValue))
+                    tmpLog.error("failed to send notification with {0}".format(str(e)))
                     if fileBackUp:
                         # write to file which is processed in add.py
                         mailFile = '{0}/jmail_{1}_{2}' % (panda_config.logdir, jediTaskID, uuid.uuid4())
@@ -130,7 +143,7 @@ class PostProcessorBase (object):
                         oMail.close()
                 break
         try:
-            smtplib.stderr = org_smtpstderr
+            server.reset_log()
         except Exception:
             pass
 
