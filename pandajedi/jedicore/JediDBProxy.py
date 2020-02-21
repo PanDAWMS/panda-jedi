@@ -947,18 +947,27 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 maxSizePerJob += InputChunk.defaultOutputSize
                                 maxSizePerJob += taskSpec.getWorkDiskSize()
                             # make sub chunks
-                            for i in range(nChunks):
-                                tmpInputChunk.getSubChunk(None, maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
-                                                          nFilesPerJob=taskSpec.getNumFilesPerJob(),
-                                                          sizeGradients=taskSpec.getOutDiskSize(),
-                                                          sizeIntercepts=taskSpec.getWorkDiskSize(),
-                                                          maxSize=maxSizePerJob,
-                                                          nEventsPerJob=taskSpec.getNumEventsPerJob(),
-                                                          respectLB=taskSpec.respectLumiblock())
-                                enoughPendingWithSL = tmpInputChunk.checkUnused()
-                                if not enoughPendingWithSL:
+                            for ii in range(100):
+                                for i in range(nChunks):
+                                    tmpInputChunk.getSubChunk(None, maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
+                                                              nFilesPerJob=taskSpec.getNumFilesPerJob(),
+                                                              sizeGradients=taskSpec.getOutDiskSize(),
+                                                              sizeIntercepts=taskSpec.getWorkDiskSize(),
+                                                              maxSize=maxSizePerJob,
+                                                              nEventsPerJob=taskSpec.getNumEventsPerJob(),
+                                                              respectLB=taskSpec.respectLumiblock())
+                                    enoughPendingWithSL = tmpInputChunk.checkUnused()
+                                    if not enoughPendingWithSL:
+                                        break
+                                if enoughPendingWithSL:
+                                    numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                                else:
+                                    # one set of sub chunks is at least available
+                                    if ii > 0:
+                                        enoughPendingWithSL = True
+                                    else:
+                                        numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
                                     break
-                            numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
                             tmpLog.debug('respecting SR nFiles={0} isEnough={1} nFilesPerJob={2} maxSize={3}'.format(numFilesWithSL, enoughPendingWithSL,
                                                                                                                      taskSpec.getNumFilesPerJob(),
                                                                                                                      maxSizePerJob))
@@ -7804,7 +7813,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlTL += "AND prodSourceLabel=:prodSourceLabel "
             if minPriority is not None:
                 varMap[':minPriority'] = minPriority
-                sqlTL += "AND currentPriority>:minPriority "
+                sqlTL += "AND currentPriority>=:minPriority "
             # sql to update tasks
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=oldStatus,oldStatus=NULL,modificationtime=CURRENT_DATE "
