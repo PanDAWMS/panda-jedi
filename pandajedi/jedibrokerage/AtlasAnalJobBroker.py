@@ -875,10 +875,13 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         (nRunning == 0 or float(nQueue) / float(nRunning) > grandRatio * ratioOffset):
                     tmpMsg = '  skip site={0} '.format(tmpPseudoSiteName)
                     tmpMsg += 'nQueue>minQueue({0}) and '.format(minQueue)
-                    tmpMsg += 'nQueue({0})/nRunning({1}) > grandRatio({2:.2f})*offset({3}) '.format(nQueue,
-                                                                                                    nRunning,
-                                                                                                    grandRatio,
-                                                                                                    ratioOffset)
+                    if nRunning == 0:
+                        tmpMsg += 'nRunning=0 '
+                    else:
+                        tmpMsg += 'nQueue({0})/nRunning({1}) > grandRatio({2:.2f})*offset({3}) '.format(nQueue,
+                                                                                                        nRunning,
+                                                                                                        grandRatio,
+                                                                                                        ratioOffset)
                     if tmpSiteName in scanSiteWoVP or checkDataLocality is False or inputChunk.getDatasets() == []:
                         tmpMsg += 'criteria=-overloaded'
                         overloadedNonVP.append(tmpPseudoSiteName)
