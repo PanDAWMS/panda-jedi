@@ -1395,8 +1395,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 corrNumPilot = 1
             nDefined   = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'defined', None, tmp_wq_tag) + self.getLiveCount(tmpSiteName)
             nAssigned  = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'assigned', None, tmp_wq_tag)
-            nActivated = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'activated', None, tmp_wq_tag) + \
-                         AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'throttled', None, tmp_wq_tag)
+            nActivated = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'activated', None, tmp_wq_tag)
             nStarting  = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'starting', None, tmp_wq_tag)
             if tmpSiteName in nPilotMap:
                 nPilot = nPilotMap[tmpSiteName]
