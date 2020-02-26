@@ -157,7 +157,22 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                                     self.ddmIF.getInterface(self.taskSpec.vo).setDatasetMetadata(datasetSpec.datasetName,
                                                                                                  metadataName,metadaValue)
             # input prestaging
-            if self.taskSpec.inputPreStaging() and 'prestagingRuleID' in taskParamMap:
+            if self.taskSpec.inputPreStaging():
+                if 'prestagingRuleID' not in taskParamMap:
+                    # get rule IDs
+                    for datasetSpec in self.inMasterDatasetSpec+self.inSecDatasetSpecList:
+                        try:
+                            tmp_scope, tmp_name = datasetSpec.datasetName.split(':')
+                        except Exception:
+                            continue
+                        ruleID = self.ddmIF.getInterface(self.taskSpec.vo).getActiveStagingRule(datasetSpec.datasetName)
+                        if ruleID is not None:
+                            taskParamMap.setdefault('prestagingRuleID', {})
+                            taskParamMap['prestagingRuleID'][tmp_name] = ruleID
+                # disable prestaging since no active rule
+                if 'prestagingRuleID' not in taskParamMap:
+                    tmpLog.debug('disabled input prestaging since there is no active rule')
+                    self.taskSpec.disableInputPreStaging()
                 try:
                     c = iDDS_Client(idds.common.utils.get_rest_host())
                     # send request to iDDS
@@ -166,7 +181,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                             tmp_scope, tmp_name = datasetSpec.datasetName.split(':')
                         except Exception:
                             continue
-                        if tmp_name not in taskParamMap['prestagingRuleID']:
+                        if 'prestagingRuleID' not in taskParamMap or tmp_name not in taskParamMap['prestagingRuleID']:
                             continue
                         tmpLog.debug('sending request to iDDS for {0}'.format(datasetSpec.datasetName))
                         req = {

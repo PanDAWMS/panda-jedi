@@ -1419,3 +1419,28 @@ class AtlasDDMClient(DDMClientBase):
             return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
+
+    # get active staging rule
+    def getActiveStagingRule(self, dataset_name):
+        methodName = 'getActiveStagingRule'
+        methodName += ' datasetName={0}'.format(dataset_name)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        ruleID = None
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(dataset_name)
+            # get rules
+            for rule in client.list_did_rules(scope=scope, name=dsn):
+                if rule['activity'] == 'Staging':
+                    ruleID = rule['id']
+                    break
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
+        tmpLog.debug('got ruleID={0}'.format(ruleID))
+        return self.SC_SUCCEEDED, ruleID

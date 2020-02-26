@@ -232,7 +232,7 @@ setup(
         'oracle': ['cx_Oracle'],
         'mysql': ['mysqlclient'],
         'rucio': ['rucio-clients'],
-        'atlasprod': ['cx_Oracle', 'rucio-clients'],
+        'atlasprod': ['cx_Oracle', 'rucio-clients', 'idds-common', 'idds-client'],
     },
     data_files=[
                 # config and cron files
