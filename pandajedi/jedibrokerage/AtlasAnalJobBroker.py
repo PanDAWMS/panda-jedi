@@ -622,10 +622,23 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         minDiskCount = minDiskCountS
                         if maxSizePerJob is not None and maxSizePerJob > minDiskCount:
                             minDiskCount = maxSizePerJob
-                    if minDiskCount > tmpSiteSpec.maxwdir:
-                        tmpLog.info('  skip site={0} due to small scratch disk={1} < {2} criteria=-disk'.format(tmpSiteName,
-                                                                                             tmpSiteSpec.maxwdir,
-                                                                                             minDiskCount))
+
+                    # get site and task corecount to scale maxwdir
+                    if tmpSiteSpec.coreCount in [None, 0, 1]:
+                        site_cc = 1
+                    else:
+                        site_cc = tmpSiteSpec.coreCount
+
+                    if taskSpec.coreCount in [None, 0, 1]:
+                        task_cc = 1
+                    else:
+                        task_cc = site_cc
+
+                    maxwdir_scaled = tmpSiteSpec.maxwdir * task_cc / site_cc
+
+                    if minDiskCount > maxwdir_scaled:
+                        tmpLog.info('  skip site={0} due to small scratch disk={1} < {2} criteria=-disk'.format(
+                            tmpSiteName, maxwdir_scaled, minDiskCount))
                         continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
