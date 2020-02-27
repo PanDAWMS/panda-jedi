@@ -1,11 +1,8 @@
 import re
 import os
 import sys
-import socket
-import random
 import datetime
 import json
-import types
 import traceback
 
 try:
@@ -122,14 +119,15 @@ class AtlasDDMClient(DDMClientBase):
                 fileMap[guid] = attrs
             tmpLog.debug('done')
             return self.SC_SUCCEEDED, fileMap
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errStr = '{0} {1}'.format(errtype.__name__,errvalue)
-            tmpLog.error(errStr)
-            if ignoreUnknown and errtype == DataIdentifierNotFound:
-                return self.SC_SUCCEEDED,{}
-            return errCode,'{0} : {1}'.format(methodName,errStr)
+        except DataIdentifierNotFound as e:
+            if ignoreUnknown:
+                return self.SC_SUCCEEDED, {}
+            errType = e
+        except Exception as e:
+            errType = e
+        errCode, errMsg = self.checkError(errType)
+        tmpLog.error(errMsg)
+        return errCode,'{0} : {1}'.format(methodName, errMsg)
 
     # list dataset replicas
     def listDatasetReplicas(self, datasetName, use_vp=False):
@@ -183,12 +181,11 @@ class AtlasDDMClient(DDMClientBase):
                 # return
                 tmpLog.debug('got '+str(retMap))
                 return self.SC_SUCCEEDED,retMap
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errStr = '{0} {1}'.format(errtype.__name__,errvalue)
-            tmpLog.error(errStr)
-            return errCode,'{0} : {1}'.format(methodName,errStr)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # list replicas per dataset
     def listReplicasPerDataset(self,datasetName,deepScan=False):
@@ -215,12 +212,11 @@ class AtlasDDMClient(DDMClientBase):
                 retMap[tmpName] = self.convertOutListDatasetReplicas(tmpName,deepScan)
                 tmpLog.debug('got '+str(retMap))
             return self.SC_SUCCEEDED,retMap
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errStr = '{0} {1}'.format(errtype.__name__,errvalue)
-            tmpLog.error(errStr)
-            return errCode,'{0} : {1}'.format(methodName,errStr)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # get site property
     def getSiteProperty(self,seName,attribute):
@@ -230,10 +226,10 @@ class AtlasDDMClient(DDMClientBase):
         try:
             retVal = self.endPointDict[seName][attribute]
             return self.SC_SUCCEEDED,retVal
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            return errCode,'%s : %s %s' % (methodName,errtype.__name__,errvalue)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # get site alternateName
     def getSiteAlternateName(self,se_name):
@@ -520,7 +516,6 @@ class AtlasDDMClient(DDMClientBase):
             return self.SC_FAILED, "file lookup failed with {0}:{1} {2}".format(err_type, err_value, traceback.format_exc())
         return self.SC_SUCCEEDED, lfn_to_rses_map
 
-
     # get dataset metadata
     def getDatasetMetaData(self,datasetName):
         # make logger
@@ -545,25 +540,20 @@ class AtlasDDMClient(DDMClientBase):
                 tmpRet['state'] = 'closed'
             tmpLog.debug(str(tmpRet))
             return self.SC_SUCCEEDED,tmpRet
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errMsg = 'failed with {0} {1}'.format(errtype.__name__,errvalue)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            errCode = self.checkError(errtype)
-            return errCode,'{0}.{1} {2}'.format(self.__class__.__name__,methodName,errMsg)
-
-
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # check error
     def checkError(self,errType):
-        if errType in self.fatalErrors:
+        if type(errType) in self.fatalErrors:
             # fatal error
-            return self.SC_FATAL
+            return self.SC_FATAL, str(errType)
         else:
-            # temprary error
-            return self.SC_FAILED
-
-
+            # temporary error
+            return self.SC_FAILED, str(errType)
 
     # list dataset/container
     def listDatasets(self,datasetName,ignorePandaDS=True):
@@ -597,14 +587,11 @@ class AtlasDDMClient(DDMClientBase):
                 dsList = tmpDsList
             tmpLog.debug('got '+str(dsList))
             return self.SC_SUCCEEDED,dsList
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errStr = '{0} {1}'.format(errtype.__name__,errvalue)
-            tmpLog.error(errStr)
-            return errCode,'{0} : {1}'.format(methodName,errStr)
-
-
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # register new dataset/container
     def registerNewDataset(self,datasetName,backEnd='rucio',location=None,lifetime=None,metaData=None,resurrect=False):
@@ -632,22 +619,20 @@ class AtlasDDMClient(DDMClientBase):
                 client.add_container(scope=scope,name=name)
         except DataIdentifierAlreadyExists:
             pass
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            if 'DataIdentifierAlreadyExists' not in str(errvalue):
-                resurrected = False
-                # try to resurrect
-                if 'DELETED_DIDS_PK violated' in str(errvalue) and resurrect:
-                    try:
-                        client.resurrect([{'scope': scope, 'name': name}])
-                        resurrected = True
-                    except Exception:
-                        pass
-                if not resurrected:
-                    errCode = self.checkError(errtype)
-                    errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
-                    tmpLog.error(errMsg)
-                    return errCode,'{0} : {1}'.format(methodName,errMsg)
+        except Exception as e:
+            errType = e
+            resurrected = False
+            # try to resurrect
+            if 'DELETED_DIDS_PK violated' in str(errType) and resurrect:
+                try:
+                    client.resurrect([{'scope': scope, 'name': name}])
+                    resurrected = True
+                except Exception:
+                    pass
+            if not resurrected:
+                errCode, errMsg = self.checkError(errType)
+                tmpLog.error(errMsg)
+                return errCode,'{0} : {1}'.format(methodName,errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
 
@@ -686,14 +671,11 @@ class AtlasDDMClient(DDMClientBase):
             dsList = self.wp_list_content(client,scope,dsn)
             tmpLog.debug('got '+str(dsList))
             return self.SC_SUCCEEDED,dsList
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
-
-
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # expand Container
     def expandContainer(self,containerName):
@@ -728,14 +710,11 @@ class AtlasDDMClient(DDMClientBase):
             # return
             tmpLog.debug('got {0}'.format(str(dsList)))
             return self.SC_SUCCEEDED,dsList
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
-            tmpLog.error('failed with {0}'.format(errMsg))
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
-
-
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # add dataset to container
     def addDatasetsToContainer(self,containerName,datasetNames,backEnd='rucio'):
@@ -765,12 +744,11 @@ class AtlasDDMClient(DDMClientBase):
                         client.add_datasets_to_container(scope=c_scope, name=c_name, dsns=[ds])
                     except DuplicateContent:
                         pass
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
-            tmpLog.error('failed with {0}'.format(errMsg))
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
 
@@ -866,8 +844,6 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug('use {0}'.format(latestDBR))
         return self.SC_SUCCEEDED,latestDBR
 
-
-
     # freeze dataset
     def freezeDataset(self,datasetName,ignoreUnknown=False):
         methodName = 'freezeDataset'
@@ -889,24 +865,22 @@ class AtlasDDMClient(DDMClientBase):
             client.set_status(scope,dsn,open=False)
         except UnsupportedOperation:
             pass
-        except DataIdentifierNotFound:
+        except DataIdentifierNotFound as e:
+            errType = e
             if ignoreUnknown:
                 pass
             else:
                 isOK = False
-        except Exception:
+        except Exception as e:
+            errType = e
             isOK = False
         if isOK:
             tmpLog.debug('done')
             return self.SC_SUCCEEDED,True
         else:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
-
-
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # finger
     def finger(self,userName):
@@ -939,16 +913,13 @@ class AtlasDDMClient(DDMClientBase):
                 tmpLog.error('failed to get account info')
                 return self.SC_FAILED,None
             tmpRet = userInfo
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0}:{1}'.format(methodName,errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('done with '+str(tmpRet))
         return self.SC_SUCCEEDED,tmpRet
-
-
 
     # set dataset metadata
     def setDatasetMetadata(self,datasetName,metadataName,metadaValue):
@@ -967,16 +938,13 @@ class AtlasDDMClient(DDMClientBase):
             client.set_metadata(scope,dsn,metadataName,metadaValue)
         except (UnsupportedOperation,DataIdentifierNotFound):
             pass
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
-
-
 
     # register location
     def registerDatasetLocation(self,datasetName,location,lifetime=None,owner=None,backEnd='rucio',
@@ -1021,16 +989,13 @@ class AtlasDDMClient(DDMClientBase):
                                             weight=weight)
         except DuplicateRule:
             pass
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
-
-
 
     # delete dataset
     def deleteDataset(self,datasetName,emptyOnly,ignoreUnknown=False):
@@ -1050,7 +1015,7 @@ class AtlasDDMClient(DDMClientBase):
             # get the number of files
             if emptyOnly:
                 nFiles = 0
-                for x in client.list_files(scope, dsn, long=long):
+                for x in client.list_files(scope, dsn):
                     nFiles += 1
             # erase
             if not emptyOnly or nFiles == 0:
@@ -1058,24 +1023,22 @@ class AtlasDDMClient(DDMClientBase):
                 retStr = 'deleted {0}'.format(datasetName)
             else:
                 retStr = 'keep {0} where {1} files are available'.format(datasetName,nFiles)
-        except DataIdentifierNotFound:
+        except DataIdentifierNotFound as e:
+            errType = e
             if ignoreUnknown:
                 pass
             else:
                 isOK = False
-        except Exception:
+        except Exception as e:
             isOK = False
+            errType = e
         if isOK:
             tmpLog.debug('done')
             return self.SC_SUCCEEDED,retStr
         else:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
-
-
+            return errCode,'{0} : {1}'.format(methodName, errMsg)
 
     # register subscription
     def registerDatasetSubscription(self,datasetName,location,activity,lifetime=None,
@@ -1107,18 +1070,15 @@ class AtlasDDMClient(DDMClientBase):
             pass
         except DataIdentifierNotFound:
             pass
-        except Exception:
+        except Exception as e:
             isOK = False
+            errType = e
         if not isOK:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
-
-
 
     # find lost files
     def findLostFiles(self, datasetName, fileMap):
@@ -1167,13 +1127,11 @@ class AtlasDDMClient(DDMClientBase):
 
             tmpLog.debug('done with lost '+','.join(str(tmpLFN) for tmpLFN in lfnMap.values()))
             return self.SC_SUCCEEDED,lfnMap
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
-
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # convert output of listDatasetReplicas
     def convertOutListDatasetReplicas(self, datasetName, usefileLookup=False, use_vp=False):
@@ -1245,18 +1203,15 @@ class AtlasDDMClient(DDMClientBase):
                 pass
             # exec
             client.detach_dids(scope=scope, name=dsn, dids=filesToDelete)
-        except Exception:
+        except Exception as e:
             isOK = False
+            errType = e
         if not isOK:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
-
-
 
     # extract scope
     def extract_scope(self,dsn):
@@ -1266,8 +1221,6 @@ class AtlasDDMClient(DDMClientBase):
         if dsn.startswith('user') or dsn.startswith('group'):
             scope = ".".join(dsn.split('.')[0:2])
         return scope,dsn
-
-
 
     # open dataset
     def openDataset(self,datasetName):
@@ -1287,18 +1240,15 @@ class AtlasDDMClient(DDMClientBase):
                 client.set_status(scope,dsn,open=True)
             except (UnsupportedOperation,DataIdentifierNotFound):
                 pass
-        except Exception:
+        except Exception as e:
             isOK = False
+            errType = e
         if not isOK:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
-
-
 
     # update backlist
     def updateBlackList(self):
@@ -1317,13 +1267,12 @@ class AtlasDDMClient(DDMClientBase):
             jsonStr = res.read()
             self.blackListEndPoints = list(json.loads(jsonStr).keys())
             tmpLog.debug('{0} endpoints blacklisted'.format(len(self.blackListEndPoints)))
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errStr = 'failed to update BL with {0} {1}'.format(errtype.__name__,errvalue)
-            tmpLog.error(errStr)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
         return
-
-
 
     # check if the endpoint is backlisted
     def isBlackListedEP(self,endPoint):
@@ -1339,8 +1288,6 @@ class AtlasDDMClient(DDMClientBase):
         except Exception:
             pass
         return self.SC_SUCCEEDED,False
-
-
 
     # get disk usage at RSE
     def getRseUsage(self,rse,src='srm'):
@@ -1374,16 +1321,13 @@ class AtlasDDMClient(DDMClientBase):
                               'used':used,
                               'free':free}
                     break
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,{}
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('done {0}'.format(str(retMap)))
         return self.SC_SUCCEEDED,retMap
-
-
 
     # update endpoint dict
     def updateEndPointDict(self):
@@ -1411,8 +1355,6 @@ class AtlasDDMClient(DDMClientBase):
             tmpLog.error(errStr)
         return
 
-
-
     # check if the dataset is distributed
     def isDistributedDataset(self,datasetName):
         methodName  = 'isDistributedDataset'
@@ -1437,17 +1379,15 @@ class AtlasDDMClient(DDMClientBase):
             # use False when there is no rule
             if isDDS is None:
                 isDDS = False
-        except Exception:
+        except Exception as e:
             isOK = False
+            errType = e
         if not isOK:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('done with {0}'.format(isDDS))
         return self.SC_SUCCEEDED,isDDS
-
 
     # update replication rules
     def updateReplicationRules(self,datasetName,dataMap):
@@ -1470,13 +1410,37 @@ class AtlasDDMClient(DDMClientBase):
                         client.update_replication_rule(rule['id'],data)
         except DataIdentifierNotFound:
             pass
-        except Exception:
+        except Exception as e:
             isOK = False
+            errType = e
         if not isOK:
-            errtype,errvalue = sys.exc_info()[:2]
-            errCode = self.checkError(errtype)
-            errMsg = '{0} {1}'.format(errtype.__name__,errvalue)
+            errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
-            return errCode,'{0} : {1}'.format(methodName,errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('done')
         return self.SC_SUCCEEDED,True
+
+    # get active staging rule
+    def getActiveStagingRule(self, dataset_name):
+        methodName = 'getActiveStagingRule'
+        methodName += ' datasetName={0}'.format(dataset_name)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        ruleID = None
+        try:
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope,dsn = self.extract_scope(dataset_name)
+            # get rules
+            for rule in client.list_did_rules(scope=scope, name=dsn):
+                if rule['activity'] == 'Staging':
+                    ruleID = rule['id']
+                    break
+        except Exception as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
+        tmpLog.debug('got ruleID={0}'.format(ruleID))
+        return self.SC_SUCCEEDED, ruleID

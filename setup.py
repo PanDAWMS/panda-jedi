@@ -13,8 +13,10 @@ import sys
 import socket
 import getpass
 import grp
+import site
 
 import PandaPkgInfo
+import distutils
 from setuptools import setup
 from setuptools.command.install import install as install_org
 from distutils.command.install_data import install_data as install_data_org
@@ -77,11 +79,20 @@ class install_data_panda (install_data_org):
         self.install_purelib = None
         self.panda_user = panda_user
         self.panda_group = panda_group
+        if 'VIRTUAL_ENV' in os.environ:
+            self.virtual_env = os.environ['VIRTUAL_ENV']
+            self.virtual_env_setup = 'source {0}/bin/activate'.format(os.environ['VIRTUAL_ENV'])
+        else:
+            self.virtual_env = ''
+            self.virtual_env_setup = ''
 
     def finalize_options (self):
         # set install_purelib
         self.set_undefined_options('install',
                                    ('install_purelib','install_purelib'))
+        # set prefix for pip
+        if not hasattr(self, 'prefix'):
+            self.prefix = site.PREFIXES[0]
         # set reaming params
         install_data_org.finalize_options(self)
         # set hostname
@@ -99,8 +110,30 @@ class install_data_panda (install_data_org):
         else:
             self.usergroup = grp.getgrnam(self.username).gr_name
 
-
     def run (self):
+        # setup.py install sets install_dir to /usr
+        if self.install_dir == '/usr':
+            self.install_dir = '/'
+        elif 'bdist_wheel' in self.distribution.get_cmdline_options():
+            # wheel
+            self.install_dir = self.prefix
+            self.install_purelib = distutils.sysconfig.get_python_lib()
+            self.install_scripts = os.path.join(self.prefix, 'bin')
+        if not self.install_dir:
+            if self.root:
+                # rpm
+                self.install_dir = self.prefix
+                self.install_purelib = distutils.sysconfig.get_python_lib()
+                self.install_scripts = os.path.join(self.prefix, 'bin')
+            else:
+                # sdist
+                if not self.prefix:
+                    if '--user' in self.distribution.script_args:
+                        self.install_dir = site.USER_BASE
+                    else:
+                        self.install_dir = site.PREFIXES[0]
+                else:
+                    self.install_dir = self.prefix
         # remove /usr for bdist/bdist_rpm
         match = re.search('(build/[^/]+/dumb)/usr',self.install_dir)
         if match is not None:
@@ -188,31 +221,36 @@ setup(
                'pandajedi.jedithrottle',
                'pandajedi.jedibrokerage',
                'pandajedi.jedipprocess',
+               'pandajedi.jedimsgprocessor',
               ],
     install_requires=[
         'six',
         'python-daemon',
-        'cx-Oracle',
-        'rucio-clients',
         'numpy',
     ],
+    extras_require={
+        'oracle': ['cx_Oracle'],
+        'mysql': ['mysqlclient'],
+        'rucio': ['rucio-clients'],
+        'atlasprod': ['cx_Oracle', 'rucio-clients', 'idds-common', 'idds-client'],
+    },
     data_files=[
                 # config and cron files
-                ('/etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
+                ('etc/panda', ['templates/panda_jedi.cfg.rpmnew.template',
                                 'templates/panda_jedi.cron.template',
                                 'templates/logrotate.d/panda_jedi.template',
                                ]
                  ),
                 # sysconfig
-                ('/etc/sysconfig', ['templates/sysconfig/panda_jedi.template',
+                ('etc/sysconfig', ['templates/sysconfig/panda_jedi.template',
                                    ]
                  ),
                 # init script
-                ('/etc/rc.d/init.d', ['templates/init.d/panda_jedi.exe.template',
+                ('etc/rc.d/init.d', ['templates/init.d/panda_jedi.exe.template',
                                    ]
                  ),
                 # exec
-                ('/usr/bin', ['templates/panda_jedi-reniceJEDI.exe.template',
+                ('usr/bin', ['templates/panda_jedi-reniceJEDI.exe.template',
                              ]
                  ),
                 ],

@@ -1051,6 +1051,9 @@ class JediTaskSpec(object):
                 return True
         return False
 
+    # disable input prestaging
+    def disableInputPreStaging(self):
+        self.setSplitRule('inputPreStaging', self.enum_inputPreStaging['notUse'])
 
     # set DDM backend
     def setDdmBackEnd(self,backEnd):

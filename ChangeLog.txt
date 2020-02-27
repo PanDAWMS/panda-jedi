@@ -1,5 +1,8 @@
 Release Notes
 
+* 2/18/2020
+  * using use_only_local_data in AtlasPJB
+
 * 9/25/2019
   * not to delete empty output datasets for prod
   * to use done instead of failed when input has no files

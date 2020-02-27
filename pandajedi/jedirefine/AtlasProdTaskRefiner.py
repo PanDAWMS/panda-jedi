@@ -1,14 +1,21 @@
 import re
-import sys
 import shlex
 import random
 import datetime
-
+import traceback
 from six import iteritems
 
 from .TaskRefinerBase import TaskRefinerBase
-
+from pandajedi.jedicore import Interaction
+from pandajedi.jedicore import JediException
 from pandaserver.dataservice import DataServiceUtils
+
+try:
+    from idds.client.client import Client as iDDS_Client
+    import idds.common.constants
+    import idds.common.utils
+except ImportError:
+    pass
 
 
 # brokerage for ATLAS production
@@ -150,13 +157,58 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                                     self.ddmIF.getInterface(self.taskSpec.vo).setDatasetMetadata(datasetSpec.datasetName,
                                                                                                  metadataName,metadaValue)
             # input prestaging
-            if self.taskSpec.inputPreStaging() and 'prestagingRuleID' in taskParamMap:
-                # send request to iDDS
-                pass
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('doBasicRefine failed with {0}:{1}'.format(errtype.__name__,errvalue))
-            raise errtype(errvalue)
+            if self.taskSpec.inputPreStaging():
+                if 'prestagingRuleID' not in taskParamMap:
+                    # get rule IDs
+                    for datasetSpec in self.inMasterDatasetSpec+self.inSecDatasetSpecList:
+                        try:
+                            tmp_scope, tmp_name = datasetSpec.datasetName.split(':')
+                        except Exception:
+                            continue
+                        ruleID = self.ddmIF.getInterface(self.taskSpec.vo).getActiveStagingRule(datasetSpec.datasetName)
+                        if ruleID is not None:
+                            taskParamMap.setdefault('prestagingRuleID', {})
+                            taskParamMap['prestagingRuleID'][tmp_name] = ruleID
+                # disable prestaging since no active rule
+                if 'prestagingRuleID' not in taskParamMap:
+                    tmpLog.debug('disabled input prestaging since there is no active rule')
+                    self.taskSpec.disableInputPreStaging()
+                try:
+                    c = iDDS_Client(idds.common.utils.get_rest_host())
+                    # send request to iDDS
+                    for datasetSpec in self.inMasterDatasetSpec+self.inSecDatasetSpecList:
+                        try:
+                            tmp_scope, tmp_name = datasetSpec.datasetName.split(':')
+                        except Exception:
+                            continue
+                        if 'prestagingRuleID' not in taskParamMap or tmp_name not in taskParamMap['prestagingRuleID']:
+                            continue
+                        tmpLog.debug('sending request to iDDS for {0}'.format(datasetSpec.datasetName))
+                        req = {
+                            'scope': tmp_scope,
+                            'name': tmp_name,
+                            'requester': 'panda',
+                            'request_type': idds.common.constants.RequestType.StageIn,
+                            'transform_tag': idds.common.constants.RequestType.StageIn.value,
+                            'status': idds.common.constants.RequestStatus.New,
+                            'priority': 0,
+                            'lifetime': 30,
+                            'request_metadata': {
+                                'workload_id': self.taskSpec.jediTaskID,
+                                'rule_id': taskParamMap['prestagingRuleID'][tmp_name],
+                            },
+                        }
+                        tmpLog.debug('req {0}'.format(str(req)))
+                        ret = c.add_request(**req)
+                        tmpLog.debug('got requestID={0}'.format(str(ret)))
+                except Exception as e:
+                    raise Interaction.JEDITemporaryError('iDDS error : {0}'.format(str(e)))
+        except JediException.UnknownDatasetError as e:
+            tmpLog.debug('in doRefine. {0}'.format(str(e)))
+            raise e
+        except Exception as e:
+            tmpLog.error('doRefine failed with {0} {1}'.format(str(e), traceback.format_exc()))
+            raise e
         tmpLog.debug('done')
         return self.SC_SUCCEEDED
 

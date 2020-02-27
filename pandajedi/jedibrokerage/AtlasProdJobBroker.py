@@ -597,7 +597,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpLog.debug('diskIO measurements: Error generating diskIO message')
 
             # if the task has a diskIO defined, the queue is over the IO limit and the task IO is over the limit
-            if diskio_task_tmp and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
+            if diskio_task_tmp and diskio_usage_tmp and diskio_limit_tmp \
+                and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
                 tmpLog.info('  skip site={0} due to diskIO overload criteria=-diskIO'.format(tmpSiteName))
                 continue
 
@@ -919,7 +920,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteMaxTime *= float(taskSpec.cpuEfficiency) / 100.0
                     siteMaxTime = long(siteMaxTime)
                     tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
-                if origSiteMaxTime != 0 and minWalltime > siteMaxTime:
+                if origSiteMaxTime != 0 and minWalltime and minWalltime > siteMaxTime:
                     tmpMsg = '  skip site={0} due to short site walltime {1} (site upper limit) less than {2} '.format(tmpSiteName,
                                                                                                                        tmpSiteStr,
                                                                                                                        strMinWalltime)
@@ -944,7 +945,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     siteMinTime *= float(taskSpec.cpuEfficiency) / 100.0
                     siteMinTime = long(siteMinTime)
                     tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
-                if origSiteMinTime != 0 and minWalltime < siteMinTime:
+                if origSiteMinTime != 0 and (minWalltime is None or minWalltime < siteMinTime):
                     tmpMsg = '  skip site {0} due to short job walltime {1} (site lower limit) greater than {2} '.format(tmpSiteName,
                                                                                                                          tmpSiteStr,
                                                                                                                          strMinWalltime)
@@ -1394,8 +1395,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 corrNumPilot = 1
             nDefined   = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'defined', None, tmp_wq_tag) + self.getLiveCount(tmpSiteName)
             nAssigned  = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'assigned', None, tmp_wq_tag)
-            nActivated = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'activated', None, tmp_wq_tag) + \
-                         AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'throttled', None, tmp_wq_tag)
+            nActivated = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'activated', None, tmp_wq_tag)
             nStarting  = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'starting', None, tmp_wq_tag)
             if tmpSiteName in nPilotMap:
                 nPilot = nPilotMap[tmpSiteName]
@@ -1439,14 +1439,18 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                                                                              maxNumFiles,
                                                                                                                                              corrNumPilotStr)
             # reduce weights by taking data availability into account
+            skipRemoteData = False
             if totalSize > 0:
                 # file size to move in MB
                 mbToMove = long((totalSize-siteSizeMap[tmpSiteName])/(1024*1024))
                 # number of files to move
                 nFilesToMove = maxNumFiles-len(siteFilesMap[tmpSiteName])
                 # consider size and # of files
-                weight = weight * (totalSize+siteSizeMap[tmpSiteName]) / totalSize / (nFilesToMove/100+1)
-                weightStr += 'fileSizeToMoveMB={0} nFilesToMove={1} '.format(mbToMove,nFilesToMove)
+                if tmpSiteSpec.use_only_local_data() and (mbToMove>0 or nFilesToMove>0):
+                    skipRemoteData = True
+                else:
+                    weight = weight * (totalSize+siteSizeMap[tmpSiteName]) / totalSize / (nFilesToMove/100+1)
+                    weightStr += 'fileSizeToMoveMB={0} nFilesToMove={1} '.format(mbToMove,nFilesToMove)
             # T1 weight
             if tmpSiteName in t1Sites+sitesShareSeT1:
                 weight *= t1Weight
@@ -1565,6 +1569,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             if lockedByBrokerage:
                 ngMsg = '  skip site={0} due to locked by another brokerage '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-lock'
+            elif skipRemoteData:
+                ngMsg = '  skip site={0} due to non-local data '.format(tmpPseudoSiteName)
+                ngMsg += 'criteria=-non_local'
             elif not useAssigned and siteCandidateSpec.nQueuedJobs > nRunningCap:
                 ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpPseudoSiteName,
                                                                                              weight,
@@ -1605,22 +1612,16 @@ class AtlasProdJobBroker (JobBrokerBase):
             if weight not in weightMap:
                 weightMap[weight] = []
             weightMap[weight].append((siteCandidateSpec,okMsg,ngMsg))
-        # use second candidates if no primary candidates passed cap/lock check
-        if False: #weightMapPrimary == {}:
-            tmpLog.info('use second candidates since no sites pass cap/lock check')
-            weightMap = weightMapSecondary
-            # use hightest 3 weights
-            weightRank = 3
-        else:
-            weightMap = weightMapPrimary
-            # use all weights
-            weightRank = None
-            # dump NG message
-            for tmpWeight in weightMapSecondary.keys():
-                for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMapSecondary[tmpWeight]:
-                    tmpLog.info(tmpNgMsg)
-            if weightMapPrimary == {}:
-                tmpLog.info('available sites all capped')
+        # use only primary candidates
+        weightMap = weightMapPrimary
+        # use all weights
+        weightRank = None
+        # dump NG message
+        for tmpWeight in weightMapSecondary.keys():
+            for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMapSecondary[tmpWeight]:
+                tmpLog.info(tmpNgMsg)
+        if weightMapPrimary == {}:
+            tmpLog.info('available sites all capped')
         # add jumbo sites
         for weight,tmpList in iteritems(weightMapJumbo):
             if weight not in weightMap:

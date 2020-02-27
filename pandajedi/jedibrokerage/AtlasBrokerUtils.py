@@ -301,7 +301,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
 
 
 # get analysis sites where data is available at disk
-def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True):
+def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True, use_incomplete=False):
     siteList = []
     siteWithIncomp = []
     for tmpSiteName,tmpSeValMap in iteritems(dataSiteMap):
@@ -321,7 +321,7 @@ def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True):
                     if tmpSiteName not in siteWithIncomp:
                         siteWithIncomp.append(tmpSiteName)
     # return sites with complete
-    if siteList != []:
+    if siteList != [] or not use_incomplete:
         return siteList
     # return sites with incomplete if complete is unavailable
     return siteWithIncomp
@@ -427,7 +427,7 @@ def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
                             break
                     if tmpPrio is not None:
                         try:
-                            exec("tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio))
+                            exec("tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio), globals())
                             if not tmpStat:
                                 continue
                         except Exception:
@@ -469,7 +469,7 @@ def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
                 # check priority
                 if tmpPrio is not None and not ignorePrio:
                     try:
-                        exec("tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio))
+                        exec("tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio), globals())
                         if not tmpStat:
                             continue
                     except Exception:

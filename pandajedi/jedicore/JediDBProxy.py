@@ -284,7 +284,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
                                    xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents,
                                    respectLB,tgtNumEventsPerJob,skipFilesUsedBy,ramCount,taskSpec,
-                                   skipShortInput):
+                                   skipShortInput, inputPreStaging):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -307,7 +307,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('datasetState={0} dataset.state={1}'.format(datasetState,datasetSpec.state))
         tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1} skipFilesUsedBy={2} ramCount={3}'.format(respectLB,tgtNumEventsPerJob,
                                                                                        skipFilesUsedBy, ramCount))
-        tmpLog.debug('skipShortInput={0} inputPreStaging={1}'.format(skipShortInput, taskSpec.inputPreStaging()))
+        tmpLog.debug('skipShortInput={0} inputPreStaging={1}'.format(skipShortInput, inputPreStaging))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -319,7 +319,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # max number of file records per dataset
         maxFileRecords = 200000
         # mutable
-        if (noWaitParent or taskSpec.inputPreStaging()) and datasetState == 'mutable':
+        if (noWaitParent or inputPreStaging) and datasetState == 'mutable':
             isMutableDataset = True
         else:
             isMutableDataset = False
@@ -865,7 +865,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             # avoid duplication
                             if uniqueFileKey in existingFiles:
                                 continue
-                            if taskSpec.inputPreStaging():
+                            if inputPreStaging:
                                 # go to staging
                                 fileSpec.status = 'staging'
                             elif isMutableDataset:
@@ -896,7 +896,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             resFID = self.cur.fetchall()
                             for fileID, in resFID:
                                 newFileIDs.append(fileID)
-                        if not taskSpec.inputPreStaging() and isMutableDataset:
+                        if not inputPreStaging and isMutableDataset:
                             pendingFID += newFileIDs
                         # sort fileID
                         tmpLog.debug('sort fileIDs')
@@ -947,18 +947,27 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 maxSizePerJob += InputChunk.defaultOutputSize
                                 maxSizePerJob += taskSpec.getWorkDiskSize()
                             # make sub chunks
-                            for i in range(nChunks):
-                                tmpInputChunk.getSubChunk(None, maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
-                                                          nFilesPerJob=taskSpec.getNumFilesPerJob(),
-                                                          sizeGradients=taskSpec.getOutDiskSize(),
-                                                          sizeIntercepts=taskSpec.getWorkDiskSize(),
-                                                          maxSize=maxSizePerJob,
-                                                          nEventsPerJob=taskSpec.getNumEventsPerJob(),
-                                                          respectLB=taskSpec.respectLumiblock())
-                                enoughPendingWithSL = tmpInputChunk.checkUnused()
-                                if not enoughPendingWithSL:
+                            for ii in range(100):
+                                for i in range(nChunks):
+                                    tmpInputChunk.getSubChunk(None, maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
+                                                              nFilesPerJob=taskSpec.getNumFilesPerJob(),
+                                                              sizeGradients=taskSpec.getOutDiskSize(),
+                                                              sizeIntercepts=taskSpec.getWorkDiskSize(),
+                                                              maxSize=maxSizePerJob,
+                                                              nEventsPerJob=taskSpec.getNumEventsPerJob(),
+                                                              respectLB=taskSpec.respectLumiblock())
+                                    enoughPendingWithSL = tmpInputChunk.checkUnused()
+                                    if not enoughPendingWithSL:
+                                        break
+                                if enoughPendingWithSL:
+                                    numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                                else:
+                                    # one set of sub chunks is at least available
+                                    if ii > 0:
+                                        enoughPendingWithSL = True
+                                    else:
+                                        numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
                                     break
-                            numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
                             tmpLog.debug('respecting SR nFiles={0} isEnough={1} nFilesPerJob={2} maxSize={3}'.format(numFilesWithSL, enoughPendingWithSL,
                                                                                                                      taskSpec.getNumFilesPerJob(),
                                                                                                                      maxSizePerJob))
@@ -7804,7 +7813,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlTL += "AND prodSourceLabel=:prodSourceLabel "
             if minPriority is not None:
                 varMap[':minPriority'] = minPriority
-                sqlTL += "AND currentPriority>:minPriority "
+                sqlTL += "AND currentPriority>=:minPriority "
             # sql to update tasks
             sqlTU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTU += "SET status=oldStatus,oldStatus=NULL,modificationtime=CURRENT_DATE "
@@ -12635,8 +12644,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames):
         comment = ' /* JediDBProxy.updateInputFilesStagedAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jeditaskid)
-        tmpLog = MsgWrapper(logger,methodName)
+        methodName += ' < jediTaskID={0} >'.format(jeditaskid)
+        tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
         try:
             retVal = 0
@@ -12660,6 +12669,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             self.conn.begin()
             # get datasetIDs
+            tmpLog.debug('running sql: {0} {1}'.format(sqlGD, varMap))
             self.cur.execute(sqlGD+comment, varMap)
             varMap = dict()
             varMap[':jediTaskID'] = jeditaskid
@@ -12677,6 +12687,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # loop over filenames
                 for filename in filenames:
                     varMap[':lfn'] = filename
+                    tmpLog.debug('running sql: {0} {1}'.format(sqlUF, varMap))
                     self.cur.execute(sqlUF+comment, varMap)
                     retVal += self.cur.rowcount
             # commit
@@ -12697,8 +12708,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames):
         comment = ' /* JediDBProxy.updateInputDatasetsStagedAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " < jediTaskID={0} >".format(jeditaskid)
-        tmpLog = MsgWrapper(logger,methodName)
+        methodName += ' < jediTaskID={0} >'.format(jeditaskid)
+        tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
         try:
             retVal = 0
@@ -12721,12 +12732,50 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.conn.begin()
             for dsname in dsnames:
                 varMap[':datasetName'] = '{0}:{1}'.format(scope, dsname)
+                tmpLog.debug('running sql: {0} {1}'.format(sqlUD, varMap))
                 self.cur.execute(sqlUD+comment, varMap)
                 retVal += self.cur.rowcount
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
             tmpLog.debug('updated {0} files'.format(retVal))
+            return retVal
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+   # get number of staging files
+    def getNumStagingFiles_JEDI(self, jeditaskid):
+        comment = ' /* JediDBProxy.getNumStagingFiles_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jeditaskid)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = 0
+            # varMap
+            varMap = dict()
+            varMap[':jediTaskID'] = jeditaskid
+            varMap[':type'] = 'input'
+            varMap[':status'] = 'staging'
+            # sql
+            sqlNS = ('SELECT COUNT(*) FROM {0}.JEDI_Datasets d, {0}.JEDI_Dataset_Contents c '
+                     'WHERE d.jediTaskID=:jediTaskID AND d.type=:type '
+                     'AND c.jediTaskID=d.jediTaskID AND c.datasetID=d.datasetID '
+                     'AND c.status=:status '
+                    ).format(jedi_config.db.schemaJEDI)
+            # begin transaction
+            self.conn.begin()
+            self.cur.execute(sqlNS+comment, varMap)
+            retVal, = self.cur.fetchone()
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('got {0} staging files'.format(retVal))
             return retVal
         except Exception:
             # roll back

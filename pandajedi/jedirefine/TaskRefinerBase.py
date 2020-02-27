@@ -2,7 +2,6 @@ import re
 import sys
 import uuid
 import copy
-import types
 import datetime
 
 from six import iteritems

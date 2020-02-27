@@ -527,7 +527,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     skipMsgList.append(tmpMsg)
                                 else:
                                     newNucleusList[tmpNucleus] = tmpNucleusSpec
-                            totInputSize = availableData.values()[0]['tot_size']/1024/1024/1024
+                            totInputSize = list(availableData.values())[0]['tot_size']/1024/1024/1024
                             if len(newNucleusList) > 0:
                                 nucleusList = newNucleusList
                                 for tmpMsg in skipMsgList:

@@ -430,7 +430,7 @@ class InputChunk:
         # set default max number of events
         maxNumEvents = None
         # ignore negative walltime gradient
-        if walltimeGradient < 0:
+        if walltimeGradient is None or walltimeGradient < 0:
             walltimeGradient = 0
         # overwrite parameters when nFiles/EventsPerJob is used
         if nFilesPerJob is not None and not dynNumEvents:
@@ -921,9 +921,9 @@ class InputChunk:
     # get max ramCount
     def getMaxRamCount(self):
         if self.isMerging:
-            return max (self.taskSpec.mergeRamCount,self.ramCount)
+            return max(self.taskSpec.mergeRamCount, self.ramCount) if self.taskSpec.mergeRamCount else self.ramCount
         else:
-            return max (self.taskSpec.ramCount,self.ramCount)
+            return max(self.taskSpec.ramCount, self.ramCount) if self.taskSpec.ramCount else self.ramCount
 
 
     # get site candidate
