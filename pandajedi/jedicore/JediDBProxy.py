@@ -947,7 +947,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 maxSizePerJob += InputChunk.defaultOutputSize
                                 maxSizePerJob += taskSpec.getWorkDiskSize()
                             # make sub chunks
-                            for ii in range(100):
+                            if taskSpec.status == 'running':
+                                maxNumChunks = 100
+                            else:
+                                maxNumChunks = 1
+                            for ii in range(maxNumChunks):
                                 for i in range(nChunks):
                                     tmpInputChunk.getSubChunk(None, maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
                                                               nFilesPerJob=taskSpec.getNumFilesPerJob(),
@@ -968,9 +972,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     else:
                                         numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
                                     break
-                            tmpLog.debug('respecting SR nFiles={0} isEnough={1} nFilesPerJob={2} maxSize={3}'.format(numFilesWithSL, enoughPendingWithSL,
-                                                                                                                     taskSpec.getNumFilesPerJob(),
-                                                                                                                     maxSizePerJob))
+                            tmpLog.debug(('respecting SR nFiles={0} isEnough={1}'
+                                         'nFilesPerJob={2} maxSize={3} maxNumChunks={4}').format(
+                                numFilesWithSL, enoughPendingWithSL,
+                                taskSpec.getNumFilesPerJob(),
+                                maxSizePerJob, maxNumChunks))
                         # activate pending
                         tmpLog.debug('activate pending')
                         toActivateFID = []
