@@ -972,7 +972,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     else:
                                         numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
                                     break
-                            tmpLog.debug(('respecting SR nFiles={0} isEnough={1}'
+                            tmpLog.debug(('respecting SR nFiles={0} isEnough={1} '
                                          'nFilesPerJob={2} maxSize={3} maxNumChunks={4}').format(
                                 numFilesWithSL, enoughPendingWithSL,
                                 taskSpec.getNumFilesPerJob(),
