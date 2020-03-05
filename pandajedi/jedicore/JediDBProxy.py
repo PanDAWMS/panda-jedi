@@ -59,7 +59,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.workQueueMap = WorkQueueMapper()
         # update time for work queue map
         self.updateTimeForWorkQueue = None
-
+        
+        # typical input cache
+        self.typical_input_cache = {}
 
 
     # connect to DB (just for INTR)
@@ -109,24 +111,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         else:
             tmpLog.error(errStr)
 
-    # Internal caching of a result. Use only for information with low update frequency and low memory footprint
-    def memoize_jedi(f):
-        tmp_log = MsgWrapper(logger, 'memoize_jedi')
-        tmp_log.debug('start')
-        memo = {}
-        kwd_mark = object()
-
-        def helper(self, *args, **kwargs):
-            now = datetime.datetime.now()
-            key = args + (kwd_mark,) + tuple(sorted(kwargs.items()))
-            if key not in memo or memo[key]['timestamp'] < now - datetime.timedelta(hours=1):
-                tmp_log.debug('updating cache')
-                memo[key] = {}
-                memo[key]['value'] = f(self, *args, **kwargs)
-                memo[key]['timestamp'] = now
-            return memo[key]['value']
-
-        return helper
 
     # get work queue map
     def getWorkQueueMap(self):
@@ -4615,7 +4599,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return None
 
 
-
     # get typical number of input files for each gshare+processingType
     def getTypicalNumInput_JEDI(self, vo, prodSourceLabel, workQueue):
         comment = ' /* JediDBProxy.getTypicalNumInput_JEDI */'
@@ -4623,6 +4606,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += ' vo={0} label={1} queue={2}'.format(vo,prodSourceLabel,workQueue.queue_name)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
+
+        # see if value in cache to protect database
+        # can't use a generic memoize function because workqueue is an object and comparison fails
+        key = (vo, prodSourceLabel, workQueue.queue_name)
+        now = datetime.datetime.now()
+        if key in self.typical_input_cache and self.typical_input_cache[key]['timestamp'] > now - datetime.timedelta(minutes=30):
+            tmpLog.debug('cache hit')
+            return self.typical_input_cache[key]['value']
+
         try:
             # sql to get size
             varMap = {}
@@ -4691,6 +4683,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             except Exception:
                 pass
             tmpLog.debug('done -> {0}'.format(retMap))
+
+            # cache the value
+            tmpLog.debug('updated cache')
+            self.typical_input_cache[key] = {}
+            self.typical_input_cache[key]['timestamp'] = now
+            self.typical_input_cache[key]['value'] = retMap
             return retMap
         except Exception:
             # roll back
