@@ -111,16 +111,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # Internal caching of a result. Use only for information with low update frequency and low memory footprint
     def memoize_jedi(f):
+        tmp_log = MsgWrapper(logger, 'memoize_jedi')
+        tmp_log.debug('start')
         memo = {}
         kwd_mark = object()
+
         def helper(self, *args, **kwargs):
             now = datetime.datetime.now()
             key = args + (kwd_mark,) + tuple(sorted(kwargs.items()))
             if key not in memo or memo[key]['timestamp'] < now - datetime.timedelta(hours=1):
+                tmp_log.debug('updating cache')
                 memo[key] = {}
                 memo[key]['value'] = f(self, *args, **kwargs)
                 memo[key]['timestamp'] = now
             return memo[key]['value']
+
         return helper
 
     # get work queue map
@@ -4611,8 +4616,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
 
-    # get typical number of input files for each gshare+processingType, cached for 1 hour
-    @memoize_jedi
+    # get typical number of input files for each gshare+processingType
     def getTypicalNumInput_JEDI(self, vo, prodSourceLabel, workQueue):
         comment = ' /* JediDBProxy.getTypicalNumInput_JEDI */'
         methodName = self.getMethodName(comment)
