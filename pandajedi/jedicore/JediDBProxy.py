@@ -59,7 +59,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.workQueueMap = WorkQueueMapper()
         # update time for work queue map
         self.updateTimeForWorkQueue = None
-
+        
+        # typical input cache
+        self.typical_input_cache = {}
 
 
     # connect to DB (just for INTR)
@@ -108,7 +110,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug(errStr)
         else:
             tmpLog.error(errStr)
-
 
 
     # get work queue map
@@ -4598,7 +4599,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return None
 
 
-
     # get typical number of input files for each gshare+processingType
     def getTypicalNumInput_JEDI(self, vo, prodSourceLabel, workQueue):
         comment = ' /* JediDBProxy.getTypicalNumInput_JEDI */'
@@ -4606,6 +4606,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += ' vo={0} label={1} queue={2}'.format(vo,prodSourceLabel,workQueue.queue_name)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
+
         try:
             # sql to get size
             varMap = {}
@@ -4674,6 +4675,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             except Exception:
                 pass
             tmpLog.debug('done -> {0}'.format(retMap))
+
             return retMap
         except Exception:
             # roll back
