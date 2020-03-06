@@ -153,15 +153,21 @@ class AtlasProdJobBroker (JobBrokerBase):
         if siteListForTB is not None:
             scanSiteList = siteListForTB
         elif taskSpec.site not in ['',None] and inputChunk.getPreassignedSite() is None:
-            if ',' in taskSpec.site:
-                # site list
+            # convert to pseudo queues if needed
+            scanSiteList = []
+            for tmpSiteName in taskSpec.site.split(','):
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                if tmpSiteSpec is None or not tmpSiteSpec.is_unified:
+                    scanSiteList.append(tmpSiteName)
+                else:
+                    scanSiteList += self.get_pseudo_sites([tmpSiteName],
+                                                          self.siteMapper.getCloud(cloudName)['sites'])
+            for tmpSiteName in scanSiteList:
+                tmpLog.info('site={0} is pre-assigned criteria=+preassign'.format(tmpSiteName))
+            if len(scanSiteList) > 1:
                 siteListPreAssigned = True
-                scanSiteList = taskSpec.site.split(',')
             else:
-                # site
                 sitePreAssigned = True
-                scanSiteList = [taskSpec.site]
-            tmpLog.info('site={0} is pre-assigned criteria=+preassign'.format(taskSpec.site))
         elif inputChunk.getPreassignedSite() is not None:
             if inputChunk.masterDataset.creationTime is not None and inputChunk.masterDataset.modificationTime is not None and \
                     inputChunk.masterDataset.modificationTime != inputChunk.masterDataset.creationTime and \
@@ -183,7 +189,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
             tmpLog.info('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
-        # hight prio ES
+        # high prio ES
         if taskSpec.useEventService() and not taskSpec.useJobCloning() and (taskSpec.currentPriority >= 900 or inputChunk.useScout()):
             esHigh = True
         else:
