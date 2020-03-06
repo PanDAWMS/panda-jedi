@@ -4607,14 +4607,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
 
-        # see if value in cache to protect database
-        # can't use a generic memoize function because workqueue is an object and comparison fails
-        key = (vo, prodSourceLabel, workQueue.queue_name)
-        now = datetime.datetime.now()
-        if key in self.typical_input_cache and self.typical_input_cache[key]['timestamp'] > now - datetime.timedelta(minutes=30):
-            tmpLog.debug('cache hit')
-            return self.typical_input_cache[key]['value']
-
         try:
             # sql to get size
             varMap = {}
@@ -4684,11 +4676,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 pass
             tmpLog.debug('done -> {0}'.format(retMap))
 
-            # cache the value
-            tmpLog.debug('updated cache')
-            self.typical_input_cache[key] = {}
-            self.typical_input_cache[key]['timestamp'] = now
-            self.typical_input_cache[key]['value'] = retMap
             return retMap
         except Exception:
             # roll back
