@@ -4609,18 +4609,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         try:
             # sql to get size
-            varMap = {}
-            varMap[':vo'] = vo
-            varMap[':prodSourceLabel'] = prodSourceLabel
+            var_map = {}
+            var_map[':vo'] = vo
+            var_map[':prodSourceLabel'] = prodSourceLabel
             sql  = "SELECT processingtype, nInputDataFiles FROM {0}.typical_num_input ".format(jedi_config.db.schemaPANDA)
             sql += "WHERE vo=:vo AND agg_type=:agg_type AND agg_key=:agg_key AND prodSourceLabel=:prodSourceLabel "
 
             if workQueue.is_global_share:
-                varMap[':agg_type'] = 'gshare'
-                varMap[':agg_type'] = workQueue.queue_name
+                var_map[':agg_type'] = 'gshare'
+                var_map[':agg_key'] = workQueue.queue_name
             else:
-                varMap[':agg_type'] = 'workqueue'
-                varMap[':agg_type'] = str(workQueue.queue_id)
+                var_map[':agg_type'] = 'workqueue'
+                var_map[':agg_key'] = str(workQueue.queue_id)
 
             # sql to get config
             sqlC = "SELECT key,value FROM ATLAS_PANDA.CONFIG "
@@ -4630,7 +4630,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.conn.begin()
 
             # get values from cache
-            self.cur.execute(sql+comment,varMap)
+            self.cur.execute(sql + comment, var_map)
             resList = self.cur.fetchall()
             retMap = {}
             for processingType, numFile in resList:
@@ -4639,12 +4639,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 retMap[processingType] = int(math.ceil(numFile))
 
             # get from DB config
-            varMap = {}
-            varMap[':vo'] = vo
-            varMap[':app'] = 'jedi'
-            varMap[':component'] = 'jobgen'
-            varMap[':patt'] = 'TYPNFILES_{0}_%'.format(prodSourceLabel)
-            self.cur.execute(sqlC + comment, varMap)
+            var_map = {}
+            var_map[':vo'] = vo
+            var_map[':app'] = 'jedi'
+            var_map[':component'] = 'jobgen'
+            var_map[':patt'] = 'TYPNFILES_{0}_%'.format(prodSourceLabel)
+            self.cur.execute(sqlC + comment, var_map)
             resC = self.cur.fetchall()
             for tmpKey, tmpVal in resC:
                 tmpItems = tmpKey.split('_')
