@@ -4609,43 +4609,42 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         try:
             # sql to get size
-            varMap = {}
-            varMap[':vo'] = vo
-            varMap[':prodSourceLabel'] = prodSourceLabel
-            sql  = "SELECT MEDIAN(nInputDataFiles),processingType FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
-            sql += "WHERE prodSourceLabel=:prodSourceLabel and vo=:vo "
+            var_map = {}
+            var_map[':vo'] = vo
+            var_map[':prodSourceLabel'] = prodSourceLabel
+            sql  = "SELECT processingtype, nInputDataFiles FROM {0}.typical_num_input ".format(jedi_config.db.schemaPANDA)
+            sql += "WHERE vo=:vo AND agg_type=:agg_type AND agg_key=:agg_key AND prodSourceLabel=:prodSourceLabel "
+
             if workQueue.is_global_share:
-                sql += "AND gshare=:wq_name "
-                sql += "AND workqueue_id IN ("
-                sql += "SELECT UNIQUE workqueue_id FROM {0}.jobsActive4 " .format(jedi_config.db.schemaPANDA)
-                sql += "MINUS "
-                sql += "SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
-                varMap[':wq_name'] = workQueue.queue_name
+                var_map[':agg_type'] = 'gshare'
+                var_map[':agg_key'] = workQueue.queue_name
             else:
-                sql += "AND workQueue_ID=:wq_id "
-                varMap[':wq_id'] = workQueue.queue_id
-            sql += "GROUP BY processingType "
+                var_map[':agg_type'] = 'workqueue'
+                var_map[':agg_key'] = str(workQueue.queue_id)
+
             # sql to get config
             sqlC = "SELECT key,value FROM ATLAS_PANDA.CONFIG "
             sqlC += "WHERE app=:app AND component=:component AND vo=:vo AND key LIKE :patt "
+
             # begin transaction
             self.conn.begin()
-            # exec
-            self.cur.execute(sql+comment,varMap)
+
+            # get values from cache
+            self.cur.execute(sql + comment, var_map)
             resList = self.cur.fetchall()
-            # loop over all processingTypes
             retMap = {}
-            for numFile,processingType in resList:
+            for processingType, numFile in resList:
                 if numFile is None:
                     numFile = 0
                 retMap[processingType] = int(math.ceil(numFile))
-            # get from config
-            varMap = {}
-            varMap[':vo'] = vo
-            varMap[':app'] = 'jedi'
-            varMap[':component'] = 'jobgen'
-            varMap[':patt'] = 'TYPNFILES_{0}_%'.format(prodSourceLabel)
-            self.cur.execute(sqlC + comment, varMap)
+
+            # get from DB config
+            var_map = {}
+            var_map[':vo'] = vo
+            var_map[':app'] = 'jedi'
+            var_map[':component'] = 'jobgen'
+            var_map[':patt'] = 'TYPNFILES_{0}_%'.format(prodSourceLabel)
+            self.cur.execute(sqlC + comment, var_map)
             resC = self.cur.fetchall()
             for tmpKey, tmpVal in resC:
                 tmpItems = tmpKey.split('_')
@@ -4659,8 +4658,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
-            # use predefined values
-            tmpLog.debug(hasattr(jedi_config.jobgen,'typicalNumFile'))
+
+            # use predefined values from config file
+            tmpLog.debug(hasattr(jedi_config.jobgen, 'typicalNumFile'))
             try:
                 if hasattr(jedi_config.jobgen,'typicalNumFile'):
                     for tmpItem in jedi_config.jobgen.typicalNumFile.split(','):
