@@ -2,7 +2,6 @@ import re
 import sys
 import random
 
-from pandajedi.jedicore import Interaction
 from .TaskRefinerBase import TaskRefinerBase
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandaserver.config import panda_config
@@ -73,6 +72,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         # min ram count
         if 'ramCount' not in taskParamMap:
             taskParamMap['ramCount'] = 2000
+            taskParamMap['ramUnit'] = 'MBPerCore'
         # disk count
         if 'outDiskCount' not in taskParamMap:
             taskParamMap['outDiskCount'] = 500
