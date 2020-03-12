@@ -8,6 +8,7 @@ import random
 import logging
 import datetime
 import traceback
+import socket
 import cx_Oracle
 
 from six import iteritems
@@ -1691,6 +1692,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if taskStatus in ['broken','assigning']:
                         self.setDeftStatus_JEDI(jediTaskID, taskStatus)
                         self.setSuperStatus_JEDI(jediTaskID,taskStatus)
+                    # task status logging
+                    self.record_task_status_change(jediTaskID)
                     tmpLog.debug('set to {0}'.format(taskStatus))
             # commit
             if not self._commit():
@@ -1758,12 +1761,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.conn.begin()
             # get old status
             frozenTime = None
+            statusUpdated = False
             self.cur.execute(sqlS+sql+comment,varMap)
             res = self.cur.fetchone()
             if res is not None:
                 statusInDB,frozenTime = res
                 if statusInDB != taskSpec.status:
                     taskSpec.stateChangeTime = timeNow
+                    statusUpdated = True
             # set/unset frozen time
             if taskSpec.status == 'pending' and setFrozenTime:
                 if frozenTime is None:
@@ -1861,6 +1866,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         sqlDS += "WHERE taskID=:jediTaskID AND start_time IS NULL "
                         tmpLog.debug(sqlDS+comment+str(varMap))
                         self.cur.execute(sqlDS+comment,varMap)
+                # status change logging
+                if statusUpdated:
+                    self.record_task_status_change(taskSpec.jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -3402,13 +3410,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if resDN is None:
                             # no user info
                             toSkip = True
-                            tmpLog.error('skipped since failed to get DN for {0}'.format(origTaskSpec.userName))
+                            tmpLog.error('skipped since failed to get DN for {0} jediTaskID={1}'.format(
+                                origTaskSpec.userName, jediTaskID))
                         else:
                             origTaskSpec.userName, = resDN
                             if origTaskSpec.userName in ['', None]:
                                 # DN is empty
                                 toSkip = True
-                                tmpLog.error('skipped since DN is empty for {0}'.format(origTaskSpec.userName))
+                                tmpLog.error('skipped since DN is empty for {0} jediTaskID={1}'.format(
+                                    origTaskSpec.userName, jediTaskID))
                             else:
                                 # reset change to not update userName
                                 origTaskSpec.resetChangedAttr('userName')
@@ -5308,6 +5318,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     sql  = "UPDATE {0}.JEDI_TaskParams SET taskParams=:taskParams ".format(jedi_config.db.schemaJEDI)
                     sql += "WHERE jediTaskID=:jediTaskID "
                     self.cur.execute(sql+comment,varMap)
+            # task status logging
+            self.record_task_status_change(taskSpec.jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -6680,6 +6692,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if newTaskStatus == 'exhausted':
                             self.setDeftStatus_JEDI(jediTaskID, newTaskStatus)
                             self.setSuperStatus_JEDI(jediTaskID,newTaskStatus)
+                        self.record_task_status_change(jediTaskID)
                 # commit
                 if not self._commit():
                     raise RuntimeError('Commit error')
@@ -6898,6 +6911,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             eventService,site,useJumbo,splitRule = resRT
                             # enable jumbo
                             self.enableJumboInTask_JEDI(jediTaskID, eventService, site, useJumbo, splitRule)
+                        # task status logging
+                        self.record_task_status_change(jediTaskID)
                     # commit
                     if not self._commit():
                         raise RuntimeError('Commit error')
@@ -7894,7 +7909,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.info('#ATM #KV jediTaskID={0} action=keep_pending'.format(jediTaskID))
                 else:
                     tmpLog.info('#ATM #KV jediTaskID={0} action=reactivate'.format(jediTaskID))
-                nRow += self.cur.rowcount
+                tmpRow = self.cur.rowcount
+                nRow += tmpRow
+                if tmpRow > 0 and not keepFlag:
+                    self.record_task_status_change(jediTaskID)
                 # update DEFT for timeout
                 if timeoutFlag:
                     deftStatus = varMap[':newStatus']
@@ -8062,6 +8080,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sqlTD+comment,varMap)
                 nRow = self.cur.rowcount
                 if nRow > 0:
+                    self.record_task_status_change(jediTaskID)
                     tmpLog.debug('jediTaskID={0} reset to defined'.format(jediTaskID))
                     nTasks += 1
             # commit
@@ -8772,7 +8791,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlUTB += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
             sqlUTB += "WHERE jediTaskID=:jediTaskID "
             sqlUTN  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlUTN += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE,startTime=NULL "
+            sqlUTN += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,"
+            sqlUTN += "stateChangeTime=CURRENT_DATE,startTime=NULL,attemptNr=attemptNr+1 "
             sqlUTN += "WHERE jediTaskID=:jediTaskID "
             # sql to update DEFT task status
             sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
@@ -9041,6 +9061,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':jediTaskID'] = jediTaskID
                     varMap[':status'] = deftStatus
                     self.cur.execute(sqlTT+comment,varMap)
+                    # task status log
+                    self.record_task_status_change(jediTaskID)
                 else:
                     tmpLog.debug('back to taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
                     varMap[':updateTime'] = datetime.datetime.utcnow()
@@ -12791,3 +12813,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+    # task status logging
+    def record_task_status_change(self, jedi_task_id):
+        comment = ' /* JediDBProxy.record_task_status_change */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        varMap = dict()
+        varMap[':jediTaskID'] = jedi_task_id
+        varMap[':modificationHost'] = socket.getfqdn()
+        # sql
+        sqlNS = ('INSERT INTO {0}.TASKS_STATUSLOG '
+                 '(jediTaskID,modificationTime,status,modificationHost,attemptNr) '
+                 'SELECT jediTaskID,CURRENT_TIMESTAMP,status,:modificationHost,attemptNr '
+                 'FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID '
+                 ).format(jedi_config.db.schemaJEDI)
+        self.cur.execute(sqlNS + comment, varMap)
+        tmpLog.debug('done')

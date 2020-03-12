@@ -62,6 +62,7 @@ class TaskRefinerBase (object):
         # make task spec
         taskSpec = JediTaskSpec()
         taskSpec.jediTaskID = jediTaskID
+        taskSpec.attemptNr = 0
         taskSpec.taskName = taskParamMap['taskName']
         taskSpec.userName = taskParamMap['userName']
         taskSpec.vo = taskParamMap['vo']
