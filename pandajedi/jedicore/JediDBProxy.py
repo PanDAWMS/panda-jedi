@@ -10817,69 +10817,47 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return retVal
 
 
-
     # get total walltime
-    def getTotalWallTime_JEDI(self, vo, prodSourceLabel, workQueue, resource_name, cloud=None):
+    def getTotalWallTime_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):
         comment = ' /* JediDBProxy.getTotalWallTime_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' <vo={0} label={1} queue={2} cloud={3}>'.format(vo, prodSourceLabel, workQueue.queue_name, cloud)
-        tmpLog = MsgWrapper(logger,methodName)
+        methodName += ' <vo={0} label={1} queue={2}>'.format(vo, prodSourceLabel, workQueue.queue_name)
+        tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
         try:
-            # sql
-            varMap = {}
-            sql  = "SELECT SUM(NVL2(maxWalltime,maxWalltime,0)),SUM(NVL2(maxWalltime,1,0)),SUM(NVL2(maxWalltime,0,1)) "
-            sql += "FROM {0}.".format(jedi_config.db.schemaPANDA) + "{0} "
-            sql += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel "
-            if cloud is not None:
-                sql += "AND cloud=:cloud "
-                varMap[':cloud'] = cloud
+            
+            # sql to get size
+            var_map = {':vo': vo, ':prodSourceLabel': prodSourceLabel, ':resource_name': resource_name}
+            sql  = "SELECT total_walltime, n_has_value, n_no_value "
+            sql += "FROM {0}.total_walltime_cache".format(jedi_config.db.schemaPANDA)
+            sql += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND resource_type=:resource_name "
+            sql += "AND agg_type=:agg_type AND agg_key=:agg_key"
 
             if workQueue.is_global_share:
-                sql += "AND gshare=:wq_name "
-                sql += "AND workqueue_id IN ("
-                sql += "SELECT UNIQUE workqueue_id FROM {0}.".format(jedi_config.db.schemaPANDA) + "{0} "
-                sql += "MINUS "
-                sql += "SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
-                varMap[':wq_name'] = workQueue.queue_name
+                var_map[':agg_type'] = 'gshare'
+                var_map[':agg_key'] = workQueue.queue_name
             else:
-                sql += "AND workQueue_ID=:wq_id "
-                varMap[':wq_id'] = workQueue.queue_id
-            sql += "AND resource_type=:resource_name "
+                var_map[':agg_type'] = 'workqueue'
+                var_map[':agg_key'] = str(workQueue.queue_id)
 
-            sqlA = "AND jobStatus IN (:jobStatus1,:jobStatus2) "
             # start transaction
             self.conn.begin()
-            # get from jobsDefined
-            varMap[':vo'] = vo
-            varMap[':prodSourceLabel'] = prodSourceLabel
-            varMap[':resource_name'] = resource_name
-            self.cur.execute(sql.format('jobsDefined4')+comment,varMap)
-            totWalltime,nHasVal,nNoVal = 0,0,0
+            self.cur.execute(sql + comment, var_map)
+            totWalltime, nHasVal, nNoVal = 0,0,0
             tmpTotWalltime,tmpHasVal,tmpNoVal = self.cur.fetchone()
             if tmpTotWalltime is not None:
-                totWalltime += tmpTotWalltime
+                totWalltime = tmpTotWalltime
             if tmpHasVal is not None:
-                nHasVal += tmpHasVal
+                nHasVal = tmpHasVal
             if tmpNoVal is not None:
-                nNoVal += tmpNoVal
-            # get from jobsActive
-            varMap[':jobStatus1'] = 'activated'
-            varMap[':jobStatus2'] = 'starting'
-            self.cur.execute(sql.format('jobsActive4')+sqlA+comment,varMap)
-            tmpTotWalltime,tmpHasVal,tmpNoVal = self.cur.fetchone()
-            if tmpTotWalltime is not None:
-                totWalltime += tmpTotWalltime
-            if tmpHasVal is not None:
-                nHasVal += tmpHasVal
-            if tmpNoVal is not None:
-                nNoVal += tmpNoVal
+                nNoVal = tmpNoVal
+
             tmpLog.debug('totWalltime={0} nHasVal={1} nNoVal={2}'.format(totWalltime,nHasVal,nNoVal))
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
             if nHasVal != 0:
-                totWalltime = long(totWalltime*(1+float(nNoVal)/float(nHasVal)))
+                totWalltime = long(totWalltime * (1 + float(nNoVal) / float(nHasVal)))
             else:
                 totWalltime = None
             tmpLog.debug('done totWalltime={0}'.format(totWalltime))
@@ -10890,7 +10868,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
-
 
 
     # check duplication with internal merge
