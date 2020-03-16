@@ -10829,7 +10829,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to get size
             var_map = {':vo': vo, ':prodSourceLabel': prodSourceLabel, ':resource_name': resource_name}
             sql  = "SELECT total_walltime, n_has_value, n_no_value "
-            sql += "FROM {0}.total_walltime_cache".format(jedi_config.db.schemaPANDA)
+            sql += "FROM {0}.total_walltime_cache ".format(jedi_config.db.schemaPANDA)
             sql += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND resource_type=:resource_name "
             sql += "AND agg_type=:agg_type AND agg_key=:agg_key"
 
