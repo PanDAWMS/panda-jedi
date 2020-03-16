@@ -297,7 +297,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
             self.setMaxNumJobs(configQueueCap // nParallelCap)
 
         # get total walltime
-        totWalltime = self.taskBufferIF.getTotalWallTime_JEDI(vo, prodSourceLabel, workQueue, resource_name, cloudName)
+        totWalltime = self.taskBufferIF.getTotalWallTime_JEDI(vo, prodSourceLabel, workQueue, resource_name)
 
         # log the current situation and limits
         tmpLog.info("{0} nQueueLimit={1} nRunCap={2} nQueueCap={3}".format(msgHeader, nQueueLimit,
