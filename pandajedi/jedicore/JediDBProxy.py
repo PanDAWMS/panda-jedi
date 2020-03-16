@@ -10843,16 +10843,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # start transaction
             self.conn.begin()
             self.cur.execute(sql + comment, var_map)
-            totWalltime, nHasVal, nNoVal = 0,0,0
-            tmpTotWalltime,tmpHasVal,tmpNoVal = self.cur.fetchone()
-            if tmpTotWalltime is not None:
-                totWalltime = tmpTotWalltime
-            if tmpHasVal is not None:
-                nHasVal = tmpHasVal
-            if tmpNoVal is not None:
-                nNoVal = tmpNoVal
+            totWalltime, nHasVal, nNoVal = 0, 0, 0
+            try:
+                tmpTotWalltime, tmpHasVal, tmpNoVal = self.cur.fetchone()
+                if tmpTotWalltime is not None:
+                    totWalltime = tmpTotWalltime
+                if tmpHasVal is not None:
+                    nHasVal = tmpHasVal
+                if tmpNoVal is not None:
+                    nNoVal = tmpNoVal
+            except TypeError:  # there was no result
+                pass
 
-            tmpLog.debug('totWalltime={0} nHasVal={1} nNoVal={2}'.format(totWalltime,nHasVal,nNoVal))
+            tmpLog.debug('totWalltime={0} nHasVal={1} nNoVal={2}'.format(totWalltime, nHasVal, nNoVal))
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
