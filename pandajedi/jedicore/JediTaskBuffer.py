@@ -1299,11 +1299,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # get total walltime
-    def getTotalWallTime_JEDI(self, vo, prodSourceLabel, workQueue, resource_name, cloud=None):
+    def getTotalWallTime_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.getTotalWallTime_JEDI(vo, prodSourceLabel, workQueue, resource_name, cloud)
+        retVal = proxy.getTotalWallTime_JEDI(vo, prodSourceLabel, workQueue, resource_name)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
