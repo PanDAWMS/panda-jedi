@@ -215,6 +215,9 @@ class TaskRefinerBase (object):
         # request type
         if 'requestType' in taskParamMap:
             taskSpec.requestType = taskParamMap['requestType']
+        # image name
+        if 'container_name' in taskParamMap:
+            taskSpec.container_name = taskParamMap['container_name']
         self.taskSpec = taskSpec
         # set split rule
         if 'tgtNumEventsPerJob' in taskParamMap:

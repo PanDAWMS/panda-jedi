@@ -967,7 +967,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.lockedby         = 'jedi'
                     jobSpec.workQueue_ID     = taskSpec.workQueue_ID
                     jobSpec.gshare           = taskSpec.gshare
-
+                    jobSpec.container_name       = taskSpec.container_name
                     # disable reassign
                     if taskSpec.disableReassign():
                         jobSpec.relocationFlag = 2
@@ -1497,6 +1497,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.lockedby         = 'jedi'
             jobSpec.workQueue_ID     = taskSpec.workQueue_ID
             jobSpec.gshare           = taskSpec.gshare
+            jobSpec.container_name   = taskSpec.container_name
             jobSpec.metadata         = ''
             if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0] or siteSpec.sitename != siteSpec.get_unified_name():
                 jobSpec.coreCount = 1

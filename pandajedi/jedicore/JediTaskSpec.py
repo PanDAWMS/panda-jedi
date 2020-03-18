@@ -27,7 +27,8 @@ class JediTaskSpec(object):
         'cpuEfficiency','baseWalltime','nucleus','baseRamCount',
         'ttcRequested', 'ttcPredicted', 'ttcPredictionDate','rescueTime',
         'requestType', 'gshare', 'resource_type', 'useJumbo','diskIO',
-        'diskIOUnit', 'memory_leak_core', 'memory_leak_x2', 'attemptNr'
+        'diskIOUnit', 'memory_leak_core', 'memory_leak_x2', 'attemptNr',
+        'container_name'
         )
     # attributes which have 0 by default
     _zeroAttrs = ()

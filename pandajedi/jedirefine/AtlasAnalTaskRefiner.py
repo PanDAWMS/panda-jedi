@@ -100,6 +100,17 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 if 'currentPriority' not in taskParamMap:
                     taskParamMap['currentPriority'] = taskParamMap['taskPriority']
                 taskParamMap['taskPriority'] = 1001
+        # image name
+        if 'container_name' not in taskParamMap:
+            try:
+                for tmpItem in taskParamMap['jobParameters']:
+                    if 'value' in tmpItem:
+                        tmpM = re.search(' --containerImage\s+([^\s]+)', tmpItem['value'])
+                        if tmpM is not None:
+                            taskParamMap['container_name'] = tmpM.group(1)
+                            break
+            except Exception:
+                pass
         # update task parameters
         self.updatedTaskParams = taskParamMap
         # call base method
