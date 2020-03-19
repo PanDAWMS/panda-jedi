@@ -8782,6 +8782,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlCU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlCU += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxAttempt>attemptNr "
             sqlCU += "AND (maxFailure IS NULL OR maxFailure>failedAttempt) "
+            # sql to count failed files
+            sqlCF  = "SELECT COUNT(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
+            sqlCF += "AND keepTrack=:keepTrack AND ((maxAttempt IS NOT NULL AND maxAttempt<=attemptNr) "
+            sqlCF += "OR (maxFailure IS NOT NULL AND maxFailure<=failedAttempt)) "
             # sql to retry/incexecute datasets
             sqlRD  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlRD += "SET status=:status,nFilesUsed=nFilesUsed-:nDiff-:nRun,nFilesFailed=nFilesFailed-:nDiff "
@@ -8877,7 +8882,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # get input datasets
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
-                        sqlDS  = "SELECT datasetID,masterID,nFiles,nFilesFinished,status,state "
+                        sqlDS  = "SELECT datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,status,state "
                         sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
                         sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
                         for tmpType in JediDatasetSpec.getInputTypes():
@@ -8890,7 +8895,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         resDS = self.cur.fetchall()
                         changedMasterList = []
                         secMap  = {}
-                        for datasetID,masterID,nFiles,nFilesFinished,status,state in resDS:
+                        for datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,status,state in resDS:
                             if masterID is not None:
                                 if state not in [None,'']:
                                     # keep secondary dataset info
@@ -8968,6 +8973,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 if commStr == 'retry' and nDiff == 0 and nUnp == 0 and nRun == 0 and state != 'mutable':
                                     tmpLog.debug('no {0} for datasetID={1} : nDiff/nReady/nRun=0'.format(commStr,datasetID))
                                     continue
+                                # count failed files which could be screwed up when files are lost
+                                if nDiff == 0 and nRun == 0 and nFilesUsed <= (nFilesFinished + nFilesFailed):
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    varMap[':datasetID'] = datasetID
+                                    varMap[':status'] = 'ready'
+                                    varMap[':keepTrack'] = 1
+                                    self.cur.execute(sqlCF + comment, varMap)
+                                    newNumFailed, = self.cur.fetchone()
+                                    nDiff = nFilesFailed - newNumFailed
+                                    tmpLog.debug('got nFilesFailed={0} while {1} in DB for datasetID={2}'.format(
+                                        newNumFailed, nFilesFailed, datasetID))
                                 # update dataset
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
