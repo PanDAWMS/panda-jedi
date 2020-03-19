@@ -105,7 +105,7 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
             try:
                 for tmpItem in taskParamMap['jobParameters']:
                     if 'value' in tmpItem:
-                        tmpM = re.search(' --containerImage\s+([^\s]+)', tmpItem['value'])
+                        tmpM = re.search('--containerImage\s+([^\s]+)', tmpItem['value'])
                         if tmpM is not None:
                             taskParamMap['container_name'] = tmpM.group(1)
                             break
