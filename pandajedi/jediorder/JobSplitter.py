@@ -161,7 +161,8 @@ class JobSplitter:
                     if not useDirectIO:
                         maxSize = siteCandidate.get_overridden_attribute('maxwdir')
                         if maxSize is None:
-                            maxSize = siteSpec.maxwdir * 1024 * 1024
+                            maxSize = siteSpec.maxwdir
+                        maxSize *= 1024 * 1024
                     elif nEventsPerJob is not None or nFilesPerJob is not None:
                         maxSize = None
                     else:
@@ -172,7 +173,8 @@ class JobSplitter:
                 # max disk size
                 maxDiskSize = siteCandidate.get_overridden_attribute('maxwdir')
                 if maxDiskSize is None:
-                    maxDiskSize = siteSpec.maxwdir * 1024 * 1024
+                    maxDiskSize = siteSpec.maxwdir
+                maxDiskSize *= 1024 * 1024
                 # max walltime
                 maxWalltime = None
                 if not inputChunk.isMerging:
