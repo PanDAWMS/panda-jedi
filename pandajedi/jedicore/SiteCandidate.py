@@ -26,6 +26,8 @@ class SiteCandidate(object):
         self.nAssignedJobs = None
         # cap on running jobs
         self.nRunningJobsCap = None
+        # overridden attributes
+        self.overriddenAttrs = {}
 
     # get locality of a file
     def getFileLocality(self,fileSpec):
@@ -65,3 +67,10 @@ class SiteCandidate(object):
             return True
         return False
 
+    # override an attribute
+    def override_attribute(self, key, value):
+        self.overriddenAttrs[key] = value
+
+    # get an overridden attribute
+    def get_overridden_attribute(self, key):
+        return self.overriddenAttrs.get(key)

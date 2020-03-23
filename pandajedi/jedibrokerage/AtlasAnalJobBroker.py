@@ -46,6 +46,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
+        # new maxwdir
+        newMaxwdir = {}
         # get primary site candidates
         sitePreAssigned = False
         excludeList = []
@@ -644,6 +646,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                         tmpLog.info('  skip site={0} due to small scratch disk={1} < {2} criteria=-disk'.format(
                             tmpSiteName, maxwdir_scaled, minDiskCount))
                         continue
+                    newMaxwdir[tmpSiteName] = maxwdir_scaled
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed scratch disk check'.format(len(scanSiteList)))
@@ -1048,6 +1051,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
             # preassigned
             if sitePreAssigned and tmpSiteName == taskSpec.site:
                 preSiteCandidateSpec = siteCandidateSpec
+            # override attributes
+            siteCandidateSpec.override_attribute('maxwdir', newMaxwdir.get(tmpSiteName))
             # set weight
             siteCandidateSpec.weight = weight
             tmpStr  = 'weight={0} nRunning={1} nDefined={2} nActivated={3} nStarting={4} nAssigned={5} '.format(weight,
