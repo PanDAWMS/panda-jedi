@@ -48,6 +48,10 @@ from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 
+# exceptions
+class UnresolvedParam(Exception):
+    pass
+
 
 # worker class to generate jobs
 class JobGenerator (JediKnight):
@@ -605,15 +609,16 @@ class JobGeneratorThread (WorkerThread):
                                                                                                                           inputChunk,tmpLog,
                                                                                                                           taskParamMap=taskParamMap,
                                                                                                                           splitter=splitter)
-                            except Exception:
-                                errtype,errvalue = sys.exc_info()[:2]
-                                tmpLog.error('generator crashed with {0}:{1}'.format(errtype.__name__,errvalue))
+                            except Exception as e:
+                                tmpErrStr = 'generator crashed with {0}'.format(str(e))
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.setErrDiag(tmpErrStr)
                                 tmpStat = Interaction.SC_FAILED
                             if tmpStat != Interaction.SC_SUCCEEDED:
-                                tmpErrStr = 'job generation failed'
+                                tmpErrStr = 'job generation failed.'
                                 tmpLog.error(tmpErrStr)
                                 taskSpec.setOnHold()
-                                taskSpec.setErrDiag(tmpErrStr)
+                                taskSpec.setErrDiag(tmpErrStr, append=True)
                                 goForward = False
                         # lock task
                         if goForward:
@@ -1421,6 +1426,8 @@ class JobGeneratorThread (WorkerThread):
                     jobSpecList += self.makeJumboJobs(jobSpecList,taskSpec,inputChunk,simul,outDsMap, tmpLog)
             # return
             return Interaction.SC_SUCCEEDED,jobSpecList,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap
+        except UnresolvedParam:
+            raise
         except Exception:
             tmpLog.error('{0}.doGenerate() failed with {1}'.format(self.__class__.__name__,
                                                                    traceback.format_exc()))
@@ -1973,6 +1980,10 @@ class JobGeneratorThread (WorkerThread):
         else:
             parTemplate = re.sub('<PANDA_ES_ONLY>[^<]*</PANDA_ES_ONLY>','',parTemplate)
             parTemplate = re.sub('<PANDA_ESMERGE.*>[^<]*</PANDA_ESMERGE.*>','',parTemplate)
+        # check unresolved placeholders
+        matchI = re.search('\${IN.*}', parTemplate)
+        if matchI is not None:
+            raise UnresolvedParam('unresolved {0} when making job parameters'.format(matchI.group(0)))
         # return
         return parTemplate
 
