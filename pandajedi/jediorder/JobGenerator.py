@@ -610,7 +610,7 @@ class JobGeneratorThread (WorkerThread):
                                                                                                                           taskParamMap=taskParamMap,
                                                                                                                           splitter=splitter)
                             except Exception as e:
-                                tmpErrStr = 'generator crashed with {0}'.format(str(e))
+                                tmpErrStr = 'job generator crashed with {0}'.format(str(e))
                                 tmpLog.error(tmpErrStr)
                                 taskSpec.setErrDiag(tmpErrStr)
                                 tmpStat = Interaction.SC_FAILED
@@ -618,7 +618,7 @@ class JobGeneratorThread (WorkerThread):
                                 tmpErrStr = 'job generation failed.'
                                 tmpLog.error(tmpErrStr)
                                 taskSpec.setOnHold()
-                                taskSpec.setErrDiag(tmpErrStr, append=True)
+                                taskSpec.setErrDiag(tmpErrStr, append=True, prepend=True)
                                 goForward = False
                         # lock task
                         if goForward:
