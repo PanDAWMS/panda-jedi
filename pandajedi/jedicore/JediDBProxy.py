@@ -169,7 +169,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap = {}
             varMap[':ts_running']       = 'running'
             varMap[':ts_defined']       = 'defined'
-            varMap[':ts_assigning']     = 'assigning'
             varMap[':dsStatus_pending'] = 'pending'
             varMap[':dsState_mutable']  = 'mutable'
             varMap[':checkTimeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
@@ -198,7 +197,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += '{0},'.format(mapKey)
                 varMap[mapKey] = tmpStat
             sql  = sql[:-1]
-            sql += ')) OR (tabT.status IN (:ts_running,:ts_assigning) AND tabD.state=:dsState_mutable AND tabD.stateCheckTime<:checkTimeLimit)) '
+            sql += ')) OR (tabT.status=:ts_running AND tabD.state=:dsState_mutable AND tabD.stateCheckTime<:checkTimeLimit)) '
             sql += 'AND tabT.lockedBy IS NULL AND tabD.lockedBy IS NULL '
             sql += 'AND NOT EXISTS '
             sql += '(SELECT 1 FROM {0}.JEDI_Datasets '.format(jedi_config.db.schemaJEDI)
