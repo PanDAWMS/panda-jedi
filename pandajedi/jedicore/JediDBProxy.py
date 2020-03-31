@@ -2221,6 +2221,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                             jediTaskID,nRows))
                     if nRows > 0:
                         self.setSuperStatus_JEDI(jediTaskID, 'running')
+                        self.record_task_status_change(jediTaskID)
                         # enable jumbo
                         self.enableJumboInTask_JEDI(jediTaskID, eventService, site, useJumbo, splitRule)
                 else:
