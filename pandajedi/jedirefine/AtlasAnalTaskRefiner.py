@@ -77,6 +77,18 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         if 'outDiskCount' not in taskParamMap:
             taskParamMap['outDiskCount'] = 500
             taskParamMap['outDiskUnit'] = 'kB'
+        # use local IO for ancient releases since inputfilepeeker+xrootd is problematic
+        if 'transUses' in taskParamMap and taskParamMap['transUses']:
+            try:
+                ver = taskParamMap['transUses'].split('-')[1]
+                m = re.search('^(\d{2})\.(\d{2})\.', ver)
+                if m is not None:
+                    major = int(m.group(1))
+                    minor = int(m.group(2))
+                    if major < 20 or (major == 20 and minor <= 20):
+                        taskParamMap['useLocalIO'] = 1
+            except Exception:
+                pass
         # directIO
         if 'useLocalIO' not in taskParamMap and 'allowInputLAN' not in taskParamMap:
             taskParamMap['allowInputLAN'] = 'use'
