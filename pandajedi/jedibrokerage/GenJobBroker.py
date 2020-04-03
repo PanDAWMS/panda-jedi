@@ -61,32 +61,6 @@ class GenJobBroker (JobBrokerBase):
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         ######################################
-        # selection for memory
-        minRamCount  = max(taskSpec.ramCount, inputChunk.ramCount)
-        if minRamCount not in [0,None]:
-            newScanSiteList = []
-            for tmpSiteName in scanSiteList:
-                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                # check at the site
-                if tmpSiteSpec.maxmemory != 0 and minRamCount != 0 and minRamCount > tmpSiteSpec.maxmemory:
-                    tmpLog.debug('  skip {0} due to site RAM shortage={1}(site upper limit) < {2}'.format(tmpSiteName,
-                                                                                                          tmpSiteSpec.maxmemory,
-                                                                                                          minRamCount))
-                    continue
-                if tmpSiteSpec.minmemory != 0 and minRamCount != 0 and minRamCount < tmpSiteSpec.minmemory:
-                    tmpLog.debug('  skip {0} due to job RAM shortage={1}(site lower limit) > {2}'.format(tmpSiteName,
-                                                                                                         tmpSiteSpec.minmemory,
-                                                                                                         minRamCount))
-                    continue
-                newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList
-            tmpLog.debug('{0} candidates passed memory check ={1}{2}'.format(len(scanSiteList),
-                                                                             minRamCount,taskSpec.ramUnit))
-            if scanSiteList == []:
-                tmpLog.error('no candidates')
-                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                return retTmpError
-        ######################################
         # selection for scratch disk
         minDiskCountS = taskSpec.getOutDiskSize() + taskSpec.getWorkDiskSize() + inputChunk.getMaxAtomSize()
         minDiskCountS = minDiskCountS // 1024 // 1024
