@@ -556,6 +556,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 for tmpSiteName in scanSiteList:
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                     # site max memory requirement
+                    site_maxmemory = 0
                     if tmpSiteSpec.maxrss not in [0,None]:
                         site_maxmemory = tmpSiteSpec.maxrss
                     if site_maxmemory not in [0,None] and minRamCount != 0 and minRamCount > site_maxmemory:
@@ -564,6 +565,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                                                               minRamCount))
                         continue
                     # site min memory requirement
+                    site_minmemory = 0
                     if tmpSiteSpec.minrss not in [0,None]:
                         site_minmemory = tmpSiteSpec.minrss
                     if site_minmemory not in [0,None] and minRamCount != 0 and minRamCount < site_minmemory:

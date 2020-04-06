@@ -733,6 +733,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # compensate
                 minRamCount = JediCoreUtils.compensateRamCount(minRamCount)
                 # site max memory requirement
+                site_maxmemory = 0
                 if tmpSiteSpec.maxrss not in [0,None]:
                     site_maxmemory = tmpSiteSpec.maxrss
                 # check at the site
@@ -744,6 +745,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpLog.info(tmpMsg)
                     continue
                 # site min memory requirement
+                site_minmemory = 0
                 if tmpSiteSpec.minrss not in [0,None]:
                     site_minmemory = tmpSiteSpec.minrss
                 if site_minmemory not in [0,None] and minRamCount != 0 and minRamCount < site_minmemory:
