@@ -10121,8 +10121,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':errorDialog']  = errorDialog
                     tmpLog.debug(sqlTH+comment+str(varMap))
                     self.cur.execute(sqlTH+comment,varMap)
-                    tmpLog.info(errorDialog)
-                    nTasks += 1
+                    if self.cur.rowcount > 0:
+                        tmpLog.info(errorDialog)
+                        nTasks += 1
+                        self.record_task_status_change(jediTaskID)
                 except Exception:
                     tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
                 # commit
@@ -10164,6 +10166,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlTH+comment,varMap)
             nRow = self.cur.rowcount
             tmpLog.debug('done with {0}'.format(nRow))
+            if nRow > 0:
+                self.record_task_status_change(jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -10232,7 +10236,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 iRow = self.cur.rowcount
                 tmpLog.info('#ATM #KV action=released jediTaskID={0} with {1}'.format(jediTaskID,iRow))
                 nRow += iRow
-
+                if iRow > 0:
+                    self.record_task_status_change(jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -10268,6 +10273,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlTU+comment,varMap)
             nRow = self.cur.rowcount
             tmpLog.debug('done with {0}'.format(nRow))
+            if nRow > 0:
+                self.record_task_status_change(jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
