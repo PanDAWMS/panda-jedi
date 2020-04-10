@@ -6253,6 +6253,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if nRow > 0:
                             self.setDeftStatus_JEDI(taskSpec.jediTaskID, taskSpec.status)
                             self.setSuperStatus_JEDI(taskSpec.jediTaskID, taskSpec.status)
+                            self.record_task_status_change(taskSpec.jediTaskID)
                         # commit
                         if not self._commit():
                             raise RuntimeError('Commit error')
