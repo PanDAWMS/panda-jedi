@@ -5,7 +5,6 @@ import uuid
 import math
 import socket
 import datetime
-import traceback
 
 from six import iteritems
 
@@ -14,9 +13,7 @@ from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedirefine import RefinerUtils
 from .JediKnight import JediKnight
-from .TaskGenerator import TaskGenerator
 
-from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jediconfig import jedi_config
 
 

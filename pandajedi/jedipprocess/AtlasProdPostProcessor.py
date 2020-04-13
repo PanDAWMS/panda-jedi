@@ -3,8 +3,8 @@ import sys
 
 from six import iteritems
 
-from pandajedi.jedicore import Interaction
 from .PostProcessorBase import PostProcessorBase
+from . import AtlasPostProcessorUtils
 
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils
@@ -101,6 +101,11 @@ class AtlasProdPostProcessor (PostProcessorBase):
             except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.warning('failed to delete ES dataset with {0}:{1}'.format(errtype.__name__,errvalue))
+        try:
+            AtlasPostProcessorUtils.send_notification(self.taskBufferIF, ddmIF, taskSpec, tmpLog)
+        except Exception as e:
+            tmpLog.error('failed to talk to external system with {0}'.format(str(e)))
+            return self.SC_FAILED
         try:
             self.doBasicPostProcess(taskSpec,tmpLog)
         except Exception:
