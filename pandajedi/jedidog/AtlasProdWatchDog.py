@@ -102,7 +102,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     if parent_tid not in [None, jediTaskID]:
                         parentState = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
                         if parentState != 'completed':
-                            gTmpLog.info('#ATM label=managed jediTaskID={0} skip prio boost since parent_id={1} has parent_status={2}'
+                            gTmpLog.info('#ATM #KV label=managed jediTaskID={0} skip prio boost since parent_id={1} has parent_status={2}'
                                          .format(jediTaskID, parent_tid, parentState))
                             continue
                     nFiles = datasetParam['nFiles']
@@ -124,14 +124,14 @@ class AtlasProdWatchDog (WatchDogBase):
                         if nRemJobs is not None and float(nFilesFinished+nFilesFailed) / float(nFiles) >= toBoostRatio and nRemJobs <= 100:
                             # skip high enough
                             if currentPriority < boostedPrio:
-                                gTmpLog.info(' >>> action=priority_boosting of jediTaskID={0} to priority={1} #ATM label=managed '.
+                                gTmpLog.info(' >>> action=priority_boosting of jediTaskID={0} to priority={1} #ATM #KV label=managed '.
                                              format(jediTaskID, boostedPrio))
                                 self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, boostedPrio)
 
                             # skip express or non global share
                             newShare = 'Express'
                             if gshare != newShare and workQueue.is_global_share:
-                                gTmpLog.info(' >>> action=gshare_reassignment jediTaskID={0} from gshare_old={2} to gshare_new={1} #ATM label=managed'.
+                                gTmpLog.info(' >>> action=gshare_reassignment jediTaskID={0} from gshare_old={2} to gshare_new={1} #ATM #KV label=managed'.
                                              format(jediTaskID, newShare, gshare))
                                 self.taskBufferIF.reassignShare([jediTaskID], newShare, True)
                             gTmpLog.info('>>> done jediTaskID={0}'.format(jediTaskID))
@@ -180,7 +180,7 @@ class AtlasProdWatchDog (WatchDogBase):
                     taskSpec.setToRegisterDatasets()
                     self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID': taskSpec.jediTaskID},
                                                       setOldModTime=True)
-                    tmpLog.debug('#ATM label=managed action=trigger_new_brokerage by setting task_status={0}'.
+                    tmpLog.debug('#ATM #KV label=managed action=trigger_new_brokerage by setting task_status={0}'.
                                  format(taskSpec.status))
                     continue
 
