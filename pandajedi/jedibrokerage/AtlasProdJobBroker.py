@@ -262,7 +262,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
         ######################################
         # selection for status
-        if not sitePreAssigned:
+        if not sitePreAssigned and not siteListPreAssigned:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
