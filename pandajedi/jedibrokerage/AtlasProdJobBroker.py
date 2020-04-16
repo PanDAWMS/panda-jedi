@@ -394,7 +394,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection to avoid slow or inactive sites
         if (taskSpec.currentPriority >= 800 or inputChunk.useScout() or \
                 inputChunk.isMerging or taskSpec.mergeOutput()) \
-                and not sitePreAssigned:
+                and not sitePreAssigned and not siteListPreAssigned:
             # get inactive sites
             inactiveTimeLimit = 2
             inactiveSites = self.taskBufferIF.getInactiveSites_JEDI('production',inactiveTimeLimit)
