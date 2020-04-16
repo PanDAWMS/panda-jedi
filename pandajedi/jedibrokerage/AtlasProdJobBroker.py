@@ -262,7 +262,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
         ######################################
         # selection for status
-        if not sitePreAssigned:
+        if not sitePreAssigned and not siteListPreAssigned:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -394,7 +394,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection to avoid slow or inactive sites
         if (taskSpec.currentPriority >= 800 or inputChunk.useScout() or \
                 inputChunk.isMerging or taskSpec.mergeOutput()) \
-                and not sitePreAssigned:
+                and not sitePreAssigned and not siteListPreAssigned:
             # get inactive sites
             inactiveTimeLimit = 2
             inactiveSites = self.taskBufferIF.getInactiveSites_JEDI('production',inactiveTimeLimit)
