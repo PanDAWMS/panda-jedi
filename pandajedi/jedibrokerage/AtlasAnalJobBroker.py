@@ -403,17 +403,25 @@ class AtlasAnalJobBroker (JobBrokerBase):
             ######################################
             # selection for GPU + architecture
             newScanSiteList = []
+            jsonCheck = None
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 if tmpSiteSpec.isGPU():
                     if taskSpec.getArchitecture() in ['', None]:
                         tmpLog.info('  skip site={0} since architecture is required for GPU queues'.format(tmpSiteName))
                         continue
-                    siteListWithCMTCONFIG = self.taskBufferIF.checkSitesWithRelease([tmpSiteSpec.get_unified_name()],
+                    if jsonCheck is None:
+                        jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
+                    siteListWithCMTCONFIG = [tmpSiteSpec.get_unified_name()]
+                    siteListWithCMTCONFIG, sitesNoJsonCheck = jsonCheck.check(siteListWithCMTCONFIG, None,
+                                                                              None, None,
+                                                                              taskSpec.getArchitecture(),
+                                                                              False, True)
+                    siteListWithCMTCONFIG += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                                     cmtConfig=taskSpec.getArchitecture(),
                                                                                     onlyCmtConfig=True)
                     if len(siteListWithCMTCONFIG) == 0:
-                        tmpLog.info('  skip site={0} since architecture={1} is unavaiable'.format(tmpSiteName, taskSpec.getArchitecture()))
+                        tmpLog.info('  skip site={0} since architecture={1} is unavailable'.format(tmpSiteName, taskSpec.getArchitecture()))
                         continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
