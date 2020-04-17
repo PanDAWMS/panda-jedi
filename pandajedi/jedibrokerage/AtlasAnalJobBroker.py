@@ -1123,14 +1123,15 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     pass
                 continue
             # set available files
-            if inputChunk.getDatasets() == [] or not checkDataLocality:
+            if inputChunk.getDatasets() == [] or (not checkDataLocality and not tmpSiteSpec.use_only_local_data()):
                 isAvailable = True
             else:
                 isAvailable = False
             for tmpDatasetName,availableFiles in iteritems(availableFileMap):
                 tmpDatasetSpec = inputChunk.getDatasetWithName(tmpDatasetName)
                 # check remote files
-                if tmpSiteName in remoteSourceList and tmpDatasetName in remoteSourceList[tmpSiteName]:
+                if tmpSiteName in remoteSourceList and tmpDatasetName in remoteSourceList[tmpSiteName] \
+                        and not tmpSiteSpec.use_only_local_data():
                     for tmpRemoteSite in remoteSourceList[tmpSiteName][tmpDatasetName]:
                         if tmpRemoteSite in availableFiles and \
                                 len(tmpDatasetSpec.Files) <= len(availableFiles[tmpRemoteSite]['localdisk']):
@@ -1147,7 +1148,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['cache']) or \
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localtape']) or \
                             (tmpDatasetSpec.isDistributed() and len(availableFiles[tmpSiteName]['all']) > 0) or \
-                            checkDataLocality is False:
+                            (checkDataLocality is False and not tmpSiteSpec.use_only_local_data()):
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
                         # add cached files to local list since cached files go to pending when reassigned
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['cache']
