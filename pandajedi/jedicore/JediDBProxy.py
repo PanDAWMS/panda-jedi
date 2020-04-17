@@ -12831,8 +12831,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         varMap[':modificationHost'] = socket.getfqdn()
         # sql
         sqlNS = ('INSERT INTO {0}.TASKS_STATUSLOG '
-                 '(jediTaskID,modificationTime,status,modificationHost,attemptNr) '
-                 'SELECT jediTaskID,CURRENT_TIMESTAMP,status,:modificationHost,attemptNr '
+                 '(jediTaskID,modificationTime,status,modificationHost,attemptNr,reason) '
+                 'SELECT jediTaskID,CURRENT_TIMESTAMP,status,:modificationHost,attemptNr,'
+                 'SUBSTR(errorDialog,0,255) '
                  'FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID '
                  ).format(jedi_config.db.schemaJEDI)
         self.cur.execute(sqlNS + comment, varMap)
