@@ -92,12 +92,30 @@ class AtlasAnalJobBroker (JobBrokerBase):
             if tmpSiteSpec.type == 'analysis' or tmpSiteSpec.is_grandly_unified():
                 scanSiteList.append(siteName)
         # preassigned
-        if taskSpec.site not in ['',None]:
+        preassignedSite = taskSpec.site
+        if preassignedSite not in ['',None]:
             # site is pre-assigned
-            tmpLog.info('site={0} is pre-assigned'.format(taskSpec.site))
-            sitePreAssigned = True
-            if taskSpec.site not in scanSiteList:
-                scanSiteList.append(taskSpec.site)
+            if not self.siteMapper.checkSite(preassignedSite):
+                # check ddm for unknown site
+                includeList = []
+                for tmpSiteName in self.get_unified_sites(scanSiteList):
+                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                    scope_input, scope_output = select_scope(tmpSiteSpec, 'user')
+                    if scope_input in tmpSiteSpec.ddm_endpoints_input and \
+                        preassignedSite in tmpSiteSpec.ddm_endpoints_input[scope_input].all:
+                        includeList.append(tmpSiteName)
+                if not includeList:
+                    includeList = None
+                    tmpLog.info('site={0} is ignored since unknown'.format(preassignedSite))
+                else:
+                    tmpLog.info('site={0} is converted to {1}'.format(preassignedSite,
+                                                                      ','.join(includeList)))
+                preassignedSite = None
+            else:
+                tmpLog.info('site={0} is pre-assigned'.format(preassignedSite))
+                sitePreAssigned = True
+                if preassignedSite not in scanSiteList:
+                    scanSiteList.append(preassignedSite)
         tmpLog.info('initial {0} candidates'.format(len(scanSiteList)))
         # allowed remote access protocol
         allowedRemoteProtocol = 'fax'
@@ -209,7 +227,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     if inputChunk.isMerging or taskSpec.useLocalIO():
                         # disable remote access for merging
                         tmpSatelliteSites = {}
-                    elif (not sitePreAssigned) or (sitePreAssigned and taskSpec.site not in tmpSiteList):
+                    elif (not sitePreAssigned) or (sitePreAssigned and preassignedSite not in tmpSiteList):
                         tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpDiskSiteList,
                                                                                self.taskBufferIF,
                                                                                self.siteMapper,nSites=50,
@@ -276,9 +294,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     scanSiteWoVP = list(set(scanSiteWoVP).intersection(tmpNonVpSiteList))
                     tmpLog.debug('{0} is available at {1} sites on DISK'.format(datasetName,len(scanSiteListOnDisk)))
                 # check for preassigned
-                if sitePreAssigned and taskSpec.site not in scanSiteList:
+                if sitePreAssigned and preassignedSite not in scanSiteList:
                     scanSiteList = []
-                    tmpLog.info('data is unavailable locally or remotely at preassigned site {0}'.format(taskSpec.site))
+                    tmpLog.info('data is unavailable locally or remotely at preassigned site {0}'.format(preassignedSite))
                 elif len(scanSiteListOnDisk) > 0:
                     # use only disk sites
                     scanSiteList = list(scanSiteListOnDisk)
@@ -308,7 +326,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 elif tmpSiteSpec.status in ['brokeroff','test']:
                     if not sitePreAssigned:
                         skipFlag = True
-                    elif taskSpec.site not in [tmpSiteName, tmpSiteSpec.get_unified_name()]:
+                    elif preassignedSite not in [tmpSiteName, tmpSiteSpec.get_unified_name()]:
                         skipFlag = True
                 if not skipFlag:
                     newScanSiteList.append(tmpSiteName)
@@ -800,8 +818,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 return retTmpError
             # check for preassigned
             if sitePreAssigned:
-                if taskSpec.site not in scanSiteList and taskSpec.site not in self.get_unified_sites(scanSiteList):
-                    tmpLog.info("preassigned site {0} did not pass all tests".format(taskSpec.site))
+                if preassignedSite not in scanSiteList and preassignedSite not in self.get_unified_sites(scanSiteList):
+                    tmpLog.info("preassigned site {0} did not pass all tests".format(preassignedSite))
                     tmpLog.error('no candidates')
                     retVal = retFatal
                     continue
@@ -810,7 +828,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     for tmpPseudoSiteName in scanSiteList:
                         tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
                         tmpSiteName = tmpSiteSpec.get_unified_name()
-                        if tmpSiteName != taskSpec.site:
+                        if tmpSiteName != preassignedSite:
                             tmpLog.info('  skip site={0} non pre-assigned site criteria=-nonpreassigned'.format(
                                 tmpPseudoSiteName))
                             continue
@@ -1055,7 +1073,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             # make candidate
             siteCandidateSpec = SiteCandidate(tmpPseudoSiteName)
             # preassigned
-            if sitePreAssigned and tmpSiteName == taskSpec.site:
+            if sitePreAssigned and tmpSiteName == preassignedSite:
                 preSiteCandidateSpec = siteCandidateSpec
             # override attributes
             siteCandidateSpec.override_attribute('maxwdir', newMaxwdir.get(tmpSiteName))
@@ -1115,7 +1133,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
             # preassigned
-            if sitePreAssigned and tmpSiteName != taskSpec.site:
+            if sitePreAssigned and tmpSiteName != preassignedSite:
                 tmpLog.info('  skip site={0} non pre-assigned site criteria=-nonpreassigned'.format(tmpPseudoSiteName))
                 try:
                     del weightStr[tmpPseudoSiteName]
