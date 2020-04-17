@@ -640,7 +640,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
-                if tmpSiteSpec.maxwdir != 0:
+                if not tmpSiteSpec.maxwdir:
                     if tmpSiteSpec.isDirectIO():
                         minDiskCount = minDiskCountR
                         if maxSizePerJob is not None and not taskSpec.useLocalIO():
