@@ -1918,7 +1918,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get JEDI task with ID
-    def getTaskWithID_JEDI(self,jediTaskID,fullFlag,lockTask=False,pid=None,lockInterval=None):
+    def getTaskWithID_JEDI(self, jediTaskID, fullFlag, lockTask=False, pid=None, lockInterval=None,
+                           clearError=False):
         comment = ' /* JediDBProxy.getTaskWithID_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -1934,8 +1935,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "AND (lockedTime IS NULL OR lockedTime<:timeLimit) "
             if lockTask:
                 sql += "AND lockedBy IS NULL FOR UPDATE NOWAIT"
-            sqlLock  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
-            sqlLock += "WHERE jediTaskID=:jediTaskID "
+            sqlLock  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:lockedBy,lockedTime=CURRENT_DATE".format(jedi_config.db.schemaJEDI)
+            if clearError:
+                sqlLock += ",errorDialog=NULL"
+            sqlLock += " WHERE jediTaskID=:jediTaskID "
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
             if lockInterval is not None:
