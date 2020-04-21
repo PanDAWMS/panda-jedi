@@ -61,7 +61,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.workQueueMap = WorkQueueMapper()
         # update time for work queue map
         self.updateTimeForWorkQueue = None
-        
+
         # typical input cache
         self.typical_input_cache = {}
 
@@ -10354,7 +10354,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def duplicateFilesForReuse_JEDI(self,datasetSpec):
         comment = ' /* JediDBProxy.duplicateFilesForReuse_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskId={0} datasetID={1}>".format(datasetSpec.jediTaskID,
+        methodName += " <jediTaskID={0} datasetID={1}>".format(datasetSpec.jediTaskID,
                                                                datasetSpec.datasetID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -10417,7 +10417,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def increaseSeqNumber_JEDI(self, datasetSpec, n_records):
         comment = ' /* JediDBProxy.increaseSeqNumber_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <jediTaskId={0} datasetID={1}>".format(datasetSpec.jediTaskID,
+        methodName += " <jediTaskID={0} datasetID={1}>".format(datasetSpec.jediTaskID,
                                                                datasetSpec.datasetID)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
@@ -10928,7 +10928,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
         try:
-            
+
             # sql to get size
             var_map = {':vo': vo, ':prodSourceLabel': prodSourceLabel, ':resource_name': resource_name}
             sql  = "SELECT total_walltime, n_has_value, n_no_value "
@@ -12897,6 +12897,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return None
 
+
     # task status logging
     def record_task_status_change(self, jedi_task_id):
         comment = ' /* JediDBProxy.record_task_status_change */'
@@ -12916,3 +12917,112 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                  ).format(jedi_config.db.schemaJEDI)
         self.cur.execute(sqlNS + comment, varMap)
         tmpLog.debug('done')
+
+
+    # task progress
+    def get_task_progress(self, jedi_task_id):
+        comment = ' /* JediDBProxy.get_task_progress */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            varMap = dict()
+            varMap[':jediTaskID'] = jedi_task_id
+            # sql
+            sqlT = ("SELECT d.jediTaskID,SUM(d.nFiles),SUM(d.nFilesFinished),SUM(d.nFilesFailed) "
+                    "FROM {0}.JEDI_Datasets d "
+                    "WHERE d.jediTaskID= AND d.type in ('input', 'pseudo_input') "
+                     ).format(jedi_config.db.schemaJEDI)
+            self.cur.execute(sqlT + comment, varMap)
+            # result
+            jediTaskID,nFiles,nFilesFinished,nFilesFailed = self.cur.fetchone()
+            n_files_processed = nFilesFinished + nFilesFailed
+            n_files_remaining = nFiles - n_files_processed
+            ret_dict = {
+                    'jediTaskID': jediTaskID,
+                    'nFiles': nFiles,
+                    'nFilesFinished': nFilesFinished,
+                    'nFilesFailed': nFilesFailed,
+                    'n_files_remaining': n_files_remaining,
+                    'finished_ratio': nFilesFinished/nFiles if nFiles > 0 else 0,
+                    'failed_ratio': nFilesFailed/nFiles if nFiles > 0 else 0,
+                    'remaining_ratio': n_files_remaining/nFiles if nFiles > 0 else 0,
+                    'progress': n_files_processed/nFiles if nFiles > 0 else 0,
+                }
+
+            # return
+            tmpLog.debug('done')
+            return ret_dict
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+    # get usage breakdown by users and sites
+    def getUsageBreakdown_JEDI(self, prod_source_label='user'):
+        comment = ' /* JediDBProxy.getUsageBreakdown_JEDI */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            # get usage breakdown
+            usageBreakDownPerUser = {}
+            usageBreakDownPerSite = {}
+            for table in ['ATLAS_PANDA.jobsActive4', 'ATLAS_PANDA.jobsArchived4']:
+                varMap = {}
+                varMap[':prodSourceLabel'] = prod_source_label
+                varMap[':pmerge'] = 'pmerge'
+                if table == 'ATLAS_PANDA.jobsActive4':
+                    sql = ( "SELECT COUNT(*),prodUserName,jobStatus,workingGroup,computingSite "
+                            "FROM {0}.{1} "
+                            "WHERE prodSourceLabel=:prodSourceLabel AND processingType<>:pmerge "
+                            "GROUP BY prodUserName,jobStatus,workingGroup,computingSite "
+                            ).format(jedi_config.db.schemaPANDA, table)
+                else:
+                    # with time range for archived table
+                    varMap[':modificationTime'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
+                    sql = ( "SELECT COUNT(*),prodUserName,jobStatus,workingGroup,computingSite "
+                            "FROM {0}.{1} "
+                            "WHERE prodSourceLabel=:prodSourceLabel AND processingType<>:pmerge AND modificationTime>:modificationTime "
+                            "GROUP BY prodUserName,jobStatus,workingGroup,computingSite "
+                            ).format(jedi_config.db.schemaPANDA, table)
+                # exec
+                status,res = taskBuffer.querySQLS(sql,varMap,arraySize=10000)
+                if res is None:
+                	tmpLog.debug("total %s " % res)
+                else:
+                    tmpLog.debug("total %s " % len(res))
+                    # make map
+                    for cnt,prodUserName,jobStatus,workingGroup,computingSite in res:
+                        # append to PerUser map
+                        usageBreakDownPerUser.setdefault(prodUserName, {})
+                        usageBreakDownPerUser[prodUserName].setdefault(workingGroup, {})
+                        usageBreakDownPerUser[prodUserName][workingGroup].setdefault(computingSite, {'rundone':0, 'activated':0, 'running':0})
+                        # append to PerSite map
+                        usageBreakDownPerSite.setdefault(computingSite, {})
+                        usageBreakDownPerSite[computingSite].setdefault(prodUserName, {})
+                        usageBreakDownPerSite[computingSite][prodUserName].setdefault(workingGroup, {'rundone':0, 'activated':0})
+                        # count # of running/done and activated
+                        if jobStatus in ['activated']:
+                            usageBreakDownPerUser[prodUserName][workingGroup][computingSite]['activated'] += cnt
+                            usageBreakDownPerSite[computingSite][prodUserName][workingGroup]['activated'] += cnt
+                        elif jobStatus in ['cancelled', 'holding']:
+                            pass
+                        else:
+                            if jobStatus in ['running', 'starting', 'sent']:
+                                usageBreakDownPerUser[prodUserName][workingGroup][computingSite]['running'] += cnt
+                            usageBreakDownPerUser[prodUserName][workingGroup][computingSite]['rundone'] += cnt
+                            usageBreakDownPerSite[computingSite][prodUserName][workingGroup]['rundone'] += cnt
+            # return
+            return usageBreakDownPerUser, usageBreakDownPerSite
+            tmpLog.debug('done')
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None

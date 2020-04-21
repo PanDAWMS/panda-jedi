@@ -1654,3 +1654,9 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         self.proxyPool.putProxy(proxy)
         # return
         return retVal
+
+
+    # get usage breakdown by users and sites
+    def getUsageBreakdown_JEDI(self, prod_source_label='user'):
+        with self.proxyPool.get() as proxy:
+            return proxy.getUsageBreakdown_JEDI(prod_source_label)
