@@ -1255,7 +1255,7 @@ class JobGeneratorThread (WorkerThread):
                     except Exception:
                         pass
                     # add input size
-                    if taskSpec.useLocalIO() or not siteSpec.isDirectIO() or (taskSpec.allowInputLAN() is None and not siteSpec.isDirectIO()):
+                    if taskSpec.useLocalIO() or not siteSpec.isDirectIO() or taskSpec.allowInputLAN() is None:
                         jobSpec.maxDiskCount += totalFileSize
                     # maxDiskCount in MB
                     jobSpec.maxDiskCount /= (1024*1024)
