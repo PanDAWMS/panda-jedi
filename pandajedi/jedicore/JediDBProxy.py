@@ -9,6 +9,7 @@ import logging
 import datetime
 import traceback
 import socket
+import uuid
 import cx_Oracle
 
 from six import iteritems
@@ -3790,8 +3791,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
                                         # no reuse
                                         if not taskSpec.reuseSecOnDemand() or tmpDatasetSpec.isMaster() or taskSpec.useLoadXML() or \
-                                                tmpDatasetSpec.isSeqNumber() or tmpDatasetSpec.isNoSplit() or tmpDatasetSpec.toMerge() or \
-                                                        inputChunk.ramCount not in (None, 0):
+                                                tmpDatasetSpec.isNoSplit() or tmpDatasetSpec.toMerge() or \
+                                                inputChunk.ramCount not in (None, 0):
                                             break
                                         # enough files were read
                                         if iFiles_tmp >= numFilesTobeReadInCycle:
@@ -3821,7 +3822,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         if enoughSecondary:
                                             break
                                         # duplicate files for reuse
-                                        tmpStr = 'jediTaskID={0} try to duplicate files for datasetID={1} '.format(
+                                        tmpStr = 'jediTaskID={0} try to increase files for datasetID={1} '.format(
                                             jediTaskID,
                                             tmpDatasetSpec.datasetID)
                                         tmpStr += 'since only {0}/{1} files were read '.format(iFiles_tmp,
@@ -3831,9 +3832,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                                    tmpDatasetSpec.getEventRatio(),
                                                                                                    sum(totalEvents[inputChunk.masterDataset.datasetID]))
                                         tmpLog.debug(tmpStr)
-                                        nNewRec = self.duplicateFilesForReuse_JEDI(tmpDatasetSpec)
-                                        tmpLog.debug(
-                                            'jediTaskID={0} {1} files were duplicated'.format(jediTaskID, nNewRec))
+                                        if not tmpDatasetSpec.isSeqNumber():
+                                            nNewRec = self.duplicateFilesForReuse_JEDI(tmpDatasetSpec)
+                                            tmpLog.debug(
+                                                'jediTaskID={0} {1} files were duplicated'.format(jediTaskID, nNewRec))
+                                        else:
+                                            nNewRec = self.increaseSeqNumber_JEDI(tmpDatasetSpec,
+                                                                                  numFilesTobeReadInCycle-iFiles_tmp)
+                                            tmpLog.debug(
+                                                'jediTaskID={0} {1} seq nums were added'.format(jediTaskID, nNewRec))
                                         if nNewRec == 0:
                                             break
 
@@ -10402,6 +10409,74 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return 0
 
+
+    # increase seq numbers
+    def increaseSeqNumber_JEDI(self, datasetSpec, n_records):
+        comment = ' /* JediDBProxy.increaseSeqNumber_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " <jediTaskId={0} datasetID={1}>".format(datasetSpec.jediTaskID,
+                                                               datasetSpec.datasetID)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to get max LFN
+            sqlCT  = ("SELECT lfn,maxAttempt,maxFailure FROM {0}.JEDI_Dataset_Contents "
+                      "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+                      "AND fileID=("
+                      "SELECT MAX(fileID) FROM {0}.JEDI_Dataset_Contents "
+                      "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID"
+                      ") ").format(jedi_config.db.schemaJEDI)
+            varMap = {}
+            varMap[':jediTaskID'] = datasetSpec.jediTaskID
+            varMap[':datasetID'] = datasetSpec.datasetID
+            self.cur.execute(sqlCT+comment, varMap)
+            resCT = self.cur.fetchone()
+            baseLFN, maxAttempt, maxFailure  = resCT
+            baseLFN = int(baseLFN) + 1
+            # current date
+            timeNow = datetime.datetime.utcnow()
+            # make files
+            varMaps = []
+            for i in range(n_records):
+                fileSpec = JediFileSpec()
+                fileSpec.jediTaskID = datasetSpec.jediTaskID
+                fileSpec.datasetID = datasetSpec.datasetID
+                fileSpec.GUID = str(uuid.uuid4())
+                fileSpec.type = datasetSpec.type
+                fileSpec.status = 'ready'
+                fileSpec.proc_status = 'ready'
+                fileSpec.lfn = baseLFN + i
+                fileSpec.scope = None
+                fileSpec.fsize = 0
+                fileSpec.checksum = None
+                fileSpec.creationDate = timeNow
+                fileSpec.attemptNr = 0
+                fileSpec.failedAttempt = 0
+                fileSpec.maxAttempt = maxAttempt
+                fileSpec.maxFailure = maxFailure
+                fileSpec.ramCount = 0
+                # make vars
+                varMap = fileSpec.valuesMap(useSeq=True)
+                varMaps.append(varMap)
+            # sql for insert
+            sqlIn  = "INSERT INTO {0}.JEDI_Dataset_Contents ({1}) ".format(jedi_config.db.schemaJEDI,JediFileSpec.columnNames())
+            sqlIn += JediFileSpec.bindValuesExpression()
+            self.cur.executemany(sqlIn+comment, varMaps)
+            # sql to update dataset record
+            sqlDU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDU += "SET nFiles=nFiles+:iFiles,nFilesTobeUsed=nFilesTobeUsed+:iFiles "
+            sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            varMap = {}
+            varMap[':jediTaskID'] = datasetSpec.jediTaskID
+            varMap[':datasetID'] = datasetSpec.datasetID
+            varMap[':iFiles'] = n_records
+            self.cur.execute(sqlDU+comment, varMap)
+            tmpLog.debug('inserted {0} files'.format(n_records))
+            return n_records
+        except Exception:
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return 0
 
 
     # lock process

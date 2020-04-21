@@ -1983,6 +1983,8 @@ class JobGeneratorThread (WorkerThread):
             parTemplate = re.sub('<PANDA_ESMERGE.*>[^<]*</PANDA_ESMERGE.*>','',parTemplate)
         # check unresolved placeholders
         matchI = re.search('\${IN.*}', parTemplate)
+        if matchI is None:
+            matchI = re.search('\${SEQNUMBER}', parTemplate)
         if matchI is not None:
             raise UnresolvedParam('unresolved {0} when making job parameters'.format(matchI.group(0)))
         # return
