@@ -845,7 +845,7 @@ class JobGeneratorThread (WorkerThread):
                 inSubChunks   = tmpInChunk['subChunks']
                 siteCandidate = tmpInChunk['siteCandidate']
                 siteSpec      = self.siteMapper.getSite(siteName.split(',')[0])
-                scope_input, scope_output = select_scope(siteSpec, taskSpec.prodSourceLabel)
+                scope_input, scope_output = select_scope(siteSpec, taskSpec.prodSourceLabel, taskSpec.job_label)
                 buildFileSpec = None
                 # make preprocessing job
                 if taskSpec.usePrePro():
@@ -973,6 +973,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.workQueue_ID     = taskSpec.workQueue_ID
                     jobSpec.gshare           = taskSpec.gshare
                     jobSpec.container_name       = taskSpec.container_name
+                    jobSpec.job_label = taskSpec.job_label
                     # disable reassign
                     if taskSpec.disableReassign():
                         jobSpec.relocationFlag = 2
@@ -1444,7 +1445,8 @@ class JobGeneratorThread (WorkerThread):
         try:
             datasetToRegister = []
             # get sites which share DDM endpoint
-            associatedSites = DataServiceUtils.getSitesShareDDM(self.siteMapper,siteName, taskSpec.prodSourceLabel)
+            associatedSites = DataServiceUtils.getSitesShareDDM(self.siteMapper,siteName,
+                                                                taskSpec.prodSourceLabel, taskSpec.job_label)
             associatedSites.sort()
             # key for map of buildSpec
             secondKey = [siteName] + associatedSites
@@ -2034,7 +2036,7 @@ class JobGeneratorThread (WorkerThread):
         # set site for parallel jobs
         newPandaJob.computingSite = sites[index % nSites]
         siteSpec = self.siteMapper.getSite(newPandaJob.computingSite)
-        scope_input, scope_output = select_scope(siteSpec, pandaJob.prodSourceLabel)
+        scope_input, scope_output = select_scope(siteSpec, pandaJob.prodSourceLabel, pandaJob.job_label)
         siteCandidate = inputChunk.getSiteCandidate(newPandaJob.computingSite)
         newPandaJob.computingSite = siteSpec.get_unified_name()
         if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:

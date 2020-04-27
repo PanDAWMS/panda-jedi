@@ -67,7 +67,8 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                     ddmIF = self.ddmIF.getInterface(taskSpec.vo)
                     # get site
                     siteSpec = self.siteMapper.getSite(tmpCoreName)
-                    scopeSiteSpec_input, scopeSiteSpec_output = select_scope(siteSpec, taskSpec.prodSourceLabel)
+                    scopeSiteSpec_input, scopeSiteSpec_output = select_scope(siteSpec, taskSpec.prodSourceLabel,
+                                                                             taskSpec.job_label)
                     # get nucleus
                     nucleus = siteSpec.pandasite
                     # get output/log datasets

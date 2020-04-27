@@ -13,6 +13,7 @@ from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediFileSpec import JediFileSpec
 from pandaserver.taskbuffer import EventServiceUtils
+from pandaserver.taskbuffer import JobUtils
 
 # base class for task refine
 class TaskRefinerBase (object):
@@ -360,7 +361,7 @@ class TaskRefinerBase (object):
         self.taskSpec.workQueue_ID = workQueue.queue_id
 
         # Initialize the global share
-        gshare = None
+        gshare = 'Undefined'
         if 'gshare' in taskParamMap and self.taskBufferIF.is_valid_share(taskParamMap['gshare']):
             # work queue is specified
             gshare = taskParamMap['gshare']
@@ -368,12 +369,21 @@ class TaskRefinerBase (object):
             # get share based on definition
             gshare = self.taskBufferIF.get_share_for_task(self.taskSpec)
             if gshare is None:
-                gshare = 'Undefined' # Should not happen. Undefined is set when no share is found
+                gshare = 'Undefined'  # Should not happen. Undefined is set when no share is found
                 # errStr  = 'share is undefined for vo={0} label={1} '.format(taskSpec.vo,taskSpec.prodSourceLabel)
                 # errStr += 'workingGroup={0} campaign={1} '.format(taskSpec.workingGroup, taskSpec.campaign)
                 # raise RuntimeError,errStr
+        self.taskSpec.gshare = gshare
 
-            self.taskSpec.gshare = gshare
+        # Initialize the job_label (user/managed) based on prodsourcelabel. We only accept user or managed.
+        # If the prodsourcelabel is not one of those options and the user did not specify the correct option,
+        # it will be considered a production task
+        job_label = JobUtils.PROD_PS
+        if 'job_label' in taskParamMap and taskParamMap['job_label'] in [JobUtils.PROD_PS, JobUtils.ANALY_PS]:
+            job_label = taskParamMap['job_label']
+        elif taskSpec.prodSourceLabel in [JobUtils.PROD_PS, JobUtils.ANALY_PS]:
+            job_label = taskSpec.prodSourceLabel
+        self.taskSpec.job_label = job_label
 
         # Initialize the resource type
         try:

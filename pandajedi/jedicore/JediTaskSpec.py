@@ -28,8 +28,7 @@ class JediTaskSpec(object):
         'ttcRequested', 'ttcPredicted', 'ttcPredictionDate','rescueTime',
         'requestType', 'gshare', 'resource_type', 'useJumbo','diskIO',
         'diskIOUnit', 'memory_leak_core', 'memory_leak_x2', 'attemptNr',
-        'container_name'
-        )
+        'container_name', 'job_label')
     # attributes which have 0 by default
     _zeroAttrs = ()
     # attributes to force update

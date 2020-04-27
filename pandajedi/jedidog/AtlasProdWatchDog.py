@@ -209,7 +209,8 @@ class AtlasProdWatchDog (WatchDogBase):
                     tmpLog.debug('skip {0} is distributed'.format(datasetSpec.datasetName))
                     continue
                 # get location
-                location = siteMapper.getDdmEndpoint(t1Site.sitename, datasetSpec.storageToken, taskSpec.prodSourceLabel)
+                location = siteMapper.getDdmEndpoint(t1Site.sitename, datasetSpec.storageToken,
+                                                     taskSpec.prodSourceLabel, taskSpec.job_label)
                 # make subscription
                 try:
                     tmpLog.debug('registering subscription to {0} with backend={1}'.format(location,
