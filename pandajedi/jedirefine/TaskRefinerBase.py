@@ -375,14 +375,11 @@ class TaskRefinerBase (object):
                 # raise RuntimeError,errStr
         self.taskSpec.gshare = gshare
 
-        # Initialize the job_label (user/managed) based on prodsourcelabel. We only accept user or managed.
-        # If the prodsourcelabel is not one of those options and the user did not specify the correct option,
-        # it will be considered a production task
-        job_label = JobUtils.PROD_PS
-        if 'job_label' in taskParamMap and taskParamMap['job_label'] in [JobUtils.PROD_PS, JobUtils.ANALY_PS]:
-            job_label = taskParamMap['job_label']
-        elif taskSpec.prodSourceLabel in [JobUtils.PROD_PS, JobUtils.ANALY_PS]:
-            job_label = taskSpec.prodSourceLabel
+        # Initialize the job_label (user/managed) based on taskType (anal/prod)
+        if self.taskSpec.taskType == 'user':
+            job_label = JobUtils.ANALY_PS
+        else:
+            job_label = JobUtils.PROD_PS
         self.taskSpec.job_label = job_label
 
         # Initialize the resource type
