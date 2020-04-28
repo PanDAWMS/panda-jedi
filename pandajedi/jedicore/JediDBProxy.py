@@ -10486,18 +10486,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def lockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, forceOption, timeLimit):
         comment = ' /* JediDBProxy.lockProcess_JEDI */'
         methodName = self.getMethodName(comment)
-        # use non-null for cloud
+        # defaults
         if cloud is None:
-            cloud = 'NULL'
-        # default of workqueue id
+            cloud = 'default'
         if workqueue_id is None:
             workqueue_id = 0
-        # default of resrouce type
         if resource_name is None:
             resource_name = 'default'
-        # default of component
         if component is None:
-            component = 'NULL'
+            component = 'default'
         methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} component={5} pid={6}>".format(vo, prodSourceLabel,
                                                                                           cloud, workqueue_id,
                                                                                           resource_name, component, pid)
@@ -10577,18 +10574,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def unlockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid):
         comment = ' /* JediDBProxy.unlockProcess_JEDI */'
         methodName = self.getMethodName(comment)
-        # use non-null for cloud
+        # defaults
         if cloud is None:
-            cloud = 'NULL'
-        # default of workqueue id
+            cloud = 'default'
         if workqueue_id is None:
             workqueue_id = 0
-        # default of resrouce type
         if resource_name is None:
             resource_name = 'default'
-        # default of component
         if component is None:
-            component = 'NULL'
+            component = 'default'
         methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} component={5} pid={6}>".format(vo, prodSourceLabel,
                                                                                                  cloud, workqueue_id,
                                                                                                  resource_name, component, pid)
@@ -10680,18 +10674,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def checkProcessLock_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, checkBase):
         comment = ' /* JediDBProxy.checkProcessLock_JEDI */'
         methodName = self.getMethodName(comment)
-        # use non-null for cloud
+        # defaults
         if cloud is None:
-            cloud = 'NULL'
-        # default of workqueue id
+            cloud = 'default'
         if workqueue_id is None:
             workqueue_id = 0
-        # default of resrouce type
         if resource_name is None:
             resource_name = 'default'
-        # default of component
         if component is None:
-            component = 'NULL'
+            component = 'default'
         methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} component={5} pid={6}>".format(vo, prodSourceLabel,
                                                                                                  cloud, workqueue_id,
                                                                                                  resource_name, component, pid)
@@ -13025,7 +13016,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.debug(sqlJ + comment + str(varMap))
                 self.cur.execute(sqlJ + comment, varMap)
                 # result
-                res = self.cur.fetchone()
+                res = self.cur.fetchall()
                 if res is None:
                 	tmpLog.debug("total %s " % res)
                 else:

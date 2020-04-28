@@ -22,7 +22,7 @@ class AtlasAnalWatchDog (WatchDogBase):
     def __init__(self, ddmIF, taskBufferIF):
         WatchDogBase.__init__(self,ddmIF,taskBufferIF)
         self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0], os.getpid())
-        self.cronActions = {'forPrestage': 'atlas_prs'}
+        # self.cronActions = {'forPrestage': 'atlas_prs'}
 
     # main
     def doAction(self):
@@ -107,7 +107,7 @@ class AtlasAnalWatchDog (WatchDogBase):
             tmpLog.debug('start')
             # lock
             got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
-                                                            cloud='adog-PS', workqueue_id=None, resource_name=None,
+                                                            cloud='atlas_prs', workqueue_id=None, resource_name=None,
                                                             component='AtlasAnalWatchDog.doForPreStaging',
                                                             pid=self.pid, timeLimit=5)
             if not got_lock:
@@ -217,7 +217,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                     wgDict = usersTotalJobs[prodUserName]
                     for workingGroup in wgDict:
                         tmpNumTotal = wgDict[workingGroup]
-                        print (prodUserName,workingGroup,tmpNumTotal)
+                        # print(prodUserName, workingGroup, tmpNumTotal)
                         if workingGroup is None:
                             maxNumRun = maxNumRunPerUser
                         else:
@@ -227,17 +227,17 @@ class AtlasAnalWatchDog (WatchDogBase):
                             tmpNumJobs = self.taskBufferIF.throttleUserJobs(prodUserName, workingGroup)
                             if tmpNumJobs is not None and tmpNumJobs > 0:
                                 msg = 'throttled {0} jobs for user="{1}" group={2} since too many ({3}) running jobs'.format(
-                                    tmpNumJobs, prodUserName, workingGroup,    maxNumRun)
+                                    tmpNumJobs, prodUserName, workingGroup, maxNumRun)
                                 tmpLog.debug(msg)
-                                tmpLog.sendMsg(msg,panda_config.loggername,'userCap','warning')
+                                tmpLog.sendMsg(msg, 'userCap', msgLevel='warning')
                         elif tmpNumTotal < maxNumRun*0.9 and (prodUserName, workingGroup) in throttledUsers:
-                            # throttle user
+                            # unthrottle user
                             tmpNumJobs = self.taskBufferIF.unThrottleUserJobs(prodUserName, workingGroup)
                             if tmpNumJobs is not None and tmpNumJobs > 0:
                                 msg = 'released jobs for user="{0}" group={1} since number of running jobs is less than {2}'.format(
-                                    prodUserName, workingGroup,    maxNumRun)
+                                    prodUserName, workingGroup, maxNumRun)
                                 tmpLog.debug(msg)
-                                tmpLog.sendMsg(msg,panda_config.loggername,'userCap')
+                                tmpLog.sendMsg(msg, 'userCap')
             except Exception as e:
                 errStr = "cap failed for %s : %s" % (prodUserName, str(e))
                 errStr.strip()
