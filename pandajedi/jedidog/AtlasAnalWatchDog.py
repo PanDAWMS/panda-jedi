@@ -104,14 +104,15 @@ class AtlasAnalWatchDog (WatchDogBase):
     def doForPreStaging(self):
         try:
             tmpLog = MsgWrapper(logger, ' #ATM #KV doForPreStaging label=user')
+            tmpLog.debug('start')
             # lock
-            flagLocked = self.taskBufferIF.lockProcess_JEDI(vo=self.vo, prodSourceLabel=self.prodSourceLabel,
+            got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
                                                             cloud=None, workqueue_id=None, resource_name=None,
                                                             component='AtlasAnalWatchDog.doForPreStaging',
                                                             pid=self.pid, timeLimit=5)
-            if not flagLocked:
+            if not got_lock:
+                tmpLog.debug('locked by another process. Skipped')
                 return
-            tmpLog.debug('start')
             # get throttled users
             thrUserTasks = self.taskBufferIF.getThrottledUsersTasks_JEDI(self.vo, self.prodSourceLabel)
             # get dispatch datasets
@@ -170,8 +171,14 @@ class AtlasAnalWatchDog (WatchDogBase):
     def doForPriorityMassage(self):
         tmpLog = MsgWrapper(logger, ' #ATM #KV doForPriorityMassage label=user')
         tmpLog.debug('start')
-        # check intervals
-        checkInterval = 6
+        # lock
+        got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
+                                                        cloud=None, workqueue_id=None, resource_name=None,
+                                                        component='AtlasAnalWatchDog.doForPriorityMassage',
+                                                        pid=self.pid, timeLimit=6)
+        if not got_lock:
+            tmpLog.debug('locked by another process. Skipped')
+            return
         try:
             # get usage breakdown
             usageBreakDownPerUser, usageBreakDownPerSite = self.taskBufferIF.getUsageBreakdown_JEDI(self.prodSourceLabel)
@@ -405,8 +412,14 @@ class AtlasAnalWatchDog (WatchDogBase):
     def doForRedoStalledJobs(self):
         tmpLog = MsgWrapper(logger, ' #ATM #KV doForRedoStalledJobs label=user')
         tmpLog.debug('start')
-        # check interval
-        checkInterval = 6
+        # lock
+        got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
+                                                        cloud=None, workqueue_id=None, resource_name=None,
+                                                        component='AtlasAnalWatchDog.doForRedoStalledJobs',
+                                                        pid=self.pid, timeLimit=6)
+        if not got_lock:
+            tmpLog.debug('locked by another process. Skipped')
+            return
         # redo stalled analysis jobs
         tmpLog.debug('redo stalled jobs')
         try:
@@ -531,8 +544,14 @@ class AtlasAnalWatchDog (WatchDogBase):
     def doForThrottleWAN(self):
         tmpLog = MsgWrapper(logger, ' #ATM #KV doForThrottleWAN label=user')
         tmpLog.debug('start')
-        # check interval
-        checkInterval = 6
+        # lock
+        got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
+                                                        cloud=None, workqueue_id=None, resource_name=None,
+                                                        component='AtlasAnalWatchDog.doForThrottleWAN',
+                                                        pid=self.pid, timeLimit=6)
+        if not got_lock:
+            tmpLog.debug('locked by another process. Skipped')
+            return
         # throttle WAN data access
         tmpLog.debug('throttle WAN data access')
         try:
