@@ -22,7 +22,7 @@ class JumboWatchDog:
         self.log = log
         self.vo = vo
         self.prodSourceLabel = prodSourceLabel
-        self.component = 'jumbo_dog'
+        self.component = 'JumboWatchDog'
         self.dryRun = True
 
 
@@ -30,7 +30,9 @@ class JumboWatchDog:
     def run(self):
         try:
             # get process lock
-            locked = self.taskBufferIF.lockProcess_JEDI(self.vo, self.prodSourceLabel, self.component, 0, 'NULL', self.pid, False, 10)
+            locked = self.taskBufferIF( vo=self.vo, prodSourceLabel=self.prodSourceLabel,
+                                        cloud=None, workqueue_id=None, resource_name=None,
+                                        component=self.component, pid=self.pid, timeLimit=10)
             if not locked:
                 self.log.debug('component={0} skipped since locked by another'.format(self.component))
                 return

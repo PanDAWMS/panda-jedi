@@ -10483,35 +10483,43 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # lock process
-    def lockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid, forceOption, timeLimit):
+    def lockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, forceOption, timeLimit):
         comment = ' /* JediDBProxy.lockProcess_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} pid={5}>".format(vo, prodSourceLabel,
+        # use non-null for cloud
+        if cloud is None:
+            cloud = 'NULL'
+        # default of workqueue id
+        if workqueue_id is None:
+            workqueue_id = 0
+        # default of resrouce type
+        if resource_name is None:
+            resource_name = 'default'
+        # default of component
+        if component is None:
+            component = 'NULL'
+        methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} component={5} pid={6}>".format(vo, prodSourceLabel,
                                                                                           cloud, workqueue_id,
-                                                                                          resource_name, pid)
+                                                                                          resource_name, component, pid)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
             retVal = False
-            # use non-null for cloud
-            if cloud is None:
-                cloud = "NULL"
-
             # sql to check
             sqlCT  = "SELECT lockedBy "
             sqlCT += "FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
             sqlCT += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud AND workqueue_id=:workqueue_id "
+            sqlCT += "AND resource_type=:resource_name AND component=:component "
             sqlCT += "AND lockedTime>:timeLimit "
-            sqlCT += "AND resource_type=:resource_name "
             sqlCT += "FOR UPDATE"
             # sql to delete
             sqlCD  = "DELETE FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
             sqlCD += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud AND workqueue_id=:workqueue_id "
-            sqlCD += "AND resource_type=:resource_name "
+            sqlCD += "AND resource_type=:resource_name AND component=:component "
             # sql to insert
             sqlFR  = "INSERT INTO {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
-            sqlFR += "(vo, prodSourceLabel, cloud, workqueue_id, resource_type, lockedBy, lockedTime) "
-            sqlFR += "VALUES(:vo, :prodSourceLabel, :cloud, :workqueue_id, :resource_name, :lockedBy, CURRENT_DATE) "
+            sqlFR += "(vo, prodSourceLabel, cloud, workqueue_id, resource_type, component, lockedBy, lockedTime) "
+            sqlFR += "VALUES(:vo, :prodSourceLabel, :cloud, :workqueue_id, :resource_name, :component, :lockedBy, CURRENT_DATE) "
             # start transaction
             self.conn.begin()
             # check
@@ -10522,13 +10530,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':cloud'] = cloud
                 varMap[':workqueue_id'] = workqueue_id
                 varMap[':resource_name'] = resource_name
+                varMap[':component'] = component
                 varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=timeLimit)
                 self.cur.execute(sqlCT+comment,varMap)
                 resCT = self.cur.fetchone()
             else:
                 resCT = None
             if resCT is not None:
-                tmpLog.debug('skipped locked by {0}'.format(resCT[0]))
+                tmpLog.debug('skipped, locked by {0}'.format(resCT[0]))
             else:
                 # delete
                 varMap = {}
@@ -10537,6 +10546,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':cloud'] = cloud
                 varMap[':workqueue_id'] = workqueue_id
                 varMap[':resource_name'] = resource_name
+                varMap[':component'] = component
                 self.cur.execute(sqlCD+comment,varMap)
                 # insert
                 varMap = {}
@@ -10545,6 +10555,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':cloud'] = cloud
                 varMap[':workqueue_id'] = workqueue_id
                 varMap[':resource_name'] = resource_name
+                varMap[':component'] = component
                 varMap[':lockedBy'] = pid
                 self.cur.execute(sqlFR+comment,varMap)
                 tmpLog.debug('successfully locked')
@@ -10563,24 +10574,33 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # unlock process
-    def unlockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid):
+    def unlockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid):
         comment = ' /* JediDBProxy.unlockProcess_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} pid={5}>".format(vo, prodSourceLabel,
+        # use non-null for cloud
+        if cloud is None:
+            cloud = 'NULL'
+        # default of workqueue id
+        if workqueue_id is None:
+            workqueue_id = 0
+        # default of resrouce type
+        if resource_name is None:
+            resource_name = 'default'
+        # default of component
+        if component is None:
+            component = 'NULL'
+        methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} component={5} pid={6}>".format(vo, prodSourceLabel,
                                                                                                  cloud, workqueue_id,
-                                                                                                 resource_name, pid)
+                                                                                                 resource_name, component, pid)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
             retVal = False
-            # use non-null for cloud
-            if cloud is None:
-                cloud = "NULL"
             # sql to delete
             sqlCD  = "DELETE FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
             sqlCD += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud "
             sqlCD += "AND workqueue_id=:workqueue_id AND lockedBy=:lockedBy "
-            sqlCD += "AND resource_type=:resource_name "
+            sqlCD += "AND resource_type=:resource_name AND component=:component "
             # start transaction
             self.conn.begin()
             # check
@@ -10590,6 +10610,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':cloud'] = cloud
             varMap[':workqueue_id'] = workqueue_id
             varMap[':resource_name'] = resource_name
+            varMap[':component'] = component
             varMap[':lockedBy'] = pid
             self.cur.execute(sqlCD+comment,varMap)
             # commit
@@ -10656,24 +10677,33 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # check process lock
-    def checkProcessLock_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid, checkBase):
+    def checkProcessLock_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, checkBase):
         comment = ' /* JediDBProxy.checkProcessLock_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} pid={5}>".format(vo, prodSourceLabel,
+        # use non-null for cloud
+        if cloud is None:
+            cloud = 'NULL'
+        # default of workqueue id
+        if workqueue_id is None:
+            workqueue_id = 0
+        # default of resrouce type
+        if resource_name is None:
+            resource_name = 'default'
+        # default of component
+        if component is None:
+            component = 'NULL'
+        methodName += " <vo={0} label={1} cloud={2} queue={3} resource_type={4} component={5} pid={6}>".format(vo, prodSourceLabel,
                                                                                                  cloud, workqueue_id,
-                                                                                                 resource_name, pid)
+                                                                                                 resource_name, component, pid)
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
         try:
             retVal = False
-            # use non-null for cloud
-            if cloud is None:
-                cloud = "NULL"
             # sql to check
             sqlCT = "SELECT lockedBy "
             sqlCT += "FROM {0}.JEDI_Process_Lock ".format(jedi_config.db.schemaJEDI)
             sqlCT += "WHERE vo=:vo AND prodSourceLabel=:prodSourceLabel AND cloud=:cloud AND workqueue_id=:workqueue_id "
-            sqlCT += "AND resource_type=:resource_name "
+            sqlCT += "AND resource_type=:resource_name AND component=:component "
             sqlCT += "AND lockedTime>:timeLimit "
             # start transaction
             self.conn.begin()
@@ -10684,6 +10714,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':cloud'] = cloud
             varMap[':workqueue_id'] = workqueue_id
             varMap[':resource_name'] = resource_name
+            varMap[':component'] = component
             varMap[':timeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
             self.cur.execute(sqlCT + comment, varMap)
             resCT = self.cur.fetchone()
@@ -12972,12 +13003,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # get usage breakdown
             usageBreakDownPerUser = {}
             usageBreakDownPerSite = {}
-            for table in ['ATLAS_PANDA.jobsActive4', 'ATLAS_PANDA.jobsArchived4']:
+            for table in ['jobsActive4', 'jobsArchived4']:
                 varMap = {}
                 varMap[':prodSourceLabel'] = prod_source_label
                 varMap[':pmerge'] = 'pmerge'
                 if table == 'ATLAS_PANDA.jobsActive4':
-                    sql = ( "SELECT COUNT(*),prodUserName,jobStatus,workingGroup,computingSite "
+                    sqlJ = ("SELECT COUNT(*),prodUserName,jobStatus,workingGroup,computingSite "
                             "FROM {0}.{1} "
                             "WHERE prodSourceLabel=:prodSourceLabel AND processingType<>:pmerge "
                             "GROUP BY prodUserName,jobStatus,workingGroup,computingSite "
@@ -12985,13 +13016,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 else:
                     # with time range for archived table
                     varMap[':modificationTime'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
-                    sql = ( "SELECT COUNT(*),prodUserName,jobStatus,workingGroup,computingSite "
+                    sqlJ = ("SELECT COUNT(*),prodUserName,jobStatus,workingGroup,computingSite "
                             "FROM {0}.{1} "
                             "WHERE prodSourceLabel=:prodSourceLabel AND processingType<>:pmerge AND modificationTime>:modificationTime "
                             "GROUP BY prodUserName,jobStatus,workingGroup,computingSite "
                             ).format(jedi_config.db.schemaPANDA, table)
                 # exec
-                status,res = taskBuffer.querySQLS(sql,varMap,arraySize=10000)
+                tmpLog.debug(sqlJ + comment + str(varMap))
+                self.cur.execute(sqlJ + comment, varMap)
+                # result
+                res = self.cur.fetchone()
                 if res is None:
                 	tmpLog.debug("total %s " % res)
                 else:

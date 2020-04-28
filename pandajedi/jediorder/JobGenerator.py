@@ -121,10 +121,10 @@ class JobGenerator (JediKnight):
                                     if lockFlag:
                                         tmpLog.debug('check if to lock')
                                         # lock
-                                        flagLocked = self.taskBufferIF.lockProcess_JEDI(vo, prodSourceLabel, cloudName,
-                                                                                        workQueue.queue_id,
-                                                                                        resource_type.resource_name,
-                                                                                        self.pid)
+                                        flagLocked = self.taskBufferIF.lockProcess_JEDI(vo=vo, prodSourceLabel=prodSourceLabel,
+                                                                                        cloud=cloudName, workqueue_id=workQueue.queue_id,
+                                                                                        resource_name=resource_type.resource_name,
+                                                                                        component=None, pid=self.pid)
                                         if not flagLocked:
                                             tmpLog.debug('skip since locked by another process')
                                             continue
@@ -146,9 +146,10 @@ class JobGenerator (JediKnight):
                                     if thrFlag is True:
                                         if flagLocked:
                                             tmpLog.debug('throttled')
-                                            self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
-                                                                                 workQueue.queue_id, resource_type.resource_name,
-                                                                                 self.pid)
+                                            self.taskBufferIF.unlockProcess_JEDI(   vo=vo, prodSourceLabel=prodSourceLabel,
+                                                                                    cloud=cloudName, workqueue_id=workQueue.queue_id,
+                                                                                    resource_name=resource_type.resource_name,
+                                                                                    component=None, pid=self.pid)
                                             continue
                                     elif thrFlag is False:
                                         pass
@@ -159,8 +160,10 @@ class JobGenerator (JediKnight):
                                         if not mergeUnThrottled:
                                             tmpLog.debug('throttled including merge')
                                             if flagLocked:
-                                                self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
-                                                                                     workQueue.queue_id, self.pid)
+                                                self.taskBufferIF.unlockProcess_JEDI(   vo=vo, prodSourceLabel=prodSourceLabel,
+                                                                                        cloud=cloudName, workqueue_id=workQueue.queue_id,
+                                                                                        resource_name=resource_type.resource_name,
+                                                                                        component=None, pid=self.pid)
                                                 continue
                                         else:
                                             tmpLog.debug('only merge is unthrottled')
@@ -194,9 +197,10 @@ class JobGenerator (JediKnight):
                                     if thrFlag is False:
                                         if flagLocked and throttle.lackOfJobs:
                                             tmpLog.debug('unlock {0} for multiple processes to quickly fill the queue until nQueueLimit is reached'.format(cycleStr))
-                                            self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
-                                                                                 workQueue.queue_id, resource_type.resource_name,
-                                                                                 self.pid)
+                                            self.taskBufferIF.unlockProcess_JEDI(   vo=vo, prodSourceLabel=prodSourceLabel,
+                                                                                    cloud=cloudName, workqueue_id=workQueue.queue_id,
+                                                                                    resource_name=resource_type.resource_name,
+                                                                                    component=None, pid=self.pid)
                                             lackOfJobs = True
                                             flagLocked = True
                                     # get the list of input
@@ -252,9 +256,10 @@ class JobGenerator (JediKnight):
                                             tmpLog.debug('dump one-time pool : {0} remTasks={1}'.format(threadPool.dump(),
                                                                                                         inputList.dump()))
                                     # unlock
-                                    self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
-                                                                         workQueue.queue_id, resource_type.resource_name,
-                                                                         self.pid)
+                                    self.taskBufferIF.unlockProcess_JEDI(   vo=vo, prodSourceLabel=prodSourceLabel,
+                                                                            cloud=cloudName, workqueue_id=workQueue.queue_id,
+                                                                            resource_name=resource_type.resource_name,
+                                                                            component=None, pid=self.pid)
             except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed in {0}.start() with {1}:{2} {3}'.format(self.__class__.__name__,
@@ -266,9 +271,10 @@ class JobGenerator (JediKnight):
                     for prodSourceLabel in self.prodSourceLabels:
                         for cloudName in self.cloudList:
                             for workQueue in workQueueList:
-                                self.taskBufferIF.unlockProcess_JEDI(vo, prodSourceLabel, cloudName,
-                                                                     workQueue.queue_id, resource_type.resource_name,
-                                                                     self.pid)
+                                self.taskBufferIF.unlockProcess_JEDI(   vo=vo, prodSourceLabel=prodSourceLabel,
+                                                                        cloud=cloudName, workqueue_id=workQueue.queue_id,
+                                                                        resource_name=resource_type.resource_name,
+                                                                        component=None, pid=self.pid)
             except Exception:
                 pass
             try:

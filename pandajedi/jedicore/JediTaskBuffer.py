@@ -1233,7 +1233,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.lockProcess_JEDI(vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid, forceOption, timeLimit)
+        retVal = proxy.lockProcess_JEDI(vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, forceOption, timeLimit)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1246,7 +1246,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.unlockProcess_JEDI(vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid)
+        retVal = proxy.unlockProcess_JEDI(vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
@@ -1272,7 +1272,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
-        retVal = proxy.checkProcessLock_JEDI(vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid, checkBase)
+        retVal = proxy.checkProcessLock_JEDI(vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, checkBase)
         # release proxy
         self.proxyPool.putProxy(proxy)
         # return
