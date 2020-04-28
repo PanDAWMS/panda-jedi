@@ -34,6 +34,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
 
+    # query an SQL
+    def querySQL(self, sql, varMap, arraySize=1000):
+        with self.proxyPool.get() as proxy:
+            return proxy.querySQLS(sql, varMap, arraySize)[1]
+
+
+
     # get SiteMapper
     def getSiteMapper(self):
         timeNow = datetime.datetime.utcnow()
@@ -1222,7 +1229,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # lock process
-    def lockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid, forceOption=False, timeLimit=5):
+    def lockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, forceOption=False, timeLimit=5):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -1235,7 +1242,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # unlock process
-    def unlockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid):
+    def unlockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec
@@ -1261,7 +1268,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
 
     # check process lock
-    def checkProcessLock_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, pid, checkBase):
+    def checkProcessLock_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, checkBase):
         # get DBproxy
         proxy = self.proxyPool.getProxy()
         # exec

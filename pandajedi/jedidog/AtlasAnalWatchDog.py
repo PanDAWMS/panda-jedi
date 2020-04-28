@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import socket
 import traceback
 
@@ -18,10 +19,10 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 class AtlasAnalWatchDog (WatchDogBase):
 
     # constructor
-    def __init__(self,ddmIF,taskBufferIF):
+    def __init__(self, ddmIF, taskBufferIF):
         WatchDogBase.__init__(self,ddmIF,taskBufferIF)
-        self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0],os.getpid())
-        self.cronActions = {'forPrestage':'atlas_prs'}
+        self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0], os.getpid())
+        self.cronActions = {'forPrestage': 'atlas_prs'}
 
     # main
     def doAction(self):
@@ -53,7 +54,7 @@ class AtlasAnalWatchDog (WatchDogBase):
         # check every 60 min
         checkInterval = 60
         # get lib.tgz for waiting jobs
-        libList = self.taskBufferIF.getLibForWaitingRunJob_JEDI(self.vo,prod_source_label,checkInterval)
+        libList = self.taskBufferIF.getLibForWaitingRunJob_JEDI(self.vo, self.prodSourceLabel, checkInterval)
         tmpLog.debug('got {0} lib.tgz files'.format(len(libList)))
         # activate or kill orphan jobs which were submitted to use lib.tgz when the lib.tgz was being produced
         for prodUserName,datasetName,tmpFileSpec in libList:
@@ -104,16 +105,16 @@ class AtlasAnalWatchDog (WatchDogBase):
         try:
             tmpLog = MsgWrapper(logger, ' #ATM #KV doForPreStaging label=user')
             # lock
-            flagLocked = self.taskBufferIF.lockProcess_JEDI(self.vo, prod_source_label,
+            flagLocked = self.taskBufferIF.lockProcess_JEDI(self.vo, self.prodSourceLabel,
                                                             self.cronActions['forPrestage'],
                                                             0, 'NULL', self.pid, timeLimit=5)
             if not flagLocked:
                 return
             tmpLog.debug('start')
             # get throttled users
-            thrUserTasks = self.taskBufferIF.getThrottledUsersTasks_JEDI(self.vo,prod_source_label)
+            thrUserTasks = self.taskBufferIF.getThrottledUsersTasks_JEDI(self.vo, self.prodSourceLabel)
             # get dispatch datasets
-            dispUserTasks = self.taskBufferIF.getDispatchDatasetsPerUser(self.vo,prod_source_label,True,True)
+            dispUserTasks = self.taskBufferIF.getDispatchDatasetsPerUser(self.vo, self.prodSourceLabel, True, True)
             # max size of prestaging requests in GB
             maxPrestaging = self.taskBufferIF.getConfigValue('anal_watchdog', 'USER_PRESTAGE_LIMIT', 'jedi', 'atlas')
             if maxPrestaging is None:
@@ -170,11 +171,9 @@ class AtlasAnalWatchDog (WatchDogBase):
         tmpLog.debug('start')
         # check intervals
         checkInterval = 6
-        # prodSourceLabel
-        prod_source_label = 'user'
         try:
             # get usage breakdown
-            usageBreakDownPerUser, usageBreakDownPerSite = self.taskBufferIF.getUsageBreakdown_JEDI(prod_source_label)
+            usageBreakDownPerUser, usageBreakDownPerSite = self.taskBufferIF.getUsageBreakdown_JEDI(self.prodSourceLabel)
             # get total number of users and running/done jobs
             totalUsers = 0
             totalRunDone = 0
@@ -298,7 +297,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                     varMap = {}
                     varMap[':dn'] = prodUserName
                     sql = "SELECT pandaSite,pOffset,status,workingGroups FROM ATLAS_PANDAMETA.siteAccess WHERE dn=:dn"
-                    status, res = self.taskBufferIF.querySQLS(sql, varMap, arraySize=10000)
+                    res = self.taskBufferIF.querySQL(sql, varMap, arraySize=10000)
                     if res is not None:
                         for pandaSite, pOffset, pStatus, workingGroups in res:
                             # ignore special working group for now
@@ -342,7 +341,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                         # get the highest prio of activated jobs at the site
                         varMap = {}
                         varMap[':jobStatus'] = 'activated'
-                        varMap[':prodSourceLabel'] = prod_source_label
+                        varMap[':prodSourceLabel'] = self.prodSourceLabel
                         varMap[':pmerge'] = 'pmerge'
                         varMap[':prodUserName'] = prodUserName
                         varMap[':computingSite'] = computingSite
@@ -354,7 +353,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                             sql += "AND workingGroup=:workingGroup "
                         else:
                             sql += "AND workingGroup IS NULL "
-                        status,res = self.taskBufferIF.querySQLS(sql,varMap,arraySize=10)
+                        res = self.taskBufferIF.querySQL(sql, varMap, arraySize=10)
                         maxPrio = None
                         if res is not None:
                             try:
@@ -375,7 +374,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                         # SQL for priority boost
                         varMap = {}
                         varMap[':jobStatus'] = 'activated'
-                        varMap[':prodSourceLabel'] = prod_source_label
+                        varMap[':prodSourceLabel'] = self.prodSourceLabel
                         varMap[':prodUserName'] = prodUserName
                         varMap[':computingSite'] = computingSite
                         varMap[':prioDelta'] = prioDelta
@@ -392,7 +391,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                         sql += "AND jobStatus=:jobStatus AND computingSite=:computingSite AND currentPriority>:minPrio "
                         sql += "AND currentPriority<=:maxPrio AND rownum<=:rlimit"
                         tmpLog.debug("boost %s" % str(varMap))
-                        status,res = self.taskBufferIF.querySQLS(sql,varMap,arraySize=10)
+                        res = self.taskBufferIF.querySQL(sql, varMap, arraySize=10)
                         tmpLog.debug("   database return : %s" % res)
             # done
             tmpLog.debug('done')
@@ -407,13 +406,11 @@ class AtlasAnalWatchDog (WatchDogBase):
         tmpLog.debug('start')
         # check interval
         checkInterval = 6
-        # prodSourceLabel
-        prod_source_label = 'user'
         # redo stalled analysis jobs
         tmpLog.debug('redo stalled jobs')
         try:
             varMap = {}
-            varMap[':prodSourceLabel'] = prod_source_label
+            varMap[':prodSourceLabel'] = self.prodSourceLabel
             sqlJ =  "SELECT jobDefinitionID,prodUserName FROM ATLAS_PANDA.jobsDefined4 "
             sqlJ += "WHERE prodSourceLabel=:prodSourceLabel AND modificationTime<CURRENT_DATE-2/24 "
             sqlJ += "GROUP BY jobDefinitionID,prodUserName"
@@ -426,7 +423,7 @@ class AtlasAnalWatchDog (WatchDogBase):
             sqlU  = "UPDATE ATLAS_PANDA.jobsDefined4 SET modificationTime=CURRENT_DATE "
             sqlU += "WHERE jobDefinitionID=:jobDefinitionID ANd prodSourceLabel=:prodSourceLabel AND prodUserName=:prodUserName"
             # get stalled jobs
-            staJ,resJ = self.taskBufferIF.querySQLS(sqlJ,varMap)
+            resJ = self.taskBufferIF.querySQL(sqlJ, varMap)
             if resJ is None or len(resJ) == 0:
                 pass
             else:
@@ -435,10 +432,10 @@ class AtlasAnalWatchDog (WatchDogBase):
                     tmpLog.debug(" user:%s jobID:%s" % (prodUserName,jobDefinitionID))
                     # get stalled jobs
                     varMap = {}
-                    varMap[':prodSourceLabel'] = prod_source_label
+                    varMap[':prodSourceLabel'] = self.prodSourceLabel
                     varMap[':jobDefinitionID'] = jobDefinitionID
                     varMap[':prodUserName']    = prodUserName
-                    stP,resP = self.taskBufferIF.querySQLS(sqlP,varMap)
+                    resP = self.taskBufferIF.querySQL(sqlP, varMap)
                     if resP is None or len(resP) == 0:
                         tmpLog.debug("  no PandaID")
                         continue
@@ -455,7 +452,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                         varMap = {}
                         varMap[':PandaID'] = PandaID
                         varMap[':status']  = 'unknown'
-                        stF,resF = self.taskBufferIF.querySQLS(sqlF,varMap)
+                        resF = self.taskBufferIF.querySQL(sqlF, varMap)
                         if resF is None or len(resF) == 0:
                             tmpLog.debug("  no files")
                         else:
@@ -467,7 +464,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                                     varMap = {}
                                     varMap[':lfn'] = lfn
                                     varMap[':type']  = 'output'
-                                    stL,resL = self.taskBufferIF.querySQLS(sqlL,varMap)
+                                    resL = self.taskBufferIF.querySQL(sqlL, varMap)
                                     # not found
                                     if resL is None or len(resL) == 0:
                                         tmpLog.error("  cannot find status of %s" % lfn)
@@ -517,16 +514,16 @@ class AtlasAnalWatchDog (WatchDogBase):
                             # wait
                             tmpLog.debug("  -> wait")
                             varMap = {}
-                            varMap[':prodSourceLabel'] = prod_source_label
+                            varMap[':prodSourceLabel'] = self.prodSourceLabel
                             varMap[':jobDefinitionID'] = jobDefinitionID
                             varMap[':prodUserName']    = prodUserName
                             # FIXME
-                            #stU,resU = self.taskBufferIF.querySQLS(sqlU,varMap)
+                            #resU = self.taskBufferIF.querySQL(sqlU, varMap)
             # done
             tmpLog.debug('done')
         except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error("failed to redo stalled jobs with %s %s" % (errtype,errvalue))
+            errtype, errvalue = sys.exc_info()[:2]
+            tmpLog.error('failed to redo stalled jobs with {0} {1} {2}'.format(errtype, errvalue, traceback.format_exc()))
 
 
     # throttle WAN data access
@@ -535,8 +532,6 @@ class AtlasAnalWatchDog (WatchDogBase):
         tmpLog.debug('start')
         # check interval
         checkInterval = 6
-        # prodSourceLabel
-        prod_source_label = 'user'
         # throttle WAN data access
         tmpLog.debug('throttle WAN data access')
         try:
