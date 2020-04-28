@@ -563,7 +563,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     # check process lock
     def checkProcessLock_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, checkBase):
         with self.proxyPool.get() as proxy:
-            return proxy.checkProcessLock_JEDI(vo, prodSourceLabel, cloud, workqueue_id, resource_name, componentpid, checkBase)
+            return proxy.checkProcessLock_JEDI(vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, checkBase)
 
     # get JEDI tasks to be assessed
     def getAchievedTasks_JEDI(self,vo,prodSourceLabel,timeLimit=60,nTasks=50):
