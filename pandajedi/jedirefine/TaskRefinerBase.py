@@ -375,13 +375,6 @@ class TaskRefinerBase (object):
                 # raise RuntimeError,errStr
         self.taskSpec.gshare = gshare
 
-        # Initialize the job_label (user/managed) based on taskType (anal/prod)
-        if self.taskSpec.taskType == 'user':
-            job_label = JobUtils.ANALY_PS
-        else:
-            job_label = JobUtils.PROD_PS
-        self.taskSpec.job_label = job_label
-
         # Initialize the resource type
         try:
             self.taskSpec.resource_type = self.taskBufferIF.get_resource_type_task(self.taskSpec)

@@ -6,8 +6,6 @@ from .TaskSetupperBase import TaskSetupperBase
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.taskbuffer import EventServiceUtils
 
-
-# logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
@@ -95,11 +93,13 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                             # use T1 SE
                                             tmpT1Name = siteMapper.getCloud(taskSpec.cloud)['source']
                                             location = siteMapper.getDdmEndpoint(tmpT1Name, datasetSpec.storageToken,
-                                                                                 taskSpec.prodSourceLabel, taskSpec.job_label)
+                                                                                 taskSpec.prodSourceLabel,
+                                                                                 JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType))
                                     else:
                                         tmpLog.info('site={0} token={1}'.format(datasetSpec.site, datasetSpec.storageToken))
                                         location = siteMapper.getDdmEndpoint(datasetSpec.site,datasetSpec.storageToken,
-                                                                             taskSpec.prodSourceLabel, taskSpec.job_label)
+                                                                             taskSpec.prodSourceLabel,
+                                                                             JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType))
                                 if locForRule is None:
                                     locForRule = location
                                 # set metadata
