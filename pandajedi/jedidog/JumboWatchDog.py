@@ -31,7 +31,7 @@ class JumboWatchDog:
         try:
             # get process lock
             locked = self.taskBufferIF.lockProcess_JEDI(vo=self.vo, prodSourceLabel=self.prodSourceLabel,
-                                                        cloud='jumbo_dog', workqueue_id=None, resource_name=None,
+                                                        cloud=None, workqueue_id=None, resource_name=None,
                                                         component=self.component, pid=self.pid, timeLimit=10)
             if not locked:
                 self.log.debug('component={0} skipped since locked by another'.format(self.component))

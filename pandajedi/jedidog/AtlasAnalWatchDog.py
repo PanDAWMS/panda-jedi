@@ -107,7 +107,7 @@ class AtlasAnalWatchDog (WatchDogBase):
             tmpLog.debug('start')
             # lock
             got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
-                                                            cloud='atlas_prs', workqueue_id=None, resource_name=None,
+                                                            cloud=None, workqueue_id=None, resource_name=None,
                                                             component='AtlasAnalWatchDog.doForPreStaging',
                                                             pid=self.pid, timeLimit=5)
             if not got_lock:
@@ -173,7 +173,7 @@ class AtlasAnalWatchDog (WatchDogBase):
         tmpLog.debug('start')
         # lock
         got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
-                                                        cloud='adog-PM', workqueue_id=None, resource_name=None,
+                                                        cloud=None, workqueue_id=None, resource_name=None,
                                                         component='AtlasAnalWatchDog.doForPriorityMassage',
                                                         pid=self.pid, timeLimit=6)
         if not got_lock:
@@ -414,7 +414,7 @@ class AtlasAnalWatchDog (WatchDogBase):
         tmpLog.debug('start')
         # lock
         got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
-                                                        cloud='adog-RS', workqueue_id=None, resource_name=None,
+                                                        cloud=None, workqueue_id=None, resource_name=None,
                                                         component='AtlasAnalWatchDog.doForRedoStalledJobs',
                                                         pid=self.pid, timeLimit=6)
         if not got_lock:
@@ -546,7 +546,7 @@ class AtlasAnalWatchDog (WatchDogBase):
         tmpLog.debug('start')
         # lock
         got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
-                                                        cloud='adog-TW', workqueue_id=None, resource_name=None,
+                                                        cloud=None, workqueue_id=None, resource_name=None,
                                                         component='AtlasAnalWatchDog.doForThrottleWAN',
                                                         pid=self.pid, timeLimit=6)
         if not got_lock:

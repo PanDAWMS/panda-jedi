@@ -3913,7 +3913,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpLog.debug('memUsage now {0} MB pid={1}'.format(memNow, os.getpid()))
                             if memNow - memStart > memLimit:
                                 tmpLog.warning(
-                                    'memory limit exceeds {0}-{1} > {2} MB : JediTasKID={3}'.format(memNow,
+                                    'memory limit exceeds {0}-{1} > {2} MB : jediTaskID={3}'.format(memNow,
                                                                                                     memStart,
                                                                                                     memLimit,
                                                                                                     jediTaskID))
