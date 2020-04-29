@@ -19,7 +19,7 @@ class JobBrokerBase (object):
         self.siteMapper = self.taskBufferIF.getSiteMapper()
 
 
-    
+
     def setLiveCounter(self,liveCounter):
         self.liveCounter = liveCounter
 
@@ -44,6 +44,7 @@ class JobBrokerBase (object):
         return None
 
     def releaseSiteLock(self, vo, prodSourceLabel, queue_id):
+        # FIXME: releaseSiteLock method is unused elswhere
         if self.useLock:
             self.taskBufferIF.unlockProcessWithPID_JEDI(vo, prodSourceLabel, queue_id, self.lockID, False)
 
@@ -51,11 +52,15 @@ class JobBrokerBase (object):
     def lockSite(self, vo, prodSourceLabel, siteName, queue_id):
         if not self.useLock:
             self.useLock = True
-        self.taskBufferIF.lockProcess_JEDI(vo, prodSourceLabel, siteName, queue_id, self.lockID, True)
+        # FIXME: lockSite method is unused elswhere; lockProcess_JEDI arguments have changed and incompatible with the following line
+        # self.taskBufferIF.lockProcess_JEDI(vo, prodSourceLabel, siteName, queue_id, self.lockID, True)
 
 
     def checkSiteLock(self, vo, prodSourceLabel, siteName, queue_id, resource_name):
-        return self.taskBufferIF.checkProcessLock_JEDI(vo, prodSourceLabel, siteName, queue_id, resource_name, self.baseLockID, True)
+        return self.taskBufferIF.checkProcessLock_JEDI( vo=vo, prodSourceLabel=prodSourceLabel,
+                                                        cloud=siteName, workqueue_id=queue_id,
+                                                        resource_name=resource_name,
+                                                        component=None, pid=self.baseLockID, checkBase=True)
 
 
     def setTestMode(self):
