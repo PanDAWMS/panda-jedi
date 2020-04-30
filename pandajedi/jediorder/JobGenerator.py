@@ -977,10 +977,10 @@ class JobGeneratorThread (WorkerThread):
                     else:
                         jobSpec.assignedPriority = taskSpec.currentPriority
                     jobSpec.currentPriority  = jobSpec.assignedPriority
-                    jobSpec.lockedby         = 'jedi'
-                    jobSpec.workQueue_ID     = taskSpec.workQueue_ID
-                    jobSpec.gshare           = taskSpec.gshare
-                    jobSpec.container_name       = taskSpec.container_name
+                    jobSpec.lockedby = 'jedi'
+                    jobSpec.workQueue_ID = taskSpec.workQueue_ID
+                    jobSpec.gshare = taskSpec.gshare
+                    jobSpec.container_name = taskSpec.container_name
                     jobSpec.job_label = JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType)
                     # disable reassign
                     if taskSpec.disableReassign():

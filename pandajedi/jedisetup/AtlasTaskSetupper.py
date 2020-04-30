@@ -4,7 +4,7 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from .TaskSetupperBase import TaskSetupperBase
 
 from pandaserver.dataservice import DataServiceUtils
-from pandaserver.taskbuffer import EventServiceUtils
+from pandaserver.taskbuffer import EventServiceUtils, JobUtils
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
