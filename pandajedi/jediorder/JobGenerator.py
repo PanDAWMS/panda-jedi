@@ -1187,6 +1187,9 @@ class JobGeneratorThread (WorkerThread):
                     # prestaging
                     if setInputPrestaging:
                         jobSpec.setInputPrestaging()
+                    # HPO
+                    if taskSpec.is_hpo_workflow():
+                        jobSpec.set_hpo_workflow()
                     # extract middle name
                     middleName = ''
                     if taskSpec.getFieldNumToLFN() is not None and jobSpec.prodDBlock not in [None,'NULL','']:

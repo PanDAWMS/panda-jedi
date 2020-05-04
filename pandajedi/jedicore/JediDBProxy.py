@@ -3182,6 +3182,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlLock = "UPDATE {0}.JEDI_Tasks  ".format(jedi_config.db.schemaJEDI)
             sqlLock += "SET lockedBy=:newLockedBy,lockedTime=CURRENT_DATE,modificationTime=CURRENT_DATE "
             sqlLock += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL AND modificationTime<:timeLimit "
+            # sql to put the task in pending
+            sqlPDG = ("UPDATE {0}.JEDI_Tasks "
+                      "SET lockedBy=NULL,lockedTime=NULL,oldStatus=status,status=:status,errorDialog=:err "
+                      "WHERE jediTaskID=:jediTaskID ").format(jedi_config.db.schemaJEDI)
             # sql to read template
             sqlJobP = "SELECT jobParamsTemplate FROM {0}.JEDI_JobParams_Template WHERE jediTaskID=:jediTaskID ".format(
                 jedi_config.db.schemaJEDI)
@@ -3276,6 +3280,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to update datasets with empty requirements
             sqlUFU = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
             sqlUFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # sql to get number of events
+            sqlGNE = ("SELECT COUNT(*) FROM {0}.JEDI_Events "
+                      "WHERE jediTaskID=:jediTaskID AND status=:eventStatus ").format(jedi_config.db.schemaJEDI)
+            # sql to get number of ready HPO workers
+            sqlNRH = ("SELECT COUNT(*) FROM ("
+                      "(SELECT PandaID FROM {0}.jobsDefined4 WHERE jediTaskID=:jediTaskID "
+                      "UNION "
+                      "SELECT PandaID FROM {0}.jobsWaiting4 WHERE jediTaskID=:jediTaskID "
+                      "UNION "
+                      "SELECT PandaID FROM {0}.jobsActive4 WHERE jediTaskID=:jediTaskID) "
+                      "MINUS "
+                      "SELECT PandaID FROM {1}.JEDI_Events "
+                      "WHERE  jediTaskID=:jediTaskID AND "
+                      "status IN (:esSent,:esRunning)"
+                      ") ").format(jedi_config.db.schemaPANDA, jedi_config.db.schemaJEDI)
             # loop over all tasks
             iTasks = 0
             lockedTasks = []
@@ -3426,6 +3445,35 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             else:
                                 # reset change to not update userName
                                 origTaskSpec.resetChangedAttr('userName')
+                # get number of ready events for HPO
+                tmpNumEventsHPO = None
+                if not toSkip and simTasks is None:
+                    if origTaskSpec.is_hpo_workflow():
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':eventStatus'] = EventServiceUtils.ST_ready
+                        self.cur.execute(sqlGNE + comment, varMap)
+                        tmpNumEventsHPO, = self.cur.fetchone()
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':esSent'] = EventServiceUtils.ST_sent
+                        varMap[':esRunning'] = EventServiceUtils.ST_running
+                        self.cur.execute(sqlNRH + comment, varMap)
+                        tmpNumWorkersHPO, = self.cur.fetchone()
+                        # go to pending if no events (samples)
+                        if tmpNumEventsHPO - tmpNumWorkersHPO <= 0 :
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':status'] = 'pending'
+                            varMap[':err'] = 'pending since no samples to evaluate or enough workers'
+                            self.cur.execute(sqlPDG + comment, varMap)
+                            # record status change
+                            self.record_task_status_change(jediTaskID)
+                            tmpLog.debug(('jediTaskID={0} went to pending due to nSamplesToEvaluate={1} '
+                                          'nReadyWorkers={2}').format(jediTaskID, tmpNumEventsHPO, tmpNumWorkersHPO))
+                            if not self._commit():
+                                raise RuntimeError('Commit error')
+                            continue
                 # read datasets
                 if not toSkip:
                     iDsPerTask = 0
@@ -3433,12 +3481,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskWithNewJumbo = False
                     for datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,tmpNumInputEvents,\
                             tmpNumFilesWaiting,useJumbo in taskDatasetMap[jediTaskID]:
-
                         primaryDatasetID = datasetID
                         datasetIDs = [datasetID]
                         taskSpec = copy.copy(origTaskSpec)
                         origTmpNumFiles = tmpNumFiles
-
+                        # reduce NumInputFiles for HPO to avoid redundant workers
+                        if tmpNumEventsHPO is not None and tmpNumFiles > tmpNumEventsHPO:
+                            tmpNumFiles = tmpNumEventsHPO
                         # See if there are different memory requirements that need to be mapped to different chuncks
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
@@ -12919,7 +12968,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return None
 
-
     # task status logging
     def record_task_status_change(self, jedi_task_id):
         comment = ' /* JediDBProxy.record_task_status_change */'
@@ -13043,11 +13091,60 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             usageBreakDownPerUser[prodUserName][workingGroup][computingSite]['rundone'] += cnt
                             usageBreakDownPerSite[computingSite][prodUserName][workingGroup]['rundone'] += cnt
             # return
-            return usageBreakDownPerUser, usageBreakDownPerSite
             tmpLog.debug('done')
+            return usageBreakDownPerUser, usageBreakDownPerSite
         except Exception:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+    # add events
+    def add_events_jedi(self, jedi_task_id, start_number, end_number, max_attempt):
+        comment = ' /* JediDBProxy.add_events_jedi */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start start={0} end={1}'.format(start_number, end_number))
+        varMap = dict()
+        varMap[':jediTaskID'] = jedi_task_id
+        varMap[':modificationHost'] = socket.getfqdn()
+        # sql
+        sqlJediEvent = ("INSERT INTO {0}.JEDI_Events "
+                        "(jediTaskID,datasetID,PandaID,fileID,attemptNr,status,"
+                        "job_processID,def_min_eventID,def_max_eventID,processed_upto_eventID,"
+                        "event_offset) "
+                        "VALUES(:jediTaskID,:datasetID,:pandaID,:fileID,:attemptNr,:eventStatus,"
+                        ":startEvent,:startEvent,:lastEvent,:processedEvent,"
+                        ":eventOffset) ").format(jedi_config.db.schemaJEDI)
+        varMaps = []
+        i = start_number
+        while i <= end_number:
+            varMap = dict()
+            varMap[':jediTaskID'] = jedi_task_id
+            varMap[':datasetID'] = 0
+            varMap[':pandaID'] = 0
+            varMap[':fileID'] = 0
+            varMap[':attemptNr'] = max_attempt
+            varMap[':eventStatus'] = EventServiceUtils.ST_ready
+            varMap[':processedEvent'] = 0
+            varMap[':startEvent'] = i
+            varMap[':lastEvent'] = i
+            varMap[':eventOffset'] = 0
+            varMaps.append(varMap)
+            i += 1
+        try:
+            self.conn.begin()
+            self.cur.executemany(sqlJediEvent + comment, varMaps)
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('added {0} events'.format(end_number-start_number+1))
+            return True
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False

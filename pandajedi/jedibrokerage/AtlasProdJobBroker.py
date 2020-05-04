@@ -1125,7 +1125,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for nPilot
         nPilotMap = {}
-        if not sitePreAssigned:
+        if not sitePreAssigned and not siteListPreAssigned:
             nWNmap = self.taskBufferIF.getCurrentSiteData()
             newScanSiteList = []
             newSkippedTmp = dict()
@@ -1153,7 +1153,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return retTmpError
         ######################################
         # cap with resource type
-        if not sitePreAssigned and workQueue.is_global_share:
+        if not sitePreAssigned and not siteListPreAssigned and workQueue.is_global_share:
             # count jobs per resource type
             tmpRet, tmpStatMap = self.taskBufferIF.getJobStatisticsByResourceTypeSite(workQueue)
             newScanSiteList = []
