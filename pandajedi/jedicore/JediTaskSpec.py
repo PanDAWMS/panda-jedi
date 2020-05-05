@@ -55,6 +55,7 @@ class JediTaskSpec(object):
         'failGoalUnreached'  : 'FG',
         'firstEvent'         : 'FT',
         'groupBoundaryID'    : 'GB',
+        'hpoWorkflow'        : 'HO',
         'instantiateTmplSite': 'IA',
         'inFilePosEvtNum'    : 'IF',
         'allowInputLAN'      : 'IL',
@@ -1578,3 +1579,11 @@ class JediTaskSpec(object):
         if img == '':
             img = None
         return img
+
+    # HPO workflow
+    def is_hpo_workflow(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['hpoWorkflow']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None:
+                return True
+        return False
