@@ -38,25 +38,44 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
             tmp_log.error(err_str)
             raise
         # run
-        try:
-            # map
-            scope_name_list_map = {}
-            # loop over targets
-            for target in target_list:
-                the_id = target['name']
-                # parameter, loss = json.loads(target['path'])
+        if True:
+            # insert HPO events
+            try:
+                # map
+                scope_name_list_map = {}
+                # event ids from the targets
+                event_id_list = [ target['name'] for target in target_list ]
+                n_events = len(event_id_list)
                 # insert events
                 res = self.tbIF.insertHpoEventAboutIdds_JEDI(   jedi_task_id=jeditaskid,
-                                                                start_number=the_id,
-                                                                end_number=the_id)
+                                                                event_id_list=event_id_list)
                 # check if ok
                 if res:
-                    tmp_log.debug('jeditaskid={0}, id={1}, event inserted'.format(jeditaskid, the_id))
+                    tmp_log.debug('jeditaskid={0}, inserted {1} events: {2}'.format(jeditaskid, n_events, event_id_list))
                 else:
-                    tmp_log.warning('jeditaskid={0}, id={1}, event not inserted'.format(jeditaskid, the_id))
-        except Exception as e:
-            err_str = 'failed to parse message object, skipped. {0} : {1}'.format(e.__class__.__name__, e)
-            tmp_log.error(err_str)
-            raise
+                    tmp_log.warning('jeditaskid={0}, failed to insert events: {1}'.format(jeditaskid, event_id_list))
+            except Exception as e:
+                err_str = 'failed to parse message object, skipped. {0} : {1}'.format(e.__class__.__name__, e)
+                tmp_log.error(err_str)
+                raise
+        elif False:
+            # finish the task
+            try:
+
+                # send finish command
+                retVal, retStr = self.tbIF.sendCommandTaskPanda(jeditaskid,
+                                                                'JEDI. HPO task finished',
+                                                                True,
+                                                                'finish',
+                                                                comQualifier='soft')
+                # check if ok
+                if retVal:
+                    tmp_log.debug('jeditaskid={0}, finished the task'.format(jeditaskid))
+                else:
+                    tmp_log.warning('jeditaskid={0}, failed finish the task: {1}'.format(jeditaskid, retStr))
+            except Exception as e:
+                err_str = 'failed to parse message object, skipped. {0} : {1}'.format(e.__class__.__name__, e)
+                tmp_log.error(err_str)
+                raise
         # done
         tmp_log.info('done')

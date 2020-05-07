@@ -13150,12 +13150,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False
 
     # insert HPO pseudo event according to message from idds
-    def insertHpoEventAboutIdds_JEDI(self, jedi_task_id, start_number, end_number):
+    def insertHpoEventAboutIdds_JEDI(self, jedi_task_id, event_id_list):
         comment = ' /* JediDBProxy.insertHpoEventAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug('start start={0} end={1}'.format(start_number, end_number))
+        tmpLog.debug('start event_id_list={0}'.format(event_id_list))
         varMap = dict()
         varMap[':jediTaskID'] = jedi_task_id
         varMap[':modificationHost'] = socket.getfqdn()
@@ -13168,8 +13168,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         ":startEvent,:startEvent,:lastEvent,:processedEvent,"
                         ":eventOffset) ").format(jedi_config.db.schemaJEDI)
         varMaps = []
-        i = start_number
-        while i <= end_number:
+        n_events = 0
+        for event_id in event_id_list:
             varMap = dict()
             varMap[':jediTaskID'] = jedi_task_id
             varMap[':datasetID'] = 0
@@ -13178,18 +13178,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':attemptNr'] = 0
             varMap[':eventStatus'] = EventServiceUtils.ST_ready
             varMap[':processedEvent'] = 0
-            varMap[':startEvent'] = i
-            varMap[':lastEvent'] = i
+            varMap[':startEvent'] = event_id
+            varMap[':lastEvent'] = event_id
             varMap[':eventOffset'] = 0
             varMaps.append(varMap)
-            i += 1
+            n_events += 1
         try:
             self.conn.begin()
             self.cur.executemany(sqlJediEvent + comment, varMaps)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
-            tmpLog.debug('added {0} events'.format(end_number-start_number+1))
+            tmpLog.debug('added {0} events'.format(n_events))
             return True
         except Exception:
             # roll back
