@@ -91,7 +91,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     pass
         # loop over all sites
         for siteName,tmpSiteSpec in iteritems(self.siteMapper.siteSpecList):
-            # TODO prodanaly: way to identify production queues running analysis
             if tmpSiteSpec.type == 'analysis' or tmpSiteSpec.is_grandly_unified():
                 scanSiteList.append(siteName)
         # preassigned
