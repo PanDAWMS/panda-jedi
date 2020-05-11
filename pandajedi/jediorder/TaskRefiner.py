@@ -145,8 +145,8 @@ class TaskRefinerThread (WorkerThread):
                             taskType = taskParamMap['taskType']
                             tmpLog.info('vo={0} sourceLabel={1} taskType={2}'.format(vo,prodSourceLabel,taskType))
                             # get impl
-                            impl = self.implFactory.instantiateImpl(vo,prodSourceLabel,taskType,
-                                                                    self.taskBufferIF,self.ddmIF)
+                            impl = self.implFactory.instantiateImpl(vo, prodSourceLabel, taskType,
+                                                                    self.taskBufferIF, self.ddmIF)
                             if impl is None:
                                 # task refiner is undefined
                                 errStr = 'task refiner is undefined for vo={0} sourceLabel={1}'.format(vo,prodSourceLabel)

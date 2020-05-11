@@ -9,16 +9,18 @@ try:
 except Exception:
     long = int
 
+from .AtlasProdJobBroker import AtlasProdJobBroker
+from .TaskBrokerBase import TaskBrokerBase
+from . import AtlasBrokerUtils
+
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
-from .TaskBrokerBase import TaskBrokerBase
-from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread,MapWithLock
-from . import AtlasBrokerUtils
-from .AtlasProdJobBroker import AtlasProdJobBroker
+from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread, MapWithLock
 
 from pandaserver.userinterface import Client as PandaClient
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.dataservice.DataServiceUtils import select_scope
+from pandaserver.taskbuffer import JobUtils
 
 # cannot use pandaserver.taskbuffer while Client is used
 from taskbuffer.JobSpec import JobSpec
@@ -67,13 +69,14 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                     ddmIF = self.ddmIF.getInterface(taskSpec.vo)
                     # get site
                     siteSpec = self.siteMapper.getSite(tmpCoreName)
-                    scopeSiteSpec_input, scopeSiteSpec_output = select_scope(siteSpec, taskSpec.prodSourceLabel)
+                    scopeSiteSpec_input, scopeSiteSpec_output = select_scope(siteSpec, taskSpec.prodSourceLabel,
+                                                                             JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType))
                     # get nucleus
                     nucleus = siteSpec.pandasite
                     # get output/log datasets
                     tmpStat,tmpDatasetSpecs = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(tmpTaskID,['output','log'])
                     # get destinations
-                    retMap[tmpTaskID] = {'datasets':[],'nucleus':nucleus}
+                    retMap[tmpTaskID] = {'datasets': [], 'nucleus': nucleus}
                     for datasetSpec in tmpDatasetSpecs:
                         # skip distributed datasets
                         if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:

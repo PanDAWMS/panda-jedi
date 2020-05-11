@@ -3,16 +3,19 @@ import traceback
 
 from six import iteritems
 
+from .WatchDogBase import WatchDogBase
+from .JumboWatchDog import JumboWatchDog
+
 from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from .WatchDogBase import WatchDogBase
 from pandajedi.jediconfig import jedi_config
 from pandajedi.jedibrokerage import AtlasBrokerUtils
 
+from pandaserver.taskbuffer import JobUtils
 from pandaserver.dataservice import DataServiceUtils
-from .JumboWatchDog import JumboWatchDog
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 # watchdog for ATLAS production
@@ -209,7 +212,8 @@ class AtlasProdWatchDog (WatchDogBase):
                     tmpLog.debug('skip {0} is distributed'.format(datasetSpec.datasetName))
                     continue
                 # get location
-                location = siteMapper.getDdmEndpoint(t1Site.sitename, datasetSpec.storageToken, taskSpec.prodSourceLabel)
+                location = siteMapper.getDdmEndpoint(t1Site.sitename, datasetSpec.storageToken, taskSpec.prodSourceLabel,
+                                                     JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType))
                 # make subscription
                 try:
                     tmpLog.debug('registering subscription to {0} with backend={1}'.format(location,

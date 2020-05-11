@@ -18,6 +18,7 @@ from . import AtlasBrokerUtils
 from pandaserver.dataservice import DataServiceUtils
 from dataservice.DataServiceUtils import select_scope
 from pandaserver.taskbuffer import EventServiceUtils
+from pandaserver.taskbuffer import JobUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -48,8 +49,8 @@ class AtlasProdJobBroker (JobBrokerBase):
 
     # constructor
     def __init__(self,ddmIF,taskBufferIF):
-        JobBrokerBase.__init__(self,ddmIF, taskBufferIF)
-        self.hospitalQueueMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper, 'managed')
+        JobBrokerBase.__init__(self, ddmIF, taskBufferIF)
+        self.hospitalQueueMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper, JobUtils.PROD_PS, JobUtils.PROD_PS)
         self.dataSiteMap = {}
         self.suppressLogSending = False
 
@@ -180,7 +181,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             else:
                 # pmerge
                 siteListPreAssigned = True
-                scanSiteList = DataServiceUtils.getSitesShareDDM(self.siteMapper,inputChunk.getPreassignedSite(), 'managed')
+                scanSiteList = DataServiceUtils.getSitesShareDDM(self.siteMapper, inputChunk.getPreassignedSite(),
+                                                                 JobUtils.PROD_PS, JobUtils.PROD_PS)
                 scanSiteList.append(inputChunk.getPreassignedSite())
                 tmpMsg = 'use site={0} since they share DDM endpoints with orinal_site={1} which is pre-assigned in masterDS '.format(str(scanSiteList),
                                                                                                                                       inputChunk.getPreassignedSite())
@@ -227,7 +229,8 @@ class AtlasProdJobBroker (JobBrokerBase):
 
         # sites sharing SE with T1
         if len(t1Sites) > 0:
-            sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper, t1Sites[0], 'managed')
+            sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper, t1Sites[0],
+                                                               JobUtils.PROD_PS, JobUtils.PROD_PS)
         else:
             sitesShareSeT1 = []
         # all T1
@@ -438,7 +441,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                     # get the list of sites where data is available
                     tmpLog.info('getting the list of sites where {0} is available'.format(datasetName))
                     tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,
-                                                                     self.ddmIF,datasetName, 'managed'
+                                                                     self.ddmIF,datasetName, 
+                                                                     JobUtils.PROD_PS, JobUtils.PROD_PS,
                                                                      datasetSpec.storageToken)
                     if tmpSt == self.SC_FAILED:
                         tmpLog.error('failed to get the list of sites where data is available, since %s' % tmpRet)
@@ -494,7 +498,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         """
         ######################################
         # selection for fairshare
-        if sitePreAssigned and taskSpec.prodSourceLabel not in ['managed'] or workQueue.queue_name not in ['test','validation']:
+        if sitePreAssigned and taskSpec.prodSourceLabel not in [JobUtils.PROD_PS] or workQueue.queue_name not in ['test', 'validation']:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -814,7 +818,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         newSkippedTmp = dict()
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            scope_input, scope_output = select_scope(tmpSiteSpec, 'managed')
+            scope_input, scope_output = select_scope(tmpSiteSpec, JobUtils.PROD_PS, JobUtils.PROD_PS)
             # check endpoint
             tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope_output].getEndPoint(tmpSiteSpec.ddm_output[scope_output])
             if tmpEndPoint is not None:
@@ -1180,7 +1184,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             try:
                 # mapping between sites and input storage endpoints
                 siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(self.get_unified_sites(scanSiteList),
-                                                                                self.siteMapper, 'managed', ignore_cc=True)
+                                                                                self.siteMapper, JobUtils.PROD_PS,
+                                                                                JobUtils.PROD_PS, ignore_cc=True)
                 # disable file lookup for merge jobs or secondary datasets
                 checkCompleteness = True
                 useCompleteOnly = False

@@ -10,9 +10,12 @@ from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediCoreUtils
+
 from .JobBrokerBase import JobBrokerBase
-from pandaserver.dataservice.DataServiceUtils import select_scope
 from . import AtlasBrokerUtils
+
+from pandaserver.dataservice.DataServiceUtils import select_scope
+from pandaserver.taskbuffer import JobUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -88,7 +91,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     pass
         # loop over all sites
         for siteName,tmpSiteSpec in iteritems(self.siteMapper.siteSpecList):
-            # TODO prodanaly: way to identify production queues running analysis
             if tmpSiteSpec.type == 'analysis' or tmpSiteSpec.is_grandly_unified():
                 scanSiteList.append(siteName)
         # preassigned
@@ -100,7 +102,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 includeList = []
                 for tmpSiteName in self.get_unified_sites(scanSiteList):
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                    scope_input, scope_output = select_scope(tmpSiteSpec, 'user')
+                    scope_input, scope_output = select_scope(tmpSiteSpec, JobUtils.ANALY_PS, JobUtils.ANALY_PS)
                     if scope_input in tmpSiteSpec.ddm_endpoints_input and \
                         preassignedSite in tmpSiteSpec.ddm_endpoints_input[scope_input].all:
                         includeList.append(tmpSiteName)
@@ -683,7 +685,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 # check endpoint
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                scope_input, scope_output = select_scope(tmpSiteSpec, 'user')
+                scope_input, scope_output = select_scope(tmpSiteSpec, JobUtils.ANALY_PS, JobUtils.ANALY_PS)
                 tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope_output].getEndPoint(tmpSiteSpec.ddm_output[scope_output])
                 if tmpEndPoint is not None:
                     # free space must be >= 200GB
@@ -965,7 +967,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                             if tmpRemoteSite not in fileScanSiteList:
                                 fileScanSiteList.append(tmpRemoteSite)
                 # mapping between sites and input storage endpoints
-                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper, 'user')
+                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper,
+                                                                                JobUtils.ANALY_PS, JobUtils.ANALY_PS)
                 # disable file lookup for merge jobs
                 if inputChunk.isMerging:
                     checkCompleteness = False
