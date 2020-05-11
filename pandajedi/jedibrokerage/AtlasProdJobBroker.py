@@ -1129,7 +1129,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for nPilot
         nPilotMap = {}
-        if not sitePreAssigned:
+        if not sitePreAssigned and not siteListPreAssigned:
             nWNmap = self.taskBufferIF.getCurrentSiteData()
             newScanSiteList = []
             newSkippedTmp = dict()
@@ -1150,40 +1150,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
-            if scanSiteList == []:
-                tmpLog.error('no candidates')
-                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
-                return retTmpError
-        ######################################
-        # cap with resource type
-        if not sitePreAssigned and workQueue.is_global_share:
-            # count jobs per resource type
-            tmpRet, tmpStatMap = self.taskBufferIF.getJobStatisticsByResourceTypeSite(workQueue)
-            newScanSiteList = []
-            newSkippedTmp = dict()
-            RT_Cap = 2
-            for tmpSiteName in self.get_unified_sites(scanSiteList):
-                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                tmpUnifiedName = tmpSiteSpec.get_unified_name()
-                if tmpUnifiedName in tmpStatMap and taskSpec.resource_type in tmpStatMap[tmpUnifiedName]:
-                    tmpSiteStatMap = tmpStatMap[tmpUnifiedName][taskSpec.resource_type]
-                    tmpRTrunning = tmpSiteStatMap.get('running', 0)
-                    tmpRTqueue = tmpSiteStatMap.get('defined', 0)
-                    tmpRTqueue += tmpSiteStatMap.get('assigned', 0)
-                    tmpRTqueue += tmpSiteStatMap.get('activated', 0)
-                    tmpRTqueue += tmpSiteStatMap.get('starting', 0)
-                    if tmpRTqueue > max(20, tmpRTrunning*RT_Cap):
-                        tmpMsg = '  skip site={0} '.format(tmpSiteName)
-                        tmpMsg += 'since nQueue/max(20,nRun) with gshare+resource_type is '
-                        tmpMsg += '{0}/max(20,{1}) > {2} '.format(tmpRTqueue, tmpRTrunning, RT_Cap)
-                        tmpMsg += 'criteria=-cap_rt'
-                        # temporary problem
-                        newSkippedTmp[tmpSiteName] = tmpMsg
-                newScanSiteList.append(tmpSiteName)
-            siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
-            scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info('{0} candidates passed for cap with gshare+resource_type check'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -1371,6 +1337,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             if tmpSt:
                 tmpSt, jobStatPrioMapGS = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
                 tmpSt, jobStatPrioMapGSOnly = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo, True)
+        if tmpSt:
+            # count jobs per resource type
+            tmpSt, tmpStatMapRT = self.taskBufferIF.getJobStatisticsByResourceTypeSite(workQueue)
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -1557,6 +1526,19 @@ class AtlasProdJobBroker (JobBrokerBase):
             if taskSpec.useWorldCloud():
                 lockedByBrokerage = self.checkSiteLock(taskSpec.vo, taskSpec.prodSourceLabel,
                                                        tmpPseudoSiteName, taskSpec.workQueue_ID, taskSpec.resource_type)
+            # stat with resource type
+            RT_Cap = 2
+            if tmpSiteName in tmpStatMapRT and taskSpec.resource_type in tmpStatMapRT[tmpSiteName]:
+                useCapRT = True
+                tmpRTrunning = tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('running', 0)
+                tmpRTrunning = max(tmpRTrunning, nRunning)
+                tmpRTqueue = tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('defined', 0)
+                if useAssigned:
+                    tmpRTqueue += tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('assigned', 0)
+                tmpRTqueue += tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('activated', 0)
+                tmpRTqueue += tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('starting', 0)
+            else:
+                useCapRT = False
             # check cap with nRunning
             nPilot *= corrNumPilot
             cutOffValue = 20
@@ -1582,10 +1564,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                 ngMsg = '  skip site={0} due to non-local data '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-non_local'
             elif not useAssigned and siteCandidateSpec.nQueuedJobs > nRunningCap:
-                ngMsg = '  skip site={0} weight={1} due to nActivated+nStarting={2} '.format(tmpPseudoSiteName,
-                                                                                             weight,
-                                                                                             nActivated+nStarting)
-                ngMsg += '(nAssigned ignored due to data already available) '
+                ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nStarting={2} '.format(
+                    tmpPseudoSiteName,
+                    weight,
+                    nActivated+nStarting)
+                ngMsg += '(nAssigned ignored due to data locally available) '
                 ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
@@ -1602,6 +1585,16 @@ class AtlasProdJobBroker (JobBrokerBase):
                     .format(tmpPseudoSiteName, weightNw, self.nw_threshold)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-lowNetworkWeight'
+            elif useCapRT and tmpRTqueue > max(20, tmpRTrunning * RT_Cap):
+                ngMsg = '  skip site={0} since '.format(tmpSiteName)
+                if useAssigned:
+                    ngMsg += 'nDefined_rt+nActivated_rt+nAssigned_rt+nStarting_rt={0} '.format(tmpRTqueue)
+                else:
+                    ngMsg += 'nDefined_rt+nActivated_rt+nStarting_rt={0} '.format(tmpRTqueue)
+                    ngMsg += '(nAssigned_rt ignored due to data locally available) '
+                ngMsg = 'with gshare+resource_type is greater than '
+                ngMsg += 'max({0},{1}*nRun_rt={1}*{2}) '.format(cutOffValue, RT_Cap, tmpRTrunning)
+                ngMsg += 'criteria=-cap_rt'
             else:
                 ngMsg = '  skip site={0} due to low weight '.format(tmpPseudoSiteName)
                 ngMsg += 'weight={0} {1} '.format(weight, weightStr)

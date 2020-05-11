@@ -529,7 +529,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                               cmtConfig=taskSpec.getArchitecture())
                 else:
                     # nightlies or standalone
-                    useANY = False
                     siteListWithCVMFS = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                                 releases='CVMFS')
                     if taskSpec.getArchitecture() in ['', None]:
