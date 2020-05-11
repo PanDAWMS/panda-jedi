@@ -1,15 +1,6 @@
-import sys
-try:
-    metaID = sys.argv[1]
-except Exception:
-    metaID = None
-import json
 import uuid
 
-from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
-
-tbIF = JediTaskBufferInterface()
-tbIF.setupInterface()
+from userinterface import Client
 
 inFileList = ['file1','file2','file3']
 
@@ -27,26 +18,28 @@ taskParamMap['pfnList'] = inFileList
 #taskParamMap['mergeOutput'] = True
 taskParamMap['taskName'] = str(uuid.uuid4())
 taskParamMap['userName'] = 'someone'
-taskParamMap['vo'] = 'nonatlas'
+taskParamMap['vo'] = 'wlcg'
 taskParamMap['taskPriority'] = 900
 #taskParamMap['reqID'] = reqIdx
-taskParamMap['architecture'] = 'i686-slc5-gcc43-opt'
-taskParamMap['transUses'] = 'Atlas-17.2.2'
-taskParamMap['transHome'] = 'AtlasProduction-17.2.2.2'
-taskParamMap['transPath'] = 'Generate_trf.py'
-taskParamMap['processingType'] = 'evgen'
+taskParamMap['architecture'] = 'power9'
+taskParamMap['transUses'] = 'A'
+taskParamMap['transHome'] = 'B'
+taskParamMap['transPath'] = 'executable'
+taskParamMap['processingType'] = 'step1'
 taskParamMap['prodSourceLabel'] = 'test'
 taskParamMap['taskType'] = 'test'
-taskParamMap['workingGroup'] = 'AP_Higgs'
+taskParamMap['workingGroup'] = 'groupA'
 #taskParamMap['coreCount'] = 1
 #taskParamMap['walltime'] = 1
-taskParamMap['cloud'] = 'FR'
-taskParamMap['site'] = 'FZK-LCG2'
+taskParamMap['cloud'] = 'NA'
+taskParamMap['site'] = 'TEST_PQ'
 taskParamMap['log'] = {'dataset': logDatasetName,
                        'type':'template',
                        'param_type':'log',
+                       'token':'local',
+                       'destination':'local',
                        'value':'{0}.${{SN}}.log.tgz'.format(logDatasetName)}
-outDatasetName = 'panda.jeditest.EVNT.{0}'.format(uuid.uuid4())
+outDatasetName = 'panda.jeditest.{0}'.format(uuid.uuid4())
 
 
 taskParamMap['jobParameters'] = [
@@ -58,20 +51,15 @@ taskParamMap['jobParameters'] = [
      },
     {'type':'template',
      'param_type':'output',
-     'token':'ATLASDATADISK',     
-     'value':'outputEVNTFile={0}.${{SN}}.pool.root'.format(outDatasetName),
+     'token':'local',     
+     'destination':'local',
+     'value':'outputEVNTFile={0}.${{SN}}.root'.format(outDatasetName),
      'dataset':outDatasetName,
      'offset':1000,
      },
     {'type':'constant',
-     'value':'evgenJobOpts=MC12JobOpts-00-01-06_v1.tar.gz',
+     'value':'aaaa',
      },
     ]
 
-#taskParamMap['mergeSpec'] = {}
-#taskParamMap['mergeSpec']['transPath'] = 'Merge_trf.py'
-#taskParamMap['mergeSpec']['jobParameters'] = "inputFile=${INPUT0} inputLogFile=${INLOG0} outputFile=${OUTPUT0}"
-
-jonStr = json.dumps(taskParamMap)
-
-tbIF.insertTaskParams_JEDI(taskParamMap['vo'],taskParamMap['prodSourceLabel'],taskParamMap['userName'],taskParamMap['taskName'],jonStr)
+print(Client.insertTaskParams(taskParamMap))
