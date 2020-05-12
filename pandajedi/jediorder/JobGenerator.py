@@ -28,9 +28,10 @@ from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore import ParseJobXML
 from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jedirefine import RefinerUtils
+
 from pandaserver.taskbuffer.JobSpec import JobSpec
 from pandaserver.taskbuffer.FileSpec import FileSpec
-from pandaserver.taskbuffer import EventServiceUtils
+from pandaserver.taskbuffer import EventServiceUtils, JobUtils
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.dataservice.DataServiceUtils import select_scope
 from pandaserver.userinterface import Client as PandaClient
@@ -851,7 +852,8 @@ class JobGeneratorThread (WorkerThread):
                 inSubChunks   = tmpInChunk['subChunks']
                 siteCandidate = tmpInChunk['siteCandidate']
                 siteSpec      = self.siteMapper.getSite(siteName.split(',')[0])
-                scope_input, scope_output = select_scope(siteSpec, taskSpec.prodSourceLabel)
+                scope_input, scope_output = select_scope(siteSpec, taskSpec.prodSourceLabel,
+                                                         JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType))
                 buildFileSpec = None
                 # make preprocessing job
                 if taskSpec.usePrePro():
@@ -939,7 +941,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.VO               = taskSpec.vo
                     jobSpec.prodSeriesLabel  = 'pandatest'
                     jobSpec.AtlasRelease     = taskSpec.transUses
-                    jobSpec.AtlasRelease     = re.sub('\r','',jobSpec.AtlasRelease)
+                    jobSpec.AtlasRelease     = re.sub('\r', '', jobSpec.AtlasRelease)
                     jobSpec.maxCpuCount      = taskSpec.walltime
                     jobSpec.maxCpuUnit       = taskSpec.walltimeUnit
                     if inputChunk.isMerging and splitter is not None:
@@ -975,10 +977,11 @@ class JobGeneratorThread (WorkerThread):
                     else:
                         jobSpec.assignedPriority = taskSpec.currentPriority
                     jobSpec.currentPriority  = jobSpec.assignedPriority
-                    jobSpec.lockedby         = 'jedi'
-                    jobSpec.workQueue_ID     = taskSpec.workQueue_ID
-                    jobSpec.gshare           = taskSpec.gshare
-                    jobSpec.container_name       = taskSpec.container_name
+                    jobSpec.lockedby = 'jedi'
+                    jobSpec.workQueue_ID = taskSpec.workQueue_ID
+                    jobSpec.gshare = taskSpec.gshare
+                    jobSpec.container_name = taskSpec.container_name
+                    jobSpec.job_label = JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType)
                     # disable reassign
                     if taskSpec.disableReassign():
                         jobSpec.relocationFlag = 2
@@ -1453,7 +1456,8 @@ class JobGeneratorThread (WorkerThread):
         try:
             datasetToRegister = []
             # get sites which share DDM endpoint
-            associatedSites = DataServiceUtils.getSitesShareDDM(self.siteMapper,siteName, taskSpec.prodSourceLabel)
+            associatedSites = DataServiceUtils.getSitesShareDDM(self.siteMapper, siteName, taskSpec.prodSourceLabel,
+                                                                JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType))
             associatedSites.sort()
             # key for map of buildSpec
             secondKey = [siteName] + associatedSites
@@ -1462,13 +1466,16 @@ class JobGeneratorThread (WorkerThread):
             if buildSpecMapKey in self.buildSpecMap:
                 # reuse lib.tgz
                 reuseDatasetID,reuseFileID = self.buildSpecMap[buildSpecMapKey]
-                tmpStat,fileSpec,datasetSpec = self.taskBufferIF.getOldBuildFileSpec_JEDI(taskSpec.jediTaskID,reuseDatasetID,reuseFileID)
+                tmpStat,fileSpec,datasetSpec = self.taskBufferIF.getOldBuildFileSpec_JEDI(taskSpec.jediTaskID,
+                                                                                          reuseDatasetID, reuseFileID)
             else:
                 # get lib.tgz file
-                tmpStat,fileSpec,datasetSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID,siteName,associatedSites)
+                tmpStat,fileSpec,datasetSpec = self.taskBufferIF.getBuildFileSpec_JEDI(taskSpec.jediTaskID, siteName,
+                                                                                       associatedSites)
             # failed
             if not tmpStat:
-                tmpLog.error('failed to get lib.tgz for jediTaskID={0} siteName={0}'.format(taskSpec.jediTaskID,siteName))
+                tmpLog.error('failed to get lib.tgz for jediTaskID={0} siteName={0}'.format(taskSpec.jediTaskID,
+                                                                                            siteName))
                 return failedRet
             # lib.tgz is already available
             if fileSpec is not None:
@@ -2029,12 +2036,12 @@ class JobGeneratorThread (WorkerThread):
                 newPandaJobs.append(newPandaJob)
                 newOldPandaIDs.append(oldPandaID)
         # return
-        return newPandaJobs,newOldPandaIDs
+        return newPandaJobs, newOldPandaIDs
 
 
 
     # close panda job with new specialHandling
-    def clonePandaJob(self,pandaJob,index,parallelOutMap,outDsMap,sites=None,forJumbo=False,
+    def clonePandaJob(self, pandaJob, index, parallelOutMap, outDsMap, sites=None, forJumbo=False,
                       taskSpec=None, inputChunk=None, totalMasterEvents=None):
         newPandaJob = copy.copy(pandaJob)
         if sites is None:
@@ -2043,7 +2050,7 @@ class JobGeneratorThread (WorkerThread):
         # set site for parallel jobs
         newPandaJob.computingSite = sites[index % nSites]
         siteSpec = self.siteMapper.getSite(newPandaJob.computingSite)
-        scope_input, scope_output = select_scope(siteSpec, pandaJob.prodSourceLabel)
+        scope_input, scope_output = select_scope(siteSpec, pandaJob.prodSourceLabel, pandaJob.job_label)
         siteCandidate = inputChunk.getSiteCandidate(newPandaJob.computingSite)
         newPandaJob.computingSite = siteSpec.get_unified_name()
         if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:
