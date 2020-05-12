@@ -40,11 +40,14 @@ class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
             tmp_log.error(err_str)
             raise
         # run different plugins according to message type
-        if msg_type in ('file_stagein', 'collection_stagein'):
-            self.plugin_TapeCarousel.process(msg_obj, decoded_data=msg_dict)
-        elif msg_type in ('file_hyperparameteropt', 'collection_hpyerparameteropt'):
-            self.plugin_HPO.process(msg_obj, decoded_data=msg_dict)
-        else:
-            raise ValueError('invalid msg_type value: {0}'.format(msg_type))
+        try:
+            if msg_type in ('file_stagein', 'collection_stagein'):
+                self.plugin_TapeCarousel.process(msg_obj, decoded_data=msg_dict)
+            elif msg_type in ('file_hyperparameteropt', 'collection_hpyerparameteropt'):
+                self.plugin_HPO.process(msg_obj, decoded_data=msg_dict)
+            else:
+                raise ValueError('invalid msg_type value: {0}'.format(msg_type))
+        except Exception:
+            raise
         # done
         tmp_log.info('done')
