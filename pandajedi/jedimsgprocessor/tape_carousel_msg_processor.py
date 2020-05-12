@@ -12,19 +12,23 @@ base_logger = logger_utils.setup_logger(__name__.split('.')[-1])
 # Tape carousel message processing plugin
 class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
 
-    def process(self, msg_obj):
+    def process(self, msg_obj, decoded_data=None):
         # logger
         tmp_log = logger_utils.make_logger(base_logger, method_name='process')
         # start
         tmp_log.info('start')
         tmp_log.debug('sub_id={0} ; msg_id={1}'.format(msg_obj.sub_id, msg_obj.msg_id))
-        # parse json
-        try:
-            msg_dict = json.loads(msg_obj.data)
-        except Exception as e:
-            err_str = 'failed to parse message json {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_obj.data)
-            tmp_log.error(err_str)
-            raise
+        # parse
+        if decoded_data is None:
+            # json decode
+            try:
+                msg_dict = json.loads(msg_obj.data)
+            except Exception as e:
+                err_str = 'failed to parse message json {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_obj.data)
+                tmp_log.error(err_str)
+                raise
+        else:
+            msg_dict = decoded_data
         # sanity check
         try:
             msg_type = msg_dict['msg_type']
