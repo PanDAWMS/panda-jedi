@@ -15,6 +15,14 @@ from pandajedi.jedicore.JediFileSpec import JediFileSpec
 from pandaserver.taskbuffer import EventServiceUtils
 from pandaserver.taskbuffer import JobUtils
 
+try:
+    from idds.client.client import Client as iDDS_Client
+    import idds.common.constants
+    import idds.common.utils
+except ImportError:
+    pass
+
+
 # base class for task refine
 class TaskRefinerBase (object):
 
@@ -330,11 +338,35 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['useZipToPin'])
         if 'osMatching' in taskParamMap and taskParamMap['osMatching'] is True:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['osMatching'])
+        if 'multiStepExec' in taskParamMap:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['multiStepExec'])
         if 'inputPreStaging' in taskParamMap and taskParamMap['inputPreStaging'] is True:
             self.setSplitRule(None, JediTaskSpec.enum_inputPreStaging['use'],
                               JediTaskSpec.splitRuleToken['inputPreStaging'])
-        if 'hpoWorkflow' in taskParamMap and taskParamMap['hpoWorkflow'] is True:
-                self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['hpoWorkflow'])
+        if 'hpoWorkflow' in taskParamMap and taskParamMap['hpoWorkflow'] is True and 'hpoRequestData' in taskParamMap:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['hpoWorkflow'])
+            try:
+                data = copy.copy(taskParamMap['hpoRequestData'])
+                data['workload_id'] = self.taskSpec.jediTaskID
+                data['is_pseudo_input'] = True
+                req = {
+                    'scope': None,
+                    'name': None,
+                    'requester': 'panda',
+                    'request_type': idds.common.constants.RequestType.HyperParameterOpt,
+                    'transform_tag': idds.common.constants.RequestType.HyperParameterOpt.value,
+                    'status': idds.common.constants.RequestStatus.New,
+                    'priority': 0,
+                    'lifetime': 30,
+                    'request_metadata': data,
+                }
+                c = iDDS_Client(idds.common.utils.get_rest_host())
+                self.tmpLog.debug('req {0}'.format(str(req)))
+                ret = c.add_request(**req)
+                self.tmpLog.debug('got requestID={0}'.format(str(ret)))
+            except Exception as e:
+                errStr = 'iDDS failed with {0}'.format(str(e))
+                raise JediException.ExternalTempError(errStr)
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:

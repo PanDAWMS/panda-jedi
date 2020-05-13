@@ -72,6 +72,7 @@ class JediTaskSpec(object):
         'nMaxFilesPerJob'    : 'MF',
         'maxJumboPerSite'    : 'MJ',
         'mergeOutput'        : 'MO',
+        'multiStepExec'      : 'MS',
         'maxWalltime'        : 'MW',
         'noExecStrCnv'       : 'NC',
         'notDiscardEvents'   : 'ND',
@@ -1584,6 +1585,14 @@ class JediTaskSpec(object):
     def is_hpo_workflow(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['hpoWorkflow']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None:
+                return True
+        return False
+
+    # multi-step execution
+    def is_multi_step_exec(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['multiStepExec']+'=(\d+)', self.splitRule)
             if tmpMatch is not None:
                 return True
         return False
