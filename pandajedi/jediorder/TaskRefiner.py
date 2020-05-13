@@ -170,7 +170,22 @@ class TaskRefinerThread (WorkerThread):
                             if parent_tid not in [None,jediTaskID]:
                                 impl.taskSpec.parent_tid = parent_tid
                         except Exception:
-                            errtype,errvalue = sys.exc_info()[:2]
+                            errtype, errvalue = sys.exc_info()[:2]
+                            # on hold in case of external error
+                            if errtype == JediException.ExternalTempError:
+                                tmpErrStr = 'pending due to external problem. {0}'.format(errvalue)
+                                setFrozenTime = True
+                                impl.taskSpec.status = taskStatus
+                                impl.taskSpec.setOnHold()
+                                impl.taskSpec.setErrDiag(tmpErrStr)
+                                # not to update some task attributes
+                                impl.taskSpec.resetRefinedAttrs()
+                                tmpLog.info(tmpErrStr)
+                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
+                                                                  oldStatus=[taskStatus],
+                                                                  insertUnknown=impl.unknownDatasetList,
+                                                                  setFrozenTime=setFrozenTime)
+                                continue
                             errStr = 'failed to extract common parameters with {0}:{1} {2}'.format(errtype.__name__,errvalue,
                                                                                                    traceback.format_exc())
                             tmpLog.error(errStr)

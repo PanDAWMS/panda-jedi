@@ -816,7 +816,7 @@ class JobGeneratorThread (WorkerThread):
         failedRet = Interaction.SC_FAILED,None,None,None,None,None
         # read task parameters
         if taskSpec.useBuild() or taskSpec.usePrePro() or inputChunk.isMerging or \
-                taskSpec.useLoadXML() or taskSpec.useListPFN():
+                taskSpec.useLoadXML() or taskSpec.useListPFN() or taskSpec.is_multi_step_exec():
             tmpStat,taskParamMap = self.readTaskParams(taskSpec,taskParamMap,tmpLog)
             if not tmpStat:
                 return failedRet
@@ -1400,10 +1400,12 @@ class JobGeneratorThread (WorkerThread):
                         useEStoMakeJP = True
                     else:
                         useEStoMakeJP = False
-                    jobSpec.jobParameters = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
-                                                                   serialNr,paramList,jobSpec,simul,
-                                                                   taskParamMap,inputChunk.isMerging,
-                                                                   jobSpec.Files,useEStoMakeJP)
+                    jobSpec.jobParameters, multiExecStep = self.makeJobParameters(taskSpec,inSubChunk,outSubChunk,
+                                                                                  serialNr,paramList,jobSpec,simul,
+                                                                                  taskParamMap,inputChunk.isMerging,
+                                                                                  jobSpec.Files,useEStoMakeJP)
+                    if multiExecStep is not None:
+                        jobSpec.addMultiStepExec(multiExecStep)
                     # set destinationSE for fake co-jumbo
                     if inputChunk.useJumbo in ['fake', 'only']:
                         jobSpec.destinationSE = DataServiceUtils.checkJobDestinationSE(jobSpec)
@@ -1997,6 +1999,17 @@ class JobGeneratorThread (WorkerThread):
         else:
             parTemplate = re.sub('<PANDA_ES_ONLY>[^<]*</PANDA_ES_ONLY>','',parTemplate)
             parTemplate = re.sub('<PANDA_ESMERGE.*>[^<]*</PANDA_ESMERGE.*>','',parTemplate)
+        # multi-step execution
+        if not taskSpec.is_multi_step_exec():
+            multiExecSpec = None
+        else:
+            multiExecSpec = copy.copy(taskParamMap['multiStepExec'])
+            for k, v in iteritems(multiExecSpec):
+                for kk, vv in iteritems(v):
+                    # resolve placeholders
+                    new_vv = vv.replace('${TRF_ARGS}', parTemplate)
+                    new_vv = new_vv.replace('${TRF}', jobSpec.transformation)
+                    v[kk] = new_vv
         # check unresolved placeholders
         matchI = re.search('\${IN.*}', parTemplate)
         if matchI is None:
@@ -2004,7 +2017,7 @@ class JobGeneratorThread (WorkerThread):
         if matchI is not None:
             raise UnresolvedParam('unresolved {0} when making job parameters'.format(matchI.group(0)))
         # return
-        return parTemplate
+        return parTemplate, multiExecSpec
 
 
 
