@@ -15,9 +15,10 @@ base_logger = logger_utils.setup_logger(__name__.split('.')[-1])
 class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
 
     def initialize(self):
-        super().initialize()
         self.plugin_TapeCarousel = TapeCarouselMsgProcPlugin()
+        self.plugin_TapeCarousel.initialize()
         self.plugin_HPO = HPOMsgProcPlugin()
+        self.plugin_HPO.initialize()
 
     def process(self, msg_obj):
         # logger
