@@ -719,9 +719,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def getUsageBreakdown_JEDI(self, prod_source_label='user'):
         with self.proxyPool.get() as proxy:
             return proxy.getUsageBreakdown_JEDI(prod_source_label)
-    # get usage breakdown by users and sites
 
     # insert HPO pseudo event according to message from idds
-    def insertHpoEventAboutIdds_JEDI(self, jedi_task_id, start_number, end_number):
+    def insertHpoEventAboutIdds_JEDI(self, jedi_task_id, event_id_list):
         with self.proxyPool.get() as proxy:
-            return proxy.insertHpoEventAboutIdds_JEDI(jedi_task_id, start_number, end_number)
+            return proxy.insertHpoEventAboutIdds_JEDI(jedi_task_id, event_id_list)
