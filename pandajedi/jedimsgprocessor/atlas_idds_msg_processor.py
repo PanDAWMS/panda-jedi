@@ -44,7 +44,7 @@ class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
         try:
             if msg_type in ('file_stagein', 'collection_stagein'):
                 self.plugin_TapeCarousel.process(msg_obj, decoded_data=msg_dict)
-            elif msg_type in ('file_hyperparameteropt', 'collection_hpyerparameteropt'):
+            elif msg_type in ('file_hyperparameteropt', 'collection_hyperparameteropt'):
                 self.plugin_HPO.process(msg_obj, decoded_data=msg_dict)
             else:
                 raise ValueError('invalid msg_type value: {0}'.format(msg_type))

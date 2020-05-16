@@ -35,7 +35,7 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
             jeditaskid = int(msg_dict['workload_id'])
             if msg_type == 'file_hyperparameteropt':
                 target_list = msg_dict['files']
-            elif msg_type == 'collection_hpyerparameteropt':
+            elif msg_type == 'collection_hyperparameteropt':
                 # to finish the task
                 pass
             else:
@@ -65,7 +65,7 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
                 err_str = 'failed to parse message object, skipped. {0} : {1}'.format(e.__class__.__name__, e)
                 tmp_log.error(err_str)
                 raise
-        elif msg_type == 'collection_hpyerparameteropt':
+        elif msg_type == 'collection_hyperparameteropt':
             # finish the task
             try:
 
