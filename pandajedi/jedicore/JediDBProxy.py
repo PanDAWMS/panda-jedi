@@ -13148,3 +13148,52 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False
+
+    # insert HPO pseudo event according to message from idds
+    def insertHpoEventAboutIdds_JEDI(self, jedi_task_id, event_id_list):
+        comment = ' /* JediDBProxy.insertHpoEventAboutIdds_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start event_id_list={0}'.format(event_id_list))
+        varMap = dict()
+        varMap[':jediTaskID'] = jedi_task_id
+        varMap[':modificationHost'] = socket.getfqdn()
+        # sql
+        sqlJediEvent = ("INSERT INTO {0}.JEDI_Events "
+                        "(jediTaskID,datasetID,PandaID,fileID,attemptNr,status,"
+                        "job_processID,def_min_eventID,def_max_eventID,processed_upto_eventID,"
+                        "event_offset) "
+                        "VALUES(:jediTaskID,:datasetID,:pandaID,:fileID,:attemptNr,:eventStatus,"
+                        ":startEvent,:startEvent,:lastEvent,:processedEvent,"
+                        ":eventOffset) ").format(jedi_config.db.schemaJEDI)
+        varMaps = []
+        n_events = 0
+        for event_id in event_id_list:
+            varMap = dict()
+            varMap[':jediTaskID'] = jedi_task_id
+            varMap[':datasetID'] = 0
+            varMap[':pandaID'] = 0
+            varMap[':fileID'] = 0
+            varMap[':attemptNr'] = 0
+            varMap[':eventStatus'] = EventServiceUtils.ST_ready
+            varMap[':processedEvent'] = 0
+            varMap[':startEvent'] = event_id
+            varMap[':lastEvent'] = event_id
+            varMap[':eventOffset'] = 0
+            varMaps.append(varMap)
+            n_events += 1
+        try:
+            self.conn.begin()
+            self.cur.executemany(sqlJediEvent + comment, varMaps)
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('added {0} events'.format(n_events))
+            return True
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return False
