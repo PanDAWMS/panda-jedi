@@ -13197,3 +13197,64 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False
+
+
+    # get site to-running rate statistics by global share
+    def getSiteToRunRateStats(self, vo, exclude_rwq, time_window):
+        """
+        :param vo: Virtual Organization
+        :param exclude_rwq: True/False. Indicates whether we want to indicate special workqueues from the statistics
+        :param time_window: float, time window in hours to compute to-running rate
+        """
+        comment = ' /* DBProxy.getSiteToRunRateStats */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < vo={0} >'.format(vo)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        # current timestamp
+        current_time = datetime.datetime.utcnow()
+        # define the var map of query parameters
+        var_map = { ':vo': vo,
+                    ':startTimeMin': current_time - datetime.timedelta(hours=time_window),
+                    ':startTimeMax': current_time}
+        # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
+        sql_jt = """
+               SELECT computingSite, gShare, COUNT(*) FROM %s
+               WHERE vo=:vo
+               AND startTime IS NOT NULL AND startTime>=:startTimeMin AND startTime<:startTimeMax
+               AND jobStatus IN ('running', 'holding', 'transferring', 'finished', 'cancelled')
+               """
+        if exclude_rwq:
+            sql_jt += """
+               AND workqueue_id NOT IN
+               (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource')
+               """.format(jedi_config.db.schemaPANDA)
+        sql_jt += """
+               GROUP BY computingSite, gshare
+               """
+        # job tables
+        tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
+                  '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
+        # get
+        return_map = {}
+        try:
+            for table in tables:
+                self.cur.arraysize = 10000
+                sql_exe = (sql_jt + comment) % table
+                self.cur.execute(sql_exe, var_map)
+                res = self.cur.fetchall()
+                # create map
+                for panda_site, gshare, n_count in res:
+                    # add site
+                    return_map.setdefault(panda_site, {})
+                    # add global share
+                    return_map[panda_site].setdefault(gshare, 0)
+                    # increase to-running rate
+                    to_running_rate = n_count/time_window
+                    return_map[panda_site][gshare] += to_running_rate
+            # end loop
+            tmpLog.debug('done')
+            return True, return_map
+        except Exception:
+            self.dumpErrorMessage(tmpLog)
+            return False, {}

@@ -26,7 +26,7 @@ COMPONENT = 'jobbroker'
 VO = 'atlas'
 
 # brokerage for ATLAS analysis
-class AtlasAnalJobBroker (JobBrokerBase):
+class AtlasAnalJobBroker(JobBrokerBase):
 
     # constructor
     def __init__(self, ddmIF, taskBufferIF):
@@ -56,6 +56,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
         excludeList = []
         includeList = None
         scanSiteList = []
+        # problematic sites
+        problematic_sites_dict = {}
         # get list of site access
         siteAccessList = self.taskBufferIF.listSiteAccess(None, taskSpec.userName)
         siteAccessMap = {}
@@ -817,6 +819,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 # send info to logger
                 self.sendLogMessage(tmpLog)
                 return retTmpError
+            tmpSt, siteToRunRateMap = self.taskBufferIF.getSiteToRunRateStats(taskSpec.vo)
+            if not tmpSt:
+                tmpLog.warning('failed to get site to-running rate')
             # check for preassigned
             if sitePreAssigned:
                 if preassignedSite not in scanSiteList and preassignedSite not in self.get_unified_sites(scanSiteList):
@@ -918,6 +923,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     tmpMsg += 'nQueue>minQueue({0}) and '.format(minQueue)
                     if nRunning == 0:
                         tmpMsg += 'nRunning=0 '
+                        problematic_sites_dict.setdefault(tmpSiteName, set())
+                        problematic_sites_dict[tmpSiteName].add('nQueue({0})>minQueue({1}) and nRunning=0'.format(nQueue, minQueue))
                     else:
                         tmpMsg += 'nQueue({0})/nRunning({1}) > grandRatio({2:.2f})*offset({3}) '.format(nQueue,
                                                                                                         nRunning,
@@ -945,6 +952,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
                 tmpLog.error('no candidates')
                 retVal = retTmpError
                 continue
+            ############
             # loop end
             if len(scanSiteList) > 0:
                 retVal = None
@@ -1025,7 +1033,6 @@ class AtlasAnalJobBroker (JobBrokerBase):
         weightStr = {}
         candidateSpecList = []
         preSiteCandidateSpec = None
-        problematicSites = set()
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
@@ -1044,11 +1051,14 @@ class AtlasAnalJobBroker (JobBrokerBase):
                     nClosed = failureCounts[tmpSiteName]['closed']
                 if 'finished' in failureCounts[tmpSiteName]:
                     nFinished = failureCounts[tmpSiteName]['finished']
-            # problematic sites
-            if nFailed+nClosed > 2*nFinished:
-                problematicSites.add(tmpSiteName)
+            # problematic sites with too many failed and closed jobs
+            if nFailed + nClosed > 2*nFinished:
+                problematic_sites_dict.setdefault(tmpSiteName, set())
+                problematic_sites_dict[tmpSiteName].add('too many failed or closed jobs for last 6h')
             # calculate weight
-            weight = float(nRunning + 1) / float(nActivated + nAssigned + nDefined + nStarting + 1)
+            orig_weight = float(nRunning + 1) / float(nActivated + nAssigned + nDefined + nStarting + 1)
+            weight = orig_weight
+            to_running_rate = siteToRunRateMap[tmpSiteName][taskSpec.gshare]
             nThrottled = 0
             if tmpSiteName in remoteSourceList:
                 nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'throttled', workQueue_tag=taskSpec.gshare)
@@ -1091,7 +1101,8 @@ class AtlasAnalJobBroker (JobBrokerBase):
                                                                                 nClosed,
                                                                                 nFinished,
                                                                                 tmpDataWeight)
-            tmpStr += 'totalInGB={0} localInGB={1} nFiles={2}'.format(totalSize, localSize, totalNumFiles)
+            tmpStr += 'totalInGB={0} localInGB={1} nFiles={2} '.format(totalSize, localSize, totalNumFiles)
+            tmpStr += 'toRunningRate={0:.3f} '.format(to_running_rate)
             weightStr[tmpPseudoSiteName] = tmpStr
             # append
             if tmpSiteName in sitesUsedByTask:
@@ -1114,7 +1125,7 @@ class AtlasAnalJobBroker (JobBrokerBase):
             maxNumSites = 10
             # remove problematic sites
             candidateSpecList = AtlasBrokerUtils.skipProblematicSites(candidateSpecList,
-                                                                      problematicSites,
+                                                                      set(problematic_sites_dict),
                                                                       sitesUsedByTask,
                                                                       preSiteCandidateSpec,
                                                                       maxNumSites,
@@ -1211,8 +1222,9 @@ class AtlasAnalJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
             if tmpSiteName in weightStr:
-                if tmpSiteName in problematicSites:
-                    tmpMsg = '  skip site={0} due to too many failed or closed jobs for last 6h with {1} criteria=-failedclosed'.format(tmpSiteName, weightStr[tmpSiteName])
+                if tmpSiteName in problematic_sites_dict:
+                    bad_reasons = ' ; '.join(list(problematic_sites_dict[tmpSiteName]))
+                    tmpMsg = '  skip site={0} {1} ; with {2} criteria=-badsite'.format(tmpSiteName, bad_reasons, weightStr[tmpSiteName])
                 else:
                     tmpMsg = '  skip site={0} due to low weight and not-used by old jobs with {1} criteria=-lowweight'.format(tmpSiteName, weightStr[tmpSiteName])
                 tmpLog.info(tmpMsg)
