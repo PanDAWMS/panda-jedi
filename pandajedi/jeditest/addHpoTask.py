@@ -45,14 +45,21 @@ taskParamMap['hpoRequestData'] = {'sandbox': None,
                                   'opt_space': {'A': (1, 4), 'B': (1, 10)},
                                   'initial_points': [({'A': 1, 'B': 2}, 0.3), ({'A': 1, 'B': 3}, None)],
                                   'max_points': 20,
-                                  'num_points_per_generation': 10}
+                                  'num_points_per_generation': 10,
+                                  }
 
 taskParamMap['jobParameters'] = [
     {'type':'constant',
-     'value': '-o out.json -j "{0}"'.format(quote('<<<command to execute the container>>>'))
+     'value': '-o out.json -j "" -p "{0}"'.format(quote('cp ../xxx.json out.json'))
      },
     {'type': 'constant',
-     'value': '--writeInputToTxt IN_DATA:input.txt'
+     'value': '--writeInputToTxt IN_DATA:input_ds.json --inSampleFile input_sample.json'
+     },
+    {'type': 'constant',
+     'value': '--iddsURL https://aipanda181.cern.ch:443'
+     },
+    {'type': 'constant',
+     'value': '-a aaa.tgz --sourceURL https://aipanda048.cern.ch:25443'
      },
     {'type': 'constant',
      'value': '--inMap "{\'IN_DATA\': ${IN_DATA/T}}"'
@@ -60,7 +67,7 @@ taskParamMap['jobParameters'] = [
     {'type':'template',
      'param_type':'input',
      'value':'-i "${IN_DATA/T}"',
-     'dataset':'<<<training dataset name>>>',
+     'dataset':'mc16_13TeV.501103.MGPy8EG_StauStauDirect_220p0_1p0_TFilt.merge.EVNT.e8102_e7400_tid21342682_00',
      'attributes': 'nosplit,repeat',
      },
     ]
