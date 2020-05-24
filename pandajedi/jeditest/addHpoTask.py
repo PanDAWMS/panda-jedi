@@ -16,11 +16,11 @@ taskParamMap['userName'] = 'pandasrv1'
 taskParamMap['vo'] = 'atlas'
 taskParamMap['taskPriority'] = 1000
 taskParamMap['reqID'] = 12345
-taskParamMap['architecture'] = 'power9'
+taskParamMap['architecture'] = ''
 taskParamMap['hpoWorkflow'] = True
 taskParamMap['transUses'] = ''
 taskParamMap['transHome'] = ''
-taskParamMap['transPath'] = 'https://pandaserver.cern.ch:25443/trf/user/runHPO-00-00-01'
+taskParamMap['transPath'] = 'http://pandaserver.cern.ch:25080/trf/user/runHPO-00-00-01'
 taskParamMap['processingType'] = 'simul'
 taskParamMap['prodSourceLabel'] = 'test'
 taskParamMap['taskType'] = 'prod'
@@ -44,8 +44,8 @@ taskParamMap['hpoRequestData'] = {'sandbox': None,
                                   'method': 'bayesian',
                                   'opt_space': {'A': (1, 4), 'B': (1, 10)},
                                   'initial_points': [({'A': 1, 'B': 2}, 0.3), ({'A': 1, 'B': 3}, None)],
-                                  'max_points': 20,
-                                  'num_points_per_generation': 10,
+                                  'max_points': 5,
+                                  'num_points_per_generation': 2,
                                   }
 
 taskParamMap['jobParameters'] = [

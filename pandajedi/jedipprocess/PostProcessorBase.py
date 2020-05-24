@@ -227,6 +227,9 @@ class PostProcessorBase (object):
                 (not taskSpec.useExhausted() or (taskSpec.useExhausted() and taskSpec.status in ['passed'])):
             if taskCompleteness < taskGoal:
                 status = 'failed'
+        # HPO tasks always go to finished
+        if taskSpec.is_hpo_workflow():
+            status = 'finished'
         # check goal only
         if checkGoal:
             # no goal
