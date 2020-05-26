@@ -23,6 +23,7 @@ taskParamMap['transHome'] = ''
 taskParamMap['transPath'] = 'http://pandaserver.cern.ch:25080/trf/user/runHPO-00-00-01'
 taskParamMap['processingType'] = 'simul'
 taskParamMap['prodSourceLabel'] = 'test'
+taskParamMap['useLocalIO'] = 1
 taskParamMap['taskType'] = 'prod'
 taskParamMap['workingGroup'] = 'AP_HPO'
 taskParamMap['coreCount'] = 1
@@ -31,12 +32,13 @@ taskParamMap['nucleus'] = 'CERN-PROD'
 taskParamMap['cloud'] = 'WORLD'
 
 logDatasetName = 'panda.jeditest.log.{0}'.format(uuid.uuid4())
+outDatasetName = 'panda.jeditest.HPO.{0}'.format(uuid.uuid4())
 
 taskParamMap['log'] = {'dataset': logDatasetName,
                        'type':'template',
                        'param_type':'log',
                        'token': 'ddd:.*DATADISK',
-                       'destination':'type=DATADISK,s3=1',
+                       'destination':'(type=DATADISK)\(dontkeeplog=True)',
                        'offset':1000,
                        'value':'{0}.${{SN}}.log.tgz'.format(logDatasetName)}
 
@@ -50,13 +52,10 @@ taskParamMap['hpoRequestData'] = {'sandbox': None,
 
 taskParamMap['jobParameters'] = [
     {'type':'constant',
-     'value': '-o out.json -j "" -p "{0}"'.format(quote('cp ../xxx.json out.json'))
+     'value': '-o out.json -j "" -p "{0}"'.format(quote('cp xxx.json out.json; tar cvfz metrics.tgz xxx.json'))
      },
     {'type': 'constant',
      'value': '--writeInputToTxt IN_DATA:input_ds.json --inSampleFile input_sample.json'
-     },
-    {'type': 'constant',
-     'value': '--iddsURL https://aipanda181.cern.ch:443'
      },
     {'type': 'constant',
      'value': '-a aaa.tgz --sourceURL https://aipanda048.cern.ch:25443'
@@ -69,6 +68,16 @@ taskParamMap['jobParameters'] = [
      'value':'-i "${IN_DATA/T}"',
      'dataset':'mc16_13TeV.501103.MGPy8EG_StauStauDirect_220p0_1p0_TFilt.merge.EVNT.e8102_e7400_tid21342682_00',
      'attributes': 'nosplit,repeat',
+     },
+    {'type': 'template',
+     'param_type': 'output',
+     'token': 'ATLASDATADISK',
+     'value': '$JEDITASKID.metrics.${SN}.tgz',
+     'dataset': outDatasetName,
+     'hidden': True,
+     },
+    {'type': 'constant',
+     'value': '--outMetricsFile=${OUTPUT0}^metrics.tgz',
      },
     ]
 
