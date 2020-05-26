@@ -666,10 +666,10 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300):
         ret_val = True
         ret_map = CACHE_SiteToRunRateStats[cache_key]['data']
     else:
-        # query from DB cache
-        cached_data = tbIF.getCachedData(key='SiteToRunRateStats')
-        expired_time = cached_data.modificationTime + current_time + datetime.timedelta(seconds=600)
         if False:
+        # query from DB cache
+        # cached_data = tbIF.getCachedData(key='SiteToRunRateStats')
+        # expired_time = cached_data.modificationTime + current_time + datetime.timedelta(seconds=600)
         # if current_time >= expired_time:
         #     # valid DB cache
         #     ret_val = True
