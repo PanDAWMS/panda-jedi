@@ -13200,7 +13200,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get site to-running rate statistics by global share
-    def getSiteToRunRateStats(self, vo, exclude_rwq, time_window):
+    def getSiteToRunRateStats(self, vo, exclude_rwq, starttime_min, starttime_max):
         """
         :param vo: Virtual Organization
         :param exclude_rwq: True/False. Indicates whether we want to indicate special workqueues from the statistics
@@ -13211,12 +13211,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += ' < vo={0} >'.format(vo)
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
-        # current timestamp
-        current_time = datetime.datetime.utcnow()
+        # interval in hours
+        real_interval_hours = (starttime_max - starttime_min).total_seconds()/3600
         # define the var map of query parameters
         var_map = { ':vo': vo,
-                    ':startTimeMin': current_time - datetime.timedelta(hours=time_window),
-                    ':startTimeMax': current_time}
+                    ':startTimeMin': starttime_min,
+                    ':startTimeMax': starttime_max}
         # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
         sql_jt = """
                SELECT computingSite, gShare, COUNT(*) FROM %s
@@ -13250,7 +13250,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # add global share
                     return_map[panda_site].setdefault(gshare, 0)
                     # increase to-running rate
-                    to_running_rate = n_count/time_window
+                    to_running_rate = n_count/real_interval_hours if real_interval_hours > 0 else 0
                     return_map[panda_site][gshare] += to_running_rate
             # end loop
             tmpLog.debug('done')

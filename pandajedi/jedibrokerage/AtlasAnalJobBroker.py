@@ -819,7 +819,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 # send info to logger
                 self.sendLogMessage(tmpLog)
                 return retTmpError
-            tmpSt, siteToRunRateMap = self.taskBufferIF.getSiteToRunRateStats(taskSpec.vo)
+            tmpSt, siteToRunRateMap = AtlasBrokerUtils.getSiteToRunRateStats(tbIF=self.taskBufferIF, vo=taskSpec.vo)
             if not tmpSt:
                 tmpLog.warning('failed to get site to-running rate')
             # check for preassigned
@@ -1058,7 +1058,12 @@ class AtlasAnalJobBroker(JobBrokerBase):
             # calculate weight
             orig_weight = float(nRunning + 1) / float(nActivated + nAssigned + nDefined + nStarting + 1)
             weight = orig_weight
-            to_running_rate = siteToRunRateMap[tmpSiteName][taskSpec.gshare]
+            try:
+                to_running_rate = siteToRunRateMap[tmpSiteName][taskSpec.gshare]
+            except KeyError:
+                to_running_rate_str = 'unknown'
+            else:
+                to_running_rate_str = '{0:.3f}'.format(to_running_rate)
             nThrottled = 0
             if tmpSiteName in remoteSourceList:
                 nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'throttled', workQueue_tag=taskSpec.gshare)
@@ -1102,7 +1107,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                                 nFinished,
                                                                                 tmpDataWeight)
             tmpStr += 'totalInGB={0} localInGB={1} nFiles={2} '.format(totalSize, localSize, totalNumFiles)
-            tmpStr += 'toRunningRate={0:.3f} '.format(to_running_rate)
+            tmpStr += 'toRunningRate={0} '.format(to_running_rate_str)
             weightStr[tmpPseudoSiteName] = tmpStr
             # append
             if tmpSiteName in sitesUsedByTask:

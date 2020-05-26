@@ -1,6 +1,7 @@
 import re
 import sys
 import json
+import datetime
 
 from six import iteritems
 
@@ -640,6 +641,54 @@ def getOkNgArchList(task_spec):
         if '.el7.' in task_spec.termCondition:
             return (['x86_64-centos7-%'], None)
     return (None, None)
+
+
+# get to-running rate of sites from various resources
+CACHE_SiteToRunRateStats = {}
+def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300):
+    # initialize
+    ret_val = False
+    ret_map = {}
+    # timestamps
+    current_time = datetime.datetime.utcnow()
+    starttime_max = current_time - datetime.timedelta(seconds=cutoff)
+    starttime_min = current_time - datetime.timedelta(seconds=time_window)
+    # rounded with 10 minutes
+    starttime_max_rounded = starttime_max.replace(minute=starttime_max.minute//10*10, second=0, microsecond=0)
+    starttime_min_rounded = starttime_min.replace(minute=starttime_min.minute//10*10, second=0, microsecond=0)
+    real_interval_hours = (starttime_max_rounded - starttime_min_rounded).total_seconds()/3600
+    # cache key
+    cache_key = (starttime_min_rounded, starttime_max_rounded)
+    # condition of query
+    if cache_key in CACHE_SiteToRunRateStats \
+        and current_time >= CACHE_SiteToRunRateStats[cache_key]['exp']:
+        # query from local cache
+        ret_val = True
+        ret_map = CACHE_SiteToRunRateStats[cache_key]['data']
+    else:
+        # query from DB cache
+        cached_data = tbIF.getCachedData(key='SiteToRunRateStats')
+        expired_time = cached_data.modificationTime + current_time + datetime.timedelta(seconds=600)
+        if False:
+        # if current_time >= expired_time:
+        #     # valid DB cache
+        #     ret_val = True
+        #     ret_map = cached_data.data
+        #     CACHE_SiteToRunRateStats[cache_key] = {
+        #             'exp': expired_time,
+        #             'data': ret_map,
+        #         }
+            pass
+        else:
+            # query from PanDA DB directly
+            ret_val, ret_map = tbIF.getSiteToRunRateStats(vo=vo, exclude_rwq=False, starttime_min=starttime_min, starttime_max=starttime_max)
+            if ret_val:
+                CACHE_SiteToRunRateStats[cache_key] = {
+                        'exp': current_time + datetime.timedelta(seconds=600),
+                        'data': ret_map,
+                    }
+    # return
+    return ret_val, ret_map
 
 
 # check SW with json
