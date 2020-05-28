@@ -30,6 +30,7 @@ from .WorkQueueMapper import WorkQueueMapper
 from .JediTaskSpec import JediTaskSpec
 from .JediFileSpec import JediFileSpec
 from .JediDatasetSpec import JediDatasetSpec
+from .JediCacheSpec import JediCacheSpec
 from .InputChunk import InputChunk
 from .MsgWrapper import MsgWrapper
 
@@ -13258,3 +13259,105 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         except Exception:
             self.dumpErrorMessage(tmpLog)
             return False, {}
+
+
+# update cache
+def updateCache_JEDI(self, main_key, sub_key, data):
+    comment = ' /* JediDBProxy.updateCache_JEDI */'
+    methodName = self.getMethodName(comment)
+    # defaults
+    if sub_key is None:
+        sub_key = 'default'
+    # last update time
+    last_update = datetime.datetime.utcnow()
+    last_update_str = last_update.strftime('%Y-%m-%d_%H:%M:%S')
+    methodName += " <main_key={0} sub_key={1} last_update={2}>".format(main_key, sub_key, last_update_str)
+    tmpLog = MsgWrapper(logger, methodName)
+    tmpLog.debug('start')
+    try:
+        retVal = False
+        # sql to check
+        sqlC = ("SELECT last_update "
+                "FROM {0}.Cache "
+                "WHERE main_key=:main_key AND sub_key=:sub_key "
+            ).format(jedi_config.db.schemaJEDI)
+        # sql to insert
+        sqlI = ("INSERT INTO {0}.Cache "
+                "({1}) {2} "
+            ).format(   jedi_config.db.schemaJEDI,
+                        JediCacheSpec.columnNames(),
+                        JediCacheSpec.bindValuesExpression())
+        # sql to update
+        sqlU = ("UPDATE {0}.Cache "
+                "SET {1} "
+                "WHERE main_key=:main_key AND sub_key=:sub_key "
+            ).format(jedi_config.db.schemaJEDI, JediCacheSpec.bindUpdateChangesExpression())
+        # start transaction
+        self.conn.begin()
+        # check
+        varMap = {}
+        varMap[':main_key'] = main_key
+        varMap[':sub_key'] = sub_key
+        self.cur.execute(sqlC+comment, varMap)
+        resC = self.cur.fetchone()
+        varMap[':data'] = data
+        varMap[':last_update'] = last_update
+        if resC is None:
+            # insert if missing
+            tmpLog.debug('insert')
+            self.cur.execute(sqlI+comment, varMap)
+        else:
+            # update
+            tmpLog.debug('update')
+            self.cur.execute(sqlU+comment, varMap)
+        # commit
+        if not self._commit():
+            raise RuntimeError('Commit error')
+        # return
+        retVal = True
+        tmpLog.debug('done')
+        return retVal
+    except Exception:
+        # roll back
+        self._rollback()
+        # error
+        self.dumpErrorMessage(tmpLog,msgType='debug')
+        return retVal
+
+
+# get cache
+def getCache_JEDI(self, main_key, sub_key):
+    comment = ' /* JediDBProxy.getCache_JEDI */'
+    methodName = self.getMethodName(comment)
+    # defaults
+    if sub_key is None:
+        sub_key = 'default'
+    methodName += " <main_key={0} sub_key={1}>".format(main_key, sub_key)
+    tmpLog = MsgWrapper(logger, methodName)
+    tmpLog.debug('start')
+    try:
+        retVal = False
+        # sql to get
+        sqlC = ("SELECT {1} "
+                "FROM {0}.Cache "
+                "WHERE main_key=:main_key AND sub_key=:sub_key "
+            ).format(jedi_config.db.schemaJEDI, JediCacheSpec.columnNames())
+        # check
+        varMap = {}
+        varMap[':main_key'] = main_key
+        varMap[':sub_key'] = sub_key
+        self.cur.execute(sqlC+comment, varMap)
+        resC = self.cur.fetchone()
+        if resC is None:
+            tmpLog.debug('got nothing, skipped')
+            return None
+        cache_spec = JediCacheSpec()
+        cache_spec.pack(resC)
+        tmpLog.debug('got cache, done')
+        # return
+        return cache_spec
+    except Exception:
+        # roll back
+        self._rollback()
+        # error
+        self.dumpErrorMessage(tmpLog,msgType='debug')
