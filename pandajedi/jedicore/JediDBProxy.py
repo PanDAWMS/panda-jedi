@@ -13175,7 +13175,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':datasetID'] = 0
             varMap[':pandaID'] = 0
             varMap[':fileID'] = 0
-            varMap[':attemptNr'] = 0
+            varMap[':attemptNr'] = 5
             varMap[':eventStatus'] = EventServiceUtils.ST_ready
             varMap[':processedEvent'] = 0
             varMap[':startEvent'] = event_id

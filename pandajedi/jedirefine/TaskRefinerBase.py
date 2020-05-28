@@ -350,8 +350,6 @@ class TaskRefinerBase (object):
                 data['workload_id'] = self.taskSpec.jediTaskID
                 data['is_pseudo_input'] = True
                 req = {
-                    'scope': None,
-                    'name': None,
                     'requester': 'panda',
                     'request_type': idds.common.constants.RequestType.HyperParameterOpt,
                     'transform_tag': idds.common.constants.RequestType.HyperParameterOpt.value,
