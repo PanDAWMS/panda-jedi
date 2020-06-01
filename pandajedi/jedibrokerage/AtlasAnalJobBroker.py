@@ -821,7 +821,11 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 return retTmpError
             tmpSt, siteToRunRateMap = AtlasBrokerUtils.getSiteToRunRateStats(tbIF=self.taskBufferIF, vo=taskSpec.vo)
             if not tmpSt:
-                tmpLog.warning('failed to get site to-running rate')
+                tmpLog.error('failed to get site to-running rate')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
+                return retTmpError
             # check for preassigned
             if sitePreAssigned:
                 if preassignedSite not in scanSiteList and preassignedSite not in self.get_unified_sites(scanSiteList):
