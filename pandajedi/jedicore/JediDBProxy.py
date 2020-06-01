@@ -3445,10 +3445,38 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             else:
                                 # reset change to not update userName
                                 origTaskSpec.resetChangedAttr('userName')
-                # get number of ready events for HPO
+                # checks for HPO
                 tmpNumEventsHPO = None
                 if not toSkip and simTasks is None:
                     if origTaskSpec.is_hpo_workflow():
+                        # number of jobs
+                        numMaxHpoJobs = origTaskSpec.get_max_num_jobs()
+                        if numMaxHpoJobs is not None:
+                            sqlNTJ = "SELECT total_req_jobs FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                            sqlNTJ += "WHERE taskid=:taskid "
+                            varMap = {}
+                            varMap[':taskID'] = jediTaskID
+                            self.cur.execute(sqlNTJ + comment, varMap)
+                            tmpNumHpoJobs, = self.cur.fetchone()
+                            if tmpNumHpoJobs >= numMaxHpoJobs:
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':status'] = origTaskSpec.status
+                                varMap[':err'] = 'skipped max number of HPO jobs reached'
+                                self.cur.execute(sqlPDG + comment, varMap)
+                                tmpLog.debug(('jediTaskID={0} to finish due to maxNumHpoJobs={1} '
+                                              'numHpoJobs={2}').format(jediTaskID, numMaxHpoJobs,
+                                                                       tmpNumHpoJobs))
+                                if not self._commit():
+                                    raise RuntimeError('Commit error')
+                                # send finish command
+                                self.sendCommandTaskPanda(jediTaskID,
+                                                          'HPO task finished due to maxNumJobs',
+                                                          True,
+                                                          'finish',
+                                                          comQualifier='soft')
+                                continue
+                        # number of concurrent workers and/or
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
                         varMap[':eventStatus'] = EventServiceUtils.ST_ready
@@ -3465,7 +3493,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':status'] = origTaskSpec.status
-                            varMap[':err'] = 'skipped since no samples to evaluate or enough workers'
+                            varMap[':err'] = 'skipped since no HP point to evaluate or enough concurrent HPO jobs'
                             self.cur.execute(sqlPDG + comment, varMap)
                             tmpLog.debug(('jediTaskID={0} skipped due to nSamplesToEvaluate={1} '
                                           'nReadyWorkers={2}').format(jediTaskID, tmpNumEventsHPO, tmpNumWorkersHPO))

@@ -71,6 +71,7 @@ class JediTaskSpec(object):
         'mergeEsOnOS'        : 'ME',
         'nMaxFilesPerJob'    : 'MF',
         'maxJumboPerSite'    : 'MJ',
+        'maxNumJobs'         : 'MN',
         'mergeOutput'        : 'MO',
         'multiStepExec'      : 'MS',
         'maxWalltime'        : 'MW',
@@ -1596,3 +1597,11 @@ class JediTaskSpec(object):
             if tmpMatch is not None:
                 return True
         return False
+
+    # get max number of jobs
+    def get_max_num_jobs(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['maxNumJobs']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None:
+                return int(tmpMatch.group(1))
+        return None
