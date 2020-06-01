@@ -3184,7 +3184,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlLock += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL AND modificationTime<:timeLimit "
             # sql to put the task in pending
             sqlPDG = ("UPDATE {0}.JEDI_Tasks "
-                      "SET lockedBy=NULL,lockedTime=NULL,oldStatus=status,status=:status,errorDialog=:err "
+                      "SET lockedBy=NULL,lockedTime=NULL,status=:status,errorDialog=:err "
                       "WHERE jediTaskID=:jediTaskID ").format(jedi_config.db.schemaJEDI)
             # sql to read template
             sqlJobP = "SELECT jobParamsTemplate FROM {0}.JEDI_JobParams_Template WHERE jediTaskID=:jediTaskID ".format(
@@ -3464,12 +3464,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if tmpNumEventsHPO - tmpNumWorkersHPO <= 0 :
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
-                            varMap[':status'] = 'pending'
-                            varMap[':err'] = 'pending since no samples to evaluate or enough workers'
+                            varMap[':status'] = origTaskSpec.status
+                            varMap[':err'] = 'skipped since no samples to evaluate or enough workers'
                             self.cur.execute(sqlPDG + comment, varMap)
-                            # record status change
-                            self.record_task_status_change(jediTaskID)
-                            tmpLog.debug(('jediTaskID={0} went to pending due to nSamplesToEvaluate={1} '
+                            tmpLog.debug(('jediTaskID={0} skipped due to nSamplesToEvaluate={1} '
                                           'nReadyWorkers={2}').format(jediTaskID, tmpNumEventsHPO, tmpNumWorkersHPO))
                             if not self._commit():
                                 raise RuntimeError('Commit error')
