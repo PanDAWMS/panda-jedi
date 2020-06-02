@@ -30,6 +30,7 @@ from .WorkQueueMapper import WorkQueueMapper
 from .JediTaskSpec import JediTaskSpec
 from .JediFileSpec import JediFileSpec
 from .JediDatasetSpec import JediDatasetSpec
+from .JediCacheSpec import JediCacheSpec
 from .InputChunk import InputChunk
 from .MsgWrapper import MsgWrapper
 
@@ -13224,6 +13225,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return False
 
+
     # get event statistics
     def get_event_statistics(self, jedi_task_id):
         comment = ' /* JediDBProxy.get_event_statistics */'
@@ -13256,3 +13258,166 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+    # get site to-running rate statistics by global share
+    def getSiteToRunRateStats(self, vo, exclude_rwq, starttime_min, starttime_max):
+        """
+        :param vo: Virtual Organization
+        :param exclude_rwq: True/False. Indicates whether we want to indicate special workqueues from the statistics
+        :param time_window: float, time window in hours to compute to-running rate
+        """
+        comment = ' /* DBProxy.getSiteToRunRateStats */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < vo={0} >'.format(vo)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        # interval in hours
+        real_interval_hours = (starttime_max - starttime_min).total_seconds()/3600
+        # define the var map of query parameters
+        var_map = { ':vo': vo,
+                    ':startTimeMin': starttime_min,
+                    ':startTimeMax': starttime_max}
+        # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
+        sql_jt = """
+               SELECT computingSite, gShare, COUNT(*) FROM %s
+               WHERE vo=:vo
+               AND startTime IS NOT NULL AND startTime>=:startTimeMin AND startTime<:startTimeMax
+               AND jobStatus IN ('running', 'holding', 'transferring', 'finished', 'cancelled')
+               """
+        if exclude_rwq:
+            sql_jt += """
+               AND workqueue_id NOT IN
+               (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource')
+               """.format(jedi_config.db.schemaPANDA)
+        sql_jt += """
+               GROUP BY computingSite, gshare
+               """
+        # job tables
+        tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
+                  '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
+        # get
+        return_map = {}
+        try:
+            for table in tables:
+                self.cur.arraysize = 10000
+                sql_exe = (sql_jt + comment) % table
+                self.cur.execute(sql_exe, var_map)
+                res = self.cur.fetchall()
+                # create map
+                for panda_site, gshare, n_count in res:
+                    # add site
+                    return_map.setdefault(panda_site, {})
+                    # add global share
+                    return_map[panda_site].setdefault(gshare, 0)
+                    # increase to-running rate
+                    to_running_rate = n_count/real_interval_hours if real_interval_hours > 0 else 0
+                    return_map[panda_site][gshare] += to_running_rate
+            # end loop
+            tmpLog.debug('done')
+            return True, return_map
+        except Exception:
+            self.dumpErrorMessage(tmpLog)
+            return False, {}
+
+
+    # update cache
+    def updateCache_JEDI(self, main_key, sub_key, data):
+        comment = ' /* JediDBProxy.updateCache_JEDI */'
+        methodName = self.getMethodName(comment)
+        # defaults
+        if sub_key is None:
+            sub_key = 'default'
+        # last update time
+        last_update = datetime.datetime.utcnow()
+        last_update_str = last_update.strftime('%Y-%m-%d_%H:%M:%S')
+        methodName += " <main_key={0} sub_key={1} last_update={2}>".format(main_key, sub_key, last_update_str)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = False
+            # sql to check
+            sqlC = ("SELECT last_update "
+                    "FROM {0}.Cache "
+                    "WHERE main_key=:main_key AND sub_key=:sub_key "
+                ).format(jedi_config.db.schemaJEDI)
+            # sql to insert
+            sqlI = ("INSERT INTO {0}.Cache "
+                    "({1}) {2} "
+                ).format(   jedi_config.db.schemaJEDI,
+                            JediCacheSpec.columnNames(),
+                            JediCacheSpec.bindValuesExpression())
+            # sql to update
+            sqlU = ("UPDATE {0}.Cache "
+                    "SET {1} "
+                    "WHERE main_key=:main_key AND sub_key=:sub_key "
+                ).format(jedi_config.db.schemaJEDI, JediCacheSpec.bindUpdateChangesExpression())
+            # start transaction
+            self.conn.begin()
+            # check
+            varMap = {}
+            varMap[':main_key'] = main_key
+            varMap[':sub_key'] = sub_key
+            self.cur.execute(sqlC+comment, varMap)
+            resC = self.cur.fetchone()
+            varMap[':data'] = data
+            varMap[':last_update'] = last_update
+            if resC is None:
+                # insert if missing
+                tmpLog.debug('insert')
+                self.cur.execute(sqlI+comment, varMap)
+            else:
+                # update
+                tmpLog.debug('update')
+                self.cur.execute(sqlU+comment, varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # return
+            retVal = True
+            tmpLog.debug('done')
+            return retVal
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog,msgType='debug')
+            return retVal
+
+
+    # get cache
+    def getCache_JEDI(self, main_key, sub_key):
+        comment = ' /* JediDBProxy.getCache_JEDI */'
+        methodName = self.getMethodName(comment)
+        # defaults
+        if sub_key is None:
+            sub_key = 'default'
+        methodName += " <main_key={0} sub_key={1}>".format(main_key, sub_key)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = False
+            # sql to get
+            sqlC = ("SELECT {1} "
+                    "FROM {0}.Cache "
+                    "WHERE main_key=:main_key AND sub_key=:sub_key "
+                ).format(jedi_config.db.schemaJEDI, JediCacheSpec.columnNames())
+            # check
+            varMap = {}
+            varMap[':main_key'] = main_key
+            varMap[':sub_key'] = sub_key
+            self.cur.execute(sqlC+comment, varMap)
+            resC = self.cur.fetchone()
+            if resC is None:
+                tmpLog.debug('got nothing, skipped')
+                return None
+            cache_spec = JediCacheSpec()
+            cache_spec.pack(resC)
+            tmpLog.debug('got cache, done')
+            # return
+            return cache_spec
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog,msgType='debug')
