@@ -725,6 +725,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.insertHpoEventAboutIdds_JEDI(jedi_task_id, event_id_list)
 
+    # get event statistics
+    def get_event_statistics(self, jedi_task_id):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_event_statistics(jedi_task_id)
+
     # get site to-running rate statistics by global share
     def getSiteToRunRateStats(self, vo, exclude_rwq, starttime_min, starttime_max):
         with self.proxyPool.get() as proxy:

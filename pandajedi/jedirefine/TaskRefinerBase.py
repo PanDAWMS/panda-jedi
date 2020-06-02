@@ -13,7 +13,6 @@ from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 from pandajedi.jedicore.JediDatasetSpec import JediDatasetSpec
 from pandajedi.jedicore.JediFileSpec import JediFileSpec
 from pandaserver.taskbuffer import EventServiceUtils
-from pandaserver.taskbuffer import JobUtils
 
 try:
     from idds.client.client import Client as iDDS_Client
@@ -254,6 +253,8 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'nMaxFilesPerMergeJob', JediTaskSpec.splitRuleToken['nMaxFilesPerMergeJob'])
         self.setSplitRule(taskParamMap,'maxWalltime', JediTaskSpec.splitRuleToken['maxWalltime'])
         self.setSplitRule(taskParamMap,'tgtMaxOutputForNG', JediTaskSpec.splitRuleToken['tgtMaxOutputForNG'])
+        self.setSplitRule(taskParamMap, 'maxNumJobs', JediTaskSpec.splitRuleToken['maxNumJobs'])
+        self.setSplitRule(taskParamMap, 'totNumJobs', JediTaskSpec.splitRuleToken['totNumJobs'])
         if 'nJumboJobs' in taskParamMap:
             self.setSplitRule(taskParamMap,'nJumboJobs',JediTaskSpec.splitRuleToken['nJumboJobs'])
             taskSpec.useJumbo = JediTaskSpec.enum_useJumbo['waiting']

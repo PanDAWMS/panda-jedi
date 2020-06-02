@@ -3446,10 +3446,38 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             else:
                                 # reset change to not update userName
                                 origTaskSpec.resetChangedAttr('userName')
-                # get number of ready events for HPO
+                # checks for HPO
                 tmpNumEventsHPO = None
                 if not toSkip and simTasks is None:
                     if origTaskSpec.is_hpo_workflow():
+                        # number of jobs
+                        numMaxHpoJobs = origTaskSpec.get_max_num_jobs()
+                        if numMaxHpoJobs is not None:
+                            sqlNTJ = "SELECT total_req_jobs FROM {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
+                            sqlNTJ += "WHERE taskid=:taskid "
+                            varMap = {}
+                            varMap[':taskID'] = jediTaskID
+                            self.cur.execute(sqlNTJ + comment, varMap)
+                            tmpNumHpoJobs, = self.cur.fetchone()
+                            if tmpNumHpoJobs >= numMaxHpoJobs:
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':status'] = origTaskSpec.status
+                                varMap[':err'] = 'skipped max number of HPO jobs reached'
+                                self.cur.execute(sqlPDG + comment, varMap)
+                                tmpLog.debug(('jediTaskID={0} to finish due to maxNumHpoJobs={1} '
+                                              'numHpoJobs={2}').format(jediTaskID, numMaxHpoJobs,
+                                                                       tmpNumHpoJobs))
+                                if not self._commit():
+                                    raise RuntimeError('Commit error')
+                                # send finish command
+                                self.sendCommandTaskPanda(jediTaskID,
+                                                          'HPO task finished due to maxNumJobs',
+                                                          True,
+                                                          'finish',
+                                                          comQualifier='soft')
+                                continue
+                        # number of concurrent workers and/or
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
                         varMap[':eventStatus'] = EventServiceUtils.ST_ready
@@ -3466,7 +3494,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':status'] = origTaskSpec.status
-                            varMap[':err'] = 'skipped since no samples to evaluate or enough workers'
+                            varMap[':err'] = 'skipped since no HP point to evaluate or enough concurrent HPO jobs'
                             self.cur.execute(sqlPDG + comment, varMap)
                             tmpLog.debug(('jediTaskID={0} skipped due to nSamplesToEvaluate={1} '
                                           'nReadyWorkers={2}').format(jediTaskID, tmpNumEventsHPO, tmpNumWorkersHPO))
@@ -13065,7 +13093,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # result
                 res = self.cur.fetchall()
                 if res is None:
-                	tmpLog.debug("total %s " % res)
+                    tmpLog.debug("total %s " % res)
                 else:
                     tmpLog.debug("total %s " % len(res))
                     # make map
@@ -13196,6 +13224,40 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False
+
+
+        # get event statistics
+    def get_event_statistics(self, jedi_task_id):
+        comment = ' /* JediDBProxy.get_event_statistics */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            self.conn.begin()
+            varMap = dict()
+            varMap[':jediTaskID'] = jedi_task_id
+            # sql
+            sqlGNE = ("SELECT status,COUNT(*) FROM {0}.JEDI_Events "
+                      "WHERE jediTaskID=:jediTaskID GROUP BY status ").format(jedi_config.db.schemaJEDI)
+            self.cur.execute(sqlGNE + comment, varMap)
+            # result
+            ret_dict = dict()
+            res = self.cur.fetchall()
+            for s, c in res:
+                ret_dict[s] = c
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # return
+            tmpLog.debug('got {0}'.format(str(ret_dict)))
+            return ret_dict
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
 
 
     # get site to-running rate statistics by global share
