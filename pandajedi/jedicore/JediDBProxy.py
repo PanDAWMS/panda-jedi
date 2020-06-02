@@ -13226,7 +13226,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return False
 
 
-        # get event statistics
+    # get event statistics
     def get_event_statistics(self, jedi_task_id):
         comment = ' /* JediDBProxy.get_event_statistics */'
         methodName = self.getMethodName(comment)
