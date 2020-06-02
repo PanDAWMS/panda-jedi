@@ -86,7 +86,7 @@ class AtlasProdTaskBroker (TaskBrokerBase):
                         # use default endpoint
                         if token is None:
                             token = siteSpec.ddm_output[scopeSiteSpec_output]
-                        # add origianl token
+                        # add original token
                         if datasetSpec.storageToken not in ['',None]:
                             token += '/{0}'.format(datasetSpec.storageToken)
                         retMap[tmpTaskID]['datasets'].append({'datasetID':datasetSpec.datasetID,

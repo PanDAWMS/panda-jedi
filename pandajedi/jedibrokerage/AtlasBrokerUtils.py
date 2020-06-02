@@ -524,7 +524,7 @@ def getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs):
         if endPoint is None:
             continue
         token = endPoint['ddm_endpoint_name']
-        # add origianl token
+        # add original token
         if datasetSpec.storageToken not in ['',None]:
             token += '/{0}'.format(datasetSpec.storageToken.split('/')[-1])
         retMap['datasets'].append({'datasetID':datasetSpec.datasetID,
@@ -677,50 +677,61 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
     else:
         # try some times
         for _ in range(99):
-            # query from DB cache
-            cache_spec = tbIF.getCache_JEDI(main_key=dc_main_key, sub_key=dc_sub_key)
-            if cache_spec is not None:
-                expired_time = cache_spec.last_update + datetime.timedelta(seconds=cache_lifetime)
-                if current_time <= expired_time:
-                    # valid DB cache
-                    ret_val = True
-                    ret_map = cache_spec.data
+            # skip if too long after original current time
+            if datetime.datetime.utcnow() - current_time > datetime.timedelta(seconds=min(10, cache_lifetime/4)):
+                # break trying
+                break
+            try:
+                # query from DB cache
+                cache_spec = tbIF.getCache_JEDI(main_key=dc_main_key, sub_key=dc_sub_key)
+                if cache_spec is not None:
+                    expired_time = cache_spec.last_update + datetime.timedelta(seconds=cache_lifetime)
+                    if current_time <= expired_time:
+                        # valid DB cache
+                        ret_val = True
+                        ret_map = json.loads(cache_spec.data)
+                        # fill local cache
+                        CACHE_SiteToRunRateStats[local_cache_key] = {   'exp': expired_time,
+                                                                        'data': ret_map}
+                        # break trying
+                        break
+                # got process lock
+                got_lock = tbIF.lockProcess_JEDI(   vo=vo, prodSourceLabel=this_prodsourcelabel,
+                                                    cloud=None, workqueue_id=None,
+                                                    resource_name=None,
+                                                    component=this_component,
+                                                    pid=this_pid, timeLimit=5)
+                if not got_lock:
+                    # not getting lock, sleep and query cache again
+                    time.sleep(1)
+                    continue
+                # query from PanDA DB directly
+                ret_val, ret_map = tbIF.getSiteToRunRateStats(  vo=vo, exclude_rwq=False,
+                                                                starttime_min=starttime_min,
+                                                                starttime_max=starttime_max)
+                if ret_val:
+                    # expired time
+                    expired_time = current_time + datetime.timedelta(seconds=cache_lifetime)
                     # fill local cache
                     CACHE_SiteToRunRateStats[local_cache_key] = {   'exp': expired_time,
                                                                     'data': ret_map}
-                    # break trying
-                    break
-            # got process lock
-            got_lock = tbIF.lockProcess_JEDI(   vo=vo, prodSourceLabel=this_prodsourcelabel,
-                                                cloud=None, workqueue_id=None,
-                                                resource_name=None,
-                                                component=this_component,
-                                                pid=this_pid, timeLimit=5)
-            if not got_lock:
-                # not getting lock, sleep and query cache again
-                time.sleep(1)
-                continue
-            # query from PanDA DB directly
-            ret_val, ret_map = tbIF.getSiteToRunRateStats(  vo=vo, exclude_rwq=False,
-                                                            starttime_min=starttime_min,
-                                                            starttime_max=starttime_max)
-            if ret_val:
-                # expired time
-                expired_time = current_time + datetime.timedelta(seconds=cache_lifetime)
-                # fill local cache
-                CACHE_SiteToRunRateStats[local_cache_key] = {   'exp': expired_time,
-                                                                'data': ret_map}
-                # json of data
-                data_json = json.dumps(ret_map)
-                # fill DB cache
-                tbIF.updateCache_JEDI(main_key=dc_main_key, sub_key=dc_sub_key, data=data_json)
-            # unlock process
-            tbIF.unlockProcess_JEDI(vo=vo, prodSourceLabel=this_prodsourcelabel,
-                                    cloud=None, workqueue_id=None,
-                                    resource_name=None,
-                                    component=this_component, pid=this_pid)
-            # break trying
-            break
+                    # json of data
+                    data_json = json.dumps(ret_map)
+                    # fill DB cache
+                    tbIF.updateCache_JEDI(main_key=dc_main_key, sub_key=dc_sub_key, data=data_json)
+                # unlock process
+                tbIF.unlockProcess_JEDI(vo=vo, prodSourceLabel=this_prodsourcelabel,
+                                        cloud=None, workqueue_id=None,
+                                        resource_name=None,
+                                        component=this_component, pid=this_pid)
+                # break trying
+                break
+            except Exception as e:
+                # dump error message
+                err_str = 'AtlasBrokerUtils.getSiteToRunRateStats got {0}: {1} \n'.format(e.__class__.__name__, e)
+                sys.stderr.write(err_str)
+                # break trying
+                break
     # return
     return ret_val, ret_map
 
