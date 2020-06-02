@@ -3,6 +3,7 @@ import sys
 import json
 import datetime
 import time
+import os
 
 from six import iteritems
 
@@ -653,6 +654,10 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
     # DB cache keys
     dc_main_key = 'AtlasSites'
     dc_sub_key = 'SiteToRunRate'
+    # arguments for process lock
+    this_prodsourcelabel = 'user'
+    this_pid = os.getpid()
+    this_component = 'Cache.SiteToRunRate'
     # timestamps
     current_time = datetime.datetime.utcnow()
     starttime_max = current_time - datetime.timedelta(seconds=cutoff)
@@ -665,7 +670,7 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
     local_cache_key = (starttime_min_rounded, starttime_max_rounded)
     # condition of query
     if local_cache_key in CACHE_SiteToRunRateStats \
-        and current_time >= CACHE_SiteToRunRateStats[local_cache_key]['exp']:
+        and current_time <= CACHE_SiteToRunRateStats[local_cache_key]['exp']:
         # query from local cache
         ret_val = True
         ret_map = CACHE_SiteToRunRateStats[local_cache_key]['data']
@@ -674,43 +679,48 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
         for _ in range(99):
             # query from DB cache
             cache_spec = tbIF.getCache_JEDI(main_key=dc_main_key, sub_key=dc_sub_key)
-            expired_time = cache_spec.last_update + datetime.timedelta(seconds=cache_lifetime)
-            if current_time >= expired_time:
-                # valid DB cache
-                ret_val = True
-                ret_map = cache_spec.data
-                # fill local cache
-                CACHE_SiteToRunRateStats[local_cache_key] = {   'exp': expired_time,
-                                                                'data': ret_map}
-                # break trying
-                break
-            else:
-                # got lock
-                got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=vo, prodSourceLabel='user',
-                                                                cloud=None, workqueue_id=None,
-                                                                resource_name=None,
-                                                                component='Cache.SiteToRunRate',
-                                                                pid=self.pid, timeLimit=1)
-                if not got_lock:
-                    # not getting lock, sleep and query cache again
-                    sleep(1)
-                    continue
-                # query from PanDA DB directly
-                ret_val, ret_map = tbIF.getSiteToRunRateStats(  vo=vo, exclude_rwq=False,
-                                                                starttime_min=starttime_min,
-                                                                starttime_max=starttime_max)
-                if ret_val:
-                    # expired time
-                    expired_time = current_time + datetime.timedelta(seconds=cache_lifetime)
+            if cache_spec is not None:
+                expired_time = cache_spec.last_update + datetime.timedelta(seconds=cache_lifetime)
+                if current_time <= expired_time:
+                    # valid DB cache
+                    ret_val = True
+                    ret_map = cache_spec.data
                     # fill local cache
                     CACHE_SiteToRunRateStats[local_cache_key] = {   'exp': expired_time,
                                                                     'data': ret_map}
-                    # json of data
-                    data_json = json.dumps(ret_map)
-                    # fill DB cache
-                    tbIF.updateCache_JEDI(main_key=dc_main_key, sub_key=dc_sub_key, data=data_json)
-                # break trying
-                break
+                    # break trying
+                    break
+            # got process lock
+            got_lock = tbIF.lockProcess_JEDI(   vo=vo, prodSourceLabel=this_prodsourcelabel,
+                                                cloud=None, workqueue_id=None,
+                                                resource_name=None,
+                                                component=this_component,
+                                                pid=this_pid, timeLimit=5)
+            if not got_lock:
+                # not getting lock, sleep and query cache again
+                time.sleep(1)
+                continue
+            # query from PanDA DB directly
+            ret_val, ret_map = tbIF.getSiteToRunRateStats(  vo=vo, exclude_rwq=False,
+                                                            starttime_min=starttime_min,
+                                                            starttime_max=starttime_max)
+            if ret_val:
+                # expired time
+                expired_time = current_time + datetime.timedelta(seconds=cache_lifetime)
+                # fill local cache
+                CACHE_SiteToRunRateStats[local_cache_key] = {   'exp': expired_time,
+                                                                'data': ret_map}
+                # json of data
+                data_json = json.dumps(ret_map)
+                # fill DB cache
+                tbIF.updateCache_JEDI(main_key=dc_main_key, sub_key=dc_sub_key, data=data_json)
+            # unlock process
+            tbIF.unlockProcess_JEDI(vo=vo, prodSourceLabel=this_prodsourcelabel,
+                                    cloud=None, workqueue_id=None,
+                                    resource_name=None,
+                                    component=this_component, pid=this_pid)
+            # break trying
+            break
     # return
     return ret_val, ret_map
 

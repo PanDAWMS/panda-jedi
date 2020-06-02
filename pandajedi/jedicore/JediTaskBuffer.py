@@ -729,3 +729,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def getSiteToRunRateStats(self, vo, exclude_rwq, starttime_min, starttime_max):
         with self.proxyPool.get() as proxy:
             return proxy.getSiteToRunRateStats(vo, exclude_rwq, starttime_min, starttime_max)
+
+    # update cache
+    def updateCache_JEDI(self, main_key, sub_key, data):
+        with self.proxyPool.get() as proxy:
+            return proxy.updateCache_JEDI(main_key, sub_key, data)
+
+    # get cache
+    def getCache_JEDI(self, main_key, sub_key):
+        with self.proxyPool.get() as proxy:
+            return proxy.getCache_JEDI(main_key, sub_key)

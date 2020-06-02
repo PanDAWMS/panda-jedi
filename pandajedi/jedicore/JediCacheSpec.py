@@ -54,6 +54,7 @@ class JediCacheSpec(object):
         return ret
 
     # return an expression of bind variables for UPDATE
-    def bindUpdateChangesExpression(self):
+    @classmethod
+    def bindUpdateChangesExpression(cls):
         ret = ','.join([ '{0}=:{0}'.format(attr) for attr in cls.attributes ])
         return ret
