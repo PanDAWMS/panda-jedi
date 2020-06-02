@@ -5,6 +5,7 @@ import datetime
 
 from pandajedi.jedicore import Interaction
 from pandaserver.config import panda_config
+from pandaserver.taskbuffer import EventServiceUtils
 
 # port for SMTP server
 smtpPortList = [25,587]
@@ -229,7 +230,9 @@ class PostProcessorBase (object):
                 status = 'failed'
         # HPO tasks always go to finished
         if taskSpec.is_hpo_workflow():
-            status = 'finished'
+            event_stat = self.taskBufferIF.get_event_statistics(taskSpec.jediTaskID)
+            if event_stat is not None and event_stat.get(EventServiceUtils.ST_finished):
+                status = 'finished'
         # check goal only
         if checkGoal:
             # no goal

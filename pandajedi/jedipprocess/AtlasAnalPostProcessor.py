@@ -11,9 +11,9 @@ try:
 except ImportError:
     from urllib import urlencode
 
-from pandajedi.jedicore import Interaction
 from .PostProcessorBase import PostProcessorBase
 from pandajedi.jedirefine import RefinerUtils
+from pandaserver.taskbuffer import EventServiceUtils
 
 
 # post processor for ATLAS production
@@ -174,25 +174,32 @@ class AtlasAnalPostProcessor (PostProcessorBase):
         numOK = 0
         numNG = 0
         numCancel = 0
-        for datasetSpec in taskSpec.datasetSpecList:
-            # dataset summary
-            if datasetSpec.type == 'log':
-                if datasetSpec.containerName not in listLogDS:
-                    listLogDS.append(datasetSpec.containerName)
-            elif datasetSpec.type == 'input':
-                if datasetSpec.containerName not in listInDS:
-                    listInDS.append(datasetSpec.containerName)
-            elif datasetSpec.type == 'output':
-                if datasetSpec.containerName not in listOutDS:
-                    listOutDS.append(datasetSpec.containerName)
-            # process summary
-            if datasetSpec.isMasterInput():
-                try:
-                    numTotal += datasetSpec.nFiles
-                    numOK    += datasetSpec.nFilesFinished
-                    numNG    += datasetSpec.nFilesFailed
-                except Exception:
-                    pass
+        if not taskSpec.is_hpo_workflow():
+            for datasetSpec in taskSpec.datasetSpecList:
+                # dataset summary
+                if datasetSpec.type == 'log':
+                    if datasetSpec.containerName not in listLogDS:
+                        listLogDS.append(datasetSpec.containerName)
+                elif datasetSpec.type == 'input':
+                    if datasetSpec.containerName not in listInDS:
+                        listInDS.append(datasetSpec.containerName)
+                elif datasetSpec.type == 'output':
+                    if datasetSpec.containerName not in listOutDS:
+                        listOutDS.append(datasetSpec.containerName)
+                # process summary
+                if datasetSpec.isMasterInput():
+                    try:
+                        numTotal += datasetSpec.nFiles
+                        numOK    += datasetSpec.nFilesFinished
+                        numNG    += datasetSpec.nFilesFailed
+                    except Exception:
+                        pass
+        else:
+            numTotal = taskSpec.get_total_num_jobs()
+            event_stat = self.taskBufferIF.get_event_statistics(taskSpec.jediTaskID)
+            if event_stat is not None:
+                numOK = event_stat.get(EventServiceUtils.ST_finished, 0)
+                numNG = sum(event_stat.values()) - numOK
         try:
             numCancel = numTotal - numOK - numNG
         except Exception:

@@ -13092,7 +13092,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # result
                 res = self.cur.fetchall()
                 if res is None:
-                	tmpLog.debug("total %s " % res)
+                    tmpLog.debug("total %s " % res)
                 else:
                     tmpLog.debug("total %s " % len(res))
                     # make map
@@ -13223,3 +13223,36 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return False
+
+    # get event statistics
+    def get_event_statistics(self, jedi_task_id):
+        comment = ' /* JediDBProxy.get_event_statistics */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            self.conn.begin()
+            varMap = dict()
+            varMap[':jediTaskID'] = jedi_task_id
+            # sql
+            sqlGNE = ("SELECT status,COUNT(*) FROM {0}.JEDI_Events "
+                      "WHERE jediTaskID=:jediTaskID GROUP BY status ").format(jedi_config.db.schemaJEDI)
+            self.cur.execute(sqlGNE + comment, varMap)
+            # result
+            ret_dict = dict()
+            res = self.cur.fetchall()
+            for s, c in res:
+                ret_dict[s] = c
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # return
+            tmpLog.debug('got {0}'.format(str(ret_dict)))
+            return ret_dict
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
