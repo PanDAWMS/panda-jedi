@@ -485,8 +485,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             # skip locality check
                             if DataServiceUtils.getDatasetType(datasetSpec.datasetName) in datasetTypeToSkipCheck:
                                 continue
-                            # use deep scan for primary dataset
-                            if datasetSpec.isMaster():
+                            # use deep scan for primary dataset unless data carousel
+                            if datasetSpec.isMaster() and not taskSpec.inputPreStaging():
                                 deepScan = True
                             else:
                                 deepScan = False
@@ -514,7 +514,10 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             # skip if no data
                             skipMsgList = []
                             for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
-                                if availableData[tmpNucleus]['tot_size'] > thrInputSize and \
+                                if taskSpec.inputPreStaging() and availableData[tmpNucleus]['ava_num_any'] > 0:
+                                    # use incomplete replicas for data carousel since the completeness is guaranteed
+                                    newNucleusList[tmpNucleus] = tmpNucleusSpec
+                                elif availableData[tmpNucleus]['tot_size'] > thrInputSize and \
                                         availableData[tmpNucleus]['ava_size_any'] < availableData[tmpNucleus]['tot_size'] * thrInputSizeFrac:
                                     tmpMsg = '  skip nucleus={0} due to insufficient input size {1}B < {2}*{3} criteria=-insize'.format(tmpNucleus,
                                                                                                                                         availableData[tmpNucleus]['ava_size_any'],

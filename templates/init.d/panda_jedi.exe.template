@@ -19,6 +19,9 @@ ARGV="$@"
 # the path to application
 PROGNAME='python -u @@install_purelib@@/pandajedi/jediorder/JediMaster.py'
 
+# virtual env activation
+@@virtual_env_setup@@
+
 # pid and lock files
 PIDFILE='/var/log/panda/panda_jedi.pid'
 LOCKFILE='/var/lock/subsys/panda_jedi'
@@ -70,10 +73,23 @@ start)
     ;;
 stop)
     echo stop JEDI
-    kill `cat $PIDFILE` 
-    ERROR=$?
-    rm -f $PIDFILE $LOCKFILE
-    echo $ERROR
+    for itry in `seq 1 100`
+    do
+        echo trying $itry
+        kill `cat $PIDFILE`
+        sleep 2
+        ps -p `cat $PIDFILE` > /dev/null
+        ERROR=$?
+        echo $ERROR
+        if [ $ERROR = 1 ]; then
+            echo succeeded
+            rm -f $PIDFILE $LOCKFILE
+            break
+        else
+            echo failed
+            sleep 10
+        fi
+    done
     ;;
 *)
     echo ERROR: unknown command $ARGV 
