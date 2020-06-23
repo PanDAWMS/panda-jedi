@@ -100,6 +100,11 @@ class JobGenerator (JediKnight):
                 # loop over all vos
                 tmpLog.debug('go into loop')
                 for vo in self.vos:
+                    # check if job submission is enabled
+                    isUP = self.taskBufferIF.getConfigValue('jobgen', 'JOB_SUBMISSION', 'jedi', vo)
+                    if isUP is False:
+                        tmpLog.debug('job submission is disabled for VO={0}'.format(vo))
+                        continue
                     # loop over all sourceLabels
                     for prodSourceLabel in self.prodSourceLabels:
                         # loop over all clouds
