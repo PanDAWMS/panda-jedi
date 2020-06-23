@@ -327,9 +327,12 @@ class TaskRefinerThread (WorkerThread):
                                 if not tmpStat:
                                     tmpErrStr = 'failed to register the task to JEDI in a single shot'
                                     tmpLog.error(tmpErrStr)
-                                    impl.taskSpec.status = newTaskStatus
-                                    impl.taskSpec.setErrDiag(tmpErrStr,True)
-                                    self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
+                                    tmpTaskSpec = JediTaskSpec()
+                                    tmpTaskSpec.status = newTaskStatus
+                                    tmpTaskSpec.errorDialog = impl.taskSpec.errorDialog
+                                    tmpTaskSpec.setErrDiag(tmpErrStr, True)
+                                    self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,
+                                                                      {'jediTaskID': impl.taskSpec.jediTaskID},
                                                                       oldStatus=[taskStatus])
                                 tmpMsg = 'set task_status={0}'.format(newTaskStatus)
                                 tmpLog.info(tmpMsg)

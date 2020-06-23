@@ -10405,7 +10405,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             userTaskMap = {}
             for jediTaskID, userName, errorDialog in resTL:
                 userTaskMap.setdefault(userName, {})
-                if 'type=prestaging' in errorDialog:
+                if errorDialog is None or 'type=prestaging' in errorDialog:
                     trasnferType = 'prestaging'
                 else:
                     trasnferType = 'transfer'

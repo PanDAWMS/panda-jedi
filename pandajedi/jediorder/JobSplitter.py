@@ -120,7 +120,10 @@ class JobSplitter:
         returnList = []
         subChunks  = []
         iSubChunks = 0
-        nSubChunks = 25
+        if taskSpec.is_hpo_workflow():
+            nSubChunks = 2
+        else:
+            nSubChunks = 25
         subChunk   = None
         while True:
             # change site

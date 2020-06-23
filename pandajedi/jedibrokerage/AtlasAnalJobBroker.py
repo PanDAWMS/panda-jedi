@@ -53,6 +53,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         newMaxwdir = {}
         # get primary site candidates
         sitePreAssigned = False
+        siteListPreAssigned = False
         excludeList = []
         includeList = None
         scanSiteList = []
@@ -89,6 +90,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 try:
                     if not isinstance(includeList, list):
                         includeList = includeList.split(',')
+                    siteListPreAssigned = True
                 except Exception:
                     pass
         # loop over all sites
@@ -328,7 +330,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 if tmpSiteSpec.status in ['offline']:
                     skipFlag = True
                 elif tmpSiteSpec.status in ['brokeroff','test']:
-                    if not sitePreAssigned:
+                    if siteListPreAssigned:
+                        pass
+                    elif not sitePreAssigned:
                         skipFlag = True
                     elif preassignedSite not in [tmpSiteName, tmpSiteSpec.get_unified_name()]:
                         skipFlag = True
@@ -428,7 +432,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             jsonCheck = None
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                if tmpSiteSpec.isGPU():
+                if tmpSiteSpec.isGPU() and not taskSpec.is_hpo_workflow():
                     if taskSpec.getArchitecture() in ['', None]:
                         tmpLog.info('  skip site={0} since architecture is required for GPU queues'.format(tmpSiteName))
                         continue
