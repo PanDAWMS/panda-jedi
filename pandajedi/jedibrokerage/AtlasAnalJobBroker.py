@@ -1037,6 +1037,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         weightStr = {}
         candidateSpecList = []
         preSiteCandidateSpec = None
+        basic_weight_comparison_map = {}
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
@@ -1060,13 +1061,18 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 problematic_sites_dict.setdefault(tmpSiteName, set())
                 problematic_sites_dict[tmpSiteName].add('too many failed or closed jobs for last 6h')
             # calculate weight
-            orig_weight = float(nRunning + 1) / float(nActivated + nAssigned + nDefined + nStarting + 1)
-            weight = orig_weight
+            orig_basic_weight = float(nRunning + 1) / float(nActivated + nAssigned + nDefined + nStarting + 1)
+            weight = orig_basic_weight
             try:
-                to_running_rate = siteToRunRateMap[tmpSiteName][taskSpec.gshare]
+                site_to_running_rate = siteToRunRateMap[tmpSiteName]
+                if isinstance(site_to_running_rate, dict):
+                    site_to_running_rate = sum(site_to_running_rate.values())
             except KeyError:
-                to_running_rate_str = 'unknown'
+                to_running_rate_str = '0(unknown)'
+                to_running_rate = 0
             else:
+                site_n_running = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running')
+                to_running_rate = nRunning*site_to_running_rate/site_n_running if site_n_running > 0 else 0
                 to_running_rate_str = '{0:.3f}'.format(to_running_rate)
             nThrottled = 0
             if tmpSiteName in remoteSourceList:
@@ -1098,6 +1104,12 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 preSiteCandidateSpec = siteCandidateSpec
             # override attributes
             siteCandidateSpec.override_attribute('maxwdir', newMaxwdir.get(tmpSiteName))
+            # available site, take in account of new basic weight
+            basic_weight_comparison_map[tmpSiteName] = {}
+            basic_weight_comparison_map[tmpSiteName]['orig'] = orig_basic_weight
+            basic_weight_comparison_map[tmpSiteName]['trr'] = to_running_rate
+            basic_weight_comparison_map[tmpSiteName]['nq'] = (nActivated + nAssigned + nDefined + nStarting)
+            basic_weight_comparison_map[tmpSiteName]['nr'] = nRunning
             # set weight
             siteCandidateSpec.weight = weight
             tmpStr  = 'weight={0} nRunning={1} nDefined={2} nActivated={3} nStarting={4} nAssigned={5} '.format(weight,
@@ -1120,6 +1132,85 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 if weight not in weightMap:
                     weightMap[weight] = []
                 weightMap[weight].append(siteCandidateSpec)
+        ## compute new basic weight
+        try:
+            trr_sum = 0
+            nq_sum = 0
+            n_avail_sites = len(basic_weight_comparison_map)
+            for vv in basic_weight_comparison_map.values():
+                trr_sum += vv['trr']
+                nq_sum += vv['nq']
+            if n_avail_sites == 0:
+                tmpLog.debug('WEIGHT-COMPAR: zero available sites, skip')
+            elif trr_sum == 0:
+                tmpLog.debug('WEIGHT-COMPAR: zero sum of to-running-rate, skip')
+            else:
+                for site in basic_weight_comparison_map:
+                    vv = basic_weight_comparison_map[site]
+                    new_basic_weight = max((vv['trr']/trr_sum)*(25 + nq_sum - n_avail_sites) - vv['nq'] + 1, 0)
+                    vv['new'] = new_basic_weight
+                orig_sum = 0
+                new_sum = 0
+                for vv in basic_weight_comparison_map.values():
+                    orig_sum += vv['orig']
+                    new_sum += vv['new']
+                for site in basic_weight_comparison_map:
+                    vv = basic_weight_comparison_map[site]
+                    if vv['nr'] == 0:
+                        trr_over_r = None
+                    else:
+                        trr_over_r = vv['trr']/vv['nr']
+                    vv['trr_over_r'] = trr_over_r
+                    if orig_sum == 0:
+                        normalized_orig = 0
+                    else:
+                        normalized_orig = vv['orig']/orig_sum
+                    vv['normalized_orig'] = normalized_orig
+                    if new_sum == 0:
+                        normalized_new = 0
+                    else:
+                        normalized_new = vv['new']/new_sum
+                    vv['normalized_new'] = normalized_new
+                prt_str_list = []
+                prt_str_temp = ('    '
+                                ' {site:>24} |'
+                                ' {nq:>6} |'
+                                ' {nr:>6} |'
+                                ' {trr:9.3f} |'
+                                ' {trr_over_r:6.3f} |'
+                                ' {orig:9.3f} |'
+                                ' {new:9.3f} |'
+                                ' {normalized_orig:6.1%} |'
+                                ' {normalized_new:6.1%} |')
+                prt_str_title = (   '    '
+                                    ' {site:>24} |'
+                                    ' {nq:>6} |'
+                                    ' {nr:>6} |'
+                                    ' {trr:>9} |'
+                                    ' {trr_over_r:>6} |'
+                                    ' {orig:>9} |'
+                                    ' {new:>9} |'
+                                    ' {normalized_orig:>6} |'
+                                    ' {normalized_new:>6} |'
+                                    ).format(
+                                        site='Site',
+                                        nq='Q',
+                                        nr='R',
+                                        trr='TRR',
+                                        trr_over_r='TRR/R',
+                                        orig='Wb_orig',
+                                        new='Wb_new',
+                                        normalized_orig='orig_%',
+                                        normalized_new='new_%')
+                prt_str_list.append(prt_str_title)
+                for site in sorted(basic_weight_comparison_map):
+                    vv = basic_weight_comparison_map[site]
+                    prt_str = prt_str_temp.format(site=site, **vv)
+                    prt_str_list.append(prt_str)
+                tmpLog.debug('WEIGHT-COMPAR: for gshare={0} got \n{1}'.format(taskSpec.gshare, '\n'.join(prt_str_list)))
+        except Exception as e:
+            print('{0} {1}'.format(e.__class__.__name__, e))
+        ##
         oldScanSiteList = copy.copy(scanSiteList)
         # sort candidates by weights
         weightList = list(weightMap.keys())
