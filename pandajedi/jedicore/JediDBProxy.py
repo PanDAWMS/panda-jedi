@@ -382,16 +382,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':fileStatus']  = 'finished'
                     varMap[':didName'] = datasetSpec.datasetName
                     varMap[':dsName'] = datasetSpec.datasetName.split(':')[-1]
-                    # begin transaction
-                    self.conn.begin()
-                    self.cur.execute(sqlSFU+comment,varMap)
-                    tmpSFU = self.cur.fetchall()
-                    for tmpLFN,tmpStartEvent,tmpEndEvent in tmpSFU:
-                        tmpID = '{0}.{1}.{2}'.format(tmpLFN,tmpStartEvent,tmpEndEvent)
-                        usedFilesToSkip.add(tmpID)
-                    # commit
-                    if not self._commit():
-                        raise RuntimeError('Commit error')
+                    try:
+                        # begin transaction
+                        self.conn.begin()
+                        self.cur.execute(sqlSFU+comment,varMap)
+                        tmpSFU = self.cur.fetchall()
+                        for tmpLFN,tmpStartEvent,tmpEndEvent in tmpSFU:
+                            tmpID = '{0}.{1}.{2}'.format(tmpLFN,tmpStartEvent,tmpEndEvent)
+                            usedFilesToSkip.add(tmpID)
+                        # commit
+                        if not self._commit():
+                            raise RuntimeError('Commit error')
+                    except Exception:
+                        # roll back
+                        self._rollback()
+                        # error
+                        self.dumpErrorMessage(tmpLog)
+                        return failedRet
             # include files
             if includePatt != []:
                 newFileMap = {}
@@ -3296,6 +3303,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                       "WHERE  jediTaskID=:jediTaskID AND "
                       "status IN (:esSent,:esRunning)"
                       ") ").format(jedi_config.db.schemaPANDA, jedi_config.db.schemaJEDI)
+            # sql to set frozenTime
+            sqlFZT = ("UPDATE {0}.JEDI_Tasks "
+                      "SET frozenTime=:frozenTime WHERE jediTaskID=:jediTaskID ").format(jedi_config.db.schemaJEDI)
             # loop over all tasks
             iTasks = 0
             lockedTasks = []
@@ -3472,7 +3482,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     raise RuntimeError('Commit error')
                                 # send finish command
                                 self.sendCommandTaskPanda(jediTaskID,
-                                                          'HPO task finished due to maxNumJobs',
+                                                          'HPO task finished since maxNumJobs reached',
                                                           True,
                                                           'finish',
                                                           comQualifier='soft')
@@ -3494,13 +3504,44 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':status'] = origTaskSpec.status
-                            varMap[':err'] = 'skipped since no HP point to evaluate or enough concurrent HPO jobs'
+                            if tmpNumEventsHPO == 0:
+                                varMap[':err'] = 'skipped since no HP points to evaluate'
+                            else:
+                                varMap[':err'] = 'skipped since enough HPO jobs are running or scheduled'
                             self.cur.execute(sqlPDG + comment, varMap)
-                            tmpLog.debug(('jediTaskID={0} skipped due to nSamplesToEvaluate={1} '
+                            # set frozenTime
+                            if tmpNumEventsHPO + tmpNumWorkersHPO == 0 and origTaskSpec.frozenTime is None:
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':frozenTime'] = datetime.datetime.utcnow()
+                                self.cur.execute(sqlFZT + comment, varMap)
+                            elif tmpNumEventsHPO + tmpNumWorkersHPO > 0 and origTaskSpec.frozenTime is not None:
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':frozenTime'] = None
+                                self.cur.execute(sqlFZT + comment, varMap)
+                            tmpLog.debug(('HPO jediTaskID={0} skipped due to nSamplesToEvaluate={1} '
                                           'nReadyWorkers={2}').format(jediTaskID, tmpNumEventsHPO, tmpNumWorkersHPO))
                             if not self._commit():
                                 raise RuntimeError('Commit error')
+                            # terminate if inactive for long time
+                            waitInterval = 24
+                            if tmpNumEventsHPO + tmpNumWorkersHPO == 0 and origTaskSpec.frozenTime is not None and \
+                                    datetime.datetime.utcnow() - origTaskSpec.frozenTime > \
+                                    datetime.timedelta(hours=waitInterval):
+                                # send finish command
+                                self.sendCommandTaskPanda(jediTaskID,
+                                                          'HPO task finished since inactive for one day',
+                                                          True,
+                                                          'finish',
+                                                          comQualifier='soft')
                             continue
+                        # reset frozenTime
+                        if origTaskSpec.frozenTime is not None:
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':frozenTime'] = None
+                            self.cur.execute(sqlFZT + comment, varMap)
                 # read datasets
                 if not toSkip:
                     iDsPerTask = 0
