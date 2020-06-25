@@ -3531,7 +3531,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     datetime.timedelta(hours=waitInterval):
                                 # send finish command
                                 self.sendCommandTaskPanda(jediTaskID,
-                                                          'finished since inactive for {0} hours'.format(waitInterval),
+                                                          'HPO task finished since inactive for one day',
                                                           True,
                                                           'finish',
                                                           comQualifier='soft')
