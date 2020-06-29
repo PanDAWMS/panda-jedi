@@ -750,12 +750,19 @@ class JsonSoftwareCheck:
 
     # get lists
     def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only,
-              need_container=False):
+              need_container=False, container_name=None):
         okSite = []
         noAutoSite = []
         for tmpSiteName in site_list:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
+                # check for fat container
+                if container_name:
+                    if 'any' in self.swDict[tmpSiteName]["containers"] or \
+                            container_name in [t['conainer_name'] for t in self.swDict[tmpSiteName]['tags']
+                                               if t['conainer_name']]:
+                        okSite.append(tmpSiteName)
+                    continue
                 # only cmt config check
                 if cmt_config_only:
                     if cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
@@ -778,6 +785,9 @@ class JsonSoftwareCheck:
                                 okSite.append(tmpSiteName)
                                 break
                 # don't pass to subsequent check if AUTO is enabled
+                continue
+            # use only AUTO for container
+            if container_name is not None:
                 continue
             noAutoSite.append(tmpSiteName)
         return (okSite, noAutoSite)
