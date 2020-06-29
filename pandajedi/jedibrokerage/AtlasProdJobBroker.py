@@ -708,11 +708,13 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpLog.info('  skip site=%s due to missing cache=%s:%s criteria=-cache' % \
                                  (tmpSiteName,taskSpec.transHome,taskSpec.getArchitecture()))
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info('{0} candidates passed for ATLAS release {1}:{2} container={3}'.format(
+            tmpLog.info(('{0} candidates passed for ATLAS release {1}:{2} OS_container={3} '
+                         'container_name={4}').format(
                 len(scanSiteList),
                 taskSpec.transHome,
                 taskSpec.getArchitecture(),
-                useContainer))
+                useContainer,
+                taskSpec.container_name))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

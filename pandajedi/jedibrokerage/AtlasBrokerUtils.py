@@ -759,6 +759,7 @@ class JsonSoftwareCheck:
                 # check for fat container
                 if container_name:
                     if 'any' in self.swDict[tmpSiteName]["containers"] or \
+                            'cvmfs' in self.swDict[tmpSiteName]["containers"] or \
                             container_name in set([t['container_name'] for t in self.swDict[tmpSiteName]['tags']
                                                if t['container_name']]):
                         # container name in tags or any in containers

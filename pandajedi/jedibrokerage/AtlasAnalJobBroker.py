@@ -497,10 +497,12 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                        transHome.split('-')[0],
                                                                        transHome.split('-')[1],
                                                                        taskSpec.getArchitecture(),
-                                                                       False, False)
+                                                                       False, False,
+                                                                       container_name=taskSpec.container_name)
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               caches=transHome,
-                                                                              cmtConfig=taskSpec.getArchitecture())
+                                                                              cmtConfig=taskSpec.getArchitecture(),
+                                                                              container_name=taskSpec.container_name)
                 elif (transHome == '' and taskSpec.transUses is not None) or \
                         (re.search('-\d+\.\d+\.\d+$',transHome) is not None and
                         (taskSpec.transUses is None or re.search('-\d+\.\d+$', taskSpec.transUses) is None)):
@@ -517,14 +519,16 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                               "AtlasOffline",
                                                                               transUses,
                                                                               taskSpec.getArchitecture(),
-                                                                              False, False)
+                                                                              False, False,
+                                                                              container_name=taskSpec.container_name)
                         siteListWithSW += tmpSiteListWithSW
                     if len(transHome.split('-')) == 2:
                         tmpSiteListWithSW, sitesNoJsonCheck = jsonCheck.check(sitesNoJsonCheck, "atlas",
                                                                               transHome.split('-')[0],
                                                                               transHome.split('-')[1],
                                                                               taskSpec.getArchitecture(),
-                                                                              False, False)
+                                                                              False, False,
+                                                                              container_name=taskSpec.container_name)
                         siteListWithSW += tmpSiteListWithSW
                     if transUses is not None:
                         siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
@@ -550,14 +554,16 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
                                                                            None, None,
                                                                            taskSpec.getArchitecture(),
-                                                                           True, False)
+                                                                           True, False,
+                                                                           container_name=taskSpec.container_name)
                         siteListWithSW += list(set(siteListWithCVMFS) & set(siteListWithCMTCONFIG))
                     else:
                         # no CVMFS check for standalone SW
                         siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
                                                                            None, None,
                                                                            taskSpec.getArchitecture(),
-                                                                           False, True)
+                                                                           False, True,
+                                                                           container_name=taskSpec.container_name)
                         siteListWithSW += siteListWithCMTCONFIG
                 newScanSiteList = []
                 for tmpSiteName in unified_site_list:
