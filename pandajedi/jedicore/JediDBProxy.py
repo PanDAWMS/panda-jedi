@@ -13321,7 +13321,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     ':startTimeMax': starttime_max}
         # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
         sql_jt = """
-               SELECT computingSite, gShare, COUNT(*) FROM %s
+               SELECT computingSite, COUNT(*) FROM %s
                WHERE vo=:vo
                AND startTime IS NOT NULL AND startTime>=:startTimeMin AND startTime<:startTimeMax
                AND jobStatus IN ('running', 'holding', 'transferring', 'finished', 'cancelled')
@@ -13332,7 +13332,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource')
                """.format(jedi_config.db.schemaPANDA)
         sql_jt += """
-               GROUP BY computingSite, gshare
+               GROUP BY computingSite
                """
         # job tables
         tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
@@ -13346,14 +13346,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sql_exe, var_map)
                 res = self.cur.fetchall()
                 # create map
-                for panda_site, gshare, n_count in res:
+                for panda_site, n_count in res:
                     # add site
-                    return_map.setdefault(panda_site, {})
-                    # add global share
-                    return_map[panda_site].setdefault(gshare, 0)
+                    return_map.setdefault(panda_site, 0)
                     # increase to-running rate
                     to_running_rate = n_count/real_interval_hours if real_interval_hours > 0 else 0
-                    return_map[panda_site][gshare] += to_running_rate
+                    return_map[panda_site] += to_running_rate
             # end loop
             tmpLog.debug('done')
             return True, return_map
