@@ -759,9 +759,20 @@ class JsonSoftwareCheck:
                 # check for fat container
                 if container_name:
                     if 'any' in self.swDict[tmpSiteName]["containers"] or \
-                            container_name in [t['conainer_name'] for t in self.swDict[tmpSiteName]['tags']
-                                               if t['conainer_name']]:
+                            container_name in set([t['container_name'] for t in self.swDict[tmpSiteName]['tags']
+                                               if t['container_name']]):
+                        # container name in tags or any in containers
                         okSite.append(tmpSiteName)
+                    elif container_name in set([s for t in self.swDict[tmpSiteName]['tags'] for s in t['sources']
+                                               if t['sources']]):
+                        # sources
+                        okSite.append(tmpSiteName)
+                    else:
+                        # prefix
+                        for tmp_prefix in self.swDict[tmpSiteName]["containers"]:
+                            if container_name.startswith(tmp_prefix):
+                                okSite.append(tmpSiteName)
+                                break
                     continue
                 # only cmt config check
                 if cmt_config_only:

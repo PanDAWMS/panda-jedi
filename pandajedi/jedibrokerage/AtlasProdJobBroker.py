@@ -677,7 +677,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    taskSpec.transHome.split('-')[1],
                                                                    taskSpec.getArchitecture(),
                                                                    False, False,
-                                                                   need_container=useContainer)
+                                                                   need_container=useContainer,
+                                                                   container_name=taskSpec.container_name)
                 if len(sitesNoJsonCheck) > 0:
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               caches=taskSpec.transHome,
@@ -688,7 +689,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    None, None,
                                                                    taskSpec.getArchitecture(),
                                                                    True, False,
-                                                                   need_container=useContainer)
+                                                                   need_container=useContainer,
+                                                                   container_name=taskSpec.container_name)
                 if len(sitesNoJsonCheck) > 0:
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               releases='CVMFS')
