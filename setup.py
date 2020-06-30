@@ -79,12 +79,17 @@ class install_data_panda (install_data_org):
         self.install_purelib = None
         self.panda_user = panda_user
         self.panda_group = panda_group
+        self.virtual_env = ''
+        self.virtual_env_setup = ''
         if 'VIRTUAL_ENV' in os.environ:
             self.virtual_env = os.environ['VIRTUAL_ENV']
             self.virtual_env_setup = 'source {0}/bin/activate'.format(os.environ['VIRTUAL_ENV'])
-        else:
-            self.virtual_env = ''
-            self.virtual_env_setup = ''
+        elif sys.executable:
+            venv_dir = os.path.dirname(os.path.dirname(sys.executable))
+            py_venv_activate = os.path.join(venv_dir, 'bin/activate')
+            if os.path.exists(py_venv_activate):
+                self.virtual_env = venv_dir
+                self.virtual_env_setup = 'source {0}'.format(py_venv_activate)
 
     def finalize_options (self):
         # set install_purelib
