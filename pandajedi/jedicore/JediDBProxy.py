@@ -3099,10 +3099,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # make task-dataset mapping
                 if jediTaskID not in taskDatasetMap:
                     taskDatasetMap[jediTaskID] = []
-
-                taskDatasetMap[jediTaskID].append((datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,
-                                                   tmpNumInputEvents,tmpNumFilesWaiting,useJumbo))
-
+                data = (datasetID,tmpNumFiles,datasetType,tmpNumInputFiles,
+                        tmpNumInputEvents,tmpNumFilesWaiting,useJumbo)
+                if datasetType in JediDatasetSpec.getMergeProcessTypes():
+                    taskDatasetMap[jediTaskID].insert(0, data)
+                else:
+                    taskDatasetMap[jediTaskID].append(data)
                 # use single value if WQ has a share
                 if workQueue is not None and workQueue.queue_share is not None and not setGroupByAttr:
                     groupByAttr = ''
@@ -3577,8 +3579,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if 0 in memReqs and None in memReqs:
                             memReqs.remove(None)
 
-                        tmpLog.debug("memory requirements for files in jediTaskID=%s datasetID=%s are: %s" % (
-                        jediTaskID, datasetID, memReqs))
+                        tmpLog.debug("memory requirements for files in jediTaskID=%s datasetID=%s type=%s are: %s" % (
+                        jediTaskID, datasetID, datasetType, memReqs))
                         if not memReqs:
                             tmpLog.debug('skip jediTaskID={0} datasetID={1} since memory requirements are empty'.format(jediTaskID,
                                                                                                                         primaryDatasetID))
