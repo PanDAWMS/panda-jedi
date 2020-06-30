@@ -501,8 +501,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                        container_name=taskSpec.container_name)
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               caches=transHome,
-                                                                              cmtConfig=taskSpec.getArchitecture(),
-                                                                              container_name=taskSpec.container_name)
+                                                                              cmtConfig=taskSpec.getArchitecture())
                 elif (transHome == '' and taskSpec.transUses is not None) or \
                         (re.search('-\d+\.\d+\.\d+$',transHome) is not None and
                         (taskSpec.transUses is None or re.search('-\d+\.\d+$', taskSpec.transUses) is None)):
