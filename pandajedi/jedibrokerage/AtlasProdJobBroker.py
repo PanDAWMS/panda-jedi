@@ -801,7 +801,21 @@ class AtlasProdJobBroker (JobBrokerBase):
                 else:
                     # size for copy-to-scratch
                     minDiskCount = minDiskCountL
-                if minDiskCount > tmpSiteSpec.maxwdir:
+
+                # get site and task corecount to scale maxwdir
+                if tmpSiteSpec.coreCount in [None, 0, 1]:
+                    site_cc = 1
+                else:
+                    site_cc = tmpSiteSpec.coreCount
+
+                if taskSpec.coreCount in [None, 0, 1]:
+                    task_cc = 1
+                else:
+                    task_cc = site_cc
+
+                maxwdir_scaled = tmpSiteSpec.maxwdir * task_cc / site_cc
+
+                if minDiskCount > maxwdir_scaled:
                     tmpMsg = '  skip site={0} due to small scratch disk {1} less than {2} '.format(tmpSiteName,
                                                                                                    tmpSiteSpec.maxwdir,
                                                                                                    minDiskCount)
