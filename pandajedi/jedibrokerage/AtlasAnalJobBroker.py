@@ -656,7 +656,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     if tmpSiteSpec.isDirectIO():
                         minDiskCount = minDiskCountR
                         if maxSizePerJob is not None and not taskSpec.useLocalIO():
-                            tmpMinDiskCountR = tmpOutDiskSize * maxSizePerJob  + tmpWorkDiskSize
+                            tmpMinDiskCountR = tmpOutDiskSize * maxSizePerJob + tmpWorkDiskSize
                             tmpMinDiskCountR /= (1024 * 1024)
                             if tmpMinDiskCountR > minDiskCount:
                                 minDiskCount = tmpMinDiskCountR
@@ -706,7 +706,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         tmpSpaceSize += tmpEndPoint['space_expired']
                     if tmpEndPoint['space_free'] is not None:
                         tmpSpaceSize += tmpEndPoint['space_free']
-                    if tmpSpaceSize < diskThreshold:
+                    if tmpSpaceSize < diskThreshold and 'skip_RSE_check' not in tmpSiteSpec.catchall:  # skip_RSE_check: exceptional bypass of RSEs without storage reporting
                         tmpLog.info('  skip site={0} due to disk shortage in SE {1} < {2}GB criteria=-disk'.format(tmpSiteName, tmpSpaceSize,
                                                                                                                    diskThreshold))
                         continue
