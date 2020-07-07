@@ -758,21 +758,40 @@ class JsonSoftwareCheck:
             if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
                 # check for fat container
                 if container_name:
+                    # check architecture
+                    if cmt_config and 'architecture' in self.swDict[tmpSiteName] and \
+                            cmt_config not in self.swDict[tmpSiteName]:
+                        continue
+                    # check for container
                     if 'any' in self.swDict[tmpSiteName]["containers"] or \
-                            'cvmfs' in self.swDict[tmpSiteName]["containers"] or \
+                            '/cvmfs' in self.swDict[tmpSiteName]["containers"] or \
                             container_name in set([t['container_name'] for t in self.swDict[tmpSiteName]['tags']
                                                if t['container_name']]):
-                        # container name in tags or any in containers
+                        # logical name in tags or any in containers
                         okSite.append(tmpSiteName)
                     elif container_name in set([s for t in self.swDict[tmpSiteName]['tags'] for s in t['sources']
                                                if t['sources']]):
-                        # sources
+                        # full path in sources
                         okSite.append(tmpSiteName)
                     else:
-                        # prefix
+                        # get sources in all tag list
+                        if 'ALL' in self.swDict:
+                            source_list_in_all_tag = [s for t in self.swDict['ALL']['tags']
+                                                      for s in t['sources'] if t['container_name']==container_name]
+                        else:
+                            source_list_in_all_tag = []
+                        # prefix with full path
                         for tmp_prefix in self.swDict[tmpSiteName]["containers"]:
                             if container_name.startswith(tmp_prefix):
                                 okSite.append(tmpSiteName)
+                                break
+                            toBreak = False
+                            for source_in_all_tag in source_list_in_all_tag:
+                                if source_in_all_tag.startswith(tmp_prefix):
+                                    okSite.append(tmpSiteName)
+                                    toBreak = True
+                                    break
+                            if toBreak:
                                 break
                     continue
                 # only cmt config check
@@ -783,7 +802,8 @@ class JsonSoftwareCheck:
                 # check if CVMFS is available
                 if 'any' in self.swDict[tmpSiteName]["cvmfs"] or cvmfs_tag in self.swDict[tmpSiteName]["cvmfs"]:
                     # check if container is available
-                    if 'any' in self.swDict[tmpSiteName]["containers"]:
+                    if 'any' in self.swDict[tmpSiteName]["containers"] or \
+                            '/cvmfs' in self.swDict[tmpSiteName]["containers"]:
                         okSite.append(tmpSiteName)
                     # check cmt config
                     elif not need_container and cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
