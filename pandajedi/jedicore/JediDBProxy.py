@@ -1156,7 +1156,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # set return value
                         retVal = True,missingFileList,numUniqueLfn,diagMap
             # fix secondary files in staging
-            if datasetSpec.isSeqNumber():
+            if inputPreStaging and datasetSpec.isSeqNumber():
                 self.fix_associated_files_in_staging(datasetSpec.jediTaskID, secondary_id=datasetSpec.datasetID)
             # commit
             if not self._commit():
