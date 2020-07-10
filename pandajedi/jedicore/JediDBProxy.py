@@ -1155,6 +1155,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             diagMap['nActivatedPending'] += nFilesUnprocessed
                         # set return value
                         retVal = True,missingFileList,numUniqueLfn,diagMap
+            # fix secondary files in staging
+            if datasetSpec.isSeqNumber():
+                self.fix_associated_files_in_staging(datasetSpec.jediTaskID, secondary_id=datasetSpec.datasetID)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -12908,7 +12911,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':jediTaskID'] = jeditaskid
             varMap[':type'] = 'input'
             # sql to get datasetIDs
-            sqlGD = ('SELECT datasetID FROM {0}.JEDI_Datasets'
+            sqlGD = ('SELECT datasetID,masterID FROM {0}.JEDI_Datasets'
                      ' WHERE jediTaskID=:jediTaskID AND type=:type '
                      ).format(jedi_config.db.schemaJEDI)
             # sql to update file status
@@ -12931,11 +12934,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':old_status'] = 'staging'
             varMap[':new_status'] = 'pending'
             resGD = self.cur.fetchall()
+            primaryID = None
             if len(resGD) > 0:
-                for idx, (id,) in enumerate(resGD):
+                for idx, (id, masterID) in enumerate(resGD):
                     key = ':datasetID_{0}'.format(idx)
                     sqlUF += '{0},'.format(key)
                     varMap[key] = id
+                    if masterID is None:
+                        primaryID = id
                 sqlUF = sqlUF[:-1]
                 sqlUF += ') '
                 # loop over filenames
@@ -12944,6 +12950,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('running sql: {0} {1}'.format(sqlUF, varMap))
                     self.cur.execute(sqlUF+comment, varMap)
                     retVal += self.cur.rowcount
+            # update associated files
+            if primaryID is not None:
+                self.fix_associated_files_in_staging(jeditaskid, primary_id=primaryID)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -12956,6 +12965,102 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return None
 
+
+    # fix associated files in staging
+    def fix_associated_files_in_staging(self, jeditaskid, primary_id=None, secondary_id=None):
+        comment = ' /* JediDBProxy.fix_associated_files_in_staging */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jeditaskid)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        # get primary dataset
+        if primary_id is None:
+            sqlGD = ('SELECT datasetID FROM {0}.JEDI_Datasets'
+                     ' WHERE jediTaskID=:jediTaskID AND type=:type AND masterID IS NULL '
+                     ).format(jedi_config.db.schemaJEDI)
+            varMap = dict()
+            varMap[':jediTaskID'] = jeditaskid
+            varMap[':type'] = 'input'
+            self.cur.execute(sqlGD + comment, varMap)
+            resGD = self.cur.fetchone()
+            if resGD is None:
+                return
+            primary_id, = resGD
+        # get secondary dataset
+        if secondary_id is not None:
+            secondary_id_list = [secondary_id]
+        else:
+            sqlGS = ('SELECT datasetID FROM {0}.JEDI_Datasets'
+                     ' WHERE jediTaskID=:jediTaskID AND type=:type AND masterID IS NOT NULL '
+                     ).format(jedi_config.db.schemaJEDI)
+            varMap = dict()
+            varMap[':jediTaskID'] = jeditaskid
+            varMap[':type'] = 'pseudo_input'
+            self.cur.execute(sqlGS + comment, varMap)
+            resGDA = self.cur.fetchall()
+            secondary_id_list = [tmpID for tmpID, in resGDA]
+        if len(secondary_id_list) == 0:
+            return
+        # get primary files
+        sqlGP = ('SELECT status FROM {0}.JEDI_Dataset_Contents '
+                 ' WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID '
+                 'ORDER BY lfn '
+                 ).format(jedi_config.db.schemaJEDI)
+        varMap = dict()
+        varMap[':jediTaskID'] = jeditaskid
+        varMap[':datasetID'] = primary_id
+        self.cur.execute(sqlGP + comment, varMap)
+        resFP = self.cur.fetchall()
+        primaryList = [status for status, in resFP]
+        # sql to get secondary files
+        sqlGS = ('SELECT fileID,status FROM {0}.JEDI_Dataset_Contents '
+                 ' WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID '
+                 'ORDER BY fileID '
+                 ).format(jedi_config.db.schemaJEDI)
+        # sql to update files
+        sqlUS = ('UPDATE {0}.JEDI_Dataset_Contents '
+                 'SET status=:new_status '
+                 'WHERE jediTaskID=:jediTaskID '
+                 'AND datasetID=:datasetID '
+                 'AND fileID=:fileID '
+                 'AND status=:old_status '
+                 ).format(jedi_config.db.schemaJEDI)
+        # sql to update dataset
+        sqlUD = ('UPDATE {0}.JEDI_Datasets '
+                 'SET nFilesToBeUsed='
+                 '(SELECT COUNT(*) FROM {0}.JEDI_Dataset_Contents '
+                 'WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status<>:status) '
+                 'WHERE jediTaskID=:jediTaskID '
+                 'AND datasetID=:datasetID '
+                 ).format(jedi_config.db.schemaJEDI)
+        # loop over secondary datasets
+        for secondaryID in secondary_id_list:
+            # get secondary files
+            varMap = dict()
+            varMap[':jediTaskID'] = jeditaskid
+            varMap[':datasetID'] = secondaryID
+            self.cur.execute(sqlGS + comment, varMap)
+            resFS = self.cur.fetchall()
+            # check files
+            n = 0
+            for priStatus, (secFileID, secStatus) in zip(primaryList, resFS):
+                if priStatus != 'staging' and secStatus == 'staging':
+                    # update files
+                    varMap = dict()
+                    varMap[':jediTaskID'] = jeditaskid
+                    varMap[':datasetID'] = secondaryID
+                    varMap[':fileID'] = secFileID
+                    varMap[':old_status'] = 'staging'
+                    varMap[':new_status'] = 'ready'
+                    self.cur.execute(sqlUS + comment, varMap)
+                    n += self.cur.rowcount
+            # update dataset
+            varMap = dict()
+            varMap[':jediTaskID'] = jeditaskid
+            varMap[':datasetID'] = secondaryID
+            varMap[':status'] = 'staging'
+            self.cur.execute(sqlUD + comment, varMap)
+            tmpLog.debug('updated {0} files for datasetID={1}'.format(n, secondaryID))
 
 
     # update input datasets stage-in done according to message from idds
@@ -12989,6 +13094,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.debug('running sql: {0} {1}'.format(sqlUD, varMap))
                 self.cur.execute(sqlUD+comment, varMap)
                 retVal += self.cur.rowcount
+            self.fix_associated_files_in_staging(jeditaskid)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')

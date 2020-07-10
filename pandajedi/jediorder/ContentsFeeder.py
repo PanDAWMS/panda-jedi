@@ -181,7 +181,7 @@ class ContentsFeederThread (WorkerThread):
                             if datasetSpec.indexConsistent():
                                 datasetsIdxConsistency.append(datasetSpec.datasetID)
                             # prestaging
-                            if taskSpec.inputPreStaging():
+                            if taskSpec.inputPreStaging() and (datasetSpec.isMaster() or datasetSpec.isSeqNumber()):
                                 nStaging = self.taskBufferIF.getNumStagingFiles_JEDI(taskSpec.jediTaskID)
                                 if nStaging is not None and nStaging == 0 and datasetSpec.nFiles > 0:
                                     inputPreStaging = False
