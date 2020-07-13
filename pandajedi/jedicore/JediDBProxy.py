@@ -13276,6 +13276,60 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return None
 
+
+    # get jobs stat of each user
+    def getUsersJobsStats_JEDI(self, prod_source_label='user'):
+        comment = ' /* JediDBProxy.getUsersJobsStats_JEDI */'
+        methodName = self.getMethodName(comment)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            # get users jobs stats
+            jobsStatsPerUser = {}
+            varMap = {}
+            varMap[':prodSourceLabel'] = prod_source_label
+            varMap[':pmerge'] = 'pmerge'
+            sqlJ = ("SELECT COUNT(*),prodUserName,jobStatus,gshare,computingSite "
+                    "FROM {0}.{1} "
+                    "WHERE prodSourceLabel=:prodSourceLabel AND processingType<>:pmerge "
+                    "GROUP BY prodUserName,jobStatus,gshare,computingSite "
+                    ).format(jedi_config.db.schemaPANDA, 'jobsActive4')
+            # exec
+            tmpLog.debug(sqlJ + comment + str(varMap))
+            self.cur.execute(sqlJ + comment, varMap)
+            # result
+            res = self.cur.fetchall()
+            if res is None:
+                tmpLog.debug("total %s " % res)
+            else:
+                tmpLog.debug("total %s " % len(res))
+                # make map
+                for cnt,prodUserName,jobStatus,gshare,computingSite in res:
+                    # append to PerUser map
+                    jobsStatsPerUser.setdefault(computingSite, {})
+                    jobsStatsPerUser[computingSite].setdefault(gshare, {})
+                    jobsStatsPerUser[computingSite][gshare].setdefault(prodUserName, {
+                                                                                    'nDefined': 0, 'nAssigned': 0,
+                                                                                    'nActivated': 0, 'nStarting':0,
+                                                                                    'nQueue': 0, 'nRunning': 0})
+                    # count # of running/done and activated
+                    if jobStatus in ['defined', 'assigned', 'activated', 'starting']:
+                        status_name = 'n{0}'.format(jobStatus.capitalize())
+                        jobsStatsPerUser[computingSite][gshare][prodUserName][status_name] += cnt
+                        jobsStatsPerUser[computingSite][gshare][prodUserName]['nQueue'] += cnt
+                    elif jobStatus in ['running']:
+                        jobsStatsPerUser[computingSite][gshare][prodUserName]['nRunning'] += cnt
+            # return
+            tmpLog.debug('done')
+            return jobsStatsPerUser
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
     # add events
     def add_events_jedi(self, jedi_task_id, start_number, end_number, max_attempt):
         comment = ' /* JediDBProxy.add_events_jedi */'

@@ -965,6 +965,71 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 tmpLog.error('no candidates')
                 retVal = retTmpError
                 continue
+            ######################################
+            # skip sites where the user queues too much
+            jobsStatsPerUser = self.taskBufferIF.getUsersJobsStats_JEDI(taskSpec.prodSourceLabel)
+            if jobsStatsPerUser is None:
+                tmpLog.error('failed to get users jobs statistics')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+            else:
+                base_default_queue_length_per_pq_user = 5
+                base_queue_ratio_on_pq = 0.05
+                static_max_queue_running_ratio = 2.0
+                max_expected_wait_hour = 12
+                for tmpPseudoSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+                    tmpSiteName = tmpSiteSpec.get_unified_name()
+                    # get running info about PQ
+                    nRunning_pq_in_gshare = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', workQueue_tag=taskSpec.gshare)
+                    nRunning_pq_total = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running')
+                    # get user jobs stats
+                    user_jobs_stats_map = jobsStatsPerUser[tmpSiteName][taskSpec.gshare][taskSpec.userName]
+                    nQ_per_pq_user = user_jobs_stats_map['nQueue']
+                    nR_per_pq_user = user_jobs_stats_map['nRunning']
+                    # get dynamic queue_running_ratio from to-running rate
+                    try:
+                        site_to_running_rate = siteToRunRateMap[tmpSiteName]
+                        if isinstance(site_to_running_rate, dict):
+                            site_to_running_rate = sum(site_to_running_rate.values())
+                    except KeyError:
+                        dynamic_max_queue_running_ratio = 0
+                    else:
+                        dynamic_max_queue_running_ratio = site_to_running_rate/nRunning_pq_total if nRunning_pq_total > 0 else 0
+                    # evaluate max nQueue per PQ per user
+                    nQ_per_pq_user_limit_map = {
+                            'base default queue length': base_default_queue_length_per_pq_user,
+                            'base queue ratio on PQ': base_queue_ratio_on_pq*nRunning_pq_total,
+                            'static max nQ/nR': static_max_queue_running_ratio*nR_per_pq_user,
+                            'dynamic max nQ/nR': dynamic_max_queue_running_ratio*nR_per_pq_user,
+                        }
+                    max_nQ_per_pq_user = max(nQ_per_pq_user_limit_map.values())
+                    description_of_max_nQ_per_pq_user = 'unknown'
+                    for k, v in nQ_per_pq_user_limit_map:
+                        if v == max_nQ_per_pq_user:
+                            if k in ['base default queue length']:
+                                description_of_max_nQ_per_pq_user = '{key} ({value})'.format(key=k, value=v)
+                            elif k in ['base queue ratio on PQ']:
+                                description_of_max_nQ_per_pq_user = '{key} ({value}) * nRunning_pq_total ({nR_tot})'.format(key=k, value=v, nR_tot=nRunning_pq_total)
+                            elif k in ['static max nQ/nR', 'dynamic max nQ/nR']:
+                                description_of_max_nQ_per_pq_user = '{key} ({value}) * nRunning_pq_user ({nR})'.format(key=k, value=v, nR=nR_per_pq_user)
+                            break
+                    # check
+                    if nQ_per_pq_user > max_nQ_per_pq_user:
+                        tmpMsg = '  skip site={0} '.format(tmpPseudoSiteName)
+                        tmpMsg += 'nQueue_pq_user({0})>{1} and '.format(nQ_per_pq_user, description_of_max_nQ_per_pq_user)
+                    else:
+                        tmpMsg += 'nQueue_pq_user({0})<=limit({1}) '.format(nQ_per_pq_user, max_nQ_per_pq_user)
+                        tmpMsg += 'criteria=-user_queue_length'
+                        msgList.append(tmpMsg)
+            scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
+            tmpLog.info('{0} candidates passed user queue length check'.format(len(scanSiteList)))
+            if not scanSiteList:
+                tmpLog.error('no candidates')
+                retVal = retTmpError
+                continue
             ############
             # loop end
             if len(scanSiteList) > 0:
