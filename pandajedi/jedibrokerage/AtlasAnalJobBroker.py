@@ -967,7 +967,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 continue
             ######################################
             # skip sites where the user queues too much
-            newScanSiteList = []
             user_name = self.taskBufferIF.cleanUserID(taskSpec.userName)
             jobsStatsPerUser = self.taskBufferIF.getUsersJobsStats_JEDI(taskSpec.prodSourceLabel)
             if jobsStatsPerUser is None:
@@ -1018,25 +1017,19 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             if k in ['base default queue length']:
                                 description_of_max_nQ_per_pq_user = '{key} ({value})'.format(key=k, value=v)
                             elif k in ['base queue ratio on PQ']:
-                                description_of_max_nQ_per_pq_user = '{key} ({value}) * nRunning_pq_total ({nR_tot})'.format(key=k, value=v, nR_tot=nRunning_pq_total)
-                            elif k in ['static max nQ/nR', 'dynamic max nQ/nR']:
-                                description_of_max_nQ_per_pq_user = '{key} ({value}) * nRunning_pq_user ({nR})'.format(key=k, value=v, nR=nR_per_pq_user)
+                                description_of_max_nQ_per_pq_user = '{key} ({value:.3f}) * nRunning_pq_total ({nR_tot})'.format(key=k, value=base_queue_ratio_on_pq, nR_tot=nRunning_pq_total)
+                            elif k in ['static max nQ/nR']:
+                                description_of_max_nQ_per_pq_user = '{key} ({value:.3f}) * nRunning_pq_user ({nR})'.format(key=k, value=static_max_queue_running_ratio, nR=nR_per_pq_user)
+                            elif k in ['dynamic max nQ/nR']:
+                                description_of_max_nQ_per_pq_user = '{key} ({value:.3f}) * nRunning_pq_user ({nR})'.format(key=k, value=dynamic_max_queue_running_ratio, nR=nR_per_pq_user)
                             break
                     # check
                     if nQ_per_pq_user > max_nQ_per_pq_user:
-                        tmpMsg = '  skip site={0} '.format(tmpPseudoSiteName)
-                        tmpMsg += 'nQueue_pq_user({0})>{1} and '.format(nQ_per_pq_user, description_of_max_nQ_per_pq_user)
-                    else:
-                        tmpMsg += 'nQueue_pq_user({0})<=limit({1}) '.format(nQ_per_pq_user, max_nQ_per_pq_user)
-                        tmpMsg += 'criteria=-user_queue_length'
-                        msgList.append(tmpMsg)
-                        newScanSiteList.append(tmpPseudoSiteName)
-            scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info('{0} candidates passed user queue length check'.format(len(scanSiteList)))
-            if not scanSiteList:
-                tmpLog.error('no candidates')
-                retVal = retTmpError
-                continue
+                        tmpMsg = ' consider as bad site for the user due to long queue of the user: '
+                        tmpMsg += 'nQueue_pq_user({0}) > limit({1}) = {2} and '.format(nQ_per_pq_user, max_nQ_per_pq_user, description_of_max_nQ_per_pq_user)
+                        tmpLog.info(tmpMsg)
+                        problematic_sites_dict.setdefault(tmpSiteName, set())
+                        problematic_sites_dict[tmpSiteName].add(tmpMsg)
             ############
             # loop end
             if len(scanSiteList) > 0:
