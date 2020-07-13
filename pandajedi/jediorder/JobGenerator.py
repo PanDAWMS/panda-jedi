@@ -2008,7 +2008,7 @@ class JobGeneratorThread (WorkerThread):
         if not taskSpec.is_multi_step_exec():
             multiExecSpec = None
         else:
-            multiExecSpec = copy.copy(taskParamMap['multiStepExec'])
+            multiExecSpec = copy.deepcopy(taskParamMap['multiStepExec'])
             for k, v in iteritems(multiExecSpec):
                 for kk, vv in iteritems(v):
                     # resolve placeholders
