@@ -1263,9 +1263,9 @@ class AtlasDDMClient(DDMClientBase):
         # get json
         try:
             tmpLog.debug('start')
-            res = urlopen('http://atlas-agis-api.cern.ch/request/ddmendpointstatus/query/list/?json&fstate=OFF&activity=w')
-            jsonStr = res.read()
-            self.blackListEndPoints = list(json.loads(jsonStr).keys())
+            with open('/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmblacklisting.json') as f:
+                ddd = json.load(f)
+                self.blackListEndPoints = [k for k in ddd if 'w' in ddd[k] and ddd[k]['w']["status"]["value"] == 'OFF']
             tmpLog.debug('{0} endpoints blacklisted'.format(len(self.blackListEndPoints)))
         except Exception as e:
             errType = e
@@ -1342,16 +1342,12 @@ class AtlasDDMClient(DDMClientBase):
         # get json
         try:
             tmpLog.debug('start')
-            jsonStr = ''
-            res = urlopen('http://atlas-agis-api.cern.ch/request/ddmendpoint/query/list/?json&state=ACTIVE&preset=dict')
-            jsonStr = res.read()
-            self.endPointDict = json.loads(jsonStr)
+            with open('/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmendpoints.json') as f:
+                ddd = json.load(f)
+                self.endPointDict = {k: ddd[k] for k in ddd if ddd[k]['state'] == 'ACTIVE'}
             tmpLog.debug('got {0} endpoints '.format(len(self.endPointDict)))
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            errStr = 'failed to update EP with {0} {1} jsonStr={2}'.format(errtype.__name__,
-                                                                           errvalue,
-                                                                           jsonStr)
+        except Exception as e:
+            errStr = 'failed to update EP with {0}'.format(str(e))
             tmpLog.error(errStr)
         return
 
