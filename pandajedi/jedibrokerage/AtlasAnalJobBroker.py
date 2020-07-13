@@ -967,6 +967,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 continue
             ######################################
             # skip sites where the user queues too much
+            newScanSiteList = []
+            user_name = self.taskBufferIF.cleanUserID(taskSpec.userName)
             jobsStatsPerUser = self.taskBufferIF.getUsersJobsStats_JEDI(taskSpec.prodSourceLabel)
             if jobsStatsPerUser is None:
                 tmpLog.error('failed to get users jobs statistics')
@@ -986,9 +988,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     nRunning_pq_in_gshare = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', workQueue_tag=taskSpec.gshare)
                     nRunning_pq_total = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running')
                     # get user jobs stats
-                    user_jobs_stats_map = jobsStatsPerUser[tmpSiteName][taskSpec.gshare][taskSpec.userName]
-                    nQ_per_pq_user = user_jobs_stats_map['nQueue']
-                    nR_per_pq_user = user_jobs_stats_map['nRunning']
+                    try:
+                        user_jobs_stats_map = jobsStatsPerUser[tmpSiteName][taskSpec.gshare][user_name]
+                    except KeyError:
+                        continue
+                    else:
+                        nQ_per_pq_user = user_jobs_stats_map['nQueue']
+                        nR_per_pq_user = user_jobs_stats_map['nRunning']
                     # get dynamic queue_running_ratio from to-running rate
                     try:
                         site_to_running_rate = siteToRunRateMap[tmpSiteName]
@@ -1007,7 +1013,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         }
                     max_nQ_per_pq_user = max(nQ_per_pq_user_limit_map.values())
                     description_of_max_nQ_per_pq_user = 'unknown'
-                    for k, v in nQ_per_pq_user_limit_map:
+                    for k, v in nQ_per_pq_user_limit_map.items():
                         if v == max_nQ_per_pq_user:
                             if k in ['base default queue length']:
                                 description_of_max_nQ_per_pq_user = '{key} ({value})'.format(key=k, value=v)
@@ -1024,6 +1030,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         tmpMsg += 'nQueue_pq_user({0})<=limit({1}) '.format(nQ_per_pq_user, max_nQ_per_pq_user)
                         tmpMsg += 'criteria=-user_queue_length'
                         msgList.append(tmpMsg)
+                        newScanSiteList.append(tmpPseudoSiteName)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed user queue length check'.format(len(scanSiteList)))
             if not scanSiteList:
