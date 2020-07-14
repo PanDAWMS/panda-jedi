@@ -733,6 +733,15 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
                 sys.stderr.write(err_str)
                 # break trying
                 break
+        # delete outdated entries in local cache
+        for lc_key in list(CACHE_SiteToRunRateStats.keys()):
+            lc_time_min, lc_time_max = lc_key
+            if lc_time_max < starttime_max_rounded - datetime.timedelta(seconds=cache_lifetime):
+                try:
+                    del CACHE_SiteToRunRateStats[lc_key]
+                except Exception as e:
+                    err_str = 'AtlasBrokerUtils.getSiteToRunRateStats when deleting outdated entries got {0}: {1} \n'.format(e.__class__.__name__, e)
+                    sys.stderr.write(err_str)
     # return
     return ret_val, ret_map
 
