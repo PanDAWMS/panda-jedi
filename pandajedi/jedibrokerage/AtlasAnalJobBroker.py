@@ -968,8 +968,11 @@ class AtlasAnalJobBroker(JobBrokerBase):
             ######################################
             # skip sites where the user queues too much
             user_name = self.taskBufferIF.cleanUserID(taskSpec.userName)
-            jobsStatsPerUser = self.taskBufferIF.getUsersJobsStats_JEDI(taskSpec.prodSourceLabel)
-            if jobsStatsPerUser is None:
+            tmpSt, jobsStatsPerUser = AtlasBrokerUtils.getSiteToRunRateStats(   tbIF=self.taskBufferIF,
+                                                                                vo=taskSpec.vo,
+                                                                                prod_source_label=taskSpec.prodSourceLabel,
+                                                                                cache_lifetime=60)
+            if not tmpSt:
                 tmpLog.error('failed to get users jobs statistics')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 # send info to logger
