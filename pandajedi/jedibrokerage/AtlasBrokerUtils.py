@@ -4,6 +4,7 @@ import json
 import datetime
 import time
 import os
+import socket
 
 from six import iteritems
 
@@ -656,7 +657,7 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
     dc_sub_key = 'SiteToRunRate'
     # arguments for process lock
     this_prodsourcelabel = 'user'
-    this_pid = os.getpid()
+    this_pid = '{0}-{1}_{2}-broker'.format(socket.getfqdn().split('.')[0], os.getpid(), os.getpgrp())
     this_component = 'Cache.SiteToRunRate'
     # timestamps
     current_time = datetime.datetime.utcnow()
@@ -747,15 +748,18 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
     dc_sub_key = 'UsersJobsStats'
     # arguments for process lock
     this_prodsourcelabel = prod_source_label
-    this_pid = os.getpid()
+    this_pid = this_pid = '{0}-{1}_{2}-broker'.format(socket.getfqdn().split('.')[0], os.getpid(), os.getpgrp())
     this_component = 'Cache.UsersJobsStats'
+    # local cache key; a must if not using global variable
+    local_cache_key = '_main'
     # timestamps
     current_time = datetime.datetime.utcnow()
     # condition of query
-    if current_time <= CACHE_UsersJobsStats['exp']:
+    if local_cache_key in CACHE_UsersJobsStats \
+        and current_time <= CACHE_UsersJobsStats[local_cache_key]['exp']:
         # query from local cache
         ret_val = True
-        ret_map = CACHE_UsersJobsStats['data']
+        ret_map = CACHE_UsersJobsStats[local_cache_key]['data']
     else:
         # try some times
         for _ in range(99):
@@ -773,7 +777,7 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
                         ret_val = True
                         ret_map = json.loads(cache_spec.data)
                         # fill local cache
-                        CACHE_UsersJobsStats = {'exp': expired_time, 'data': ret_map}
+                        CACHE_UsersJobsStats[local_cache_key] = {'exp': expired_time, 'data': ret_map}
                         # break trying
                         break
                 # got process lock
@@ -787,12 +791,12 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
                     time.sleep(1)
                     continue
                 # query from PanDA DB directly
-                ret_map = tbIF.getUsersJobsStats_JEDI(prodSourceLabel=this_prodsourcelabel)
+                ret_map = tbIF.getUsersJobsStats_JEDI(prod_source_label=this_prodsourcelabel)
                 if ret_map is not None:
                     # expired time
                     expired_time = current_time + datetime.timedelta(seconds=cache_lifetime)
                     # fill local cache
-                    CACHE_UsersJobsStats = {'exp': expired_time, 'data': ret_map}
+                    CACHE_UsersJobsStats[local_cache_key] = {'exp': expired_time, 'data': ret_map}
                     # json of data
                     data_json = json.dumps(ret_map)
                     # fill DB cache
