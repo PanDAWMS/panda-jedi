@@ -1028,8 +1028,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         tmpMsg = ' consider as bad site for the user due to long queue of the user: '
                         tmpMsg += 'nQueue_pq_user({0}) > limit({1}) = {2} and '.format(nQ_per_pq_user, max_nQ_per_pq_user, description_of_max_nQ_per_pq_user)
                         tmpLog.info(tmpMsg)
-                        problematic_sites_dict.setdefault(tmpSiteName, set())
-                        problematic_sites_dict[tmpSiteName].add(tmpMsg)
+                        # temporary commented out for dry-run during mechanism test
+                        # problematic_sites_dict.setdefault(tmpSiteName, set())
+                        # problematic_sites_dict[tmpSiteName].add(tmpMsg)
             ############
             # loop end
             if len(scanSiteList) > 0:
