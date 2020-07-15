@@ -720,6 +720,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.getUsageBreakdown_JEDI(prod_source_label)
 
+    # get jobs stat of each user
+    def getUsersJobsStats_JEDI(self, prod_source_label='user'):
+        with self.proxyPool.get() as proxy:
+            return proxy.getUsersJobsStats_JEDI(prod_source_label)
+
     # insert HPO pseudo event according to message from idds
     def insertHpoEventAboutIdds_JEDI(self, jedi_task_id, event_id_list):
         with self.proxyPool.get() as proxy:

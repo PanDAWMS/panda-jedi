@@ -965,6 +965,89 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 tmpLog.error('no candidates')
                 retVal = retTmpError
                 continue
+            ######################################
+            # skip sites where the user queues too much
+            user_name = self.taskBufferIF.cleanUserID(taskSpec.userName)
+            tmpSt, jobsStatsPerUser = AtlasBrokerUtils.getUsersJobsStats(   tbIF=self.taskBufferIF,
+                                                                            vo=taskSpec.vo,
+                                                                            prod_source_label=taskSpec.prodSourceLabel,
+                                                                            cache_lifetime=60)
+            if not tmpSt:
+                tmpLog.error('failed to get users jobs statistics')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                # send info to logger
+                self.sendLogMessage(tmpLog)
+                return retTmpError
+            else:
+                # parameters
+                base_default_queue_length_per_pq_user = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'BASE_DEFAULT_QUEUE_LENGTH_PER_PQ_USER', 'jedi', taskSpec.vo)
+                if base_default_queue_length_per_pq_user is None:
+                    base_default_queue_length_per_pq_user = 5
+                base_queue_ratio_on_pq = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'BASE_QUEUE_RATIO_ON_PQ', 'jedi', taskSpec.vo)
+                if base_queue_ratio_on_pq is None:
+                    base_queue_ratio_on_pq = 0.05
+                static_max_queue_running_ratio = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'STATIC_MAX_QUEUE_RUNNING_RATIO', 'jedi', taskSpec.vo)
+                if static_max_queue_running_ratio is None:
+                    static_max_queue_running_ratio = 2.0
+                max_expected_wait_hour = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'MAX_EXPECTED_WAIT_HOUR', 'jedi', taskSpec.vo)
+                if max_expected_wait_hour is None:
+                    max_expected_wait_hour = 12.0
+                # loop over sites
+                for tmpPseudoSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+                    tmpSiteName = tmpSiteSpec.get_unified_name()
+                    # get running info about PQ
+                    nRunning_pq_in_gshare = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', workQueue_tag=taskSpec.gshare)
+                    nRunning_pq_total = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running')
+                    # get user jobs stats
+                    try:
+                        user_jobs_stats_map = jobsStatsPerUser[tmpSiteName][taskSpec.gshare][user_name]
+                    except KeyError:
+                        continue
+                    else:
+                        nQ_per_pq_user = user_jobs_stats_map['nQueue']
+                        nR_per_pq_user = user_jobs_stats_map['nRunning']
+                    # get dynamic queue_running_ratio from to-running rate
+                    try:
+                        site_to_running_rate = siteToRunRateMap[tmpSiteName]
+                        if isinstance(site_to_running_rate, dict):
+                            site_to_running_rate = sum(site_to_running_rate.values())
+                    except KeyError:
+                        dynamic_max_queue_running_ratio = 0
+                    else:
+                        dynamic_max_queue_running_ratio = site_to_running_rate/nRunning_pq_total if nRunning_pq_total > 0 else 0
+                    # evaluate max nQueue per PQ per user
+                    nQ_per_pq_user_limit_map = {
+                            'base default queue length': base_default_queue_length_per_pq_user,
+                            'base queue ratio on PQ': base_queue_ratio_on_pq*nRunning_pq_total,
+                            'static max nQ/nR': static_max_queue_running_ratio*nR_per_pq_user,
+                            'dynamic max nQ/nR': dynamic_max_queue_running_ratio*nR_per_pq_user,
+                        }
+                    max_nQ_per_pq_user = max(nQ_per_pq_user_limit_map.values())
+                    description_of_max_nQ_per_pq_user = 'unknown'
+                    for k, v in nQ_per_pq_user_limit_map.items():
+                        if v == max_nQ_per_pq_user:
+                            if k in ['base default queue length']:
+                                description_of_max_nQ_per_pq_user = '{key} ({value})'.format(key=k, value=v)
+                            elif k in ['base queue ratio on PQ']:
+                                description_of_max_nQ_per_pq_user = '{key} ({value:.3f}) * nRunning_pq_total ({nR_tot})'.format(key=k, value=base_queue_ratio_on_pq, nR_tot=nRunning_pq_total)
+                            elif k in ['static max nQ/nR']:
+                                description_of_max_nQ_per_pq_user = '{key} ({value:.3f}) * nRunning_pq_user ({nR})'.format(key=k, value=static_max_queue_running_ratio, nR=nR_per_pq_user)
+                            elif k in ['dynamic max nQ/nR']:
+                                description_of_max_nQ_per_pq_user = '{key} ({value:.3f}) * nRunning_pq_user ({nR})'.format(key=k, value=dynamic_max_queue_running_ratio, nR=nR_per_pq_user)
+                            break
+                    # check
+                    if nQ_per_pq_user > max_nQ_per_pq_user:
+                        tmpMsg = ' consider {0} as bad site for the user due to long queue of the user: '.format(tmpSiteName)
+                        tmpMsg += 'nQueue_pq_user({0}) > limit({1:.3f}) = {2} '.format(nQ_per_pq_user, max_nQ_per_pq_user, description_of_max_nQ_per_pq_user)
+                        tmpLog.info(tmpMsg)
+                        # temporary commented out for dry-run during mechanism test
+                        # problematic_sites_dict.setdefault(tmpSiteName, set())
+                        # problematic_sites_dict[tmpSiteName].add(tmpMsg)
             ############
             # loop end
             if len(scanSiteList) > 0:

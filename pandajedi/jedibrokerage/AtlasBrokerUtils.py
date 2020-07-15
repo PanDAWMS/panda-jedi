@@ -4,6 +4,7 @@ import json
 import datetime
 import time
 import os
+import socket
 
 from six import iteritems
 
@@ -656,7 +657,7 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
     dc_sub_key = 'SiteToRunRate'
     # arguments for process lock
     this_prodsourcelabel = 'user'
-    this_pid = os.getpid()
+    this_pid = '{0}-{1}_{2}-broker'.format(socket.getfqdn().split('.')[0], os.getpid(), os.getpgrp())
     this_component = 'Cache.SiteToRunRate'
     # timestamps
     current_time = datetime.datetime.utcnow()
@@ -729,6 +730,98 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
             except Exception as e:
                 # dump error message
                 err_str = 'AtlasBrokerUtils.getSiteToRunRateStats got {0}: {1} \n'.format(e.__class__.__name__, e)
+                sys.stderr.write(err_str)
+                # break trying
+                break
+        # delete outdated entries in local cache
+        for lc_key in list(CACHE_SiteToRunRateStats.keys()):
+            lc_time_min, lc_time_max = lc_key
+            if lc_time_max < starttime_max_rounded - datetime.timedelta(seconds=cache_lifetime):
+                try:
+                    del CACHE_SiteToRunRateStats[lc_key]
+                except Exception as e:
+                    err_str = 'AtlasBrokerUtils.getSiteToRunRateStats when deleting outdated entries got {0}: {1} \n'.format(e.__class__.__name__, e)
+                    sys.stderr.write(err_str)
+    # return
+    return ret_val, ret_map
+
+
+# get users jobs stats from various resources
+CACHE_UsersJobsStats = {}
+def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
+    # initialize
+    ret_val = False
+    ret_map = {}
+    # DB cache keys
+    dc_main_key = 'AtlasSites'
+    dc_sub_key = 'UsersJobsStats'
+    # arguments for process lock
+    this_prodsourcelabel = prod_source_label
+    this_pid = this_pid = '{0}-{1}_{2}-broker'.format(socket.getfqdn().split('.')[0], os.getpid(), os.getpgrp())
+    this_component = 'Cache.UsersJobsStats'
+    # local cache key; a must if not using global variable
+    local_cache_key = '_main'
+    # timestamps
+    current_time = datetime.datetime.utcnow()
+    # condition of query
+    if local_cache_key in CACHE_UsersJobsStats \
+        and current_time <= CACHE_UsersJobsStats[local_cache_key]['exp']:
+        # query from local cache
+        ret_val = True
+        ret_map = CACHE_UsersJobsStats[local_cache_key]['data']
+    else:
+        # try some times
+        for _ in range(99):
+            # skip if too long after original current time
+            if datetime.datetime.utcnow() - current_time > datetime.timedelta(seconds=min(15, cache_lifetime/4)):
+                # break trying
+                break
+            try:
+                # query from DB cache
+                cache_spec = tbIF.getCache_JEDI(main_key=dc_main_key, sub_key=dc_sub_key)
+                if cache_spec is not None:
+                    expired_time = cache_spec.last_update + datetime.timedelta(seconds=cache_lifetime)
+                    if current_time <= expired_time:
+                        # valid DB cache
+                        ret_val = True
+                        ret_map = json.loads(cache_spec.data)
+                        # fill local cache
+                        CACHE_UsersJobsStats[local_cache_key] = {'exp': expired_time, 'data': ret_map}
+                        # break trying
+                        break
+                # got process lock
+                got_lock = tbIF.lockProcess_JEDI(   vo=vo, prodSourceLabel=this_prodsourcelabel,
+                                                    cloud=None, workqueue_id=None,
+                                                    resource_name=None,
+                                                    component=this_component,
+                                                    pid=this_pid, timeLimit=(cache_lifetime*0.75/60))
+                if not got_lock:
+                    # not getting lock, sleep and query cache again
+                    time.sleep(1)
+                    continue
+                # query from PanDA DB directly
+                ret_map = tbIF.getUsersJobsStats_JEDI(prod_source_label=this_prodsourcelabel)
+                if ret_map is not None:
+                    # expired time
+                    expired_time = current_time + datetime.timedelta(seconds=cache_lifetime)
+                    # fill local cache
+                    CACHE_UsersJobsStats[local_cache_key] = {'exp': expired_time, 'data': ret_map}
+                    # json of data
+                    data_json = json.dumps(ret_map)
+                    # fill DB cache
+                    tbIF.updateCache_JEDI(main_key=dc_main_key, sub_key=dc_sub_key, data=data_json)
+                    # make True return
+                    ret_val = True
+                # unlock process
+                tbIF.unlockProcess_JEDI(vo=vo, prodSourceLabel=this_prodsourcelabel,
+                                        cloud=None, workqueue_id=None,
+                                        resource_name=None,
+                                        component=this_component, pid=this_pid)
+                # break trying
+                break
+            except Exception as e:
+                # dump error message
+                err_str = 'AtlasBrokerUtils.getUsersJobsStats got {0}: {1} \n'.format(e.__class__.__name__, e)
                 sys.stderr.write(err_str)
                 # break trying
                 break
