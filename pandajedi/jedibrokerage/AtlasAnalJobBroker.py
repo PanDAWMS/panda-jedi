@@ -1019,7 +1019,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     except KeyError:
                         dynamic_max_queue_running_ratio = 0
                     else:
-                        dynamic_max_queue_running_ratio = site_to_running_rate/nRunning_pq_total if nRunning_pq_total > 0 else 0
+                        dynamic_max_queue_running_ratio = site_to_running_rate*max_expected_wait_hour/nRunning_pq_total if nRunning_pq_total > 0 else 0
                     # evaluate max nQueue per PQ per user
                     nQ_per_pq_user_limit_map = {
                             'base default queue length': base_default_queue_length_per_pq_user,
