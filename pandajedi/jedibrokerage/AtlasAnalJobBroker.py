@@ -979,10 +979,24 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 self.sendLogMessage(tmpLog)
                 return retTmpError
             else:
-                base_default_queue_length_per_pq_user = 5
-                base_queue_ratio_on_pq = 0.05
-                static_max_queue_running_ratio = 2.0
-                max_expected_wait_hour = 12
+                # parameters
+                base_default_queue_length_per_pq_user = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'BASE_DEFAULT_QUEUE_LENGTH_PER_PQ_USER', 'jedi', taskSpec.vo)
+                if base_default_queue_length_per_pq_user is None:
+                    base_default_queue_length_per_pq_user = 5
+                base_queue_ratio_on_pq = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'BASE_QUEUE_RATIO_ON_PQ', 'jedi', taskSpec.vo)
+                if base_queue_ratio_on_pq is None:
+                    base_queue_ratio_on_pq = 0.05
+                static_max_queue_running_ratio = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'STATIC_MAX_QUEUE_RUNNING_RATIO', 'jedi', taskSpec.vo)
+                if static_max_queue_running_ratio is None:
+                    static_max_queue_running_ratio = 2.0
+                max_expected_wait_hour = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'MAX_EXPECTED_WAIT_HOUR', 'jedi', taskSpec.vo)
+                if max_expected_wait_hour is None:
+                    max_expected_wait_hour = 12.0
+                # loop over sites
                 for tmpPseudoSiteName in scanSiteList:
                     tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
                     tmpSiteName = tmpSiteSpec.get_unified_name()
