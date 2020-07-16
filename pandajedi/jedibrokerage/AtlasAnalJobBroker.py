@@ -1060,7 +1060,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             break
                     # check
                     if nQ_per_pq_user > max_nQ_per_pq_user:
-                        tmpMsg = ' consider {0} as bad site for the user due to long queue of the user: '.format(tmpSiteName)
+                        tmpMsg = ' consider {0} unsuitable for the user due to long queue of the user: '.format(tmpSiteName)
                         tmpMsg += 'nQueue_pq_user({0}) > limit({1:.3f}) = {2} '.format(nQ_per_pq_user, max_nQ_per_pq_user, description_of_max_nQ_per_pq_user)
                         tmpLog.info(tmpMsg)
                         # temporary commented out for dry-run during mechanism test
