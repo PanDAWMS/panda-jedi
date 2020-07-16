@@ -817,7 +817,7 @@ class AtlasProdJobBroker (JobBrokerBase):
 
                 if minDiskCount > maxwdir_scaled:
                     tmpMsg = '  skip site={0} due to small scratch disk {1} less than {2} '.format(tmpSiteName,
-                                                                                                   tmpSiteSpec.maxwdir,
+                                                                                                   maxwdir_scaled,
                                                                                                    minDiskCount)
                     tmpMsg += 'criteria=-disk'
                     tmpLog.info(tmpMsg)
