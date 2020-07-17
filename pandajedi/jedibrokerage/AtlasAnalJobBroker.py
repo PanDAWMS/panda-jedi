@@ -980,8 +980,14 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 return retTmpError
             else:
                 # parameters
-                base_queue_length_per_pq = 100
-                base_expected_wait_hour_on_pq = 8
+                base_queue_length_per_pq = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'BASE_QUEUE_LENGTH_PER_PQ', 'jedi', taskSpec.vo)
+                if base_queue_length_per_pq is None:
+                    base_queue_length_per_pq = 100
+                base_expected_wait_hour_on_pq = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'BASE_EXPECTED_WAIT_HOUR_ON_PQ', 'jedi', taskSpec.vo)
+                if base_expected_wait_hour_on_pq is None:
+                    base_expected_wait_hour_on_pq = 8
                 base_default_queue_length_per_pq_user = self.taskBufferIF.getConfigValue(
                                                         'anal_jobbroker', 'BASE_DEFAULT_QUEUE_LENGTH_PER_PQ_USER', 'jedi', taskSpec.vo)
                 if base_default_queue_length_per_pq_user is None:
