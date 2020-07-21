@@ -985,6 +985,14 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 return retTmpError
             else:
                 # parameters
+                base_queue_length_per_pq = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'BASE_QUEUE_LENGTH_PER_PQ', 'jedi', taskSpec.vo)
+                if base_queue_length_per_pq is None:
+                    base_queue_length_per_pq = 100
+                base_expected_wait_hour_on_pq = self.taskBufferIF.getConfigValue(
+                                                        'anal_jobbroker', 'BASE_EXPECTED_WAIT_HOUR_ON_PQ', 'jedi', taskSpec.vo)
+                if base_expected_wait_hour_on_pq is None:
+                    base_expected_wait_hour_on_pq = 8
                 base_default_queue_length_per_pq_user = self.taskBufferIF.getConfigValue(
                                                         'anal_jobbroker', 'BASE_DEFAULT_QUEUE_LENGTH_PER_PQ_USER', 'jedi', taskSpec.vo)
                 if base_default_queue_length_per_pq_user is None:
@@ -1005,50 +1013,105 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 for tmpPseudoSiteName in scanSiteList:
                     tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
                     tmpSiteName = tmpSiteSpec.get_unified_name()
-                    # get running info about PQ
+                    # get info about site
                     nRunning_pq_in_gshare = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', workQueue_tag=taskSpec.gshare)
                     nRunning_pq_total = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running')
+                    nQueue_pq_total = 0
+                    for jobStatus in ['defined', 'assigned', 'activated', 'starting']:
+                        nQueue_pq_total += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus, workQueue_tag=taskSpec.gshare)
+                    # get to-running-rate of site
+                    try:
+                        site_to_running_rate = siteToRunRateMap[tmpSiteName]
+                        if isinstance(site_to_running_rate, dict):
+                            site_to_running_rate = sum(site_to_running_rate.values())
+                    except KeyError:
+                        site_to_running_rate = 0
+                    # get conditions of the site whether to throttle
+                    if nQueue_pq_total < base_queue_length_per_pq:
+                        # not throttle since overall queue length of the site is not large enough
+                        tmpLog.debug('not throttle on {0} since nQ({1}) < base queue length ({2})'.format(
+                                        tmpSiteName, nQueue_pq_total, base_queue_length_per_pq))
+                        continue
+                    allowed_queue_length_from_wait_time = base_expected_wait_hour_on_pq*site_to_running_rate
+                    if nQueue_pq_total < allowed_queue_length_from_wait_time:
+                        # not statisfy since overall waiting time of the site is not long enough
+                        tmpLog.debug('not throttle on {0} since nQ({1}) < {2:.3f} = toRunningRate({3:.3f}/hr) * base wait time ({4} hr)'.format(
+                                        tmpSiteName, nQueue_pq_total, allowed_queue_length_from_wait_time,
+                                        site_to_running_rate, base_expected_wait_hour_on_pq))
+                        continue
                     # get user jobs stats
                     try:
                         user_jobs_stats_map = jobsStatsPerUser[tmpSiteName][taskSpec.gshare][user_name]
                     except KeyError:
                         continue
                     else:
-                        nQ_per_pq_user = user_jobs_stats_map['nQueue']
-                        nR_per_pq_user = user_jobs_stats_map['nRunning']
-                    # get dynamic queue_running_ratio from to-running rate
-                    try:
-                        site_to_running_rate = siteToRunRateMap[tmpSiteName]
-                        if isinstance(site_to_running_rate, dict):
-                            site_to_running_rate = sum(site_to_running_rate.values())
-                    except KeyError:
-                        dynamic_max_queue_running_ratio = 0
-                    else:
-                        dynamic_max_queue_running_ratio = site_to_running_rate*max_expected_wait_hour/nRunning_pq_total if nRunning_pq_total > 0 else 0
-                    # evaluate max nQueue per PQ per user
-                    nQ_per_pq_user_limit_map = {
-                            'base default queue length': base_default_queue_length_per_pq_user,
-                            'base queue ratio on PQ': base_queue_ratio_on_pq*nRunning_pq_total,
-                            'static max nQ/nR': static_max_queue_running_ratio*nR_per_pq_user,
-                            'dynamic max nQ/nR': dynamic_max_queue_running_ratio*nR_per_pq_user,
+                        nQ_pq_user = user_jobs_stats_map['nQueue']
+                        nR_pq_user = user_jobs_stats_map['nRunning']
+                        nUsers_pq = len(jobsStatsPerUser[tmpSiteName][taskSpec.gshare])
+                    # evaluate max nQueue per PQ
+                    nQ_pq_limit_map = {
+                            'base_limit': base_queue_length_per_pq,
+                            'static_limit': static_max_queue_running_ratio*nRunning_pq_total,
+                            'dynamic_limit': max_expected_wait_hour*site_to_running_rate,
                         }
-                    max_nQ_per_pq_user = max(nQ_per_pq_user_limit_map.values())
-                    description_of_max_nQ_per_pq_user = 'unknown'
-                    for k, v in nQ_per_pq_user_limit_map.items():
-                        if v == max_nQ_per_pq_user:
-                            if k in ['base default queue length']:
-                                description_of_max_nQ_per_pq_user = '{key} ({value})'.format(key=k, value=v)
-                            elif k in ['base queue ratio on PQ']:
-                                description_of_max_nQ_per_pq_user = '{key} ({value:.3f}) * nRunning_pq_total ({nR_tot})'.format(key=k, value=base_queue_ratio_on_pq, nR_tot=nRunning_pq_total)
-                            elif k in ['static max nQ/nR']:
-                                description_of_max_nQ_per_pq_user = '{key} ({value:.3f}) * nRunning_pq_user ({nR})'.format(key=k, value=static_max_queue_running_ratio, nR=nR_per_pq_user)
-                            elif k in ['dynamic max nQ/nR']:
-                                description_of_max_nQ_per_pq_user = '{key} ({value:.3f}) * nRunning_pq_user ({nR})'.format(key=k, value=dynamic_max_queue_running_ratio, nR=nR_per_pq_user)
+                    max_nQ_pq = max(nQ_pq_limit_map.values())
+                    # description for max nQueue per PQ
+                    description_of_max_nQ_pq = 'max_nQ_pq({maximum}) '.format(maximum=max_nQ_pq)
+                    for k, v in nQ_pq_limit_map.items():
+                        if v == max_nQ_pq:
+                            if k in ['base_limit']:
+                                description_of_max_nQ_pq += '= {key} = BASE_QUEUE_LENGTH_PER_PQ({value})'.format(
+                                                                    key=k, value=base_queue_length_per_pq)
+                            elif k in ['static_limit']:
+                                description_of_max_nQ_pq += '= {key} = STATIC_MAX_QUEUE_RUNNING_RATIO({value:.3f}) * nR_pq({nR_pq})'.format(
+                                                                    key=k, value=static_max_queue_running_ratio, nR_pq=nRunning_pq_total)
+                            elif k in ['dynamic_limit']:
+                                description_of_max_nQ_pq += '= {key} = MAX_EXPECTED_WAIT_HOUR({value:.3f} hr) * toRunningRate_pq({trr:.3f} /hr)'.format(
+                                                                    key=k, value=max_expected_wait_hour, trr=site_to_running_rate)
+                            break
+                    # evaluate fraction per user
+                    user_fraction_map = {
+                            'equal_distr': 1/nUsers_pq,
+                            'prop_to_nR': nR_pq_user/nRunning_pq_total if nRunning_pq_total > 0 else 0,
+                        }
+                    max_user_fraction = max(user_fraction_map.values())
+                    # description for max fraction per user
+                    description_of_max_user_fraction = 'max_user_fraction({maximum:.3f}) '.format(maximum=max_user_fraction)
+                    for k, v in user_fraction_map.items():
+                        if v == max_user_fraction:
+                            if k in ['equal_distr']:
+                                description_of_max_user_fraction += '= {key} = 1 / nUsers_pq({nU})'.format(
+                                                                    key=k, nU=nUsers_pq)
+                            elif k in ['prop_to_nR']:
+                                description_of_max_user_fraction += '= {key} = nR_pq_user({nR_pq_user}) / nR_pq({nR_pq})'.format(
+                                                                    key=k, nR_pq_user=nR_pq_user, nR_pq=nRunning_pq_total)
+                            break
+                    # evaluate max nQueue per PQ per user
+                    nQ_pq_user_limit_map = {
+                            'constant_base_user_limit': base_default_queue_length_per_pq_user,
+                            'ratio_base_user_limit': base_queue_ratio_on_pq*nRunning_pq_total,
+                            'dynamic_user_limit': max_nQ_pq*max_user_fraction,
+                        }
+                    max_nQ_pq_user = max(nQ_pq_user_limit_map.values())
+                    # description for max fraction per user
+                    description_of_max_nQ_pq_user = 'max_nQ_pq_user({maximum:.3f}) '.format(maximum=max_nQ_pq_user)
+                    for k, v in nQ_pq_user_limit_map.items():
+                        if v == max_nQ_pq_user:
+                            if k in ['constant_base_user_limit']:
+                                description_of_max_nQ_pq_user += '= {key} = BASE_DEFAULT_QUEUE_LENGTH_PER_PQ_USER({value})'.format(
+                                                                key=k, value=base_default_queue_length_per_pq_user)
+                            elif k in ['ratio_base_user_limit']:
+                                description_of_max_nQ_pq_user += '= {key} = BASE_QUEUE_RATIO_ON_PQ({value:.3f}) * nR_pq({nR_pq})'.format(
+                                                                key=k, value=base_queue_ratio_on_pq, nR_pq=nRunning_pq_total)
+                            elif k in ['dynamic_user_limit']:
+                                description_of_max_nQ_pq_user += '= {key} = max_nQ_pq({max_nQ_pq}) * max_user_fraction({max_user_fraction})'.format(
+                                                                key=k, max_nQ_pq=max_nQ_pq, max_user_fraction=max_user_fraction)
+                                description_of_max_nQ_pq_user += ' , where {0} and {1}'.format(description_of_max_nQ_pq, description_of_max_user_fraction)
                             break
                     # check
-                    if nQ_per_pq_user > max_nQ_per_pq_user:
-                        tmpMsg = ' consider {0} as bad site for the user due to long queue of the user: '.format(tmpSiteName)
-                        tmpMsg += 'nQueue_pq_user({0}) > limit({1:.3f}) = {2} '.format(nQ_per_pq_user, max_nQ_per_pq_user, description_of_max_nQ_per_pq_user)
+                    if nQ_pq_user > max_nQ_pq_user:
+                        tmpMsg = ' consider {0} unsuitable for the user due to long queue of the user: '.format(tmpSiteName)
+                        tmpMsg += 'nQ_pq_user({0}) > {1} '.format(nQ_pq_user, description_of_max_nQ_pq_user)
                         tmpLog.info(tmpMsg)
                         # temporary commented out for dry-run during mechanism test
                         # problematic_sites_dict.setdefault(tmpSiteName, set())
