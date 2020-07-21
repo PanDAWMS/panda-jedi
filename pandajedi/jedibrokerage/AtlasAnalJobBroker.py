@@ -1106,16 +1106,16 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             elif k in ['dynamic_user_limit']:
                                 description_of_max_nQ_pq_user += '= {key} = max_nQ_pq({max_nQ_pq}) * max_user_fraction({max_user_fraction})'.format(
                                                                 key=k, max_nQ_pq=max_nQ_pq, max_user_fraction=max_user_fraction)
-                                description_of_max_nQ_pq_user += ' , where {0} and {1}'.format(description_of_max_nQ_pq, description_of_max_user_fraction)
+                                description_of_max_nQ_pq_user += ' , where {0} , and {1}'.format(description_of_max_nQ_pq, description_of_max_user_fraction)
                             break
                     # check
                     if nQ_pq_user > max_nQ_pq_user:
                         tmpMsg = ' consider {0} unsuitable for the user due to long queue of the user: '.format(tmpSiteName)
                         tmpMsg += 'nQ_pq_user({0}) > {1} '.format(nQ_pq_user, description_of_max_nQ_pq_user)
                         tmpLog.info(tmpMsg)
-                        # temporary commented out for dry-run during mechanism test
-                        # problematic_sites_dict.setdefault(tmpSiteName, set())
-                        # problematic_sites_dict[tmpSiteName].add(tmpMsg)
+                        # view as problematic site in order to throttle
+                        problematic_sites_dict.setdefault(tmpSiteName, set())
+                        problematic_sites_dict[tmpSiteName].add(tmpMsg)
             ############
             # loop end
             if len(scanSiteList) > 0:
