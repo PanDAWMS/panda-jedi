@@ -843,7 +843,7 @@ class JsonSoftwareCheck:
 
     # get lists
     def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only,
-              need_container=False, container_name=None):
+              need_container=False, container_name=None, only_tags_fc=False):
         okSite = []
         noAutoSite = []
         for tmpSiteName in site_list:
@@ -856,10 +856,12 @@ class JsonSoftwareCheck:
                             cmt_config not in self.swDict[tmpSiteName]:
                         continue
                     # check for container
-                    if 'any' in self.swDict[tmpSiteName]["containers"] or \
-                            '/cvmfs' in self.swDict[tmpSiteName]["containers"] or \
-                            container_name in set([t['container_name'] for t in self.swDict[tmpSiteName]['tags']
-                                               if t['container_name']]):
+                    if not only_tags_fc and ('any' in self.swDict[tmpSiteName]["containers"] or
+                            '/cvmfs' in self.swDict[tmpSiteName]["containers"]):
+                        # any in containers
+                        okSite.append(tmpSiteName)
+                    elif container_name in set([t['container_name'] for t in self.swDict[tmpSiteName]['tags']
+                                                if t['container_name']]):
                         # logical name in tags or any in containers
                         okSite.append(tmpSiteName)
                     elif container_name in set([s for t in self.swDict[tmpSiteName]['tags'] for s in t['sources']

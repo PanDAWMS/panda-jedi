@@ -661,7 +661,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    taskSpec.getArchitecture(),
                                                                    False, False,
                                                                    need_container=useContainer,
-                                                                   container_name=taskSpec.container_name)
+                                                                   container_name=taskSpec.container_name,
+                                                                   only_tags_fc=taskSpec.use_only_tags_fc())
                 if len(sitesNoJsonCheck) > 0:
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               releases=taskSpec.transHome.split('-')[-1],
@@ -678,7 +679,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    taskSpec.getArchitecture(),
                                                                    False, False,
                                                                    need_container=useContainer,
-                                                                   container_name=taskSpec.container_name)
+                                                                   container_name=taskSpec.container_name,
+                                                                   only_tags_fc=taskSpec.use_only_tags_fc())
                 if len(sitesNoJsonCheck) > 0:
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               caches=taskSpec.transHome,
@@ -690,7 +692,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    taskSpec.getArchitecture(),
                                                                    True, False,
                                                                    need_container=useContainer,
-                                                                   container_name=taskSpec.container_name)
+                                                                   container_name=taskSpec.container_name,
+                                                                   only_tags_fc=taskSpec.use_only_tags_fc())
                 if len(sitesNoJsonCheck) > 0:
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               releases='CVMFS')
@@ -698,15 +701,15 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpSiteName in unified_site_list:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # release check is disabled or release is available
-                if tmpSiteSpec.releases == ['ANY'] or \
-                   tmpSiteName in ['CERN-RELEASE']:
+                if not (taskSpec.container_name and taskSpec.use_only_tags_fc()) and \
+                    (tmpSiteSpec.releases == ['ANY'] or tmpSiteName in ['CERN-RELEASE']):
                     newScanSiteList.append(tmpSiteName)
                 elif tmpSiteName in siteListWithSW:
                     newScanSiteList.append(tmpSiteName)
                 else:
                     # release is unavailable
-                    tmpLog.info('  skip site=%s due to missing cache=%s:%s criteria=-cache' % \
-                                 (tmpSiteName,taskSpec.transHome,taskSpec.getArchitecture()))
+                    tmpLog.info('  skip site=%s due to missing cache=%s:%s container=%s criteria=-cache' % \
+                                 (tmpSiteName, taskSpec.transHome, taskSpec.container_name, taskSpec.getArchitecture()))
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info(('{0} candidates passed for ATLAS release {1}:{2} OS_container={3} '
                          'container_name={4}').format(

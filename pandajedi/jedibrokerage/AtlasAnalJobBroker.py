@@ -498,7 +498,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                        transHome.split('-')[1],
                                                                        taskSpec.getArchitecture(),
                                                                        False, False,
-                                                                       container_name=taskSpec.container_name)
+                                                                       container_name=taskSpec.container_name,
+                                                                       only_tags_fc=taskSpec.use_only_tags_fc())
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               caches=transHome,
                                                                               cmtConfig=taskSpec.getArchitecture())
@@ -519,7 +520,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                               transUses,
                                                                               taskSpec.getArchitecture(),
                                                                               False, False,
-                                                                              container_name=taskSpec.container_name)
+                                                                              container_name=taskSpec.container_name,
+                                                                              only_tags_fc=taskSpec.use_only_tags_fc())
                         siteListWithSW += tmpSiteListWithSW
                     if len(transHome.split('-')) == 2:
                         tmpSiteListWithSW, sitesNoJsonCheck = jsonCheck.check(sitesNoJsonCheck, "atlas",
@@ -527,7 +529,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                               transHome.split('-')[1],
                                                                               taskSpec.getArchitecture(),
                                                                               False, False,
-                                                                              container_name=taskSpec.container_name)
+                                                                              container_name=taskSpec.container_name,
+                                                                              only_tags_fc=taskSpec.use_only_tags_fc())
                         siteListWithSW += tmpSiteListWithSW
                     if transUses is not None:
                         siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
@@ -554,7 +557,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                            None, None,
                                                                            taskSpec.getArchitecture(),
                                                                            True, False,
-                                                                           container_name=taskSpec.container_name)
+                                                                           container_name=taskSpec.container_name,
+                                                                           only_tags_fc=taskSpec.use_only_tags_fc())
                         siteListWithSW += list(set(siteListWithCVMFS) & set(siteListWithCMTCONFIG))
                     else:
                         # no CVMFS check for standalone SW
@@ -562,7 +566,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                            None, None,
                                                                            taskSpec.getArchitecture(),
                                                                            False, True,
-                                                                           container_name=taskSpec.container_name)
+                                                                           container_name=taskSpec.container_name,
+                                                                           only_tags_fc=taskSpec.use_only_tags_fc())
                         siteListWithSW += siteListWithCMTCONFIG
                 newScanSiteList = []
                 for tmpSiteName in unified_site_list:

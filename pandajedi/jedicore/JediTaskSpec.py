@@ -86,6 +86,7 @@ class JediTaskSpec(object):
         'noWaitParent'       : 'NW',
         'orderByLB'          : 'OL',
         'osMatching'         : 'OS',
+        'onlyTagsForFC'      : 'OT',
         'pfnList'            : 'PL',
         'putLogToOS'         : 'PO',
         'runUntilClosed'     : 'RC',
@@ -1614,3 +1615,11 @@ class JediTaskSpec(object):
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
+
+    # use only tags for fat container
+    def use_only_tags_fc(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['onlyTagsForFC']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None:
+                return True
+        return False

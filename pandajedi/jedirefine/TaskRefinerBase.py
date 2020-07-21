@@ -341,6 +341,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['osMatching'])
         if 'multiStepExec' in taskParamMap:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['multiStepExec'])
+        if 'onlyTagsForFC' in taskParamMap:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['onlyTagsForFC'])
         if 'inputPreStaging' in taskParamMap and taskParamMap['inputPreStaging'] is True:
             self.setSplitRule(None, JediTaskSpec.enum_inputPreStaging['use'],
                               JediTaskSpec.splitRuleToken['inputPreStaging'])
