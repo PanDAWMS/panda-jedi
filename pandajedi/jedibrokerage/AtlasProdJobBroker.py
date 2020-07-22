@@ -1520,7 +1520,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                     weightNwThroughput, weightNwQueue, mbps, closeness, nFilesInQueue))
 
             # make candidate
-            siteCandidateSpec = SiteCandidate(tmpPseudoSiteName)
+            siteCandidateSpec = SiteCandidate(tmpPseudoSiteName, tmpSiteName)
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning

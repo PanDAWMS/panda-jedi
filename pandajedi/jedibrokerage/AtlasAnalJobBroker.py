@@ -963,7 +963,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     tmpLog.info(tmpMsg)
             else:
                 scanSiteList = overloadedNonVP
-                for tmpMsg in msgListVP:
+                for tmpMsg in msgList:
                     tmpLog.info(tmpMsg)
             tmpLog.info('{0} candidates passed overload check'.format(len(scanSiteList)))
             if not scanSiteList:
@@ -1118,7 +1118,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     if nQ_pq_user > max_nQ_pq_user:
                         tmpMsg = ' consider {0} unsuitable for the user due to long queue of the user: '.format(tmpSiteName)
                         tmpMsg += 'nQ_pq_user({0}) > {1} '.format(nQ_pq_user, description_of_max_nQ_pq_user)
-                        tmpLog.info(tmpMsg)
                         # view as problematic site in order to throttle
                         problematic_sites_dict.setdefault(tmpSiteName, set())
                         problematic_sites_dict[tmpSiteName].add(tmpMsg)
@@ -1264,7 +1263,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         localSize = totalTapeSizeMap[tmpSiteName]
                 weight *= tmpDataWeight
             # make candidate
-            siteCandidateSpec = SiteCandidate(tmpPseudoSiteName)
+            siteCandidateSpec = SiteCandidate(tmpPseudoSiteName, tmpSiteName)
             # preassigned
             if sitePreAssigned and tmpSiteName == preassignedSite:
                 preSiteCandidateSpec = siteCandidateSpec
@@ -1375,7 +1374,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     prt_str_list.append(prt_str)
                 tmpLog.debug('WEIGHT-COMPAR: for gshare={0} got \n{1}'.format(taskSpec.gshare, '\n'.join(prt_str_list)))
         except Exception as e:
-            print('{0} {1}'.format(e.__class__.__name__, e))
+            tmpLog.error('{0} {1}'.format(e.__class__.__name__, e))
         ##
         oldScanSiteList = copy.copy(scanSiteList)
         # sort candidates by weights
@@ -1487,12 +1486,19 @@ class AtlasAnalJobBroker(JobBrokerBase):
         for tmpPseudoSiteName in oldScanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
+            tmpWeightStr = None
             if tmpSiteName in weightStr:
+                tmpWeightStr = weightStr[tmpSiteName]
+            elif tmpPseudoSiteName in weightStr:
+                tmpWeightStr = weightStr[tmpPseudoSiteName]
+            if tmpWeightStr is not None:
                 if tmpSiteName in problematic_sites_dict:
                     bad_reasons = ' ; '.join(list(problematic_sites_dict[tmpSiteName]))
-                    tmpMsg = '  skip site={0} {1} ; with {2} criteria=-badsite'.format(tmpSiteName, bad_reasons, weightStr[tmpSiteName])
+                    tmpMsg = '  skip site={0} {1} ; with {2} criteria=-badsite'.format(tmpPseudoSiteName, bad_reasons,
+                                                                                       tmpWeightStr)
                 else:
-                    tmpMsg = '  skip site={0} due to low weight and not-used by old jobs with {1} criteria=-lowweight'.format(tmpSiteName, weightStr[tmpSiteName])
+                    tmpMsg = ('  skip site={0} due to low weight and not-used by old jobs '
+                              'with {1} criteria=-lowweight').format(tmpPseudoSiteName, tmpWeightStr)
                 tmpLog.info(tmpMsg)
         for tmpMsg in msgList:
             tmpLog.info(tmpMsg)

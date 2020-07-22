@@ -534,65 +534,29 @@ def getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs):
     return retMap
 
 
-
 # remove problematic sites
 def skipProblematicSites(candidateSpecList,ngSites,sitesUsedByTask,preSetSiteSpec,maxNumSites,timeWindow,tmpLog):
-    newcandidateSpecList = []
     skippedSites = set()
-    usedSitesAll = []
     usedSitesGood = []
-    newSitesAll = []
     newSitesGood = []
     # collect sites already used by the task
     for candidateSpec in candidateSpecList:
         # check if problematic
-        isGood = True
-        if candidateSpec.siteName in ngSites and \
+        if (candidateSpec.siteName in ngSites or candidateSpec.unifiedName in ngSites) and \
                 (preSetSiteSpec is None or candidateSpec.siteName != preSetSiteSpec.siteName):
-            isGood = False
             skippedSites.add(candidateSpec.siteName)
-        # check if used
-        if candidateSpec.siteName in sitesUsedByTask:
-            usedSitesAll.append(candidateSpec)
-            if isGood:
+        else:
+            if (candidateSpec.siteName in sitesUsedByTask or candidateSpec.unifiedName in sitesUsedByTask):
                 usedSitesGood.append(candidateSpec)
-        else:
-            newSitesAll.append(candidateSpec)
-            if isGood:
+            else:
                 newSitesGood.append(candidateSpec)
-    # unlimit number of sites if undefined
+    # set number of sites if undefined
     if maxNumSites in [0,None]:
-        maxNumSites = len(candidateSpec)
-    # only used sites are enough
-    if len(usedSitesAll) >= maxNumSites:
-        # no good used sites
-        if len(usedSitesGood) == 0:
-            newcandidateSpecList = usedSitesAll
-            # disable dump
-            skippedSites = []
-        else:
-            newcandidateSpecList = usedSitesGood
-    else:
-        # no good used sites
-        if len(usedSitesGood) == 0:
-            # some good new sites are there
-            if len(newSitesGood) > 0:
-                newcandidateSpecList = newSitesGood[:maxNumSites-len(usedSitesAll)]
-            else:
-                # no good used and new sites
-                newcandidateSpecList = usedSitesAll+newSitesAll[:maxNumSites-len(usedSitesAll)]
-                # disable dump
-                skippedSites = []
-        else:
-            # some good new sites are there
-            if len(newSitesGood) > 0:
-                newcandidateSpecList = usedSitesGood+newSitesGood[:maxNumSites-len(usedSitesAll)]
-            else:
-                # only good used sites
-                newcandidateSpecList = usedSitesGood
+        maxNumSites = len(candidateSpecList)
+    newcandidateSpecList = usedSitesGood + newSitesGood[:maxNumSites - len(sitesUsedByTask)]
     # dump
     for skippedSite in skippedSites:
-        tmpLog.debug('  skipped problematic site {0}'.format(skippedSite))
+        tmpLog.debug('getting rid of problematic site {0}'.format(skippedSite))
     return newcandidateSpecList
 
 

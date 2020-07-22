@@ -1,7 +1,9 @@
 class SiteCandidate(object):
-    def __init__(self,siteName):
+    def __init__(self, siteName, unifiedName=None):
         # the site name
         self.siteName = siteName
+        # unified name
+        self.unifiedName = unifiedName
         # the weight for the brokerage
         self.weight = 0
         # the list of files copied from SE disk
