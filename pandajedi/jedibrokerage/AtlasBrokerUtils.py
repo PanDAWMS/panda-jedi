@@ -553,7 +553,8 @@ def skipProblematicSites(candidateSpecList,ngSites,sitesUsedByTask,preSetSiteSpe
     # set number of sites if undefined
     if maxNumSites in [0,None]:
         maxNumSites = len(candidateSpecList)
-    newcandidateSpecList = usedSitesGood + newSitesGood[:maxNumSites - len(sitesUsedByTask)]
+    newcandidateSpecList = usedSitesGood + newSitesGood
+    newcandidateSpecList = newcandidateSpecList[:maxNumSites]
     # dump
     for skippedSite in skippedSites:
         tmpLog.debug('getting rid of problematic site {0}'.format(skippedSite))
