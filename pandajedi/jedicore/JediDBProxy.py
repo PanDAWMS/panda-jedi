@@ -13312,13 +13312,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                     'nDefined': 0, 'nAssigned': 0,
                                                                                     'nActivated': 0, 'nStarting':0,
                                                                                     'nQueue': 0, 'nRunning': 0})
+                    jobsStatsPerUser[computingSite][gshare].setdefault('_total', {  'nDefined': 0, 'nAssigned': 0,
+                                                                                    'nActivated': 0, 'nStarting':0,
+                                                                                    'nQueue': 0, 'nRunning': 0})
                     # count # of running/done and activated
                     if jobStatus in ['defined', 'assigned', 'activated', 'starting']:
                         status_name = 'n{0}'.format(jobStatus.capitalize())
                         jobsStatsPerUser[computingSite][gshare][prodUserName][status_name] += cnt
                         jobsStatsPerUser[computingSite][gshare][prodUserName]['nQueue'] += cnt
+                        jobsStatsPerUser[computingSite][gshare]['_total'][status_name] += cnt
+                        jobsStatsPerUser[computingSite][gshare]['_total']['nQueue'] += cnt
                     elif jobStatus in ['running']:
                         jobsStatsPerUser[computingSite][gshare][prodUserName]['nRunning'] += cnt
+                        jobsStatsPerUser[computingSite][gshare]['_total']['nRunning'] += cnt
             # return
             tmpLog.debug('done')
             return jobsStatsPerUser
@@ -13463,7 +13469,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return None
 
 
-    # get site to-running rate statistics by global share
+    # get site to-running rate statistics
     def getSiteToRunRateStats(self, vo, exclude_rwq, starttime_min, starttime_max):
         """
         :param vo: Virtual Organization
