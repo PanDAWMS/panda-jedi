@@ -592,8 +592,7 @@ def skipProblematicSites(candidateSpecList,ngSites,sitesUsedByTask,preSetSiteSpe
                 newcandidateSpecList = usedSitesGood
     # dump
     for skippedSite in skippedSites:
-        #tmpLog.debug('  skip {0} too many closed or failed for last {1}hr'.format(skippedSite,timeWindow))
-        pass
+        tmpLog.debug('  skipped problematic site {0}'.format(skippedSite))
     return newcandidateSpecList
 
 
