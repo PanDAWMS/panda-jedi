@@ -2,6 +2,7 @@ import re
 import os
 import copy
 import math
+from pandaserver.taskbuffer import JobUtils
 
 try:
     long()
@@ -118,17 +119,6 @@ def getConfigParam(configStr,vo,sourceLabel):
     return None
 
 
-
-# compensate memory count
-def compensateRamCount(ramCount):
-    if ramCount == 'NULL':
-        ramCount = None
-    if ramCount not in [None,0]:
-        ramCount = int(ramCount * 0.90)
-    return ramCount
-
-
-
 # get percentile until numpy 1.5.X becomes available
 def percentile(inList,percent,idMap):
     inList = copy.copy(inList)
@@ -147,7 +137,6 @@ def percentile(inList,percent,idMap):
     return retVal,[val0,val1]
 
 
-
 # get min ram count for job
 def getJobMinRamCount(taskSpec, inputChunk, siteSpec, coreCount):
     minRamCount = inputChunk.getMaxRamCount()
@@ -162,7 +151,7 @@ def getJobMinRamCount(taskSpec, inputChunk, siteSpec, coreCount):
             minRamCount += taskSpec.baseRamCount
             minRamUnit = re.sub('PerCore.*$', '', minRamUnit)
     # round up with chunks
-    minRamCount = compensateRamCount(minRamCount)
+    minRamCount = JobUtils.compensate_ram_count(minRamCount)
     return minRamCount, minRamUnit
 
 

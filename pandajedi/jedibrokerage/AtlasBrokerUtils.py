@@ -832,7 +832,7 @@ class JsonSoftwareCheck:
                                                if t['sources']]):
                         # full path in sources
                         okSite.append(tmpSiteName)
-                    else:
+                    elif not only_tags_fc:
                         # get sources in all tag list
                         if 'ALL' in self.swDict:
                             source_list_in_all_tag = [s for t in self.swDict['ALL']['tags']
