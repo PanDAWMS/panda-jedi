@@ -1405,11 +1405,12 @@ class AtlasProdJobBroker (JobBrokerBase):
             nWorkers = 0
             nWorkersCutoff = 20
             if tmpSiteName in workerStat:
-                for tmpHarvesterID, tmpResStat in iteritems(workerStat[tmpSiteName]):
-                    for tmpResType, tmpCounts in iteritems(tmpResStat):
-                        for tmpStatus, tmpNum in iteritems(tmpCounts):
-                            if tmpStatus in ['running', 'submitted']:
-                                nWorkers += tmpNum
+                for tmpHarvesterID, tmpLabelStat in iteritems(workerStat[tmpSiteName]):
+                    for tmpHarvesterID, tmpResStat in iteritems(tmpLabelStat):
+                        for tmpResType, tmpCounts in iteritems(tmpResStat):
+                            for tmpStatus, tmpNum in iteritems(tmpCounts):
+                                if tmpStatus in ['running', 'submitted']:
+                                    nWorkers += tmpNum
                 # cap
                 nWorkers = min(nWorkersCutoff, nWorkers)
             # use nWorkers to bootstrap
