@@ -480,7 +480,7 @@ class InputChunk:
         while (maxNumFiles is None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or \
                    (dynNumEvents and len(inputFileSet) <= maxNumFiles and inputNumFiles <= maxNumEventRanges)) \
                 and (maxSize is None or (maxSize is not None and fileSize <= maxSize)) \
-                and (maxWalltime <= 0 or expWalltime <= maxWalltime) \
+                and (maxWalltime is None or maxWalltime <= 0 or expWalltime <= maxWalltime) \
                 and (maxNumEvents is None or (maxNumEvents is not None and inputNumEvents <= maxNumEvents)) \
                 and (maxOutSize is None or self.getOutSize(outSizeMap) <= maxOutSize) \
                 and (maxDiskSize is None or diskSize <= maxDiskSize):

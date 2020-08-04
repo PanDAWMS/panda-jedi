@@ -74,7 +74,7 @@ class GenJobBroker (JobBrokerBase):
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check at the site
-            if tmpSiteSpec.maxwdir != 0:
+            if tmpSiteSpec.maxwdir:
                 if tmpSiteSpec.isDirectIO():
                     minDiskCount = minDiskCountR
                 else:

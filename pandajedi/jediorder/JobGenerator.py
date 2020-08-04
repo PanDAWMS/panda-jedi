@@ -1278,7 +1278,7 @@ class JobGeneratorThread (WorkerThread):
                     jobSpec.maxDiskCount /= (1024*1024)
                     jobSpec.maxDiskCount = long(jobSpec.maxDiskCount)
                     # cap not to go over site limit
-                    if siteSpec.maxwdir != 0 and jobSpec.maxDiskCount is not None and \
+                    if siteSpec.maxwdir and jobSpec.maxDiskCount and \
                             siteSpec.maxwdir < jobSpec.maxDiskCount:
                         jobSpec.maxDiskCount = siteSpec.maxwdir
                     # unset maxCpuCount and minRamCount for merge jobs
