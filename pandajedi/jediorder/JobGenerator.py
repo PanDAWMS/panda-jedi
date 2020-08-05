@@ -1977,6 +1977,8 @@ class JobGeneratorThread (WorkerThread):
                     break
                 tmpFileIdx += 1
         # replace placeholders for numbers
+        if serialNr is None:
+            serialNr = 0
         for streamName,parVal in [('SN',         serialNr),
                                   ('SN/P',       '{0:06d}'.format(serialNr)),
                                   ('RNDMSEED',   rndmSeed),

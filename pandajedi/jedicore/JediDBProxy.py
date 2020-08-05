@@ -2583,6 +2583,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             outMap = {}
             datasetToRegister = []
             indexFileID = 0
+            maxSerialNr = None
             # sql to get dataset
             sqlD  = "SELECT "
             sqlD += "datasetID,datasetName,vo,masterID,status,type FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
