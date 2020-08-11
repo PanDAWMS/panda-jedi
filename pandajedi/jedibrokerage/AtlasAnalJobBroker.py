@@ -1062,7 +1062,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         }
                     max_nQ_pq = max(nQ_pq_limit_map.values())
                     # description for max nQueue per PQ
-                    description_of_max_nQ_pq = 'max_nQ_pq({maximum}) '.format(maximum=max_nQ_pq)
+                    description_of_max_nQ_pq = 'max_nQ_pq({maximum:.3f}) '.format(maximum=max_nQ_pq)
                     for k, v in nQ_pq_limit_map.items():
                         if v == max_nQ_pq:
                             if k in ['base_limit']:
@@ -1110,7 +1110,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                 description_of_max_nQ_pq_user += '= {key} = BASE_QUEUE_RATIO_ON_PQ({value:.3f}) * nR_pq({nR_pq})'.format(
                                                                 key=k, value=base_queue_ratio_on_pq, nR_pq=nR_pq)
                             elif k in ['dynamic_user_limit']:
-                                description_of_max_nQ_pq_user += '= {key} = max_nQ_pq({max_nQ_pq}) * max_user_fraction({max_user_fraction})'.format(
+                                description_of_max_nQ_pq_user += '= {key} = max_nQ_pq({max_nQ_pq:.3f}) * max_user_fraction({max_user_fraction:.3f})'.format(
                                                                 key=k, max_nQ_pq=max_nQ_pq, max_user_fraction=max_user_fraction)
                                 description_of_max_nQ_pq_user += ' , where {0} , and {1}'.format(description_of_max_nQ_pq, description_of_max_user_fraction)
                             break
@@ -1277,7 +1277,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             basic_weight_comparison_map[tmpSiteName]['nr'] = nRunning
             # set weight
             siteCandidateSpec.weight = weight
-            tmpStr  = 'weight={0} nRunning={1} nDefined={2} nActivated={3} nStarting={4} nAssigned={5} '.format(weight,
+            tmpStr  = 'weight={0:.3f} nRunning={1} nDefined={2} nActivated={3} nStarting={4} nAssigned={5} '.format(weight,
                                                                                                                 nRunning,
                                                                                                                 nDefined,
                                                                                                                 nActivated,
@@ -1299,6 +1299,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 weightMap[weight].append(siteCandidateSpec)
         ## compute new basic weight
         try:
+            weight_comparison_avail_sites = set(basic_weight_comparison_map.keys())
             trr_sum = 0
             nq_sum = 0
             n_avail_sites = len(basic_weight_comparison_map)
@@ -1310,10 +1311,29 @@ class AtlasAnalJobBroker(JobBrokerBase):
             elif trr_sum == 0:
                 tmpLog.debug('WEIGHT-COMPAR: zero sum of to-running-rate, skip')
             else:
-                for site in basic_weight_comparison_map:
-                    vv = basic_weight_comparison_map[site]
-                    new_basic_weight = max((vv['trr']/trr_sum)*(25 + nq_sum - n_avail_sites) - vv['nq'] + 1, 0)
-                    vv['new'] = new_basic_weight
+                _found_weights = False
+                while not _found_weights:
+                    trr_sum_avail = 0
+                    nq_sum_avail = 0
+                    n_avail_sites = len(weight_comparison_avail_sites)
+                    if n_avail_sites == 0:
+                        break
+                    for site in weight_comparison_avail_sites:
+                        vv = basic_weight_comparison_map[site]
+                        trr_sum_avail += vv['trr']
+                        nq_sum_avail += vv['nq']
+                    if trr_sum_avail == 0:
+                        break
+                    _found_weights = True
+                    for site in list(weight_comparison_avail_sites):
+                        vv = basic_weight_comparison_map[site]
+                        new_basic_weight = (vv['trr']/trr_sum_avail)*(25 + nq_sum_avail - n_avail_sites/2.0) - vv['nq'] + 1/2.0
+                        if new_basic_weight < 0:
+                            vv['new'] = 0
+                            weight_comparison_avail_sites.discard(site)
+                            _found_weights = False
+                        else:
+                            vv['new'] = new_basic_weight
                 orig_sum = 0
                 new_sum = 0
                 for vv in basic_weight_comparison_map.values():
