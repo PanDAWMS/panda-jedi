@@ -748,6 +748,9 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.setErrDiag(tmpErrStr)
                             # the number of generated jobs
                             self.numGenJobs += len(pandaIDs)
+                            # extend sandbox lifetime
+                            if not inputChunk.isMerging:
+                                self.touchSandoboxFiles(taskSpec, taskParamMap, tmpLog)
                         # lock task
                         tmpLog.debug('lock task')
                         tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
@@ -2253,6 +2256,30 @@ class JobGeneratorThread (WorkerThread):
                     if tmpFileSpec.ramCount is not None and tmpFileSpec.ramCount > largestRamCount:
                         largestRamCount = tmpFileSpec.ramCount
         return largestRamCount
+
+    # touch sandbox fles
+    def touchSandoboxFiles(self, task_spec, task_param_map, tmp_log):
+        failedRet = Interaction.SC_FAILED
+        # get task parameter map
+        tmpStat, taskParamMap = self.readTaskParams(task_spec, task_param_map, tmp_log)
+        if not tmpStat:
+            return failedRet
+        # look for sandbox
+        sandboxName = None
+        if 'fixedSandbox' in taskParamMap:
+            sandboxName = taskParamMap['fixedSandbox']
+        elif 'buildSpec' in taskParamMap:
+            sandboxName = taskParamMap['buildSpec']['archiveName']
+        else:
+            for tmpParam in taskParamMap['jobParameters']:
+                if tmpParam['type'] == 'constant':
+                    m = re.search('^-a ([^ ]+)$', tmpParam['value'])
+                    if m is not None:
+                        sandboxName = m.group(1)
+                        break
+        if sandboxName is not None:
+            tmpRes = self.taskBufferIF.extendSandboxLifetime_JEDI(task_spec.jediTaskID, sandboxName)
+            tmp_log.debug('extend lifetime for {0} with {1}'.format(sandboxName, tmpRes))
 
 
 ########## launch

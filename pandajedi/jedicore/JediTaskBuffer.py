@@ -749,3 +749,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def getCache_JEDI(self, main_key, sub_key):
         with self.proxyPool.get() as proxy:
             return proxy.getCache_JEDI(main_key, sub_key)
+
+    # get cache
+    def extendSandboxLifetime_JEDI(self, jedi_taskid, file_name):
+        with self.proxyPool.get() as proxy:
+            return proxy.extendSandboxLifetime_JEDI(jedi_taskid, file_name)
