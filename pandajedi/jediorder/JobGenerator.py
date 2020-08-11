@@ -613,6 +613,15 @@ class JobGeneratorThread (WorkerThread):
                             if tmpStat is False:
                                 tmpLog.debug('skip due to lock failure')
                                 continue
+                        # extend sandbox lifetime
+                        if goForward:
+                            if not inputChunk.isMerging:
+                                tmpStat, tmpOut = self.touchSandoboxFiles(taskSpec, taskParamMap, tmpLog)
+                                if tmpStat != Interaction.SC_SUCCEEDED:
+                                    tmpLog.error('failed to extend lifetime of sandbox file')
+                                    taskSpec.setOnHold()
+                                    taskSpec.setErrDiag(tmpOut)
+                                    goForward = False
                         # generate jobs
                         if goForward:
                             tmpLog.debug('run job generator')
@@ -748,9 +757,6 @@ class JobGeneratorThread (WorkerThread):
                                 taskSpec.setErrDiag(tmpErrStr)
                             # the number of generated jobs
                             self.numGenJobs += len(pandaIDs)
-                            # extend sandbox lifetime
-                            if not inputChunk.isMerging:
-                                self.touchSandoboxFiles(taskSpec, taskParamMap, tmpLog)
                         # lock task
                         tmpLog.debug('lock task')
                         tmpStat = self.taskBufferIF.lockTask_JEDI(taskSpec.jediTaskID,self.pid)
@@ -2259,11 +2265,10 @@ class JobGeneratorThread (WorkerThread):
 
     # touch sandbox fles
     def touchSandoboxFiles(self, task_spec, task_param_map, tmp_log):
-        failedRet = Interaction.SC_FAILED
         # get task parameter map
         tmpStat, taskParamMap = self.readTaskParams(task_spec, task_param_map, tmp_log)
         if not tmpStat:
-            return failedRet
+            return Interaction.SC_FAILED, 'failed to get task parameter dict'
         # look for sandbox
         sandboxName = None
         if 'fixedSandbox' in taskParamMap:
@@ -2280,6 +2285,9 @@ class JobGeneratorThread (WorkerThread):
         if sandboxName is not None:
             tmpRes = self.taskBufferIF.extendSandboxLifetime_JEDI(task_spec.jediTaskID, sandboxName)
             tmp_log.debug('extend lifetime for {0} with {1}'.format(sandboxName, tmpRes))
+            if tmpRes == 0:
+                return Interaction.SC_FAILED, 'user sandbox file unavailable. resubmit the task with --useNewCode'
+        return Interaction.SC_SUCCEEDED, None
 
 
 ########## launch
