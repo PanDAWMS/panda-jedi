@@ -46,6 +46,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                 tmpLog.info('datasetToRegister={0}'.format(str(datasetToRegister)))
                 # get site mapper
                 siteMapper = self.taskBufferIF.getSiteMapper()
+
                 # loop over all datasets
                 avDatasetList = []
                 cnDatasetMap  = {}
@@ -152,19 +153,30 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                                 tmpLog.info('skip making double copy as destination={0} is not site={1}'.format(datasetSpec.destination,
                                                                                                                                 datasetSpec.site))
                                             else:
-                                                locForDouble = '(type=SCRATCHDISK)\\notforextracopy=True'
-                                                tmpMsg  = 'registering double copy '
-                                                tmpMsg += 'location="{0}" lifetime={1}days activity={2} for dataset={3}'.format(locForDouble,lifetime,
-                                                                                                                                activity,targetName)
-                                                tmpLog.info(tmpMsg)
-                                                tmpStat = ddmIF.registerDatasetLocation(targetName,locForDouble,copies=2,owner=userName,
-                                                                                        lifetime=lifetime,activity=activity,
-                                                                                        grouping='NONE',weight='freespace',
-                                                                                        ignore_availability=False)
-                                                if not tmpStat:
-                                                    tmpLog.error('failed to register double copylocation {0} for {1}'.format(locForDouble,
-                                                                                                                           targetName))
-                                                    return retFatal
+
+                                                second_copy = True
+                                                try:
+                                                    if taskSpec.site:
+                                                        panda_site = siteMapper.getSite(taskSpec.site)
+                                                        if panda_site.catchall and 'skip_2nd_copy' in panda_site.catchall:
+                                                            second_copy = False
+                                                except Exception:
+                                                    second_copy = True
+
+                                                if second_copy:
+                                                    locForDouble = '(type=SCRATCHDISK)\\notforextracopy=True'
+                                                    tmpMsg  = 'registering double copy '
+                                                    tmpMsg += 'location="{0}" lifetime={1}days activity={2} for dataset={3}'.format(locForDouble,lifetime,
+                                                                                                                                    activity,targetName)
+                                                    tmpLog.info(tmpMsg)
+                                                    tmpStat = ddmIF.registerDatasetLocation(targetName,locForDouble,copies=2,owner=userName,
+                                                                                            lifetime=lifetime,activity=activity,
+                                                                                            grouping='NONE',weight='freespace',
+                                                                                            ignore_availability=False)
+                                                    if not tmpStat:
+                                                        tmpLog.error('failed to register double copylocation {0} for {1}'.format(locForDouble,
+                                                                                                                               targetName))
+                                                        return retFatal
                                 avDatasetList.append(targetName)
                             else:
                                 tmpLog.info('{0} already registered'.format(targetName))
