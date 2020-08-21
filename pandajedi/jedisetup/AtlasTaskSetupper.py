@@ -159,6 +159,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                                     if taskSpec.site:
                                                         panda_site = siteMapper.getSite(taskSpec.site)
                                                         if panda_site.catchall and 'skip_2nd_copy' in panda_site.catchall:
+                                                            tmpLog.info('skip making double copy as specified in {0} catchall'.format(panda_site))
                                                             second_copy = False
                                                 except Exception:
                                                     second_copy = True
