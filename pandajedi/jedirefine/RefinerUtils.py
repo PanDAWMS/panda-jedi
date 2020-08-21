@@ -59,7 +59,10 @@ def extractReplaceOutFileTemplate(valStr,streamName):
 # extract file list
 def extractFileList(taskParamMap,datasetName):
     baseDatasetName = datasetName.split(':')[-1]
-    itemList = taskParamMap['jobParameters'] + [taskParamMap['log']]
+    if 'log' in taskParamMap:
+        itemList = taskParamMap['jobParameters'] + [taskParamMap['log']]
+    else:
+        itemList = taskParamMap['jobParameters']
     fileList = []
     includePatt = []
     excludePatt = []

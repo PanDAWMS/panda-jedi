@@ -2583,6 +2583,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             outMap = {}
             datasetToRegister = []
             indexFileID = 0
+            maxSerialNr = None
             # sql to get dataset
             sqlD  = "SELECT "
             sqlD += "datasetID,datasetName,vo,masterID,status,type FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
@@ -13628,3 +13629,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog,msgType='debug')
+
+
+    # extend lifetime of sandbox file
+    def extendSandboxLifetime_JEDI(self, jedi_taskid, file_name):
+        comment = ' /* JediDBProxy.extendSandboxLifetime_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} >".format(jedi_taskid)
+        tmpLog = MsgWrapper(logger, methodName)
+        try:
+            self.conn.begin()
+            retVal = False
+            # sql to update
+            sqlC = ("UPDATE {0}.userCacheUsage SET creationTime=CURRENT_DATE "
+                    "WHERE fileName=:fileName ").format(jedi_config.db.schemaMETA)
+            varMap = {}
+            varMap[':fileName'] = file_name
+            self.cur.execute(sqlC+comment, varMap)
+            nRows = self.cur.rowcount
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('done {0} with {1}'.format(file_name, nRows))
+            # return
+            return nRows
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None

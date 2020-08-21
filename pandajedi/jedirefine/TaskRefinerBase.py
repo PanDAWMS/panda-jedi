@@ -426,7 +426,9 @@ class TaskRefinerBase (object):
         # get input/output/log dataset specs
         nIn  = 0
         nOutMap = {}
-        if isinstance(taskParamMap['log'],dict):
+        if 'log' not in taskParamMap:
+            itemList = taskParamMap['jobParameters']
+        elif isinstance(taskParamMap['log'],dict):
             itemList = taskParamMap['jobParameters'] + [taskParamMap['log']]
         else:
             itemList = taskParamMap['jobParameters'] + taskParamMap['log']

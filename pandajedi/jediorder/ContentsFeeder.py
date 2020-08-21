@@ -5,6 +5,7 @@ import uuid
 import math
 import socket
 import datetime
+import traceback
 
 from six import iteritems
 
@@ -566,9 +567,9 @@ class ContentsFeederThread (WorkerThread):
                         retUnlock = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID,self.pid)
                         tmpLog.debug('unlock task with {0}'.format(retUnlock))
                     tmpLog.debug('done')
-            except Exception:
-                errtype,errvalue = sys.exc_info()[:2]
-                logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
+            except Exception as e:
+                logger.error('{0} failed in runImpl() with {1}: {2}'.format(self.__class__.__name__, str(e),
+                                                                            traceback.format_exc()))
 
 
     # update dataset
