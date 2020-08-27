@@ -1126,6 +1126,12 @@ class AtlasAnalJobBroker(JobBrokerBase):
             if len(scanSiteList) > 0:
                 retVal = None
                 break
+        # failed
+        if retVal is not None:
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            # send info to logger
+            self.sendLogMessage(tmpLog)
+            return retVal
         # get list of available files
         availableFileMap = {}
         for datasetSpec in inputChunk.getDatasets():
@@ -1192,11 +1198,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
             totalTapeSizeMap[tmpSiteName] //= (1024 * 1024 *1024)
         ######################################
         # final procedure
-        if retVal is not None:
-            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            # send info to logger
-            self.sendLogMessage(tmpLog)
-            return retVal
         tmpLog.info('final {0} candidates'.format(len(scanSiteList)))
         weightMap = {}
         weightStr = {}
