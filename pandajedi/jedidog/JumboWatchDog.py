@@ -108,7 +108,7 @@ class JumboWatchDog:
                     self.log.info(tmpStr)
                     self.taskBufferIF.changeTaskPriorityPanda(jediTaskID, prioToBoost)
                 # kick pending
-                if taskData['taskStatus'] == 'pending' and taskData['useJumbo'] in [JediTaskSpec.enum_useJumbo['pending'], JediTaskSpec.enum_useJumbo['running']]:
+                if taskData['taskStatus'] in ['pending', 'running'] and taskData['useJumbo'] in [JediTaskSpec.enum_useJumbo['pending'], JediTaskSpec.enum_useJumbo['running']]:
                     nActiveJumbo = 0
                     for computingSite, jobStatusMap in iteritems(taskData['jumboJobs']):
                         for jobStatus, nJobs in iteritems(jobStatusMap):
