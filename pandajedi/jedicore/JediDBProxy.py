@@ -12685,12 +12685,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlAV = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlAV += "SET useJumbo=:useJumboL "
             sqlAV += "WHERE jediTaskID=:jediTaskID AND useJumbo IN (:useJumboP,:useJumboR) "
-            sqlAV += "AND status=:status AND lockedBy IS NULL "
+            sqlAV += "AND status IN (:statusR,:statusP) AND lockedBy IS NULL "
             self.conn.begin()
             # get tasks
             varMap = dict()
             varMap[':jediTaskID'] = jediTaskID
-            varMap[':status'] = 'pending'
+            varMap[':statusP'] = 'pending'
+            varMap[':statusR'] = 'running'
             varMap[':useJumboL'] = JediTaskSpec.enum_useJumbo['lack']
             varMap[':useJumboP'] = JediTaskSpec.enum_useJumbo['pending']
             varMap[':useJumboR'] = JediTaskSpec.enum_useJumbo['running']

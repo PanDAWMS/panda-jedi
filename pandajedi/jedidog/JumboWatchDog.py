@@ -115,7 +115,9 @@ class JumboWatchDog:
                             if jobStatus in ['defined', 'assigned', 'activated', 'sent', 'starting', 'running', 'transferring', 'holding']:
                                 nActiveJumbo += nJobs
                     if nActiveJumbo == 0:
-                        self.log.info('component={0} kick jumbo in pending jediTaskID={1}'.format(self.component, jediTaskID))
+                        self.log.info('component={0} kick jumbo in {2} jediTaskID={1}'.format(self.component,
+                                                                                              jediTaskID,
+                                                                                              taskData['taskStatus']))
                         self.taskBufferIF.kickPendingTasksWithJumbo_JEDI(jediTaskID)
                 # reset input to re-generate co-jumbo
                 if taskData['currentPriority'] >= prioToBoost:
