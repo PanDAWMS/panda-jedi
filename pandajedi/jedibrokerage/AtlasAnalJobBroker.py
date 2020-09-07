@@ -65,7 +65,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         for tmpSiteName,tmpAccess in siteAccessList:
             siteAccessMap[tmpSiteName] = tmpAccess
         # disable VP for merging and forceStaged
-        if inputChunk.isMerging:
+        if inputChunk.isMerging or taskSpec.avoid_vp():
             useVP = False
         else:
             useVP = True
@@ -407,7 +407,22 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError
-
+            ######################################
+            # selection for VP
+            if taskSpec.avoid_vp():
+                newScanSiteList = []
+                for tmpSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                    if not tmpSiteSpec.use_vp(JobUtils.ANALY_PS):
+                        newScanSiteList.append(tmpSiteName)
+                    else:
+                        tmpLog.info('  skip site=%s to avoid VP' % tmpSiteName)
+                scanSiteList = newScanSiteList
+                tmpLog.info('{0} candidates passed for avoidVP'.format(len(scanSiteList)))
+                if not scanSiteList:
+                    tmpLog.error('no candidates')
+                    retVal = retTmpError
+                    continue
             ######################################
             # selection for MP
             newScanSiteList = []

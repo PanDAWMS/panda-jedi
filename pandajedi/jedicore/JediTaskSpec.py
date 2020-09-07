@@ -45,6 +45,7 @@ class JediTaskSpec(object):
         'addNthFieldToLFN'   : 'AN',
         'allowPartialFinish' : 'AP',
         'altStageOut'        : 'AT',
+        'avoidVP'            : 'AV',
         'ddmBackEnd'         : 'DE',
         'disableAutoFinish'  : 'DF',
         'disableReassign'    : 'DI',
@@ -1620,6 +1621,14 @@ class JediTaskSpec(object):
     def use_only_tags_fc(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['onlyTagsForFC']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None:
+                return True
+        return False
+
+    # avoid VP
+    def avoid_vp(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['avoidVP']+'=(\d+)', self.splitRule)
             if tmpMatch is not None:
                 return True
         return False
