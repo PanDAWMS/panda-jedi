@@ -798,7 +798,7 @@ class JsonSoftwareCheck:
     # constructor
     def __init__(self, site_mapper, json_name=None):
         if json_name is None:
-            json_name = '/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_tags.json'
+            json_name = '/cvmfs/atlas.cern.ch/repo/sw/local/etc/cric_pandaqueue_tags.json'
         self.siteMapper = site_mapper
         try:
             self.swDict = json.load(open(json_name))

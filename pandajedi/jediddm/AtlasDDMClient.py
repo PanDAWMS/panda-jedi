@@ -1263,9 +1263,10 @@ class AtlasDDMClient(DDMClientBase):
         # get json
         try:
             tmpLog.debug('start')
-            with open('/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmblacklisting.json') as f:
+            with open('/cvmfs/atlas.cern.ch/repo/sw/local/etc/cric_ddmblacklisting.json') as f:
                 ddd = json.load(f)
-                self.blackListEndPoints = [k for k in ddd if 'w' in ddd[k] and ddd[k]['w']["status"]["value"] == 'OFF']
+                self.blackListEndPoints = \
+                    [k for k in ddd if 'write_wan' in ddd[k] and ddd[k]['write_wan']["status"]["value"] == 'OFF']
             tmpLog.debug('{0} endpoints blacklisted'.format(len(self.blackListEndPoints)))
         except Exception as e:
             errType = e
@@ -1342,7 +1343,7 @@ class AtlasDDMClient(DDMClientBase):
         # get json
         try:
             tmpLog.debug('start')
-            with open('/cvmfs/atlas.cern.ch/repo/sw/local/etc/agis_ddmendpoints.json') as f:
+            with open('/cvmfs/atlas.cern.ch/repo/sw/local/etc/cric_ddmendpoints.json') as f:
                 ddd = json.load(f)
                 self.endPointDict = {k: ddd[k] for k in ddd if ddd[k]['state'] == 'ACTIVE'}
             tmpLog.debug('got {0} endpoints '.format(len(self.endPointDict)))
