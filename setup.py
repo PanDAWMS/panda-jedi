@@ -232,6 +232,7 @@ setup(
         'six',
         'python-daemon',
         'numpy',
+        'pyyaml',
     ],
     extras_require={
         'oracle': ['cx_Oracle'],
