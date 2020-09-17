@@ -1,3 +1,5 @@
+import re
+
 import yaml
 
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
@@ -7,33 +9,23 @@ from pandaserver.dataservice.DDMHandler import DDMHandler
 
 
 # logger
-basetmp_log = logger_utils.setuptmp_log(__name__.split('.')[-1])
+base_logger = logger_utils.setup_logger(__name__.split('.')[-1])
 
 
 # panda dataset callback message processing plugin
 class PandaCallbackMsgProcPlugin(BaseMsgProcPlugin):
 
-    def initialize(self):
-        pass
-
     def process(self, msg_obj):
         # logger
-        tmp_log = logger_utils.maketmp_log(basetmp_log, method_name='process')
+        tmp_log = logger_utils.make_logger(base_logger, method_name='process')
         # start
         tmp_log.info('start')
         tmp_log.debug('sub_id={0} ; msg_id={1}'.format(msg_obj.sub_id, msg_obj.msg_id))
         # parse yaml
         try:
-            message_dict = yaml.load(msg_obj.data)
+            message_dict = yaml.safe_load(msg_obj.data)
         except Exception as e:
             err_str = 'failed to parse message yaml {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_obj.data)
-            tmp_log.error(err_str)
-            raise
-        # sanity check
-        try:
-            msg_type = msg_dict['msg_type']
-        except Exception as e:
-            err_str = 'failed to parse message object dict {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_dict)
             tmp_log.error(err_str)
             raise
         # run
@@ -63,7 +55,9 @@ class PandaCallbackMsgProcPlugin(BaseMsgProcPlugin):
                 thr.run()
                 del thr
                 tmp_log.debug('done {0}'.format(dsn))
-        except Exception:
+        except Exception as e:
+            err_str = 'failed to run, skipped. {0} : {1}'.format(e.__class__.__name__, e)
+            tmp_log.error(err_str)
             raise
         # done
         tmp_log.info('done')
