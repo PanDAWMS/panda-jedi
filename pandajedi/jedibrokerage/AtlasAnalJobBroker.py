@@ -927,64 +927,65 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     return retTmpError
             ######################################
             # selection for un-overloaded sites
-            newScanSiteList = []
-            overloadedNonVP = []
-            msgList = []
-            msgListVP = []
-            minQueue = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_MIN_QUEUE', 'jedi', taskSpec.vo)
-            if minQueue is None:
-                minQueue = 20
-            ratioOffset = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_RATIO_OFFSET', 'jedi',
-                                                           taskSpec.vo)
-            if ratioOffset is None:
-                ratioOffset = 1.2
-            grandRatio = AtlasBrokerUtils.get_total_nq_nr_ratio(jobStatPrioMap, taskSpec.gshare)
-            tmpLog.info('grand nQueue/nRunning ratio : {0}'.format(grandRatio))
-            tmpLog.info('sites with non-VP data : {0}'.format(','.join(scanSiteWoVP)))
-            for tmpPseudoSiteName in scanSiteList:
-                tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
-                tmpSiteName = tmpSiteSpec.get_unified_name()
-                # get nQueue and nRunning
-                nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', workQueue_tag=taskSpec.gshare)
-                nQueue = 0
-                for jobStatus in ['defined', 'assigned', 'activated', 'starting']:
-                    nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus, workQueue_tag=taskSpec.gshare)
-                # skip if overloaded
-                if nQueue > minQueue and \
-                        (nRunning == 0 or float(nQueue) / float(nRunning) > grandRatio * ratioOffset):
-                    tmpMsg = '  skip site={0} '.format(tmpPseudoSiteName)
-                    tmpMsg += 'nQueue>minQueue({0}) and '.format(minQueue)
-                    if nRunning == 0:
-                        tmpMsg += 'nRunning=0 '
-                        problematic_sites_dict.setdefault(tmpSiteName, set())
-                        problematic_sites_dict[tmpSiteName].add('nQueue({0})>minQueue({1}) and nRunning=0'.format(nQueue, minQueue))
+            if not inputChunk.isMerging:
+                newScanSiteList = []
+                overloadedNonVP = []
+                msgList = []
+                msgListVP = []
+                minQueue = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_MIN_QUEUE', 'jedi', taskSpec.vo)
+                if minQueue is None:
+                    minQueue = 20
+                ratioOffset = self.taskBufferIF.getConfigValue('anal_jobbroker', 'OVERLOAD_RATIO_OFFSET', 'jedi',
+                                                               taskSpec.vo)
+                if ratioOffset is None:
+                    ratioOffset = 1.2
+                grandRatio = AtlasBrokerUtils.get_total_nq_nr_ratio(jobStatPrioMap, taskSpec.gshare)
+                tmpLog.info('grand nQueue/nRunning ratio : {0}'.format(grandRatio))
+                tmpLog.info('sites with non-VP data : {0}'.format(','.join(scanSiteWoVP)))
+                for tmpPseudoSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+                    tmpSiteName = tmpSiteSpec.get_unified_name()
+                    # get nQueue and nRunning
+                    nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', workQueue_tag=taskSpec.gshare)
+                    nQueue = 0
+                    for jobStatus in ['defined', 'assigned', 'activated', 'starting']:
+                        nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus, workQueue_tag=taskSpec.gshare)
+                    # skip if overloaded
+                    if nQueue > minQueue and \
+                            (nRunning == 0 or float(nQueue) / float(nRunning) > grandRatio * ratioOffset):
+                        tmpMsg = '  skip site={0} '.format(tmpPseudoSiteName)
+                        tmpMsg += 'nQueue>minQueue({0}) and '.format(minQueue)
+                        if nRunning == 0:
+                            tmpMsg += 'nRunning=0 '
+                            problematic_sites_dict.setdefault(tmpSiteName, set())
+                            problematic_sites_dict[tmpSiteName].add('nQueue({0})>minQueue({1}) and nRunning=0'.format(nQueue, minQueue))
+                        else:
+                            tmpMsg += 'nQueue({0})/nRunning({1}) > grandRatio({2:.2f})*offset({3}) '.format(nQueue,
+                                                                                                            nRunning,
+                                                                                                            grandRatio,
+                                                                                                            ratioOffset)
+                        if tmpSiteName in scanSiteWoVP or checkDataLocality is False or inputChunk.getDatasets() == []:
+                            tmpMsg += 'criteria=-overloaded'
+                            overloadedNonVP.append(tmpPseudoSiteName)
+                            msgListVP.append(tmpMsg)
+                        else:
+                            tmpMsg += 'and VP criteria=-overloaded_vp'
+                            msgList.append(tmpMsg)
                     else:
-                        tmpMsg += 'nQueue({0})/nRunning({1}) > grandRatio({2:.2f})*offset({3}) '.format(nQueue,
-                                                                                                        nRunning,
-                                                                                                        grandRatio,
-                                                                                                        ratioOffset)
-                    if tmpSiteName in scanSiteWoVP or checkDataLocality is False or inputChunk.getDatasets() == []:
-                        tmpMsg += 'criteria=-overloaded'
-                        overloadedNonVP.append(tmpPseudoSiteName)
-                        msgListVP.append(tmpMsg)
-                    else:
-                        tmpMsg += 'and VP criteria=-overloaded_vp'
-                        msgList.append(tmpMsg)
+                        newScanSiteList.append(tmpPseudoSiteName)
+                if len(newScanSiteList) > 0:
+                    scanSiteList = newScanSiteList
+                    for tmpMsg in msgList+msgListVP:
+                        tmpLog.info(tmpMsg)
                 else:
-                    newScanSiteList.append(tmpPseudoSiteName)
-            if len(newScanSiteList) > 0:
-                scanSiteList = newScanSiteList
-                for tmpMsg in msgList+msgListVP:
-                    tmpLog.info(tmpMsg)
-            else:
-                scanSiteList = overloadedNonVP
-                for tmpMsg in msgList:
-                    tmpLog.info(tmpMsg)
-            tmpLog.info('{0} candidates passed overload check'.format(len(scanSiteList)))
-            if not scanSiteList:
-                tmpLog.error('no candidates')
-                retVal = retTmpError
-                continue
+                    scanSiteList = overloadedNonVP
+                    for tmpMsg in msgList:
+                        tmpLog.info(tmpMsg)
+                tmpLog.info('{0} candidates passed overload check'.format(len(scanSiteList)))
+                if not scanSiteList:
+                    tmpLog.error('no candidates')
+                    retVal = retTmpError
+                    continue
             ######################################
             # skip sites where the user queues too much
             user_name = self.taskBufferIF.cleanUserID(taskSpec.userName)
@@ -998,7 +999,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 # send info to logger
                 self.sendLogMessage(tmpLog)
                 return retTmpError
-            else:
+            elif not inputChunk.isMerging:
                 # parameters
                 base_queue_length_per_pq = self.taskBufferIF.getConfigValue(
                                                         'anal_jobbroker', 'BASE_QUEUE_LENGTH_PER_PQ', 'jedi', taskSpec.vo)
@@ -1238,7 +1239,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 if 'finished' in failureCounts[tmpSiteName]:
                     nFinished = failureCounts[tmpSiteName]['finished']
             # problematic sites with too many failed and closed jobs
-            if nFailed + nClosed > 2*nFinished:
+            if not inputChunk.isMerging and nFailed + nClosed > 2*nFinished:
                 problematic_sites_dict.setdefault(tmpSiteName, set())
                 problematic_sites_dict[tmpSiteName].add('too many failed or closed jobs for last 6h')
             # calculate weight
