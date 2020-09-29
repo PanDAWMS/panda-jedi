@@ -172,7 +172,7 @@ class JediMaster:
                                                      vo,plabel))
                 proc.start()
                 knightList.append(proc)
-        # setup JetiMsgProcessor agent (only one system process)
+        # setup JediMsgProcessor agent (only one system process)
         if hasattr(jedi_config, 'msgprocessor') and hasattr(jedi_config.msgprocessor, 'configFile') and jedi_config.msgprocessor.configFile:
             parent_conn, child_conn = multiprocessing.Pipe()
             proc = multiprocessing.Process(target=self.launcher,
