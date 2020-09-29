@@ -1,7 +1,7 @@
 
 from pandacommon.pandamsgbkr.msg_processor import SimpleMsgProcPluginBase
 
-from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
+from pandajedi.jedicore.JediTaskBuffer import JediTaskBuffer
 
 # Base simple message processing plugin
 class BaseMsgProcPlugin(SimpleMsgProcPluginBase):
@@ -11,9 +11,7 @@ class BaseMsgProcPlugin(SimpleMsgProcPluginBase):
         initialize plugin instance, run once before loop in thread
         """
         # set up JEDI TaskBuffer interface
-        self.tbIF = JediTaskBufferInterface()
-        self.tbIF.setupInterface()
-
+        self.tbIF= JediTaskBuffer(None)
 
     def process(self, msg_obj):
         """

@@ -15,10 +15,19 @@ base_logger = logger_utils.setup_logger(__name__.split('.')[-1])
 class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
 
     def initialize(self):
+        BaseMsgProcPlugin.initialize(self)
         self.plugin_TapeCarousel = TapeCarouselMsgProcPlugin()
-        self.plugin_TapeCarousel.initialize()
         self.plugin_HPO = HPOMsgProcPlugin()
-        self.plugin_HPO.initialize()
+        # for each plugin
+        for _plugin in [self.plugin_TapeCarousel, self.plugin_HPO]:
+            # initialize each
+            _plugin.initialize()
+            # use the same taskBuffer interface
+            try:
+                del _plugin.tbIF
+            except Exception:
+                pass
+            _plugin.tbIF = self.tbIF
 
     def process(self, msg_obj):
         # logger
