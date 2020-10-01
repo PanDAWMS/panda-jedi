@@ -707,12 +707,17 @@ class AtlasProdJobBroker (JobBrokerBase):
                 elif tmpSiteName in siteListWithSW:
                     newScanSiteList.append(tmpSiteName)
                 else:
+                    if tmpSiteSpec.releases == 'AUTO':
+                        autoStr = 'with AUTO'
+                    else:
+                        autoStr = 'without AUTO'
                     # release is unavailable
-                    tmpLog.info('  skip site=%s due to missing cache=%s:%s container=%s criteria=-cache' % \
-                                 (tmpSiteName, taskSpec.transHome, taskSpec.container_name, taskSpec.getArchitecture()))
+                    tmpLog.info('  skip site=%s %s due to missing cache=%s:%s container_name="%s" criteria=-cache' % \
+                                 (tmpSiteName, autoStr, taskSpec.transHome, taskSpec.getArchitecture(),
+                                  taskSpec.container_name))
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info(('{0} candidates passed for ATLAS release {1}:{2} OS_container={3} '
-                         'container_name={4}').format(
+                         'container_name="{4}"').format(
                 len(scanSiteList),
                 taskSpec.transHome,
                 taskSpec.getArchitecture(),
