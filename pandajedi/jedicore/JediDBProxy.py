@@ -13122,11 +13122,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # varMap
             varMap = dict()
             varMap[':jediTaskID'] = jeditaskid
-            varMap[':type'] = 'input'
+            varMap[':type1'] = 'input'
+            varMap[':type2'] = 'pseudo_input'
             varMap[':status'] = 'staging'
             # sql
             sqlNS = ('SELECT COUNT(*) FROM {0}.JEDI_Datasets d, {0}.JEDI_Dataset_Contents c '
-                     'WHERE d.jediTaskID=:jediTaskID AND d.type=:type '
+                     'WHERE d.jediTaskID=:jediTaskID AND d.type IN (:type1,:type2) '
                      'AND c.jediTaskID=d.jediTaskID AND c.datasetID=d.datasetID '
                      'AND c.status=:status '
                     ).format(jedi_config.db.schemaJEDI)
