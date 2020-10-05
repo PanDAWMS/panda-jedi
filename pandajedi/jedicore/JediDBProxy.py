@@ -12921,9 +12921,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlUF = ('UPDATE {0}.JEDI_Dataset_Contents '
                      'SET status=:new_status '
                      'WHERE jediTaskID=:jediTaskID '
-                     'AND status=:old_status '
-                     'AND scope=:scope '
-                     'AND lfn=:lfn '
+                     'AND status=:old_status '                     
+                     "AND (lfn=:lfn OR lfn like :lfn_patt) "
                      'AND datasetID IN ('
                     ).format(jedi_config.db.schemaJEDI)
             # begin transaction
@@ -12933,7 +12932,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlGD+comment, varMap)
             varMap = dict()
             varMap[':jediTaskID'] = jeditaskid
-            varMap[':scope'] = scope
+            if scope is not None:
+                varMap[':scope'] = scope
             varMap[':old_status'] = 'staging'
             varMap[':new_status'] = 'pending'
             resGD = self.cur.fetchall()
@@ -12947,9 +12947,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         primaryID = id
                 sqlUF = sqlUF[:-1]
                 sqlUF += ') '
-                # loop over filenames
+                if scope is None:
+                    sqlUF += 'AND scope IS NULL '
+                else:
+                    sqlUF += 'AND scope=:scope '
+                    # loop over filenames
                 for filename in filenames:
                     varMap[':lfn'] = filename
+                    varMap[':lfn_patt'] = '%' + filename
                     tmpLog.debug('running sql: {0} {1}'.format(sqlUF, varMap))
                     self.cur.execute(sqlUF+comment, varMap)
                     retVal += self.cur.rowcount
