@@ -12911,10 +12911,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # varMap
             varMap = dict()
             varMap[':jediTaskID'] = jeditaskid
-            varMap[':type'] = 'input'
+            varMap[':type1'] = 'input'
+            varMap[':type2'] = 'pseudo_input'
             # sql to get datasetIDs
             sqlGD = ('SELECT datasetID,masterID FROM {0}.JEDI_Datasets'
-                     ' WHERE jediTaskID=:jediTaskID AND type=:type '
+                     ' WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) '
                      ).format(jedi_config.db.schemaJEDI)
             # sql to update file status
             sqlUF = ('UPDATE {0}.JEDI_Dataset_Contents '
@@ -13077,7 +13078,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # varMap
             varMap = dict()
             varMap[':jediTaskID'] = jeditaskid
-            varMap[':type'] = 'input'
+            varMap[':type1'] = 'input'
+            varMap[':type2'] = 'pseudo_input'
             varMap[':old_status'] = 'staging'
             varMap[':new_status'] = 'pending'
             # sql
@@ -13086,7 +13088,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                      'WHERE jediTaskID=:jediTaskID '
                      'AND datasetID IN ('
                      'SELECT datasetID FROM {0}.JEDI_Datasets '
-                     'WHERE jediTaskID=:jediTaskID AND type=:type AND datasetName=:datasetName) '
+                     'WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) AND datasetName=:datasetName) '
                      'AND status=:old_status '
                     ).format(jedi_config.db.schemaJEDI)
             # begin transaction
