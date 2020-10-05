@@ -12918,13 +12918,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                      ' WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) '
                      ).format(jedi_config.db.schemaJEDI)
             # sql to update file status
-            sqlUF = ('UPDATE {0}.JEDI_Dataset_Contents '
-                     'SET status=:new_status '
-                     'WHERE jediTaskID=:jediTaskID '
-                     'AND status=:old_status '                     
-                     "AND (lfn=:lfn OR lfn like :lfn_patt) "
-                     'AND datasetID IN ('
-                    ).format(jedi_config.db.schemaJEDI)
+            if scope != 'pseudo_dataset':
+                sqlUF = ('UPDATE {0}.JEDI_Dataset_Contents '
+                         'SET status=:new_status '
+                         'WHERE jediTaskID=:jediTaskID '
+                         'AND status=:old_status '
+                         'AND scope=:scope '
+                         "AND lfn=:lfn "
+                         'AND datasetID IN ('
+                        ).format(jedi_config.db.schemaJEDI)
+            else:
+                sqlUF = ('UPDATE {0}.JEDI_Dataset_Contents '
+                         'SET status=:new_status '
+                         'WHERE jediTaskID=:jediTaskID '
+                         'AND status=:old_status '
+                         'AND scope IS NULL '
+                         "AND lfn like :lfn "
+                         'AND datasetID IN ('
+                        ).format(jedi_config.db.schemaJEDI)
             # begin transaction
             self.conn.begin()
             # get datasetIDs
@@ -12932,7 +12943,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sqlGD+comment, varMap)
             varMap = dict()
             varMap[':jediTaskID'] = jeditaskid
-            if scope is not None:
+            if scope != 'pseudo_dataset':
                 varMap[':scope'] = scope
             varMap[':old_status'] = 'staging'
             varMap[':new_status'] = 'pending'
@@ -12947,14 +12958,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         primaryID = id
                 sqlUF = sqlUF[:-1]
                 sqlUF += ') '
-                if scope is None:
-                    sqlUF += 'AND scope IS NULL '
-                else:
-                    sqlUF += 'AND scope=:scope '
-                    # loop over filenames
+                # loop over filenames
                 for filename in filenames:
-                    varMap[':lfn'] = filename
-                    varMap[':lfn_patt'] = '%' + filename
+                    if scope != 'pseudo_dataset':
+                        varMap[':lfn'] = filename
+                    else:
+                        varMap[':lfn'] = '%' + filename
                     tmpLog.debug('running sql: {0} {1}'.format(sqlUF, varMap))
                     self.cur.execute(sqlUF+comment, varMap)
                     retVal += self.cur.rowcount
