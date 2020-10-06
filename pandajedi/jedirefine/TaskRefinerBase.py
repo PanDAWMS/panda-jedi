@@ -255,6 +255,7 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'tgtMaxOutputForNG', JediTaskSpec.splitRuleToken['tgtMaxOutputForNG'])
         self.setSplitRule(taskParamMap, 'maxNumJobs', JediTaskSpec.splitRuleToken['maxNumJobs'])
         self.setSplitRule(taskParamMap, 'totNumJobs', JediTaskSpec.splitRuleToken['totNumJobs'])
+        self.setSplitRule(taskParamMap, 'nChunksToWait', JediTaskSpec.splitRuleToken['nChunksToWait'])
         if 'nJumboJobs' in taskParamMap:
             self.setSplitRule(taskParamMap,'nJumboJobs',JediTaskSpec.splitRuleToken['nJumboJobs'])
             taskSpec.useJumbo = JediTaskSpec.enum_useJumbo['waiting']

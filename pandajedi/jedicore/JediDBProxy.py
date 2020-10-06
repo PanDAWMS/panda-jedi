@@ -751,7 +751,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             strSizePendingEventChunk = '{0}*{1} events required for scout'.format(nEventsPerJob,nChunksForScout)
                     else:
                         # the number of chunks in one bunch
-                        if taskSpec.noInputPooling():
+                        if taskSpec.nChunksToWait() is not None:
+                            nChunkInBunch = taskSpec.nChunksToWait()
+                        elif taskSpec.noInputPooling():
                             nChunkInBunch = 1
                         else:
                             nChunkInBunch = 20

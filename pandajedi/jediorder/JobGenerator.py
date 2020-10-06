@@ -1995,6 +1995,7 @@ class JobGeneratorThread (WorkerThread):
                                   ('SKIPEVENTS', skipEvents),
                                   ('FIRSTEVENT', firstEvent),
                                   ('SURL',       sourceURL),
+                                  ('ATTEMPTNR', jobSpec.attemptNr)
                                   ] + paramList:
             # ignore undefined
             if parVal is None:

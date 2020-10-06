@@ -84,6 +84,7 @@ class JediTaskSpec(object):
         'noInputPooling'     : 'NI',
         'nJumboJobs'         : 'NJ',
         'nSitesPerJob'       : 'NS',
+        'nChunksToWait'      : 'NT',
         'noWaitParent'       : 'NW',
         'orderByLB'          : 'OL',
         'osMatching'         : 'OS',
@@ -1496,6 +1497,13 @@ class JediTaskSpec(object):
                 return True
         return False
 
+    # get num of input chunks to wait
+    def nChunksToWait(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['nChunksToWait']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None:
+                return int(tmpMatch.group(1))
+        return None
 
 
     # get max walltime
