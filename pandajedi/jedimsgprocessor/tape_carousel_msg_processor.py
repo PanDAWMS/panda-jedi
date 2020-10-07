@@ -65,7 +65,6 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
                     if res is None:
                         # got error and rollback in dbproxy
                         err_str = 'jeditaskid={0}, scope={1}, failed to update files'.format(jeditaskid, scope)
-                        tmp_log.error(err_str)
                         raise RuntimeError(err_str)
                     tmp_log.info('jeditaskid={0}, scope={1}, updated {2} files'.format(jeditaskid, scope, res))
                 elif msg_type == 'collection_stagein':
@@ -74,7 +73,6 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
                     if res is None:
                         # got error and rollback in dbproxy
                         err_str = 'jeditaskid={0}, scope={1}, failed to update datasets'.format(jeditaskid, scope)
-                        tmp_log.error(err_str)
                         raise RuntimeError(err_str)
                     tmp_log.info('jeditaskid={0}, scope={1}, updated {2} datasets'.format(jeditaskid, scope, res))
                 # check if all ok
@@ -87,7 +85,7 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
                     tmp_log.warning('jeditaskid={0}, scope={1}, strangely, {2} out of {3} done...'.format(
                                                                             jeditaskid, scope, res, len(target_list)))
         except Exception as e:
-            err_str = 'failed to parse message object, skipped. {0} : {1}'.format(e.__class__.__name__, e)
+            err_str = 'failed to process the message, skipped. {0} : {1}'.format(e.__class__.__name__, e)
             tmp_log.error(err_str)
             raise
         # done
