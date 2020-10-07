@@ -62,16 +62,29 @@ class TapeCarouselMsgProcPlugin(BaseMsgProcPlugin):
                 if msg_type == 'file_stagein':
                     tmp_log.debug('jeditaskid={0}, scope={1}, update about files...'.format(jeditaskid, scope))
                     res = self.tbIF.updateInputFilesStagedAboutIdds_JEDI(jeditaskid, scope, name_list)
+                    if res is None:
+                        # got error and rollback in dbproxy
+                        err_str = 'jeditaskid={0}, scope={1}, failed to update files'.format(jeditaskid, scope)
+                        tmp_log.error(err_str)
+                        raise RuntimeError(err_str)
                     tmp_log.info('jeditaskid={0}, scope={1}, updated {2} files'.format(jeditaskid, scope, res))
                 elif msg_type == 'collection_stagein':
                     tmp_log.debug('jeditaskid={0}, scope={1}, update about datasets...'.format(jeditaskid, scope))
                     res = self.tbIF.updateInputDatasetsStagedAboutIdds_JEDI(jeditaskid, scope, name_list)
+                    if res is None:
+                        # got error and rollback in dbproxy
+                        err_str = 'jeditaskid={0}, scope={1}, failed to update datasets'.format(jeditaskid, scope)
+                        tmp_log.error(err_str)
+                        raise RuntimeError(err_str)
                     tmp_log.info('jeditaskid={0}, scope={1}, updated {2} datasets'.format(jeditaskid, scope, res))
                 # check if all ok
                 if res == len(target_list):
                     tmp_log.debug('jeditaskid={0}, scope={1}, all OK'.format(jeditaskid, scope))
-                else:
+                elif res < len(target_list):
                     tmp_log.warning('jeditaskid={0}, scope={1}, only {2} out of {3} done...'.format(
+                                                                            jeditaskid, scope, res, len(target_list)))
+                else:
+                    tmp_log.warning('jeditaskid={0}, scope={1}, strangely, {2} out of {3} done...'.format(
                                                                             jeditaskid, scope, res, len(target_list)))
         except Exception as e:
             err_str = 'failed to parse message object, skipped. {0} : {1}'.format(e.__class__.__name__, e)
