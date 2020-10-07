@@ -1973,7 +1973,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlJobP+comment,varMap)
                         for clobJobP, in self.cur:
                             if clobJobP is not None:
-                                jobParamsTemplate = clobJobP.read()
+                                jobParamsTemplate = clobJobP
                                 break
                     if lockTask:
                         varMap = {}
@@ -3768,7 +3768,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.cur.execute(sqlJobP + comment, varMap)
                             for clobJobP, in self.cur:
                                 if clobJobP is not None:
-                                    taskSpec.jobParamsTemplate = clobJobP.read()
+                                    taskSpec.jobParamsTemplate = clobJobP
                                 break
                             # typical number of files
                             typicalNumFilesPerJob = 5
@@ -5116,7 +5116,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.cur.execute(sqlCopy+comment,varMap)
                             retStr = ''
                             for tmpItem, in self.cur:
-                                retStr = tmpItem.read(amount=5000000)
+                                retStr = tmpItem
                                 break
                             # check size
                             if len(retStr) != totalSize:
@@ -5221,8 +5221,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             retStr = ''
             totalSize = 0
             for tmpItem, in self.cur:
-                retStr = tmpItem.read(amount=1000000)
-                totalSize += tmpItem.size()
+                retStr = tmpItem
+                totalSize += len(tmpItem)
                 break
             # commit
             if not self._commit():
@@ -7586,7 +7586,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpComComment = None
                     for clobCC, in self.cur:
                         if clobCC is not None:
-                            tmpComComment = clobCC.read()
+                            tmpComComment = clobCC
                         break
                     if tmpComComment not in ['',None]:
                         retTaskIDs[jediTaskID]['comment'] = tmpComComment
@@ -8740,7 +8740,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':pandaID'] = pandaID
                     self.cur.execute(sqlSCD+comment,varMap)
                     for clobMeta, in self.cur:
-                        metaData = clobMeta.read()
+                        metaData = clobMeta
                         break
                     if metaData is None:
                         tmpLog.error('no metaData for PandaID={0}'.format(pandaID))
@@ -11563,19 +11563,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':PandaID'] = pandaID
                 self.cur.execute(sqlJ+comment,varMap)
                 for clobJobP, in self.cur:
-                    try:
-                        retVal = clobJobP.read()
-                    except Exception:
-                        retVal = str(clobJobP)
+                    retVal = clobJobP
                     break
                 if retVal is None:
                     self.cur.execute(sqlJA+comment,varMap)
                     for clobJobP, in self.cur:
-                        try:
-                            retVal = clobJobP.read()
-                        except Exception:
-                            retVal = str(clobJobP)
-                            break
+                        retVal = clobJobP
+                        break
                 # get output
                 varMap = dict()
                 varMap[':PandaID'] = pandaID
