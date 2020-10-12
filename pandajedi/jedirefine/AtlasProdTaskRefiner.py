@@ -178,7 +178,7 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                 try:
                     c = iDDS_Client(idds.common.utils.get_rest_host())
                     # send request to iDDS
-                    for datasetSpec in self.inMasterDatasetSpec:
+                    for datasetSpec in self.inMasterDatasetSpec + self.inSecDatasetSpecList:
                         try:
                             tmp_scope, tmp_name = datasetSpec.datasetName.split(':')
                             tmp_name = re.sub('/$', '', tmp_name)
