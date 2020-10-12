@@ -1296,11 +1296,14 @@ class JobGeneratorThread (WorkerThread):
                         mergeMaxWalltime = self.taskBufferIF.getConfigValue('jobgen', confKey, 'jedi', taskSpec.vo)
                         if mergeMaxWalltime is None:
                             jobSpec.maxCpuCount = 0
+                            jobSpec.maxWalltime = siteSpec.maxtime
                         else:
                             jobSpec.maxCpuCount = mergeMaxWalltime * 60 * 60
+                            jobSpec.maxWalltime = jobSpec.maxCpuCount
+                            if taskSpec.baseWalltime is not None:
+                                jobSpec.maxWalltime += taskSpec.baseWalltime
                         if jobSpec.minRamCount != [None,'NULL']:
                             jobSpec.minRamCount = 0
-
                     try:
                         jobSpec.resource_type = self.taskBufferIF.get_resource_type_job(jobSpec)
                         #tmpLog.debug('set resource_type to {0}'.format(jobSpec.resource_type))
@@ -1556,12 +1559,16 @@ class JobGeneratorThread (WorkerThread):
             if siteSpec.corepower:
                 jobSpec.hs06 = (jobSpec.coreCount or 1) * siteSpec.corepower # default 0 and None corecount to 1
             # set CPU count
-            buildJobMaxWalltime = self.taskBufferIF.getConfigValue('jobgen', 'BUILD_JOB__MAX_WALLTIME', 'jedi',
+            buildJobMaxWalltime = self.taskBufferIF.getConfigValue('jobgen', 'BUILD_JOB_MAX_WALLTIME', 'jedi',
                                                                    taskSpec.vo)
             if buildJobMaxWalltime is None:
                 jobSpec.maxCpuCount = 0
+                jobSpec.maxWalltime = siteSpec.maxtime
             else:
                 jobSpec.maxCpuCount = buildJobMaxWalltime * 60 * 60
+                jobSpec.maxWalltime = jobSpec.maxCpuCount
+                if taskSpec.baseWalltime is not None:
+                    jobSpec.maxWalltime += taskSpec.baseWalltime
             jobSpec.maxCpuUnit = taskSpec.walltimeUnit
             # make libDS name
             if datasetSpec is None or fileSpec is None or datasetSpec.state == 'closed' \
