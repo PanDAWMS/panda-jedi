@@ -160,12 +160,14 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
             if self.taskSpec.inputPreStaging():
                 if 'prestagingRuleID' not in taskParamMap:
                     # get rule IDs
-                    for datasetSpec in self.inMasterDatasetSpec+self.inSecDatasetSpecList:
+                    for datasetSpec in self.inMasterDatasetSpec + self.inSecDatasetSpecList:
                         try:
                             tmp_scope, tmp_name = datasetSpec.datasetName.split(':')
+                            tmp_name = re.sub('/$', '', tmp_name)
                         except Exception:
                             continue
-                        ruleID = self.ddmIF.getInterface(self.taskSpec.vo).getActiveStagingRule(datasetSpec.datasetName)
+                        ruleID = self.ddmIF.getInterface(self.taskSpec.vo).getActiveStagingRule(
+                            tmp_scope +':' + tmp_name)
                         if ruleID is not None:
                             taskParamMap.setdefault('prestagingRuleID', {})
                             taskParamMap['prestagingRuleID'][tmp_name] = ruleID
@@ -176,9 +178,10 @@ class AtlasProdTaskRefiner (TaskRefinerBase):
                 try:
                     c = iDDS_Client(idds.common.utils.get_rest_host())
                     # send request to iDDS
-                    for datasetSpec in self.inMasterDatasetSpec+self.inSecDatasetSpecList:
+                    for datasetSpec in self.inMasterDatasetSpec:
                         try:
                             tmp_scope, tmp_name = datasetSpec.datasetName.split(':')
+                            tmp_name = re.sub('/$', '', tmp_name)
                         except Exception:
                             continue
                         if 'prestagingRuleID' not in taskParamMap or tmp_name not in taskParamMap['prestagingRuleID']:

@@ -1292,8 +1292,12 @@ class JobGeneratorThread (WorkerThread):
                         jobSpec.maxDiskCount = siteSpec.maxwdir
                     # unset maxCpuCount and minRamCount for merge jobs
                     if inputChunk.isMerging:
-                        if jobSpec.maxCpuCount != [None,'NULL']:
+                        confKey = 'MERGE_JOB_MAX_WALLTIME_{0}'.format(taskSpec.prodSourceLabel)
+                        mergeMaxWalltime = self.taskBufferIF.getConfigValue('jobgen', confKey, 'jedi', taskSpec.vo)
+                        if mergeMaxWalltime is None:
                             jobSpec.maxCpuCount = 0
+                        else:
+                            jobSpec.maxCpuCount = mergeMaxWalltime * 60 * 60
                         if jobSpec.minRamCount != [None,'NULL']:
                             jobSpec.minRamCount = 0
 
@@ -1551,6 +1555,14 @@ class JobGeneratorThread (WorkerThread):
             # calculate the hs06 occupied by the job
             if siteSpec.corepower:
                 jobSpec.hs06 = (jobSpec.coreCount or 1) * siteSpec.corepower # default 0 and None corecount to 1
+            # set CPU count
+            buildJobMaxWalltime = self.taskBufferIF.getConfigValue('jobgen', 'BUILD_JOB__MAX_WALLTIME', 'jedi',
+                                                                   taskSpec.vo)
+            if buildJobMaxWalltime is None:
+                jobSpec.maxCpuCount = 0
+            else:
+                jobSpec.maxCpuCount = buildJobMaxWalltime * 60 * 60
+            jobSpec.maxCpuUnit = taskSpec.walltimeUnit
             # make libDS name
             if datasetSpec is None or fileSpec is None or datasetSpec.state == 'closed' \
                     or datasetSpec.creationTime < datetime.datetime.utcnow() - datetime.timedelta(days=periodToUselibTgz):
