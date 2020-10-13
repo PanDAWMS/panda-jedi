@@ -2922,7 +2922,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if superHighPrioTaskRatio is None:
             superHighPrioTaskRatio = 30
         # time limit to avoid duplication
-        timeLimit = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+        if hasattr(jedi_config.jobgen, 'lockInterval'):
+            lockInterval = jedi_config.jobgen.lockInterval
+        else:
+            lockInterval = 10
+        timeLimit = datetime.datetime.utcnow() - datetime.timedelta(minutes=lockInterval)
         try:
             # attribute for GROUP BY
             if workQueue is not None:
