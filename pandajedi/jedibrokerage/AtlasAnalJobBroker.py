@@ -9,7 +9,6 @@ from six import iteritems
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
-from pandajedi.jedicore import JediCoreUtils
 
 from .JobBrokerBase import JobBrokerBase
 from . import AtlasBrokerUtils
@@ -1362,7 +1361,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         trr_over_r = None
                     else:
                         trr_over_r = vv['trr']/vv['nr']
-                    vv['trr_over_r'] = trr_over_r
+                    vv['trr_over_r'] = '{:6.3f}'.format(trr_over_r) if trr_over_r is not None else 'None'
                     if orig_sum == 0:
                         normalized_orig = 0
                     else:
@@ -1379,7 +1378,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                 ' {nq:>6} |'
                                 ' {nr:>6} |'
                                 ' {trr:9.3f} |'
-                                ' {trr_over_r:6.3f} |'
+                                ' {trr_over_r} |'
                                 ' {orig:9.3f} |'
                                 ' {new:9.3f} |'
                                 ' {normalized_orig:6.1%} |'
