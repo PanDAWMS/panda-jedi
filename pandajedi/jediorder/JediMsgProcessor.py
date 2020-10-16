@@ -24,5 +24,5 @@ def launcher():
         tmp_log.error('failed to read config json file; should not happen... {0}: {1}'.format(e.__class__.__name__, e))
         raise e
     else:
-        agent = MsgProcAgent(config_file, process_sleep_time=0.0001)
+        agent = MsgProcAgent(config_file)
         agent.run()
