@@ -161,6 +161,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             # selection for data availability
             hasDDS = False
             dataWeight = {}
+            ddsList = set()
             remoteSourceList = {}
             if inputChunk.getDatasets() != [] and checkDataLocality:
                 oldScanSiteList = copy.copy(scanSiteList)
@@ -201,13 +202,14 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                             break
                                     if not isDistributed:
                                         break
-                                if isDistributed:
+                                if isDistributed or datasetName.endswith('/'):
                                     # check if really distributed
                                     isDistributed = self.ddmIF.isDistributedDataset(datasetName)
-                                    if isDistributed:
+                                    if isDistributed or datasetName.endswith('/'):
                                         hasDDS = True
                                         datasetSpec.setDistributed()
                                         tmpLog.debug(' {0} is distributed'.format(datasetName))
+                                        ddsList.add(datasetName)
                     # check if the data is available at somewhere
                     if self.dataSiteMap[datasetName] == {}:
                         for tmpSiteName in scanSiteList:
@@ -222,12 +224,16 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 normFactor = 0
                 for datasetName,tmpDataSite in iteritems(self.dataSiteMap):
                     normFactor += 1
+                    useIncomplete = datasetName in ddsList
                     # get sites where replica is available
-                    tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=True)
+                    tmpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite, includeTape=True,
+                                                                            use_incomplete=useIncomplete)
                     tmpDiskSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite,includeTape=False,
-                                                                                use_vp=useVP)
+                                                                                use_vp=useVP,
+                                                                                use_incomplete=useIncomplete)
                     tmpNonVpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite, includeTape=True,
-                                                                                 use_vp=False)
+                                                                                 use_vp=False,
+                                                                                 use_incomplete=useIncomplete)
                     # get sites which can remotely access source sites
                     if inputChunk.isMerging or taskSpec.useLocalIO():
                         # disable remote access for merging
@@ -1424,14 +1430,16 @@ class AtlasAnalJobBroker(JobBrokerBase):
         # limit the number of sites. use all sites for distributed datasets
         if not hasDDS:
             maxNumSites = 10
-            # remove problematic sites
-            candidateSpecList = AtlasBrokerUtils.skipProblematicSites(candidateSpecList,
-                                                                      set(problematic_sites_dict),
-                                                                      sitesUsedByTask,
-                                                                      preSiteCandidateSpec,
-                                                                      maxNumSites,
-                                                                      timeWindowForFC,
-                                                                      tmpLog)
+        else:
+            maxNumSites = None
+        # remove problematic sites
+        candidateSpecList = AtlasBrokerUtils.skipProblematicSites(candidateSpecList,
+                                                                  set(problematic_sites_dict),
+                                                                  sitesUsedByTask,
+                                                                  preSiteCandidateSpec,
+                                                                  maxNumSites,
+                                                                  timeWindowForFC,
+                                                                  tmpLog)
         # append preassigned
         if sitePreAssigned and preSiteCandidateSpec is not None and preSiteCandidateSpec not in candidateSpecList:
             candidateSpecList.append(preSiteCandidateSpec)

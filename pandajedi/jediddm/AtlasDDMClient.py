@@ -204,7 +204,6 @@ class AtlasDDMClient(DDMClientBase):
                 datasets = [dsn]
             else:
                 # get constituent datasets
-                dsn = dsn[:-1]
                 itr = client.list_content(scope,dsn)
                 datasets = [i['name'] for i in itr]
             retMap = {}
@@ -615,7 +614,7 @@ class AtlasDDMClient(DDMClientBase):
                 client.add_dataset(scope,name,meta=metaData,lifetime=lifetime,rse=location)
             else:
                 # register container
-                name = dsn[:-1]
+                name = dsn
                 client.add_container(scope=scope,name=name)
         except DataIdentifierAlreadyExists:
             pass
@@ -1214,7 +1213,9 @@ class AtlasDDMClient(DDMClientBase):
         return self.SC_SUCCEEDED,True
 
     # extract scope
-    def extract_scope(self,dsn):
+    def extract_scope(self, dsn):
+        if dsn.endswith('/'):
+            dsn = re.sub('/$', '', dsn)
         if ':' in dsn:
             return dsn.split(':')[:2]
         scope = dsn.split('.')[0]
