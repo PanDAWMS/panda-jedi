@@ -816,7 +816,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 else:
                     site_cc = tmpSiteSpec.coreCount
 
-                if taskSpec.coreCount in [None, 0, 1]:
+                if taskSpec.coreCount in [None, 0, 1] and not taskSpec.useEventService():
                     task_cc = 1
                 else:
                     task_cc = site_cc
