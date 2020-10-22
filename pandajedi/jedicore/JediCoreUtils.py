@@ -159,10 +159,14 @@ def getJobMinRamCount(taskSpec, inputChunk, siteSpec, coreCount):
 # get max walltime and cpu count
 def getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec):
     try:
-        if taskSpec.cpuTime in [0,None] and taskSpec.useHS06() and inputChunk.useScout():
-            jobSpec.maxWalltime = 24*60*60
-            jobSpec.maxCpuCount = 24*60*60
-        elif taskSpec.cpuTime is not None:
+        if not taskSpec.cpuTime:
+            if inputChunk.useScout():
+                jobSpec.maxWalltime = 24*60*60
+                jobSpec.maxCpuCount = 24*60*60
+            else:
+                jobSpec.maxWalltime = siteSpec.maxtime
+                jobSpec.maxCpuCount = siteSpec.maxtime
+        elif taskSpec.cpuTime:
             jobSpec.maxWalltime = taskSpec.cpuTime
             if jobSpec.maxWalltime is not None and jobSpec.maxWalltime > 0:
                 jobSpec.maxWalltime *= totalMasterEvents
