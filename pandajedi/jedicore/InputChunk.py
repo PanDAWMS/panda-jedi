@@ -514,10 +514,10 @@ class InputChunk:
                         newBoundaryID = True
                         break
                 # check for distributed datasets
-                if self.masterDataset.isDistributed() and siteName is not None and \
-                        not siteCandidate.isAvailableFile(tmpFileSpec):
-                    siteAvailable = False
-                    break
+                #if self.masterDataset.isDistributed() and siteName is not None and \
+                #        not siteCandidate.isAvailableFile(tmpFileSpec):
+                #    siteAvailable = False
+                #    break
                 if self.masterDataset.datasetID not in inputFileMap:
                     inputFileMap[self.masterDataset.datasetID] = []
                 inputFileMap[self.masterDataset.datasetID].append(tmpFileSpec)
