@@ -152,6 +152,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         retVal = None
         checkDataLocality = False
         scanSiteWoVP = []
+        avoidVP = False
         for scanSiteList, checkDataLocality in scanSiteLists:
             if checkDataLocality:
                 tmpLog.debug('!!! look for candidates WITH data locality check')
@@ -210,6 +211,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                         datasetSpec.setDistributed()
                                         tmpLog.debug(' {0} is distributed'.format(datasetName))
                                         ddsList.add(datasetName)
+                                        # disable VP since distributed datasets triggers transfers
+                                        useVP = False
+                                        avoidVP = True
                     # check if the data is available at somewhere
                     if self.dataSiteMap[datasetName] == {}:
                         for tmpSiteName in scanSiteList:
@@ -414,7 +418,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 return retTmpError
             ######################################
             # selection for VP
-            if taskSpec.avoid_vp():
+            if taskSpec.avoid_vp() or avoidVP:
                 newScanSiteList = []
                 for tmpSiteName in scanSiteList:
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
