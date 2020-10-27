@@ -141,9 +141,6 @@ class JobSplitter:
                     tmpLog.debug('split to %s subchunks' % len(subChunks))
                     # reset
                     subChunks = []
-                # skip unavailable files in distributed datasets
-                nSkip = inputChunk.skipUnavailableFiles()
-                tmpLog.debug('skipped {0} files'.format(nSkip))
                 # new candidate
                 siteCandidate, getCandidateMsg = inputChunk.getOneSiteCandidate(nSubChunks, get_msg=True)
                 if siteCandidate is None:
