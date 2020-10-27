@@ -754,3 +754,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def extendSandboxLifetime_JEDI(self, jedi_taskid, file_name):
         with self.proxyPool.get() as proxy:
             return proxy.extendSandboxLifetime_JEDI(jedi_taskid, file_name)
+
+    # turn a task into pending status for some reason
+    def makeTaskPending_JEDI(self, jedi_taskid, reason='unknown'):
+        with self.proxyPool.get() as proxy:
+            return proxy.makeTaskPending_JEDI(jedi_taskid, reason)

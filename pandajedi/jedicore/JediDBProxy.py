@@ -13676,3 +13676,34 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+    # turn a task into pending status for some reason
+    def makeTaskPending_JEDI(self, jedi_taskid, reason):
+        comment = ' /* JediDBProxy.makeTaskPending_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} >".format(jedi_taskid)
+        tmpLog = MsgWrapper(logger, methodName)
+        try:
+            self.conn.begin()
+            retVal = False
+            # sql to put the task in pending
+            sqlPDG = ("UPDATE {0}.JEDI_Tasks "
+                      "SET lockedBy=NULL,lockedTime=NULL,status=:status,errorDialog=:err "
+                      "WHERE jediTaskID=:jediTaskID ").format(jedi_config.db.schemaJEDI)
+            varMap = {}
+            varMap[':jediTaskID'] = jedi_taskid
+            varMap[':err'] = reason
+            self.cur.execute(sqlPDG+comment, varMap)
+            nRows = self.cur.rowcount
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('done with {0} rows'.format(nRows))
+            # return
+            return nRows
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
