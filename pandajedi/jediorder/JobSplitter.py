@@ -36,7 +36,7 @@ class JobSplitter:
             if not taskSpec.useHS06():
                 walltimeGradient = taskSpec.walltime
             else:
-                walltimeGradient = taskSpec.cpuTime
+                walltimeGradient = taskSpec.getCpuTime()
             # number of events per job if defined
             nEventsPerJob = taskSpec.getNumEventsPerJob()
             # number of files per job if defined

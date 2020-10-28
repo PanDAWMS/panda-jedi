@@ -904,18 +904,19 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                                           maxAttemptEsJob)
         else:
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
-            if taskSpec.cpuTime is not None:
-                minWalltime = taskSpec.cpuTime * tmpMaxAtomSize
+            if taskSpec.getCpuTime() is not None:
+                minWalltime = taskSpec.getCpuTime() * tmpMaxAtomSize
             else:
                 minWalltime = None
             # take # of consumers into account
             if not taskSpec.useEventService() or taskSpec.useJobCloning():
-                strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.cpuTime,tmpMaxAtomSize)
+                strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.getCpuTime(), tmpMaxAtomSize)
             else:
-                strMinWalltime = 'cpuTime*nEventsPerJob/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}'.format(taskSpec.cpuTime,
-                                                                                                             tmpMaxAtomSize,
-                                                                                                             nEsConsumers,
-                                                                                                             maxAttemptEsJob)
+                strMinWalltime = 'cpuTime*nEventsPerJob/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}'.format(
+                    taskSpec.getCpuTime(),
+                    tmpMaxAtomSize,
+                    nEsConsumers,
+                    maxAttemptEsJob)
         if minWalltime is not None:
             minWalltime /= (nEsConsumers * maxAttemptEsJob)
         if minWalltime is not None or inputChunk.useScout():

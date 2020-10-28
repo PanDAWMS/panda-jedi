@@ -5641,6 +5641,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         pass
                     else:
                         preOutDiskCount = preOutDiskCount // 1024
+            # get preCpuTime in sec
+            try:
+                if preCpuTimeUnit.startswith('m'):
+                    preCpuTime = float(preCpuTime) / 1000.0
+            except Exception:
+                pass
         else:
             prodSourceLabel = None
             preOutDiskCount = 0
@@ -5882,7 +5888,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # CPU time
                     if eventServiceJob != EventServiceUtils.esMergeJobFlagNumber:
                         try:
-                            if preCpuTimeUnit == 'HS06sPerEventFixed':
+                            if preCpuTimeUnit in ['HS06sPerEventFixed', 'mHS06sPerEventFixed']:
                                 pass
                             else:
                                 tmpVal = JobUtils.getHS06sec(startTime,endTime,corePower,coreCount,
@@ -6028,7 +6034,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     extraInfo['execTime'] = execTimeMap[cpuTimeDict[origValue]]
                 except Exception:
                     pass
-            maxCpuTime = long(math.ceil(maxCpuTime*1.5))
+            maxCpuTime *= 1.5
+            if maxCpuTime < 10:
+                maxCpuTime *= 1000
+                returnMap['cpuTimeUnit'] = 'mHS06sPerEvent'
+                if extraInfo['oldCpuTime']:
+                    extraInfo['oldCpuTime'] = long(extraInfo['oldCpuTime'] * 1000)
+            maxCpuTime = long(math.ceil(maxCpuTime))
             returnMap['cpuTime'] = maxCpuTime
         if ioIntentList != []:
             maxIoIntent = max(ioIntentList)
@@ -7292,7 +7304,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get RW
-            sql  = "SELECT (nEvents-nEventsUsed)*DECODE(cpuTime,NULL,300,cpuTime) "
+            sql  = "SELECT (nEvents-nEventsUsed)*(CASE "\
+                   "WHEN cpuTime IS NULL THEN 300 "\
+                   "WHEN cpuTimeUnit='mHS06sPerEvent' OR cpuTimeUnit='mHS06sPerEventFixed' THEN cpuTime/1000 "\
+                   "ELSE cpuTime END) "
             sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND masterID IS NULL "
             sql += "AND tabT.jediTaskID=:jediTaskID "
