@@ -77,6 +77,9 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
         if 'outDiskCount' not in taskParamMap:
             taskParamMap['outDiskCount'] = 500
             taskParamMap['outDiskUnit'] = 'kB'
+        # set cpu time unit to use HS06
+        if 'cpuTimeUnit' not in taskParamMap:
+            taskParamMap['cpuTimeUnit'] = 'HS06sPerEvent'
         # use local IO for ancient releases since inputfilepeeker+xrootd is problematic
         if 'transUses' in taskParamMap and taskParamMap['transUses']:
             try:
