@@ -147,6 +147,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
+        # new maxwdir
+        newMaxwdir = {}
         # get sites in the cloud
         siteSkippedTmp = dict()
         sitePreAssigned = False
@@ -830,6 +832,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpMsg += 'criteria=-disk'
                     tmpLog.info(tmpMsg)
                     continue
+                newMaxwdir[tmpSiteName] = maxwdir_scaled
             newScanSiteList.append(tmpSiteName)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed scratch disk check minDiskCount>{1}MB'.format(len(scanSiteList),
@@ -1528,6 +1531,8 @@ class AtlasProdJobBroker (JobBrokerBase):
 
             # make candidate
             siteCandidateSpec = SiteCandidate(tmpPseudoSiteName, tmpSiteName)
+            # override attributes
+            siteCandidateSpec.override_attribute('maxwdir', newMaxwdir.get(tmpSiteName))
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning
