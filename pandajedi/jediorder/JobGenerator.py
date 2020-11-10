@@ -1065,8 +1065,7 @@ class JobGeneratorThread (WorkerThread):
                             if tmpFileSpec.locality == 'remote':
                                 jobSpec.transferType = siteCandidate.remoteProtocol
                                 jobSpec.sourceSite = siteCandidate.remoteSource
-                            elif taskSpec.allowInputLAN() is not None and siteSpec.direct_access_lan \
-                                    and not inputChunk.isMerging:
+                            elif JediCoreUtils.use_direct_io_for_job(taskSpec, siteSpec, inputChunk):
                                 jobSpec.transferType = 'direct'
                             # collect old PandaIDs
                             if tmpFileSpec.PandaID is not None and tmpFileSpec.PandaID not in subOldPandaIDs:
@@ -1281,7 +1280,7 @@ class JobGeneratorThread (WorkerThread):
                     except Exception:
                         pass
                     # add input size
-                    if taskSpec.useLocalIO() or not siteSpec.isDirectIO() or taskSpec.allowInputLAN() is None:
+                    if not JediCoreUtils.use_direct_io_for_job(taskSpec, siteSpec, inputChunk):
                         jobSpec.maxDiskCount += totalFileSize
                     # maxDiskCount in MB
                     jobSpec.maxDiskCount /= (1024*1024)

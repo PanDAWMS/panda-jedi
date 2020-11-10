@@ -557,15 +557,6 @@ class AtlasProdJobBroker (JobBrokerBase):
 
         ######################################
         # selection for iointensity limits
-        """
-        select computingsite, avg(diskio/corecount), (select sys_extract_utc(systimestamp) from dual) as timestamp_utc
-        from atlas_panda.jobsactive4
-        where jobstatus in ('running', 'starting')
-        and diskio is not NULL
-        and corecount !=0
-        group by computingsite
-        order by computingsite
-        """
 
         # get default disk IO limit from GDP config
         max_diskio_per_core_default =  self.taskBufferIF.getConfigValue(COMPONENT, 'MAX_DISKIO_DEFAULT', APP, VO)
@@ -797,15 +788,16 @@ class AtlasProdJobBroker (JobBrokerBase):
         newScanSiteList = []
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            # check remote access
-            if taskSpec.allowInputLAN() == 'only' and not tmpSiteSpec.direct_access_lan:
-                tmpMsg = '  skip site={0} since remote IO is disabled '.format(tmpSiteName)
+            # check direct access
+            if taskSpec.allowInputLAN() == 'only' and not tmpSiteSpec.isDirectIO() and \
+                    not tmpSiteSpec.always_use_direct_io() and not inputChunk.isMerging:
+                tmpMsg = '  skip site={0} since direct IO is disabled '.format(tmpSiteName)
                 tmpMsg += 'criteria=-remoteio'
                 tmpLog.info(tmpMsg)
                 continue
             # check scratch size
             if tmpSiteSpec.maxwdir != 0:
-                if taskSpec.allowInputLAN() is not None and tmpSiteSpec.direct_access_lan:
+                if JediCoreUtils.use_direct_io_for_job(taskSpec, tmpSiteSpec, inputChunk):
                     # size for remote access
                     minDiskCount = minDiskCountD
                 else:

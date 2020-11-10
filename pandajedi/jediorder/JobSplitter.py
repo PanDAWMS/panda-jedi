@@ -1,6 +1,7 @@
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.InputChunk import InputChunk
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore import JediCoreUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -149,8 +150,7 @@ class JobSplitter:
                 siteName = siteCandidate.siteName
                 siteSpec = siteMapper.getSite(siteName)
                 # directIO
-                if taskSpec.useLocalIO() or not siteSpec.isDirectIO() or taskSpec.allowInputLAN() is None \
-                        or inputChunk.isMerging:
+                if not JediCoreUtils.use_direct_io_for_job(taskSpec, siteSpec, inputChunk):
                     useDirectIO = False
                 else:
                     useDirectIO = True

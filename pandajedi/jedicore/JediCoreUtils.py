@@ -179,3 +179,20 @@ def getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec
                 jobSpec.maxCpuCount = jobSpec.maxWalltime
     except Exception:
         pass
+
+
+# use direct IO for job
+def use_direct_io_for_job(task_spec, site_spec, input_chunk):
+    # not for merging
+    if input_chunk.isMerging:
+        return False
+    # force copy-to-scratch
+    if task_spec.useLocalIO():
+        return False
+    # always
+    if site_spec.always_use_direct_io():
+        return True
+    # depends on task and site specs
+    if task_spec.allowInputLAN() is not None and site_spec.isDirectIO():
+        return True
+    return False
