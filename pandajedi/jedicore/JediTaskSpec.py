@@ -1248,9 +1248,18 @@ class JediTaskSpec(object):
 
     # use HS06 for walltime estimation
     def useHS06(self):
-        return self.cpuTimeUnit in ['HS06sPerEvent', 'HS06sPerEventFixed']
+        return self.cpuTimeUnit in ['HS06sPerEvent', 'HS06sPerEventFixed', 'mHS06sPerEvent', 'mHS06sPerEventFixed']
 
-
+    # get CPU time in sec
+    def getCpuTime(self):
+        if not self.useHS06():
+            return None
+        try:
+            if self.cpuTimeUnit.startswith('m'):
+                return float(self.cpuTime) / 1000.0
+        except Exception:
+            pass
+        return self.cpuTime
 
     # RAM scales with nCores
     def ramPerCore(self):

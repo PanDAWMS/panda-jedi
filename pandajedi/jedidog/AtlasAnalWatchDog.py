@@ -39,7 +39,7 @@ class AtlasAnalWatchDog (WatchDogBase):
             # redo stalled analysis jobs
             self.doForRedoStalledJobs()
             # throttle WAN data access
-            self.doForThrottleWAN()
+            #self.doForThrottleWAN()
         except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             origTmpLog.error('failed with {0} {1}'.format(errtype,errvalue))
@@ -146,7 +146,7 @@ class AtlasAnalWatchDog (WatchDogBase):
                                     or taskID not in thrUserTasks[userName][transferType]:
                                 tmpLog.debug('action=throttle_{0} jediTaskID={1} for user={2}'.format(transferType,
                                                                                                       taskID, userName))
-                                errDiag = 'throttled for {0} min due to large data motion type={0}'.format(thrInterval,
+                                errDiag = 'throttled for {0} min due to large data motion type={1}'.format(thrInterval,
                                                                                                            transferType)
                                 self.taskBufferIF.throttleTask_JEDI(taskID,thrInterval,errDiag)
                         # remove the user from the list
@@ -224,20 +224,24 @@ class AtlasAnalWatchDog (WatchDogBase):
                             maxNumRun = maxNumRunPerGroup
                         if tmpNumTotal >= maxNumRun:
                             # throttle user
-                            tmpNumJobs = self.taskBufferIF.throttleUserJobs(prodUserName, workingGroup)
-                            if tmpNumJobs is not None and tmpNumJobs > 0:
-                                msg = 'throttled {0} jobs for user="{1}" group={2} since too many ({3}) running jobs'.format(
-                                    tmpNumJobs, prodUserName, workingGroup, maxNumRun)
-                                tmpLog.debug(msg)
-                                tmpLog.sendMsg(msg, 'userCap', msgLevel='warning')
+                            tmpNumJobs = self.taskBufferIF.throttleUserJobs(prodUserName, workingGroup, get_dict=True)
+                            if tmpNumJobs is not None:
+                                for tmpJediTaskID, tmpNumJob in iteritems(tmpNumJobs):
+                                    msg = ('throttled {0} jobs in jediTaskID={4} for user="{1}" group={2} '
+                                           'since too many (> {3}) running jobs').format(
+                                        tmpNumJob, prodUserName, workingGroup, maxNumRun, tmpJediTaskID)
+                                    tmpLog.debug(msg)
+                                    tmpLog.sendMsg(msg, 'userCap', msgLevel='warning')
                         elif tmpNumTotal < maxNumRun*0.9 and (prodUserName, workingGroup) in throttledUsers:
                             # unthrottle user
-                            tmpNumJobs = self.taskBufferIF.unThrottleUserJobs(prodUserName, workingGroup)
-                            if tmpNumJobs is not None and tmpNumJobs > 0:
-                                msg = 'released jobs for user="{0}" group={1} since number of running jobs is less than {2}'.format(
-                                    prodUserName, workingGroup, maxNumRun)
-                                tmpLog.debug(msg)
-                                tmpLog.sendMsg(msg, 'userCap')
+                            tmpNumJobs = self.taskBufferIF.unThrottleUserJobs(prodUserName, workingGroup, get_dict=True)
+                            if tmpNumJobs is not None:
+                                for tmpJediTaskID, tmpNumJob in iteritems(tmpNumJobs):
+                                    msg = ('released {3} jobs in jediTaskID={4} for user="{0}" group={1} '
+                                           'since number of running jobs is less than {2}').format(
+                                        prodUserName, workingGroup, maxNumRun, tmpNumJob, tmpJediTaskID)
+                                    tmpLog.debug(msg)
+                                    tmpLog.sendMsg(msg, 'userCap')
             except Exception as e:
                 errStr = "cap failed for %s : %s" % (prodUserName, str(e))
                 errStr.strip()

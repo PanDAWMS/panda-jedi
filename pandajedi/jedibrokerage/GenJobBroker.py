@@ -4,9 +4,8 @@ import random
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
-from pandajedi.jedicore import Interaction
+from pandajedi.jedicore import JediCoreUtils
 from .JobBrokerBase import JobBrokerBase
-from pandaserver.taskbuffer import PrioUtil
 from . import AtlasBrokerUtils
 
 # logger
@@ -75,7 +74,7 @@ class GenJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check at the site
             if tmpSiteSpec.maxwdir:
-                if tmpSiteSpec.isDirectIO():
+                if JediCoreUtils.use_direct_io_for_job(taskSpec, tmpSiteSpec, inputChunk):
                     minDiskCount = minDiskCountR
                 else:
                     minDiskCount = minDiskCountS

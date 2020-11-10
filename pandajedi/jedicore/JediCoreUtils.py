@@ -159,15 +159,11 @@ def getJobMinRamCount(taskSpec, inputChunk, siteSpec, coreCount):
 # get max walltime and cpu count
 def getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec):
     try:
-        if not taskSpec.cpuTime:
-            if inputChunk.useScout():
-                jobSpec.maxWalltime = 24*60*60
-                jobSpec.maxCpuCount = 24*60*60
-            else:
-                jobSpec.maxWalltime = siteSpec.maxtime
-                jobSpec.maxCpuCount = siteSpec.maxtime
-        elif taskSpec.cpuTime:
-            jobSpec.maxWalltime = taskSpec.cpuTime
+        if not taskSpec.getCpuTime():
+            jobSpec.maxWalltime = siteSpec.maxtime
+            jobSpec.maxCpuCount = siteSpec.maxtime
+        else:
+            jobSpec.maxWalltime = taskSpec.getCpuTime()
             if jobSpec.maxWalltime is not None and jobSpec.maxWalltime > 0:
                 jobSpec.maxWalltime *= totalMasterEvents
                 if siteSpec.coreCount > 0:
@@ -183,3 +179,20 @@ def getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec
                 jobSpec.maxCpuCount = jobSpec.maxWalltime
     except Exception:
         pass
+
+
+# use direct IO for job
+def use_direct_io_for_job(task_spec, site_spec, input_chunk):
+    # not for merging
+    if input_chunk.isMerging:
+        return False
+    # force copy-to-scratch
+    if task_spec.useLocalIO():
+        return False
+    # always
+    if site_spec.always_use_direct_io():
+        return True
+    # depends on task and site specs
+    if task_spec.allowInputLAN() is not None and site_spec.isDirectIO():
+        return True
+    return False

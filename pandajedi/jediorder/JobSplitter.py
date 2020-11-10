@@ -1,6 +1,7 @@
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.InputChunk import InputChunk
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
+from pandajedi.jedicore import JediCoreUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -36,7 +37,7 @@ class JobSplitter:
             if not taskSpec.useHS06():
                 walltimeGradient = taskSpec.walltime
             else:
-                walltimeGradient = taskSpec.cpuTime
+                walltimeGradient = taskSpec.getCpuTime()
             # number of events per job if defined
             nEventsPerJob = taskSpec.getNumEventsPerJob()
             # number of files per job if defined
@@ -141,9 +142,6 @@ class JobSplitter:
                     tmpLog.debug('split to %s subchunks' % len(subChunks))
                     # reset
                     subChunks = []
-                # skip unavailable files in distributed datasets
-                nSkip = inputChunk.skipUnavailableFiles()
-                tmpLog.debug('skipped {0} files'.format(nSkip))
                 # new candidate
                 siteCandidate, getCandidateMsg = inputChunk.getOneSiteCandidate(nSubChunks, get_msg=True)
                 if siteCandidate is None:
@@ -152,8 +150,7 @@ class JobSplitter:
                 siteName = siteCandidate.siteName
                 siteSpec = siteMapper.getSite(siteName)
                 # directIO
-                if taskSpec.useLocalIO() or not siteSpec.isDirectIO() or taskSpec.allowInputLAN() is None \
-                        or inputChunk.isMerging:
+                if not JediCoreUtils.use_direct_io_for_job(taskSpec, siteSpec, inputChunk):
                     useDirectIO = False
                 else:
                     useDirectIO = True

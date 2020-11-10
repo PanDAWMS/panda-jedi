@@ -147,6 +147,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
+        # new maxwdir
+        newMaxwdir = {}
         # get sites in the cloud
         siteSkippedTmp = dict()
         sitePreAssigned = False
@@ -555,15 +557,6 @@ class AtlasProdJobBroker (JobBrokerBase):
 
         ######################################
         # selection for iointensity limits
-        """
-        select computingsite, avg(diskio/corecount), (select sys_extract_utc(systimestamp) from dual) as timestamp_utc
-        from atlas_panda.jobsactive4
-        where jobstatus in ('running', 'starting')
-        and diskio is not NULL
-        and corecount !=0
-        group by computingsite
-        order by computingsite
-        """
 
         # get default disk IO limit from GDP config
         max_diskio_per_core_default =  self.taskBufferIF.getConfigValue(COMPONENT, 'MAX_DISKIO_DEFAULT', APP, VO)
@@ -795,15 +788,16 @@ class AtlasProdJobBroker (JobBrokerBase):
         newScanSiteList = []
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            # check remote access
-            if taskSpec.allowInputLAN() == 'only' and not tmpSiteSpec.direct_access_lan:
-                tmpMsg = '  skip site={0} since remote IO is disabled '.format(tmpSiteName)
+            # check direct access
+            if taskSpec.allowInputLAN() == 'only' and not tmpSiteSpec.isDirectIO() and \
+                    not tmpSiteSpec.always_use_direct_io() and not inputChunk.isMerging:
+                tmpMsg = '  skip site={0} since direct IO is disabled '.format(tmpSiteName)
                 tmpMsg += 'criteria=-remoteio'
                 tmpLog.info(tmpMsg)
                 continue
             # check scratch size
             if tmpSiteSpec.maxwdir != 0:
-                if taskSpec.allowInputLAN() is not None and tmpSiteSpec.direct_access_lan:
+                if JediCoreUtils.use_direct_io_for_job(taskSpec, tmpSiteSpec, inputChunk):
                     # size for remote access
                     minDiskCount = minDiskCountD
                 else:
@@ -830,6 +824,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpMsg += 'criteria=-disk'
                     tmpLog.info(tmpMsg)
                     continue
+                newMaxwdir[tmpSiteName] = maxwdir_scaled
             newScanSiteList.append(tmpSiteName)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed scratch disk check minDiskCount>{1}MB'.format(len(scanSiteList),
@@ -904,18 +899,19 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                                           maxAttemptEsJob)
         else:
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
-            if taskSpec.cpuTime is not None:
-                minWalltime = taskSpec.cpuTime * tmpMaxAtomSize
+            if taskSpec.getCpuTime() is not None:
+                minWalltime = taskSpec.getCpuTime() * tmpMaxAtomSize
             else:
                 minWalltime = None
             # take # of consumers into account
             if not taskSpec.useEventService() or taskSpec.useJobCloning():
-                strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.cpuTime,tmpMaxAtomSize)
+                strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.getCpuTime(), tmpMaxAtomSize)
             else:
-                strMinWalltime = 'cpuTime*nEventsPerJob/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}'.format(taskSpec.cpuTime,
-                                                                                                             tmpMaxAtomSize,
-                                                                                                             nEsConsumers,
-                                                                                                             maxAttemptEsJob)
+                strMinWalltime = 'cpuTime*nEventsPerJob/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}'.format(
+                    taskSpec.getCpuTime(),
+                    tmpMaxAtomSize,
+                    nEsConsumers,
+                    maxAttemptEsJob)
         if minWalltime is not None:
             minWalltime /= (nEsConsumers * maxAttemptEsJob)
         if minWalltime is not None or inputChunk.useScout():
@@ -1527,6 +1523,8 @@ class AtlasProdJobBroker (JobBrokerBase):
 
             # make candidate
             siteCandidateSpec = SiteCandidate(tmpPseudoSiteName, tmpSiteName)
+            # override attributes
+            siteCandidateSpec.override_attribute('maxwdir', newMaxwdir.get(tmpSiteName))
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning

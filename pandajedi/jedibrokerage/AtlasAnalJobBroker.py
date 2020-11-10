@@ -9,6 +9,7 @@ from six import iteritems
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import Interaction
+from pandajedi.jedicore import JediCoreUtils
 
 from .JobBrokerBase import JobBrokerBase
 from . import AtlasBrokerUtils
@@ -682,7 +683,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
                 if tmpSiteSpec.maxwdir:
-                    if tmpSiteSpec.isDirectIO():
+                    if JediCoreUtils.use_direct_io_for_job(taskSpec, tmpSiteSpec, inputChunk):
                         minDiskCount = minDiskCountR
                         if maxSizePerJob is not None and not taskSpec.useLocalIO():
                             tmpMinDiskCountR = tmpOutDiskSize * maxSizePerJob + tmpWorkDiskSize
