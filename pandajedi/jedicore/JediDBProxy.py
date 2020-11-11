@@ -13722,3 +13722,141 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+    # get  datasets of input and lib, to update data locality records
+    def get_tasks_inputdatasets_JEDI(self, vo):
+        comment = ' /* JediDBProxy.get_tasks_inputdatasets_JEDI */'
+        methodName = self.getMethodName(comment)
+        # last update time
+        timestamp = datetime.datetime.utcnow()
+        timestamp_str = timestamp.strftime('%Y-%m-%d_%H:%M:%S')
+        methodName += " <taskID={0} datasetID={1} rse={2} timestamp={3}>".format(jedi_taskid, datasetid, rse, timestamp_str)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = None
+            # sql to get all jediTaskID and datasetID of input and lib
+            sql = ( "SELECT tabT.jediTaskID,datasetID, tabD.datasetName "
+                    "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA "
+                    "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
+                        "AND tabT.vo=:vo AND tabD.type IN ('input', 'lib')"
+                    ).format(jedi_config.db.schemaJEDI)
+            # start transaction
+            self.conn.begin()
+            # get
+            varMap = {}
+            varMap[':vo'] = vo
+            self.cur.execute(sql+comment, varMap)
+            res = self.cur.fetchall()
+            nRows = self.cur.rowcount
+            tmpLog.debug('done with {0} rows'.format(nRows))
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # return
+            retVal = res
+            tmpLog.debug('done')
+            return retVal
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog,msgType='debug')
+            return retVal
+
+
+    # update dataset locality
+    def updateDatasetLocality_JEDI(self, jedi_taskid, datasetid, rse):
+        comment = ' /* JediDBProxy.updateDatasetLocality_JEDI */'
+        methodName = self.getMethodName(comment)
+        # last update time
+        timestamp = datetime.datetime.utcnow()
+        timestamp_str = timestamp.strftime('%Y-%m-%d_%H:%M:%S')
+        methodName += " <taskID={0} datasetID={1} rse={2} timestamp={3}>".format(jedi_taskid, datasetid, rse, timestamp_str)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = False
+            # sql to check
+            sqlC = ("SELECT timestamp "
+                    "FROM {0}.JEDI_Dataset_Locality "
+                    "WHERE taskID=:taskID AND datasetID=:datasetID AND rse=:rse "
+                ).format(jedi_config.db.schemaJEDI)
+            # sql to insert
+            sqlI = ("INSERT INTO {0}.JEDI_Dataset_Locality "
+                    "(taskID, datasetID, rse, timestamp) "
+                    "VALUES (:taskID, :datasetID, :rse, :timestamp)"
+                ).format(jedi_config.db.schemaJEDI)
+            # sql to update
+            sqlU = ("UPDATE {0}.JEDI_Dataset_Locality "
+                    "SET timestamp=:timestamp "
+                    "WHERE taskID=:taskID AND datasetID=:datasetID AND rse=:rse "
+                ).format(jedi_config.db.schemaJEDI)
+            # start transaction
+            self.conn.begin()
+            # check
+            varMap = {}
+            varMap[':taskID'] = jedi_taskid
+            varMap[':datasetID'] = datasetid
+            varMap[':rse'] = rse
+            self.cur.execute(sqlC+comment, varMap)
+            resC = self.cur.fetchone()
+            varMap[':timestamp'] = timestamp
+            if resC is None:
+                # insert if missing
+                tmpLog.debug('insert')
+                self.cur.execute(sqlI+comment, varMap)
+            else:
+                # update
+                tmpLog.debug('update')
+                self.cur.execute(sqlU+comment, varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # return
+            retVal = True
+            tmpLog.debug('done')
+            return retVal
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog,msgType='debug')
+            return retVal
+
+    # delete outdated dataset locality records
+    def deleteOutdatedDatasetLocality_JEDI(self, before_timestamp):
+        comment = ' /* JediDBProxy.deleteOutdatedDatasetLocality_JEDI */'
+        methodName = self.getMethodName(comment)
+        # last update time
+        before_timestamp_str = before_timestamp.strftime('%Y-%m-%d_%H:%M:%S')
+        methodName += " <before_timestamp={0}>".format(before_timestamp_str)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = 0
+            # sql to delete
+            sqlD = ("DELETE {0}.Jedi_Dataset_Locality "
+                    "WHERE timestamp<=:timestamp "
+                ).format(jedi_config.db.schemaJEDI)
+            # start transaction
+            self.conn.begin()
+            # check
+            varMap = {}
+            varMap[':timestamp'] = before_timestamp
+            # delete
+            self.cur.execute(sqlD+comment, varMap)
+            retVal = self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # return
+            tmpLog.debug('done, deleted {0} records'.format(retVal))
+            return retVal
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog,msgType='debug')
+            return retVal

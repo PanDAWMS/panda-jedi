@@ -759,3 +759,18 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def makeTaskPending_JEDI(self, jedi_taskid, reason='unknown'):
         with self.proxyPool.get() as proxy:
             return proxy.makeTaskPending_JEDI(jedi_taskid, reason)
+
+    # get IDs of all datasets of input and lib, to update data locality records
+    def get_tasks_inputdatasets_JEDI(self, vo):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_tasks_inputdatasets_JEDI(vo)
+
+    # update dataset locality
+    def updateDatasetLocality_JEDI(self, jedi_taskid, datasetid, rse):
+        with self.proxyPool.get() as proxy:
+            return proxy.updateDatasetLocality_JEDI(jedi_taskid, datasetid, rse)
+
+    # delete outdated dataset locality records
+    def deleteOutdatedDatasetLocality_JEDI(self, before_timestamp):
+        with self.proxyPool.get() as proxy:
+            return proxy.deleteOutdatedDatasetLocality_JEDI(before_timestamp)
