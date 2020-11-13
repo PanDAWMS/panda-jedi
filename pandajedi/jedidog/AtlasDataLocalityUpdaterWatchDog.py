@@ -38,7 +38,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
         tmpLog.debug('start')
         try:
             # lock
-            got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
+            got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel='default',
                                                             cloud=None, workqueue_id=None, resource_name=None,
                                                             component='AtlasDataLocalityUpdaterWatchDog.doUpdateDataLocality',
                                                             pid=self.pid, timeLimit=720)
@@ -73,7 +73,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
         tmpLog.debug('start')
         try:
             # lock
-            got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
+            got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel='default',
                                                             cloud=None, workqueue_id=None, resource_name=None,
                                                             component='AtlasDataLocalityUpdaterWatchDog.doCleanDataLocality',
                                                             pid=self.pid, timeLimit=1440)
@@ -135,7 +135,7 @@ class DataLocalityUpdaterThread(WorkerThread):
                 taskDsList = self.taskDsList.get(nDatasets)
                 if len(taskDsList) == 0:
                     # no more datasets, quit
-                    self.logger.debug('%s terminating since no more items' % self.__class__.__name__)
+                    self.logger.debug('{0} terminating since no more items'.format(self.name))
                     return
                 # loop over these datasets
                 for item in taskDsList:

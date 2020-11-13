@@ -10709,7 +10709,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog,msgType='debug')
+            self.dumpErrorMessage(tmpLog)
             return retVal
 
 
@@ -10874,7 +10874,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog, msgType='debug')
+            self.dumpErrorMessage(tmpLog)
             return retVal
 
 
@@ -13622,7 +13622,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog,msgType='debug')
+            self.dumpErrorMessage(tmpLog)
             return retVal
 
 
@@ -13661,7 +13661,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog,msgType='debug')
+            self.dumpErrorMessage(tmpLog)
 
 
     # extend lifetime of sandbox file

@@ -20,7 +20,7 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 
 # task withholder watchdog for ATLAS
-class AtlasTaskWithholderWatchDog (WatchDogBase):
+class AtlasTaskWithholderWatchDog(WatchDogBase):
 
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
