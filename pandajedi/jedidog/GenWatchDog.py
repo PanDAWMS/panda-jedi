@@ -11,11 +11,11 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 
 # watchdog for general purpose
-class GenWatchDog (WatchDogBase):
+class GenWatchDog(WatchDogBase):
 
     # constructor
-    def __init__(self,ddmIF,taskBufferIF):
-        WatchDogBase.__init__(self,ddmIF,taskBufferIF)
+    def __init__(self, taskBufferIF, ddmIF):
+        WatchDogBase.__init__(self, taskBufferIF, ddmIF)
 
 
 

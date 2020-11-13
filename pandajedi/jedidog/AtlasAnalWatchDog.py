@@ -16,11 +16,11 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 
 # watchdog for ATLAS analysis
-class AtlasAnalWatchDog (WatchDogBase):
+class AtlasAnalWatchDog(WatchDogBase):
 
     # constructor
-    def __init__(self, ddmIF, taskBufferIF):
-        WatchDogBase.__init__(self,ddmIF,taskBufferIF)
+    def __init__(self, taskBufferIF, ddmIF):
+        WatchDogBase.__init__(self, taskBufferIF, ddmIF)
         self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0], os.getpid())
         # self.cronActions = {'forPrestage': 'atlas_prs'}
 

@@ -1,12 +1,12 @@
 from pandajedi.jedicore import Interaction
 
 # base class for watchdog
-class WatchDogBase (object):
+class WatchDogBase(object):
 
     # constructor
-    def __init__(self,taskBufferIF,ddmIF):
-        self.ddmIF = ddmIF
+    def __init__(self, taskBufferIF, ddmIF):
         self.taskBufferIF = taskBufferIF
+        self.ddmIF = ddmIF
         self.refresh()
 
 

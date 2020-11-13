@@ -19,11 +19,11 @@ from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 # watchdog for ATLAS production
-class AtlasProdWatchDog (WatchDogBase):
+class AtlasProdWatchDog(WatchDogBase):
 
     # constructor
-    def __init__(self,ddmIF,taskBufferIF):
-        WatchDogBase.__init__(self, ddmIF, taskBufferIF)
+    def __init__(self, taskBufferIF, ddmIF):
+        WatchDogBase.__init__(self, taskBufferIF, ddmIF)
 
     # main
     def doAction(self):
