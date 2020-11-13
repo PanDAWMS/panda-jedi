@@ -1065,7 +1065,8 @@ class JobGeneratorThread (WorkerThread):
                             if tmpFileSpec.locality == 'remote':
                                 jobSpec.transferType = siteCandidate.remoteProtocol
                                 jobSpec.sourceSite = siteCandidate.remoteSource
-                            elif JediCoreUtils.use_direct_io_for_job(taskSpec, siteSpec, inputChunk):
+                            elif not inputChunk.isMerging and not taskSpec.useLocalIO() and \
+                                    (taskSpec.allowInputLAN() is not None and siteSpec.isDirectIO()):
                                 jobSpec.transferType = 'direct'
                             # collect old PandaIDs
                             if tmpFileSpec.PandaID is not None and tmpFileSpec.PandaID not in subOldPandaIDs:
