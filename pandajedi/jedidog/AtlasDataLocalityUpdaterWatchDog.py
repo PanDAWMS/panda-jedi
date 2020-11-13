@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import datetime
 import socket
 import traceback
 
@@ -18,10 +19,11 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
 
     # constructor
-    def __init__(self, ddmIF, taskBufferIF):
-        WatchDogBase.__init__(self, ddmIF, taskBufferIF)
+    def __init__(self, taskBufferIF, ddmIF):
+        WatchDogBase.__init__(self, taskBufferIF, ddmIF)
         self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0], os.getpid())
         self.vo = 'atlas'
+        self.ddmIF = ddmIF.getInterface(self.vo)
 
     # get list-with-lock of datasets to update
     def get_datasets_list(self):
@@ -32,9 +34,9 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
 
     # update data locality records to DB table
     def doUpdateDataLocality(self):
+        tmpLog = MsgWrapper(logger, ' #ATM #KV doUpdateDataLocality')
+        tmpLog.debug('start')
         try:
-            tmpLog = MsgWrapper(logger, ' #ATM #KV doUpdateDataLocality')
-            tmpLog.debug('start')
             # lock
             got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
                                                             cloud=None, workqueue_id=None, resource_name=None,
@@ -50,12 +52,12 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
             # make workers
             n_workers = 4
             for _ in range(n_workers):
-                thr = ContentsFeederThread( taskDsList=datasets_list,
-                                            threadPool=thread_pool,
-                                            taskbufferIF=self.taskBufferIF,
-                                            ddmIF=self.ddmIF,
-                                            pid=self.pid,
-                                            loggerObj=tmpLog)
+                thr = DataLocalityUpdaterThread(taskDsList=datasets_list,
+                                                threadPool=thread_pool,
+                                                taskbufferIF=self.taskBufferIF,
+                                                ddmIF=self.ddmIF,
+                                                pid=self.pid,
+                                                loggerObj=tmpLog)
                 thr.start()
             # join
             thread_pool.join()
@@ -67,9 +69,9 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
 
     # clean up old data locality records in DB table
     def doCleanDataLocality(self):
+        tmpLog = MsgWrapper(logger, ' #ATM #KV doCleanDataLocality')
+        tmpLog.debug('start')
         try:
-            tmpLog = MsgWrapper(logger, ' #ATM #KV doUpdateDataLocality')
-            tmpLog.debug('start')
             # lock
             got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
                                                             cloud=None, workqueue_id=None, resource_name=None,
@@ -153,3 +155,4 @@ class DataLocalityUpdaterThread(WorkerThread):
             except Exception as e:
                 self.logger.error('{0} failed in runImpl() with {1}: {2}'.format(self.__class__.__name__, str(e),
                                                                             traceback.format_exc()))
+                return

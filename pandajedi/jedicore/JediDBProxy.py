@@ -13729,9 +13729,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         comment = ' /* JediDBProxy.get_tasks_inputdatasets_JEDI */'
         methodName = self.getMethodName(comment)
         # last update time
-        timestamp = datetime.datetime.utcnow()
-        timestamp_str = timestamp.strftime('%Y-%m-%d_%H:%M:%S')
-        methodName += " <taskID={0} datasetID={1} rse={2} timestamp={3}>".format(jedi_taskid, datasetid, rse, timestamp_str)
+        methodName += " <vo={0}>".format(vo)
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
         try:
@@ -13750,19 +13748,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.execute(sql+comment, varMap)
             res = self.cur.fetchall()
             nRows = self.cur.rowcount
-            tmpLog.debug('done with {0} rows'.format(nRows))
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
             # return
             retVal = res
-            tmpLog.debug('done')
+            tmpLog.debug('done with {0} rows'.format(nRows))
             return retVal
         except Exception:
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog,msgType='debug')
+            self.dumpErrorMessage(tmpLog)
             return retVal
 
 
@@ -13781,23 +13778,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to check
             sqlC = ("SELECT timestamp "
                     "FROM {0}.JEDI_Dataset_Locality "
-                    "WHERE taskID=:taskID AND datasetID=:datasetID AND rse=:rse "
+                    "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND rse=:rse "
                 ).format(jedi_config.db.schemaJEDI)
             # sql to insert
             sqlI = ("INSERT INTO {0}.JEDI_Dataset_Locality "
-                    "(taskID, datasetID, rse, timestamp) "
-                    "VALUES (:taskID, :datasetID, :rse, :timestamp)"
+                    "(jediTaskID, datasetID, rse, timestamp) "
+                    "VALUES (:jediTaskID, :datasetID, :rse, :timestamp)"
                 ).format(jedi_config.db.schemaJEDI)
             # sql to update
             sqlU = ("UPDATE {0}.JEDI_Dataset_Locality "
                     "SET timestamp=:timestamp "
-                    "WHERE taskID=:taskID AND datasetID=:datasetID AND rse=:rse "
+                    "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND rse=:rse "
                 ).format(jedi_config.db.schemaJEDI)
             # start transaction
             self.conn.begin()
             # check
             varMap = {}
-            varMap[':taskID'] = jedi_taskid
+            varMap[':jediTaskID'] = jedi_taskid
             varMap[':datasetID'] = datasetid
             varMap[':rse'] = rse
             self.cur.execute(sqlC+comment, varMap)
@@ -13822,7 +13819,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog,msgType='debug')
+            self.dumpErrorMessage(tmpLog)
             return retVal
 
     # delete outdated dataset locality records
@@ -13858,5 +13855,5 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog,msgType='debug')
+            self.dumpErrorMessage(tmpLog)
             return retVal
