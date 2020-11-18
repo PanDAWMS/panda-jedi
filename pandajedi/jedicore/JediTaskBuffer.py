@@ -760,6 +760,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.makeTaskPending_JEDI(jedi_taskid, reason)
 
+    # query tasks and turn them into pending status for some reason, sql_query should query jeditaskid
+    def queryTasksToBePending_JEDI(self, sql_query, params_map, reason):
+        with self.proxyPool.get() as proxy:
+            return proxy.queryTasksToBePending_JEDI(sql_query, params_map, reason)
+
     # get IDs of all datasets of input and lib, to update data locality records
     def get_tasks_inputdatasets_JEDI(self, vo):
         with self.proxyPool.get() as proxy:

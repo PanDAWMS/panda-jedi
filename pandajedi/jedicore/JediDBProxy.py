@@ -13703,12 +13703,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.conn.begin()
             retVal = False
             # sql to put the task in pending
-            sqlPDG = ("UPDATE {0}.JEDI_Tasks "
-                      "SET lockedBy=NULL,lockedTime=NULL,status=:status,errorDialog=:err "
-                      "WHERE jediTaskID=:jediTaskID ").format(jedi_config.db.schemaJEDI)
+            sqlPDG = (  "UPDATE {0}.JEDI_Tasks "
+                        "SET lockedBy=NULL, lockedTime=NULL, "
+                            "status=:status, errorDialog=:err, "
+                            "modificationtime=CURRENT_DATE, oldStatus=status "
+                        "WHERE jediTaskID=:jediTaskID "
+                            "AND status IN ('ready','running','scouting') "
+                            "AND lockedBy IS NULL "
+                      ).format(jedi_config.db.schemaJEDI)
             varMap = {}
             varMap[':jediTaskID'] = jedi_taskid
             varMap[':err'] = reason
+            varMap[':status'] = 'pending'
             self.cur.execute(sqlPDG+comment, varMap)
             nRows = self.cur.rowcount
             if not self._commit():
@@ -13716,6 +13722,53 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('done with {0} rows'.format(nRows))
             # return
             return nRows
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+    # query tasks and turn them into pending status for some reason, sql_query should query jeditaskid
+    def queryTasksToBePending_JEDI(self, sql_query, params_map, reason):
+        comment = ' /* JediDBProxy.queryTasksToBePending_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < sql={0} >".format(sql_query)
+        tmpLog = MsgWrapper(logger, methodName)
+        try:
+            self.conn.begin()
+            # sql to query
+            self.cur.execute(sql_query+comment, params_map)
+            taskIDs = self.cur.fetchall()
+            # sql to put the task in pending
+            sqlPDG = (  "UPDATE {0}.JEDI_Tasks "
+                        "SET lockedBy=NULL, lockedTime=NULL, "
+                            "status=:status, errorDialog=:err, "
+                            "modificationtime=CURRENT_DATE, oldStatus=status "
+                        "WHERE jediTaskID=:jediTaskID "
+                            "AND status IN ('ready','running','scouting') "
+                            "AND lockedBy IS NULL "
+                      ).format(jedi_config.db.schemaJEDI)
+            # loop over tasks
+            n_updated = 0
+            for jedi_taskid in taskIDs:
+                varMap = {}
+                varMap[':jediTaskID'] = jedi_taskid
+                varMap[':err'] = reason
+                varMap[':status'] = 'pending'
+                self.cur.execute(sqlPDG+comment, varMap)
+                nRow = self.cur.rowcount
+                if nRow == 1:
+                    self.record_task_status_change(jedi_taskid)
+                    n_updated += 1
+                elif nRow > 1:
+                    tmpLog.error('updated {0} rows with same jediTaskID'.format(nRow))
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('done with {0} rows'.format(n_updated))
+            # return
+            return n_updated
         except Exception:
             # roll back
             self._rollback()
