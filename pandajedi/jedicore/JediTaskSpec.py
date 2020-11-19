@@ -1,4 +1,5 @@
 import re
+import enum
 
 from six import iteritems
 
@@ -53,6 +54,7 @@ class JediTaskSpec(object):
         'dynamicNumEvents'   : 'DY',
         'nEsConsumers'       : 'EC',
         'nEventsPerWorker'   : 'ES',
+        'firstContentsFeed'  : 'FC',
         'failGoalUnreached'  : 'FG',
         'firstEvent'         : 'FT',
         'groupBoundaryID'    : 'GB',
@@ -152,6 +154,11 @@ class JediTaskSpec(object):
                      '2' : 'only'}
     # world cloud name
     worldCloudName = 'WORLD'
+
+    # enum for contents feeder
+    class FirstContentsFeed(enum.Enum):
+        TRUE = '1'
+        FALSE = '0'
 
     # enum for useJumbo
     enum_useJumbo = {'waiting': 'W',
@@ -1647,5 +1654,20 @@ class JediTaskSpec(object):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['avoidVP']+'=(\d+)', self.splitRule)
             if tmpMatch is not None:
+                return True
+        return False
+
+    # set first contents feed
+    def set_first_contents_feed(self, is_first):
+        if is_first:
+            self.setSplitRule('firstContentsFeed', self.FirstContentsFeed.TRUE.value)
+        else:
+            self.setSplitRule('firstContentsFeed', self.FirstContentsFeed.FALSE.value)
+
+    # check if first contents feed
+    def is_first_contents_feed(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['firstContentsFeed']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None and tmpMatch.group(1) == self.FirstContentsFeed.TRUE.value:
                 return True
         return False
