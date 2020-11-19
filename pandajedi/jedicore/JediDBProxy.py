@@ -1624,7 +1624,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlU += "SET status=:status,modificationTime=:updateTime,stateChangeTime=CURRENT_DATE,"
             sqlU += "lockedBy=NULL,lockedTime=NULL,frozenTime=:frozenTime"
             if taskSpec is not None:
-                sqlU += ",oldStatus=:oldStatus,errorDialog=:errorDialog"
+                sqlU += ",oldStatus=:oldStatus,errorDialog=:errorDialog,splitRule=:splitRule"
             sqlU += " WHERE jediTaskID=:jediTaskID "
             # sql to unlock task
             sqlL  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
@@ -1677,6 +1677,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':status']      = taskSpec.status
                         varMap[':oldStatus']   = taskSpec.oldStatus
                         varMap[':errorDialog'] = taskSpec.errorDialog
+                        varMap[':splitRule'] = taskSpec.splitRule
                         # set/unset frozen time
                         if taskSpec.status == 'pending' and setFrozenTime:
                             if frozenTime is None:

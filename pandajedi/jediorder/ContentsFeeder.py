@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 import uuid
@@ -16,6 +17,13 @@ from pandajedi.jedirefine import RefinerUtils
 from .JediKnight import JediKnight
 
 from pandajedi.jediconfig import jedi_config
+
+try:
+    from idds.client.client import Client as iDDS_Client
+    import idds.common.constants
+    import idds.common.utils
+except ImportError:
+    pass
 
 
 # logger
@@ -544,6 +552,15 @@ class ContentsFeederThread (WorkerThread):
                         allRet = self.taskBufferIF.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,pid=self.pid)
                     # change task status unless the task is running
                     if not runningTask:
+                        # send prestaging request
+                        if taskSpec.inputPreStaging() and taskSpec.is_first_contents_feed():
+                            tmpStat, tmpErrStr = self.send_prestaging_request(taskSpec, taskParamMap, dsList, tmpLog)
+                            if tmpStat:
+                                taskSpec.set_first_contents_feed(False)
+                            else:
+                                tmpLog.debug(tmpErrStr)
+                                taskSpec.setErrDiag(tmpErrStr)
+                                taskOnHold = True
                         if taskOnHold:
                             # go to pending state
                             if taskSpec.status not in ['broken','tobroken']:
@@ -583,7 +600,48 @@ class ContentsFeederThread (WorkerThread):
                                               'jediTaskID':datasetSpec.jediTaskID},
                                              lockTask=True)
 
-
+    # send prestaging request
+    def send_prestaging_request(self, task_spec, task_params_map, ds_list, tmp_log):
+        try:
+            c = iDDS_Client(idds.common.utils.get_rest_host())
+            for datasetSpec in ds_list:
+                # get rule
+                try:
+                    tmp_scope, tmp_name = datasetSpec.datasetName.split(':')
+                    tmp_name = re.sub('/$', '', tmp_name)
+                except Exception:
+                    continue
+                if 'prestagingRuleID' in task_params_map:
+                    if tmp_name not in task_params_map['prestagingRuleID']:
+                        continue
+                    rule_id = task_params_map['prestagingRuleID'][tmp_name]
+                else:
+                    rule_id = self.ddmIF.getInterface(task_spec.vo).getActiveStagingRule(
+                        tmp_scope + ':' + tmp_name)
+                    if rule_id is None:
+                        continue
+                # request
+                tmp_log.debug('sending request to iDDS for {0}'.format(datasetSpec.datasetName))
+                req = {
+                    'scope': tmp_scope,
+                    'name': tmp_name,
+                    'requester': 'panda',
+                    'request_type': idds.common.constants.RequestType.StageIn,
+                    'transform_tag': idds.common.constants.RequestType.StageIn.value,
+                    'status': idds.common.constants.RequestStatus.New,
+                    'priority': 0,
+                    'lifetime': 30,
+                    'request_metadata': {
+                    'workload_id': task_spec.jediTaskID,
+                    'rule_id': rule_id,
+                    },
+                }
+                tmp_log.debug('req {0}'.format(str(req)))
+                ret = c.add_request(**req)
+                tmp_log.debug('got requestID={0}'.format(str(ret)))
+        except Exception as e:
+            return False, 'iDDS error : {0}'.format(str(e))
+        return True, None
 
 
 ########## lauch
