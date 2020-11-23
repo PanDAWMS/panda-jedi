@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import itertools
 import socket
 import traceback
 
@@ -15,6 +16,7 @@ from pandajei.jedibrokerage import AtlasBrokerUtils
 
 from pandaserver.dataservice import DataServiceUtils
 # from pandaserver.dataservice.Activator import Activator
+from pandaserver.taskbuffer import JobUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -30,8 +32,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
         self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0], os.getpid())
         # self.cronActions = {'forPrestage': 'atlas_prs'}
         self.vo = 'atlas'
-        self.prodSourceLabelList = []
-        self.cloudList = []
+        self.prodSourceLabelList = ['managed', 'user']
         # call refresh
         self.refresh()
 
@@ -93,8 +94,16 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
     def do_for_data_locality(self):
         # refresh
         self.refresh()
+        # list of job label, gshare, resource type
+        job_label_list = JobUtils.job_labels
+        gshare_list = [ res['name'] for res in self.taskBufferIF.getGShareStatus() ]
+        resource_type_list = self.taskBufferIF.load_resource_types()
+        # parameter from GDP config
+        upplimit_ioIntensity = self.taskBufferIF.getConfigValue('????', '??????', 'jedi', self.vo)
+        lowlimit_currentPriority = self.taskBufferIF.getConfigValue('????', '??????', 'jedi', self.vo)
         # loop
-        for prod_source_label, job_label, gshare in some_list:
+        grand_iter = itertools.product(self.prodSourceLabelList, job_label_list, gshare_list, resource_type_list)
+        for prod_source_label, job_label, gshare, resource_type in grand_iter:
             # busy sites
             busy_sites_list = self.get_busy_sites(gshare)
             # site-rse map
@@ -128,9 +137,9 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
             # params map
             params_map = {
                     ':gshare': gshare,
-                    ':resource_type': XXXX,
-                    ':ioIntensity': YYYY,
-                    ':currentPriority': ZZZZ,
+                    ':resource_type': resource_type,
+                    ':ioIntensity': upplimit_ioIntensity,
+                    ':currentPriority': lowlimit_currentPriority,
                 }
             params_map.update(rse_params_map)
             # pending reason
