@@ -73,7 +73,7 @@ start)
     ;;
 stop)
     echo "stop JEDI"
-    if [ ! -f $LOCKFILE ]; then
+    if [ ! -f $PIDFILE ]; then
       echo "ERROR: JEDI PID file $PIDFILE not found ; skipped"
       exit 1
     fi

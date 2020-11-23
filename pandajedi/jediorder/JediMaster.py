@@ -234,7 +234,7 @@ if __name__ == "__main__":
         # set handler
         def catch_sig(sig, frame):
             master.stop()
-            time.sleep(2)
+            time.sleep(3)
             kill_whole(sig, frame)
         signal.signal(signal.SIGINT, catch_sig)
         signal.signal(signal.SIGHUP, catch_sig)
