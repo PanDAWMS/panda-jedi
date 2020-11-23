@@ -56,7 +56,9 @@ class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
             elif msg_type in ('file_hyperparameteropt', 'collection_hyperparameteropt'):
                 self.plugin_HPO.process(msg_obj, decoded_data=msg_dict)
             else:
-                raise ValueError('invalid msg_type value: {0}'.format(msg_type))
+                # Asked by iDDS and message broker guys, JEDI needs to consume unknown types of messages and do nothing...
+                warn_str = 'unknown msg_type : {0}'.format(msg_type)
+                tmp_log.warning(warn_str)
         except Exception:
             raise
         # done
