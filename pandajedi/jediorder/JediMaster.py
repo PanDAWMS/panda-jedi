@@ -21,7 +21,7 @@ class JediMaster:
 
     # constrictor
     def __init__(self):
-        pass
+        self.stopEventList = []
 
 
 
@@ -174,9 +174,12 @@ class JediMaster:
                 knightList.append(proc)
         # setup JediMsgProcessor agent (only one system process)
         if hasattr(jedi_config, 'msgprocessor') and hasattr(jedi_config.msgprocessor, 'configFile') and jedi_config.msgprocessor.configFile:
+            stop_event = multiprocessing.Event()
+            self.stopEventList.append(stop_event)
             parent_conn, child_conn = multiprocessing.Pipe()
             proc = multiprocessing.Process(target=self.launcher,
-                                           args=('pandajedi.jediorder.JediMsgProcessor',))
+                                           args=('pandajedi.jediorder.JediMsgProcessor',
+                                                    stop_event))
             proc.start()
             knightList.append(proc)
         # check initial failures
@@ -192,12 +195,16 @@ class JediMaster:
         for knight in knightList:
             knight.join()
 
+    # graceful stop
+    def stop(self):
+        for stop_event in self.stopEventList:
+            stop_event.set()
 
 
 # kill whole process
-def catch_sig(sig,frame):
+def kill_whole(sig, frame):
     # kill
-    os.killpg(os.getpgrp(),signal.SIGKILL)
+    os.killpg(os.getpgrp(), signal.SIGKILL)
 
 
 
@@ -222,10 +229,15 @@ if __name__ == "__main__":
         pidFile = open(options.pid,'w')
         pidFile.write('{0}'.format(os.getpid()))
         pidFile.close()
+        # master
+        master = JediMaster()
         # set handler
+        def catch_sig(sig, frame):
+            master.stop()
+            time.sleep(3)
+            kill_whole(sig, frame)
         signal.signal(signal.SIGINT, catch_sig)
         signal.signal(signal.SIGHUP, catch_sig)
         signal.signal(signal.SIGTERM,catch_sig)
         # start master
-        master = JediMaster()
         master.start()

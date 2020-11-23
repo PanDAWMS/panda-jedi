@@ -15,7 +15,7 @@ ARGV="$@"
 #
 # |||||||||||||||||||| START CONFIGURATION SECTION  ||||||||||||||||||||
 # --------------------                              --------------------
-# 
+#
 # the path to application
 PROGNAME='python -u @@install_purelib@@/pandajedi/jediorder/JediMaster.py'
 
@@ -41,7 +41,7 @@ if [ -r /etc/sysconfig/panda_jedi ]; then
 fi
 
 ERROR=0
-if [ "x$ARGV" = "x" ] ; then 
+if [ "x$ARGV" = "x" ] ; then
     ARGV="-h"
 fi
 
@@ -51,7 +51,7 @@ start)
     if [ -f $LOCKFILE ]; then
 	echo ERROR: JEDI is already running with lockfile:$LOCKFILE
     else
-	echo start JEDI
+	echo "start JEDI"
 	for itry in `seq 1 100`
 	do
 	    echo trying $itry
@@ -72,12 +72,16 @@ start)
     fi
     ;;
 stop)
-    echo stop JEDI
+    echo "stop JEDI"
+    if [ ! -f $PIDFILE ]; then
+      echo "ERROR: JEDI PID file $PIDFILE not found ; skipped"
+      exit 1
+    fi
     for itry in `seq 1 100`
     do
         echo trying $itry
         kill `cat $PIDFILE`
-        sleep 2
+        sleep 5
         ps -p `cat $PIDFILE` > /dev/null
         ERROR=$?
         echo $ERROR
@@ -92,9 +96,8 @@ stop)
     done
     ;;
 *)
-    echo ERROR: unknown command $ARGV 
+    echo ERROR: unknown command $ARGV
     ERROR=1
 esac
 
 exit $ERROR
-
