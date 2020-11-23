@@ -1,7 +1,6 @@
 import os
 import sys
 import re
-import itertools
 import socket
 import traceback
 
@@ -32,7 +31,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
         self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0], os.getpid())
         # self.cronActions = {'forPrestage': 'atlas_prs'}
         self.vo = 'atlas'
-        self.prodSourceLabelList = ['managed', 'user']
+        self.prodSourceLabelList = ['managed']
         # call refresh
         self.refresh()
 
@@ -48,12 +47,12 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
         self.allSiteList = allSiteList
 
     # get map of site to list of RSEs
-    def get_site_rse_map(self, prod_source_label, job_label):
+    def get_site_rse_map(self, prod_source_label):
         site_rse_map = {}
         for tmpPseudoSiteName in self.allSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
-            scope_input, scope_output = DataServiceUtils.select_scope(tmpSiteSpec, prod_source_label, job_label)
+            scope_input, scope_output = DataServiceUtils.select_scope(tmpSiteSpec, prod_source_label, prod_source_label)
             endpoint_token_map = tmpSiteSpec.ddm_endpoints_input[scope_input].getTokenMap('input')
             # fill
             site_rse_map[tmpSiteName] = list(endpoint_token_map.values())
@@ -94,20 +93,33 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
     def do_for_data_locality(self):
         # refresh
         self.refresh()
-        # list of job label, gshare, resource type
-        job_label_list = JobUtils.job_labels
+        # list of gshare resource type
         gshare_list = [ res['name'] for res in self.taskBufferIF.getGShareStatus() ]
         resource_type_list = self.taskBufferIF.load_resource_types()
-        # parameter from GDP config
-        upplimit_ioIntensity = self.taskBufferIF.getConfigValue('????', '??????', 'jedi', self.vo)
-        lowlimit_currentPriority = self.taskBufferIF.getConfigValue('????', '??????', 'jedi', self.vo)
+        # combination of prodSourceLabel and gShare
+        psl_gs_sql = (
+                'SELECT PRODSOURCELABEL, NAME '
+                'FROM ATLAS_PANDA.GLOBAL_SHARES '
+            )
+        psl_gs_list = self.taskBufferIF.querySQL(psl_gs_sql, {})
         # loop
-        grand_iter = itertools.product(self.prodSourceLabelList, job_label_list, gshare_list, resource_type_list)
-        for prod_source_label, job_label, gshare, resource_type in grand_iter:
+        for prod_source_label, gshare in psl_gs_list:
+            if prod_source_label not in self.prodSourceLabelList:
+                continue
+            if gshare not in gshare_list:
+                # skip non-leaf gshare
+                continue
+            # parameter from GDP config
+            if prod_source_label == 'managed':
+                upplimit_ioIntensity = self.taskBufferIF.getConfigValue('task_withholder', 'PROD_LIMIT_IOINTENSITY', 'jedi', self.vo)
+                lowlimit_currentPriority = self.taskBufferIF.getConfigValue('task_withholder', 'PROD_LIMIT_PRIORITY', 'jedi', self.vo)
+            else:
+                upplimit_ioIntensity = 999999
+                lowlimit_currentPriority = -999999
             # busy sites
             busy_sites_list = self.get_busy_sites(gshare)
             # site-rse map
-            site_rse_map = self.get_site_rse_map(prod_source_label, job_label)
+            site_rse_map = self.get_site_rse_map(prod_source_label)
             # rses of busy sites
             busy_rses = set()
             for site in busy_sites_list:
@@ -134,18 +146,20 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                             "AND dl.rse NOT IN ({rse_params_str}) "
                         ") "
             ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
-            # params map
-            params_map = {
-                    ':gshare': gshare,
-                    ':resource_type': resource_type,
-                    ':ioIntensity': upplimit_ioIntensity,
-                    ':currentPriority': lowlimit_currentPriority,
-                }
-            params_map.update(rse_params_map)
-            # pending reason
-            reason = 'no local input data'
-            # set pending
-            self.taskBufferIF.queryTasksToBePending_JEDI(sql_query, params_map, reason)
+            # loop over resource type
+            for resource_type in resource_type_list:
+                # params map
+                params_map = {
+                        ':gshare': gshare,
+                        ':resource_type': resource_type,
+                        ':ioIntensity': upplimit_ioIntensity,
+                        ':currentPriority': lowlimit_currentPriority,
+                    }
+                params_map.update(rse_params_map)
+                # pending reason
+                reason = 'no local input data'
+                # set pending
+                self.taskBufferIF.queryTasksToBePending_JEDI(sql_query, params_map, reason)
 
 
     # main
