@@ -11,7 +11,7 @@ from pandajedi.jediconfig import jedi_config
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.ThreadUtils import ListWithLock
 from pandajedi.jedicore import Interaction
-from pandajei.jedibrokerage import AtlasBrokerUtils
+from pandajedi.jedibrokerage import AtlasBrokerUtils
 
 from pandaserver.dataservice import DataServiceUtils
 # from pandaserver.dataservice.Activator import Activator
@@ -53,15 +53,24 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
             scope_input, scope_output = DataServiceUtils.select_scope(tmpSiteSpec, prod_source_label, prod_source_label)
-            endpoint_token_map = tmpSiteSpec.ddm_endpoints_input[scope_input].getTokenMap('input')
-            # fill
-            site_rse_map[tmpSiteName] = list(endpoint_token_map.values())
+            try:
+                endpoint_token_map = tmpSiteSpec.ddm_endpoints_input[scope_input].getTokenMap('input')
+            except KeyError:
+                continue
+            else:
+                # fill
+                site_rse_map[tmpSiteName] = list(endpoint_token_map.values())
         # return
         return site_rse_map
 
     # get busy sites
     def get_busy_sites(self, gshare):
         busy_sites_list = []
+        # get global share
+        tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(self.vo)
+        if not tmpSt:
+            # got nothing...
+            return busy_sites_list
         for tmpPseudoSiteName in self.allSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
@@ -91,11 +100,12 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
 
     # set tasks to be pending due to condition of data locality
     def do_for_data_locality(self):
+        tmp_log = MsgWrapper(logger)
         # refresh
         self.refresh()
         # list of gshare resource type
         gshare_list = [ res['name'] for res in self.taskBufferIF.getGShareStatus() ]
-        resource_type_list = self.taskBufferIF.load_resource_types()
+        resource_type_list = [ rt.resource_name for rt in self.taskBufferIF.load_resource_types() ]
         # combination of prodSourceLabel and gShare
         psl_gs_sql = (
                 'SELECT PRODSOURCELABEL, NAME '
@@ -135,7 +145,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
             rse_params_str = ','.join(rse_params_list)
             # sql
             sql_query = (
-                "SELECT t.jediTaskID FOR UPDATE "
+                "SELECT t.jediTaskID "
                 "FROM {jedi_schema}.JEDI_Tasks t "
                 "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
                     "AND t.gshare=:gshare AND t.resource_type=:resource_type "
@@ -145,6 +155,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                         "WHERE dl.jediTaskID=t.jediTaskID "
                             "AND dl.rse NOT IN ({rse_params_str}) "
                         ") "
+                "FOR UPDATE "
             ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
             # loop over resource type
             for resource_type in resource_type_list:
@@ -172,7 +183,8 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
             self.do_for_data_locality()
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            origTmpLog.error('failed with {0} {1}'.format(errtype, errvalue))
+            err_str = traceback.format_exc()
+            origTmpLog.error('failed with {0} {1} ; {2}'.format(errtype, errvalue, err_str))
         # return
         origTmpLog.debug('done')
         return self.SC_SUCCEEDED
