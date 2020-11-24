@@ -37,6 +37,8 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
 
     # refresh information stored in the instance
     def refresh(self):
+        # work queue mapper
+        self.workQueueMapper = self.taskBufferIF.getWorkQueueMap()
         # site mapper
         self.siteMapper = self.taskBufferIF.getSiteMapper()
         # all sites
@@ -103,74 +105,69 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
         tmp_log = MsgWrapper(logger)
         # refresh
         self.refresh()
-        # list of gshare resource type
-        gshare_list = [ res['name'] for res in self.taskBufferIF.getGShareStatus() ]
+        # list of resource type
         resource_type_list = [ rt.resource_name for rt in self.taskBufferIF.load_resource_types() ]
-        # combination of prodSourceLabel and gShare
-        psl_gs_sql = (
-                'SELECT PRODSOURCELABEL, NAME '
-                'FROM ATLAS_PANDA.GLOBAL_SHARES '
-            )
-        psl_gs_list = self.taskBufferIF.querySQL(psl_gs_sql, {})
         # loop
-        for prod_source_label, gshare in psl_gs_list:
-            if prod_source_label not in self.prodSourceLabelList:
-                continue
-            if gshare not in gshare_list:
-                # skip non-leaf gshare
-                continue
-            # parameter from GDP config
-            if prod_source_label == 'managed':
-                upplimit_ioIntensity = self.taskBufferIF.getConfigValue('task_withholder', 'PROD_LIMIT_IOINTENSITY', 'jedi', self.vo)
-                lowlimit_currentPriority = self.taskBufferIF.getConfigValue('task_withholder', 'PROD_LIMIT_PRIORITY', 'jedi', self.vo)
-            else:
-                upplimit_ioIntensity = 999999
-                lowlimit_currentPriority = -999999
-            # busy sites
-            busy_sites_list = self.get_busy_sites(gshare)
+        for prod_source_label in self.prodSourceLabelList:
             # site-rse map
             site_rse_map = self.get_site_rse_map(prod_source_label)
-            # rses of busy sites
-            busy_rses = set()
-            for site in busy_sites_list:
-                busy_rses.update(set(site_rse_map[site]))
-            busy_rses = list(busy_rses)
-            # make sql parameters of rses
-            rse_params_list = []
-            rse_params_map = {}
-            for j, rse in enumerate(busy_rses):
-                rse_param = ':rse_{0}'.format(j + 1)
-                rse_params_list.append(rse_param)
-                rse_params_map[rse_param] = rse
-            rse_params_str = ','.join(rse_params_list)
-            # sql
-            sql_query = (
-                "SELECT t.jediTaskID "
-                "FROM {jedi_schema}.JEDI_Tasks t "
-                "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
-                    "AND t.gshare=:gshare AND t.resource_type=:resource_type "
-                    "AND t.ioIntensity>=:ioIntensity AND t.currentPriority<:currentPriority "
-                    "AND NOT EXISTS ( "
-                        "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
-                        "WHERE dl.jediTaskID=t.jediTaskID "
-                            "AND dl.rse NOT IN ({rse_params_str}) "
-                        ") "
-                "FOR UPDATE "
-            ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
-            # loop over resource type
-            for resource_type in resource_type_list:
-                # params map
-                params_map = {
-                        ':gshare': gshare,
-                        ':resource_type': resource_type,
-                        ':ioIntensity': upplimit_ioIntensity,
-                        ':currentPriority': lowlimit_currentPriority,
-                    }
-                params_map.update(rse_params_map)
-                # pending reason
-                reason = 'no local input data'
-                # set pending
-                self.taskBufferIF.queryTasksToBePending_JEDI(sql_query, params_map, reason)
+            # parameter from GDP config
+            upplimit_ioIntensity = self.taskBufferIF.getConfigValue(
+                                        'task_withholder', 'LIMIT_IOINTENSITY_{0}'.format(prod_source_label), 'jedi', self.vo)
+            lowlimit_currentPriority = self.taskBufferIF.getConfigValue(
+                                        'task_withholder', 'LIMIT_PRIORITY_{0}'.format(prod_source_label), 'jedi', self.vo)
+            if upplimit_ioIntensity is None:
+                upplimit_ioIntensity = 999999
+            if lowlimit_currentPriority is None:
+                lowlimit_currentPriority = -999999
+            # get work queue for gshare
+            work_queue_list = self.workQueueMapper.getAlignedQueueList(self.vo, prod_source_label)
+            # loop over work queue
+            for work_queue in work_queue_list:
+                gshare = work_queue.queue_name
+                # busy sites
+                busy_sites_list = self.get_busy_sites(gshare)
+                # rses of busy sites
+                busy_rses = set()
+                for site in busy_sites_list:
+                    busy_rses.update(set(site_rse_map[site]))
+                busy_rses = list(busy_rses)
+                # make sql parameters of rses
+                rse_params_list = []
+                rse_params_map = {}
+                for j, rse in enumerate(busy_rses):
+                    rse_param = ':rse_{0}'.format(j + 1)
+                    rse_params_list.append(rse_param)
+                    rse_params_map[rse_param] = rse
+                rse_params_str = ','.join(rse_params_list)
+                # sql
+                sql_query = (
+                    "SELECT t.jediTaskID "
+                    "FROM {jedi_schema}.JEDI_Tasks t "
+                    "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
+                        "AND t.gshare=:gshare AND t.resource_type=:resource_type "
+                        "AND t.ioIntensity>=:ioIntensity AND t.currentPriority<:currentPriority "
+                        "AND NOT EXISTS ( "
+                            "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
+                            "WHERE dl.jediTaskID=t.jediTaskID "
+                                "AND dl.rse NOT IN ({rse_params_str}) "
+                            ") "
+                    "FOR UPDATE "
+                ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
+                # loop over resource type
+                for resource_type in resource_type_list:
+                    # params map
+                    params_map = {
+                            ':gshare': gshare,
+                            ':resource_type': resource_type,
+                            ':ioIntensity': upplimit_ioIntensity,
+                            ':currentPriority': lowlimit_currentPriority,
+                        }
+                    params_map.update(rse_params_map)
+                    # pending reason
+                    reason = 'no local input data'
+                    # set pending
+                    self.taskBufferIF.queryTasksToBePending_JEDI(sql_query, params_map, reason)
 
 
     # main
