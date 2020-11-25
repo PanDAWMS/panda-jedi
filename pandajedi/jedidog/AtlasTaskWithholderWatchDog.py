@@ -130,7 +130,10 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                 # rses of busy sites
                 busy_rses = set()
                 for site in busy_sites_list:
-                    busy_rses.update(set(site_rse_map[site]))
+                    try:
+                        busy_rses.update(set(site_rse_map[site]))
+                    except KeyError:
+                        continue
                 busy_rses = list(busy_rses)
                 # make sql parameters of rses
                 rse_params_list = []

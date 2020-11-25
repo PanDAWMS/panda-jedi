@@ -13786,19 +13786,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += " <vo={0}>".format(vo)
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
+        now_ts = datetime.datetime.utcnow()
         try:
             retVal = None
-            # sql to get all jediTaskID and datasetID of input and lib
+            # sql to get all jediTaskID and datasetID of input
             sql = ( "SELECT tabT.jediTaskID,datasetID, tabD.datasetName "
                     "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA "
                     "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
-                        "AND tabT.vo=:vo AND tabD.type IN ('input', 'lib')"
+                        "AND tabT.vo=:vo AND tabT.modificationTime>=:modificationTime "
+                        "AND tabD.type IN ('input') AND tabD.masterID IS NULL "
                     ).format(jedi_config.db.schemaJEDI)
             # start transaction
             self.conn.begin()
             # get
             varMap = {}
             varMap[':vo'] = vo
+            varMap[':modificationTime'] = now_ts - datetime.timedelta(days=60)
             self.cur.execute(sql+comment, varMap)
             res = self.cur.fetchall()
             nRows = self.cur.rowcount
@@ -13826,7 +13829,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         timestamp_str = timestamp.strftime('%Y-%m-%d_%H:%M:%S')
         methodName += " <taskID={0} datasetID={1} rse={2} timestamp={3}>".format(jedi_taskid, datasetid, rse, timestamp_str)
         tmpLog = MsgWrapper(logger, methodName)
-        tmpLog.debug('start')
+        # tmpLog.debug('start')
         try:
             retVal = False
             # sql to check
@@ -13867,7 +13870,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 raise RuntimeError('Commit error')
             # return
             retVal = True
-            tmpLog.debug('done')
+            # tmpLog.debug('done')
             return retVal
         except Exception:
             # roll back
