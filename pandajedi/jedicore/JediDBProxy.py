@@ -13779,7 +13779,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get  datasets of input and lib, to update data locality records
-    def get_tasks_inputdatasets_JEDI(self, vo):
+    def get_tasks_inputdatasets_JEDI(self, vo, ioIntensity_limit):
         comment = ' /* JediDBProxy.get_tasks_inputdatasets_JEDI */'
         methodName = self.getMethodName(comment)
         # last update time
@@ -13793,7 +13793,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql = ( "SELECT tabT.jediTaskID,datasetID, tabD.datasetName "
                     "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA "
                     "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
-                        "AND tabT.vo=:vo AND tabT.modificationTime>=:modificationTime "
+                        "AND tabT.vo=:vo AND tabT.status IN ('running', 'ready', 'scouting', 'pending') "
+                        "AND tabT.ioIntensity>:ioIntensity "
                         "AND tabD.type IN ('input') AND tabD.masterID IS NULL "
                     ).format(jedi_config.db.schemaJEDI)
             # start transaction
@@ -13801,7 +13802,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # get
             varMap = {}
             varMap[':vo'] = vo
-            varMap[':modificationTime'] = now_ts - datetime.timedelta(days=60)
+            varMap[':ioIntensity'] = ioIntensity_limit
             self.cur.execute(sql+comment, varMap)
             res = self.cur.fetchall()
             nRows = self.cur.rowcount
