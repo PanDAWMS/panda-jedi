@@ -159,7 +159,7 @@ class DataLocalityUpdaterThread(WorkerThread):
 
 
 # main
-def main(tbuf, ddmif):
+def main(argv=tuple(), tbuf=None, ddmif=None):
     # get logger
     main_log = MsgWrapper(logger)
     main_log.debug('start')
