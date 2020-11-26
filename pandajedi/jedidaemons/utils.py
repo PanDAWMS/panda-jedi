@@ -44,7 +44,7 @@ def daemon_loop(dem_config, msg_queue, pipe_conn, worker_lifetime, tbuf, ddmif):
     my_pid = os.getpid()
     my_full_pid = '{0}-{1}-{2}'.format(socket.getfqdn().split('.')[0], os.getpgrp(), my_pid)
     # logger to log in file
-    base_logger = logger_utils.setup_logger('daemons')
+    base_logger = logger_utils.setup_logger('jedi_daemons')
     tmp_log = logger_utils.make_logger(base_logger, 'worker_pid={pid}'.format(pid=my_pid))
     tmp_log.info('daemon worker start')
     # signal handler

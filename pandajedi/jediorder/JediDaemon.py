@@ -6,12 +6,12 @@ from pandajedi.jedidaemons.utils import DaemonMaster
 
 
 # logger
-msg_processor.base_logger = logger_utils.setup_logger('JediDaemon')
+base_logger = logger_utils.setup_logger(__name__.split('.')[-1])
 
 
 # launch
 def launcher(taskBufferIF, ddmIF):
-    tmp_log = logger_utils.make_logger(msg_processor.base_logger, method_name='launcher')
+    tmp_log = logger_utils.make_logger(base_logger, method_name='launcher')
     tmp_log.debug('start')
     try:
         jedi_config.daemon.config
@@ -23,12 +23,11 @@ def launcher(taskBufferIF, ddmIF):
         tmp_log.debug('daemon disabled ; skipped')
         return
     # parameters
-    n_workers = getattr(daemon_config, 'n_proc', 1)
-    worker_lifetime = getattr(daemon_config, 'proc_lifetime', 28800)
+    n_workers = getattr(jedi_config.daemon, 'n_proc', 1)
+    worker_lifetime = getattr(jedi_config.daemon, 'proc_lifetime', 28800)
     # start
     agent = DaemonMaster(logger=tmp_log,
                             n_workers=n_workers,
                             worker_lifetime=worker_lifetime,
                             tbuf=taskBufferIF, ddmif=ddmIF)
-    agent.start()
-    tmp_log.debug('started')
+    agent.run()

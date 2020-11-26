@@ -228,6 +228,7 @@ setup(
                'pandajedi.jedipprocess',
                'pandajedi.jedimsgprocessor',
                'pandajedi.jedidaemons',
+               'pandajedi.jedidaemons.daemon_scripts',
               ],
     install_requires=[
         'six',
