@@ -227,6 +227,7 @@ setup(
                'pandajedi.jedibrokerage',
                'pandajedi.jedipprocess',
                'pandajedi.jedimsgprocessor',
+               'pandajedi.jedidaemons',
               ],
     install_requires=[
         'six',
