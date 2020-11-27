@@ -2387,9 +2387,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # define the var map of query parameters
         var_map = {':vo': vo}
 
-        # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
+        # sql to query on pre-cached job statistics tables (JOBS_SHARE_STATS and JOBSDEFINED_SHARE_STATS)
         sql_jt = """
-               SELECT computingSite, jobStatus, gShare, COUNT(*) FROM %s
+               SELECT /*+ RESULT_CACHE */ computingSite, jobStatus, gShare, SUM(njobs) FROM %s
                WHERE vo=:vo
                """
 
@@ -2403,24 +2403,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                GROUP BY computingSite, jobStatus, gshare
                """
 
-        # sql to query on the jobs_share_stats table with already aggregated data
-        sql_jss = sql_jt
-        sql_jss = re.sub('COUNT\(\*\)', 'SUM(njobs)', sql_jss)
-        sql_jss = re.sub('SELECT ', 'SELECT /*+ RESULT_CACHE */ ', sql_jss)
-
-        tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
-                  '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
-
+        tables = ['{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA),
+                  '{0}.JOBSDEFINED_SHARE_STATS'.format(jedi_config.db.schemaPANDA)]
 
         return_map = {}
         try:
             for table in tables:
                 self.cur.arraysize = 10000
-                if table == '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA):
-                    stats_table = '{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA)
-                    sql_exe = (sql_jss + comment) % stats_table
-                else:
-                    sql_exe = (sql_jt + comment) % table
+                sql_exe = (sql_jt + comment) % table
                 self.cur.execute(sql_exe, var_map)
                 res = self.cur.fetchall()
 
@@ -2508,8 +2498,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # define the var map of query parameters
         var_map = {':vo': workqueue.VO}
 
-        # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
-        sql_jt = "SELECT jobstatus, resource_type, computingSite, COUNT(*) FROM %s WHERE vo=:vo "
+        # sql to query on pre-cached job statistics tables (JOBS_SHARE_STATS and JOBSDEFINED_SHARE_STATS)
+        sql_jt = "SELECT /*+ RESULT_CACHE */ jobstatus, resource_type, computingSite, SUM(njobs) FROM %s WHERE vo=:vo "
 
         if workqueue.is_global_share:
             sql_jt += "AND gshare=:gshare "
@@ -2521,23 +2511,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         sql_jt += "GROUP BY jobstatus, resource_type, computingSite "
 
-        # sql to query on the jobs_share_stats table with already aggregated data
-        sql_jss = sql_jt
-        sql_jss = re.sub('COUNT\(\*\)', 'SUM(njobs)', sql_jss)
-        sql_jss = re.sub('SELECT ', 'SELECT /*+ RESULT_CACHE */ ', sql_jss)
-
-        tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
-                  '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
+        tables = ['{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA),
+                  '{0}.JOBSDEFINED_SHARE_STATS'.format(jedi_config.db.schemaPANDA)]
 
         return_map = {}
         try:
             for table in tables:
                 self.cur.arraysize = 10000
-                if table == '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA):
-                    stats_table = '{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA)
-                    sql_exe = (sql_jss + comment) % stats_table
-                else:
-                    sql_exe = (sql_jt + comment) % table
+                sql_exe = (sql_jt + comment) % table
                 self.cur.execute(sql_exe, var_map)
                 res = self.cur.fetchall()
 
