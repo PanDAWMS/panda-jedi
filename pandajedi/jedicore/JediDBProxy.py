@@ -12846,32 +12846,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     # get averaged disk IO
     def getAvgDiskIO_JEDI(self):
         comment = ' /* JediDBProxy.getAvgDiskIO_JEDI */'
-        methodName = self.getMethodName(comment)
-        tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
+        method_name = self.getmethodName(comment)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug('start')
         try:
             # sql
-            sql  = "SELECT AVG(diskIO/coreCount),computingSite FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+            sql = "SELECT sum(prorated_diskio_avg * num_of_jobs) / sum(num_of_jobs), computingSite FROM {0}.JOBS_SHARE_STATS ".format(jedi_config.db.schemaPANDA)
             sql += "WHERE jobStatus=:jobStatus GROUP BY computingSite "
-            varMap = dict()
-            varMap[':jobStatus'] = 'running'
+            var_map = dict()
+            var_map[':jobStatus'] = 'running'
             # begin transaction
             self.conn.begin()
-            self.cur.execute(sql+comment, varMap)
+            self.cur.execute(sql+comment, var_map)
             resFL = self.cur.fetchall()
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
-            retMap = dict()
-            for avg, computingSite in resFL:
-                retMap[computingSite] = avg
-            tmpLog.debug('done')
-            return retMap
+            ret_map = dict()
+            for avg, computing_site in resFL:
+                ret_map[computing_site] = avg
+            tmp_log.debug('done')
+            return ret_map
         except Exception:
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog)
+            self.dumpErrorMessage(tmp_log)
             return {}
 
 
