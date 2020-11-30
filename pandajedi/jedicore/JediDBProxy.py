@@ -4952,10 +4952,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmp_log.debug((sql_sum+comment) + str(var_map))
             self.cur.execute((sql_sum + comment), var_map)
             res = self.cur.fetchone()
-            if res is not None and res[0] is not None:
-                max_priority, count = res[0]
-                ret_map[max_priority_tag] = max_priority
-                ret_map[max_priority_count_tag] = count
+            if res:
+                max_priority, count = res
+                if max_priority and count:  # otherwise leave it to 0
+                    ret_map[max_priority_tag] = max_priority
+                    ret_map[max_priority_count_tag] = count
 
             # commit
             if not self._commit():
