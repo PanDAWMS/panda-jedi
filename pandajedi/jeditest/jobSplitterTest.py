@@ -9,6 +9,7 @@ from pandajedi.jediorder.JobSplitter import JobSplitter
 from pandajedi.jediorder.JobGenerator import JobGeneratorThread
 from pandajedi.jedicore.ThreadUtils import ThreadPool,ListWithLock
 from pandajedi.jediorder.TaskSetupper import TaskSetupper
+from pandajedi.jedicore import Interaction
 
 import sys
 
@@ -80,6 +81,14 @@ for dummyID,tmpList in tmpListList:
         for brokeragelockID in brokerageLockIDs:
             tbIF.unlockProcessWithPID_JEDI(taskSpec.vo,taskSpec.prodSourceLabel,workQueue.queue_id,
                                            brokeragelockID,True)
-        tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
+        tmpStat, subChunks, isSkipped = splitter.doSplit(taskSpec, inputChunk, siteMapper,
+                                                         allow_chunk_size_limit=True)
+        if tmpStat == Interaction.SC_SUCCEEDED and isSkipped:
+            # run again without chunk size limit to generate jobs for skipped snippet
+            tmpStat, tmpChunks, isSkipped = splitter.doSplit(taskSpec, inputChunk,
+                                                             siteMapper,
+                                                             allow_chunk_size_limit=False)
+            if tmpStat == Interaction.SC_SUCCEEDED:
+                subChunks += tmpChunks
         tmpStat,pandaJobs,datasetToRegister,oldPandaIDs,parallelOutMap,outDsMap = gen.doGenerate(taskSpec,cloudName,subChunks,inputChunk,tmpLog,True,
                                                                                                  splitter=splitter)
