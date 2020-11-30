@@ -4935,7 +4935,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             var_map[':wq_id'] = workQueue.queue_id
 
         sql_max += sql_where
-        sql_where += "AND MAX_PRIORITY={0}".format(sql_max)
+        sql_where += "AND MAX_PRIORITY=({0}) ".format(sql_max)
+        sql_where += "GROUP BY MAX_PRIORITY"
         sql_sum += sql_where
 
         # make return map
@@ -4949,7 +4950,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.cur.arraysize = 100
 
             tmp_log.debug((sql_sum+comment) + str(var_map))
-            
+            self.cur.execute((sql_sum + comment), var_map)
             res = self.cur.fetchone()
             if res is not None and res[0] is not None:
                 max_priority, count = res[0]
