@@ -4926,9 +4926,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if workQueue.is_global_share:
             sql_where += "AND gshare=:wq_name "
             sql_where += "AND workqueue_id IN ("
-            sql_where += "SELECT UNIQUE workqueue_id FROM {0} "
+            sql_where += "SELECT UNIQUE workqueue_id FROM {0}.JOB_STATS_HP ".format(jedi_config.db.schemaPANDA)
             sql_where += "MINUS "
-            sql_where += "SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
+            sql_where += "SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaPANDA)
             var_map[':wq_name'] = workQueue.queue_name
         else:
             sql_where += "AND workQueue_ID=:wq_id "
