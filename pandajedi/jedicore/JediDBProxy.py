@@ -4807,9 +4807,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return None
 
 
-
     # get highest prio jobs with workQueueID
-    def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
+    def getHighestPrioJobStat_JEDI_OLD(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
         comment = ' /* JediDBProxy.getHighestPrioJobStat_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += " <cloud={0} queue={1}>".format(cloudName,workQueue.queue_name)
@@ -4903,6 +4902,72 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return False,None
 
+
+    # get highest prio jobs with workQueueID
+    def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
+        comment = ' /* JediDBProxy.getHighestPrioJobStat_JEDI */'
+        method_name = self.getMethodName(comment)
+        method_name += " <cloud={0} queue={1}>".format(cloudName,workQueue.queue_name)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug('start')
+        var_map = {}
+        var_map[':cloud'] = cloudName
+        var_map[':prodSourceLabel'] = prodSourceLabel
+
+        sql_sum = "SELECT MAX_PRIORITY, SUM(MAX_PRIORITY_COUNT) FROM {0}.JOB_STATS_HP".format(jedi_config.db.schemaPANDA)
+        sql_max += "SELECT MAX(MAX_PRIORITY) FROM {0}.JOB_STATS_HP".format(jedi_config.db.schemaPANDA)
+
+        sql_where = "WHERE prodSourceLabel=:prodSourceLabel AND cloud=:cloud"
+
+        if resource_name:
+            sql_where += "AND resource_type=:resource_type "
+            var_map[':resource_type'] = resource_name
+        
+        if workQueue.is_global_share:
+            sql_where += "AND gshare=:wq_name "
+            sql_where += "AND workqueue_id IN ("
+            sql_where += "SELECT UNIQUE workqueue_id FROM {0} "
+            sql_where += "MINUS "
+            sql_where += "SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
+            var_map[':wq_name'] = workQueue.queue_name
+        else:
+            sql_where += "AND workQueue_ID=:wq_id "
+            var_map[':wq_id'] = workQueue.queue_id
+
+        sql_max = sql_max + sql_where
+        sql_where += "AND MAX_PRIORITY={0}".sql_max
+        sql_sum += sql_where
+
+        # make return map
+        max_priority_tag = 'highestPrio'
+        max_priority_count_tag = 'nNotRun'
+        ret_map = {max_priority_tag: 0, max_priority_count_tag: 0}
+        
+        try:
+            # start transaction
+            self.conn.begin()
+            self.cur.arraysize = 100
+
+            tmp_log.debug((sql_sum+comment) + str(var_map))
+            
+            res = self.cur.fetchone()
+            if res is not None and res[0] is not None:
+                max_priority, count = res[0]
+                ret_map[max_priority_tag] = max_priority
+                ret_map[max_priority_count_tag] = count
+
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # return
+            tmp_log.debug(str(ret_map))
+            return True, ret_map
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return False, None
 
 
     # get the list of tasks to refine
