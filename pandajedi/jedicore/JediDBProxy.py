@@ -4914,10 +4914,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         var_map[':cloud'] = cloudName
         var_map[':prodSourceLabel'] = prodSourceLabel
 
-        sql_sum = "SELECT MAX_PRIORITY, SUM(MAX_PRIORITY_COUNT) FROM {0}.JOB_STATS_HP".format(jedi_config.db.schemaPANDA)
-        sql_max = "SELECT MAX(MAX_PRIORITY) FROM {0}.JOB_STATS_HP".format(jedi_config.db.schemaPANDA)
+        sql_sum = "SELECT MAX_PRIORITY, SUM(MAX_PRIORITY_COUNT) FROM {0}.JOB_STATS_HP ".format(jedi_config.db.schemaPANDA)
+        sql_max = "SELECT MAX(MAX_PRIORITY) FROM {0}.JOB_STATS_HP ".format(jedi_config.db.schemaPANDA)
 
-        sql_where = "WHERE prodSourceLabel=:prodSourceLabel AND cloud=:cloud"
+        sql_where = "WHERE prodSourceLabel=:prodSourceLabel AND cloud=:cloud "
 
         if resource_name:
             sql_where += "AND resource_type=:resource_type "
