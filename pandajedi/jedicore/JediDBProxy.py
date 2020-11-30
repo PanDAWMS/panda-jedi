@@ -2467,7 +2467,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             for table in tables:
                 self.cur.arraysize = 10000
-                sql_exe = (sql_jss + comment) % table
+                sql_exe = (sql_jt + comment) % table
                 self.cur.execute(sql_exe, var_map)
                 res = self.cur.fetchall()
 
