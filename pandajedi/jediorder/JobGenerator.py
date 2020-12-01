@@ -577,7 +577,15 @@ class JobGeneratorThread (WorkerThread):
                                         # considered in brokerage
                                         tmpMsg = inputChunk.update_n_queue(self.liveCounter)
                                         tmpLog.debug('updated nQueue at {0}'.format(tmpMsg))
-                                tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,self.siteMapper)
+                                tmpStat, subChunks, isSkipped = splitter.doSplit(taskSpec,inputChunk, self.siteMapper,
+                                                                                 allow_chunk_size_limit=True)
+                                if tmpStat == Interaction.SC_SUCCEEDED and isSkipped:
+                                    # run again without chunk size limit to generate jobs for skipped snippet
+                                    tmpStat, tmpChunks, isSkipped = splitter.doSplit(taskSpec, inputChunk,
+                                                                                     self.siteMapper,
+                                                                                     allow_chunk_size_limit=False)
+                                    if tmpStat == Interaction.SC_SUCCEEDED:
+                                        subChunks += tmpChunks
                                 # * remove the last sub-chunk when inputChunk is read in a block
                                 #   since alignment could be broken in the last sub-chunk
                                 #    e.g., inputChunk=10 -> subChunks=4,4,2 and remove 2
