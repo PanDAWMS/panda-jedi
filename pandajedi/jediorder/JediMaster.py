@@ -164,12 +164,14 @@ class JediMaster:
             vo     = items[0]
             plabel = items[1]
             nProc  = items[2]
+            subStr = items[3] if len(items) > 3 else None
+            period = items[4] if len(items) > 4 else None
             for iproc in range(nProc):
                 parent_conn, child_conn = multiprocessing.Pipe()
                 proc = multiprocessing.Process(target=self.launcher,
                                                args=('pandajedi.jediorder.WatchDog',
-                                                     child_conn,taskBufferIF,ddmIF,
-                                                     vo,plabel))
+                                                     child_conn, taskBufferIF, ddmIF,
+                                                     vo, plabel, subStr, period))
                 proc.start()
                 knightList.append(proc)
         # setup JediMsgProcessor agent (only one system process)

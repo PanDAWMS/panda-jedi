@@ -1,5 +1,6 @@
 from pandajedi.jedicore import Interaction
 
+
 # base class for watchdog
 class WatchDogBase(object):
 
@@ -9,11 +10,13 @@ class WatchDogBase(object):
         self.ddmIF = ddmIF
         self.refresh()
 
-
-
+    # refresh
     def refresh(self):
         self.siteMapper = self.taskBufferIF.getSiteMapper()
 
+    # pre-action
+    def pre_action(self, tmpLog, vo, prodSourceLabel, *args, **kwargs):
+        pass
 
 
 Interaction.installSC(WatchDogBase)
