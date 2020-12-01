@@ -45,8 +45,10 @@ class AtlasDataLocalityUpdater(object):
             if not got_lock:
                 tmpLog.debug('locked by another process. Skipped')
                 return
+            tmpLog.debug('got lock')
             # get list of datasets
             datasets_list = self.get_datasets_list()
+            tmpLog.debug('got {0} datasets to update'.format(len(datasets_list)))
             # make thread pool
             thread_pool = ThreadPool()
             # make workers
@@ -59,6 +61,7 @@ class AtlasDataLocalityUpdater(object):
                                                 pid=self.pid,
                                                 loggerObj=tmpLog)
                 thr.start()
+            tmpLog.debug('started {0} updater workers'.format(n_workers))
             # join
             thread_pool.join()
             # done
@@ -80,6 +83,7 @@ class AtlasDataLocalityUpdater(object):
             if not got_lock:
                 tmpLog.debug('locked by another process. Skipped')
                 return
+            tmpLog.debug('got lock')
             # lifetime of records
             record_lifetime_hours = 72
             # run
