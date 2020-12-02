@@ -170,7 +170,8 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                     # pending reason
                     reason = 'no local input data'
                     # set pending
-                    self.taskBufferIF.queryTasksToBePending_JEDI(sql_query, params_map, reason)
+                    if False: # for dry run
+                        self.taskBufferIF.queryTasksToBePending_JEDI(sql_query, params_map, reason)
 
 
     # main
