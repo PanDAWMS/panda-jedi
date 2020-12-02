@@ -15,7 +15,7 @@ class WatchDogBase(object):
         self.siteMapper = self.taskBufferIF.getSiteMapper()
 
     # pre-action
-    def pre_action(self, tmpLog, vo, prodSourceLabel, *args, **kwargs):
+    def pre_action(self, tmpLog, vo, prodSourceLabel, pid, *args, **kwargs):
         pass
 
 
