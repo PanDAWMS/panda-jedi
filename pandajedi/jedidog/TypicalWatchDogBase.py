@@ -8,8 +8,8 @@ from pandajedi.jediconfig import jedi_config
 from .WatchDogBase import WatchDogBase
 
 
-# base class for Atlas typical watchdog (for atlas production and analysis)
-class AtlasTypicalWatchDogBase(WatchDogBase):
+# base class for typical watchdog (for production and analysis, etc.)
+class TypicalWatchDogBase(WatchDogBase):
 
     # pre-action
     def pre_action(self, tmpLog, vo, prodSourceLabel, *args, **kwargs):
@@ -98,4 +98,4 @@ class AtlasTypicalWatchDogBase(WatchDogBase):
             tmpLog.info('rescue unlocked {0} tasks'.format(tmpRet))
 
 
-Interaction.installSC(AtlasTypicalWatchDogBase)
+Interaction.installSC(TypicalWatchDogBase)

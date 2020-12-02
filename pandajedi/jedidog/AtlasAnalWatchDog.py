@@ -7,7 +7,7 @@ import traceback
 from six import iteritems
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from .WatchDogBase import WatchDogBase
+from .TypicalWatchDogBase import TypicalWatchDogBase
 from pandaserver.dataservice.Activator import Activator
 
 # logger
@@ -16,11 +16,11 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 
 # watchdog for ATLAS analysis
-class AtlasAnalWatchDog(WatchDogBase):
+class AtlasAnalWatchDog(TypicalWatchDogBase):
 
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
-        WatchDogBase.__init__(self, taskBufferIF, ddmIF)
+        TypicalWatchDogBase.__init__(self, taskBufferIF, ddmIF)
         self.pid = '{0}-{1}-dog'.format(socket.getfqdn().split('.')[0], os.getpid())
         # self.cronActions = {'forPrestage': 'atlas_prs'}
 

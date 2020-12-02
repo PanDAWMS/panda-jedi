@@ -2,7 +2,7 @@ import re
 import sys
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
-from .WatchDogBase import WatchDogBase
+from .TypicalWatchDogBase import TypicalWatchDogBase
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -11,11 +11,11 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 
 # watchdog for general purpose
-class GenWatchDog(WatchDogBase):
+class GenWatchDog(TypicalWatchDogBase):
 
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
-        WatchDogBase.__init__(self, taskBufferIF, ddmIF)
+        TypicalWatchDogBase.__init__(self, taskBufferIF, ddmIF)
 
 
 
