@@ -51,7 +51,7 @@ class WatchDog(JediKnight,FactoryBase):
                         impl = self.getImpl(vo, prodSourceLabel, subType=self.subStr)
                         if impl is not None:
                             tmpLog.info('pre-action for vo={0} label={1} with {2}'.format(vo,prodSourceLabel,impl.__class__.__name__))
-                            impl.pre_action(tmpLog, vo, prodSourceLabel)
+                            impl.pre_action(tmpLog, vo, prodSourceLabel, self.pid)
                             tmpLog.info('do action for vo={0} label={1} with {2}'.format(vo,prodSourceLabel,impl.__class__.__name__))
                             tmpStat = impl.doAction()
                             if tmpStat !=  Interaction.SC_SUCCEEDED:

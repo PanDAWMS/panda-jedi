@@ -13,7 +13,7 @@ from .WatchDogBase import WatchDogBase
 class TypicalWatchDogBase(WatchDogBase):
 
     # pre-action
-    def pre_action(self, tmpLog, vo, prodSourceLabel, *args, **kwargs):
+    def pre_action(self, tmpLog, vo, prodSourceLabel, pid, *args, **kwargs):
         # rescue picked files
         tmpLog.info('rescue tasks with picked files for vo={0} label={1}'.format(vo,prodSourceLabel))
         tmpRet = self.taskBufferIF.rescuePickedFiles_JEDI(vo,prodSourceLabel,
@@ -91,7 +91,7 @@ class TypicalWatchDogBase(WatchDogBase):
             tmpLog.info('finished {0} tasks'.format(tmpRet))
         # rescue unlocked tasks with picked files
         tmpLog.info('rescue unlocked tasks with picked files for vo={0} label={1}'.format(vo,prodSourceLabel))
-        tmpRet = self.taskBufferIF.rescueUnLockedTasksWithPicked_JEDI(vo,prodSourceLabel,60,self.pid)
+        tmpRet = self.taskBufferIF.rescueUnLockedTasksWithPicked_JEDI(vo,prodSourceLabel,60,pid)
         if tmpRet is None:
             # failed
             tmpLog.error('failed to rescue unlocked tasks')
