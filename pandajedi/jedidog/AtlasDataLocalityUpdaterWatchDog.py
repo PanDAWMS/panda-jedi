@@ -85,7 +85,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
                 return
             tmpLog.debug('got lock')
             # lifetime of records
-            record_lifetime_hours = 72
+            record_lifetime_hours = 24
             # run
             now_timestamp = datetime.datetime.utcnow()
             before_timestamp = now_timestamp - datetime.timedelta(hours=record_lifetime_hours)

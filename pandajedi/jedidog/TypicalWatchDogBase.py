@@ -3,6 +3,7 @@ import sys
 import socket
 
 from pandajedi.jedicore import Interaction
+from pandajedi.jedicore import JediCoreUtils
 from pandajedi.jediconfig import jedi_config
 
 from .WatchDogBase import WatchDogBase
