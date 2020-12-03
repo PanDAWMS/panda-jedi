@@ -12890,7 +12890,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmp_log.debug('start')
         try:
             # sql
-            sql = "SELECT sum(prorated_diskio_avg * num_of_jobs) / sum(num_of_jobs), computingSite FROM {0}.JOBS_SHARE_STATS ".format(jedi_config.db.schemaPANDA)
+            sql = "SELECT sum(prorated_diskio_avg * njobs) / sum(njobs), computingSite FROM {0}.JOBS_SHARE_STATS ".format(jedi_config.db.schemaPANDA)
             sql += "WHERE jobStatus=:jobStatus GROUP BY computingSite "
             var_map = dict()
             var_map[':jobStatus'] = 'running'
