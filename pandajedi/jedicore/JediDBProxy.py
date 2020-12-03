@@ -4811,7 +4811,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getHighestPrioJobStat_JEDI_OLD(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
         comment = ' /* JediDBProxy.getHighestPrioJobStat_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <cloud={0} queue={1}>".format(cloudName,workQueue.queue_name)
+        methodName += " <cloud={0} queue={1} resource_name={2}>".format(cloudName, workQueue.queue_name, resource_name)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         varMapO = {}
@@ -4907,7 +4907,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
         comment = ' /* JediDBProxy.getHighestPrioJobStat_JEDI */'
         method_name = self.getMethodName(comment)
-        method_name += " <cloud={0} queue={1}>".format(cloudName,workQueue.queue_name)
+        method_name += " <cloud={0} queue={1} resource_type={2}>".format(cloudName, workQueue.queue_name, resource_name)
         tmp_log = MsgWrapper(logger, method_name)
         tmp_log.debug('start')
         var_map = {}
