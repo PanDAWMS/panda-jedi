@@ -66,6 +66,8 @@ class InputChunk:
         self.isEmpty = False
         # flag to use jumbo jobs
         self.useJumbo = None
+        # checkpoint of used counters
+        self.file_checkpoints = {}
 
 
 
@@ -125,7 +127,15 @@ class InputChunk:
         for tmpKey,tmpVal in iteritems(self.datasetMap):
             tmpVal['used'] = 0
 
+    # checkpoint file usage
+    def checkpoint_file_usage(self):
+        for tmpKey, tmpVal in iteritems(self.datasetMap):
+            self.file_checkpoints[tmpKey] = tmpVal['used']
 
+    # rollback file usage
+    def rollback_file_usage(self):
+        for tmpKey, tmpVal in iteritems(self.datasetMap):
+            tmpVal['used'] = self.file_checkpoints[tmpKey]
 
     # add site candidates
     def addSiteCandidate(self,siteCandidateSpec):
@@ -931,6 +941,10 @@ class InputChunk:
         if name in self.siteCandidates:
             return self.siteCandidates[name]
         return None
+
+    # get list of candidate names
+    def get_candidate_names(self):
+        return list(self.siteCandidates.keys())
 
     # update number of queued jobs
     def update_n_queue(self, live_counter):

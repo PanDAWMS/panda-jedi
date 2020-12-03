@@ -19,13 +19,13 @@ class JobSplitter:
 
 
     # split
-    def doSplit(self,taskSpec,inputChunk,siteMapper):
+    def doSplit(self, taskSpec, inputChunk, siteMapper, allow_chunk_size_limit=False):
         # return for failure
         retFatal    = self.SC_FATAL,[]
         retTmpError = self.SC_FAILED,[]
         # make logger
         tmpLog = MsgWrapper(logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,inputChunk.masterIndexName))
-        tmpLog.debug('start')
+        tmpLog.debug('start chunk_size_limit={}'.format(allow_chunk_size_limit))
         if not inputChunk.isMerging:
             # set maxNumFiles using taskSpec if specified
             maxNumFiles = taskSpec.getMaxNumFilesPerJob()
@@ -122,10 +122,12 @@ class JobSplitter:
         subChunks  = []
         iSubChunks = 0
         if taskSpec.is_hpo_workflow():
-            nSubChunks = 2
+            default_nSubChunks = 2
         else:
-            nSubChunks = 25
+            default_nSubChunks = 25
         subChunk   = None
+        nSubChunks = default_nSubChunks
+        strict_chunkSize = False
         while True:
             # change site
             if iSubChunks % nSubChunks == 0 or subChunk == []:
@@ -140,15 +142,32 @@ class JobSplitter:
                                        'siteCandidate':siteCandidate,
                                        })
                     tmpLog.debug('split to %s subchunks' % len(subChunks))
+                    # checkpoint
+                    inputChunk.checkpoint_file_usage()
                     # reset
                     subChunks = []
+                # skip PQs with chunk size limit
+                ngList = []
+                if not allow_chunk_size_limit:
+                    for siteName in inputChunk.get_candidate_names():
+                        siteSpec = siteMapper.getSite(siteName)
+                        if siteSpec.get_job_chunk_size() is not None:
+                            ngList.append(siteName)
                 # new candidate
-                siteCandidate, getCandidateMsg = inputChunk.getOneSiteCandidate(nSubChunks, get_msg=True)
+                siteCandidate, getCandidateMsg = inputChunk.getOneSiteCandidate(nSubChunks, ngSites=ngList,
+                                                                                get_msg=True)
                 if siteCandidate is None:
                     tmpLog.debug('no candidate: {0}'.format(getCandidateMsg))
                     break
                 siteName = siteCandidate.siteName
                 siteSpec = siteMapper.getSite(siteName)
+                # set chunk size
+                nSubChunks = siteSpec.get_job_chunk_size()
+                if nSubChunks is None:
+                    nSubChunks = default_nSubChunks
+                    strict_chunkSize = False
+                else:
+                    strict_chunkSize = True
                 # directIO
                 if not JediCoreUtils.use_direct_io_for_job(taskSpec, siteSpec, inputChunk):
                     useDirectIO = False
@@ -233,19 +252,27 @@ class JobSplitter:
                 subChunks.append(subChunk)
             iSubChunks += 1
         # append to return map if remain
+        isSkipped = False
         if subChunks != []:
-            # get site names for parallel execution
-            if taskSpec.getNumSitesPerJob() > 1 and not inputChunk.isMerging:
-                siteName = inputChunk.getParallelSites(taskSpec.getNumSitesPerJob(),
-                                                       nSubChunks,[siteName])
-            returnList.append({'siteName':siteName,
-                               'subChunks':subChunks,
-                               'siteCandidate':siteCandidate,
-                               })
-            tmpLog.debug('split to %s subchunks' % len(subChunks))
+            # skip if chunk size is not enough
+            if allow_chunk_size_limit and strict_chunkSize and len(subChunks) < nSubChunks:
+                tmpLog.debug('skip splitting since chunk size {} is less than chunk size limit {} at {}'.format(
+                    len(subChunks), nSubChunks, siteName))
+                inputChunk.rollback_file_usage()
+                isSkipped = True
+            else:
+                # get site names for parallel execution
+                if taskSpec.getNumSitesPerJob() > 1 and not inputChunk.isMerging:
+                    siteName = inputChunk.getParallelSites(taskSpec.getNumSitesPerJob(),
+                                                           nSubChunks,[siteName])
+                returnList.append({'siteName':siteName,
+                                   'subChunks':subChunks,
+                                   'siteCandidate':siteCandidate,
+                                   })
+                tmpLog.debug('split to %s chunks' % len(subChunks))
         # return
         tmpLog.debug('done')
-        return self.SC_SUCCEEDED,returnList
+        return self.SC_SUCCEEDED, returnList, isSkipped
 
 
 
