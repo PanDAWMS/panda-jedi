@@ -12885,7 +12885,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     # get averaged disk IO
     def getAvgDiskIO_JEDI(self):
         comment = ' /* JediDBProxy.getAvgDiskIO_JEDI */'
-        method_name = self.getmethodName(comment)
+        method_name = self.getMethodName(comment)
         tmp_log = MsgWrapper(logger, method_name)
         tmp_log.debug('start')
         try:
