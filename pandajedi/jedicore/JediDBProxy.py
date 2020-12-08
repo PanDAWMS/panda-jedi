@@ -2387,9 +2387,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # define the var map of query parameters
         var_map = {':vo': vo}
 
-        # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
+        # sql to query on pre-cached job statistics tables (JOBS_SHARE_STATS and JOBSDEFINED_SHARE_STATS)
         sql_jt = """
-               SELECT computingSite, jobStatus, gShare, COUNT(*) FROM %s
+               SELECT /*+ RESULT_CACHE */ computingSite, jobStatus, gShare, SUM(njobs) FROM %s
                WHERE vo=:vo
                """
 
@@ -2403,24 +2403,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                GROUP BY computingSite, jobStatus, gshare
                """
 
-        # sql to query on the jobs_share_stats table with already aggregated data
-        sql_jss = sql_jt
-        sql_jss = re.sub('COUNT\(\*\)', 'SUM(njobs)', sql_jss)
-        sql_jss = re.sub('SELECT ', 'SELECT /*+ RESULT_CACHE */ ', sql_jss)
-
-        tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
-                  '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
-
+        tables = ['{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA),
+                  '{0}.JOBSDEFINED_SHARE_STATS'.format(jedi_config.db.schemaPANDA)]
 
         return_map = {}
         try:
             for table in tables:
                 self.cur.arraysize = 10000
-                if table == '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA):
-                    stats_table = '{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA)
-                    sql_exe = (sql_jss + comment) % stats_table
-                else:
-                    sql_exe = (sql_jt + comment) % table
+                sql_exe = (sql_jt + comment) % table
                 self.cur.execute(sql_exe, var_map)
                 res = self.cur.fetchall()
 
@@ -2457,8 +2447,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # define the var map of query parameters
         var_map = {':vo': workqueue.VO}
 
-        # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
-        sql_jt = "SELECT jobstatus, resource_type, COUNT(*) FROM %s WHERE vo=:vo "
+        # sql to query on pre-cached job statistics tables (JOBS_SHARE_STATS and JOBSDEFINED_SHARE_STATS)
+        sql_jt = "SELECT /*+ RESULT_CACHE */ jobstatus, resource_type, SUM(njobs) FROM %s WHERE vo=:vo "
 
         if workqueue.is_global_share:
             sql_jt += "AND gshare=:gshare "
@@ -2470,23 +2460,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         sql_jt += "GROUP BY jobstatus, resource_type "
 
-        # sql to query on the jobs_share_stats table with already aggregated data
-        sql_jss = sql_jt
-        sql_jss = re.sub('COUNT\(\*\)', 'SUM(njobs)', sql_jss)
-        sql_jss = re.sub('SELECT ', 'SELECT /*+ RESULT_CACHE */ ', sql_jss)
-
-        tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
-                  '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
+        tables = ['{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA),
+                  '{0}.JOBSDEFINED_SHARE_STATS'.format(jedi_config.db.schemaPANDA)]
 
         return_map = {}
         try:
             for table in tables:
                 self.cur.arraysize = 10000
-                if table == '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA):
-                    stats_table = '{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA)
-                    sql_exe = (sql_jss + comment) % stats_table
-                else:
-                    sql_exe = (sql_jt + comment) % table
+                sql_exe = (sql_jt + comment) % table
                 self.cur.execute(sql_exe, var_map)
                 res = self.cur.fetchall()
 
@@ -2517,8 +2498,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # define the var map of query parameters
         var_map = {':vo': workqueue.VO}
 
-        # sql to query on jobs-tables (jobsactive4 and jobsdefined4)
-        sql_jt = "SELECT jobstatus, resource_type, computingSite, COUNT(*) FROM %s WHERE vo=:vo "
+        # sql to query on pre-cached job statistics tables (JOBS_SHARE_STATS and JOBSDEFINED_SHARE_STATS)
+        sql_jt = "SELECT /*+ RESULT_CACHE */ jobstatus, resource_type, computingSite, SUM(njobs) FROM %s WHERE vo=:vo "
 
         if workqueue.is_global_share:
             sql_jt += "AND gshare=:gshare "
@@ -2530,23 +2511,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         sql_jt += "GROUP BY jobstatus, resource_type, computingSite "
 
-        # sql to query on the jobs_share_stats table with already aggregated data
-        sql_jss = sql_jt
-        sql_jss = re.sub('COUNT\(\*\)', 'SUM(njobs)', sql_jss)
-        sql_jss = re.sub('SELECT ', 'SELECT /*+ RESULT_CACHE */ ', sql_jss)
-
-        tables = ['{0}.jobsActive4'.format(jedi_config.db.schemaPANDA),
-                  '{0}.jobsDefined4'.format(jedi_config.db.schemaPANDA)]
+        tables = ['{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA),
+                  '{0}.JOBSDEFINED_SHARE_STATS'.format(jedi_config.db.schemaPANDA)]
 
         return_map = {}
         try:
             for table in tables:
                 self.cur.arraysize = 10000
-                if table == '{0}.jobsActive4'.format(jedi_config.db.schemaPANDA):
-                    stats_table = '{0}.JOBS_SHARE_STATS'.format(jedi_config.db.schemaPANDA)
-                    sql_exe = (sql_jss + comment) % stats_table
-                else:
-                    sql_exe = (sql_jt + comment) % table
+                sql_exe = (sql_jt + comment) % table
                 self.cur.execute(sql_exe, var_map)
                 res = self.cur.fetchall()
 
@@ -4835,12 +4807,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return None
 
 
-
     # get highest prio jobs with workQueueID
-    def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
+    def getHighestPrioJobStat_JEDI_OLD(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
         comment = ' /* JediDBProxy.getHighestPrioJobStat_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <cloud={0} queue={1}>".format(cloudName,workQueue.queue_name)
+        methodName += " <cloud={0} queue={1} resource_name={2}>".format(cloudName, workQueue.queue_name, resource_name)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         varMapO = {}
@@ -4931,6 +4902,74 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return False,None
 
+
+    # get highest prio jobs with workQueueID
+    def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
+        comment = ' /* JediDBProxy.getHighestPrioJobStat_JEDI */'
+        method_name = self.getMethodName(comment)
+        method_name += " <cloud={0} queue={1} resource_type={2}>".format(cloudName, workQueue.queue_name, resource_name)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug('start')
+        var_map = {}
+        var_map[':cloud'] = cloudName
+        var_map[':prodSourceLabel'] = prodSourceLabel
+
+        sql_sum = "SELECT MAX_PRIORITY, SUM(MAX_PRIORITY_COUNT) FROM {0}.JOB_STATS_HP ".format(jedi_config.db.schemaPANDA)
+        sql_max = "SELECT MAX(MAX_PRIORITY) FROM {0}.JOB_STATS_HP ".format(jedi_config.db.schemaPANDA)
+
+        sql_where = "WHERE prodSourceLabel=:prodSourceLabel AND cloud=:cloud "
+
+        if resource_name:
+            sql_where += "AND resource_type=:resource_type "
+            var_map[':resource_type'] = resource_name
+        
+        if workQueue.is_global_share:
+            sql_where += "AND gshare=:wq_name "
+            sql_where += "AND workqueue_id IN ("
+            sql_where += "SELECT UNIQUE workqueue_id FROM {0}.JOB_STATS_HP ".format(jedi_config.db.schemaPANDA)
+            sql_where += "MINUS "
+            sql_where += "SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaPANDA)
+            var_map[':wq_name'] = workQueue.queue_name
+        else:
+            sql_where += "AND workQueue_ID=:wq_id "
+            var_map[':wq_id'] = workQueue.queue_id
+
+        sql_max += sql_where
+        sql_where += "AND MAX_PRIORITY=({0}) ".format(sql_max)
+        sql_where += "GROUP BY MAX_PRIORITY"
+        sql_sum += sql_where
+
+        # make return map
+        max_priority_tag = 'highestPrio'
+        max_priority_count_tag = 'nNotRun'
+        ret_map = {max_priority_tag: 0, max_priority_count_tag: 0}
+        
+        try:
+            # start transaction
+            self.conn.begin()
+            self.cur.arraysize = 100
+
+            tmp_log.debug((sql_sum+comment) + str(var_map))
+            self.cur.execute((sql_sum + comment), var_map)
+            res = self.cur.fetchone()
+            if res:
+                max_priority, count = res
+                if max_priority and count:  # otherwise leave it to 0
+                    ret_map[max_priority_tag] = max_priority
+                    ret_map[max_priority_count_tag] = count
+
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # return
+            tmp_log.debug(str(ret_map))
+            return True, ret_map
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return False, None
 
 
     # get the list of tasks to refine
@@ -12846,32 +12885,34 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     # get averaged disk IO
     def getAvgDiskIO_JEDI(self):
         comment = ' /* JediDBProxy.getAvgDiskIO_JEDI */'
-        methodName = self.getMethodName(comment)
-        tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
+        method_name = self.getMethodName(comment)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug('start')
         try:
             # sql
-            sql  = "SELECT AVG(diskIO/coreCount),computingSite FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+            sql = "SELECT sum(prorated_diskio_avg * njobs) / sum(njobs), computingSite FROM {0}.JOBS_SHARE_STATS ".format(jedi_config.db.schemaPANDA)
             sql += "WHERE jobStatus=:jobStatus GROUP BY computingSite "
-            varMap = dict()
-            varMap[':jobStatus'] = 'running'
+            var_map = dict()
+            var_map[':jobStatus'] = 'running'
             # begin transaction
             self.conn.begin()
-            self.cur.execute(sql+comment, varMap)
+            self.cur.execute(sql+comment, var_map)
             resFL = self.cur.fetchall()
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
-            retMap = dict()
-            for avg, computingSite in resFL:
-                retMap[computingSite] = avg
-            tmpLog.debug('done')
-            return retMap
+            ret_map = dict()
+            for avg, computing_site in resFL:
+                if avg:
+                    avg = float(avg)
+                ret_map[computing_site] = avg
+            tmp_log.debug('done')
+            return ret_map
         except Exception:
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog)
+            self.dumpErrorMessage(tmp_log)
             return {}
 
 
