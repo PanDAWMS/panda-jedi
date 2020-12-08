@@ -168,10 +168,34 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                         }
                     params_map.update(rse_params_map)
                     # pending reason
-                    reason = 'no local input data'
+                    reason = 'no local input data, ioIntensity>{ioIntensity}, currentPriority<{currentPriority}'.format(
+                                ioIntensity=upplimit_ioIntensity,currentPriority=lowlimit_currentPriority)
                     # set pending
-                    if False: # for dry run
-                        self.taskBufferIF.queryTasksToBePending_JEDI(sql_query, params_map, reason)
+                    dry_run = False
+                    if dry_run:
+                        dry_sql_query = (
+                            "SELECT t.jediTaskID "
+                            "FROM {jedi_schema}.JEDI_Tasks t "
+                            "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
+                                "AND t.gshare=:gshare AND t.resource_type=:resource_type "
+                                "AND t.ioIntensity>=:ioIntensity AND t.currentPriority<:currentPriority "
+                                "AND NOT EXISTS ( "
+                                    "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
+                                    "WHERE dl.jediTaskID=t.jediTaskID "
+                                        "AND dl.rse NOT IN ({rse_params_str}) "
+                                    ") "
+                        ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
+                        res = self.taskBufferIF.querySQL(dry_sql_query, params_map)
+                        n_tasks = 0 if res is None else len(res)
+                        if n_tasks > 0:
+                            result = [ x[0] for x in res ]
+                            tmp_log.debug('[dry run] gshare: {gshare:<16} rtype={resource_type:<11} {n_tasks:>5} tasks would be pending : {result} ; reason="{reason}" '.format(
+                                            gshare=gshare, resource_type=resource_type, n_tasks=n_tasks, result=result, reason=reason))
+                    else:
+                        n_tasks = self.taskBufferIF.queryTasksToBePending_JEDI(sql_query, params_map, reason)
+                        if n_tasks is not None and n_tasks > 0:
+                            tmp_log.info('gshare: {gshare:<16} rtype={resource_type:<11} {n_tasks:>5} tasks got pending ; reason="{reason}" '.format(
+                                            gshare=gshare, resource_type=resource_type, n_tasks=str(n_tasks), reason=reason))
 
 
     # main

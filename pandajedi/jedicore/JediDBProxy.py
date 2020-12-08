@@ -13735,7 +13735,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def queryTasksToBePending_JEDI(self, sql_query, params_map, reason):
         comment = ' /* JediDBProxy.queryTasksToBePending_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " < sql={0} >".format(sql_query)
+        # methodName += " < sql={0} >".format(sql_query)
         tmpLog = MsgWrapper(logger, methodName)
         try:
             self.conn.begin()
@@ -13753,7 +13753,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                       ).format(jedi_config.db.schemaJEDI)
             # loop over tasks
             n_updated = 0
-            for jedi_taskid in taskIDs:
+            for (jedi_taskid, ) in taskIDs:
                 varMap = {}
                 varMap[':jediTaskID'] = jedi_taskid
                 varMap[':err'] = reason
@@ -13763,8 +13763,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if nRow == 1:
                     self.record_task_status_change(jedi_taskid)
                     n_updated += 1
+                    tmpLog.debug('made pending jediTaskID={0}'.format(jedi_taskid))
                 elif nRow > 1:
-                    tmpLog.error('updated {0} rows with same jediTaskID'.format(nRow))
+                    tmpLog.error('updated {0} rows with same jediTaskID={1}'.format(nRow, jedi_taskid))
             if not self._commit():
                 raise RuntimeError('Commit error')
             tmpLog.debug('done with {0} rows'.format(n_updated))
