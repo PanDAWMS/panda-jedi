@@ -82,7 +82,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
             for jobStatus in ['defined', 'assigned', 'activated', 'starting']:
                 nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus, gshare)
             # busy sites
-            if (nQueue + 1)/(nRunning + 1) > 2:
+            if nQueue > max(20, nRunning*2):
                 busy_sites_list.append(tmpSiteName)
         # return
         return busy_sites_list
@@ -168,7 +168,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                         }
                     params_map.update(rse_params_map)
                     # pending reason
-                    reason = 'no local input data, ioIntensity>{ioIntensity}, currentPriority<{currentPriority}'.format(
+                    reason = 'no local input data, ioIntensity>{ioIntensity}, currentPriority<{currentPriority}, nQueue/nRunning>2 at all sites where the task can run'.format(
                                 ioIntensity=upplimit_ioIntensity,currentPriority=lowlimit_currentPriority)
                     # set pending
                     dry_run = False
