@@ -236,18 +236,25 @@ if __name__ == "__main__":
                               gid=gid)
     with dc:
         # record PID
-        pidFile = open(options.pid,'w')
-        pidFile.write('{0}'.format(os.getpid()))
-        pidFile.close()
-        # master
-        master = JediMaster()
-        # set handler
-        def catch_sig(sig, frame):
-            master.stop()
-            time.sleep(3)
-            kill_whole(sig, frame)
-        signal.signal(signal.SIGINT, catch_sig)
-        signal.signal(signal.SIGHUP, catch_sig)
-        signal.signal(signal.SIGTERM,catch_sig)
-        # start master
-        master.start()
+        go_ahead = True
+        try:
+            pidFile = open(options.pid, 'x')
+        except FileExistsError:
+            print("{} JediMaster: ERROR    terminated since pid file {} already exists".format(str(timeNow),
+                                                                                               options.pid))
+            go_ahead = False
+        if go_ahead:
+            pidFile.write('{0}'.format(os.getpid()))
+            pidFile.close()
+            # master
+            master = JediMaster()
+            # set handler
+            def catch_sig(sig, frame):
+                master.stop()
+                time.sleep(3)
+                kill_whole(sig, frame)
+            signal.signal(signal.SIGINT, catch_sig)
+            signal.signal(signal.SIGHUP, catch_sig)
+            signal.signal(signal.SIGTERM,catch_sig)
+            # start master
+            master.start()

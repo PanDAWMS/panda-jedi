@@ -68,6 +68,8 @@ class InputChunk:
         self.useJumbo = None
         # checkpoint of used counters
         self.file_checkpoints = {}
+        # list of bootstrapped sites
+        self.bootstrapped = set()
 
 
 
@@ -173,53 +175,66 @@ class InputChunk:
                         # skip if the first file is unavailable at the site
                         if not siteCandidate.isAvailableFile(tmpFileSpec):
                             ngSites.append(siteCandidate.siteName)
-        # get total weight
-        totalWeight = 0
-        weightList  = []
+        # check if to be bootstrapped
         siteCandidateList = list(self.siteCandidates.values())
         newSiteCandidateList = []
-        nNG = 0
-        nOK = 0
-        nFull = 0
         for siteCandidate in siteCandidateList:
-            # remove NG sites
-            if siteCandidate.siteName in ngSites:
-                nNG += 1
-                continue
-            # skip incapable
-            if not siteCandidate.can_accept_jobs():
-                nFull += 1
-                continue
-            totalWeight += siteCandidate.weight
-            newSiteCandidateList.append(siteCandidate)
-            nOK += 1
-        siteCandidateList = newSiteCandidateList
-        retMsg = 'OK={0} NG={1} Full={2}'.format(nOK, nNG, nFull)
-        # empty
-        if siteCandidateList == []:
-            if get_msg:
-                return None, retMsg
-            return None
-        # get random number
-        rNumber = random.random() * totalWeight
-        for siteCandidate in siteCandidateList:
-            rNumber -= siteCandidate.weight
-            if rNumber <= 0:
-                retSiteCandidate = siteCandidate
-                break
-        # return something as a protection against precision of float
-        if retSiteCandidate is None:
-            retSiteCandidate = random.choice(siteCandidateList)
-        # modify weight
-        try:
-            if retSiteCandidate.nQueuedJobs is not None and retSiteCandidate.nAssignedJobs is not None:
-                oldNumQueued = retSiteCandidate.nQueuedJobs
-                retSiteCandidate.nQueuedJobs += nSubChunks
-                newNumQueued = retSiteCandidate.nQueuedJobs
-                retSiteCandidate.nAssignedJobs += nSubChunks
-                siteCandidate.weight = siteCandidate.weight * float(oldNumQueued+1) / float(newNumQueued+1)
-        except Exception:
-            pass
+            if siteCandidate.weight == 0 and siteCandidate.siteName not in self.bootstrapped:
+                newSiteCandidateList.append(siteCandidate)
+        if newSiteCandidateList:
+            retSiteCandidate = random.choice(newSiteCandidateList)
+            self.bootstrapped.add(retSiteCandidate.siteName)
+            retMsg = 'toBootstrapped={}'.format(len(newSiteCandidateList))
+        else:
+            # get total weight
+            totalWeight = 0
+            nNG = 0
+            nOK = 0
+            nBoosted = 0
+            nFull = 0
+            for siteCandidate in siteCandidateList:
+                # remove NG sites
+                if siteCandidate.siteName in ngSites:
+                    nNG += 1
+                    continue
+                # already bootstrapped
+                if siteCandidate.weight == 0 and siteCandidate.siteName in self.bootstrapped:
+                    nBoosted += 1
+                    continue
+                # skip incapable
+                if not siteCandidate.can_accept_jobs():
+                    nFull += 1
+                    continue
+                totalWeight += siteCandidate.weight
+                newSiteCandidateList.append(siteCandidate)
+                nOK += 1
+            siteCandidateList = newSiteCandidateList
+            retMsg = 'OK={0} NG={1} bootstrapped={3} Full={2}'.format(nOK, nNG, nFull, nBoosted)
+            # empty
+            if not siteCandidateList:
+                if get_msg:
+                    return None, retMsg
+                return None
+            # get random number
+            rNumber = random.random() * totalWeight
+            for siteCandidate in siteCandidateList:
+                rNumber -= siteCandidate.weight
+                if rNumber <= 0:
+                    retSiteCandidate = siteCandidate
+                    break
+            # return something as a protection against precision of float
+            if retSiteCandidate is None:
+                retSiteCandidate = random.choice(siteCandidateList)
+            # modify weight
+            try:
+                if retSiteCandidate.nQueuedJobs is not None and retSiteCandidate.nAssignedJobs is not None:
+                    oldNumQueued = retSiteCandidate.nQueuedJobs
+                    retSiteCandidate.nQueuedJobs += nSubChunks
+                    newNumQueued = retSiteCandidate.nQueuedJobs
+                    retSiteCandidate.nAssignedJobs += nSubChunks
+                    siteCandidate.weight = siteCandidate.weight * float(oldNumQueued+1) / float(newNumQueued+1)
+            except Exception:
+                pass
         if get_msg:
             return retSiteCandidate, retMsg
         return retSiteCandidate
