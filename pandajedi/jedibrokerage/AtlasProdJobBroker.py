@@ -83,6 +83,10 @@ class AtlasProdJobBroker (JobBrokerBase):
         if self.io_intensity_cutoff is None:
             self.io_intensity_cutoff = 200
 
+        self.max_prio_for_bootstrap =  taskBufferIF.getConfigValue(COMPONENT, 'MAX_PRIO_TO_BOOTSTRAP', APP, VO)
+        if self.max_prio_for_bootstrap is None:
+            self.max_prio_for_bootstrap = 150
+
 
     # wrapper for return
     def sendLogMessage(self,tmpLog):
@@ -1621,6 +1625,16 @@ class AtlasProdJobBroker (JobBrokerBase):
                 ngMsg = 'with gshare+resource_type is greater than '
                 ngMsg += 'max({0},{1}*nRun_rt={1}*{2}) '.format(cutOffValue, RT_Cap, tmpRTrunning)
                 ngMsg += 'criteria=-cap_rt'
+            elif nRunning + nActivated + nAssigned + nStarting + nDefined == 0 and \
+                taskSpec.currentPriority <= self.max_prio_for_bootstrap and not inputChunk.isMerging:
+                okMsg = '  use site={0} to bootstrap (no running or queued jobs) criteria=+use'.format(tmpPseudoSiteName)
+                ngMsg = '  skip site={0} due to low weight '.format(tmpPseudoSiteName)
+                ngMsg += 'weight={0} {1} '.format(weight, weightStr)
+                ngMsg += 'criteria=-loweigh'
+                okAsPrimay = True
+                # set weight to 0 for subsequent processing
+                weight = 0
+                siteCandidateSpec.weight = weight
             else:
                 ngMsg = '  skip site={0} due to low weight '.format(tmpPseudoSiteName)
                 ngMsg += 'weight={0} {1} '.format(weight, weightStr)
@@ -1665,6 +1679,10 @@ class AtlasProdJobBroker (JobBrokerBase):
         weightList = list(weightMap.keys())
         weightList.sort()
         weightList.reverse()
+        # put 0 at the head of the list to give priorities bootstrap PQs
+        if 0 in weightList:
+            weightList.remove(0)
+            weightList.insert(0, 0)
         for weightIdx,tmpWeight in enumerate(weightList):
             for siteCandidateSpec,tmpOkMsg,tmpNgMsg in weightMap[tmpWeight]:
                 # candidates for jumbo jobs
