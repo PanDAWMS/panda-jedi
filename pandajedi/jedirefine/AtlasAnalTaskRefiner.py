@@ -108,6 +108,11 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
             taskParamMap['maxAttempt'] = 10
         if 'maxFailure' not in taskParamMap:
             taskParamMap['maxFailure'] = 3
+        # target walltime
+        if 'maxWalltime' not in taskParamMap:
+            tgtWalltime = self.taskBufferIF.getConfigValue('taskrefiner', 'USER_JOB_TARGET_WALLTIME', 'jedi', 'atlas')
+            if tgtWalltime:
+                taskParamMap['maxWalltime'] = tgtWalltime
         # choose N % of tasks to enable input data motion
         fracTaskWithDataMotion = self.taskBufferIF.getConfigValue('taskrefiner', 'USER_TASKS_MOVE_INPUT', 'jedi', 'atlas')
         if fracTaskWithDataMotion is not None and fracTaskWithDataMotion > 0:
