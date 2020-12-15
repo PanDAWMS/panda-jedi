@@ -10749,7 +10749,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog,msgType='debug')
+            self.dumpErrorMessage(tmpLog)
             return retVal
 
 
@@ -10914,7 +10914,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog, msgType='debug')
+            self.dumpErrorMessage(tmpLog)
             return retVal
 
 
@@ -13664,7 +13664,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog,msgType='debug')
+            self.dumpErrorMessage(tmpLog)
             return retVal
 
 
@@ -13703,7 +13703,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog,msgType='debug')
+            self.dumpErrorMessage(tmpLog)
 
 
     # extend lifetime of sandbox file
@@ -13733,3 +13733,227 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+    # turn a task into pending status for some reason
+    def makeTaskPending_JEDI(self, jedi_taskid, reason):
+        comment = ' /* JediDBProxy.makeTaskPending_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} >".format(jedi_taskid)
+        tmpLog = MsgWrapper(logger, methodName)
+        try:
+            self.conn.begin()
+            retVal = False
+            # sql to put the task in pending
+            sqlPDG = (  "UPDATE {0}.JEDI_Tasks "
+                        "SET lockedBy=NULL, lockedTime=NULL, "
+                            "status=:status, errorDialog=:err, "
+                            "modificationtime=CURRENT_DATE, oldStatus=status "
+                        "WHERE jediTaskID=:jediTaskID "
+                            "AND status IN ('ready','running','scouting') "
+                            "AND lockedBy IS NULL "
+                      ).format(jedi_config.db.schemaJEDI)
+            varMap = {}
+            varMap[':jediTaskID'] = jedi_taskid
+            varMap[':err'] = reason
+            varMap[':status'] = 'pending'
+            self.cur.execute(sqlPDG+comment, varMap)
+            nRows = self.cur.rowcount
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('done with {0} rows'.format(nRows))
+            # return
+            return nRows
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+    # query tasks and turn them into pending status for some reason, sql_query should query jeditaskid
+    def queryTasksToBePending_JEDI(self, sql_query, params_map, reason):
+        comment = ' /* JediDBProxy.queryTasksToBePending_JEDI */'
+        methodName = self.getMethodName(comment)
+        # methodName += " < sql={0} >".format(sql_query)
+        tmpLog = MsgWrapper(logger, methodName)
+        try:
+            self.conn.begin()
+            # sql to query
+            self.cur.execute(sql_query+comment, params_map)
+            taskIDs = self.cur.fetchall()
+            # sql to put the task in pending
+            sqlPDG = (  "UPDATE {0}.JEDI_Tasks "
+                        "SET lockedBy=NULL, lockedTime=NULL, "
+                            "status=:status, errorDialog=:err, "
+                            "modificationtime=CURRENT_DATE, oldStatus=status "
+                        "WHERE jediTaskID=:jediTaskID "
+                            "AND status IN ('ready','running','scouting') "
+                            "AND lockedBy IS NULL "
+                      ).format(jedi_config.db.schemaJEDI)
+            # loop over tasks
+            n_updated = 0
+            for (jedi_taskid, ) in taskIDs:
+                varMap = {}
+                varMap[':jediTaskID'] = jedi_taskid
+                varMap[':err'] = reason
+                varMap[':status'] = 'pending'
+                self.cur.execute(sqlPDG+comment, varMap)
+                nRow = self.cur.rowcount
+                if nRow == 1:
+                    self.record_task_status_change(jedi_taskid)
+                    n_updated += 1
+                    tmpLog.debug('made pending jediTaskID={0}'.format(jedi_taskid))
+                elif nRow > 1:
+                    tmpLog.error('updated {0} rows with same jediTaskID={1}'.format(nRow, jedi_taskid))
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('done with {0} rows'.format(n_updated))
+            # return
+            return n_updated
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+    # get  datasets of input and lib, to update data locality records
+    def get_tasks_inputdatasets_JEDI(self, vo, ioIntensity_limit):
+        comment = ' /* JediDBProxy.get_tasks_inputdatasets_JEDI */'
+        methodName = self.getMethodName(comment)
+        # last update time
+        methodName += " <vo={0}>".format(vo)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        now_ts = datetime.datetime.utcnow()
+        try:
+            retVal = None
+            # sql to get all jediTaskID and datasetID of input
+            sql = ( "SELECT tabT.jediTaskID,datasetID, tabD.datasetName "
+                    "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA "
+                    "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
+                        "AND tabT.vo=:vo AND tabT.status IN ('running', 'ready', 'scouting', 'pending') "
+                        "AND tabT.ioIntensity>:ioIntensity "
+                        "AND tabD.type IN ('input') AND tabD.masterID IS NULL "
+                    ).format(jedi_config.db.schemaJEDI)
+            # start transaction
+            self.conn.begin()
+            # get
+            varMap = {}
+            varMap[':vo'] = vo
+            varMap[':ioIntensity'] = ioIntensity_limit
+            self.cur.execute(sql+comment, varMap)
+            res = self.cur.fetchall()
+            nRows = self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # return
+            retVal = res
+            tmpLog.debug('done with {0} rows'.format(nRows))
+            return retVal
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return retVal
+
+
+    # update dataset locality
+    def updateDatasetLocality_JEDI(self, jedi_taskid, datasetid, rse):
+        comment = ' /* JediDBProxy.updateDatasetLocality_JEDI */'
+        methodName = self.getMethodName(comment)
+        # last update time
+        timestamp = datetime.datetime.utcnow()
+        timestamp_str = timestamp.strftime('%Y-%m-%d_%H:%M:%S')
+        methodName += " <taskID={0} datasetID={1} rse={2} timestamp={3}>".format(jedi_taskid, datasetid, rse, timestamp_str)
+        tmpLog = MsgWrapper(logger, methodName)
+        # tmpLog.debug('start')
+        try:
+            retVal = False
+            # sql to check
+            sqlC = ("SELECT timestamp "
+                    "FROM {0}.JEDI_Dataset_Locality "
+                    "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND rse=:rse "
+                ).format(jedi_config.db.schemaJEDI)
+            # sql to insert
+            sqlI = ("INSERT INTO {0}.JEDI_Dataset_Locality "
+                    "(jediTaskID, datasetID, rse, timestamp) "
+                    "VALUES (:jediTaskID, :datasetID, :rse, :timestamp)"
+                ).format(jedi_config.db.schemaJEDI)
+            # sql to update
+            sqlU = ("UPDATE {0}.JEDI_Dataset_Locality "
+                    "SET timestamp=:timestamp "
+                    "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND rse=:rse "
+                ).format(jedi_config.db.schemaJEDI)
+            # start transaction
+            self.conn.begin()
+            # check
+            varMap = {}
+            varMap[':jediTaskID'] = jedi_taskid
+            varMap[':datasetID'] = datasetid
+            varMap[':rse'] = rse
+            self.cur.execute(sqlC+comment, varMap)
+            resC = self.cur.fetchone()
+            varMap[':timestamp'] = timestamp
+            if resC is None:
+                # insert if missing
+                tmpLog.debug('insert')
+                self.cur.execute(sqlI+comment, varMap)
+            else:
+                # update
+                tmpLog.debug('update')
+                self.cur.execute(sqlU+comment, varMap)
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # return
+            retVal = True
+            # tmpLog.debug('done')
+            return retVal
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return retVal
+
+    # delete outdated dataset locality records
+    def deleteOutdatedDatasetLocality_JEDI(self, before_timestamp):
+        comment = ' /* JediDBProxy.deleteOutdatedDatasetLocality_JEDI */'
+        methodName = self.getMethodName(comment)
+        # last update time
+        before_timestamp_str = before_timestamp.strftime('%Y-%m-%d_%H:%M:%S')
+        methodName += " <before_timestamp={0}>".format(before_timestamp_str)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            retVal = 0
+            # sql to delete
+            sqlD = ("DELETE {0}.Jedi_Dataset_Locality "
+                    "WHERE timestamp<=:timestamp "
+                ).format(jedi_config.db.schemaJEDI)
+            # start transaction
+            self.conn.begin()
+            # check
+            varMap = {}
+            varMap[':timestamp'] = before_timestamp
+            # delete
+            self.cur.execute(sqlD+comment, varMap)
+            retVal = self.cur.rowcount
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # return
+            tmpLog.debug('done, deleted {0} records'.format(retVal))
+            return retVal
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return retVal

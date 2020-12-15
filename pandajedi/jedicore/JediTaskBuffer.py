@@ -754,3 +754,28 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def extendSandboxLifetime_JEDI(self, jedi_taskid, file_name):
         with self.proxyPool.get() as proxy:
             return proxy.extendSandboxLifetime_JEDI(jedi_taskid, file_name)
+
+    # turn a task into pending status for some reason
+    def makeTaskPending_JEDI(self, jedi_taskid, reason='unknown'):
+        with self.proxyPool.get() as proxy:
+            return proxy.makeTaskPending_JEDI(jedi_taskid, reason)
+
+    # query tasks and turn them into pending status for some reason, sql_query should query jeditaskid
+    def queryTasksToBePending_JEDI(self, sql_query, params_map, reason):
+        with self.proxyPool.get() as proxy:
+            return proxy.queryTasksToBePending_JEDI(sql_query, params_map, reason)
+
+    # get IDs of all datasets of input and lib, to update data locality records
+    def get_tasks_inputdatasets_JEDI(self, vo, ioIntensity_limit=500):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_tasks_inputdatasets_JEDI(vo, ioIntensity_limit)
+
+    # update dataset locality
+    def updateDatasetLocality_JEDI(self, jedi_taskid, datasetid, rse):
+        with self.proxyPool.get() as proxy:
+            return proxy.updateDatasetLocality_JEDI(jedi_taskid, datasetid, rse)
+
+    # delete outdated dataset locality records
+    def deleteOutdatedDatasetLocality_JEDI(self, before_timestamp):
+        with self.proxyPool.get() as proxy:
+            return proxy.deleteOutdatedDatasetLocality_JEDI(before_timestamp)

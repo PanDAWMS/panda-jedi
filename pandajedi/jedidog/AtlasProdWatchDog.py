@@ -3,7 +3,7 @@ import traceback
 
 from six import iteritems
 
-from .WatchDogBase import WatchDogBase
+from .TypicalWatchDogBase import TypicalWatchDogBase
 from .JumboWatchDog import JumboWatchDog
 
 from pandajedi.jedicore import JediCoreUtils
@@ -19,11 +19,11 @@ from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 # watchdog for ATLAS production
-class AtlasProdWatchDog (WatchDogBase):
+class AtlasProdWatchDog(TypicalWatchDogBase):
 
     # constructor
-    def __init__(self,ddmIF,taskBufferIF):
-        WatchDogBase.__init__(self, ddmIF, taskBufferIF)
+    def __init__(self, taskBufferIF, ddmIF):
+        TypicalWatchDogBase.__init__(self, taskBufferIF, ddmIF)
 
     # main
     def doAction(self):
