@@ -1040,6 +1040,8 @@ class JobGeneratorThread (WorkerThread):
                     lumiBlockNr = None
                     setSpecialHandlingForJC = False
                     setInputPrestaging = False
+                    segmentName = None
+                    segmentID = None
                     for tmpDatasetSpec,tmpFileSpecList in inSubChunk:
                         # get boundaryID if grouping is done with boundaryID
                         if useBoundary is not None and boundaryID is None:
@@ -1052,6 +1054,10 @@ class JobGeneratorThread (WorkerThread):
                                 setProdDBlock = True
                             else:
                                 prodDBlock = tmpDatasetSpec.datasetName
+                        # get segment information
+                        if taskSpec.is_work_segmented() and tmpDatasetSpec.isMaster() and tmpDatasetSpec.isPseudo():
+                            segmentID = tmpDatasetSpec.datasetID
+                            segmentName = tmpDatasetSpec.containerName.split('/')[0]
                         # making files
                         for tmpFileSpec in tmpFileSpecList:
                             if inputChunk.isMerging:
@@ -1241,6 +1247,11 @@ class JobGeneratorThread (WorkerThread):
                                     middleName = ''
                                     for tmpFieldNum in taskSpec.getFieldNumToLFN():
                                         middleName += '.'+tmpMidStrList[tmpFieldNum-1]
+                    # append segment name to middle name
+                    if segmentName is not None:
+                        if middleName:
+                            middleName += '_'
+                        middleName += segmentName
                     # set provenanceID
                     provenanceID = None
                     if useBoundary is not None and useBoundary['outMap'] is True:
@@ -1424,6 +1435,9 @@ class JobGeneratorThread (WorkerThread):
                         paramList.append(('XML_EXESTR',xmlConfigJob.exec_string_enc()))
                     # middle name
                     paramList.append(('MIDDLENAME',middleName))
+                    # segment ID
+                    if segmentID is not None:
+                        paramList.append(('SEGMENT_ID', segmentID))
                     # job parameter
                     if taskSpec.useEventService(siteSpec) and not taskSpec.useJobCloning():
                         useEStoMakeJP = True

@@ -48,10 +48,9 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
         if msg_type == 'file_hyperparameteropt':
             # insert HPO events
             try:
-                # map
-                scope_name_list_map = {}
                 # event ids from the targets
-                event_id_list = [ target['name'] for target in target_list if target['status'] == 'New']
+                event_id_list = [target['name'] if isinstance(target['name'], (list, tuple)) else (target['name'], None)
+                                 for target in target_list if target['status'] == 'New']
                 if event_id_list:
                     n_events = len(event_id_list)
                     # insert events
