@@ -672,14 +672,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to propagate number of input events to DEFT
             sqlCE  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-            sqlCE += "SET total_input_events=("
+            sqlCE += "SET total_input_events=LEAST(9999999999,("
             sqlCE += "SELECT SUM(nEvents) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlCE += "WHERE jediTaskID=:jediTaskID AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ':type_'+tmpType
                 sqlCE += '{0},'.format(mapKey)
             sqlCE  = sqlCE[:-1]
-            sqlCE += ") AND masterID IS NULL) "
+            sqlCE += ") AND masterID IS NULL)) "
             sqlCE += "WHERE taskID=:jediTaskID "
             nInsert  = 0
             nReady   = 0
