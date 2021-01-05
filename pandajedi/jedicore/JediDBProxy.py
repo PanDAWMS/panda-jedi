@@ -169,8 +169,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # SQL
             varMap = {}
-            varMap[':ts_running']       = 'running'
-            varMap[':ts_defined']       = 'defined'
+            varMap[':ts_running'] = 'running'
+            varMap[':ts_scouting'] = 'scouting'
+            varMap[':ts_ready'] = 'ready'
+            varMap[':ts_defined'] = 'defined'
             varMap[':dsStatus_pending'] = 'pending'
             varMap[':dsState_mutable']  = 'mutable'
             varMap[':checkTimeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
@@ -199,7 +201,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += '{0},'.format(mapKey)
                 varMap[mapKey] = tmpStat
             sql  = sql[:-1]
-            sql += ')) OR (tabT.status=:ts_running AND tabD.state=:dsState_mutable AND tabD.stateCheckTime<:checkTimeLimit)) '
+            sql += ')) OR (tabT.status IN (:ts_running,:ts_scouting,:ts_ready) AND tabD.state=:dsState_mutable AND tabD.stateCheckTime<:checkTimeLimit)) '
             sql += 'AND tabT.lockedBy IS NULL AND tabD.lockedBy IS NULL '
             sql += 'AND NOT EXISTS '
             sql += '(SELECT 1 FROM {0}.JEDI_Datasets '.format(jedi_config.db.schemaJEDI)
@@ -723,14 +725,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # task is locked
                     tmpLog.debug('task is locked by {0}'.format(taskLockedBy))
                 elif not (taskStatus in JediTaskSpec.statusToUpdateContents() or \
-                              (taskStatus in ['running','assigning'] and \
+                              (taskStatus in ['running', 'assigning', 'ready', 'scouting'] and \
                                    (datasetState == 'mutable' or datasetSpec.state == 'mutable' or datasetSpec.isSeqNumber()))):
                     # task status is irrelevant
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
                 else:
                     tmpLog.debug('task.status={0}'.format(taskStatus))
                     # running task
-                    if taskStatus == 'running':
+                    if taskStatus in ['running', 'assigning', 'ready', 'scouting']:
                         diagMap['isRunningTask'] = True
                     # size of pending input chunk to be activated
                     sizePendingEventChunk = None
@@ -781,7 +783,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     elif resDs[2] != datasetSpec.state:
                         tmpLog.debug('dataset.state changed from {0} to {1} in DB'.format(datasetSpec.state, resDs[2]))
                     elif not (resDs[0] in JediDatasetSpec.statusToUpdateContents() or \
-                                  (taskStatus in ['running','assigning'] and \
+                                  (taskStatus in ['running', 'assigning', 'ready', 'scouting'] and \
                                        (datasetState == 'mutable' or datasetSpec.state == 'mutable') or \
                                        (taskStatus in ['running','defined'] and datasetSpec.isSeqNumber()))):
                         tmpLog.debug('ds.status={0} is not for contents update'.format(resDs[0]))
