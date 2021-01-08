@@ -1438,6 +1438,7 @@ class JobGeneratorThread (WorkerThread):
                     # segment ID
                     if segmentID is not None:
                         paramList.append(('SEGMENT_ID', segmentID))
+                        paramList.append(('SEGMENT_NAME', segmentName))
                     # job parameter
                     if taskSpec.useEventService(siteSpec) and not taskSpec.useJobCloning():
                         useEStoMakeJP = True
