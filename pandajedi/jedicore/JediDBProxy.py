@@ -737,7 +737,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # size of pending input chunk to be activated
                     sizePendingEventChunk = None
                     strSizePendingEventChunk = ''
-                    if taskStatus == 'defined' and useScout:
+                    if taskStatus in ['defined', 'ready', 'scouting'] and useScout:
                         nChunks = nChunksForScout
                         # number of files for scout
                         sizePendingFileChunk = nChunksForScout
