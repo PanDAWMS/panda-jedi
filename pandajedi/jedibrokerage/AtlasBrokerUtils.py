@@ -181,7 +181,7 @@ def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[],deepScan=F
                     tmpTotalNum = locData[0]['total']
                     tmpTotalSize = locData[0]['tsize']
                 # check if the endpoint is associated
-                if tmpNucleusSpec.isAssociatedEndpoint(tmpLoc):
+                if tmpNucleusSpec.is_associated_for_input(tmpLoc):
                     tmpEndpoint = tmpNucleusSpec.getEndpoint(tmpLoc)
                     tmpAvaNum   = locData[0]['found']
                     tmpAvaSize  = locData[0]['asize']
