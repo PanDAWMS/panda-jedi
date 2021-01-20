@@ -785,7 +785,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     elif not (resDs[0] in JediDatasetSpec.statusToUpdateContents() or \
                                   (taskStatus in ['running', 'assigning', 'ready', 'scouting'] and \
                                        (datasetState == 'mutable' or datasetSpec.state == 'mutable') or \
-                                       (taskStatus in ['running','defined'] and datasetSpec.isSeqNumber()))):
+                                       (taskStatus in ['running','defined', 'ready', 'scouting'] and datasetSpec.isSeqNumber()))):
                         tmpLog.debug('ds.status={0} is not for contents update'.format(resDs[0]))
                         oldDsStatus = resDs[0]
                         nFilesUnprocessed = resDs[1]
