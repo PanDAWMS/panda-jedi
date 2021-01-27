@@ -145,7 +145,7 @@ class JobSplitter:
                         gshare = taskSpec.gshare.replace(' ', '_')
                     except Exception:
                         gshare = None
-                    tmpLog.info('split to %s jobs at site=%s gshare=%s' % (len(subChunks), siteName,
+                    tmpLog.info('split to nJobs=%s at site=%s gshare=%s' % (len(subChunks), siteName,
                                                                                        gshare))
                     # checkpoint
                     inputChunk.checkpoint_file_usage()
@@ -278,7 +278,7 @@ class JobSplitter:
                     gshare = taskSpec.gshare.replace(' ', '_')
                 except Exception:
                     gshare = None
-                tmpLog.info('split to %s jobs at site=%s gshare=%s' % (len(subChunks), siteName,
+                tmpLog.info('split to nJobs=%s at site=%s gshare=%s' % (len(subChunks), siteName,
                                                                                    gshare))
         # return
         tmpLog.debug('done')
