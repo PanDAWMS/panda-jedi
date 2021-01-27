@@ -141,7 +141,12 @@ class JobSplitter:
                                        'subChunks':subChunks,
                                        'siteCandidate':siteCandidate,
                                        })
-                    tmpLog.info('split to %s subchunks (jobs) at site=%s' % (len(subChunks), siteName))
+                    try:
+                        gshare = taskSpec.gshare.replace(' ', '_')
+                    except Exception:
+                        gshare = None
+                    tmpLog.info('split to %s subchunks (jobs) at site=%s gshare=%s' % (len(subChunks), siteName,
+                                                                                       gshare))
                     # checkpoint
                     inputChunk.checkpoint_file_usage()
                     # reset
@@ -269,7 +274,12 @@ class JobSplitter:
                                    'subChunks':subChunks,
                                    'siteCandidate':siteCandidate,
                                    })
-                tmpLog.info('split to %s subchunks (jobs) at site=%s' % (len(subChunks), siteName))
+                try:
+                    gshare = taskSpec.gshare.replace(' ', '_')
+                except Exception:
+                    gshare = None
+                tmpLog.info('split to %s subchunks (jobs) at site=%s gshare=%s' % (len(subChunks), siteName,
+                                                                                   gshare))
         # return
         tmpLog.debug('done')
         return self.SC_SUCCEEDED, returnList, isSkipped
