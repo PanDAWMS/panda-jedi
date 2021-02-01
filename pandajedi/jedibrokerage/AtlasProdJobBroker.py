@@ -1437,13 +1437,18 @@ class AtlasProdJobBroker (JobBrokerBase):
             manyAssigned = float(nAssigned + 1) / float(nActivated + 1)
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
-            weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 10) / manyAssigned
-            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7}{9} totalSizeMB={5} totalNumFiles={8} '.format(nRunning,nActivated,nAssigned,
-                                                                                                                                             nStarting,nDefined,
-                                                                                                                                             long(totalSize/1024/1024),
-                                                                                                                                             manyAssigned,nPilot,
-                                                                                                                                             maxNumFiles,
-                                                                                                                                             corrNumPilotStr)
+            if totalSize-siteSizeMap[tmpSiteName] <= 0:
+                weight = float(nRunning + 1) / float(nActivated + nStarting + nDefined + 10)
+                weightStr = 'nRun={0} nAct={1} nStart={3} nDef={4} nPilot={7}{9} totalSizeMB={5} totalNumFiles={8} '
+            else:
+                weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 10) / manyAssigned
+                weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7}{9} totalSizeMB={5} totalNumFiles={8} '
+            weightStr = weightStr.format(nRunning, nActivated, nAssigned,
+                                         nStarting, nDefined,
+                                         long(totalSize/1024/1024),
+                                         manyAssigned, nPilot,
+                                         maxNumFiles,
+                                         corrNumPilotStr)
             # reduce weights by taking data availability into account
             skipRemoteData = False
             if totalSize > 0:
