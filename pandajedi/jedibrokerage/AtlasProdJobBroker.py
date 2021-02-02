@@ -827,7 +827,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpMsg = '  skip site={0} due to small scratch disk {1} MB less than {2} MB'.format(tmpSiteName,
                                                                                                         maxwdir_scaled,
                                                                                                         minDiskCount)
-                    tmpMsg += 'criteria=-disk'
+                    tmpMsg += ' criteria=-disk'
                     tmpLog.info(tmpMsg)
                     continue
                 newMaxwdir[tmpSiteName] = maxwdir_scaled
