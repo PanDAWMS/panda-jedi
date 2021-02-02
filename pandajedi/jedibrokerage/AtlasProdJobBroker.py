@@ -780,9 +780,11 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for scratch disk
         if taskSpec.outputScaleWithEvents():
-            minDiskCount = taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(getNumEvents=True)
+            minDiskCount = max(taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(getNumEvents=True),
+                               inputChunk.defaultOutputSize)
         else:
-            minDiskCount = taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(effectiveSize=True)
+            minDiskCount = max(taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(effectiveSize=True),
+                               inputChunk.defaultOutputSize)
         minDiskCount  += taskSpec.getWorkDiskSize()
         minDiskCountL  = minDiskCount
         minDiskCountD  = minDiskCount
@@ -822,16 +824,16 @@ class AtlasProdJobBroker (JobBrokerBase):
                 maxwdir_scaled = tmpSiteSpec.maxwdir * task_cc / site_cc
 
                 if minDiskCount > maxwdir_scaled:
-                    tmpMsg = '  skip site={0} due to small scratch disk {1} less than {2} '.format(tmpSiteName,
-                                                                                                   maxwdir_scaled,
-                                                                                                   minDiskCount)
+                    tmpMsg = '  skip site={0} due to small scratch disk {1} MB less than {2} MB'.format(tmpSiteName,
+                                                                                                        maxwdir_scaled,
+                                                                                                        minDiskCount)
                     tmpMsg += 'criteria=-disk'
                     tmpLog.info(tmpMsg)
                     continue
                 newMaxwdir[tmpSiteName] = maxwdir_scaled
             newScanSiteList.append(tmpSiteName)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-        tmpLog.info('{0} candidates passed scratch disk check minDiskCount>{1}MB'.format(len(scanSiteList),
+        tmpLog.info('{0} candidates passed scratch disk check minDiskCount>{1} MB'.format(len(scanSiteList),
                                                                                           minDiskCount))
         if scanSiteList == []:
             tmpLog.error('no candidates')
