@@ -253,7 +253,12 @@ class ContentsFeederThread (WorkerThread):
                                         segment_id = int(id_to_container[datasetSpec.masterID].split('/')[-1])
                                         for item in taskParamMap['segmentSpecs']:
                                             if item['id'] == segment_id:
-                                                fileList = item['files']
+                                                if 'files' in item:
+                                                    fileList = item['files']
+                                                elif 'datasets' in item:
+                                                    for tmpDatasetName in item['datasets']:
+                                                        tmpRet = ddmIF.getFilesInDataset(tmpDatasetName)
+                                                        fileList += [tmpAttr['lfn'] for tmpAttr in tmpRet.values()]
                                     except Exception:
                                         pass
                                 else:
