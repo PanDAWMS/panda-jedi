@@ -49,8 +49,8 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
             # insert HPO events
             try:
                 # event ids from the targets
-                event_id_list = [target['name'] if isinstance(target['name'], (list, tuple)) else (target['name'], None)
-                                 for target in target_list if target['status'] == 'New']
+                event_id_list = [(target['name'], target["path"][0][0]) if isinstance(target["path"][0], (list, tuple))
+                                 else (target['name'], None) for target in target_list if target['status'] == 'New']
                 if event_id_list:
                     n_events = len(event_id_list)
                     # insert events
