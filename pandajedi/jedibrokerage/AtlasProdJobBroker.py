@@ -1439,7 +1439,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             manyAssigned = float(nAssigned + 1) / float(nActivated + 1)
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
-            if totalSize-siteSizeMap[tmpSiteName] <= 0:
+            if totalSize == 0 or totalSize-siteSizeMap[tmpSiteName] <= 0:
                 weight = float(nRunning + 1) / float(nActivated + nStarting + nDefined + 10)
                 weightStr = 'nRun={0} nAct={1} nStart={3} nDef={4} nPilot={7}{9} totalSizeMB={5} totalNumFiles={8} '
             else:
