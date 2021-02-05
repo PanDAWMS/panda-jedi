@@ -1091,10 +1091,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         elif xmlConfig is not None:
                             # disable scout for --loadXML
                             varMap[':nFilesTobeUsed'] = nReady + nUsed
-                        elif taskStatus == 'defined' and useScout and not isEventSplit and nChunksForScout is not None and nReady > sizePendingFileChunk:
+                        elif taskStatus in ['defined', 'ready', 'scouting'] and useScout and not isEventSplit and \
+                                nChunksForScout is not None and nReady > sizePendingFileChunk:
                             # set a fewer number for scout for file level splitting
                             varMap[':nFilesTobeUsed'] = sizePendingFileChunk
-                        elif taskStatus == 'defined' and useScout and isEventSplit and nReady > max(nFilesToUseEventSplit,nFilesToUseDS):
+                        elif taskStatus in ['defined', 'ready', 'scouting'] and useScout and isEventSplit and \
+                                nReady > max(nFilesToUseEventSplit,nFilesToUseDS):
                             # set a fewer number for scout for event level splitting
                             varMap[':nFilesTobeUsed'] = max(nFilesToUseEventSplit,nFilesToUseDS)
                         else:
