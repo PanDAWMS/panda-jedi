@@ -5744,6 +5744,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         shortExecTime = self.getConfigValue('dbproxy','SCOUT_SHORT_EXECTIME_{0}'.format(prodSourceLabel), 'jedi')
         if shortExecTime is None:
             shortExecTime = 0
+        # cap on diskIO
+        capOnDiskIO = self.getConfigValue('dbproxy', 'SCOUT_DISK_IO_CAP', 'jedi')
         extraInfo['shortExecTime'] = shortExecTime
         # get the size of lib
         varMap = {}
@@ -6115,6 +6117,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if diskIoList != []:
             aveDiskIo = sum(diskIoList) // len(diskIoList)
             aveDiskIo = long(math.ceil(aveDiskIo))
+            if capOnDiskIO is not None:
+                aveDiskIo = min(aveDiskIo, capOnDiskIO)
             returnMap['diskIO'] = aveDiskIo
             returnMap['diskIOUnit'] = 'kBPerS'
         if leak_list:
