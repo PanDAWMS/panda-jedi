@@ -4922,7 +4922,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if resource_name:
             sql_where += "AND resource_type=:resource_type "
             var_map[':resource_type'] = resource_name
-        
+
         if workQueue.is_global_share:
             sql_where += "AND gshare=:wq_name "
             sql_where += "AND workqueue_id IN ("
@@ -4943,7 +4943,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         max_priority_tag = 'highestPrio'
         max_priority_count_tag = 'nNotRun'
         ret_map = {max_priority_tag: 0, max_priority_count_tag: 0}
-        
+
         try:
             # start transaction
             self.conn.begin()
@@ -13836,7 +13836,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA "
                     "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
                         "AND tabT.vo=:vo AND tabT.status IN ('running', 'ready', 'scouting', 'pending') "
-                        "AND tabT.ioIntensity>:ioIntensity "
+                        "AND tabT.ioIntensity>=:ioIntensity "
                         "AND tabD.type IN ('input') AND tabD.masterID IS NULL "
                     ).format(jedi_config.db.schemaJEDI)
             # start transaction

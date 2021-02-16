@@ -41,7 +41,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
             got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel='default',
                                                             cloud=None, workqueue_id=None, resource_name=None,
                                                             component='AtlasDataLocalityUpdaterWatchDog.doUpdateDataLocality',
-                                                            pid=self.pid, timeLimit=720)
+                                                            pid=self.pid, timeLimit=240)
             if not got_lock:
                 tmpLog.debug('locked by another process. Skipped')
                 return
