@@ -104,6 +104,7 @@ class JediTaskSpec(object):
         'switchEStoNormal'   : 'SE',
         'stayOutputOnSite'   : 'SO',
         'scoutSuccessRate'   : 'SS',
+        'segmentedWork'      : 'SW',
         'totNumJobs'         : 'TJ',
         'tgtMaxOutputForNG'  : 'TN',
         't1Weight'           : 'TW',
@@ -1669,5 +1670,12 @@ class JediTaskSpec(object):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['firstContentsFeed']+'=(\d+)', self.splitRule)
             if tmpMatch is not None and tmpMatch.group(1) == self.FirstContentsFeed.TRUE.value:
+                return True
+        return False
+
+    # check if work is segmented
+    def is_work_segmented(self):
+        if self.splitRule is not None:
+            if re.search(self.splitRuleToken['segmentedWork']+'=(\d+)', self.splitRule):
                 return True
         return False

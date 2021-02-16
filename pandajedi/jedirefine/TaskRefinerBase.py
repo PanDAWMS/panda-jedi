@@ -344,6 +344,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['multiStepExec'])
         if 'onlyTagsForFC' in taskParamMap:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['onlyTagsForFC'])
+        if 'segmentedWork' in taskParamMap and 'segmentSpecs' in taskParamMap:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['segmentedWork'])
         if 'avoidVP' in taskParamMap:
                 self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['avoidVP'])
         if 'inputPreStaging' in taskParamMap and taskParamMap['inputPreStaging'] is True:
@@ -351,26 +353,6 @@ class TaskRefinerBase (object):
                               JediTaskSpec.splitRuleToken['inputPreStaging'])
         if 'hpoWorkflow' in taskParamMap and taskParamMap['hpoWorkflow'] is True and 'hpoRequestData' in taskParamMap:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['hpoWorkflow'])
-            try:
-                data = copy.copy(taskParamMap['hpoRequestData'])
-                data['workload_id'] = self.taskSpec.jediTaskID
-                data['is_pseudo_input'] = True
-                req = {
-                    'requester': 'panda',
-                    'request_type': idds.common.constants.RequestType.HyperParameterOpt,
-                    'transform_tag': idds.common.constants.RequestType.HyperParameterOpt.value,
-                    'status': idds.common.constants.RequestStatus.New,
-                    'priority': 0,
-                    'lifetime': 30,
-                    'request_metadata': data,
-                }
-                c = iDDS_Client(idds.common.utils.get_rest_host())
-                self.tmpLog.debug('req {0}'.format(str(req)))
-                ret = c.add_request(**req)
-                self.tmpLog.debug('got requestID={0}'.format(str(ret)))
-            except Exception as e:
-                errStr = 'iDDS failed with {0}'.format(str(e))
-                raise JediException.ExternalTempError(errStr)
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
@@ -534,19 +516,33 @@ class TaskRefinerBase (object):
                         if datasetSpec.isPseudo() or datasetSpec.type in ['random_seed'] or datasetName == 'DBR_LATEST':
                             # pseudo input
                             tmpDatasetNameList = [datasetName]
+                            if self.taskSpec.is_work_segmented():
+                                tmpDatasetNameList *= len(taskParamMap['segmentSpecs'])
                         elif 'expand' in tmpItem and tmpItem['expand'] is True:
                             # expand dataset container
                             tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).expandContainer(datasetName)
                         else:
                             # normal dataset name
                             tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).listDatasets(datasetName)
+                        i_element = 0
                         for elementDatasetName in tmpDatasetNameList:
-                            if nIn > 0 or elementDatasetName not in tmpItem['expandedList']:
+                            if nIn > 0 or elementDatasetName not in tmpItem['expandedList'] or \
+                                    self.taskSpec.is_work_segmented():
                                 tmpItem['expandedList'].append(elementDatasetName)
                                 inDatasetSpec = copy.copy(datasetSpec)
                                 inDatasetSpec.datasetName = elementDatasetName
-                                inDatasetSpec.containerName = datasetName
+                                if nIn > 0 or not self.taskSpec.is_hpo_workflow():
+                                    inDatasetSpec.containerName = datasetName
+                                else:
+                                    if self.taskSpec.is_work_segmented():
+                                        inDatasetSpec.containerName = "{}/{}".format(
+                                            taskParamMap['segmentSpecs'][i_element]['name'],
+                                            taskParamMap['segmentSpecs'][i_element]['id']
+                                        )
+                                    else:
+                                        inDatasetSpec.containerName = "None/None"
                                 inDatasetSpecList.append(inDatasetSpec)
+                            i_element += 1
                     # empty input
                     if inDatasetSpecList == [] and self.oldTaskStatus != 'rerefine':
                         errStr = 'doBasicRefine : unknown input dataset "{0}"'.format(datasetSpec.datasetName)
@@ -689,6 +685,28 @@ class TaskRefinerBase (object):
             self.setSplitRule(None,rndmSeedOffset,JediTaskSpec.splitRuleToken['randomSeed'])
         if firstEventOffset is not None:
             self.setSplitRule(None,firstEventOffset,JediTaskSpec.splitRuleToken['firstEvent'])
+        # send HPO request
+        if self.taskSpec.is_hpo_workflow():
+            try:
+                data = copy.copy(taskParamMap['hpoRequestData'])
+                data['workload_id'] = self.taskSpec.jediTaskID
+                data['is_pseudo_input'] = True
+                req = {
+                    'requester': 'panda',
+                    'request_type': idds.common.constants.RequestType.HyperParameterOpt,
+                    'transform_tag': idds.common.constants.RequestType.HyperParameterOpt.value,
+                    'status': idds.common.constants.RequestStatus.New,
+                    'priority': 0,
+                    'lifetime': 30,
+                    'request_metadata': data,
+                }
+                c = iDDS_Client(idds.common.utils.get_rest_host())
+                self.tmpLog.debug('req {0}'.format(str(req)))
+                ret = c.add_request(**req)
+                self.tmpLog.debug('got requestID={0}'.format(str(ret)))
+            except Exception as e:
+                errStr = 'iDDS failed with {0}'.format(str(e))
+                raise JediException.ExternalTempError(errStr)
         # return
         return
 

@@ -169,8 +169,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # SQL
             varMap = {}
-            varMap[':ts_running']       = 'running'
-            varMap[':ts_defined']       = 'defined'
+            varMap[':ts_running'] = 'running'
+            varMap[':ts_scouting'] = 'scouting'
+            varMap[':ts_ready'] = 'ready'
+            varMap[':ts_defined'] = 'defined'
             varMap[':dsStatus_pending'] = 'pending'
             varMap[':dsState_mutable']  = 'mutable'
             varMap[':checkTimeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
@@ -199,7 +201,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += '{0},'.format(mapKey)
                 varMap[mapKey] = tmpStat
             sql  = sql[:-1]
-            sql += ')) OR (tabT.status=:ts_running AND tabD.state=:dsState_mutable AND tabD.stateCheckTime<:checkTimeLimit)) '
+            sql += ')) OR (tabT.status IN (:ts_running,:ts_scouting,:ts_ready) AND tabD.state=:dsState_mutable AND tabD.stateCheckTime<:checkTimeLimit)) '
             sql += 'AND tabT.lockedBy IS NULL AND tabD.lockedBy IS NULL '
             sql += 'AND NOT EXISTS '
             sql += '(SELECT 1 FROM {0}.JEDI_Datasets '.format(jedi_config.db.schemaJEDI)
@@ -670,14 +672,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to propagate number of input events to DEFT
             sqlCE  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
-            sqlCE += "SET total_input_events=("
+            sqlCE += "SET total_input_events=LEAST(9999999999,("
             sqlCE += "SELECT SUM(nEvents) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlCE += "WHERE jediTaskID=:jediTaskID AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ':type_'+tmpType
                 sqlCE += '{0},'.format(mapKey)
             sqlCE  = sqlCE[:-1]
-            sqlCE += ") AND masterID IS NULL) "
+            sqlCE += ") AND masterID IS NULL)) "
             sqlCE += "WHERE taskID=:jediTaskID "
             nInsert  = 0
             nReady   = 0
@@ -723,19 +725,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # task is locked
                     tmpLog.debug('task is locked by {0}'.format(taskLockedBy))
                 elif not (taskStatus in JediTaskSpec.statusToUpdateContents() or \
-                              (taskStatus in ['running','assigning'] and \
+                              (taskStatus in ['running', 'assigning', 'ready', 'scouting'] and \
                                    (datasetState == 'mutable' or datasetSpec.state == 'mutable' or datasetSpec.isSeqNumber()))):
                     # task status is irrelevant
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
                 else:
                     tmpLog.debug('task.status={0}'.format(taskStatus))
                     # running task
-                    if taskStatus == 'running':
+                    if taskStatus in ['running', 'assigning', 'ready', 'scouting']:
                         diagMap['isRunningTask'] = True
                     # size of pending input chunk to be activated
                     sizePendingEventChunk = None
                     strSizePendingEventChunk = ''
-                    if taskStatus == 'defined' and useScout:
+                    if taskStatus in ['defined', 'ready', 'scouting'] and useScout:
                         nChunks = nChunksForScout
                         # number of files for scout
                         sizePendingFileChunk = nChunksForScout
@@ -781,9 +783,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     elif resDs[2] != datasetSpec.state:
                         tmpLog.debug('dataset.state changed from {0} to {1} in DB'.format(datasetSpec.state, resDs[2]))
                     elif not (resDs[0] in JediDatasetSpec.statusToUpdateContents() or \
-                                  (taskStatus in ['running','assigning'] and \
+                                  (taskStatus in ['running', 'assigning', 'ready', 'scouting'] and \
                                        (datasetState == 'mutable' or datasetSpec.state == 'mutable') or \
-                                       (taskStatus in ['running','defined'] and datasetSpec.isSeqNumber()))):
+                                       (taskStatus in ['running','defined', 'ready', 'scouting'] and datasetSpec.isSeqNumber()))):
                         tmpLog.debug('ds.status={0} is not for contents update'.format(resDs[0]))
                         oldDsStatus = resDs[0]
                         nFilesUnprocessed = resDs[1]
@@ -1089,10 +1091,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         elif xmlConfig is not None:
                             # disable scout for --loadXML
                             varMap[':nFilesTobeUsed'] = nReady + nUsed
-                        elif taskStatus == 'defined' and useScout and not isEventSplit and nChunksForScout is not None and nReady > sizePendingFileChunk:
+                        elif taskStatus in ['defined', 'ready', 'scouting'] and useScout and not isEventSplit and \
+                                nChunksForScout is not None and nReady > sizePendingFileChunk:
                             # set a fewer number for scout for file level splitting
                             varMap[':nFilesTobeUsed'] = sizePendingFileChunk
-                        elif taskStatus == 'defined' and useScout and isEventSplit and nReady > max(nFilesToUseEventSplit,nFilesToUseDS):
+                        elif taskStatus in ['defined', 'ready', 'scouting'] and useScout and isEventSplit and \
+                                nReady > max(nFilesToUseEventSplit,nFilesToUseDS):
                             # set a fewer number for scout for event level splitting
                             varMap[':nFilesTobeUsed'] = max(nFilesToUseEventSplit,nFilesToUseDS)
                         else:
@@ -3274,20 +3278,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlUFU = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
             sqlUFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to get number of events
-            sqlGNE = ("SELECT COUNT(*) FROM {0}.JEDI_Events "
-                      "WHERE jediTaskID=:jediTaskID AND status=:eventStatus ").format(jedi_config.db.schemaJEDI)
+            sqlGNE = ("SELECT COUNT(*),datasetID FROM {0}.JEDI_Events "
+                      "WHERE jediTaskID=:jediTaskID AND status=:eventStatus "
+                      "GROUP BY datasetID ").format(jedi_config.db.schemaJEDI)
             # sql to get number of ready HPO workers
-            sqlNRH = ("SELECT COUNT(*) FROM ("
-                      "(SELECT PandaID FROM {0}.jobsDefined4 WHERE jediTaskID=:jediTaskID "
+            sqlNRH = ("SELECT COUNT(*),datasetID FROM ("
+                      "(SELECT j.PandaID,f.datasetID FROM {0}.jobsDefined4 j, {0}.filesTable4 f "
+                      "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type "
                       "UNION "
-                      "SELECT PandaID FROM {0}.jobsWaiting4 WHERE jediTaskID=:jediTaskID "
+                      "SELECT j.PandaID,f.datasetID FROM {0}.jobsWaiting4 j, {0}.filesTable4 f "
+                      "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type "
                       "UNION "
-                      "SELECT PandaID FROM {0}.jobsActive4 WHERE jediTaskID=:jediTaskID) "
+                      "SELECT j.PandaID,f.datasetID FROM {0}.jobsActive4 j, {0}.filesTable4 f "
+                      "WHERE j.jediTaskID=:jediTaskID AND f.PandaID=j.PandaID AND f.type=:f_type) "
                       "MINUS "
-                      "SELECT PandaID FROM {1}.JEDI_Events "
+                      "SELECT PandaID,datasetID FROM {1}.JEDI_Events "
                       "WHERE  jediTaskID=:jediTaskID AND "
                       "status IN (:esSent,:esRunning)"
-                      ") ").format(jedi_config.db.schemaPANDA, jedi_config.db.schemaJEDI)
+                      ") GROUP BY datasetID").format(jedi_config.db.schemaPANDA, jedi_config.db.schemaJEDI)
             # sql to set frozenTime
             sqlFZT = ("UPDATE {0}.JEDI_Tasks "
                       "SET frozenTime=:frozenTime WHERE jediTaskID=:jediTaskID ").format(jedi_config.db.schemaJEDI)
@@ -3442,7 +3450,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # reset change to not update userName
                                 origTaskSpec.resetChangedAttr('userName')
                 # checks for HPO
-                tmpNumEventsHPO = None
+                numEventsHPO = None
                 if not toSkip and simTasks is None:
                     if origTaskSpec.is_hpo_workflow():
                         # number of jobs
@@ -3472,46 +3480,59 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                           'finish',
                                                           comQualifier='soft')
                                 continue
-                        # number of concurrent workers and/or
+                        # get number of active samples
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
                         varMap[':eventStatus'] = EventServiceUtils.ST_ready
                         self.cur.execute(sqlGNE + comment, varMap)
-                        tmpNumEventsHPO, = self.cur.fetchone()
+                        resGNE = self.cur.fetchall()
+                        numEventsHPO = {}
+                        totalNumEventsHPO = 0
+                        for tmpNumEventsHPO, datasetIdHPO in resGNE:
+                            numEventsHPO[datasetIdHPO] = tmpNumEventsHPO
+                            totalNumEventsHPO += tmpNumEventsHPO
+                        # subtract ready workers
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
                         varMap[':esSent'] = EventServiceUtils.ST_sent
                         varMap[':esRunning'] = EventServiceUtils.ST_running
+                        varMap[':f_type'] = 'pseudo_input'
                         self.cur.execute(sqlNRH + comment, varMap)
-                        tmpNumWorkersHPO, = self.cur.fetchone()
+                        resNRH = self.cur.fetchall()
+                        numWorkersHPO = {}
+                        totalNumWorkersHPO = 0
+                        for tmpNumWorkersHPO, datasetIdHPO in resNRH:
+                            totalNumWorkersHPO += tmpNumWorkersHPO
+                            if datasetIdHPO in numEventsHPO:
+                                numEventsHPO[datasetIdHPO] -= tmpNumWorkersHPO
                         # go to pending if no events (samples)
-                        if tmpNumEventsHPO - tmpNumWorkersHPO <= 0 :
+                        if not [i for i in numEventsHPO.values() if i > 0]:
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':status'] = origTaskSpec.status
-                            if tmpNumEventsHPO == 0:
+                            if not numEventsHPO:
                                 varMap[':err'] = 'skipped since no HP points to evaluate'
                             else:
                                 varMap[':err'] = 'skipped since enough HPO jobs are running or scheduled'
                             self.cur.execute(sqlPDG + comment, varMap)
                             # set frozenTime
-                            if tmpNumEventsHPO + tmpNumWorkersHPO == 0 and origTaskSpec.frozenTime is None:
+                            if totalNumEventsHPO + totalNumWorkersHPO == 0 and origTaskSpec.frozenTime is None:
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':frozenTime'] = datetime.datetime.utcnow()
                                 self.cur.execute(sqlFZT + comment, varMap)
-                            elif tmpNumEventsHPO + tmpNumWorkersHPO > 0 and origTaskSpec.frozenTime is not None:
+                            elif totalNumEventsHPO + totalNumWorkersHPO > 0 and origTaskSpec.frozenTime is not None:
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':frozenTime'] = None
                                 self.cur.execute(sqlFZT + comment, varMap)
                             tmpLog.debug(('HPO jediTaskID={0} skipped due to nSamplesToEvaluate={1} '
-                                          'nReadyWorkers={2}').format(jediTaskID, tmpNumEventsHPO, tmpNumWorkersHPO))
+                                          'nReadyWorkers={2}').format(jediTaskID, totalNumEventsHPO, totalNumWorkersHPO))
                             if not self._commit():
                                 raise RuntimeError('Commit error')
                             # terminate if inactive for long time
                             waitInterval = 24
-                            if tmpNumEventsHPO + tmpNumWorkersHPO == 0 and origTaskSpec.frozenTime is not None and \
+                            if totalNumEventsHPO + totalNumWorkersHPO == 0 and origTaskSpec.frozenTime is not None and \
                                     datetime.datetime.utcnow() - origTaskSpec.frozenTime > \
                                     datetime.timedelta(hours=waitInterval):
                                 # send finish command
@@ -3539,8 +3560,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         taskSpec = copy.copy(origTaskSpec)
                         origTmpNumFiles = tmpNumFiles
                         # reduce NumInputFiles for HPO to avoid redundant workers
-                        if tmpNumEventsHPO is not None and tmpNumFiles > tmpNumEventsHPO:
-                            tmpNumFiles = tmpNumEventsHPO
+                        if numEventsHPO is not None:
+                            if datasetID not in numEventsHPO or numEventsHPO[datasetID] <= 0:
+                                continue
+                            if tmpNumFiles > numEventsHPO[datasetID]:
+                                tmpNumFiles = numEventsHPO[datasetID]
                         # See if there are different memory requirements that need to be mapped to different chuncks
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
@@ -5720,6 +5744,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         shortExecTime = self.getConfigValue('dbproxy','SCOUT_SHORT_EXECTIME_{0}'.format(prodSourceLabel), 'jedi')
         if shortExecTime is None:
             shortExecTime = 0
+        # cap on diskIO
+        capOnDiskIO = self.getConfigValue('dbproxy', 'SCOUT_DISK_IO_CAP', 'jedi')
         extraInfo['shortExecTime'] = shortExecTime
         # get the size of lib
         varMap = {}
@@ -6091,6 +6117,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if diskIoList != []:
             aveDiskIo = sum(diskIoList) // len(diskIoList)
             aveDiskIo = long(math.ceil(aveDiskIo))
+            if capOnDiskIO is not None:
+                aveDiskIo = min(aveDiskIo, capOnDiskIO)
             returnMap['diskIO'] = aveDiskIo
             returnMap['diskIOUnit'] = 'kBPerS'
         if leak_list:
@@ -13476,15 +13504,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         "(jediTaskID,datasetID,PandaID,fileID,attemptNr,status,"
                         "job_processID,def_min_eventID,def_max_eventID,processed_upto_eventID,"
                         "event_offset) "
-                        "VALUES(:jediTaskID,:datasetID,:pandaID,:fileID,:attemptNr,:eventStatus,"
+                        "VALUES(:jediTaskID,"
+                        "(SELECT datasetID FROM {0}.JEDI_Datasets "
+                        "WHERE jediTaskID=:jediTaskID AND type=:type AND masterID IS NULL AND containerName LIKE :cont),"
+                        ":pandaID,:fileID,:attemptNr,:eventStatus,"
                         ":startEvent,:startEvent,:lastEvent,:processedEvent,"
                         ":eventOffset) ").format(jedi_config.db.schemaJEDI)
         varMaps = []
         n_events = 0
-        for event_id in event_id_list:
+        for event_id, model_id in event_id_list:
             varMap = dict()
             varMap[':jediTaskID'] = jedi_task_id
-            varMap[':datasetID'] = 0
+            varMap[':type'] = 'pseudo_input'
             varMap[':pandaID'] = 0
             varMap[':fileID'] = 0
             varMap[':attemptNr'] = 5
@@ -13493,6 +13524,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':startEvent'] = event_id
             varMap[':lastEvent'] = event_id
             varMap[':eventOffset'] = 0
+            varMap[':cont'] = "%/{}".format(model_id)
             varMaps.append(varMap)
             n_events += 1
         try:

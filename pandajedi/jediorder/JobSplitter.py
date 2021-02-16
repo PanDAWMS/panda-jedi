@@ -24,7 +24,7 @@ class JobSplitter:
         retFatal    = self.SC_FATAL,[]
         retTmpError = self.SC_FAILED,[]
         # make logger
-        tmpLog = MsgWrapper(logger,'<jediTaskID={0} datasetID={1}>'.format(taskSpec.jediTaskID,inputChunk.masterIndexName))
+        tmpLog = MsgWrapper(logger,'< jediTaskID={0} datasetID={1} >'.format(taskSpec.jediTaskID,inputChunk.masterIndexName))
         tmpLog.debug('start chunk_size_limit={}'.format(allow_chunk_size_limit))
         if not inputChunk.isMerging:
             # set maxNumFiles using taskSpec if specified
@@ -141,7 +141,12 @@ class JobSplitter:
                                        'subChunks':subChunks,
                                        'siteCandidate':siteCandidate,
                                        })
-                    tmpLog.debug('split to %s subchunks' % len(subChunks))
+                    try:
+                        gshare = taskSpec.gshare.replace(' ', '_')
+                    except Exception:
+                        gshare = None
+                    tmpLog.info('split to nJobs=%s at site=%s gshare=%s' % (len(subChunks), siteName,
+                                                                                       gshare))
                     # checkpoint
                     inputChunk.checkpoint_file_usage()
                     # reset
@@ -269,7 +274,12 @@ class JobSplitter:
                                    'subChunks':subChunks,
                                    'siteCandidate':siteCandidate,
                                    })
-                tmpLog.debug('split to %s chunks' % len(subChunks))
+                try:
+                    gshare = taskSpec.gshare.replace(' ', '_')
+                except Exception:
+                    gshare = None
+                tmpLog.info('split to nJobs=%s at site=%s gshare=%s' % (len(subChunks), siteName,
+                                                                                   gshare))
         # return
         tmpLog.debug('done')
         return self.SC_SUCCEEDED, returnList, isSkipped

@@ -571,6 +571,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         diskio_percore_usage = self.taskBufferIF.getAvgDiskIO_JEDI()
         unified_site_list = self.get_unified_sites(scanSiteList)
         newScanSiteList = []
+        newSkippedTmp = dict()
         for tmpSiteName in unified_site_list:
 
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -606,11 +607,12 @@ class AtlasProdJobBroker (JobBrokerBase):
             # if the task has a diskIO defined, the queue is over the IO limit and the task IO is over the limit
             if diskio_task_tmp and diskio_usage_tmp and diskio_limit_tmp \
                 and diskio_usage_tmp > diskio_limit_tmp and diskio_task_tmp > diskio_limit_tmp:
-                tmpLog.info('  skip site={0} due to diskIO overload criteria=-diskIO'.format(tmpSiteName))
-                continue
+                tmpMsg = '  skip site={0} due to diskIO overload criteria=-diskIO'.format(tmpSiteName)
+                newSkippedTmp[tmpSiteName] = tmpMsg
 
             newScanSiteList.append(tmpSiteName)
 
+        siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
 
         tmpLog.info('{0} candidates passed diskIO check'.format(len(scanSiteList)))
@@ -780,9 +782,11 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for scratch disk
         if taskSpec.outputScaleWithEvents():
-            minDiskCount = taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(getNumEvents=True)
+            minDiskCount = max(taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(getNumEvents=True),
+                               inputChunk.defaultOutputSize)
         else:
-            minDiskCount = taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(effectiveSize=True)
+            minDiskCount = max(taskSpec.getOutDiskSize()*inputChunk.getMaxAtomSize(effectiveSize=True),
+                               inputChunk.defaultOutputSize)
         minDiskCount  += taskSpec.getWorkDiskSize()
         minDiskCountL  = minDiskCount
         minDiskCountD  = minDiskCount
@@ -822,16 +826,16 @@ class AtlasProdJobBroker (JobBrokerBase):
                 maxwdir_scaled = tmpSiteSpec.maxwdir * task_cc / site_cc
 
                 if minDiskCount > maxwdir_scaled:
-                    tmpMsg = '  skip site={0} due to small scratch disk {1} less than {2} '.format(tmpSiteName,
-                                                                                                   maxwdir_scaled,
-                                                                                                   minDiskCount)
-                    tmpMsg += 'criteria=-disk'
+                    tmpMsg = '  skip site={0} due to small scratch disk {1} MB less than {2} MB'.format(tmpSiteName,
+                                                                                                        maxwdir_scaled,
+                                                                                                        minDiskCount)
+                    tmpMsg += ' criteria=-disk'
                     tmpLog.info(tmpMsg)
                     continue
                 newMaxwdir[tmpSiteName] = maxwdir_scaled
             newScanSiteList.append(tmpSiteName)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-        tmpLog.info('{0} candidates passed scratch disk check minDiskCount>{1}MB'.format(len(scanSiteList),
+        tmpLog.info('{0} candidates passed scratch disk check minDiskCount>{1} MB'.format(len(scanSiteList),
                                                                                           minDiskCount))
         if scanSiteList == []:
             tmpLog.error('no candidates')
@@ -1437,13 +1441,18 @@ class AtlasProdJobBroker (JobBrokerBase):
             manyAssigned = float(nAssigned + 1) / float(nActivated + 1)
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
-            weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 10) / manyAssigned
-            weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7}{9} totalSizeMB={5} totalNumFiles={8} '.format(nRunning,nActivated,nAssigned,
-                                                                                                                                             nStarting,nDefined,
-                                                                                                                                             long(totalSize/1024/1024),
-                                                                                                                                             manyAssigned,nPilot,
-                                                                                                                                             maxNumFiles,
-                                                                                                                                             corrNumPilotStr)
+            if totalSize == 0 or totalSize-siteSizeMap[tmpSiteName] <= 0:
+                weight = float(nRunning + 1) / float(nActivated + nStarting + nDefined + 10)
+                weightStr = 'nRun={0} nAct={1} nStart={3} nDef={4} nPilot={7}{9} totalSizeMB={5} totalNumFiles={8} '
+            else:
+                weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 10) / manyAssigned
+                weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7}{9} totalSizeMB={5} totalNumFiles={8} '
+            weightStr = weightStr.format(nRunning, nActivated, nAssigned,
+                                         nStarting, nDefined,
+                                         long(totalSize/1024/1024),
+                                         manyAssigned, nPilot,
+                                         maxNumFiles,
+                                         corrNumPilotStr)
             # reduce weights by taking data availability into account
             skipRemoteData = False
             if totalSize > 0:

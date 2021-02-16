@@ -184,6 +184,9 @@ class ContentsFeederThread (WorkerThread):
                         origNumFiles = None
                         if 'nFiles' in taskParamMap:
                             origNumFiles = taskParamMap['nFiles']
+                        id_to_container = {}
+                        [id_to_container.update({datasetSpec.datasetID: datasetSpec.containerName}) \
+                            for datasetSpec in dsList]
                         for datasetSpec in dsList:
                             tmpLog.debug('start loop for {0}(id={1})'.format(datasetSpec.datasetName,datasetSpec.datasetID))
                             # index consistency
@@ -241,7 +244,26 @@ class ContentsFeederThread (WorkerThread):
                                     allUpdated = False
                             else:
                                 # get file list specified in task parameters
-                                fileList,includePatt,excludePatt = RefinerUtils.extractFileList(taskParamMap,datasetSpec.datasetName)
+                                if taskSpec.is_work_segmented() and not datasetSpec.isPseudo() and \
+                                        not datasetSpec.isMaster():
+                                    fileList = []
+                                    includePatt = []
+                                    excludePatt = []
+                                    try:
+                                        segment_id = int(id_to_container[datasetSpec.masterID].split('/')[-1])
+                                        for item in taskParamMap['segmentSpecs']:
+                                            if item['id'] == segment_id:
+                                                if 'files' in item:
+                                                    fileList = item['files']
+                                                elif 'datasets' in item:
+                                                    for tmpDatasetName in item['datasets']:
+                                                        tmpRet = ddmIF.getFilesInDataset(tmpDatasetName)
+                                                        fileList += [tmpAttr['lfn'] for tmpAttr in tmpRet.values()]
+                                    except Exception:
+                                        pass
+                                else:
+                                    fileList,includePatt,excludePatt = RefinerUtils.extractFileList(
+                                        taskParamMap, datasetSpec.datasetName)
                                 # get the number of events in metadata
                                 if 'getNumEventsInMetadata' in taskParamMap:
                                     getNumEvents = True
