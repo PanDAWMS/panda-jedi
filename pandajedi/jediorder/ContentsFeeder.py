@@ -207,7 +207,7 @@ class ContentsFeederThread (WorkerThread):
                             stateUpdateTime = datetime.datetime.utcnow()
                             try:
                                 if not datasetSpec.isPseudo():
-                                    tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName)
+                                    tmpMetadata = ddmIF.getDatasetMetaData(datasetSpec.datasetName, ignore_missing=True)
                                 else:
                                     # dummy metadata for pseudo dataset
                                     tmpMetadata = {'state':'closed'}
@@ -243,6 +243,14 @@ class ContentsFeederThread (WorkerThread):
                                 if not taskSpec.ignoreMissingInDS():
                                     allUpdated = False
                             else:
+                                # to skip missing dataset
+                                if tmpMetadata['state'] == 'missing':
+                                    # ignore missing
+                                    datasetStatus = 'finished'
+                                    # update dataset status
+                                    self.updateDatasetStatus(datasetSpec, datasetStatus, tmpLog)
+                                    tmpLog.debug('disabled missing {0}'.format(datasetSpec.datasetName))
+                                    continue
                                 # get file list specified in task parameters
                                 if taskSpec.is_work_segmented() and not datasetSpec.isPseudo() and \
                                         not datasetSpec.isMaster():

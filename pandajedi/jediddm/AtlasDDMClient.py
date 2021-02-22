@@ -516,7 +516,7 @@ class AtlasDDMClient(DDMClientBase):
         return self.SC_SUCCEEDED, lfn_to_rses_map
 
     # get dataset metadata
-    def getDatasetMetaData(self,datasetName):
+    def getDatasetMetaData(self, datasetName, ignore_missing=False):
         # make logger
         methodName = 'getDatasetMetaData'
         methodName += ' pid={0}'.format(self.pid)
@@ -539,11 +539,19 @@ class AtlasDDMClient(DDMClientBase):
                 tmpRet['state'] = 'closed'
             tmpLog.debug(str(tmpRet))
             return self.SC_SUCCEEDED,tmpRet
+        except DataIdentifierNotFound as e:
+            errType = e
+            errCode, errMsg = self.checkError(errType)
+            if ignore_missing:
+                tmpLog.debug(errMsg)
+                tmpRet = {}
+                tmpRet['state'] = 'missing'
+                return self.SC_SUCCEEDED, tmpRet
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
-            tmpLog.error(errMsg)
-            return errCode, '{0} : {1}'.format(methodName, errMsg)
+        tmpLog.error(errMsg)
+        return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # check error
     def checkError(self,errType):
