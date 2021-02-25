@@ -3,6 +3,7 @@ import json
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 from pandajedi.jedimsgprocessor.tape_carousel_msg_processor import TapeCarouselMsgProcPlugin
 from pandajedi.jedimsgprocessor.hpo_msg_processor import HPOMsgProcPlugin
+from pandajedi.jedimsgprocessor.processing_msg_processor import ProcessingMsgProcPlugin
 
 from pandacommon.pandalogger import logger_utils
 
@@ -18,8 +19,9 @@ class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
         BaseMsgProcPlugin.initialize(self)
         self.plugin_TapeCarousel = TapeCarouselMsgProcPlugin()
         self.plugin_HPO = HPOMsgProcPlugin()
+        self.plugin_Processing = ProcessingMsgProcPlugin()
         # for each plugin
-        for _plugin in [self.plugin_TapeCarousel, self.plugin_HPO]:
+        for _plugin in [self.plugin_TapeCarousel, self.plugin_HPO, self.plugin_Processing]:
             # initialize each
             _plugin.initialize()
             # use the same taskBuffer interface
@@ -55,6 +57,8 @@ class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
                 self.plugin_TapeCarousel.process(msg_obj, decoded_data=msg_dict)
             elif msg_type in ('file_hyperparameteropt', 'collection_hyperparameteropt'):
                 self.plugin_HPO.process(msg_obj, decoded_data=msg_dict)
+            elif msg_type in ('file_processing', 'collection_processing'):
+                self.plugin_Processing.process(msg_obj, decoded_data=msg_dict)
             else:
                 # Asked by iDDS and message broker guys, JEDI needs to consume unknown types of messages and do nothing...
                 warn_str = 'unknown msg_type : {0}'.format(msg_type)
