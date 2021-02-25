@@ -1,6 +1,9 @@
 import uuid
 
-from userinterface import Client
+try:
+    from pandatools import Client
+except ImportError:
+    from userinterface import Client
 
 inFileList = ['file1','file2','file3']
 

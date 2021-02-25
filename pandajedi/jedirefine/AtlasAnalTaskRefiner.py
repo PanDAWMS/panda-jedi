@@ -45,6 +45,9 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                 # general executable
                 taskParamMap['transPath'] = 'http://{0}:{1}/trf/user/runGen-00-00-02'.format(panda_config.pserveralias,
                                                                                              panda_config.pserverportcache)
+                # shorter base walltime
+                if 'baseWalltime' not in taskParamMap:
+                    taskParamMap['baseWalltime'] = 60
         # set transPath for build
         if 'buildSpec' in taskParamMap and 'transPath' not in taskParamMap['buildSpec']:
             if 'athena' in processingTypes:

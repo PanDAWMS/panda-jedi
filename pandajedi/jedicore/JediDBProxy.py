@@ -6106,6 +6106,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 returnMap['cpuTimeUnit'] = 'mHS06sPerEvent'
                 if extraInfo['oldCpuTime']:
                     extraInfo['oldCpuTime'] = long(extraInfo['oldCpuTime'] * 1000)
+            elif preCpuTimeUnit is not None:
+                # for mHS06sPerEvent -> HS06sPerEvent
+                returnMap['cpuTimeUnit'] = 'HS06sPerEvent'
             maxCpuTime = long(math.ceil(maxCpuTime))
             returnMap['cpuTime'] = maxCpuTime
         if ioIntentList != []:
