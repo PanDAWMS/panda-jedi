@@ -8038,14 +8038,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def reactivatePendingTasks_JEDI(self,vo,prodSourceLabel,timeLimit,timeoutLimit=None,minPriority=None):
         comment = ' /* JediDBProxy.reactivatePendingTasks_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += " <vo={0} label={1} limit={2} min timeout={3} days minPrio={4}>".format(vo,prodSourceLabel,timeLimit,
+        methodName += " <vo={0} label={1} limit={2} min timeout={3}hours minPrio={4}>".format(vo,prodSourceLabel,timeLimit,
                                                                                             timeoutLimit,minPriority)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
             timeoutDate = None
             if timeoutLimit is not None:
-                timeoutDate = datetime.datetime.utcnow() - datetime.timedelta(days=timeoutLimit)
+                timeoutDate = datetime.datetime.utcnow() - datetime.timedelta(hours=timeoutLimit)
             # sql to get pending tasks
             varMap = {}
             varMap[':status'] = 'pending'

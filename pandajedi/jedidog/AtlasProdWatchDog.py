@@ -260,7 +260,7 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
             timeoutForPending = JediCoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel,self.vo,self.prodSourceLabel)
         if timeoutForPending is None:
             timeoutForPending = jedi_config.watchdog.timeoutForPending
-        timeoutForPending = int(timeoutForPending)
+        timeoutForPending = int(timeoutForPending) * 24
         tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(self.vo, self.prodSourceLabel,
                                                                timeoutVal, timeoutForPending,
                                                                minPriority=minPriority)
