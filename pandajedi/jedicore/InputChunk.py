@@ -442,7 +442,7 @@ class InputChunk:
             nEventsPerJob = None
         # set default max number of files
         if maxNumFiles is None:
-            maxNumFiles = 50
+            maxNumFiles = 200
         # set default max number of event ranges
         if maxNumEventRanges is None:
             maxNumEventRanges = 20

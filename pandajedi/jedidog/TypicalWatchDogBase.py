@@ -25,13 +25,15 @@ class TypicalWatchDogBase(WatchDogBase):
             tmpLog.info('rescued {0} tasks'.format(tmpRet))
 
         # reactivate pending tasks
-        tmpLog.info('reactivate pending tasks for vo={0} label={1}'.format(vo,prodSourceLabel))
-        timeoutForPending = None
-        if hasattr(jedi_config.watchdog,'timeoutForPendingVoLabel'):
-            timeoutForPending = JediCoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel,vo,prodSourceLabel)
+        tmpLog.info('reactivate pending tasks for vo={0} label={1}'.format(vo, prodSourceLabel))
+        timeoutForPending = self.taskBufferIF.getConfigValue('watchdog', 'PENDING_TIMEOUT_{}'.format(prodSourceLabel),
+                                                             'jedi', vo)
         if timeoutForPending is None:
-            timeoutForPending = jedi_config.watchdog.timeoutForPending
-        timeoutForPending = int(timeoutForPending)
+            if hasattr(jedi_config.watchdog,'timeoutForPendingVoLabel'):
+                timeoutForPending = JediCoreUtils.getConfigParam(jedi_config.watchdog.timeoutForPendingVoLabel,vo,prodSourceLabel)
+            if timeoutForPending is None:
+                timeoutForPending = jedi_config.watchdog.timeoutForPending
+            timeoutForPending = int(timeoutForPending) * 24
         tmpRet = self.taskBufferIF.reactivatePendingTasks_JEDI(vo,prodSourceLabel,
                                                                jedi_config.watchdog.waitForPending,
                                                                timeoutForPending)

@@ -617,12 +617,17 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     continue
             ######################################
             # selection for memory
-            minRamCount = inputChunk.getMaxRamCount()
-            minRamCount = JobUtils.compensate_ram_count(minRamCount)
-            if minRamCount not in [0,None]:
+            origMinRamCount = inputChunk.getMaxRamCount()
+            if origMinRamCount not in [0, None]:
                 newScanSiteList = []
                 for tmpSiteName in scanSiteList:
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                    # scale RAM by nCores
+                    minRamCount = origMinRamCount
+                    if not inputChunk.isMerging:
+                        if tmpSiteSpec.coreCount not in [None, 0]:
+                            minRamCount = origMinRamCount * tmpSiteSpec.coreCount
+                    minRamCount = JobUtils.compensate_ram_count(minRamCount)
                     # site max memory requirement
                     site_maxmemory = 0
                     if tmpSiteSpec.maxrss not in [0,None]:
