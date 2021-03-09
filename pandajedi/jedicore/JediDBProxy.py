@@ -13992,3 +13992,53 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return retVal
+
+
+    # query tasks and preassign them to a site, sql_query should query jeditaskid
+    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, limit):
+        comment = ' /* JediDBProxy.queryTasksToPreassign_JEDI */'
+        methodName = self.getMethodName(comment)
+        # methodName += " < sql={0} >".format(sql_query)
+        tmpLog = MsgWrapper(logger, methodName)
+        try:
+            self.conn.begin()
+            # sql to query
+            self.cur.execute(sql_query+comment, params_map)
+            taskIDs = self.cur.fetchall()
+            # sql to preassign the task to a site
+            sqlPDG = (  "UPDATE {0}.JEDI_Tasks "
+                        "SET lockedBy=NULL, lockedTime=NULL, "
+                            "site=:site, "
+                            "modificationtime=CURRENT_DATE "
+                        "WHERE jediTaskID=:jediTaskID "
+                            "AND status IN ('ready','running','scouting') "
+                            "AND site IS NULL "
+                            "AND lockedBy IS NULL "
+                      ).format(jedi_config.db.schemaJEDI)
+            # loop over tasks
+            n_updated = 0
+            for (jedi_taskid, ) in taskIDs:
+                if n_updated >= limit:
+                    break
+                varMap = {}
+                varMap[':jediTaskID'] = jedi_taskid
+                varMap[':site'] = site
+                self.cur.execute(sqlPDG+comment, varMap)
+                nRow = self.cur.rowcount
+                if nRow == 1:
+                    self.record_task_status_change(jedi_taskid)
+                    n_updated += 1
+                    tmpLog.debug('preassigned jediTaskID={0} to site={1}'.format(jedi_taskid, site))
+                elif nRow > 1:
+                    tmpLog.error('updated {0} rows with same jediTaskID={1}'.format(nRow, jedi_taskid))
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('done with {0} rows to site={1}'.format(n_updated, site))
+            # return
+            return n_updated
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
