@@ -13994,7 +13994,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return retVal
 
 
-    # query tasks and preassign them to a site, sql_query should query jeditaskid
+    # query tasks and preassign them to a site with higher priority, sql_query should query jeditaskid
     def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, limit):
         comment = ' /* JediDBProxy.queryTasksToPreassign_JEDI */'
         methodName = self.getMethodName(comment)
@@ -14009,6 +14009,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlPDG = (  "UPDATE {0}.JEDI_Tasks "
                         "SET lockedBy=NULL, lockedTime=NULL, "
                             "site=:site, "
+                            "currentPriority=(currentPriority+5), "
                             "modificationtime=CURRENT_DATE "
                         "WHERE jediTaskID=:jediTaskID "
                             "AND status IN ('ready','running','scouting') "

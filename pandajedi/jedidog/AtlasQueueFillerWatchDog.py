@@ -66,7 +66,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         return site_rse_map
 
     # get available sites
-    def get_available_sites(self, gshare):
+    def get_available_sites(self):
         available_sites_list = []
         # get global share
         tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(self.vo)
@@ -77,10 +77,10 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
             # get nQueue and nRunning
-            nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', gshare)
+            nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running')
             nQueue = 0
-            for jobStatus in ['defined', 'assigned', 'activated', 'starting']:
-                nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus, gshare)
+            for jobStatus in ['activated', 'starting']:
+                nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus)
             # available sites
             if nQueue < max(20, nRunning*2)*0.25:
                 available_sites_list.append(tmpSiteName)
@@ -104,78 +104,72 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                         'queue_filler', 'MAX_PREASSIGNED_TASKS_{0}'.format(prod_source_label), 'jedi', self.vo)
             if max_preassigned_tasks is None:
                 upplimit_ioIntensity = 3
-            # get work queue for gshare
-            work_queue_list = self.workQueueMapper.getAlignedQueueList(self.vo, prod_source_label)
-            # loop over work queue
-            for work_queue in work_queue_list:
-                gshare = work_queue.queue_name
-                # available sites
-                available_sites_list = self.get_available_sites(gshare)
-                # loop or available sites
-                for site in available_sites_list:
-                    # rses of the available site
-                    available_rses = set()
-                    try:
-                        available_rses.update(set(site_rse_map[site]))
-                    except KeyError:
-                        continue
-                    available_rses = list(available_rses)
-                    # make sql parameters of rses
-                    rse_params_list = []
-                    rse_params_map = {}
-                    for j, rse in enumerate(available_rses):
-                        rse_param = ':rse_{0}'.format(j + 1)
-                        rse_params_list.append(rse_param)
-                        rse_params_map[rse_param] = rse
-                    rse_params_str = ','.join(rse_params_list)
-                    # sql
-                    sql_query = (
-                        "SELECT t.jediTaskID "
-                        "FROM {jedi_schema}.JEDI_Tasks t "
-                        "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
-                            "AND t.gshare=:gshare AND t.resource_type=:resource_type "
-                            "AND EXISTS ( "
-                                "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
-                                "WHERE dl.jediTaskID=t.jediTaskID "
-                                    "AND dl.rse IN ({rse_params_str}) "
-                                ") "
-                        "ORDER BY t.currentPriority DESC "
-                        "FOR UPDATE "
-                    ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
-                    # loop over resource type
-                    for resource_type in resource_type_list:
-                        # params map
-                        params_map = {
-                                ':gshare': gshare,
-                                ':resource_type': resource_type,
-                            }
-                        params_map.update(rse_params_map)
-                        # set pending
-                        dry_run = False
-                        if dry_run:
-                            dry_sql_query = (
-                                "SELECT t.jediTaskID "
-                                "FROM {jedi_schema}.JEDI_Tasks t "
-                                "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
-                                    "AND t.gshare=:gshare AND t.resource_type=:resource_type "
-                                    "AND EXISTS ( "
-                                        "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
-                                        "WHERE dl.jediTaskID=t.jediTaskID "
-                                            "AND dl.rse IN ({rse_params_str}) "
-                                        ") "
-                                "ORDER BY t.currentPriority DESC "
-                            ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
-                            res = self.taskBufferIF.querySQL(dry_sql_query, params_map)
-                            n_tasks = 0 if res is None else len(res)
-                            if n_tasks > 0:
-                                result = [ x[0] for x in res ]
-                                tmp_log.debug('[dry run] gshare: {gshare:<16} rtype={resource_type:<11} max({n_tasks:>3}, {limit:>3}) tasks would be preassigned to {site} '.format(
-                                                gshare=gshare, resource_type=resource_type, n_tasks=str(n_tasks), limit=max_preassigned_tasks, site=site))
-                        else:
-                            n_tasks = self.taskBufferIF.queryTasksToPreassign_JEDI(sql_query, params_map, site, limit=max_preassigned_tasks)
-                            if n_tasks is not None and n_tasks > 0:
-                                tmp_log.info('gshare: {gshare:<16} rtype={resource_type:<11} {n_tasks:>3} tasks preassigned to {site} '.format(
-                                                gshare=gshare, resource_type=resource_type, n_tasks=str(n_tasks), site=site))
+            # available sites
+            available_sites_list = self.get_available_sites()
+            # loop or available sites
+            for site in available_sites_list:
+                # rses of the available site
+                available_rses = set()
+                try:
+                    available_rses.update(set(site_rse_map[site]))
+                except KeyError:
+                    continue
+                available_rses = list(available_rses)
+                # make sql parameters of rses
+                rse_params_list = []
+                rse_params_map = {}
+                for j, rse in enumerate(available_rses):
+                    rse_param = ':rse_{0}'.format(j + 1)
+                    rse_params_list.append(rse_param)
+                    rse_params_map[rse_param] = rse
+                rse_params_str = ','.join(rse_params_list)
+                # sql
+                sql_query = (
+                    "SELECT t.jediTaskID "
+                    "FROM {jedi_schema}.JEDI_Tasks t "
+                    "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
+                        "AND t.resource_type=:resource_type "
+                        "AND EXISTS ( "
+                            "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
+                            "WHERE dl.jediTaskID=t.jediTaskID "
+                                "AND dl.rse IN ({rse_params_str}) "
+                            ") "
+                    "ORDER BY t.currentPriority DESC "
+                    "FOR UPDATE "
+                ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
+                # loop over resource type
+                for resource_type in resource_type_list:
+                    # params map
+                    params_map = {
+                            ':resource_type': resource_type,
+                        }
+                    params_map.update(rse_params_map)
+                    # set pending
+                    dry_run = False
+                    if dry_run:
+                        dry_sql_query = (
+                            "SELECT t.jediTaskID "
+                            "FROM {jedi_schema}.JEDI_Tasks t "
+                            "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
+                                "AND t.resource_type=:resource_type "
+                                "AND EXISTS ( "
+                                    "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
+                                    "WHERE dl.jediTaskID=t.jediTaskID "
+                                        "AND dl.rse IN ({rse_params_str}) "
+                                    ") "
+                            "ORDER BY t.currentPriority DESC "
+                        ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
+                        res = self.taskBufferIF.querySQL(dry_sql_query, params_map)
+                        n_tasks = 0 if res is None else len(res)
+                        if n_tasks > 0:
+                            result = [ x[0] for x in res ]
+                            tmp_log.debug('[dry run] rtype={resource_type:<11} max({n_tasks:>3}, {limit:>3}) tasks would be preassigned to {site} '.format(
+                                            resource_type=resource_type, n_tasks=str(n_tasks), limit=max_preassigned_tasks, site=site))
+                    else:
+                        n_tasks = self.taskBufferIF.queryTasksToPreassign_JEDI(sql_query, params_map, site, limit=max_preassigned_tasks)
+                        if n_tasks is not None and n_tasks > 0:
+                            tmp_log.info('rtype={resource_type:<11} {n_tasks:>3} tasks preassigned to {site} '.format(
+                                            resource_type=resource_type, n_tasks=str(n_tasks), site=site))
 
 
     # main
