@@ -965,14 +965,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 maxNumChunks = 100
                             else:
                                 maxNumChunks = 1
+                            if taskSpec.useHS06():
+                                walltimeGradient = taskSpec.getCpuTime()
+                            else:
+                                walltimeGradient = None
+                            maxWalltime = taskSpec.getMaxWalltime()
+                            if maxWalltime is None:
+                                maxWalltime = 345600
+                            corePower = 10
                             for ii in range(maxNumChunks):
                                 for i in range(nChunks):
                                     tmpInputChunk.getSubChunk(None, maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
                                                               nFilesPerJob=taskSpec.getNumFilesPerJob(),
+                                                              walltimeGradient=walltimeGradient,
+                                                              maxWalltime=maxWalltime,
                                                               sizeGradients=taskSpec.getOutDiskSize(),
                                                               sizeIntercepts=taskSpec.getWorkDiskSize(),
                                                               maxSize=maxSizePerJob,
                                                               nEventsPerJob=taskSpec.getNumEventsPerJob(),
+                                                              coreCount=taskSpec.coreCount,
+                                                              corePower=corePower,
                                                               respectLB=taskSpec.respectLumiblock())
                                     enoughPendingWithSL = tmpInputChunk.checkUnused()
                                     if not enoughPendingWithSL:
@@ -1087,7 +1099,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if isMutableDataset:
                                 varMap[':nFilesTobeUsed'] = nReady + nUsed
                             else:
-                                varMap[':nFilesTobeUsed'] = numFilesWithSL + nUsed
+                                if taskStatus in ['scouting', 'ready']:
+                                    varMap[':nFilesTobeUsed'] = nFilesToUseDS
+                                else:
+                                    varMap[':nFilesTobeUsed'] = numFilesWithSL + nUsed
                         elif xmlConfig is not None:
                             # disable scout for --loadXML
                             varMap[':nFilesTobeUsed'] = nReady + nUsed
