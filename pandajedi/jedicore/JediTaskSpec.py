@@ -313,7 +313,9 @@ class JediTaskSpec(object):
                 return nGBPerJob
         return None
 
-
+    # remove nGBPerJob
+    def removeMaxSizePerJob(self):
+        self.removeSplitRule(self.splitRuleToken['nGBPerJob'])
 
     # get the max size per merge job if defined
     def getMaxSizePerMergeJob(self):
@@ -325,7 +327,6 @@ class JediTaskSpec(object):
         return None
 
 
-
     # get the maxnumber of files per job if defined
     def getMaxNumFilesPerJob(self):
         if self.splitRule is not None:
@@ -334,6 +335,9 @@ class JediTaskSpec(object):
                 return int(tmpMatch.group(1))
         return None
 
+    # remove MaxNumFilesPerJob
+    def removeMaxNumFilesPerJob(self):
+        self.removeSplitRule(self.splitRuleToken['nMaxFilesPerJob'])
 
 
     # get the maxnumber of files per merge job if defined
@@ -405,7 +409,9 @@ class JediTaskSpec(object):
                 return int(tmpMatch.group(1))
         return None
 
-
+    # remove nFilesPerJob
+    def removeNumFilesPerJob(self):
+        self.removeSplitRule(self.splitRuleToken['nFilesPerJob'])
 
     # get the number of files per merge job if defined
     def getNumFilesPerMergeJob(self):
