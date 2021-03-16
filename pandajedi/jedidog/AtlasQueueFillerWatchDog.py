@@ -103,7 +103,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             max_preassigned_tasks = self.taskBufferIF.getConfigValue(
                                         'queue_filler', 'MAX_PREASSIGNED_TASKS_{0}'.format(prod_source_label), 'jedi', self.vo)
             if max_preassigned_tasks is None:
-                upplimit_ioIntensity = 3
+                max_preassigned_tasks = 3
             # available sites
             available_sites_list = self.get_available_sites()
             # loop or available sites
@@ -114,8 +114,11 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     available_rses.update(set(site_rse_map[site]))
                 except KeyError:
                     continue
-                available_rses = list(available_rses)
+                # skip if no rse for available site
+                if not available_rses:
+                    continue
                 # make sql parameters of rses
+                available_rses = list(available_rses)
                 rse_params_list = []
                 rse_params_map = {}
                 for j, rse in enumerate(available_rses):
@@ -145,7 +148,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         }
                     params_map.update(rse_params_map)
                     # set pending
-                    dry_run = False
+                    dry_run = True
                     if dry_run:
                         dry_sql_query = (
                             "SELECT t.jediTaskID "
