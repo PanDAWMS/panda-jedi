@@ -6237,7 +6237,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             maxNG = 100
                             if newNG > maxNG:
                                 newNG = maxNG
-                            returnMap['newNG'] = newNG
+                            returnMap['newNG'] = int(newNG)
         if useTransaction:
             # commit
             if not self._commit():
@@ -6325,10 +6325,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlTSD += " WHERE jediTaskID=:jediTaskID "
                 tmpLog.debug(sqlTSD+comment+str(varMap))
                 self.cur.execute(sqlTSD+comment,varMap)
-        if useCommit:
-            # commit
-            if not self._commit():
-                raise RuntimeError('Commit error')
         # go to exhausted if necessary
         nNewJobsCutoff = 20
         if useExhausted and scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
@@ -6376,6 +6372,29 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
                 if maxShortJobs is not None and 'nShortJobs' in extraInfo and extraInfo['nShortJobs'] >= maxShortJobs and \
                         shortJobCutoff is not None and 'expectedNumJobs' in extraInfo and extraInfo['expectedNumJobs'] > shortJobCutoff:
+                    # remove wrong rules
+                    if self.getConfigValue('dbproxy', 'SCOUT_CHANGE_SR_{0}'.format(taskSpec.prodSourceLabel), 'jedi'):
+                        updateSL = []
+                        if taskSpec.getNumFilesPerJob() is not None:
+                            taskSpec.removeNumFilesPerJob()
+                            updateSL.append('NF')
+                        if taskSpec.getMaxSizePerJob() is not None:
+                            taskSpec.removeMaxSizePerJob()
+                            updateSL.append('NG')
+                        if taskSpec.getMaxNumFilesPerJob() is not None:
+                            taskSpec.removeMaxNumFilesPerJob()
+                            updateSL.append('MF')
+                        if updateSL:
+                            tmpMsg = '#KV #ATM action=change_split_rule reason=many_shorter_jobs removed {}'.format(
+                                ','.join(updateSL))
+                            tmpLog.info(tmpMsg)
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':splitRule'] = taskSpec.splitRule
+                            sqlTSL = "UPDATE {0}.JEDI_Tasks SET splitRule=:splitRule ".format(jedi_config.db.schemaJEDI)
+                            sqlTSL += " WHERE jediTaskID=:jediTaskID "
+                            tmpLog.debug(sqlTSL + comment + str(varMap))
+                            self.cur.execute(sqlTSL + comment, varMap)
                     errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
                     errMsg += '({0} is greater than {1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
                                                                                                                                          maxShortJobs,
@@ -6417,6 +6436,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 except Exception:
                     tmpLog.error('failed to check CPU abuse')
                     pass
+        if useCommit:
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
         # reset the task resource type
         try:
             self.reset_resource_type_task(jediTaskID, useCommit)
