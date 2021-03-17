@@ -1096,11 +1096,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':nFiles'] = nInsert + len(existingFiles) - nLost
                         varMap[':nEvents'] = nEventsInsert + nEventsExist
                         if datasetSpec.isMaster() and taskSpec.respectSplitRule() and useScout:
-                            if isMutableDataset:
-                                varMap[':nFilesTobeUsed'] = nReady + nUsed
+                            if taskStatus in ['scouting', 'ready']:
+                                varMap[':nFilesTobeUsed'] = nFilesToUseDS
                             else:
-                                if taskStatus in ['scouting', 'ready']:
-                                    varMap[':nFilesTobeUsed'] = nFilesToUseDS
+                                if isMutableDataset:
+                                    varMap[':nFilesTobeUsed'] = nReady + nUsed
                                 else:
                                     varMap[':nFilesTobeUsed'] = numFilesWithSL + nUsed
                         elif xmlConfig is not None:
