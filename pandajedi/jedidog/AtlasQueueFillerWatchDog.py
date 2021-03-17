@@ -68,6 +68,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
     # get available sites
     def get_available_sites(self):
         available_sites_list = []
+        available_sites_set = set()
         # get global share
         tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(self.vo)
         if not tmpSt:
@@ -83,7 +84,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus)
             # available sites
             if nQueue < max(20, nRunning*2)*0.25:
-                available_sites_list.append(tmpSiteName)
+                available_sites_set.add(tmpSiteName)
+        available_sites_list = list(available_sites_set)
         # return
         return available_sites_list
 
@@ -166,8 +168,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         n_tasks = 0 if res is None else len(res)
                         if n_tasks > 0:
                             result = [ x[0] for x in res ]
-                            tmp_log.debug('[dry run] rtype={resource_type:<11} max({n_tasks:>3}, {limit:>3}) tasks would be preassigned to {site} '.format(
-                                            resource_type=resource_type, n_tasks=str(n_tasks), limit=max_preassigned_tasks, site=site))
+                            tmp_log.debug('[dry run] rtype={resource_type:<11} {n_tasks:>3} tasks would be preassigned to {site} '.format(
+                                            resource_type=resource_type, n_tasks=max(n_tasks, max_preassigned_tasks), site=site))
                     else:
                         n_tasks = self.taskBufferIF.queryTasksToPreassign_JEDI(sql_query, params_map, site, limit=max_preassigned_tasks)
                         if n_tasks is not None and n_tasks > 0:
