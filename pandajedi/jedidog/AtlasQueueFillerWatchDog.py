@@ -76,26 +76,31 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
 
     # get available sites
     def get_available_sites(self):
-        available_sites_list = []
-        available_sites_set = set()
+        available_sites_dict = {}
         # get global share
         tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(self.vo)
         if not tmpSt:
             # got nothing...
-            return available_sites_list
+            return available_sites_dict
         # get to-running rate of sites
         site_ttr_map = self.get_site_ttr_map()
         if site_ttr_map is None:
-            return available_sites_list
+            return available_sites_dict
         # loop over sites
         for tmpPseudoSiteName in self.allSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
             # skip site already added
-            if tmpSiteName in available_sites_set:
+            if tmpSiteName in available_sites_dict:
                 continue
             # skip site is not online
             if tmpSiteSpec.status not in ('online'):
+                continue
+            # skip site if not for production
+            if not tmpSiteSpec.runs_production():
+                continue
+            # skip if site has memory limitations
+            if tmpSiteSpec.minrss not in (0, None):
                 continue
             # skip if site has not enough activity in the past 24 hours
             site_ttr = site_ttr_map.get(tmpSiteName)
@@ -108,10 +113,9 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus)
             # available sites: must be idle now
             if nQueue < max(20, nRunning*2)*0.25:
-                available_sites_set.add(tmpSiteName)
+                available_sites_dict[tmpSiteName] = tmpSiteSpec
         # return
-        available_sites_list = list(available_sites_set)
-        return available_sites_list
+        return available_sites_dict
 
     # preassign tasks to site
     def do_preassign_to_sites(self):
@@ -130,9 +134,9 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             if max_preassigned_tasks is None:
                 max_preassigned_tasks = 3
             # available sites
-            available_sites_list = self.get_available_sites()
+            available_sites_dict = self.get_available_sites()
             # loop or available sites
-            for site in available_sites_list:
+            for site, tmpSiteSpec in available_sites_dict.items():
                 # rses of the available site
                 available_rses = set()
                 try:
@@ -142,6 +146,24 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 # skip if no rse for available site
                 if not available_rses:
                     continue
+                # site attributes
+                site_maxrss =  tmpSiteSpec.maxrss if tmpSiteSpec.maxrss not in (0, None) else 999999
+                site_corecount_allowed = []
+                if tmpSiteSpec.is_unified or tmpSiteSpec.capability == 'ucore':
+                    site_corecount_allowed = [1, tmpSiteSpec.coreCount]
+                else:
+                    if tmpSiteSpec.capability == 'mcore':
+                        site_corecount_allowed = [tmpSiteSpec.coreCount]
+                    else:
+                        site_corecount_allowed = [1]
+                # make sql parameters of site_corecount_allowed
+                site_corecount_allowed_params_list = []
+                site_corecount_allowed_params_map = {}
+                for j, cc in enumerate(site_corecount_allowed):
+                    sca_param = ':site_corecount_{0}'.format(j + 1)
+                    site_corecount_allowed_params_list.append(sca_param)
+                    site_corecount_allowed_params_map[sca_param] = cc
+                site_corecount_allowed_params_str = ','.join(site_corecount_allowed_params_list)
                 # make sql parameters of rses
                 available_rses = list(available_rses)
                 rse_params_list = []
@@ -157,6 +179,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     "FROM {jedi_schema}.JEDI_Tasks t "
                     "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
                         "AND t.resource_type=:resource_type "
+                        "AND t.ramCount<:site_maxrss "
+                        "AND t.coreCount IN ({site_corecount_allowed_params_str}) "
                         "AND EXISTS ( "
                             "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
                             "WHERE dl.jediTaskID=t.jediTaskID "
@@ -164,14 +188,18 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             ") "
                     "ORDER BY t.currentPriority DESC "
                     "FOR UPDATE "
-                ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
+                ).format(jedi_schema=jedi_config.db.schemaJEDI,
+                            site_corecount_allowed_params_str=site_corecount_allowed_params_str,
+                            rse_params_str=rse_params_str)
                 # loop over resource type
                 for resource_type in resource_type_list:
                     # params map
                     params_map = {
                             ':resource_type': resource_type,
+                            ':site_maxrss': tmpSiteSpec.maxrss if tmpSiteSpec.maxrss not in (0, None) else 999999,
                         }
                     params_map.update(rse_params_map)
+                    params_map.update(site_corecount_allowed_params_map)
                     # set pending
                     dry_run = True
                     if dry_run:
@@ -180,13 +208,17 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             "FROM {jedi_schema}.JEDI_Tasks t "
                             "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
                                 "AND t.resource_type=:resource_type "
+                                "AND t.ramCount<:site_maxrss "
+                                "AND t.coreCount IN ({site_corecount_allowed_params_str}) "
                                 "AND EXISTS ( "
                                     "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
                                     "WHERE dl.jediTaskID=t.jediTaskID "
                                         "AND dl.rse IN ({rse_params_str}) "
                                     ") "
                             "ORDER BY t.currentPriority DESC "
-                        ).format(jedi_schema=jedi_config.db.schemaJEDI, rse_params_str=rse_params_str)
+                        ).format(jedi_schema=jedi_config.db.schemaJEDI,
+                                    site_corecount_allowed_params_str=site_corecount_allowed_params_str,
+                                    rse_params_str=rse_params_str)
                         res = self.taskBufferIF.querySQL(dry_sql_query, params_map)
                         n_tasks = 0 if res is None else len(res)
                         if n_tasks > 0:
@@ -194,8 +226,14 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             tmp_log.debug('[dry run] rtype={resource_type:<11} {n_tasks:>3} tasks would be preassigned to {site} '.format(
                                             resource_type=resource_type, n_tasks=min(n_tasks, max_preassigned_tasks), site=site))
                     else:
-                        n_tasks = self.taskBufferIF.queryTasksToPreassign_JEDI(sql_query, params_map, site, limit=max_preassigned_tasks)
-                        if n_tasks is not None and n_tasks > 0:
+                        updated_tasks = self.taskBufferIF.queryTasksToPreassign_JEDI(sql_query, params_map, site, limit=max_preassigned_tasks)
+                        if updated_tasks is None:
+                            # dbproxy method failed
+                            tmp_log.error('rtype={resource_type:<11} failed to preassign tasks to {site} '.format(
+                                            resource_type=resource_type, site=site))
+                            return
+                        n_tasks = len(updated_tasks)
+                        if n_tasks > 0:
                             tmp_log.info('rtype={resource_type:<11} {n_tasks:>3} tasks preassigned to {site} '.format(
                                             resource_type=resource_type, n_tasks=str(n_tasks), site=site))
 

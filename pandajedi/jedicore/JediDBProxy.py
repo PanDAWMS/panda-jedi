@@ -14056,6 +14056,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                       ).format(jedi_config.db.schemaJEDI)
             # loop over tasks
             n_updated = 0
+            updated_tasks = []
             for (jedi_taskid, ) in taskIDs:
                 if n_updated >= limit:
                     break
@@ -14067,6 +14068,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if nRow == 1:
                     self.record_task_status_change(jedi_taskid)
                     n_updated += 1
+                    updated_tasks.append(jedi_taskid)
                     tmpLog.debug('preassigned jediTaskID={0} to site={1}'.format(jedi_taskid, site))
                 elif nRow > 1:
                     tmpLog.error('updated {0} rows with same jediTaskID={1}'.format(nRow, jedi_taskid))
@@ -14074,7 +14076,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 raise RuntimeError('Commit error')
             tmpLog.debug('done with {0} rows to site={1}'.format(n_updated, site))
             # return
-            return n_updated
+            return updated_tasks
         except Exception:
             # roll back
             self._rollback()
