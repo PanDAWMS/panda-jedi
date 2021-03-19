@@ -65,6 +65,15 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         # return
         return site_rse_map
 
+    # get to-running rate of sites between 24 hours ago ~ 6 hours ago
+    def get_site_ttr_map(self):
+        ret_val, ret_map = AtlasBrokerUtils.getSiteToRunRateStats(
+                            self.taskBufferIF, self.vo, time_window=86400, cutoff=21600, cache_lifetime=600)
+        if ret_val:
+            return ret_map
+        else:
+            return None
+
     # get available sites
     def get_available_sites(self):
         available_sites_list = []
@@ -74,21 +83,35 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         if not tmpSt:
             # got nothing...
             return available_sites_list
+        # get to-running rate of sites
+        site_ttr_map = self.get_site_ttr_map()
+        if site_ttr_map is None:
+            return available_sites_list
+        # loop over sites
         for tmpPseudoSiteName in self.allSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
+            # skip site already added
+            if tmpSiteName in available_sites_set:
+                continue
+            # skip site is not online
+            if tmpSiteSpec.status not in ('online'):
+                continue
+            # skip if site has not enough activity in the past 24 hours
+            site_ttr = site_ttr_map.get(tmpSiteName)
+            if site_ttr is None or site_ttr < 0.8:
+                continue
             # get nQueue and nRunning
             nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running')
             nQueue = 0
             for jobStatus in ['activated', 'starting']:
                 nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus)
-            # available sites
+            # available sites: must be idle now
             if nQueue < max(20, nRunning*2)*0.25:
                 available_sites_set.add(tmpSiteName)
-        available_sites_list = list(available_sites_set)
         # return
+        available_sites_list = list(available_sites_set)
         return available_sites_list
-
 
     # preassign tasks to site
     def do_preassign_to_sites(self):
@@ -169,7 +192,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         if n_tasks > 0:
                             result = [ x[0] for x in res ]
                             tmp_log.debug('[dry run] rtype={resource_type:<11} {n_tasks:>3} tasks would be preassigned to {site} '.format(
-                                            resource_type=resource_type, n_tasks=max(n_tasks, max_preassigned_tasks), site=site))
+                                            resource_type=resource_type, n_tasks=min(n_tasks, max_preassigned_tasks), site=site))
                     else:
                         n_tasks = self.taskBufferIF.queryTasksToPreassign_JEDI(sql_query, params_map, site, limit=max_preassigned_tasks)
                         if n_tasks is not None and n_tasks > 0:
