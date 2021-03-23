@@ -477,6 +477,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if offsetVal > 0:
                 lfnList = lfnList[offsetVal:]
             tmpLog.debug('offset={0}'.format(offsetVal))
+            # randomize
+            if datasetSpec.isRandom():
+                random.shuffle(lfnList)
             # use perRange as perJob
             if nEventsPerJob is None and nEventsPerRange is not None:
                 nEventsPerJob = nEventsPerRange
@@ -4023,9 +4026,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                             inputChunk.readBlock = True
                                         else:
                                             inputChunk.readBlock = False
-                                    # randomize
-                                    if tmpDatasetSpec.isRandom():
-                                        random.shuffle(tmpDatasetSpec.Files)
                         # add to return
                         if not toSkip:
                             if jediTaskID not in returnMap:
@@ -6373,20 +6373,28 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if maxShortJobs is not None and 'nShortJobs' in extraInfo and extraInfo['nShortJobs'] >= maxShortJobs and \
                         shortJobCutoff is not None and 'expectedNumJobs' in extraInfo and extraInfo['expectedNumJobs'] > shortJobCutoff:
                     # remove wrong rules
+                    toExhausted = True
                     if self.getConfigValue('dbproxy', 'SCOUT_CHANGE_SR_{0}'.format(taskSpec.prodSourceLabel), 'jedi'):
                         updateSL = []
+                        removeSL = []
                         if taskSpec.getNumFilesPerJob() is not None:
                             taskSpec.removeNumFilesPerJob()
-                            updateSL.append('NF')
+                            removeSL.append('NF')
                         if taskSpec.getMaxSizePerJob() is not None:
                             taskSpec.removeMaxSizePerJob()
-                            updateSL.append('NG')
-                        if taskSpec.getMaxNumFilesPerJob() is not None:
-                            taskSpec.removeMaxNumFilesPerJob()
+                            removeSL.append('NG')
+                        MAX_NUM_FILES = 200
+                        if taskSpec.getMaxNumFilesPerJob() is not None and \
+                                taskSpec.getMaxNumFilesPerJob() < MAX_NUM_FILES:
+                            taskSpec.setMaxNumFilesPerJob(MAX_NUM_FILES)
                             updateSL.append('MF')
-                        if updateSL:
-                            tmpMsg = '#KV #ATM action=change_split_rule reason=many_shorter_jobs removed {}'.format(
-                                ','.join(updateSL))
+                        if updateSL or removeSL:
+                            tmpMsg = '#KV #ATM action=change_split_rule reason=many_shorter_jobs'
+                            if removeSL:
+                                tmpMsg += ' removed {},'.format(','.join(removeSL))
+                            if updateSL:
+                                tmpMsg += ' changed {},'.format(','.join(updateSL))
+                            tmpMsg = tmpMsg[:-1]
                             tmpLog.info(tmpMsg)
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
@@ -6395,15 +6403,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             sqlTSL += " WHERE jediTaskID=:jediTaskID "
                             tmpLog.debug(sqlTSL + comment + str(varMap))
                             self.cur.execute(sqlTSL + comment, varMap)
-                    errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
-                    errMsg += '({0} is greater than {1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
-                                                                                                                                         maxShortJobs,
-                                                                                                                                         extraInfo['shortExecTime'],
-                                                                                                                                         extraInfo['expectedNumJobs'],
-                                                                                                                                         shortJobCutoff)
-                    tmpLog.info(errMsg)
-                    taskSpec.setErrDiag(errMsg)
-                    taskSpec.status = 'exhausted'
+                            toExhausted = False
+                    if toExhausted:
+                        errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
+                        errMsg += '({0} is greater than {1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
+                                                                                                                                             maxShortJobs,
+                                                                                                                                             extraInfo['shortExecTime'],
+                                                                                                                                             extraInfo['expectedNumJobs'],
+                                                                                                                                             shortJobCutoff)
+                        tmpLog.info(errMsg)
+                        taskSpec.setErrDiag(errMsg)
+                        taskSpec.status = 'exhausted'
 
             # check CPU efficiency
             if taskSpec.status != 'exhausted':
