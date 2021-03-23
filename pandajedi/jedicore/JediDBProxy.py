@@ -477,6 +477,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if offsetVal > 0:
                 lfnList = lfnList[offsetVal:]
             tmpLog.debug('offset={0}'.format(offsetVal))
+            # randomize
+            if datasetSpec.isRandom():
+                random.shuffle(lfnList)
             # use perRange as perJob
             if nEventsPerJob is None and nEventsPerRange is not None:
                 nEventsPerJob = nEventsPerRange
@@ -4023,9 +4026,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                             inputChunk.readBlock = True
                                         else:
                                             inputChunk.readBlock = False
-                                    # randomize
-                                    if tmpDatasetSpec.isRandom():
-                                        random.shuffle(tmpDatasetSpec.Files)
                         # add to return
                         if not toSkip:
                             if jediTaskID not in returnMap:
