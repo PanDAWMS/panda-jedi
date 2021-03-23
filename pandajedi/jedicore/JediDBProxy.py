@@ -13378,18 +13378,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':prodSourceLabel'] = prod_source_label
                 varMap[':pmerge'] = 'pmerge'
                 if table == 'ATLAS_PANDA.jobsActive4':
-                    sqlJ = ("SELECT COUNT(*),prodUserName,jobStatus,workingGroup,computingSite "
+                    sqlJ = ("SELECT COUNT(*),prodUserName,jobStatus,workingGroup,computingSite,coreCount "
                             "FROM {0}.{1} "
                             "WHERE prodSourceLabel=:prodSourceLabel AND processingType<>:pmerge "
-                            "GROUP BY prodUserName,jobStatus,workingGroup,computingSite "
+                            "GROUP BY prodUserName,jobStatus,workingGroup,computingSite,coreCount "
                             ).format(jedi_config.db.schemaPANDA, table)
                 else:
                     # with time range for archived table
                     varMap[':modificationTime'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=60)
-                    sqlJ = ("SELECT COUNT(*),prodUserName,jobStatus,workingGroup,computingSite "
+                    sqlJ = ("SELECT COUNT(*),prodUserName,jobStatus,workingGroup,computingSite,coreCount "
                             "FROM {0}.{1} "
                             "WHERE prodSourceLabel=:prodSourceLabel AND processingType<>:pmerge AND modificationTime>:modificationTime "
-                            "GROUP BY prodUserName,jobStatus,workingGroup,computingSite "
+                            "GROUP BY prodUserName,jobStatus,workingGroup,computingSite,coreCount "
                             ).format(jedi_config.db.schemaPANDA, table)
                 # exec
                 tmpLog.debug(sqlJ + comment + str(varMap))
@@ -13401,11 +13401,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 else:
                     tmpLog.debug("total %s " % len(res))
                     # make map
-                    for cnt,prodUserName,jobStatus,workingGroup,computingSite in res:
+                    for cnt,prodUserName,jobStatus,workingGroup,computingSite,coreCount in res:
+                        if coreCount is None:
+                            coreCount = 1
                         # append to PerUser map
                         usageBreakDownPerUser.setdefault(prodUserName, {})
                         usageBreakDownPerUser[prodUserName].setdefault(workingGroup, {})
-                        usageBreakDownPerUser[prodUserName][workingGroup].setdefault(computingSite, {'rundone':0, 'activated':0, 'running':0})
+                        usageBreakDownPerUser[prodUserName][workingGroup].setdefault(computingSite, {'rundone': 0, 'activated': 0,
+                                                                                                     'running': 0, 'runcores': 0})
                         # append to PerSite map
                         usageBreakDownPerSite.setdefault(computingSite, {})
                         usageBreakDownPerSite[computingSite].setdefault(prodUserName, {})
@@ -13419,6 +13422,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         else:
                             if jobStatus in ['running', 'starting', 'sent']:
                                 usageBreakDownPerUser[prodUserName][workingGroup][computingSite]['running'] += cnt
+                                usageBreakDownPerUser[prodUserName][workingGroup][computingSite]['runcores'] += cnt * coreCount
                             usageBreakDownPerUser[prodUserName][workingGroup][computingSite]['rundone'] += cnt
                             usageBreakDownPerSite[computingSite][prodUserName][workingGroup]['rundone'] += cnt
             # return

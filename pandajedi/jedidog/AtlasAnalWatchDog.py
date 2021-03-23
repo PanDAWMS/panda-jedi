@@ -186,6 +186,7 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             totalUsers = 0
             totalRunDone = 0
             usersTotalJobs = {}
+            usersTotalCores = {}
             for prodUserName in usageBreakDownPerUser:
                 wgValMap = usageBreakDownPerUser[prodUserName]
                 for workingGroup in wgValMap:
@@ -197,6 +198,9 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                         usersTotalJobs.setdefault(prodUserName, {})
                         usersTotalJobs[prodUserName].setdefault(workingGroup, 0)
                         usersTotalJobs[prodUserName][workingGroup] += statValMap['running']
+                        usersTotalCores.setdefault(prodUserName, {})
+                        usersTotalCores[prodUserName].setdefault(workingGroup, 0)
+                        usersTotalCores[prodUserName][workingGroup] += statValMap['runcores']
             tmpLog.debug('total {0} users, {1} RunDone jobs'.format(totalUsers, totalRunDone))
             # skip if no user
             if totalUsers == 0:
@@ -207,39 +211,48 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             prodUserName = None
             maxNumRunPerUser = self.taskBufferIF.getConfigValue('prio_mgr', 'CAP_RUNNING_USER_JOBS')
             maxNumRunPerGroup = self.taskBufferIF.getConfigValue('prio_mgr', 'CAP_RUNNING_GROUP_JOBS')
+            maxNumCorePerUser = self.taskBufferIF.getConfigValue('prio_mgr', 'CAP_RUNNING_USER_CORES')
+            maxNumCorePerGroup = self.taskBufferIF.getConfigValue('prio_mgr', 'CAP_RUNNING_GROUP_CORES')
             if maxNumRunPerUser is None:
                 maxNumRunPerUser = 10000
             if maxNumRunPerGroup is None:
                 maxNumRunPerGroup = 10000
+            if maxNumCorePerUser is None:
+                maxNumCorePerUser = 10000
+            if maxNumCorePerGroup is None:
+                maxNumCorePerGroup = 10000
             try:
                 throttledUsers = self.taskBufferIF.getThrottledUsers()
                 for prodUserName in usersTotalJobs:
-                    wgDict = usersTotalJobs[prodUserName]
-                    for workingGroup in wgDict:
-                        tmpNumTotal = wgDict[workingGroup]
-                        # print(prodUserName, workingGroup, tmpNumTotal)
+                    for workingGroup in usersTotalJobs[prodUserName]:
+                        tmpNumTotalJobs = usersTotalJobs[prodUserName][workingGroup]
+                        tmpNumTotalCores = usersTotalCores[prodUserName][workingGroup]
                         if workingGroup is None:
                             maxNumRun = maxNumRunPerUser
+                            maxNumCore = maxNumCorePerUser
                         else:
                             maxNumRun = maxNumRunPerGroup
-                        if tmpNumTotal >= maxNumRun:
+                            maxNumCore = maxNumCorePerGroup
+                        if tmpNumTotalJobs >= maxNumRun or tmpNumTotalCores >= maxNumCore:
                             # throttle user
                             tmpNumJobs = self.taskBufferIF.throttleUserJobs(prodUserName, workingGroup, get_dict=True)
                             if tmpNumJobs is not None:
                                 for tmpJediTaskID, tmpNumJob in iteritems(tmpNumJobs):
-                                    msg = ('throttled {0} jobs in jediTaskID={4} for user="{1}" group={2} '
-                                           'since too many (> {3}) running jobs').format(
-                                        tmpNumJob, prodUserName, workingGroup, maxNumRun, tmpJediTaskID)
+                                    msg = ('throttled {} jobs in jediTaskID={} for user="{}" group={} '
+                                           'since too many running jobs ({} > {}) or cores ({} > {}) ').format(
+                                           tmpNumJob, tmpJediTaskID, prodUserName, workingGroup, tmpNumTotalJobs,
+                                           maxNumRun, tmpNumTotalCores, maxNumCore)
                                     tmpLog.debug(msg)
                                     tmpLog.sendMsg(msg, 'userCap', msgLevel='warning')
-                        elif tmpNumTotal < maxNumRun*0.9 and (prodUserName, workingGroup) in throttledUsers:
+                        elif tmpNumTotalJobs < maxNumRun*0.9 and tmpNumTotalCores < maxNumCore*0.9 and \
+                                (prodUserName, workingGroup) in throttledUsers:
                             # unthrottle user
                             tmpNumJobs = self.taskBufferIF.unThrottleUserJobs(prodUserName, workingGroup, get_dict=True)
                             if tmpNumJobs is not None:
                                 for tmpJediTaskID, tmpNumJob in iteritems(tmpNumJobs):
-                                    msg = ('released {3} jobs in jediTaskID={4} for user="{0}" group={1} '
-                                           'since number of running jobs is less than {2}').format(
-                                        prodUserName, workingGroup, maxNumRun, tmpNumJob, tmpJediTaskID)
+                                    msg = ('released {} jobs in jediTaskID={} for user="{}" group={} '
+                                           'since number of running jobs and cores are less than {} and {}').format(
+                                           tmpNumJob, tmpJediTaskID, prodUserName, workingGroup, maxNumRun, maxNumCore)
                                     tmpLog.debug(msg)
                                     tmpLog.sendMsg(msg, 'userCap')
             except Exception as e:
