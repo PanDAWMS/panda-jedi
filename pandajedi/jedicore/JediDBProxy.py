@@ -6386,7 +6386,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         MAX_NUM_FILES = 200
                         if taskSpec.getMaxNumFilesPerJob() is not None and \
                                 taskSpec.getMaxNumFilesPerJob() < MAX_NUM_FILES:
-                            taskSpec.setMaxNumFilesPerJob(MAX_NUM_FILES)
+                            taskSpec.setMaxNumFilesPerJob(str(MAX_NUM_FILES))
                             updateSL.append('MF')
                         if updateSL or removeSL:
                             tmpMsg = '#KV #ATM action=change_split_rule reason=many_shorter_jobs'
