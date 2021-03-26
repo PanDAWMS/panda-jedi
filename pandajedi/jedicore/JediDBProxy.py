@@ -14100,13 +14100,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # undo preassigned tasks
-    def undoPreassignedTasks_JEDI(self, jedi_taskids):
+    def undoPreassignedTasks_JEDI(self, jedi_taskids, force):
         comment = ' /* JediDBProxy.undoPreassignedTasks_JEDI */'
         methodName = self.getMethodName(comment)
         # methodName += " < sql={0} >".format(sql_query)
         tmpLog = MsgWrapper(logger, methodName)
-        # sql to undo a preassigned task
+        # sql to undo a preassigned task if it moves off the status to generate jobs
         sqlUPT = (  "UPDATE {0}.JEDI_Tasks "
+                    "SET "
+                        "site=NULL, "
+                        "currentPriority=(currentPriority-5), "
+                        "modificationtime=CURRENT_DATE "
+                    "WHERE jediTaskID=:jediTaskID "
+                        "AND site IS NOT NULL "
+                        "AND status NOT IN ('ready','running','scouting') "
+                  ).format(jedi_config.db.schemaJEDI)
+        # sql to force to undo a preassigned task no matter what
+        sqlUPTF = ( "UPDATE {0}.JEDI_Tasks "
                     "SET "
                         "site=NULL, "
                         "currentPriority=(currentPriority-5), "
@@ -14119,21 +14129,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # loop over tasks
             n_updated = 0
             updated_tasks = []
+            force_str = ''
             for jedi_taskid in jedi_taskids:
                 varMap = {}
                 varMap[':jediTaskID'] = jedi_taskid
-                self.cur.execute(sqlUPT+comment, varMap)
+                if force:
+                    force_str = 'force'
+                    self.cur.execute(sqlUPTF+comment, varMap)
+                else:
+                    self.cur.execute(sqlUPT+comment, varMap)
                 nRow = self.cur.rowcount
                 if nRow == 1:
                     # self.record_task_status_change(jedi_taskid)
                     n_updated += 1
                     updated_tasks.append(jedi_taskid)
-                    tmpLog.debug('undid preassigned jediTaskID={0}'.format(jedi_taskid))
+                    tmpLog.debug('{0} undid preassigned jediTaskID={1}'.format(force_str, jedi_taskid))
                 elif nRow > 1:
-                    tmpLog.error('updated {0} rows with same jediTaskID={1}'.format(nRow, jedi_taskid))
+                    tmpLog.error('{0} updated {1} rows with same jediTaskID={2}'.format(force_str, nRow, jedi_taskid))
             if not self._commit():
                 raise RuntimeError('Commit error')
-            tmpLog.debug('done with {0} rows'.format(n_updated))
+            tmpLog.debug('{0} done with {1} rows'.format(force_str, n_updated))
             # return
             return updated_tasks
         except Exception:
