@@ -72,7 +72,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             return dict()
 
     # get process lock to preassign
-    def _get_lock(self):
+    def _get_lock(self, prod_source_label):
         return self.taskBufferIF.lockProcess_JEDI(
                 vo=self.vo, prodSourceLabel=prod_source_label,
                 cloud=None, workqueue_id=None, resource_name=None,
@@ -80,7 +80,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 pid=self.pid, timeLimit=2)
 
     # release lock
-    def _release_lock(self):
+    def _release_lock(self, prod_source_label):
         return self.taskBufferIF.unlockProcess_JEDI(
                 vo=self.vo, prodSourceLabel=prod_source_label,
                 cloud=None, workqueue_id=None, resource_name=None,
@@ -280,7 +280,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     params_map.update(rse_params_map)
                     params_map.update(site_corecount_allowed_params_map)
                     # lock
-                    got_lock = self._get_lock()
+                    got_lock = self._get_lock(prod_source_label)
                     if not got_lock:
                         tmp_log.debug('locked by another process. Skipped')
                         return
@@ -315,10 +315,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         ).format(jedi_schema=jedi_config.db.schemaJEDI,
                                     site_corecount_allowed_params_str=site_corecount_allowed_params_str,
                                     rse_params_str=rse_params_str)
-                        tmp_log.debug('[dry run] rtype={resource_type:<11} {n_tasks:>3} tasks would be preassigned to {site} '.format(
-                                        resource_type=resource_type, n_tasks=min(n_tasks, max_preassigned_tasks), site=site))
-                        res = self.taskBufferIF.querySQL(dry_sql_query, params_map)
                         tmp_log.debug('[dry run] {} {}'.format(dry_sql_query, params_map))
+                        res = self.taskBufferIF.querySQL(dry_sql_query, params_map)
                         n_tasks = 0 if res is None else len(res)
                         if n_tasks > 0:
                             result = [ x[0] for x in res if x[0] not in preassigned_tasks_cached ]
@@ -344,7 +342,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                 preassigned_tasks_map[key_name] = list(set(updated_tasks) | set(preassigned_tasks_cached))
                                 self._update_to_cache(preassigned_tasks_map)
                     # unlock
-                    self._release_lock()
+                    self._release_lock(prod_source_label)
                     # tmp_log.debug('released lock')
 
 
@@ -372,46 +370,74 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 # preassigned tasks in cache
                 preassigned_tasks_cached = preassigned_tasks_map.get(key_name)
                 # force_undo=True for all tasks in busy sites, and force_undo=False for tasks not in status to generate jobs
-                for force_undo in (True, False):
-                    reason_str = 'site busy or unavailable' if force_undo else 'task already processed or terminated'
-                    # lock
-                    got_lock = self._get_lock()
-                    if not got_lock:
-                        tmp_log.debug('locked by another process. Skipped')
-                        return
-                    # tmp_log.debug('got lock')
-                    # undo preassign
-                    if DRY_RUN:
-                        n_tasks = len(preassigned_tasks_cached)
-                        tmp_log.debug('{} {} force={}'.format(key_name, str(preassigned_tasks_cached), force_undo))
-                        if n_tasks > 0:
-                            updated_tasks = list(preassigned_tasks_cached)
-                            tmp_log.debug('[dry run] {key_name:<64} {n_tasks:>3} preassigned tasks would be undone ({reason_str}) '.format(
-                                            n_tasks=n_tasks, reason_str=reason_str))
+                force_undo = False
+                site, rtype = key_name.split('|')
+                if site in busy_sites_dict:
+                    force_undo = True
+                reason_str = 'site busy or unavailable' if force_undo else 'task already processed or terminated'
+                # lock
+                got_lock = self._get_lock(prod_source_label)
+                if not got_lock:
+                    tmp_log.debug('locked by another process. Skipped')
+                    return
+                # tmp_log.debug('got lock')
+                # undo preassign
+                had_undo = False
+                updated_tasks = []
+                if DRY_RUN:
+                    if force_undo:
+                        updated_tasks = list(preassigned_tasks_cached)
+                        n_tasks = len(updated_tasks)
                     else:
-                        updated_tasks = self.taskBufferIF.undoPreassignedTasks_JEDI(preassigned_tasks_cached, force_undo)
-                        if updated_tasks is None:
-                            # dbproxy method failed
-                            tmp_log.error('[dry run] {key_name:<64} failed to undo preassigned tasks (force={force_undo})'.format(
-                                            key_name=key_name, force_undo=force_undo))
-                        else:
-                            n_tasks = len(updated_tasks)
-                            if n_tasks > 0:
-                                tmp_log.info('[dry run] {key_name:<64} {n_tasks:>3} preassigned tasks undone ({reason_str}) '.format(
-                                                resource_type=resource_type, n_tasks=str(n_tasks), reason_str=reason_str))
-                    # update preassigned_tasks_map into cache
+                        preassigned_tasks_list = []
+                        preassigned_tasks_params_map = {}
+                        for j, taskid in enumerate(preassigned_tasks_cached):
+                            pt_param = ':pt_{0}'.format(j + 1)
+                            preassigned_tasks_list.append(pt_param)
+                            preassigned_tasks_params_map[pt_param] = taskid
+                        preassigned_tasks_params_str = ','.join(preassigned_tasks_list)
+                        dry_sql_query = (
+                            "SELECT jediTaskID "
+                            "FROM {jedi_schema}.JEDI_Tasks "
+                            "WHERE jediTaskID IN ({preassigned_tasks_params_str}) "
+                            "AND site IS NOT NULL "
+                            "AND status NOT IN ('ready','running','scouting') "
+                        ).format(jedi_schema=jedi_config.db.schemaJEDI, preassigned_tasks_params_str=preassigned_tasks_params_str)
+                        res = self.taskBufferIF.querySQL(dry_sql_query, {})
+                        n_tasks = 0 if res is None else len(res)
+                        if n_tasks > 0:
+                            updated_tasks = [ x[0] for x in res ]
+                    tmp_log.debug('[dry run] {} {} force={}'.format(key_name, str(updated_tasks), force_undo))
+                    if n_tasks > 0:
+                        tmp_log.debug('[dry run] {key_name:<64} {n_tasks:>3} preassigned tasks would be undone ({reason_str}) '.format(
+                                        key_name=key_name, n_tasks=n_tasks, reason_str=reason_str))
+                        had_undo = True
+                else:
+                    updated_tasks = self.taskBufferIF.undoPreassignedTasks_JEDI(preassigned_tasks_cached, force_undo)
+                    if updated_tasks is None:
+                        # dbproxy method failed
+                        tmp_log.error('[dry run] {key_name:<64} failed to undo preassigned tasks (force={force_undo})'.format(
+                                        key_name=key_name, force_undo=force_undo))
+                    else:
+                        n_tasks = len(updated_tasks)
+                        if n_tasks > 0:
+                            tmp_log.info('[dry run] {key_name:<64} {n_tasks:>3} preassigned tasks undone ({reason_str}) '.format(
+                                            key_name=key_name, n_tasks=str(n_tasks), reason_str=reason_str))
+                            had_undo = True
+                # update preassigned_tasks_map into cache
+                if had_undo:
                     if force_undo:
                         del preassigned_tasks_map[key_name]
                     else:
                         preassigned_tasks_map[key_name] = list(set(preassigned_tasks_cached) - set(updated_tasks))
                     self._update_to_cache(preassigned_tasks_map)
-                    # unlock
-                    self._release_lock()
-                    # tmp_log.debug('released lock')
+                # unlock
+                self._release_lock(prod_source_label)
+                # tmp_log.debug('released lock')
 
             # other preassigned tasks in cache
             # # lock
-            # got_lock = self._get_lock()
+            # got_lock = self._get_lock(prod_source_label)
             # if not got_lock:
             #     tmp_log.debug('locked by another process. Skipped')
             #     return
