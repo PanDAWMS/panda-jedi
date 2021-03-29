@@ -353,6 +353,8 @@ class TaskRefinerBase (object):
                               JediTaskSpec.splitRuleToken['inputPreStaging'])
         if 'hpoWorkflow' in taskParamMap and taskParamMap['hpoWorkflow'] is True and 'hpoRequestData' in taskParamMap:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['hpoWorkflow'])
+        if 'noLoopingCheck' in taskParamMap and taskParamMap['noLoopingCheck']:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['noLoopingCheck'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:

@@ -1203,6 +1203,9 @@ class JobGeneratorThread (WorkerThread):
                     # set lumi block number
                     if lumiBlockNr is not None:
                         jobSpec.setLumiBlockNr(lumiBlockNr)
+                    # looping check
+                    if taskSpec.no_looping_check():
+                        jobSpec.disable_looping_check()
                     # fake job
                     if jobSpec.computingSite == EventServiceUtils.siteIdForWaitingCoJumboJobs:
                         jobSpec.setFakeJobToIgnore()

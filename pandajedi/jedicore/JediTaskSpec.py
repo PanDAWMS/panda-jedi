@@ -67,6 +67,7 @@ class JediTaskSpec(object):
         'inputPreStaging'    : 'IS',
         'instantiateTmpl'    : 'IT',
         'allowInputWAN'      : 'IW',
+        'noLoopingCheck'     : 'LC',
         'useLocalIO'         : 'LI',
         'limitedSites'       : 'LS',
         'loadXML'            : 'LX',
@@ -1685,5 +1686,12 @@ class JediTaskSpec(object):
     def is_work_segmented(self):
         if self.splitRule is not None:
             if re.search(self.splitRuleToken['segmentedWork']+'=(\d+)', self.splitRule):
+                return True
+        return False
+
+    # check if looping check is disabled
+    def no_looping_check(self):
+        if self.splitRule is not None:
+            if re.search(self.splitRuleToken['noLoopingCheck']+'=(\d+)', self.splitRule):
                 return True
         return False
