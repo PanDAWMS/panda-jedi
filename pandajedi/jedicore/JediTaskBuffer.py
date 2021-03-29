@@ -766,7 +766,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.queryTasksToBePending_JEDI(sql_query, params_map, reason)
 
     # get IDs of all datasets of input and lib, to update data locality records
-    def get_tasks_inputdatasets_JEDI(self, vo, ioIntensity_limit=500):
+    def get_tasks_inputdatasets_JEDI(self, vo, ioIntensity_limit=100):
         with self.proxyPool.get() as proxy:
             return proxy.get_tasks_inputdatasets_JEDI(vo, ioIntensity_limit)
 
@@ -779,3 +779,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def deleteOutdatedDatasetLocality_JEDI(self, before_timestamp):
         with self.proxyPool.get() as proxy:
             return proxy.deleteOutdatedDatasetLocality_JEDI(before_timestamp)
+
+    # query tasks and preassign them to a site, sql_query should query jeditaskid
+    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, limit=1):
+        with self.proxyPool.get() as proxy:
+            return proxy.queryTasksToPreassign_JEDI(sql_query, params_map, site, limit)
+
+    # undo preassigned tasks
+    def undoPreassignedTasks_JEDI(self, jedi_taskids, force=False):
+        with self.proxyPool.get() as proxy:
+            return proxy.undoPreassignedTasks_JEDI(jedi_taskids, force)

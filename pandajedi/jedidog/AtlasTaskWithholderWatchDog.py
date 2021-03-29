@@ -120,6 +120,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                 upplimit_ioIntensity = 999999
             if lowlimit_currentPriority is None:
                 lowlimit_currentPriority = -999999
+            upplimit_ioIntensity = max(upplimit_ioIntensity, 100)
             # get work queue for gshare
             work_queue_list = self.workQueueMapper.getAlignedQueueList(self.vo, prod_source_label)
             # loop over work queue

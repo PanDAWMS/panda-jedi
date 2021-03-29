@@ -4961,7 +4961,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if resource_name:
             sql_where += "AND resource_type=:resource_type "
             var_map[':resource_type'] = resource_name
-        
+
         if workQueue.is_global_share:
             sql_where += "AND gshare=:wq_name "
             sql_where += "AND workqueue_id IN ("
@@ -4982,7 +4982,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         max_priority_tag = 'highestPrio'
         max_priority_count_tag = 'nNotRun'
         ret_map = {max_priority_tag: 0, max_priority_count_tag: 0}
-        
+
         try:
             # start transaction
             self.conn.begin()
@@ -13923,7 +13923,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA "
                     "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
                         "AND tabT.vo=:vo AND tabT.status IN ('running', 'ready', 'scouting', 'pending') "
-                        "AND tabT.ioIntensity>:ioIntensity "
+                        "AND tabT.ioIntensity>=:ioIntensity "
                         "AND tabD.type IN ('input') AND tabD.masterID IS NULL "
                     ).format(jedi_config.db.schemaJEDI)
             # start transaction
@@ -14044,3 +14044,116 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return retVal
+
+
+    # query tasks and preassign them to a site with higher priority, sql_query should query jeditaskid
+    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, limit):
+        comment = ' /* JediDBProxy.queryTasksToPreassign_JEDI */'
+        methodName = self.getMethodName(comment)
+        # methodName += " < sql={0} >".format(sql_query)
+        tmpLog = MsgWrapper(logger, methodName)
+        try:
+            self.conn.begin()
+            # sql to query
+            self.cur.execute(sql_query+comment, params_map)
+            taskIDs = self.cur.fetchall()
+            # sql to preassign the task to a site
+            sqlPDG = (  "UPDATE {0}.JEDI_Tasks "
+                        "SET lockedBy=NULL, lockedTime=NULL, "
+                            "site=:site, "
+                            "currentPriority=(currentPriority+5), "
+                            "modificationtime=CURRENT_DATE "
+                        "WHERE jediTaskID=:jediTaskID "
+                            "AND status IN ('ready','running','scouting') "
+                            "AND site IS NULL "
+                            "AND lockedBy IS NULL "
+                      ).format(jedi_config.db.schemaJEDI)
+            # loop over tasks
+            n_updated = 0
+            updated_tasks = []
+            for (jedi_taskid, ) in taskIDs:
+                if n_updated >= limit:
+                    break
+                varMap = {}
+                varMap[':jediTaskID'] = jedi_taskid
+                varMap[':site'] = site
+                self.cur.execute(sqlPDG+comment, varMap)
+                nRow = self.cur.rowcount
+                if nRow == 1:
+                    # self.record_task_status_change(jedi_taskid)
+                    n_updated += 1
+                    updated_tasks.append(jedi_taskid)
+                    tmpLog.debug('preassigned jediTaskID={0} to site={1}'.format(jedi_taskid, site))
+                elif nRow > 1:
+                    tmpLog.error('updated {0} rows with same jediTaskID={1}'.format(nRow, jedi_taskid))
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('done with {0} rows to site={1}'.format(n_updated, site))
+            # return
+            return updated_tasks
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
+
+
+    # undo preassigned tasks
+    def undoPreassignedTasks_JEDI(self, jedi_taskids, force):
+        comment = ' /* JediDBProxy.undoPreassignedTasks_JEDI */'
+        methodName = self.getMethodName(comment)
+        # methodName += " < sql={0} >".format(sql_query)
+        tmpLog = MsgWrapper(logger, methodName)
+        # sql to undo a preassigned task if it moves off the status to generate jobs
+        sqlUPT = (  "UPDATE {0}.JEDI_Tasks "
+                    "SET "
+                        "site=NULL, "
+                        "currentPriority=(currentPriority-5), "
+                        "modificationtime=CURRENT_DATE "
+                    "WHERE jediTaskID=:jediTaskID "
+                        "AND site IS NOT NULL "
+                        "AND status NOT IN ('ready','running','scouting') "
+                  ).format(jedi_config.db.schemaJEDI)
+        # sql to force to undo a preassigned task no matter what
+        sqlUPTF = ( "UPDATE {0}.JEDI_Tasks "
+                    "SET "
+                        "site=NULL, "
+                        "currentPriority=(currentPriority-5), "
+                        "modificationtime=CURRENT_DATE "
+                    "WHERE jediTaskID=:jediTaskID "
+                        "AND site IS NOT NULL "
+                  ).format(jedi_config.db.schemaJEDI)
+        try:
+            self.conn.begin()
+            # loop over tasks
+            n_updated = 0
+            updated_tasks = []
+            force_str = ''
+            for jedi_taskid in jedi_taskids:
+                varMap = {}
+                varMap[':jediTaskID'] = jedi_taskid
+                if force:
+                    force_str = 'force'
+                    self.cur.execute(sqlUPTF+comment, varMap)
+                else:
+                    self.cur.execute(sqlUPT+comment, varMap)
+                nRow = self.cur.rowcount
+                if nRow == 1:
+                    # self.record_task_status_change(jedi_taskid)
+                    n_updated += 1
+                    updated_tasks.append(jedi_taskid)
+                    tmpLog.debug('{0} undid preassigned jediTaskID={1}'.format(force_str, jedi_taskid))
+                elif nRow > 1:
+                    tmpLog.error('{0} updated {1} rows with same jediTaskID={2}'.format(force_str, nRow, jedi_taskid))
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('{0} done with {1} rows'.format(force_str, n_updated))
+            # return
+            return updated_tasks
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None
