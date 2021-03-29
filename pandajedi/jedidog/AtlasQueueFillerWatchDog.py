@@ -294,8 +294,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     n_tasks_to_preassign = max(max_preassigned_tasks - n_preassigned_tasks, 0)
                     # preassign
                     if n_tasks_to_preassign <= 0:
-                        tmp_log.debug('rtype={resource_type:<11} {site} already has enough preassigned tasks ({n_tasks:>3}) ; skipped '.format(
-                                        resource_type=resource_type, n_tasks=n_preassigned_tasks, site=site))
+                        tmp_log.debug('{key_name:<64} already has enough preassigned tasks ({n_tasks:>3}) ; skipped '.format(
+                                        key_name=key_name, n_tasks=n_preassigned_tasks))
                     elif DRY_RUN:
                         dry_sql_query = (
                             "SELECT t.jediTaskID "
@@ -321,8 +321,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         if n_tasks > 0:
                             result = [ x[0] for x in res if x[0] not in preassigned_tasks_cached ]
                             updated_tasks = result[:min(n_tasks, max_preassigned_tasks)]
-                            tmp_log.debug('[dry run] rtype={resource_type:<11} {n_tasks:>3} tasks would be preassigned to {site} '.format(
-                                            resource_type=resource_type, n_tasks=min(n_tasks, max_preassigned_tasks), site=site))
+                            tmp_log.debug('[dry run] {key_name:<64} {n_tasks:>3} tasks would be preassigned '.format(
+                                            key_name=key_name, n_tasks=min(n_tasks, max_preassigned_tasks)))
                             # update preassigned_tasks_map into cache
                             preassigned_tasks_map[key_name] = list(set(updated_tasks) | set(preassigned_tasks_cached))
                             tmp_log.debug('{} ; {}'.format(str(updated_tasks), str(preassigned_tasks_map[key_name])))
@@ -331,13 +331,13 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         updated_tasks = self.taskBufferIF.queryTasksToPreassign_JEDI(sql_query, params_map, site, limit=max_preassigned_tasks)
                         if updated_tasks is None:
                             # dbproxy method failed
-                            tmp_log.error('rtype={resource_type:<11} failed to preassign tasks to {site} '.format(
-                                            resource_type=resource_type, site=site))
+                            tmp_log.error('{key_name:<64} failed to preassign tasks '.format(
+                                            key_name=key_name))
                         else:
                             n_tasks = len(updated_tasks)
                             if n_tasks > 0:
-                                tmp_log.info('rtype={resource_type:<11} {n_tasks:>3} tasks preassigned to {site} '.format(
-                                                resource_type=resource_type, n_tasks=str(n_tasks), site=site))
+                                tmp_log.info('{key_name:<64} {n_tasks:>3} tasks preassigned : {updated_tasks}'.format(
+                                                key_name=key_name, n_tasks=str(n_tasks), updated_tasks=updated_tasks))
                                 # update preassigned_tasks_map into cache
                                 preassigned_tasks_map[key_name] = list(set(updated_tasks) | set(preassigned_tasks_cached))
                                 self._update_to_cache(preassigned_tasks_map)
@@ -421,8 +421,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     else:
                         n_tasks = len(updated_tasks)
                         if n_tasks > 0:
-                            tmp_log.info('[dry run] {key_name:<64} {n_tasks:>3} preassigned tasks undone ({reason_str}) '.format(
-                                            key_name=key_name, n_tasks=str(n_tasks), reason_str=reason_str))
+                            tmp_log.info('[dry run] {key_name:<64} {n_tasks:>3} preassigned tasks undone ({reason_str}) : {updated_tasks} '.format(
+                                            key_name=key_name, n_tasks=str(n_tasks), reason_str=reason_str, updated_tasks=updated_tasks))
                             had_undo = True
                 # update preassigned_tasks_map into cache
                 if had_undo:
