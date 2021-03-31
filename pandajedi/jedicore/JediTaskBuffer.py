@@ -766,9 +766,9 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.queryTasksToBePending_JEDI(sql_query, params_map, reason)
 
     # get IDs of all datasets of input and lib, to update data locality records
-    def get_tasks_inputdatasets_JEDI(self, vo, ioIntensity_limit=100):
+    def get_tasks_inputdatasets_JEDI(self, vo):
         with self.proxyPool.get() as proxy:
-            return proxy.get_tasks_inputdatasets_JEDI(vo, ioIntensity_limit)
+            return proxy.get_tasks_inputdatasets_JEDI(vo)
 
     # update dataset locality
     def updateDatasetLocality_JEDI(self, jedi_taskid, datasetid, rse):

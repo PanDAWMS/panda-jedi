@@ -405,8 +405,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             "SELECT jediTaskID "
                             "FROM {jedi_schema}.JEDI_Tasks "
                             "WHERE jediTaskID IN ({preassigned_tasks_params_str}) "
-                            "AND site IS NOT NULL "
-                            "AND status NOT IN ('ready','running','scouting') "
+                                "AND site IS NOT NULL "
+                                "AND status NOT IN ('ready','running','scouting') "
                         ).format(jedi_schema=jedi_config.db.schemaJEDI, preassigned_tasks_params_str=preassigned_tasks_params_str)
                         res = self.taskBufferIF.querySQL(dry_sql_query, {})
                         n_tasks = 0 if res is None else len(res)
