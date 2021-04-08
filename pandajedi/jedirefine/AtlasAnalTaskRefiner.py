@@ -78,7 +78,10 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
             taskParamMap['ramUnit'] = 'MBPerCore'
         # disk count
         if 'outDiskCount' not in taskParamMap:
-            taskParamMap['outDiskCount'] = 500
+            out_disk_count_default = self.taskBufferIF.getConfigValue('taskrefiner', 'OUTDISKCOUNT_ANALY_KB', 'jedi', 'atlas')
+            if out_disk_count_default is None or out_disk_count_default < 0:
+                out_disk_count_default = 500
+            taskParamMap['outDiskCount'] = out_disk_count_default
             taskParamMap['outDiskUnit'] = 'kB'
         # set cpu time unit to use HS06
         if 'cpuTimeUnit' not in taskParamMap:
