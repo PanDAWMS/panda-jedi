@@ -13907,7 +13907,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return None
 
 
-    # get  datasets of input and lib, to update data locality records
+    # get datasets of input and lib, to update data locality records
     def get_tasks_inputdatasets_JEDI(self, vo):
         comment = ' /* JediDBProxy.get_tasks_inputdatasets_JEDI */'
         methodName = self.getMethodName(comment)
