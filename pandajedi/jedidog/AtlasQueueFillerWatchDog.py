@@ -25,7 +25,7 @@ from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
 # dry run or not
-DRY_RUN = True
+DRY_RUN = False
 
 
 # queue filler watchdog for ATLAS
