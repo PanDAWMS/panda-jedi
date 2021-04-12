@@ -230,6 +230,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     continue
                 # site attributes
                 site_maxrss =  tmpSiteSpec.maxrss if tmpSiteSpec.maxrss not in (0, None) else 999999
+                max_mem_per_core = site_maxrss/tmpSiteSpec.coreCount
                 site_corecount_allowed = []
                 if tmpSiteSpec.is_unified or tmpSiteSpec.capability == 'ucore':
                     site_corecount_allowed = [1, tmpSiteSpec.coreCount]
@@ -267,7 +268,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         "AND t.prodSourceLabel=:prodSourceLabel "
                         "AND t.resource_type=:resource_type "
                         "AND site IS NULL "
-                        "AND t.ramCount<:site_maxrss "
+                        "AND t.ramCount<( :max_mem_per_core * t.coreCount ) "
                         "AND t.coreCount IN ({site_corecount_allowed_params_str}) "
                         "AND EXISTS ( "
                             "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
@@ -294,7 +295,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     params_map = {
                             ':prodSourceLabel': prod_source_label,
                             ':resource_type': resource_type,
-                            ':site_maxrss': tmpSiteSpec.maxrss if tmpSiteSpec.maxrss not in (0, None) else 999999,
+                            ':max_mem_per_core': max_mem_per_core,
                             ':min_files_ready': min_files_ready,
                             ':min_files_remaining': min_files_remaining,
                         }
@@ -325,7 +326,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                 "AND t.prodSourceLabel=:prodSourceLabel "
                                 "AND t.resource_type=:resource_type "
                                 "AND site IS NULL "
-                                "AND t.ramCount<:site_maxrss "
+                                "AND t.ramCount<( :max_mem_per_core * t.coreCount ) "
                                 "AND t.coreCount IN ({site_corecount_allowed_params_str}) "
                                 "AND EXISTS ( "
                                     "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
