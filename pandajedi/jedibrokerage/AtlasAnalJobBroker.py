@@ -1312,7 +1312,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             totalTapeSizeMap[tmpSiteName] //= (1024 * 1024 *1024)
         ######################################
         # final procedure
-        tmpLog.info('final {0} candidates'.format(len(scanSiteList)))
+        tmpLog.info('{0} candidates for final check'.format(len(scanSiteList)))
         weightMap = {}
         weightStr = {}
         candidateSpecList = []
