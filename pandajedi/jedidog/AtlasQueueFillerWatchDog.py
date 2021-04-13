@@ -427,9 +427,10 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             now_time = datetime.datetime.utcnow()
             min_allowed_time = now_time - datetime.timedelta(hours=blacklist_duration_hours)
             min_allowed_ts = int(min_allowed_time.timestamp())
-            for ts in blacklisted_tasks_map_orig:
+            for ts_str in blacklisted_tasks_map_orig:
+                ts = int(ts_str)
                 if ts < min_allowed_ts:
-                    del blacklisted_tasks_map[ts]
+                    del blacklisted_tasks_map[ts_str]
             self._update_to_bt_cache(blacklisted_tasks_map)
             n_bt_old = sum([ len(bt_list) for bt_list in blacklisted_tasks_map_orig.values() ])
             n_bt = sum([ len(bt_list) for bt_list in blacklisted_tasks_map.values() ])
@@ -522,10 +523,12 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     blacklisted_tasks_map = copy.deepcopy(blacklisted_tasks_map_orig)
                     now_time = datetime.datetime.utcnow()
                     now_rounded_ts = int(now_time.replace(minute=0, second=0, microsecond=0).timestamp())
-                    if now_rounded_ts in blacklisted_tasks_map_orig:
-                        blacklisted_tasks_map[ts] = list(set(blacklisted_tasks_map[ts])|set(updated_tasks))
+                    ts_str = str(now_rounded_ts)
+                    if ts_str in blacklisted_tasks_map_orig:
+                        tmp_bt_list = blacklisted_tasks_map[ts_str]
+                        blacklisted_tasks_map[ts_str] = list(set(tmp_bt_list)|set(updated_tasks))
                     else:
-                        blacklisted_tasks_map[ts] = list(updated_tasks)
+                        blacklisted_tasks_map[ts_str] = list(updated_tasks)
                     self._update_to_bt_cache(blacklisted_tasks_map)
                 # unlock
                 self._release_lock(prod_source_label)
