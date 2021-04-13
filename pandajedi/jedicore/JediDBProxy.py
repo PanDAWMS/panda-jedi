@@ -14049,7 +14049,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # query tasks and preassign them to a site with higher priority, sql_query should query jeditaskid
-    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, limit):
+    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, blacklist, limit):
         comment = ' /* JediDBProxy.queryTasksToPreassign_JEDI */'
         methodName = self.getMethodName(comment)
         # methodName += " < sql={0} >".format(sql_query)
@@ -14075,7 +14075,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             updated_tasks = []
             for (jedi_taskid, ) in taskIDs:
                 if n_updated >= limit:
+                    # respect the limit
                     break
+                if jedi_taskid in blacklist:
+                    # skip blacklisted tasks
+                    continue
                 varMap = {}
                 varMap[':jediTaskID'] = jedi_taskid
                 varMap[':site'] = site

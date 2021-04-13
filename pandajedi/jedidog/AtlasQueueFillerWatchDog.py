@@ -4,6 +4,7 @@ import copy
 import re
 import json
 import socket
+import datetime
 import traceback
 
 from six import iteritems
@@ -40,7 +41,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         self.prodSourceLabelList = ['managed']
         # keys for cache
         self.dc_main_key = 'AtlasQueueFillerWatchDog'
-        self.dc_sub_key = 'PreassignedTasks'
+        self.dc_sub_key_pt = 'PreassignedTasks'
+        self.dc_sub_key_bt = 'BlacklistedTasks'
         # call refresh
         self.refresh()
 
@@ -58,13 +60,27 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         self.allSiteList = allSiteList
 
     # update preassigned task map to cache
-    def _update_to_cache(self, ptmap):
+    def _update_to_pt_cache(self, ptmap):
         data_json = json.dumps(ptmap)
-        self.taskBufferIF.updateCache_JEDI(main_key=self.dc_main_key, sub_key=self.dc_sub_key, data=data_json)
+        self.taskBufferIF.updateCache_JEDI(main_key=self.dc_main_key, sub_key=self.dc_sub_key_pt, data=data_json)
 
     # get preassigned task map from cache
-    def _get_from_cache(self):
-        cache_spec = self.taskBufferIF.getCache_JEDI(main_key=self.dc_main_key, sub_key=self.dc_sub_key)
+    def _get_from_pt_cache(self):
+        cache_spec = self.taskBufferIF.getCache_JEDI(main_key=self.dc_main_key, sub_key=self.dc_sub_key_pt)
+        if cache_spec is not None:
+            ret_map = json.loads(cache_spec.data)
+            return ret_map
+        else:
+            return dict()
+
+    # update blacklisted task map to cache
+    def _update_to_bt_cache(self, btmap):
+        data_json = json.dumps(btmap)
+        self.taskBufferIF.updateCache_JEDI(main_key=self.dc_main_key, sub_key=self.dc_sub_key_bt, data=data_json)
+
+    # get blacklisted task map from cache
+    def _get_from_bt_cache(self):
+        cache_spec = self.taskBufferIF.getCache_JEDI(main_key=self.dc_main_key, sub_key=self.dc_sub_key_bt)
         if cache_spec is not None:
             ret_map = json.loads(cache_spec.data)
             return ret_map
@@ -217,7 +233,12 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 min_files_remaining = 100
             # available sites
             available_sites_dict = self.get_available_sites()
-            # loop or available sites
+            # get blacklisted_tasks_map from cache
+            blacklisted_tasks_map = self._get_from_bt_cache()
+            blacklisted_tasks_set = set()
+            for bt_list in blacklisted_tasks_map.values():
+                blacklisted_tasks_set |= set(bt_list)
+            # loop over available sites to preassign
             for site, tmpSiteSpec in available_sites_dict.items():
                 # rses of the available site
                 available_rses = set()
@@ -308,7 +329,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         return
                     # tmp_log.debug('got lock')
                     # get preassigned_tasks_map from cache
-                    preassigned_tasks_map = self._get_from_cache()
+                    preassigned_tasks_map = self._get_from_pt_cache()
                     preassigned_tasks_cached = preassigned_tasks_map.get(key_name, [])
                     # number of tasks already preassigned
                     n_preassigned_tasks = len(preassigned_tasks_cached)
@@ -355,9 +376,11 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             # update preassigned_tasks_map into cache
                             preassigned_tasks_map[key_name] = list(set(updated_tasks) | set(preassigned_tasks_cached))
                             tmp_log.debug('{} ; {}'.format(str(updated_tasks), str(preassigned_tasks_map[key_name])))
-                            self._update_to_cache(preassigned_tasks_map)
+                            self._update_to_pt_cache(preassigned_tasks_map)
                     else:
-                        updated_tasks = self.taskBufferIF.queryTasksToPreassign_JEDI(sql_query, params_map, site, limit=n_tasks_to_preassign)
+                        updated_tasks = self.taskBufferIF.queryTasksToPreassign_JEDI(sql_query, params_map, site,
+                                                                                        blacklist=blacklisted_tasks_set,
+                                                                                        limit=n_tasks_to_preassign)
                         if updated_tasks is None:
                             # dbproxy method failed
                             tmp_log.error('{key_name:<64} failed to preassign tasks '.format(
@@ -369,7 +392,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                                 key_name=key_name, n_tasks=str(n_tasks), updated_tasks=updated_tasks))
                                 # update preassigned_tasks_map into cache
                                 preassigned_tasks_map[key_name] = list(set(updated_tasks) | set(preassigned_tasks_cached))
-                                self._update_to_cache(preassigned_tasks_map)
+                                self._update_to_pt_cache(preassigned_tasks_map)
                                 # Kibana log
                                 for taskid in updated_tasks:
                                     tmp_log.debug('#ATM #KV jediTaskID={taskid} action=do_preassign site={site} rtype={rtype} preassigned '.format(
@@ -385,15 +408,36 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         self.refresh()
         # busy sites
         busy_sites_dict = self.get_busy_sites()
-        # loop
+        # loop to undo preassignment
         for prod_source_label in self.prodSourceLabelList:
             # parameter from GDP config
             max_preassigned_tasks = self.taskBufferIF.getConfigValue(
                                         'queue_filler', 'MAX_PREASSIGNED_TASKS_{0}'.format(prod_source_label), 'jedi', self.vo)
             if max_preassigned_tasks is None:
                 max_preassigned_tasks = 3
+            # lock
+            got_lock = self._get_lock(prod_source_label)
+            if not got_lock:
+                tmp_log.debug('locked by another process. Skipped')
+                return
+            # clean up outdated blacklist
+            blacklist_duration_hours = 12
+            blacklisted_tasks_map_orig = self._get_from_bt_cache()
+            blacklisted_tasks_map = copy.deepcopy(blacklisted_tasks_map_orig)
+            now_time = datetime.datetime.utcnow()
+            min_allowed_time = now_time - datetime.timedelta(hours=blacklist_duration_hours)
+            min_allowed_ts = int(min_allowed_time.timestamp())
+            for ts in blacklisted_tasks_map_orig:
+                if ts < min_allowed_ts:
+                    del blacklisted_tasks_map[ts]
+            self._update_to_bt_cache(blacklisted_tasks_map)
+            n_bt_old = sum([ len(bt_list) for bt_list in blacklisted_tasks_map_orig.values() ])
+            n_bt = sum([ len(bt_list) for bt_list in blacklisted_tasks_map.values() ])
+            tmp_log.debug('done cleanup blacklist; before {n_bt_old} , now {n_bt} tasks in blacklist'.format(n_bt_old=n_bt_old, n_bt=n_bt))
+            # unlock
+            self._release_lock(prod_source_label)
             # get a copy of preassigned_tasks_map from cache
-            preassigned_tasks_map_orig = self._get_from_cache()
+            preassigned_tasks_map_orig = self._get_from_pt_cache()
             preassigned_tasks_map = copy.deepcopy(preassigned_tasks_map_orig)
             # loop on preassigned tasks in cache
             for key_name in preassigned_tasks_map_orig:
@@ -471,7 +515,18 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             del preassigned_tasks_map[key_name]
                         else:
                             preassigned_tasks_map[key_name] = list(tmp_tasks_set)
-                    self._update_to_cache(preassigned_tasks_map)
+                    self._update_to_pt_cache(preassigned_tasks_map)
+                # update blacklisted_tasks_map into cache
+                if had_undo and not force_undo:
+                    blacklisted_tasks_map_orig = self._get_from_bt_cache()
+                    blacklisted_tasks_map = copy.deepcopy(blacklisted_tasks_map_orig)
+                    now_time = datetime.datetime.utcnow()
+                    now_rounded_ts = int(now_time.replace(minute=0, second=0, microsecond=0).timestamp())
+                    if now_rounded_ts in blacklisted_tasks_map_orig:
+                        blacklisted_tasks_map[ts] = list(set(blacklisted_tasks_map[ts])|set(updated_tasks))
+                    else:
+                        blacklisted_tasks_map[ts] = list(updated_tasks)
+                    self._update_to_bt_cache(blacklisted_tasks_map)
                 # unlock
                 self._release_lock(prod_source_label)
                 # tmp_log.debug('released lock')
