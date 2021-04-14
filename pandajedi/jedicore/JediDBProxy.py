@@ -13910,8 +13910,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return None
 
 
-    # get  datasets of input and lib, to update data locality records
-    def get_tasks_inputdatasets_JEDI(self, vo, ioIntensity_limit):
+    # get datasets of input and lib, to update data locality records
+    def get_tasks_inputdatasets_JEDI(self, vo):
         comment = ' /* JediDBProxy.get_tasks_inputdatasets_JEDI */'
         methodName = self.getMethodName(comment)
         # last update time
@@ -13926,7 +13926,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA "
                     "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID AND tabT.jediTaskID=tabD.jediTaskID "
                         "AND tabT.vo=:vo AND tabT.status IN ('running', 'ready', 'scouting', 'pending') "
-                        "AND tabT.ioIntensity>=:ioIntensity "
+                        "AND tabT.prodSourceLabel='managed' "
                         "AND tabD.type IN ('input') AND tabD.masterID IS NULL "
                     ).format(jedi_config.db.schemaJEDI)
             # start transaction
@@ -13934,7 +13934,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # get
             varMap = {}
             varMap[':vo'] = vo
-            varMap[':ioIntensity'] = ioIntensity_limit
             self.cur.execute(sql+comment, varMap)
             res = self.cur.fetchall()
             nRows = self.cur.rowcount
@@ -14050,7 +14049,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # query tasks and preassign them to a site with higher priority, sql_query should query jeditaskid
-    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, limit):
+    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, blacklist, limit):
         comment = ' /* JediDBProxy.queryTasksToPreassign_JEDI */'
         methodName = self.getMethodName(comment)
         # methodName += " < sql={0} >".format(sql_query)
@@ -14076,7 +14075,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             updated_tasks = []
             for (jedi_taskid, ) in taskIDs:
                 if n_updated >= limit:
+                    # respect the limit
                     break
+                if jedi_taskid in blacklist:
+                    # skip blacklisted tasks
+                    continue
                 varMap = {}
                 varMap[':jediTaskID'] = jedi_taskid
                 varMap[':site'] = site
