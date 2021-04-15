@@ -88,17 +88,17 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             return dict()
 
     # get process lock to preassign
-    def _get_lock(self, prod_source_label):
+    def _get_lock(self):
         return self.taskBufferIF.lockProcess_JEDI(
-                vo=self.vo, prodSourceLabel=prod_source_label,
+                vo=self.vo, prodSourceLabel='managed',
                 cloud=None, workqueue_id=None, resource_name=None,
                 component='AtlasQueueFillerWatchDog.preassign',
-                pid=self.pid, timeLimit=2)
+                pid=self.pid, timeLimit=5)
 
     # release lock
-    def _release_lock(self, prod_source_label):
+    def _release_lock(self):
         return self.taskBufferIF.unlockProcess_JEDI(
-                vo=self.vo, prodSourceLabel=prod_source_label,
+                vo=self.vo, prodSourceLabel='managed',
                 cloud=None, workqueue_id=None, resource_name=None,
                 component='AtlasQueueFillerWatchDog.preassign',
                 pid=self.pid)
@@ -322,12 +322,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         }
                     params_map.update(rse_params_map)
                     params_map.update(site_corecount_allowed_params_map)
-                    # lock
-                    got_lock = self._get_lock(prod_source_label)
-                    if not got_lock:
-                        tmp_log.debug('locked by another process. Skipped')
-                        return
-                    # tmp_log.debug('got lock')
                     # get preassigned_tasks_map from cache
                     preassigned_tasks_map = self._get_from_pt_cache()
                     preassigned_tasks_cached = preassigned_tasks_map.get(key_name, [])
@@ -397,9 +391,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                 for taskid in updated_tasks:
                                     tmp_log.debug('#ATM #KV jediTaskID={taskid} action=do_preassign site={site} rtype={rtype} preassigned '.format(
                                                     taskid=taskid, site=site, rtype=resource_type))
-                    # unlock
-                    self._release_lock(prod_source_label)
-                    # tmp_log.debug('released lock')
 
     # undo preassign tasks
     def undo_preassign(self):
@@ -415,11 +406,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                         'queue_filler', 'MAX_PREASSIGNED_TASKS_{0}'.format(prod_source_label), 'jedi', self.vo)
             if max_preassigned_tasks is None:
                 max_preassigned_tasks = 3
-            # lock
-            got_lock = self._get_lock(prod_source_label)
-            if not got_lock:
-                tmp_log.debug('locked by another process. Skipped')
-                return
             # clean up outdated blacklist
             blacklist_duration_hours = 12
             blacklisted_tasks_map_orig = self._get_from_bt_cache()
@@ -435,8 +421,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             n_bt_old = sum([ len(bt_list) for bt_list in blacklisted_tasks_map_orig.values() ])
             n_bt = sum([ len(bt_list) for bt_list in blacklisted_tasks_map.values() ])
             tmp_log.debug('done cleanup blacklist; before {n_bt_old} , now {n_bt} tasks in blacklist'.format(n_bt_old=n_bt_old, n_bt=n_bt))
-            # unlock
-            self._release_lock(prod_source_label)
             # get a copy of preassigned_tasks_map from cache
             preassigned_tasks_map_orig = self._get_from_pt_cache()
             preassigned_tasks_map = copy.deepcopy(preassigned_tasks_map_orig)
@@ -451,12 +435,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 if site in busy_sites_dict or len(preassigned_tasks_cached) > max_preassigned_tasks:
                     force_undo = True
                 reason_str = 'site busy or offline or with too many preassigned tasks' if force_undo else 'task paused or terminated'
-                # lock
-                got_lock = self._get_lock(prod_source_label)
-                if not got_lock:
-                    tmp_log.debug('locked by another process. Skipped')
-                    return
-                # tmp_log.debug('got lock')
                 # undo preassign
                 had_undo = False
                 updated_tasks = []
@@ -530,9 +508,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     else:
                         blacklisted_tasks_map[ts_str] = list(updated_tasks)
                     self._update_to_bt_cache(blacklisted_tasks_map)
-                # unlock
-                self._release_lock(prod_source_label)
-                # tmp_log.debug('released lock')
 
     # main
     def doAction(self):
@@ -540,10 +515,19 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # get logger
             origTmpLog = MsgWrapper(logger)
             origTmpLog.debug('start')
+            # lock
+            got_lock = self._get_lock()
+            if not got_lock:
+                origTmpLog.debug('locked by another process. Skipped')
+                return
+            origTmpLog.debug('got lock')
             # undo preassigned tasks
             self.undo_preassign()
             # preassign tasks to sites
             self.do_preassign()
+            # unlock
+            # self._release_lock()
+            # origTmpLog.debug('released lock')
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             err_str = traceback.format_exc()
