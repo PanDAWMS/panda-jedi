@@ -648,7 +648,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to check if task is locked
             sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE NOWAIT ".format(jedi_config.db.schemaJEDI)
             # sql to check dataset status
-            sqlDs  = "SELECT status,nFilesToBeUsed-nFilesUsed,state FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDs  = "SELECT status,nFilesToBeUsed-nFilesUsed,state,nFilesToBeUsed FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDs += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to get existing files
             sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent,boundaryID,nEvents FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
@@ -728,7 +728,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # task is locked
                     tmpLog.debug('task is locked by {0}'.format(taskLockedBy))
                 elif not (taskStatus in JediTaskSpec.statusToUpdateContents() or \
-                              (taskStatus in ['running', 'ready', 'scouting'] and \
+                              (taskStatus in ['running', 'ready', 'scouting', 'assigning'] and \
                                    (datasetState == 'mutable' or datasetSpec.state == 'mutable' or datasetSpec.isSeqNumber()))):
                     # task status is irrelevant
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
@@ -803,7 +803,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             numUniqueLfn = resCo[0]
                             retVal = True,missingFileList,numUniqueLfn,diagMap
                     else:
-                        oldDsStatus,nFilesUnprocessed,dsStateInDB = resDs
+                        oldDsStatus,nFilesUnprocessed,dsStateInDB,nFilesToUseDS = resDs
                         tmpLog.debug('ds.state={0} in DB'.format(dsStateInDB))
                         # get existing file list
                         varMap = {}
@@ -1090,9 +1090,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             resMS = self.cur.fetchone()
                             masterStatus, = resMS
                         tmpLog.debug('masterStatus={0}'.format(masterStatus))
-                        nFilesToUseDS = 0
-                        if datasetSpec.nFilesToBeUsed is not None:
-                            nFilesToUseDS = datasetSpec.nFilesToBeUsed
+                        tmpLog.debug('nFilesToUseDS={0}'.format(nFilesToUseDS))
+                        if nFilesToUseDS is None:
+                            nFilesToUseDS = 0
                         # updata dataset
                         varMap = {}
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
