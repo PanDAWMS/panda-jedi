@@ -111,6 +111,7 @@ class JobSplitter:
         tmpLog.debug('walltimeGradient={0} nFilesPerJob={1} nEventsPerJob={2}'.format(walltimeGradient,
                                                                                         nFilesPerJob,
                                                                                         nEventsPerJob))
+        tmpLog.debug('useScout={} isMerging={}'.format(inputChunk.useScout(), inputChunk.isMerging))
         tmpLog.debug('sizeGradientsPerInSize={0} maxOutSize={1} respectLB={2} dynNumEvents={3}'.format(sizeGradientsPerInSize,
                                                                                                        maxOutSize,
                                                                                                        respectLB,
@@ -121,7 +122,9 @@ class JobSplitter:
         returnList = []
         subChunks  = []
         iSubChunks = 0
-        if taskSpec.is_hpo_workflow():
+        if inputChunk.useScout() and not inputChunk.isMerging:
+            default_nSubChunks = 2
+        elif taskSpec.is_hpo_workflow():
             default_nSubChunks = 2
         else:
             default_nSubChunks = 25

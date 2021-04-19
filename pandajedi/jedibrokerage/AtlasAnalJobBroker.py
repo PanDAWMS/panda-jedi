@@ -1318,6 +1318,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
         candidateSpecList = []
         preSiteCandidateSpec = None
         basic_weight_comparison_map = {}
+        minBadJobsToSkipPQ = self.taskBufferIF.getConfigValue('anal_jobbroker', 'MIN_BAD_JOBS_TO_SKIP_PQ',
+                                                              'jedi', taskSpec.vo)
+        if minBadJobsToSkipPQ is None:
+            minBadJobsToSkipPQ = 5
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
@@ -1337,7 +1341,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 if 'finished' in failureCounts[tmpSiteName]:
                     nFinished = failureCounts[tmpSiteName]['finished']
             # problematic sites with too many failed and closed jobs
-            if not inputChunk.isMerging and nFailed + nClosed > 2*nFinished:
+            if not inputChunk.isMerging and (nFailed + nClosed) > max(2*nFinished, minBadJobsToSkipPQ):
                 problematic_sites_dict.setdefault(tmpSiteName, set())
                 problematic_sites_dict[tmpSiteName].add('too many failed or closed jobs for last 6h')
             # calculate weight
