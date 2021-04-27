@@ -237,6 +237,7 @@ setup(
     extras_require={
         'oracle': ['cx_Oracle'],
         'mysql': ['mysqlclient'],
+        'postgres': ['psycopg2-binary'],
         'rucio': ['rucio-clients'],
         'atlasprod': ['cx_Oracle', 'rucio-clients', 'idds-common', 'idds-client'],
     },
