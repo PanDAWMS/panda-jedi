@@ -83,7 +83,7 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
 
                 # send finish command
                 retVal, retStr = self.tbIF.sendCommandTaskPanda(jeditaskid,
-                                                                'JEDI. HPO task finished',
+                                                                'iDDS. HPO task finished',
                                                                 True,
                                                                 'finish',
                                                                 comQualifier='soft')

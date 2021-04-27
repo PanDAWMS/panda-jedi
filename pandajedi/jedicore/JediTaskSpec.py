@@ -1600,24 +1600,70 @@ class JediTaskSpec(object):
                 return True
         return False
 
+    # architecture: sw_platform<@base_platform><#host_cpu_spec><&host_gpu_spec>
+    # host_cpu_spec: architecture<-vendor<-instruction_set>>
+    # host_gpu_spec: vendor<-model>
 
+    # get SW platform
+    def get_sw_platform(self):
+        if self.architecture is not None:
+            m = re.search('^([^@#&]*)', self.architecture)
+            if m:
+                return m.group(1)
+        return self.architecture
 
-    # get architecture
-    def getArchitecture(self):
-        if self.architecture is None or '@' not in self.architecture:
-            return self.architecture
-        return self.architecture.split('@')[0]
-
-
-
-    # get architecture
-    def getImage(self):
+    # get base platform
+    def get_base_platform(self):
         if self.architecture is None or '@' not in self.architecture:
             return None
-        img = self.architecture.split('@')[1]
+        m = re.search('@([^#&]*)', self.architecture)
+        img = m.group(1)
         if img == '':
             img = None
         return img
+
+    # get platforms
+    def get_platforms(self):
+        if self.architecture is not None:
+            m = re.search('^([^#&]*)', self.architecture)
+            if m:
+                return m.group(1)
+        return self.architecture
+
+    # get host CPU spec
+    def get_host_cpu_spec(self):
+        try:
+            if self.architecture is None or '#' not in self.architecture:
+                return None
+            m = re.search('#([^&]*)', self.architecture)
+            spec_str = m.group(1)
+            if not spec_str:
+                spec_str = '*'
+            spec_str += '-*' * (2 - spec_str.count('-'))
+            if '-' not in spec_str:
+                spec_str += '-*'
+            items = spec_str.split('-')
+            spec = {'arch': items[0],
+                    'vendor': items[1],
+                    'instr': items[2]}
+            return spec
+        except Exception:
+            return None
+
+    # get host GPU spec
+    def get_host_gpu_spec(self):
+        try:
+            if self.architecture is None or '&' not in self.architecture:
+                return None
+            m = re.search('&(.*)', self.architecture)
+            spec_str = m.group(1)
+            spec_str += '-*' * (1 - spec_str.count('-'))
+            items = spec_str.split('-')
+            spec = {'vendor': items[0],
+                    'model': items[1]}
+            return spec
+        except Exception:
+            return None
 
     # HPO workflow
     def is_hpo_workflow(self):

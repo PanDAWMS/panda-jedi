@@ -497,7 +497,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 if tmpSiteSpec.isGPU() and not taskSpec.is_hpo_workflow():
-                    if taskSpec.getArchitecture() in ['', None]:
+                    if taskSpec.get_sw_platform() in ['', None]:
                         tmpLog.info('  skip site={0} since architecture is required for GPU queues'.format(tmpSiteName))
                         continue
                     if jsonCheck is None:
@@ -505,13 +505,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     siteListWithCMTCONFIG = [tmpSiteSpec.get_unified_name()]
                     siteListWithCMTCONFIG, sitesNoJsonCheck = jsonCheck.check(siteListWithCMTCONFIG, None,
                                                                               None, None,
-                                                                              taskSpec.getArchitecture(),
+                                                                              taskSpec.get_sw_platform(),
                                                                               False, True)
                     siteListWithCMTCONFIG += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                                    cmtConfig=taskSpec.getArchitecture(),
+                                                                                    cmtConfig=taskSpec.get_sw_platform(),
                                                                                     onlyCmtConfig=True)
                     if len(siteListWithCMTCONFIG) == 0:
-                        tmpLog.info('  skip site={0} since architecture={1} is unavailable'.format(tmpSiteName, taskSpec.getArchitecture()))
+                        tmpLog.info('  skip site={0} since architecture={1} is unavailable'.format(tmpSiteName, taskSpec.get_sw_platform()))
                         continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
@@ -565,13 +565,15 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
                                                                        transHome.split('-')[0],
                                                                        transHome.split('-')[1],
-                                                                       taskSpec.getArchitecture(),
+                                                                       taskSpec.get_sw_platform(),
                                                                        False, False,
                                                                        container_name=taskSpec.container_name,
-                                                                       only_tags_fc=taskSpec.use_only_tags_fc())
+                                                                       only_tags_fc=taskSpec.use_only_tags_fc(),
+                                                                       host_cpu_spec=taskSpec.get_host_cpu_spec(),
+                                                                       host_gpu_spec=taskSpec.get_host_gpu_spec())
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               caches=transHome,
-                                                                              cmtConfig=taskSpec.getArchitecture())
+                                                                              cmtConfig=taskSpec.get_sw_platform())
                 elif (transHome == '' and taskSpec.transUses is not None) or \
                         (re.search('-\d+\.\d+\.\d+$',transHome) is not None and
                         (taskSpec.transUses is None or re.search('-\d+\.\d+$', taskSpec.transUses) is None)):
@@ -587,56 +589,64 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         tmpSiteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
                                                                               "AtlasOffline",
                                                                               transUses,
-                                                                              taskSpec.getArchitecture(),
+                                                                              taskSpec.get_sw_platform(),
                                                                               False, False,
                                                                               container_name=taskSpec.container_name,
-                                                                              only_tags_fc=taskSpec.use_only_tags_fc())
+                                                                              only_tags_fc=taskSpec.use_only_tags_fc(),
+                                                                              host_cpu_spec=taskSpec.get_host_cpu_spec(),
+                                                                              host_gpu_spec=taskSpec.get_host_gpu_spec())
                         siteListWithSW += tmpSiteListWithSW
                     if len(transHome.split('-')) == 2:
                         tmpSiteListWithSW, sitesNoJsonCheck = jsonCheck.check(sitesNoJsonCheck, "atlas",
                                                                               transHome.split('-')[0],
                                                                               transHome.split('-')[1],
-                                                                              taskSpec.getArchitecture(),
+                                                                              taskSpec.get_sw_platform(),
                                                                               False, False,
                                                                               container_name=taskSpec.container_name,
-                                                                              only_tags_fc=taskSpec.use_only_tags_fc())
+                                                                              only_tags_fc=taskSpec.use_only_tags_fc(),
+                                                                              host_cpu_spec=taskSpec.get_host_cpu_spec(),
+                                                                              host_gpu_spec=taskSpec.get_host_gpu_spec())
                         siteListWithSW += tmpSiteListWithSW
                     if transUses is not None:
                         siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                                   releases=transUses,
-                                                                                  cmtConfig=taskSpec.getArchitecture())
+                                                                                  cmtConfig=taskSpec.get_sw_platform())
                     siteListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               caches=transHome,
-                                                                              cmtConfig=taskSpec.getArchitecture())
+                                                                              cmtConfig=taskSpec.get_sw_platform())
                 else:
                     # nightlies or standalone
                     siteListWithCVMFS = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
                                                                                 releases='CVMFS')
-                    if taskSpec.getArchitecture() in ['', None]:
+                    if taskSpec.get_sw_platform() in ['', None]:
                         # architecture is not set
                         siteListWithCMTCONFIG = copy.copy(unified_site_list)
                     else:
                         siteListWithCMTCONFIG = \
                             self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                            cmtConfig=taskSpec.getArchitecture(),
+                            cmtConfig=taskSpec.get_sw_platform(),
                             onlyCmtConfig=True)
                     if taskSpec.transHome is not None:
                         # CVMFS check for nightlies
                         siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
                                                                            None, None,
-                                                                           taskSpec.getArchitecture(),
+                                                                           taskSpec.get_sw_platform(),
                                                                            True, False,
                                                                            container_name=taskSpec.container_name,
-                                                                           only_tags_fc=taskSpec.use_only_tags_fc())
+                                                                           only_tags_fc=taskSpec.use_only_tags_fc(),
+                                                                           host_cpu_spec=taskSpec.get_host_cpu_spec(),
+                                                                           host_gpu_spec=taskSpec.get_host_gpu_spec())
                         siteListWithSW += list(set(siteListWithCVMFS) & set(siteListWithCMTCONFIG))
                     else:
                         # no CVMFS check for standalone SW
                         siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
                                                                            None, None,
-                                                                           taskSpec.getArchitecture(),
+                                                                           taskSpec.get_sw_platform(),
                                                                            False, True,
                                                                            container_name=taskSpec.container_name,
-                                                                           only_tags_fc=taskSpec.use_only_tags_fc())
+                                                                           only_tags_fc=taskSpec.use_only_tags_fc(),
+                                                                           host_cpu_spec=taskSpec.get_host_cpu_spec(),
+                                                                           host_gpu_spec=taskSpec.get_host_gpu_spec())
                         siteListWithSW += siteListWithCMTCONFIG
                 newScanSiteList = []
                 oldScanSiteList = copy.copy(scanSiteList)
@@ -650,12 +660,12 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     else:
                         # release is unavailable
                         tmpLog.info('  skip site=%s due to missing rel/cache %s:%s:%s criteria=-cache' % \
-                                     (tmpSiteName,taskSpec.transUses,taskSpec.transHome,taskSpec.getArchitecture()))
+                                     (tmpSiteName,taskSpec.transUses,taskSpec.transHome,taskSpec.get_sw_platform()))
                 scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
                 tmpLog.info('{0} candidates passed for SW {1}:{2}:{3}'.format(len(scanSiteList),
                                                                                taskSpec.transUses,
                                                                                taskSpec.transHome,
-                                                                               taskSpec.getArchitecture()))
+                                                                               taskSpec.get_sw_platform()))
                 self.add_summary_message(oldScanSiteList, scanSiteList, 'release/cache check')
                 if not scanSiteList:
                     self.dump_summary(tmpLog)

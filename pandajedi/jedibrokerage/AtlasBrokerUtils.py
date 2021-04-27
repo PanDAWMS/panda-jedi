@@ -807,18 +807,67 @@ class JsonSoftwareCheck:
 
     # get lists
     def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only,
-              need_container=False, container_name=None, only_tags_fc=False):
+              need_container=False, container_name=None, only_tags_fc=False, host_cpu_spec=None,
+              host_gpu_spec=None):
         okSite = []
         noAutoSite = []
         for tmpSiteName in site_list:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
+                try:
+                    # check if exclusive for GPU
+                    only_gpu = False
+                    if 'architecture' in self.swDict[tmpSiteName]:
+                        for arch, arch_spec in iteritems(self.swDict[tmpSiteName]['architecture']):
+                            if 'coproc' in arch_spec and 'exclusive' in arch_spec['coproc'] and \
+                                    arch_spec['coproc']['exclusive'] is True:
+                                only_gpu = True
+                                break
+                    # host HW spec
+                    if host_gpu_spec is None:
+                        # skip since host GPU spec is not specified and the PQ is only for GPU jobs
+                        if only_gpu:
+                            continue
+                    if host_cpu_spec or host_gpu_spec:
+                        # skip since the PQ doesn't describe HW spec
+                        if 'architecture' not in self.swDict[tmpSiteName]:
+                            continue
+                        # check HW
+                        found = False
+                        for arch, arch_spec in iteritems(self.swDict[tmpSiteName]['architecture']):
+                            # check CPU
+                            if host_cpu_spec:
+                                # check architecture
+                                if host_cpu_spec['arch'] != '*' and host_cpu_spec['arch'] != arch:
+                                    continue
+                                # check vendor
+                                if host_cpu_spec['vendor'] != '*' and \
+                                        ('vendor' not in arch_spec or host_cpu_spec['vendor'] != arch_spec['vendor']):
+                                    continue
+                                # check instruction set
+                                if host_cpu_spec['instr'] != '*' and \
+                                        ('instr' not in arch_spec or host_cpu_spec['instr'] not in arch_spec['instr']):
+                                    continue
+                            # check GPU
+                            if host_gpu_spec:
+                                # CPU only
+                                if 'coproc' not in arch_spec:
+                                    continue
+                                # check vendor
+                                if host_gpu_spec['vendor'] != '*' and \
+                                        host_gpu_spec['vendor'] != arch_spec['coproc']['vendor']:
+                                    continue
+                                # check instruction set
+                                if host_gpu_spec['model'] != '*' and \
+                                        host_gpu_spec['model'] not in arch_spec['coproc']['model']:
+                                    continue
+                            found = True
+                        if not found:
+                            continue
+                except Exception:
+                    pass
                 # check for fat container
                 if container_name:
-                    # check architecture
-                    if cmt_config and 'architecture' in self.swDict[tmpSiteName] and \
-                            cmt_config not in self.swDict[tmpSiteName]:
-                        continue
                     # check for container
                     if not only_tags_fc and ('any' in self.swDict[tmpSiteName]["containers"] or
                             '/cvmfs' in self.swDict[tmpSiteName]["containers"]):

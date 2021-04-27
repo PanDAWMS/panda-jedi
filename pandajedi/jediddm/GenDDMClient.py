@@ -13,3 +13,7 @@ class GenDDMClient(DDMClientBase):
     def __init__(self,con):
         # initialize base class
         DDMClientBase.__init__(self,con)
+
+    # get dataset metadata
+    def getDatasetMetaData(self, datasetName, ignore_missing=False):
+        return self.SC_SUCCEEDED, {'state':'closed'}

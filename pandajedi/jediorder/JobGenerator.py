@@ -933,7 +933,7 @@ class JobGeneratorThread (WorkerThread):
                         jobSpec.transformation = taskParamMap['mergeSpec']['transPath']
                     else:
                         jobSpec.transformation = taskSpec.transPath
-                    jobSpec.cmtConfig        = taskSpec.architecture
+                    jobSpec.cmtConfig        = taskSpec.get_platforms()
                     if taskSpec.transHome is not None:
                         jobSpec.homepackage  = re.sub('-(?P<dig>\d+\.)','/\g<dig>',taskSpec.transHome)
                         jobSpec.homepackage  = re.sub('\r','',jobSpec.homepackage)
@@ -1549,7 +1549,7 @@ class JobGeneratorThread (WorkerThread):
             jobSpec.maxAttempt       = 0
             jobSpec.jobName          = taskSpec.taskName
             jobSpec.transformation   = taskParamMap['buildSpec']['transPath']
-            jobSpec.cmtConfig        = taskSpec.architecture
+            jobSpec.cmtConfig        = taskSpec.get_platforms()
             if taskSpec.transHome is not None:
                 jobSpec.homepackage  = re.sub('-(?P<dig>\d+\.)','/\g<dig>',taskSpec.transHome)
                 jobSpec.homepackage  = re.sub('\r','',jobSpec.homepackage)

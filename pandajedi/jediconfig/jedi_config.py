@@ -32,6 +32,8 @@ for tmpSection in tmpConf.sections():
             tmpVal = True
         elif tmpVal == 'False':
             tmpVal = False
+        elif tmpVal == 'None':
+            tmpVal = None
         elif re.match('^\d+$',tmpVal):
             tmpVal = int(tmpVal)
         # update dict

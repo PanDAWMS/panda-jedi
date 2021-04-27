@@ -10,7 +10,6 @@ import datetime
 import traceback
 import socket
 import uuid
-import cx_Oracle
 
 from six import iteritems
 
@@ -42,6 +41,22 @@ from . import JediCoreUtils
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 taskbuffer.OraDBProxy._logger = logger
+
+
+# get database backend
+def get_database_backend():
+    if hasattr(jedi_config.db, 'backend'):
+        return jedi_config.db.backend
+    return None
+
+
+backend = get_database_backend()
+if backend == 'postgres':
+    import psycopg2 as psycopg
+    varNUMBER = long
+else:
+    import cx_Oracle
+    varNUMBER = cx_Oracle.NUMBER
 
 # add handlers of filtered logger
 tmpLoggerFiltered = PandaLogger().getLogger(__name__.split('.')[-1]+'Filtered')
@@ -1287,7 +1302,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql += JediDatasetSpec.bindValuesExpression()
             sql += " RETURNING datasetID INTO :newDatasetID"
             varMap = datasetSpec.valuesMap(useSeq=True)
-            varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+            varMap[':newDatasetID'] = self.cur.var(varNUMBER)
             # begin transaction
             self.conn.begin()
             # insert dataset
@@ -1296,7 +1311,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError('Commit error')
             tmpLog.debug('done')
-            val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+            val = self.getvalue_corrector(self.cur.getvalue(varMap[':newDatasetID']))
             return True,long(val)
         except Exception:
             # roll back
@@ -2711,9 +2726,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             cDatasetSpec.creationTime     = timeNow
                             cDatasetSpec.modificationTime = timeNow
                             varMap = cDatasetSpec.valuesMap(useSeq=True)
-                            varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+                            varMap[':newDatasetID'] = self.cur.var(varNUMBER)
                             self.cur.execute(sqlT2+comment,varMap)
-                            val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                            val = self.getvalue_corrector(self.cur.getvalue(varMap[':newDatasetID']))
                             fileDatasetID = long(val)
                             if instantiatedSite is not None:
                                 # set concreate name
@@ -2798,9 +2813,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     indexFileID += 1
                                 else:
                                     varMap = fileSpec.valuesMap(useSeq=True)
-                                    varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
+                                    varMap[':newFileID'] = self.cur.var(varNUMBER)
                                     self.cur.execute(sqlI+comment,varMap)
-                                    val = self.getvalue_corrector(varMap[':newFileID'].getvalue())
+                                    val = self.getvalue_corrector(self.cur.getvalue(varMap[':newFileID']))
                                     fileSpec.fileID = long(val)
                                 # increment SN
                                 varMap = {}
@@ -4014,8 +4029,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         varMap[':jediTaskID'] = jediTaskID
                                         varMap[':datasetID'] = datasetID
                                         varMap[':nFilesUsed'] = nFilesUsed
-                                        varMap[':newnFilesUsed'] = self.cur.var(cx_Oracle.NUMBER)
-                                        varMap[':newnFilesTobeUsed'] = self.cur.var(cx_Oracle.NUMBER)
+                                        varMap[':newnFilesUsed'] = self.cur.var(varNUMBER)
+                                        varMap[':newnFilesTobeUsed'] = self.cur.var(varNUMBER)
                                         self.cur.execute(sqlDU + comment, varMap)
                                         #newnFilesUsed = long(varMap[':newnFilesUsed'].getvalue())
                                         #newnFilesTobeUsed = long(varMap[':newnFilesTobeUsed'].getvalue())
@@ -4160,9 +4175,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if parent_tid is not None:
                 varMap[':parent_tid']  = parent_tid
             varMap[':prodSourceLabel'] = prodSourceLabel
-            varMap[':jediTaskID'] = self.cur.var(cx_Oracle.NUMBER)
+            varMap[':jediTaskID'] = self.cur.var(varNUMBER)
             self.cur.execute(sqlT+comment,varMap)
-            val = self.getvalue_corrector(varMap[':jediTaskID'].getvalue())
+            val = self.getvalue_corrector(self.cur.getvalue(varMap[':jediTaskID']))
             jediTaskID = long(val)
             # commit
             if not self._commit():
@@ -4206,9 +4221,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':status'] = 'waiting'
                 varMap[':parent_tid'] = jediTaskID
                 varMap[':prodSourceLabel'] = prodSourceLabel
-                varMap[':jediTaskID'] = self.cur.var(cx_Oracle.NUMBER)
+                varMap[':jediTaskID'] = self.cur.var(varNUMBER)
                 self.cur.execute(sqlIT+comment,varMap)
-                val = self.getvalue_corrector(varMap[':jediTaskID'].getvalue())
+                val = self.getvalue_corrector(self.cur.getvalue(varMap[':jediTaskID']))
                 newJediTaskID = long(val)
                 newJediTaskIDs.append(newJediTaskID)
             # update task parameters
@@ -4346,9 +4361,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTR += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sqlTR += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sqlTR += "AND tabT.status IN (:status1,:status2,:status3,:status4) AND lockedBy IS NOT NULL AND lockedTime<:timeLimit "
-            if vo is not None:
+            if vo not in [None,'any']:
                 sqlTR += "AND vo=:vo "
-            if prodSourceLabel is not None:
+            if prodSourceLabel not in [None,'any']:
                 sqlTR += "AND prodSourceLabel=:prodSourceLabel "
             # sql to get picked datasets
             sqlDP  = "SELECT datasetID FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
@@ -4380,9 +4395,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status3'] = 'running'
             varMap[':status4'] = 'merging'
             varMap[':timeLimit'] = timeLimit
-            if vo is not None:
+            if vo not in [None,'any']:
                 varMap[':vo'] = vo
-            if prodSourceLabel is not None:
+            if prodSourceLabel not in [None,'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
             self.cur.execute(sqlTR+comment,varMap)
             resTaskList = self.cur.fetchall()
@@ -5409,10 +5424,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         datasetSpec.creationTime = timeNow
                         datasetSpec.modificationTime = timeNow
                         varMap = datasetSpec.valuesMap(useSeq=True)
-                        varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+                        varMap[':newDatasetID'] = self.cur.var(varNUMBER)
                         # insert dataset
                         self.cur.execute(sql+comment,varMap)
-                        val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                        val = self.getvalue_corrector(self.cur.getvalue(varMap[':newDatasetID']))
                         datasetID = long(val)
                         masterID = datasetID
                         datasetIdMap[datasetSpec.uniqueMapKey()] = datasetID
@@ -5429,10 +5444,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         datasetSpec.modificationTime = timeNow
                         datasetSpec.masterID = masterID
                         varMap = datasetSpec.valuesMap(useSeq=True)
-                        varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+                        varMap[':newDatasetID'] = self.cur.var(varNUMBER)
                         # insert dataset
                         self.cur.execute(sql+comment,varMap)
-                        val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                        val = self.getvalue_corrector(self.cur.getvalue(varMap[':newDatasetID']))
                         datasetID = long(val)
                         datasetIdMap[datasetSpec.uniqueMapKey()] = datasetID
                         datasetSpec.datasetID = datasetID
@@ -5448,10 +5463,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     datasetSpec.creationTime = timeNow
                     datasetSpec.modificationTime = timeNow
                     varMap = datasetSpec.valuesMap(useSeq=True)
-                    varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+                    varMap[':newDatasetID'] = self.cur.var(varNUMBER)
                     # insert dataset
                     self.cur.execute(sql+comment,varMap)
-                    val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                    val = self.getvalue_corrector(self.cur.getvalue(varMap[':newDatasetID']))
                     datasetID = long(val)
                     datasetIdMap[datasetSpec.outputMapKey()] = datasetID
                     datasetSpec.datasetID = datasetID
@@ -5462,10 +5477,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     datasetSpec.modificationTime = timeNow
                     datasetSpec.masterID = unmergeMasterID
                     varMap = datasetSpec.valuesMap(useSeq=True)
-                    varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+                    varMap[':newDatasetID'] = self.cur.var(varNUMBER)
                     # insert dataset
                     self.cur.execute(sql+comment,varMap)
-                    val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                    val = self.getvalue_corrector(self.cur.getvalue(varMap[':newDatasetID']))
                     datasetID = long(val)
                     datasetIdMap[datasetSpec.outputMapKey()] = datasetID
                     datasetSpec.datasetID = datasetID
@@ -5481,10 +5496,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     elif datasetSpec.outputMapKey() in unmergeDatasetSpecMap:
                         datasetSpec.provenanceID = unmergeDatasetSpecMap[datasetSpec.outputMapKey()].datasetID
                     varMap = datasetSpec.valuesMap(useSeq=True)
-                    varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+                    varMap[':newDatasetID'] = self.cur.var(varNUMBER)
                     # insert dataset
                     self.cur.execute(sql+comment,varMap)
-                    val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                    val = self.getvalue_corrector(self.cur.getvalue(varMap[':newDatasetID']))
                     datasetID = long(val)
                     datasetIdMap[outputMapKey] = datasetID
                     datasetSpec.datasetID = datasetID
@@ -7359,7 +7374,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':worldCloud'] = JediTaskSpec.worldCloudName
             if priority is not None:
                 varMap[':priority'] = priority
-            sql  = "SELECT tabT.nucleus,SUM((nEvents-nEventsUsed)*DECODE(cpuTime,NULL,300,cpuTime)) "
+            sql  = "SELECT tabT.nucleus,SUM((nEvents-nEventsUsed)*(CASE WHEN cpuTime IS NULL THEN 300 ELSE cpuTime END)) "
             sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
             sql += "AND tabT.jediTaskID=tabD.jediTaskID AND masterID IS NULL "
@@ -8623,13 +8638,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # start transaction
             self.conn.begin()
             varMap = datasetSpec.valuesMap(useSeq=True)
-            varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+            varMap[':newDatasetID'] = self.cur.var(varNUMBER)
             # insert dataset
             if reusedDatasetID is not None:
                 datasetID = reusedDatasetID
             elif not simul:
                 self.cur.execute(sqlDS+comment,varMap)
-                val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                val = self.getvalue_corrector(self.cur.getvalue(varMap[':newDatasetID']))
                 datasetID = long(val)
             else:
                 datasetID = 0
@@ -8638,10 +8653,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for fileSpec,pandaFileSpec in fileSpecList:
                 fileSpec.datasetID = datasetID
                 varMap = fileSpec.valuesMap(useSeq=True)
-                varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
+                varMap[':newFileID'] = self.cur.var(varNUMBER)
                 if not simul:
                     self.cur.execute(sqlFI+comment,varMap)
-                    val = self.getvalue_corrector(varMap[':newFileID'].getvalue())
+                    val = self.getvalue_corrector(self.cur.getvalue(varMap[':newFileID']))
                     fileID = long(val)
                 else:
                     fileID = 0
@@ -8805,9 +8820,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpFileSpec.firstEvent   = maxRndSeed
                     if not simul:
                         varMap = tmpFileSpec.valuesMap(useSeq=True)
-                        varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
+                        varMap[':newFileID'] = self.cur.var(varNUMBER)
                         self.cur.execute(sqlFI+comment,varMap)
-                        val = self.getvalue_corrector(varMap[':newFileID'].getvalue())
+                        val = self.getvalue_corrector(self.cur.getvalue(varMap[':newFileID']))
                         tmpFileSpec.fileID = long(val)
                         tmpLog.debug('insert fileID={0} datasetID={1} rndmSeed={2}'.format(tmpFileSpec.fileID,
                                                                                            tmpFileSpec.datasetID,
@@ -8950,9 +8965,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                          datasetSpec.nFiles)
                 if not simul:
                     varMap = tmpFileSpec.valuesMap(useSeq=True)
-                    varMap[':newFileID'] = self.cur.var(cx_Oracle.NUMBER)
+                    varMap[':newFileID'] = self.cur.var(varNUMBER)
                     self.cur.execute(sqlFI+comment,varMap)
-                    val = self.getvalue_corrector(varMap[':newFileID'].getvalue())
+                    val = self.getvalue_corrector(self.cur.getvalue(varMap[':newFileID']))
                     tmpFileSpec.fileID = long(val)
                     # increment nFiles
                     varMap = {}
@@ -9468,10 +9483,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         datasetSpec.creationTime = timeNow
                         datasetSpec.modificationTime = timeNow
                         varMap = datasetSpec.valuesMap(useSeq=True)
-                        varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+                        varMap[':newDatasetID'] = self.cur.var(varNUMBER)
                         # insert dataset
                         self.cur.execute(sqlID+comment,varMap)
-                        val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                        val = self.getvalue_corrector(self.cur.getvalue(varMap[':newDatasetID']))
                         datasetID = long(val)
                         masterID = datasetID
                         datasetSpec.datasetID = datasetID
@@ -9481,10 +9496,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             datasetSpec.modificationTime = timeNow
                             datasetSpec.masterID = masterID
                             varMap = datasetSpec.valuesMap(useSeq=True)
-                            varMap[':newDatasetID'] = self.cur.var(cx_Oracle.NUMBER)
+                            varMap[':newDatasetID'] = self.cur.var(varNUMBER)
                             # insert dataset
                             self.cur.execute(sqlID+comment,varMap)
-                            val = self.getvalue_corrector(varMap[':newDatasetID'].getvalue())
+                            val = self.getvalue_corrector(self.cur.getvalue(varMap[':newDatasetID']))
                             datasetID = long(val)
                             datasetSpec.datasetID = datasetID
                         goDefined = True
