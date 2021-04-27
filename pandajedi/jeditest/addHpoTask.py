@@ -42,17 +42,21 @@ taskParamMap['log'] = {'dataset': logDatasetName,
                        'offset':1000,
                        'value':'{0}.${{SN}}.log.tgz'.format(logDatasetName)}
 
-taskParamMap['hpoRequestData'] = {'sandbox': None,
-                                  'method': 'bayesian',
-                                  'opt_space': {'A': (1, 4), 'B': (1, 10)},
-                                  'initial_points': [({'A': 1, 'B': 2}, 0.3), ({'A': 1, 'B': 3}, None)],
-                                  'max_points': 5,
+taskParamMap['hpoRequestData'] = {'sandbox': 'gitlab-registry.cern.ch/zhangruihpc/steeringcontainer:latest',
+                                  'executable': 'docker',
+                                  'arguments': "/bin/bash -c \"hpogrid generate --n_point=%NUM_POINTS "
+                                               "--max_point=%MAX_POINTS --infile=$PWD/%IN  --outfile=$PWD/%OUT "
+                                               "-l=nevergrad\"",
+                                  'output_json': 'output.json',
+                                  'max_points': 10,
                                   'num_points_per_generation': 2,
                                   }
 
+taskParamMap['container_name'] = 'docker://gitlab-registry.cern.ch/zhangruihpc/evaluationcontainer:mlflow'
+
 taskParamMap['jobParameters'] = [
     {'type':'constant',
-     'value': '-o out.json -j "" -p "{0}"'.format(quote('cp xxx.json out.json; tar cvfz metrics.tgz xxx.json'))
+     'value': '-o out.json -j "" -p "{0}"'.format(quote('bash ./exec_in_container.sh'))
      },
     {'type': 'constant',
      'value': '--writeInputToTxt IN_DATA:input_ds.json --inSampleFile input_sample.json'
