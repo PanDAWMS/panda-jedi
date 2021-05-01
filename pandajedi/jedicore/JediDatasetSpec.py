@@ -582,7 +582,9 @@ class JediDatasetSpec(object):
     def setDistributed(self):
         self.distributed = True
 
-
+    # reset distributed
+    def reset_distributed(self):
+        self.distributed = False
 
     # check if distributed
     def isDistributed(self):

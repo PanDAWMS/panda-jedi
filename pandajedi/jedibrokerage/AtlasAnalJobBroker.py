@@ -162,12 +162,16 @@ class AtlasAnalJobBroker(JobBrokerBase):
         # two loops with/without data locality check
         scanSiteLists = [(copy.copy(scanSiteList), True)]
         if len(inputChunk.getDatasets()) > 0:
+            nRealDS = 0
+            for datasetSpec in inputChunk.getDatasets():
+                if not datasetSpec.isPseudo():
+                    nRealDS += 1
             if taskSpec.taskPriority >= 2000:
                 if inputChunk.isMerging:
                     scanSiteLists.append((copy.copy(scanSiteList), False))
                 else:
                     scanSiteLists = [(copy.copy(scanSiteList), False)]
-            elif taskSpec.taskPriority > 1000:
+            elif taskSpec.taskPriority > 1000 or nRealDS > 1:
                 scanSiteLists.append((copy.copy(scanSiteList), False))
         retVal = None
         checkDataLocality = False
@@ -189,6 +193,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
             dataWeight = {}
             ddsList = set()
             remoteSourceList = {}
+            for datasetSpec in inputChunk.getDatasets():
+                datasetSpec.reset_distributed()
             if inputChunk.getDatasets() != [] and checkDataLocality:
                 oldScanSiteList = copy.copy(scanSiteList)
                 oldScanUnifiedSiteList = self.get_unified_sites(oldScanSiteList)
