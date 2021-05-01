@@ -452,15 +452,19 @@ class ContentsFeederThread (WorkerThread):
                                             # calculate for secondary
                                             nMaxFiles = datasetSpec.getNumMultByRatio(origNumFiles)
                                             # multipled by the number of jobs per file for event-level splitting
-                                            if nMaxFiles is not None and 'nEventsPerFile' in taskParamMap:
-                                                if 'nEventsPerJob' in taskParamMap:
-                                                    if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
-                                                        nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerJob'])
-                                                        nMaxFiles = int(math.ceil(nMaxFiles))
-                                                elif 'nEventsPerRange' in taskParamMap:
-                                                    if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerRange']:
-                                                        nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerRange'])
-                                                        nMaxFiles = int(math.ceil(nMaxFiles))
+                                            if nMaxFiles is not None:
+                                                if 'nEventsPerFile' in taskParamMap:
+                                                    if 'nEventsPerJob' in taskParamMap:
+                                                        if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
+                                                            nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerJob'])
+                                                            nMaxFiles = int(math.ceil(nMaxFiles))
+                                                    elif 'nEventsPerRange' in taskParamMap:
+                                                        if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerRange']:
+                                                            nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerRange'])
+                                                            nMaxFiles = int(math.ceil(nMaxFiles))
+                                                elif 'useRealNumEvents' in taskParamMap:
+                                                    # reset nMaxFiles since it is unknown
+                                                    nMaxFiles = None
                                     # use scout
                                     useScout = False
                                     if datasetSpec.isMaster() and taskSpec.useScout() and (datasetSpec.status != 'toupdate' or not taskSpec.isPostScout()):
