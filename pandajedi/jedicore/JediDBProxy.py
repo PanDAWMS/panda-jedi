@@ -10638,8 +10638,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += " <jediTaskID={0} datasetID={1}>".format(datasetSpec.jediTaskID,
                                                                datasetSpec.datasetID)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
         try:
+            tmpLog.debug('start random={}'.format(datasetSpec.isRandom()))
             # sql to get unique files
             sqlCT  = "SELECT COUNT(*) FROM ("
             sqlCT += "SELECT distinct lfn,startEvent,endEvent "
@@ -10662,7 +10662,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlFR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             sqlFR += "GROUP BY lfn,startEvent,endEvent) "
-            sqlFR += "ORDER BY fileID) "
+            if not datasetSpec.isRandom():
+                sqlFR += "ORDER BY fileID) "
+            else:
+                sqlFR += "ORDER BY DBMS_RANDOM.value) "
             # sql to update dataset record
             sqlDU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDU += "SET nFiles=nFiles+:iFiles,nFilesTobeUsed=nFilesTobeUsed+:iFiles "
