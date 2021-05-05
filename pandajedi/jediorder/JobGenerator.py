@@ -1933,6 +1933,13 @@ class JobGeneratorThread (WorkerThread):
                     encStreamName = streamNames+'/E'
                     replaceStr = unquote(replaceStr)
                     parTemplate = parTemplate.replace('${'+encStreamName+'}',replaceStr)
+                    # mathematics
+                    if '/M' in decorators:
+                        tmp_m = re.search(r'/M\[([^\]]+)\]', decorators)
+                        if tmp_m:
+                            tmp_formula = tmp_m.group(1).replace('#', listLFN[0])
+                            replaceStr = str(eval(tmp_formula))
+                            parTemplate = parTemplate.replace('${' + placeHolder + '}', replaceStr)
                 else:
                     # compact format
                     compactLFNs = []
