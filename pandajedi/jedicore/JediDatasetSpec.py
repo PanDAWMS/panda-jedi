@@ -47,6 +47,7 @@ class JediDatasetSpec(object):
         'consistencyCheck' : 'cc',
         'eventRatio'       : 'er',
         'indexConsistent'  : 'ic',
+        'mergeOnly'        : 'mo',
         'nFilesPerJob'     : 'np',
         'num_records'      : 'nr',
         'offset'           : 'of',
@@ -617,8 +618,6 @@ class JediDatasetSpec(object):
                         pass
         return None
 
-
-
     # set pseudo
     def setPseudo(self):
         if self.attributes in [None,'']:
@@ -628,3 +627,10 @@ class JediDatasetSpec(object):
         if self.attrToken['pseudo'] not in items:
             items.append(self.attrToken['pseudo'])
             self.attributes = ','.join(items)
+
+    # merge only
+    def is_merge_only(self):
+        try:
+            return self.attrToken['mergeOnly'] in self.attributes.split(',')
+        except Exception:
+            return False

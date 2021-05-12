@@ -1870,7 +1870,12 @@ class JobGeneratorThread (WorkerThread):
                 # collect transient and final steams
                 if streamName is not None and not streamName.startswith('TRN_'):
                     counterStreamName = 'TRN_'+streamName
-                    if counterStreamName not in streamLFNsMap:
+                    if streamName == 'LOG_MERGE' and 'TRN_LOG0' in streamLFNsMap:
+                        transientStreamCombo[streamName] = {
+                            'out': streamName,
+                            'in': 'TRN_LOG0',
+                            }
+                    elif counterStreamName not in streamLFNsMap:
                         # streams to be deleted
                         streamToDelete[streamName] = streamLFNsMap[streamName]
                         streamToDelete[counterStreamName] = []

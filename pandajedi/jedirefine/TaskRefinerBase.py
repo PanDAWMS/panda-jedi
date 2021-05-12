@@ -419,6 +419,8 @@ class TaskRefinerBase (object):
             itemList = taskParamMap['jobParameters'] + [taskParamMap['log']]
         else:
             itemList = taskParamMap['jobParameters'] + taskParamMap['log']
+        if 'log_merge' in taskParamMap:
+            itemList += [taskParamMap['log_merge']]
         # pseudo input
         if 'noInput' in taskParamMap and taskParamMap['noInput'] is True:
             tmpItem = {}
@@ -471,6 +473,8 @@ class TaskRefinerBase (object):
                     datasetSpec.setDatasetAttribute('ru')
                 if 'indexConsistent' in tmpItem:
                     datasetSpec.setDatasetAttributeWithLabel('indexConsistent')
+                if 'mergeOnly' in tmpItem:
+                    datasetSpec.setDatasetAttributeWithLabel('mergeOnly')
                 if 'offset' in tmpItem:
                     datasetSpec.setOffset(tmpItem['offset'])
                 if 'allowNoOutput' in tmpItem:
@@ -566,7 +570,10 @@ class TaskRefinerBase (object):
                     if datasetSpec.type not in nOutMap:
                         nOutMap[datasetSpec.type] = 0
                     # make stream name
-                    datasetSpec.streamName = "{0}{1}".format(datasetSpec.type.upper(),nOutMap[datasetSpec.type])
+                    if not datasetSpec.is_merge_only():
+                        datasetSpec.streamName = "{0}{1}".format(datasetSpec.type.upper(),nOutMap[datasetSpec.type])
+                    else:
+                        datasetSpec.streamName = 'LOG_MERGE'
                     nOutMap[datasetSpec.type] += 1
                     # set attribute for event service
                     if self.taskSpec.useEventService() and 'objectStore' in taskParamMap and datasetSpec.type in ['output']:
@@ -594,6 +601,9 @@ class TaskRefinerBase (object):
                         self.outputTemplateMap[datasetSpec.outputMapKey()] = [outTemplateMap]
                     # append
                     self.outDatasetSpecList.append(datasetSpec)
+                    # used only in merge
+                    if datasetSpec.is_merge_only():
+                        continue
                     # make unmerged dataset
                     if 'mergeOutput' in taskParamMap and taskParamMap['mergeOutput'] is True:
                         umDatasetSpec = JediDatasetSpec()
