@@ -3846,6 +3846,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 maxMasterFilesTobeRead = maxNumFiles
                             iFiles = {}
                             totalEvents = {}
+                            maxFilesTobeReadWithEventRatio = 10000
                             for inputChunk in inputChunks:
                                 for datasetID in datasetIDs:
                                     iFiles.setdefault(datasetID, 0)
@@ -3859,7 +3860,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         # for secondaries
                                         if taskSpec.useLoadXML() or tmpDatasetSpec.isNoSplit() \
                                                 or tmpDatasetSpec.getEventRatio() is not None:
-                                            maxFilesTobeRead = 10000
+                                            maxFilesTobeRead = maxFilesTobeReadWithEventRatio
                                         elif tmpDatasetSpec.getNumFilesPerJob() is not None:
                                             maxFilesTobeRead = maxMasterFilesTobeRead * tmpDatasetSpec.getNumFilesPerJob()
                                         else:
@@ -3888,16 +3889,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         orderBy = 'lfn,fileID'
                                     else:
                                         orderBy = 'boundaryID'
-                                    tmpLog.debug(
-                                        'jediTaskID={0} trying to read {1} files from datasetID={2} with ramCount={3} orderBy={4}'.format(
-                                            jediTaskID,
-                                            numFilesTobeReadInCycle,
-                                            datasetID, inputChunk.ramCount,
-                                            orderBy))
                                     # read files to make FileSpec
                                     iFiles_tmp = 0
                                     iFilesWaiting = 0
                                     for iDup in range(100): # avoid infinite loop just in case
+                                        tmpLog.debug(
+                                            'jediTaskID={} to read {} files from datasetID={} in attmpt={} with ramCount={} orderBy={}'.format(
+                                                jediTaskID,
+                                                numFilesTobeReadInCycle,
+                                                datasetID, iDup+1, inputChunk.ramCount,
+                                                orderBy))
                                         varMap = {}
                                         varMap[':datasetID'] = datasetID
                                         varMap[':jediTaskID'] = jediTaskID
@@ -3960,7 +3961,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                 inputChunk.ramCount not in (None, 0):
                                             break
                                         # enough files were read
-                                        if iFiles_tmp >= numFilesTobeReadInCycle:
+                                        if iFiles_tmp >= numFilesTobeReadInCycle and \
+                                                tmpDatasetSpec.getEventRatio() is None:
                                             break
                                         # check if enough events were read
                                         totEvtSecond = 0
@@ -3984,6 +3986,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                 if subTotEvtSecond < targetEvents:
                                                     enoughSecondary = False
                                                     break
+                                            if not enoughSecondary:
+                                                # read more files without making duplication
+                                                if iFiles_tmp >= numFilesTobeReadInCycle:
+                                                    numFilesTobeReadInCycle += maxFilesTobeReadWithEventRatio
+                                                    continue
                                         if enoughSecondary:
                                             break
                                         # duplicate files for reuse
