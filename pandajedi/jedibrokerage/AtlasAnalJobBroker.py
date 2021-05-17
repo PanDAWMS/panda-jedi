@@ -976,7 +976,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                 tmpPseudoSiteName))
                             continue
                         newScanSiteList.append(tmpSiteName)
-                    scanSiteList = newScanSiteList
+                    scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
                 tmpLog.info('{0} candidates passed preassigned check'.format(len(scanSiteList)))
                 self.add_summary_message(oldScanSiteList, scanSiteList, 'preassign check')
             ######################################
