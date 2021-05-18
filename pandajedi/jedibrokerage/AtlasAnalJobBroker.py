@@ -865,6 +865,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             ######################################
             # selection for nPilot
             nWNmap = self.taskBufferIF.getCurrentSiteData()
+            nPilotMap = {}
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in self.get_unified_sites(scanSiteList):
@@ -877,6 +878,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     if not self.testMode:
                         continue
                 newScanSiteList.append(tmpSiteName)
+                nPilotMap[tmpSiteName] = nPilot
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
             self.add_summary_message(oldScanSiteList, scanSiteList, 'pilot activity check')
@@ -1334,6 +1336,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         candidateSpecList = []
         preSiteCandidateSpec = None
         basic_weight_comparison_map = {}
+        workerStat = self.taskBufferIF.ups_load_worker_stats()
         minBadJobsToSkipPQ = self.taskBufferIF.getConfigValue('anal_jobbroker', 'MIN_BAD_JOBS_TO_SKIP_PQ',
                                                               'jedi', taskSpec.vo)
         if minBadJobsToSkipPQ is None:
@@ -1346,6 +1349,24 @@ class AtlasAnalJobBroker(JobBrokerBase):
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'assigned', workQueue_tag=taskSpec.gshare)
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'activated', workQueue_tag=taskSpec.gshare)
             nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'starting', workQueue_tag=taskSpec.gshare)
+            # get num workers
+            nWorkers = 0
+            nWorkersCutoff = 20
+            if tmpSiteName in workerStat:
+                for tmpHarvesterID, tmpLabelStat in iteritems(workerStat[tmpSiteName]):
+                    for tmpHarvesterID, tmpResStat in iteritems(tmpLabelStat):
+                        for tmpResType, tmpCounts in iteritems(tmpResStat):
+                            for tmpStatus, tmpNum in iteritems(tmpCounts):
+                                if tmpStatus in ['running', 'submitted']:
+                                    nWorkers += tmpNum
+                # cap
+                nWorkers = min(nWorkersCutoff, nWorkers)
+            # use nWorkers to bootstrap
+            if tmpSiteName in nPilotMap and nPilotMap[tmpSiteName] > 0 and nRunning < nWorkersCutoff \
+                    and nWorkers > nRunning:
+                tmpLog.debug('using nWorkers={} as nRunning at {} since original nRunning={} is low'.format(
+                    nWorkers, tmpPseudoSiteName, nRunning))
+                nRunning = nWorkers
             # take into account the number of standby jobs
             numStandby = tmpSiteSpec.getNumStandby(taskSpec.gshare, taskSpec.resource_type)
             if numStandby is None:
