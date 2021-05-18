@@ -489,7 +489,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                         key_name=key_name, n_tasks=n_tasks, reason_str=reason_str))
                 else:
                     updated_tasks = self.taskBufferIF.undoPreassignedTasks_JEDI(preassigned_tasks_cached,
-                                                                                orig_priority,
+                                                                                task_orig_priority_map=task_orig_priority_map,
                                                                                 magic_priority=magic_priority,
                                                                                 force=force_undo)
                     if updated_tasks is None:

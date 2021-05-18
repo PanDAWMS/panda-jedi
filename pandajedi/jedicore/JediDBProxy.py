@@ -14132,13 +14132,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # undo preassigned tasks
-    def undoPreassignedTasks_JEDI(self, jedi_taskids, orig_priority, magic_priority, force):
+    def undoPreassignedTasks_JEDI(self, jedi_taskids, task_orig_priority_map, magic_priority, force):
         comment = ' /* JediDBProxy.undoPreassignedTasks_JEDI */'
         methodName = self.getMethodName(comment)
         # methodName += " < sql={0} >".format(sql_query)
         tmpLog = MsgWrapper(logger, methodName)
-        # priority condition
-
         # sql to undo a preassigned task if it moves off the status to generate jobs
         sqlUPT = (  "UPDATE {0}.JEDI_Tasks "
                     "SET "
@@ -14179,7 +14177,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for jedi_taskid in jedi_taskids:
                 varMap = {}
                 varMap[':jediTaskID'] = jedi_taskid
-                varMap[':orig_priority'] = orig_priority
+                varMap[':orig_priority'] = task_orig_priority_map[jedi_taskid]
                 varMap[':magic_priority'] = magic_priority
                 if force:
                     force_str = 'force'
