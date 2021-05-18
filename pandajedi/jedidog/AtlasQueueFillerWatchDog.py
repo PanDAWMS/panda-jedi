@@ -28,6 +28,8 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 # dry run or not
 DRY_RUN = False
 
+# boosted task priority when preassigned
+magic_priority = 1023
 
 # queue filler watchdog for ATLAS
 class AtlasQueueFillerWatchDog(WatchDogBase):
@@ -217,7 +219,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             for jobStatus in ['activated', 'starting']:
                 nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus)
             # busy sites
-            if nQueue > max(20, nRunning*2)*0.75:
+            if nQueue > max(20, nRunning*2)*0.375:
                 busy_sites_dict[tmpSiteName] = tmpSiteSpec
         # return
         return busy_sites_dict
@@ -246,8 +248,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                         'queue_filler', 'MIN_FILES_REMAINING_{0}'.format(prod_source_label), 'jedi', self.vo)
             if min_files_remaining is None:
                 min_files_remaining = 100
-            # boosted task priority when preassigned
-            magic_priority = 1023
             # available sites
             available_sites_dict = self.get_available_sites()
             # get blacklisted_tasks_map from cache
@@ -305,6 +305,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             "WHERE t.jediTaskID=d.jediTaskID AND d.type='input' "
                                 "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
                             ") "
+                        "AND t.currentPriority<:magic_priority "
                     "ORDER BY t.currentPriority DESC "
                     "FOR UPDATE "
                 ).format(jedi_schema=jedi_config.db.schemaJEDI,
@@ -321,6 +322,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             ':max_mem_per_core': max_mem_per_core,
                             ':min_files_ready': min_files_ready,
                             ':min_files_remaining': min_files_remaining,
+                            ':magic_priority': magic_priority,
                         }
                     params_map.update(rse_params_map)
                     # get preassigned_tasks_map from cache
@@ -356,6 +358,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                     "WHERE t.jediTaskID=d.jediTaskID AND d.type='input' "
                                         "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
                                     ") "
+                                "AND t.currentPriority<:magic_priority "
                             "ORDER BY t.currentPriority DESC "
                         ).format(jedi_schema=jedi_config.db.schemaJEDI,
                                     rse_params_str=rse_params_str,
@@ -391,7 +394,9 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                 preassigned_tasks_map[key_name] = list(set(updated_tasks) | set(preassigned_tasks_cached))
                                 self._update_to_pt_cache(preassigned_tasks_map)
                                 # update task_orig_priority_map into cache
-                                task_orig_priority_map.update(updated_tasks_prio)
+                                for taskid, orig_priority in updated_tasks_prio:
+                                    taskid_str = str(taskid)
+                                    task_orig_priority_map[taskid_str] = orig_priority
                                 self._update_to_prio_cache(task_orig_priority_map)
                                 # Kibana log
                                 for taskid in updated_tasks:
@@ -439,9 +444,10 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             all_preassiged_taskids = set()
             for taskid_list in preassigned_tasks_map_orig.values():
                 all_preassiged_taskids |= set(taskid_list)
-            for taskid in task_orig_priority_map_orig:
+            for taskid_str in task_orig_priority_map_orig:
+                taskid = int(taskid_str)
                 if taskid not in all_preassiged_taskids:
-                    del task_orig_priority_map[taskid]
+                    del task_orig_priority_map[taskid_str]
             self._update_to_prio_cache(task_orig_priority_map)
             # loop on preassigned tasks in cache
             for key_name in preassigned_tasks_map_orig:

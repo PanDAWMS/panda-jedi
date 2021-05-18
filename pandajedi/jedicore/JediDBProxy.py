@@ -14177,7 +14177,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for jedi_taskid in jedi_taskids:
                 varMap = {}
                 varMap[':jediTaskID'] = jedi_taskid
-                varMap[':orig_priority'] = task_orig_priority_map[jedi_taskid]
+                varMap[':orig_priority'] = task_orig_priority_map.get(str(jedi_taskid), magic_priority)
                 varMap[':magic_priority'] = magic_priority
                 if force:
                     force_str = 'force'
