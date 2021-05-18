@@ -1346,6 +1346,20 @@ class AtlasAnalJobBroker(JobBrokerBase):
             nAssigned  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'assigned', workQueue_tag=taskSpec.gshare)
             nActivated = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'activated', workQueue_tag=taskSpec.gshare)
             nStarting  = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'starting', workQueue_tag=taskSpec.gshare)
+            # take into account the number of standby jobs
+            numStandby = tmpSiteSpec.getNumStandby(taskSpec.gshare, taskSpec.resource_type)
+            if numStandby is None:
+                pass
+            elif numStandby == 0:
+                # use the number of starting jobs as the number of standby jobs
+                nRunning = nStarting + nRunning
+                tmpLog.debug('using dynamic workload provisioning at {0} to set nRunning={1}'.format(tmpPseudoSiteName,
+                                                                                                     nRunning))
+            else:
+                # the number of standby jobs is defined
+                nRunning = max(int(numStandby / tmpSiteSpec.coreCount), nRunning)
+                tmpLog.debug('using static workload provisioning at {0} with nStandby={1} to set nRunning={2}'.format(
+                    tmpPseudoSiteName, numStandby, nRunning))
             nFailed    = 0
             nClosed    = 0
             nFinished  = 0
