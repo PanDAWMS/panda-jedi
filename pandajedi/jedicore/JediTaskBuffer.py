@@ -781,11 +781,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.deleteOutdatedDatasetLocality_JEDI(before_timestamp)
 
     # query tasks and preassign them to a site, sql_query should query jeditaskid
-    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, blacklist=set(), limit=1):
+    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, blacklist=set(), priority=1023, limit=1):
         with self.proxyPool.get() as proxy:
-            return proxy.queryTasksToPreassign_JEDI(sql_query, params_map, site, blacklist, limit)
+            return proxy.queryTasksToPreassign_JEDI(sql_query, params_map, site, blacklist, priority, limit)
 
     # undo preassigned tasks
-    def undoPreassignedTasks_JEDI(self, jedi_taskids, force=False):
+    def undoPreassignedTasks_JEDI(self, jedi_taskids, orig_priority, magic_priority=1023, force=False):
         with self.proxyPool.get() as proxy:
-            return proxy.undoPreassignedTasks_JEDI(jedi_taskids, force)
+            return proxy.undoPreassignedTasks_JEDI(jedi_taskids, orig_priority, magic_priority, force)
