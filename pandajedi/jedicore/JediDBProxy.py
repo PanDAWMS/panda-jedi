@@ -14074,7 +14074,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # query tasks and preassign them to a site with higher priority, sql_query should query jeditaskid
-    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, blacklist, limit):
+    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, blacklist, priority, limit):
         comment = ' /* JediDBProxy.queryTasksToPreassign_JEDI */'
         methodName = self.getMethodName(comment)
         # methodName += " < sql={0} >".format(sql_query)
@@ -14088,7 +14088,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlPDG = (  "UPDATE {0}.JEDI_Tasks "
                         "SET lockedBy=NULL, lockedTime=NULL, "
                             "site=:site, "
-                            "currentPriority=(currentPriority+5), "
+                            "currentPriority=:priority, "
                             "modificationtime=CURRENT_DATE "
                         "WHERE jediTaskID=:jediTaskID "
                             "AND status IN ('ready','running','scouting') "
@@ -14097,8 +14097,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                       ).format(jedi_config.db.schemaJEDI)
             # loop over tasks
             n_updated = 0
-            updated_tasks = []
-            for (jedi_taskid, ) in taskIDs:
+            updated_tasks_prio = []
+            for (jedi_taskid, orig_priority) in taskIDs:
                 if n_updated >= limit:
                     # respect the limit
                     break
@@ -14108,20 +14108,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap = {}
                 varMap[':jediTaskID'] = jedi_taskid
                 varMap[':site'] = site
+                varMap[':priority'] = priority
                 self.cur.execute(sqlPDG+comment, varMap)
                 nRow = self.cur.rowcount
                 if nRow == 1:
                     # self.record_task_status_change(jedi_taskid)
                     n_updated += 1
-                    updated_tasks.append(jedi_taskid)
-                    tmpLog.debug('preassigned jediTaskID={0} to site={1}'.format(jedi_taskid, site))
+                    updated_tasks_prio.append((jedi_taskid, orig_priority))
+                    tmpLog.debug('preassigned jediTaskID={0} to site={1} , orig_priority={2}'.format(jedi_taskid, site, orig_priority))
                 elif nRow > 1:
                     tmpLog.error('updated {0} rows with same jediTaskID={1}'.format(nRow, jedi_taskid))
             if not self._commit():
                 raise RuntimeError('Commit error')
             tmpLog.debug('done with {0} rows to site={1}'.format(n_updated, site))
             # return
-            return updated_tasks
+            return updated_tasks_prio
         except Exception:
             # roll back
             self._rollback()
@@ -14131,7 +14132,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # undo preassigned tasks
-    def undoPreassignedTasks_JEDI(self, jedi_taskids, force):
+    def undoPreassignedTasks_JEDI(self, jedi_taskids, task_orig_priority_map, magic_priority, force):
         comment = ' /* JediDBProxy.undoPreassignedTasks_JEDI */'
         methodName = self.getMethodName(comment)
         # methodName += " < sql={0} >".format(sql_query)
@@ -14140,7 +14141,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlUPT = (  "UPDATE {0}.JEDI_Tasks "
                     "SET "
                         "site=NULL, "
-                        "currentPriority=(currentPriority-5), "
+                        "currentPriority=( "
+                                "CASE "
+                                    "WHEN currentPriority=:magic_priority "
+                                    "THEN :orig_priority "
+                                    "ELSE currentPriority "
+                                "END "
+                            "), "
                         "modificationtime=CURRENT_DATE "
                     "WHERE jediTaskID=:jediTaskID "
                         "AND site IS NOT NULL "
@@ -14150,7 +14157,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlUPTF = ( "UPDATE {0}.JEDI_Tasks "
                     "SET "
                         "site=NULL, "
-                        "currentPriority=(currentPriority-5), "
+                        "currentPriority=( "
+                                "CASE "
+                                    "WHEN currentPriority=:magic_priority "
+                                    "THEN :orig_priority "
+                                    "ELSE currentPriority "
+                                "END "
+                            "), "
                         "modificationtime=CURRENT_DATE "
                     "WHERE jediTaskID=:jediTaskID "
                         "AND site IS NOT NULL "
@@ -14164,6 +14177,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for jedi_taskid in jedi_taskids:
                 varMap = {}
                 varMap[':jediTaskID'] = jedi_taskid
+                varMap[':orig_priority'] = task_orig_priority_map[str(jedi_taskid)]
+                varMap[':magic_priority'] = magic_priority
                 if force:
                     force_str = 'force'
                     self.cur.execute(sqlUPTF+comment, varMap)
