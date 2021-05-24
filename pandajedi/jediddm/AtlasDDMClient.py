@@ -59,7 +59,8 @@ class AtlasDDMClient(DDMClientBase):
         return tmpDN
 
     # get files in dataset
-    def getFilesInDataset(self, datasetName, getNumEvents=False, skipDuplicate=True, ignoreUnknown=False, longFormat=False):
+    def getFilesInDataset(self, datasetName, getNumEvents=False, skipDuplicate=True,
+                          ignoreUnknown=False, longFormat=False, lfn_only=False):
         methodName = 'getFilesInDataset'
         methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
@@ -75,9 +76,13 @@ class AtlasDDMClient(DDMClientBase):
             # get files
             fileMap = {}
             baseLFNmap = {}
+            fileSet = set()
             for x in client.list_files(scope, dsn, long=longFormat):
                 # convert to old dict format
                 lfn = str(x['name'])
+                if lfn_only:
+                    fileSet.add(lfn)
+                    continue
                 attrs = {}
                 attrs['lfn'] = lfn
                 attrs['chksum'] = "ad:" + str(x['adler32'])
@@ -118,6 +123,8 @@ class AtlasDDMClient(DDMClientBase):
                                            'attNr':attNr}
                 fileMap[guid] = attrs
             tmpLog.debug('done')
+            if lfn_only:
+                return self.SC_SUCCEEDED, fileSet
             return self.SC_SUCCEEDED, fileMap
         except DataIdentifierNotFound as e:
             if ignoreUnknown:
@@ -130,7 +137,7 @@ class AtlasDDMClient(DDMClientBase):
         return errCode,'{0} : {1}'.format(methodName, errMsg)
 
     # list dataset replicas
-    def listDatasetReplicas(self, datasetName, use_vp=False):
+    def listDatasetReplicas(self, datasetName, use_vp=False, detailed=False):
         methodName = 'listDatasetReplicas'
         methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
@@ -141,10 +148,13 @@ class AtlasDDMClient(DDMClientBase):
                 # get file list
                 tmpRet = self.convertOutListDatasetReplicas(datasetName, use_vp=use_vp)
                 tmpLog.debug('got new '+str(tmpRet))
-                return self.SC_SUCCEEDED,tmpRet
+                if detailed:
+                    return self.SC_SUCCEEDED, tmpRet, {datasetName: tmpRet}
+                return self.SC_SUCCEEDED, tmpRet
             else:
                 # list of attributes summed up
                 retMap = {}
+                detailedRetMap = {}
                 # get constituent datasets
                 tmpS,dsList = self.listDatasetsInContainer(datasetName)
                 totalFiles = 0
@@ -159,6 +169,7 @@ class AtlasDDMClient(DDMClientBase):
                     except Exception:
                         totalFiles = 0
                     tmpRet = self.convertOutListDatasetReplicas(tmpName, use_vp=use_vp)
+                    detailedRetMap[tmpName] = tmpRet
                     # loop over all sites
                     for tmpSite,tmpValMap in iteritems(tmpRet):
                         # add site
@@ -180,11 +191,15 @@ class AtlasDDMClient(DDMClientBase):
                     retMap[tmpSite][-1]['total'] = grandTotal
                 # return
                 tmpLog.debug('got '+str(retMap))
-                return self.SC_SUCCEEDED,retMap
+                if detailed:
+                    return self.SC_SUCCEEDED, retMap, detailedRetMap
+                return self.SC_SUCCEEDED, retMap
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
+            if detailed:
+                return errCode, '{0} : {1}'.format(methodName, errMsg), None
             return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # list replicas per dataset
@@ -297,7 +312,7 @@ class AtlasDDMClient(DDMClientBase):
 
     def getAvailableFiles(self, dataset_spec, site_endpoint_map, site_mapper, check_LFC=False,
                           check_completeness=True, storage_token=None, complete_only=False,
-                          use_vp=True):
+                          use_vp=True, file_scan_in_container=True):
         """
         :param dataset_spec: dataset spec object
         :param site_endpoint_map: panda sites to ddm endpoints map. The list of panda sites includes the ones to scan
@@ -307,6 +322,7 @@ class AtlasDDMClient(DDMClientBase):
         :param storage_token:
         :param complete_only: check only for complete replicas
         :param use_vp: use virtual placement
+        :param file_scan_in_container: enable file lookup for container
 
         TODO: do we need NG, do we need alternate names
         TODO: the storage_token is not used anymore
@@ -333,13 +349,29 @@ class AtlasDDMClient(DDMClientBase):
             total_files_in_dataset = tmp_output['length']
             if total_files_in_dataset is None:
                 total_files_in_dataset = 0
+            if tmp_output['did_type'] == 'CONTAINER':
+                is_container = True
+            else:
+                is_container = False
 
             # get the dataset replica map
-            tmp_status, tmp_output = self.listDatasetReplicas(dataset_spec.datasetName, use_vp=use_vp)
+            tmp_status, tmp_output, detailed_replica_map = self.listDatasetReplicas(dataset_spec.datasetName,
+                                                                                    use_vp=use_vp,
+                                                                                    detailed=True)
             if tmp_status != self.SC_SUCCEEDED:
                 tmp_log.error('failed to get dataset replicas with {0}'.format(tmp_output))
                 return tmp_status, tmp_output
             dataset_replica_map = tmp_output
+
+            # collect GUIDs and LFNs
+            file_map = {} # GUID to LFN
+            lfn_filespec_map = {} # LFN to file spec
+            scope_map = {} # LFN to scope list
+            for tmp_file in dataset_spec.Files:
+                file_map[tmp_file.GUID] = tmp_file.lfn
+                lfn_filespec_map.setdefault(tmp_file.lfn, [])
+                lfn_filespec_map[tmp_file.lfn].append(tmp_file)
+                scope_map[tmp_file.lfn] = tmp_file.scope
 
             complete_replica_map = {}
             endpoint_storagetype_map = {}
@@ -365,26 +397,16 @@ class AtlasDDMClient(DDMClientBase):
                         complete_replica_map[endpoint] = storage_type
 
                     # no scan for many-time datasets or disabled completeness check
-                    # TODO: what is this?
                     if dataset_spec.isManyTime() \
                        or (not check_completeness and endpoint not in dataset_replica_map) \
                        or complete_only:
                         continue
 
-                    if endpoint not in rse_list:
+                    # dislable file lookup if nessesary
+                    if endpoint not in rse_list and (file_scan_in_container or not is_container):
                         rse_list.append(endpoint)
 
                     endpoint_storagetype_map[endpoint] = storage_type
-
-            # collect GUIDs and LFNs
-            file_map = {} # GUID to LFN
-            lfn_filespec_map = {} # LFN to file spec
-            scope_map = {} # LFN to scope list
-            for tmp_file in dataset_spec.Files:
-                file_map[tmp_file.GUID] = tmp_file.lfn
-                lfn_filespec_map.setdefault(tmp_file.lfn, [])
-                lfn_filespec_map[tmp_file.lfn].append(tmp_file)
-                scope_map[tmp_file.lfn] = tmp_file.scope
 
             # get the file locations from Rucio
             if len(rse_list) > 0:
@@ -395,6 +417,19 @@ class AtlasDDMClient(DDMClientBase):
                     raise RuntimeError(rucio_lfn_to_rse_map)
             else:
                 rucio_lfn_to_rse_map = dict()
+                if (not file_scan_in_container and is_container):
+                    # make file list from detailed replica map
+                    files_in_container = {}
+                    for tmp_ds_name in detailed_replica_map.keys():
+                        tmp_status, tmp_files = self.getFilesInDataset(tmp_ds_name, ignoreUnknown=True, lfn_only=True)
+                        if tmp_status != self.SC_SUCCEEDED:
+                            raise RuntimeError(tmp_files)
+                        for tmp_lfn in tmp_files:
+                            files_in_container[tmp_lfn] = tmp_ds_name
+                    for tmp_file in dataset_spec.Files:
+                        if tmp_file.lfn in files_in_container and \
+                                files_in_container[tmp_file.lfn] in detailed_replica_map:
+                            rucio_lfn_to_rse_map[tmp_file.lfn] = detailed_replica_map[files_in_container[tmp_file.lfn]]
 
             # initialize the return map and add complete/cached replicas
             return_map = {}

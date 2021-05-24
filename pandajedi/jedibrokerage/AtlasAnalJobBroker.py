@@ -1294,7 +1294,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                             siteStorageEP,
                                                             self.siteMapper,
                                                             check_completeness=checkCompleteness,
-                                                            use_vp=useVP)
+                                                            use_vp=useVP,
+                                                            file_scan_in_container=False)
                 if tmpAvFileMap is None:
                     raise Interaction.JEDITemporaryError('ddmIF.getAvailableFiles failed')
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
