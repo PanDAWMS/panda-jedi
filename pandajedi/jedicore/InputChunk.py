@@ -166,6 +166,7 @@ class InputChunk:
             ngSites = []
         ngSites = copy.copy(ngSites)
         # skip sites for distributed datasets
+        """
         for tmpDatasetSpec in self.getDatasets():
             if tmpDatasetSpec.isDistributed():
                 datasetUsage = self.datasetMap[tmpDatasetSpec.datasetID]
@@ -175,6 +176,7 @@ class InputChunk:
                         # skip if the first file is unavailable at the site
                         if not siteCandidate.isAvailableFile(tmpFileSpec):
                             ngSites.append(siteCandidate.siteName)
+        """
         # check if to be bootstrapped
         siteCandidateList = list(self.siteCandidates.values())
         newSiteCandidateList = []
@@ -665,9 +667,9 @@ class InputChunk:
                                 not (boundaryID == tmpFileSpec.boundaryID or tmpFileSpec.boundaryID in boundaryIDs):
                             break
                         # check for distributed datasets
-                        if datasetSpec.isDistributed() and siteName is not None and \
-                                not siteCandidate.isAvailableFile(tmpFileSpec):
-                            break
+                        #if datasetSpec.isDistributed() and siteName is not None and \
+                        #        not siteCandidate.isAvailableFile(tmpFileSpec):
+                        #    break
                         # check ratio
                         if datasetSpec.datasetID not in nSecEventsMap:
                             nSecEventsMap[datasetSpec.datasetID] = 0
@@ -768,12 +770,12 @@ class InputChunk:
                             terminateFlag = True
                         break
                 # check for distributed datasets
-                if self.masterDataset.isDistributed() and siteName is not None and \
-                        not siteCandidate.isAvailableFile(tmpFileSpec):
-                    # no files in the next loop
-                    if newInputNumFiles == 0:
-                        terminateFlag = True
-                    break
+                #if self.masterDataset.isDistributed() and siteName is not None and \
+                #        not siteCandidate.isAvailableFile(tmpFileSpec):
+                #    # no files in the next loop
+                #    if newInputNumFiles == 0:
+                #        terminateFlag = True
+                #    break
                 # get effective file size
                 effectiveFsize = JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
                                                                     tmpFileSpec.endEvent,tmpFileSpec.nEvents)
