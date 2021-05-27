@@ -1429,11 +1429,18 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # cap
                 nWorkers = min(nWorkersCutoff, nWorkers)
             # use nWorkers to bootstrap
-            if nPilot > 0 and nRunning < nWorkersCutoff and nWorkers > nRunning and tmpSiteName in upsQueues:
-                tmpLog.debug('using nWorkers={0} as nRunning at {1} since original nRunning={2}'.format(nWorkers, tmpPseudoSiteName, nRunning))
+            if nPilot > 0 and nRunning < nWorkersCutoff and nWorkers > nRunning and tmpSiteName in upsQueues \
+                    and taskSpec.currentPriority <= self.max_prio_for_bootstrap:
+                tmpLog.debug(
+                    'using nWorkers={0} as nRunning at {1} since original nRunning={2} is low'.format(nWorkers,
+                                                                                                      tmpPseudoSiteName,
+                                                                                                      nRunning))
                 nRunning = nWorkers
             # take into account the number of standby jobs
-            numStandby = tmpSiteSpec.getNumStandby(wq_tag, taskSpec.resource_type)
+            if taskSpec.currentPriority > self.max_prio_for_bootstrap:
+                numStandby = None
+            else:
+                numStandby = tmpSiteSpec.getNumStandby(wq_tag, taskSpec.resource_type)
             if numStandby is None:
                 pass
             elif numStandby == 0:
