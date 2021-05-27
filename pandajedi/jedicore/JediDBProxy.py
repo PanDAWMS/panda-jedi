@@ -9181,7 +9181,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # get input datasets
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
-                        sqlDS  = "SELECT datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,status,state "
+                        sqlDS  = "SELECT datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,status,state,type "
                         sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
                         sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
                         for tmpType in JediDatasetSpec.getInputTypes():
@@ -9194,13 +9194,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         resDS = self.cur.fetchall()
                         changedMasterList = []
                         secMap  = {}
-                        for datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,status,state in resDS:
+                        for datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,status,state,datasetType \
+                                in resDS:
                             if masterID is not None:
                                 if state not in [None,'']:
                                     # keep secondary dataset info
                                     if masterID not in secMap:
                                         secMap[masterID] = []
-                                    secMap[masterID].append((datasetID,nFilesFinished,status,state))
+                                    secMap[masterID].append((datasetID,nFilesFinished,status,state,datasetType))
                                     # update dataset
                                     varMap = {}
                                     varMap[':jediTaskID'] = jediTaskID
@@ -9292,9 +9293,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':nRun'] = nRun
                                 if commStr == 'retry':
                                     varMap[':status'] = 'ready'
+                                    tmpLog.debug(
+                                        'set status={0} for datasetID={1} diff={2}'.format(varMap[':status'],
+                                                                                           datasetID,
+                                                                                           nDiff))
                                 elif commStr == 'incexec':
                                     varMap[':status'] = 'toupdate'
-                                tmpLog.debug('set status={0} for datasetID={1} diff={2}'.format(varMap[':status'],datasetID,nDiff))
                                 self.cur.execute(sqlRD+comment,varMap)
                                 # collect masterIDs
                                 changedMasterList.append(datasetID)
@@ -9304,7 +9308,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if masterID not in secMap:
                                 continue
                             # loop over all datasets
-                            for datasetID,nFilesFinished,status,state in secMap[masterID]:
+                            for datasetID,nFilesFinished,status,state,datasetType in secMap[masterID]:
                                 # update files
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
@@ -9335,7 +9339,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':datasetID']  = datasetID
                                 varMap[':nDiff'] = nDiff
                                 varMap[':nRun'] = nRun
-                                varMap[':status'] = 'ready'
+                                if commStr == 'incexec' and datasetType == 'input':
+                                    varMap[':status'] = 'toupdate'
+                                else:
+                                    varMap[':status'] = 'ready'
+                                tmpLog.debug(
+                                    'set status={0} for associated 2nd datasetID={1}'.format(varMap[':status'],
+                                                                                             datasetID))
                                 self.cur.execute(sqlRD+comment,varMap)
                         # discard events
                         if discardEvents:
