@@ -263,6 +263,10 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     available_rses.update(set(site_rse_map[site]))
                 except KeyError:
                     continue
+                # do not consider TAPE rses
+                for rse in set(available_rses):
+                    if 'TAPE' in str(rse):
+                        available_rses.remove(rse)
                 # skip if no rse for available site
                 if not available_rses:
                     continue
