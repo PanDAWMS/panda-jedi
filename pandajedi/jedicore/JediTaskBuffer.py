@@ -786,6 +786,6 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.queryTasksToPreassign_JEDI(sql_query, params_map, site, blacklist, priority, limit)
 
     # undo preassigned tasks
-    def undoPreassignedTasks_JEDI(self, jedi_taskids, task_orig_priority_map, magic_priority=1023, force=False):
+    def undoPreassignedTasks_JEDI(self, jedi_taskids, task_orig_priority_map, params_map, force=False):
         with self.proxyPool.get() as proxy:
-            return proxy.undoPreassignedTasks_JEDI(jedi_taskids, task_orig_priority_map, magic_priority, force)
+            return proxy.undoPreassignedTasks_JEDI(jedi_taskids, task_orig_priority_map, params_map, force)

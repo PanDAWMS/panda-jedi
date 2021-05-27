@@ -14142,26 +14142,33 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # undo preassigned tasks
-    def undoPreassignedTasks_JEDI(self, jedi_taskids, task_orig_priority_map, magic_priority, force):
+    def undoPreassignedTasks_JEDI(self, jedi_taskids, task_orig_priority_map, params_map, force):
         comment = ' /* JediDBProxy.undoPreassignedTasks_JEDI */'
         methodName = self.getMethodName(comment)
         # methodName += " < sql={0} >".format(sql_query)
         tmpLog = MsgWrapper(logger, methodName)
         # sql to undo a preassigned task if it moves off the status to generate jobs
-        sqlUPT = (  "UPDATE {0}.JEDI_Tasks "
+        sqlUPT = (  "UPDATE {0}.JEDI_Tasks t "
                     "SET "
-                        "site=NULL, "
-                        "currentPriority=( "
+                        "t.site=NULL, "
+                        "t.currentPriority=( "
                                 "CASE "
-                                    "WHEN currentPriority=:magic_priority "
+                                    "WHEN t.currentPriority=:magic_priority "
                                     "THEN :orig_priority "
-                                    "ELSE currentPriority "
+                                    "ELSE t.currentPriority "
                                 "END "
                             "), "
-                        "modificationtime=CURRENT_DATE "
-                    "WHERE jediTaskID=:jediTaskID "
-                        "AND site IS NOT NULL "
-                        "AND status NOT IN ('ready','running','scouting') "
+                        "t.modificationtime=CURRENT_DATE "
+                    "WHERE t.jediTaskID=:jediTaskID "
+                        "AND t.site IS NOT NULL "
+                        "AND NOT ( "
+                                "t.status IN ('ready','running','scouting') "
+                                "AND EXISTS ( "
+                                    "SELECT d.datasetID FROM {0}.JEDI_Datasets d "
+                                    "WHERE t.jediTaskID=d.jediTaskID AND d.type='input' "
+                                        "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
+                                    ") "
+                            ") "
                   ).format(jedi_config.db.schemaJEDI)
         # sql to force to undo a preassigned task no matter what
         sqlUPTF = ( "UPDATE {0}.JEDI_Tasks "
@@ -14188,11 +14195,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap = {}
                 varMap[':jediTaskID'] = jedi_taskid
                 varMap[':orig_priority'] = task_orig_priority_map[str(jedi_taskid)]
-                varMap[':magic_priority'] = magic_priority
+                varMap[':magic_priority'] = params_map[':magic_priority']
                 if force:
                     force_str = 'force'
                     self.cur.execute(sqlUPTF+comment, varMap)
                 else:
+                    varMap[':min_files_ready'] = params_map[':min_files_ready']
+                    varMap[':min_files_remaining'] = params_map[':min_files_remaining']
                     self.cur.execute(sqlUPT+comment, varMap)
                 nRow = self.cur.rowcount
                 if nRow == 1:

@@ -424,6 +424,14 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                         'queue_filler', 'MAX_PREASSIGNED_TASKS_{0}'.format(prod_source_label), 'jedi', self.vo)
             if max_preassigned_tasks is None:
                 max_preassigned_tasks = 3
+            min_files_ready = self.taskBufferIF.getConfigValue(
+                                        'queue_filler', 'MIN_FILES_READY_{0}'.format(prod_source_label), 'jedi', self.vo)
+            if min_files_ready is None:
+                min_files_ready = 50
+            min_files_remaining = self.taskBufferIF.getConfigValue(
+                                        'queue_filler', 'MIN_FILES_REMAINING_{0}'.format(prod_source_label), 'jedi', self.vo)
+            if min_files_remaining is None:
+                min_files_remaining = 100
             # clean up outdated blacklist
             blacklist_duration_hours = 12
             blacklisted_tasks_map_orig = self._get_from_bt_cache()
@@ -463,7 +471,14 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 force_undo = False
                 if site in busy_sites_dict or len(preassigned_tasks_cached) > max_preassigned_tasks:
                     force_undo = True
-                reason_str = 'site busy or offline or with too many preassigned tasks' if force_undo else 'task paused or terminated'
+                reason_str = 'site busy or offline or with too many preassigned tasks' if force_undo \
+                                else 'task paused/terminated or without enough files to process'
+                # parameters for undo, kinda ugly
+                params_map = {
+                        ":magic_priority": magic_priority,
+                        ':min_files_ready': min_files_ready,
+                        ':min_files_remaining': min_files_remaining,
+                    }
                 # undo preassign
                 had_undo = False
                 updated_tasks = []
@@ -482,11 +497,18 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             continue
                         preassigned_tasks_params_str = ','.join(preassigned_tasks_list)
                         dry_sql_query = (
-                            "SELECT jediTaskID "
-                            "FROM {jedi_schema}.JEDI_Tasks "
-                            "WHERE jediTaskID IN ({preassigned_tasks_params_str}) "
-                                "AND site IS NOT NULL "
-                                "AND status NOT IN ('ready','running','scouting') "
+                            "SELECT t.jediTaskID "
+                            "FROM {jedi_schema}.JEDI_Tasks t "
+                            "WHERE t.jediTaskID IN ({preassigned_tasks_params_str}) "
+                                "AND t.site IS NOT NULL "
+                                "AND NOT ( "
+                                        "t.status IN ('ready','running','scouting') "
+                                        "AND EXISTS ( "
+                                            "SELECT d.datasetID FROM {0}.JEDI_Datasets d "
+                                            "WHERE t.jediTaskID=d.jediTaskID AND d.type='input' "
+                                                "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
+                                            ") "
+                                    ") "
                         ).format(jedi_schema=jedi_config.db.schemaJEDI, preassigned_tasks_params_str=preassigned_tasks_params_str)
                         res = self.taskBufferIF.querySQL(dry_sql_query, preassigned_tasks_params_map)
                         n_tasks = 0 if res is None else len(res)
@@ -500,7 +522,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 else:
                     updated_tasks = self.taskBufferIF.undoPreassignedTasks_JEDI(preassigned_tasks_cached,
                                                                                 task_orig_priority_map=task_orig_priority_map,
-                                                                                magic_priority=magic_priority,
+                                                                                params_map=params_map,
                                                                                 force=force_undo)
                     if updated_tasks is None:
                         # dbproxy method failed
