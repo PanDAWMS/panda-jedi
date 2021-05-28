@@ -5894,6 +5894,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         extraInfo['nNewJobs'] = nNewJobs
         # loop over all jobs
         loopPandaIDs = list(inFSizeMap.keys())
+        random.shuffle(loopPandaIDs)
+        loopPandaIDs = loopPandaIDs[:1000]
         for loopPandaID in loopPandaIDs:
             totalFSize = inFSizeMap[loopPandaID]
             # get job data
