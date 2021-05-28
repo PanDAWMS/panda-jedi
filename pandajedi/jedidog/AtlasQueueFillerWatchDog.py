@@ -310,6 +310,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                 "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
                             ") "
                         "AND t.currentPriority<:magic_priority "
+                        "AND t.container_name IS NULL "
                     "ORDER BY t.currentPriority DESC "
                     "FOR UPDATE "
                 ).format(jedi_schema=jedi_config.db.schemaJEDI,
@@ -363,6 +364,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                         "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
                                     ") "
                                 "AND t.currentPriority<:magic_priority "
+                                "AND t.container_name IS NULL "
                             "ORDER BY t.currentPriority DESC "
                         ).format(jedi_schema=jedi_config.db.schemaJEDI,
                                     rse_params_str=rse_params_str,
