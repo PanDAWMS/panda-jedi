@@ -18,7 +18,7 @@ from .DDMClientBase import DDMClientBase
 
 from rucio.client import Client as RucioClient
 from rucio.common.exception import UnsupportedOperation,DataIdentifierNotFound,DataIdentifierAlreadyExists,\
-    DuplicateRule,DuplicateContent
+    DuplicateRule,DuplicateContent, InvalidObject
 
 from pandaserver.dataservice import DataServiceUtils
 
@@ -590,12 +590,13 @@ class AtlasDDMClient(DDMClientBase):
 
     # check error
     def checkError(self,errType):
+        errMsg = '{} : {}'.format(str(type(errType)), str(errType))
         if type(errType) in self.fatalErrors:
             # fatal error
-            return self.SC_FATAL, str(errType)
+            return self.SC_FATAL, errMsg
         else:
             # temporary error
-            return self.SC_FAILED, str(errType)
+            return self.SC_FAILED, errMsg
 
     # list dataset/container
     def listDatasets(self,datasetName,ignorePandaDS=True):
@@ -661,6 +662,10 @@ class AtlasDDMClient(DDMClientBase):
                 client.add_container(scope=scope,name=name)
         except DataIdentifierAlreadyExists:
             pass
+        except InvalidObject as e:
+            errMsg = '{} : {}'.format(InvalidObject, str(e))
+            tmpLog.error(errMsg)
+            return self.SC_FATAL, '{0} : {1}'.format(methodName, errMsg)
         except Exception as e:
             errType = e
             resurrected = False
