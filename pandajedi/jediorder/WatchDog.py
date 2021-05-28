@@ -50,14 +50,19 @@ class WatchDog(JediKnight,FactoryBase):
                         # vo/prodSourceLabel specific action
                         impl = self.getImpl(vo, prodSourceLabel, subType=self.subStr)
                         if impl is not None:
-                            tmpLog.info('pre-action for vo={0} label={1} with {2}'.format(vo,prodSourceLabel,impl.__class__.__name__))
+                            plugin_name = impl.__class__.__name__
+                            tmpLog.info('pre-action for vo={} label={} cls={}'.format(vo, prodSourceLabel, plugin_name))
                             impl.pre_action(tmpLog, vo, prodSourceLabel, self.pid)
-                            tmpLog.info('do action for vo={0} label={1} with {2}'.format(vo,prodSourceLabel,impl.__class__.__name__))
+                            tmpLog.info('do action for vo={} label={} cls={}'.format(vo, prodSourceLabel, plugin_name))
                             tmpStat = impl.doAction()
-                            if tmpStat !=  Interaction.SC_SUCCEEDED:
-                                tmpLog.error('failed to run special acction for vo={0} label={1}'.format(vo,prodSourceLabel))
+                            if tmpStat != Interaction.SC_SUCCEEDED:
+                                tmpLog.error(
+                                    'failed to run special action for vo={} label={} cls={}'.format(vo,
+                                                                                                    prodSourceLabel,
+                                                                                                    plugin_name))
                             else:
-                                tmpLog.info('done for vo={0} label={1}'.format(vo,prodSourceLabel))
+                                tmpLog.info(
+                                    'done for vo={} label={} cls={}'.format(vo, prodSourceLabel, plugin_name))
                 tmpLog.info('done')
             except Exception:
                 errtype,errvalue = sys.exc_info()[:2]

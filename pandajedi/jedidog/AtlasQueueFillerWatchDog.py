@@ -573,7 +573,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             got_lock = self._get_lock()
             if not got_lock:
                 origTmpLog.debug('locked by another process. Skipped')
-                return
+                return self.SC_SUCCEEDED
             origTmpLog.debug('got lock')
             # undo preassigned tasks
             self.undo_preassign()
