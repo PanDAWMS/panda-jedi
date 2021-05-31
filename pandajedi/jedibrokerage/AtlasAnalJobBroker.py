@@ -738,11 +738,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 else:
                     maxSizePerJob //= (1024 * 1024)
                 # size for direct IO sites
-                if taskSpec.useLocalIO():
-                    minDiskCountR = minDiskCountS
-                else:
-                    minDiskCountR = tmpOutDiskSize*tmpEffAtomSize + tmpWorkDiskSize
-                    minDiskCountR = minDiskCountR // 1024 // 1024
+                minDiskCountR = tmpOutDiskSize*tmpEffAtomSize + tmpWorkDiskSize
+                minDiskCountR = minDiskCountR // 1024 // 1024
                 tmpLog.info('maxAtomSize={0} effectiveAtomSize={1} outDiskCount={2} workDiskSize={3}'.format(tmpMaxAtomSize,
                                                                                                               tmpEffAtomSize,
                                                                                                               tmpOutDiskSize,
