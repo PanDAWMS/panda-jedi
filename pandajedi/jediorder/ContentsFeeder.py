@@ -175,6 +175,13 @@ class ContentsFeederThread (WorkerThread):
                             # collect dataset names
                             for tmpParentOutDataset in tmpParentOutDatasets:
                                 parentOutDatasets.add(tmpParentOutDataset.datasetName)
+                                if tmpParentOutDataset.containerName:
+                                    if tmpParentOutDataset.containerName.endswith('/'):
+                                        parentOutDatasets.add(tmpParentOutDataset.containerName)
+                                        parentOutDatasets.add(tmpParentOutDataset.containerName[:-1])
+                                    else:
+                                        parentOutDatasets.add(tmpParentOutDataset.containerName)
+                                        parentOutDatasets.add(tmpParentOutDataset.containerName+'/')
                     # loop over all datasets
                     nFilesMaster = 0
                     checkedMaster = False

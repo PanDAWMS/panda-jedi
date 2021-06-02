@@ -623,7 +623,9 @@ class JobGeneratorThread (WorkerThread):
                                 continue
                         # extend sandbox lifetime
                         if goForward:
-                            if not inputChunk.isMerging:
+                            if not inputChunk.isMerging and \
+                                    not (hasattr(jedi_config.jobgen, 'touchSandbox')
+                                         and not jedi_config.jobgen.touchSandbox):
                                 tmpStat, tmpOut = self.touchSandoboxFiles(taskSpec, taskParamMap, tmpLog)
                                 if tmpStat != Interaction.SC_SUCCEEDED:
                                     tmpLog.error('failed to extend lifetime of sandbox file')

@@ -166,6 +166,8 @@ class AtlasDDMClient(DDMClientBase):
                         raise RuntimeError('failed to get metadata with {0}'.format(tmp_output))
                     try:
                         totalFiles = tmp_output['length']
+                        if not totalFiles:
+                            totalFiles = 0
                     except Exception:
                         totalFiles = 0
                     tmpRet = self.convertOutListDatasetReplicas(tmpName, use_vp=use_vp)
@@ -197,7 +199,7 @@ class AtlasDDMClient(DDMClientBase):
         except Exception as e:
             errType = e
             errCode, errMsg = self.checkError(errType)
-            tmpLog.error(errMsg)
+            tmpLog.error(errMsg + traceback.format_exc())
             if detailed:
                 return errCode, '{0} : {1}'.format(methodName, errMsg), None
             return errCode, '{0} : {1}'.format(methodName, errMsg)
