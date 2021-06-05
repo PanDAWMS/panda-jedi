@@ -39,6 +39,8 @@ class GenJobBroker (JobBrokerBase):
             tmpLog.debug('site={0} is pre-assigned in masterDS'.format(inputChunk.getPreassignedSite()))
         else:
             site_preassigned = False
+            if not taskSpec.cloud and 'cloud' in taskParamMap:
+                taskSpec.cloud = taskParamMap['cloud']
             scanSiteList = self.siteMapper.getCloud(taskSpec.cloud)['sites']
             tmpLog.debug('cloud=%s has %s candidates' % (taskSpec.cloud, len(scanSiteList)))
         tmpLog.debug('initial {0} candidates'.format(len(scanSiteList)))
@@ -49,7 +51,10 @@ class GenJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check site status
             skipFlag = False
-            if tmpSiteSpec.status != 'online':
+            if tmpSiteName == 'NA':
+                # skip NA
+                skipFlag = True
+            elif tmpSiteSpec.status != 'online' and not site_preassigned:
                 skipFlag = True
             if not skipFlag:
                 newScanSiteList.append(tmpSiteName)

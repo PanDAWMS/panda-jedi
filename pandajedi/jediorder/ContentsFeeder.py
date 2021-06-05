@@ -83,7 +83,7 @@ class ContentsFeeder (JediKnight):
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)
             # randomize cycle
-            self.randomSleep()
+            self.randomSleep(max_val=loopCycle)
 
 
 
