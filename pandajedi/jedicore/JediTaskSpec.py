@@ -1646,6 +1646,8 @@ class JediTaskSpec(object):
             spec = {'arch': items[0],
                     'vendor': items[1],
                     'instr': items[2]}
+            if spec['instr'] == '*':
+                spec['instr'] = 'none'
             return spec
         except Exception:
             return None
