@@ -42,6 +42,9 @@ class GenJobBroker (JobBrokerBase):
             if not taskSpec.cloud and 'cloud' in taskParamMap:
                 taskSpec.cloud = taskParamMap['cloud']
             scanSiteList = self.siteMapper.getCloud(taskSpec.cloud)['sites']
+            # remove NA
+            if 'NA' in scanSiteList:
+                scanSiteList.remove('NA')
             tmpLog.debug('cloud=%s has %s candidates' % (taskSpec.cloud, len(scanSiteList)))
         tmpLog.debug('initial {0} candidates'.format(len(scanSiteList)))
         ######################################
@@ -51,10 +54,7 @@ class GenJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check site status
             skipFlag = False
-            if tmpSiteName == 'NA':
-                # skip NA
-                skipFlag = True
-            elif tmpSiteSpec.status != 'online' and not site_preassigned:
+            if tmpSiteSpec.status != 'online' and not site_preassigned:
                 skipFlag = True
             if not skipFlag:
                 newScanSiteList.append(tmpSiteName)
