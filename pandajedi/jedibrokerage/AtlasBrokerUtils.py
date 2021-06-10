@@ -5,6 +5,7 @@ import datetime
 import time
 import os
 import socket
+import traceback
 
 from six import iteritems
 
@@ -808,14 +809,14 @@ class JsonSoftwareCheck:
     # get lists
     def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only,
               need_container=False, container_name=None, only_tags_fc=False, host_cpu_spec=None,
-              host_gpu_spec=None):
+              host_gpu_spec=None, log_stream=None):
         okSite = []
         noAutoSite = []
         for tmpSiteName in site_list:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            #if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
-            if tmpSiteName in self.swDict:
+            if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
                 try:
+                    go_ahead = False
                     # check if exclusive for GPU
                     only_gpu = False
                     architecture_map = {}
@@ -826,6 +827,12 @@ class JsonSoftwareCheck:
                                 if arch_spec['type'] == 'gpu' and \
                                         'vendor' in arch_spec and 'none' not in arch_spec['vendor']:
                                     only_gpu = True
+                    # need CPU spec
+                    if 'cpu' in architecture_map and host_cpu_spec is None:
+                        if 'arch' in architecture_map['cpu'] and 'any' not in architecture_map['cpu']['arch']:
+                            continue
+                        if 'vendor' in architecture_map['cpu'] and 'any' not in architecture_map['cpu']['vendor']:
+                            continue
                     # host HW spec
                     if host_gpu_spec is None:
                         # skip since host GPU spec is not specified and the PQ is only for GPU jobs
@@ -875,8 +882,13 @@ class JsonSoftwareCheck:
                                      ('any' not in architecture_map['gpu']['model'] and \
                                       host_gpu_spec['model'] not in architecture_map['gpu']['model'])):
                                 continue
-                except Exception:
-                    pass
+                        go_ahead = True
+                except Exception as e:
+                    if log_stream:
+                        log_stream.error('json check failed for {} {} {}'.format(tmpSiteName, str(e),
+                                                                                 traceback.format_exc()))
+                if not go_ahead:
+                    continue
                 # check for fat container
                 if container_name:
                     # check for container

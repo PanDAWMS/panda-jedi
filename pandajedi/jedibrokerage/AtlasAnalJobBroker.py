@@ -551,12 +551,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     continue
             ######################################
             # selection for release
-            if taskSpec.transHome is not None or \
-                    (taskSpec.processingType is not None and taskSpec.processingType.endswith('jedi-cont')):
+            host_cpu_spec = taskSpec.get_host_cpu_spec()
+            host_gpu_spec = taskSpec.get_host_gpu_spec()
+            if not sitePreAssigned and \
+                    (taskSpec.transHome is not None or host_cpu_spec is not None or host_gpu_spec is not None or \
+                    (taskSpec.processingType is not None and taskSpec.processingType.endswith('jedi-cont'))):
                 jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
                 unified_site_list = self.get_unified_sites(scanSiteList)
-                host_cpu_spec = taskSpec.get_host_cpu_spec()
-                host_gpu_spec = taskSpec.get_host_gpu_spec()
                 if taskSpec.transHome is not None:
                     transHome = taskSpec.transHome
                 else:
@@ -577,7 +578,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                        container_name=taskSpec.container_name,
                                                                        only_tags_fc=taskSpec.use_only_tags_fc(),
                                                                        host_cpu_spec=host_cpu_spec,
-                                                                       host_gpu_spec=host_gpu_spec)
+                                                                       host_gpu_spec=host_gpu_spec,
+                                                                       log_stream=tmpLog)
                     sitesAuto = copy.copy(siteListWithSW)
                     tmpListWithSW = self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
                                                                               caches=transHome,
@@ -604,7 +606,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                               container_name=taskSpec.container_name,
                                                                               only_tags_fc=taskSpec.use_only_tags_fc(),
                                                                               host_cpu_spec=host_cpu_spec,
-                                                                              host_gpu_spec=host_gpu_spec)
+                                                                              host_gpu_spec=host_gpu_spec,
+                                                                              log_stream=tmpLog)
                         siteListWithSW += tmpSiteListWithSW
                     if len(transHome.split('-')) == 2:
                         tmpSiteListWithSW, sitesNoJsonCheck = jsonCheck.check(sitesNoJsonCheck, "atlas",
@@ -615,7 +618,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                               container_name=taskSpec.container_name,
                                                                               only_tags_fc=taskSpec.use_only_tags_fc(),
                                                                               host_cpu_spec=host_cpu_spec,
-                                                                              host_gpu_spec=host_gpu_spec)
+                                                                              host_gpu_spec=host_gpu_spec,
+                                                                              log_stream=tmpLog)
                         siteListWithSW += tmpSiteListWithSW
                     sitesAuto = copy.copy(siteListWithSW)
                     tmpListWithSW = []
@@ -649,7 +653,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                            container_name=taskSpec.container_name,
                                                                            only_tags_fc=taskSpec.use_only_tags_fc(),
                                                                            host_cpu_spec=host_cpu_spec,
-                                                                           host_gpu_spec=host_gpu_spec)
+                                                                           host_gpu_spec=host_gpu_spec,
+                                                                           log_stream=tmpLog)
                         sitesAuto = copy.copy(siteListWithSW)
                         sitesNonAuto = list((set(siteListWithCVMFS) & set(siteListWithCMTCONFIG)).difference(set(sitesAuto)))
                         siteListWithSW += sitesNonAuto
@@ -662,9 +667,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                            container_name=taskSpec.container_name,
                                                                            only_tags_fc=taskSpec.use_only_tags_fc(),
                                                                            host_cpu_spec=host_cpu_spec,
-                                                                           host_gpu_spec=host_gpu_spec)
+                                                                           host_gpu_spec=host_gpu_spec,
+                                                                           log_stream=tmpLog)
                         sitesAuto = copy.copy(siteListWithSW)
-                        sitesNonAuto = list(set(siteListWithCMTCONFIG).difference(set(sitesAuto)))
+                        if host_cpu_spec or host_gpu_spec:
+                            sitesNonAuto = []
+                        else:
+                            sitesNonAuto = list(set(siteListWithCMTCONFIG).difference(set(sitesAuto)))
                         siteListWithSW += sitesNonAuto
                 newScanSiteList = []
                 oldScanSiteList = copy.copy(scanSiteList)
@@ -691,7 +700,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 tmpLog.info(
                     '{} candidates ({} with AUTO, {} without AUTO, {} with ANY) passed SW check '.format(
                         len(scanSiteList), len(sitesAuto), len(sitesNonAuto), len(sitesAny)))
-                self.add_summary_message(oldScanSiteList, scanSiteList, 'release/cache check')
+                self.add_summary_message(oldScanSiteList, scanSiteList, 'release/cache/CPU/GPU check')
                 if not scanSiteList:
                     self.dump_summary(tmpLog)
                     tmpLog.error('no candidates')

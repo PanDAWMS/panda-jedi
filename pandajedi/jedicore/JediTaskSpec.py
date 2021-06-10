@@ -1635,7 +1635,7 @@ class JediTaskSpec(object):
         try:
             if self.architecture is None or '#' not in self.architecture:
                 return None
-            m = re.search('#([^&]*)', self.architecture)
+            m = re.search('#([^@&]*)', self.architecture)
             spec_str = m.group(1)
             if not spec_str:
                 spec_str = '*'
@@ -1657,7 +1657,7 @@ class JediTaskSpec(object):
         try:
             if self.architecture is None or '&' not in self.architecture:
                 return None
-            m = re.search('&(.*)', self.architecture)
+            m = re.search('&([^@#]*)', self.architecture)
             spec_str = m.group(1)
             spec_str += '-*' * (1 - spec_str.count('-'))
             items = spec_str.split('-')

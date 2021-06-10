@@ -668,7 +668,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    container_name=taskSpec.container_name,
                                                                    only_tags_fc=taskSpec.use_only_tags_fc(),
                                                                    host_cpu_spec=host_cpu_spec,
-                                                                   host_gpu_spec=host_gpu_spec)
+                                                                   host_gpu_spec=host_gpu_spec,
+                                                                   log_stream=tmpLog)
                 sitesAuto = copy.copy(siteListWithSW)
                 if len(sitesNoJsonCheck) > 0:
                     tmpListWithSW = self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
@@ -691,7 +692,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    container_name=taskSpec.container_name,
                                                                    only_tags_fc=taskSpec.use_only_tags_fc(),
                                                                    host_cpu_spec=host_cpu_spec,
-                                                                   host_gpu_spec=host_gpu_spec)
+                                                                   host_gpu_spec=host_gpu_spec,
+                                                                   log_stream=tmpLog)
                 sitesAuto = copy.copy(siteListWithSW)
                 if len(sitesNoJsonCheck) > 0:
                     tmpListWithSW = self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
@@ -709,7 +711,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    container_name=taskSpec.container_name,
                                                                    only_tags_fc=taskSpec.use_only_tags_fc(),
                                                                    host_cpu_spec=host_cpu_spec,
-                                                                   host_gpu_spec=host_gpu_spec)
+                                                                   host_gpu_spec=host_gpu_spec,
+                                                                   log_stream=tmpLog)
                 sitesAuto = copy.copy(siteListWithSW)
                 if len(sitesNoJsonCheck) > 0:
                     tmpListWithSW = self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
