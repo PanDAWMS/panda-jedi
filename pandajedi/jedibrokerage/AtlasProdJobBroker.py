@@ -733,7 +733,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     newScanSiteList.append(tmpSiteName)
                     sitesAny.append(tmpSiteName)
                 else:
-                    if tmpSiteSpec.releases == 'AUTO':
+                    if tmpSiteSpec.releases == ['AUTO']:
                         autoStr = 'with AUTO'
                     else:
                         autoStr = 'without AUTO'
