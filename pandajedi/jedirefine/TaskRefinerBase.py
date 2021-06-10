@@ -83,7 +83,8 @@ class TaskRefinerBase (object):
         taskSpec.architecture = taskParamMap['architecture']
         taskSpec.transUses = taskParamMap['transUses']
         taskSpec.transHome = taskParamMap['transHome']
-        taskSpec.transPath = taskParamMap['transPath']
+        if 'transPath' in taskParamMap:
+            taskSpec.transPath = taskParamMap['transPath']
         taskSpec.processingType = taskParamMap['processingType']
         taskSpec.taskType = taskParamMap['taskType']
         taskSpec.splitRule = splitRule
