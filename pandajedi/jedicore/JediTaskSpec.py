@@ -1625,9 +1625,11 @@ class JediTaskSpec(object):
     # get platforms
     def get_platforms(self):
         if self.architecture is not None:
-            m = re.search('^([^#&]*)', self.architecture)
-            if m:
-                return m.group(1)
+            platform = self.get_sw_platform()
+            base = self.get_base_platform()
+            if base:
+                platform += '@' + base
+            return  platform
         return self.architecture
 
     # get host CPU spec
