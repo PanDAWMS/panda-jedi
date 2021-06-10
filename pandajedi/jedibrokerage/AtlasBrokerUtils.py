@@ -882,7 +882,7 @@ class JsonSoftwareCheck:
                                      ('any' not in architecture_map['gpu']['model'] and \
                                       host_gpu_spec['model'] not in architecture_map['gpu']['model'])):
                                 continue
-                        go_ahead = True
+                    go_ahead = True
                 except Exception as e:
                     if log_stream:
                         log_stream.error('json check failed for {} {} {}'.format(tmpSiteName, str(e),
