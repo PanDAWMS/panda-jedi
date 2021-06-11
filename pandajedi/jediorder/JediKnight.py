@@ -43,10 +43,12 @@ class JediKnight (Interaction.CommandReceiveInterface):
         except Exception:
             return [par]
 
-
     # sleep to avoid synchronization of loop
-    def randomSleep(self,minVal=0,maxVal=30):
-        time.sleep(random.randint(minVal,maxVal))
+    def randomSleep(self, min_val=0, default_max_val=30, max_val=None):
+        if max_val is None:
+            max_val = default_max_val
+        max_val = min(max_val, default_max_val)
+        time.sleep(random.randint(min_val, max_val))
 
 
             

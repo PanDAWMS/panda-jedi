@@ -1,11 +1,4 @@
-import re
-import sys
-
-from pandajedi.jedicore import Interaction
 from .TaskRefinerBase import TaskRefinerBase
-from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
-from pandaserver.config import panda_config
-
 
 # refiner for general purpose
 class GenTaskRefiner (TaskRefinerBase):
@@ -14,11 +7,19 @@ class GenTaskRefiner (TaskRefinerBase):
     def __init__(self,taskBufferIF,ddmIF):
         TaskRefinerBase.__init__(self,taskBufferIF,ddmIF)
 
+    # extract common parameters
+    def extractCommon(self, jediTaskID, taskParamMap, workQueueMapper, splitRule):
+        if 'cloud' not in taskParamMap and 'workingGroup' in taskParamMap:
+            taskParamMap['cloud'] = taskParamMap['workingGroup']
+        if 'transPath' not in taskParamMap:
+            taskParamMap['transPath'] = 'https://atlpan.web.cern.ch/atlpan/runGen-00-00-02'
+        # update task parameters
+        self.updatedTaskParams = taskParamMap
+        # call base method
+        TaskRefinerBase.extractCommon(self, jediTaskID, taskParamMap, workQueueMapper, splitRule)
 
     # main
     def doRefine(self,jediTaskID,taskParamMap):
         # normal refine
         self.doBasicRefine(taskParamMap)
         return self.SC_SUCCEEDED
-            
-    

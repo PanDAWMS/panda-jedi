@@ -5,6 +5,7 @@ import datetime
 import time
 import os
 import socket
+import traceback
 
 from six import iteritems
 
@@ -808,21 +809,30 @@ class JsonSoftwareCheck:
     # get lists
     def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only,
               need_container=False, container_name=None, only_tags_fc=False, host_cpu_spec=None,
-              host_gpu_spec=None):
+              host_gpu_spec=None, log_stream=None):
         okSite = []
         noAutoSite = []
         for tmpSiteName in site_list:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
                 try:
+                    go_ahead = False
                     # check if exclusive for GPU
                     only_gpu = False
-                    if 'architecture' in self.swDict[tmpSiteName]:
-                        for arch, arch_spec in iteritems(self.swDict[tmpSiteName]['architecture']):
-                            if 'coproc' in arch_spec and 'exclusive' in arch_spec['coproc'] and \
-                                    arch_spec['coproc']['exclusive'] is True:
-                                only_gpu = True
-                                break
+                    architecture_map = {}
+                    if 'architectures' in self.swDict[tmpSiteName]:
+                        for arch_spec in self.swDict[tmpSiteName]['architectures']:
+                            if 'type' in arch_spec:
+                                architecture_map[arch_spec['type']] = arch_spec
+                                if arch_spec['type'] == 'gpu' and \
+                                        'vendor' in arch_spec and 'none' not in arch_spec['vendor']:
+                                    only_gpu = True
+                    # need CPU spec
+                    if 'cpu' in architecture_map and host_cpu_spec is None:
+                        if 'arch' in architecture_map['cpu'] and 'any' not in architecture_map['cpu']['arch']:
+                            continue
+                        if 'vendor' in architecture_map['cpu'] and 'any' not in architecture_map['cpu']['vendor']:
+                            continue
                     # host HW spec
                     if host_gpu_spec is None:
                         # skip since host GPU spec is not specified and the PQ is only for GPU jobs
@@ -830,42 +840,55 @@ class JsonSoftwareCheck:
                             continue
                     if host_cpu_spec or host_gpu_spec:
                         # skip since the PQ doesn't describe HW spec
-                        if 'architecture' not in self.swDict[tmpSiteName]:
+                        if not architecture_map:
                             continue
-                        # check HW
-                        found = False
-                        for arch, arch_spec in iteritems(self.swDict[tmpSiteName]['architecture']):
-                            # check CPU
-                            if host_cpu_spec:
-                                # check architecture
-                                if host_cpu_spec['arch'] != '*' and host_cpu_spec['arch'] != arch:
-                                    continue
-                                # check vendor
-                                if host_cpu_spec['vendor'] != '*' and \
-                                        ('vendor' not in arch_spec or host_cpu_spec['vendor'] != arch_spec['vendor']):
-                                    continue
-                                # check instruction set
-                                if host_cpu_spec['instr'] != '*' and \
-                                        ('instr' not in arch_spec or host_cpu_spec['instr'] not in arch_spec['instr']):
-                                    continue
-                            # check GPU
-                            if host_gpu_spec:
-                                # CPU only
-                                if 'coproc' not in arch_spec:
-                                    continue
-                                # check vendor
-                                if host_gpu_spec['vendor'] != '*' and \
-                                        host_gpu_spec['vendor'] != arch_spec['coproc']['vendor']:
-                                    continue
-                                # check instruction set
-                                if host_gpu_spec['model'] != '*' and \
-                                        host_gpu_spec['model'] not in arch_spec['coproc']['model']:
-                                    continue
-                            found = True
-                        if not found:
-                            continue
-                except Exception:
-                    pass
+                        # check CPU
+                        if host_cpu_spec:
+                            # CPU not specified
+                            if 'cpu' not in architecture_map:
+                                continue
+                            # check architecture
+                            if host_cpu_spec['arch'] != '*' and \
+                                    ('any' not in architecture_map['cpu']['arch'] and \
+                                     host_cpu_spec['arch'] not in architecture_map['cpu']['arch']):
+                                continue
+                            # check vendor
+                            if host_cpu_spec['vendor'] != '*' and \
+                                    ('vendor' not in architecture_map['cpu'] or \
+                                     ('any' not in architecture_map['cpu']['vendor'] and \
+                                     host_cpu_spec['vendor'] not in architecture_map['cpu']['vendor'])):
+                                continue
+                            # check instruction set
+                            if host_cpu_spec['instr'] != '*' and \
+                                    ('instr' not in architecture_map['cpu'] or \
+                                     ('any' not in architecture_map['cpu']['instr'] and \
+                                      host_cpu_spec['instr'] not in architecture_map['cpu']['instr'])):
+                                continue
+
+                        # check GPU
+                        if host_gpu_spec:
+                            # CPU only
+                            if 'gpu' not in architecture_map or 'none' in architecture_map['gpu']['vendor']:
+                                continue
+                            # check vendor
+                            if host_gpu_spec['vendor'] != '*' and \
+                                    ('vendor' not in architecture_map['gpu'] or \
+                                     ('any' not in architecture_map['gpu']['vendor'] and \
+                                     host_gpu_spec['vendor'] not in architecture_map['gpu']['vendor'])):
+                                continue
+                            # check instruction set
+                            if host_gpu_spec['model'] != '*' and \
+                                    ('model' not in architecture_map['gpu'] or \
+                                     ('any' not in architecture_map['gpu']['model'] and \
+                                      host_gpu_spec['model'] not in architecture_map['gpu']['model'])):
+                                continue
+                    go_ahead = True
+                except Exception as e:
+                    if log_stream:
+                        log_stream.error('json check failed for {} {} {}'.format(tmpSiteName, str(e),
+                                                                                 traceback.format_exc()))
+                if not go_ahead:
+                    continue
                 # check for fat container
                 if container_name:
                     # check for container
@@ -926,8 +949,8 @@ class JsonSoftwareCheck:
                                 break
                 # don't pass to subsequent check if AUTO is enabled
                 continue
-            # use only AUTO for container
-            if container_name is not None:
+            # use only AUTO for container or HW
+            if container_name is not None or host_cpu_spec is not None or host_gpu_spec is not None:
                 continue
             noAutoSite.append(tmpSiteName)
         return (okSite, noAutoSite)

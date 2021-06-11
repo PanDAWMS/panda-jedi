@@ -313,7 +313,7 @@ class JobGenerator (JediKnight):
             if sleepPeriod > 0:
                 time.sleep(sleepPeriod)
             # randomize cycle
-            self.randomSleep()
+            self.randomSleep(max_val=loopCycle)
 
 
 
@@ -623,7 +623,9 @@ class JobGeneratorThread (WorkerThread):
                                 continue
                         # extend sandbox lifetime
                         if goForward:
-                            if not inputChunk.isMerging:
+                            if not inputChunk.isMerging and \
+                                    not (hasattr(jedi_config.jobgen, 'touchSandbox')
+                                         and not jedi_config.jobgen.touchSandbox):
                                 tmpStat, tmpOut = self.touchSandoboxFiles(taskSpec, taskParamMap, tmpLog)
                                 if tmpStat != Interaction.SC_SUCCEEDED:
                                     tmpLog.error('failed to extend lifetime of sandbox file')
@@ -660,7 +662,13 @@ class JobGeneratorThread (WorkerThread):
                         if goForward:
                             tmpLog.debug('run setupper with {0}'.format(self.taskSetupper.getClassName(taskSpec.vo,
                                                                                                       taskSpec.prodSourceLabel)))
-                            tmpStat = self.taskSetupper.doSetup(taskSpec,datasetToRegister,pandaJobs)
+                            tmpStat = self.taskSetupper.doSetup(taskSpec, datasetToRegister, pandaJobs)
+                            if tmpStat == Interaction.SC_FATAL and taskSpec.frozenTime is not None \
+                                    and datetime.datetime.utcnow() - taskSpec.frozenTime > datetime.timedelta(days=7):
+                                tmpErrStr = 'fatal error when setting up task'
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.status = 'exhausted'
+                                taskSpec.setErrDiag(tmpErrStr, True)
                             if tmpStat != Interaction.SC_SUCCEEDED:
                                 tmpErrStr = 'failed to setup task'
                                 tmpLog.error(tmpErrStr)

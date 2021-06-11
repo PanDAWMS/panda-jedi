@@ -1625,9 +1625,11 @@ class JediTaskSpec(object):
     # get platforms
     def get_platforms(self):
         if self.architecture is not None:
-            m = re.search('^([^#&]*)', self.architecture)
-            if m:
-                return m.group(1)
+            platform = self.get_sw_platform()
+            base = self.get_base_platform()
+            if base:
+                platform += '@' + base
+            return  platform
         return self.architecture
 
     # get host CPU spec
@@ -1635,7 +1637,7 @@ class JediTaskSpec(object):
         try:
             if self.architecture is None or '#' not in self.architecture:
                 return None
-            m = re.search('#([^&]*)', self.architecture)
+            m = re.search('#([^@&]*)', self.architecture)
             spec_str = m.group(1)
             if not spec_str:
                 spec_str = '*'
@@ -1646,6 +1648,8 @@ class JediTaskSpec(object):
             spec = {'arch': items[0],
                     'vendor': items[1],
                     'instr': items[2]}
+            if spec['instr'] == '*':
+                spec['instr'] = 'none'
             return spec
         except Exception:
             return None
@@ -1655,7 +1659,7 @@ class JediTaskSpec(object):
         try:
             if self.architecture is None or '&' not in self.architecture:
                 return None
-            m = re.search('&(.*)', self.architecture)
+            m = re.search('&([^@#]*)', self.architecture)
             spec_str = m.group(1)
             spec_str += '-*' * (1 - spec_str.count('-'))
             items = spec_str.split('-')

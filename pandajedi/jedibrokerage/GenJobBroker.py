@@ -30,6 +30,7 @@ class GenJobBroker (JobBrokerBase):
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
         # get sites in the cloud
+        site_preassigned = True
         if taskSpec.site not in ['',None]:
             scanSiteList = [taskSpec.site]
             tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
@@ -37,8 +38,14 @@ class GenJobBroker (JobBrokerBase):
             scanSiteList = [inputChunk.getPreassignedSite()]
             tmpLog.debug('site={0} is pre-assigned in masterDS'.format(inputChunk.getPreassignedSite()))
         else:
-            scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
-            tmpLog.debug('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
+            site_preassigned = False
+            if not taskSpec.cloud and 'cloud' in taskParamMap:
+                taskSpec.cloud = taskParamMap['cloud']
+            scanSiteList = self.siteMapper.getCloud(taskSpec.cloud)['sites']
+            # remove NA
+            if 'NA' in scanSiteList:
+                scanSiteList.remove('NA')
+            tmpLog.debug('cloud=%s has %s candidates' % (taskSpec.cloud, len(scanSiteList)))
         tmpLog.debug('initial {0} candidates'.format(len(scanSiteList)))
         ######################################
         # selection for status
@@ -47,7 +54,7 @@ class GenJobBroker (JobBrokerBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check site status
             skipFlag = False
-            if tmpSiteSpec.status != 'online':
+            if tmpSiteSpec.status != 'online' and not site_preassigned:
                 skipFlag = True
             if not skipFlag:
                 newScanSiteList.append(tmpSiteName)
@@ -131,6 +138,43 @@ class GenJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             tmpLog.debug('{0} candidates passed walltime check ={1}{2}'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
+            if scanSiteList == []:
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
+        ######################################
+        # selection for memory
+        origMinRamCount = inputChunk.getMaxRamCount()
+        if not site_preassigned and origMinRamCount:
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                # job memory requirement
+                if taskSpec.ramPerCore():
+                    minRamCount = origMinRamCount * (tmpSiteSpec.coreCount if tmpSiteSpec.coreCount else 1)
+                    minRamCount += (taskSpec.baseRamCount if taskSpec.baseRamCount else 0)
+                else:
+                    minRamCount = origMinRamCount
+                # site max memory requirement
+                site_maxmemory = tmpSiteSpec.maxrss if tmpSiteSpec.maxrss else 0
+                # check at the site
+                if site_maxmemory and minRamCount and minRamCount > site_maxmemory:
+                    tmpMsg = '  skip site={0} due to site RAM shortage {1}(site upper limit) less than {2} '.format(tmpSiteName,
+                                                                                                                    site_maxmemory,
+                                                                                                                    minRamCount)
+                    tmpLog.debug(tmpMsg)
+                    continue
+                # site min memory requirement
+                site_minmemory = tmpSiteSpec.minrss if tmpSiteSpec.minrss else 0
+                if site_minmemory and minRamCount and minRamCount < site_minmemory:
+                    tmpMsg = '  skip site={0} due to job RAM shortage {1}(site lower limit) greater than {2} '.format(tmpSiteName,
+                                                                                                                      site_minmemory,
+                                                                                                                      minRamCount)
+                    tmpLog.info(tmpMsg)
+                    continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList
+            tmpLog.debug('{0} candidates passed memory check'.format(len(scanSiteList)))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
