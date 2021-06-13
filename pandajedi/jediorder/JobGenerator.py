@@ -1232,6 +1232,9 @@ class JobGeneratorThread (WorkerThread):
                     # HPO
                     if taskSpec.is_hpo_workflow():
                         jobSpec.set_hpo_workflow()
+                    # encode job parameters
+                    if taskSpec.encode_job_params():
+                        jobSpec.set_encode_job_params()
                     # extract middle name
                     middleName = ''
                     if taskSpec.getFieldNumToLFN() is not None and jobSpec.prodDBlock not in [None,'NULL','']:

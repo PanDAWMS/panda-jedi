@@ -817,26 +817,31 @@ class JsonSoftwareCheck:
             if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
                 try:
                     go_ahead = False
-                    # check if exclusive for GPU
-                    only_gpu = False
+                    # convert to a dict
                     architecture_map = {}
                     if 'architectures' in self.swDict[tmpSiteName]:
                         for arch_spec in self.swDict[tmpSiteName]['architectures']:
                             if 'type' in arch_spec:
                                 architecture_map[arch_spec['type']] = arch_spec
-                                if arch_spec['type'] == 'gpu' and \
-                                        'vendor' in arch_spec and 'none' not in arch_spec['vendor']:
-                                    only_gpu = True
-                    # need CPU spec
-                    if 'cpu' in architecture_map and host_cpu_spec is None:
-                        if 'arch' in architecture_map['cpu'] and 'any' not in architecture_map['cpu']['arch']:
+                    # check if need CPU
+                    if 'cpu' in architecture_map:
+                        need_cpu = False
+                        for k in architecture_map['cpu']:
+                            if isinstance(architecture_map['cpu'][k], list):
+                                if 'excl' in architecture_map['cpu'][k]:
+                                    cpu = True
+                                    break
+                        if need_cpu and host_cpu_spec is None:
                             continue
-                        if 'vendor' in architecture_map['cpu'] and 'any' not in architecture_map['cpu']['vendor']:
-                            continue
-                    # host HW spec
-                    if host_gpu_spec is None:
-                        # skip since host GPU spec is not specified and the PQ is only for GPU jobs
-                        if only_gpu:
+                    # check if need GPU
+                    if 'gpu' in architecture_map:
+                        need_gpu = False
+                        for k in architecture_map['gpu']:
+                            if isinstance(architecture_map['gpu'][k], list):
+                                if 'excl' in architecture_map['gpu'][k]:
+                                    need_gpu = True
+                                    break
+                        if need_gpu and host_gpu_spec is None:
                             continue
                     if host_cpu_spec or host_gpu_spec:
                         # skip since the PQ doesn't describe HW spec
@@ -848,40 +853,50 @@ class JsonSoftwareCheck:
                             if 'cpu' not in architecture_map:
                                 continue
                             # check architecture
-                            if host_cpu_spec['arch'] != '*' and \
-                                    ('any' not in architecture_map['cpu']['arch'] and \
-                                     host_cpu_spec['arch'] not in architecture_map['cpu']['arch']):
-                                continue
+                            if host_cpu_spec['arch'] == '*':
+                                if 'excl' in architecture_map['cpu']['arch']:
+                                    continue
+                            else:
+                                if 'any' not in architecture_map['cpu']['arch'] and \
+                                        host_cpu_spec['arch'] not in architecture_map['cpu']['arch']:
+                                    continue
                             # check vendor
-                            if host_cpu_spec['vendor'] != '*' and \
-                                    ('vendor' not in architecture_map['cpu'] or \
-                                     ('any' not in architecture_map['cpu']['vendor'] and \
-                                     host_cpu_spec['vendor'] not in architecture_map['cpu']['vendor'])):
-                                continue
+                            if host_cpu_spec['vendor'] == '*':
+                                if 'excl' in architecture_map['cpu']['vendor']:
+                                    continue
+                            else:
+                                if 'any' not in architecture_map['cpu']['vendor'] and \
+                                        host_cpu_spec['vendor'] not in architecture_map['cpu']['vendor']:
+                                    continue
                             # check instruction set
-                            if host_cpu_spec['instr'] != '*' and \
-                                    ('instr' not in architecture_map['cpu'] or \
-                                     ('any' not in architecture_map['cpu']['instr'] and \
-                                      host_cpu_spec['instr'] not in architecture_map['cpu']['instr'])):
-                                continue
-
+                            if host_cpu_spec['instr'] == '*':
+                                if 'excl' in architecture_map['cpu']['instr']:
+                                    continue
+                            else:
+                                if 'any' not in architecture_map['cpu']['instr'] and \
+                                        host_cpu_spec['instr'] not in architecture_map['cpu']['instr']:
+                                    continue
                         # check GPU
                         if host_gpu_spec:
-                            # CPU only
-                            if 'gpu' not in architecture_map or 'none' in architecture_map['gpu']['vendor']:
+                            # GPU not specified
+                            if 'gpu' not in architecture_map:
                                 continue
                             # check vendor
-                            if host_gpu_spec['vendor'] != '*' and \
-                                    ('vendor' not in architecture_map['gpu'] or \
-                                     ('any' not in architecture_map['gpu']['vendor'] and \
-                                     host_gpu_spec['vendor'] not in architecture_map['gpu']['vendor'])):
-                                continue
-                            # check instruction set
-                            if host_gpu_spec['model'] != '*' and \
-                                    ('model' not in architecture_map['gpu'] or \
-                                     ('any' not in architecture_map['gpu']['model'] and \
-                                      host_gpu_spec['model'] not in architecture_map['gpu']['model'])):
-                                continue
+                            if host_cpu_spec['vendor'] == '*':
+                                if 'excl' in architecture_map['gpu']['vendor']:
+                                    continue
+                            else:
+                                if 'any' not in architecture_map['gpu']['vendor'] and \
+                                        host_gpu_spec['arch'] not in architecture_map['gpu']['vendor']:
+                                    continue
+                            # check model
+                            if host_gpu_spec['model'] == '*':
+                                if 'excl' in architecture_map['gpu']['model']:
+                                    continue
+                            else:
+                                if 'any' not in architecture_map['gpu']['model'] and \
+                                        host_gpu_spec['model'] not in architecture_map['gpu']['model']:
+                                    continue
                     go_ahead = True
                 except Exception as e:
                     if log_stream:
