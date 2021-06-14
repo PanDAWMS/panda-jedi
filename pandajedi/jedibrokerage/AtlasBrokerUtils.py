@@ -904,6 +904,11 @@ class JsonSoftwareCheck:
                                                                                  traceback.format_exc()))
                 if not go_ahead:
                     continue
+                # only HW check
+                if not (cvmfs_tag or cmt_config or sw_project or sw_version or container_name) and \
+                        (host_cpu_spec or host_gpu_spec):
+                    okSite.append(tmpSiteName)
+                    continue
                 # check for fat container
                 if container_name:
                     # check for container
