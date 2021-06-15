@@ -53,6 +53,7 @@ class JediTaskSpec(object):
         'disableAutoRetry'   : 'DR',
         'dynamicNumEvents'   : 'DY',
         'nEsConsumers'       : 'EC',
+        'encJobParams'       : 'EJ',
         'nEventsPerWorker'   : 'ES',
         'firstContentsFeed'  : 'FC',
         'failGoalUnreached'  : 'FG',
@@ -1648,8 +1649,6 @@ class JediTaskSpec(object):
             spec = {'arch': items[0],
                     'vendor': items[1],
                     'instr': items[2]}
-            if spec['instr'] == '*':
-                spec['instr'] = 'none'
             return spec
         except Exception:
             return None
@@ -1743,5 +1742,12 @@ class JediTaskSpec(object):
     def no_looping_check(self):
         if self.splitRule is not None:
             if re.search(self.splitRuleToken['noLoopingCheck']+'=(\d+)', self.splitRule):
+                return True
+        return False
+
+    # encode job parameters
+    def encode_job_params(self):
+        if self.splitRule is not None:
+            if re.search(self.splitRuleToken['encJobParams']+'=(\d+)', self.splitRule):
                 return True
         return False
