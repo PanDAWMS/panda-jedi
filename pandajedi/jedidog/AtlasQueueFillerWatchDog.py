@@ -275,7 +275,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     continue
                 # site attributes
                 site_maxrss =  tmpSiteSpec.maxrss if tmpSiteSpec.maxrss not in (0, None) else 999999
-                max_mem_per_core = site_maxrss/tmpSiteSpec.coreCount
+                site_corecount = tmpSiteSpec.coreCount
                 # make sql parameters of rses
                 available_rses = list(available_rses)
                 rse_params_list = []
@@ -297,7 +297,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         "AND t.prodSourceLabel=:prodSourceLabel "
                         "AND t.resource_type=:resource_type "
                         "AND site IS NULL "
-                        "AND t.ramCount<( :max_mem_per_core * t.coreCount ) "
+                        "AND (COALESCE(t.baseRamCount, 0) + (CASE WHEN t.ramUnit IN ('MBPerCore','MBPerCoreFixed') THEN t.ramCount*:site_corecount ELSE t.ramCount END))*0.95 < :site_maxrss "
+                        "AND t.eventService=0 "
                         "AND EXISTS ( "
                             "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
                             "WHERE dl.jediTaskID=t.jediTaskID "
@@ -310,6 +311,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                 "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
                             ") "
                         "AND t.currentPriority<:magic_priority "
+                        "AND t.container_name IS NULL "
                     "ORDER BY t.currentPriority DESC "
                     "FOR UPDATE "
                 ).format(jedi_schema=jedi_config.db.schemaJEDI,
@@ -323,7 +325,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     params_map = {
                             ':prodSourceLabel': prod_source_label,
                             ':resource_type': resource_type,
-                            ':max_mem_per_core': max_mem_per_core,
+                            ':site_maxrss': site_maxrss,
+                            ':site_corecount': site_corecount,
                             ':min_files_ready': min_files_ready,
                             ':min_files_remaining': min_files_remaining,
                             ':magic_priority': magic_priority,
@@ -350,7 +353,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                 "AND t.prodSourceLabel=:prodSourceLabel "
                                 "AND t.resource_type=:resource_type "
                                 "AND site IS NULL "
-                                "AND t.ramCount<( :max_mem_per_core * t.coreCount ) "
+                                "AND (COALESCE(t.baseRamCount, 0) + (CASE WHEN t.ramUnit IN ('MBPerCore','MBPerCoreFixed') THEN t.ramCount*:site_corecount ELSE t.ramCount END))*0.95 < :site_maxrss "
+                                "AND t.eventService=0 "
                                 "AND EXISTS ( "
                                     "SELECT * FROM {jedi_schema}.JEDI_Dataset_Locality dl "
                                     "WHERE dl.jediTaskID=t.jediTaskID "
@@ -363,6 +367,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                         "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
                                     ") "
                                 "AND t.currentPriority<:magic_priority "
+                                "AND t.container_name IS NULL "
                             "ORDER BY t.currentPriority DESC "
                         ).format(jedi_schema=jedi_config.db.schemaJEDI,
                                     rse_params_str=rse_params_str,
