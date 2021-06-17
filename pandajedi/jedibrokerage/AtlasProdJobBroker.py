@@ -1585,15 +1585,15 @@ class AtlasProdJobBroker (JobBrokerBase):
             # set available files
             for tmpDatasetName,availableFiles in iteritems(availableFileMap):
                 if tmpSiteName in availableFiles:
-                    siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
-                    siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
-                    siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
-                    siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
+                    siteCandidateSpec.add_local_disk_files(availableFiles[tmpSiteName]['localdisk'])
+                    siteCandidateSpec.add_local_tape_files(availableFiles[tmpSiteName]['localtape'])
+                    siteCandidateSpec.add_cache_files(availableFiles[tmpSiteName]['cache'])
+                    siteCandidateSpec.add_remote_files(availableFiles[tmpSiteName]['remote'])
             # add files as remote since WAN access is allowed
             if taskSpec.allowInputWAN() and tmpSiteSpec.allowWanInputAccess():
                 siteCandidateSpec.remoteProtocol = 'direct'
                 for datasetSpec in inputChunk.getDatasets():
-                    siteCandidateSpec.remoteFiles += datasetSpec.Files
+                    siteCandidateSpec.add_remote_files(datasetSpec.Files)
             # check if site is locked for WORLD
             lockedByBrokerage = False
             if taskSpec.useWorldCloud():

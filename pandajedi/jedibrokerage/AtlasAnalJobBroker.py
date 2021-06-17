@@ -1676,7 +1676,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         if tmpRemoteSite in availableFiles and \
                                 len(tmpDatasetSpec.Files) <= len(availableFiles[tmpRemoteSite]['localdisk']):
                             # use only remote disk files
-                            siteCandidateSpec.remoteFiles += availableFiles[tmpRemoteSite]['localdisk']
+                            siteCandidateSpec.add_remote_files(availableFiles[tmpRemoteSite]['localdisk'])
                             # set remote site and access protocol
                             siteCandidateSpec.remoteProtocol = allowedRemoteProtocol
                             siteCandidateSpec.remoteSource   = tmpRemoteSite
@@ -1689,12 +1689,12 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localtape']) or \
                             (tmpDatasetSpec.isDistributed() and len(availableFiles[tmpSiteName]['all']) > 0) or \
                             ((checkDataLocality is False or useUnionLocality) and not tmpSiteSpec.use_only_local_data()):
-                        siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
+                        siteCandidateSpec.add_local_disk_files(availableFiles[tmpSiteName]['localdisk'])
                         # add cached files to local list since cached files go to pending when reassigned
-                        siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['cache']
-                        siteCandidateSpec.localTapeFiles  += availableFiles[tmpSiteName]['localtape']
-                        siteCandidateSpec.cacheFiles  += availableFiles[tmpSiteName]['cache']
-                        siteCandidateSpec.remoteFiles += availableFiles[tmpSiteName]['remote']
+                        siteCandidateSpec.add_local_disk_files(availableFiles[tmpSiteName]['cache'])
+                        siteCandidateSpec.add_local_tape_files(availableFiles[tmpSiteName]['localtape'])
+                        siteCandidateSpec.add_cache_files(availableFiles[tmpSiteName]['cache'])
+                        siteCandidateSpec.add_remote_files(availableFiles[tmpSiteName]['remote'])
                         siteCandidateSpec.addAvailableFiles(availableFiles[tmpSiteName]['all'])
                         isAvailable = True
                     else:

@@ -7,13 +7,13 @@ class SiteCandidate(object):
         # the weight for the brokerage
         self.weight = 0
         # the list of files copied from SE disk
-        self.localDiskFiles = []
+        self.localDiskFiles = set()
         # the list of files copied from SE tape
-        self.localTapeFiles = []
+        self.localTapeFiles = set()
         # the list of files cached in non-SE, e.g. on CVMFS 
-        self.cacheFiles = []
+        self.cacheFiles = set()
         # the list of files read from SE using remote I/O
-        self.remoteFiles = []
+        self.remoteFiles = set()
         # the list of all files
         self.allFiles = None
         # remote access protocol
@@ -31,20 +31,32 @@ class SiteCandidate(object):
         # overridden attributes
         self.overriddenAttrs = {}
 
+    # add local disk files
+    def add_local_disk_files(self, files):
+        self.localDiskFiles = self.localDiskFiles.union([f.fileID for f in files])
+
+    # add local tape files
+    def add_local_tape_files(self, files):
+        self.localTapeFiles = self.localTapeFiles.union([f.fileID for f in files])
+
+    # add cache files
+    def add_cache_files(self, files):
+        self.cacheFiles = self.cacheFiles.union([f.fileID for f in files])
+
+    # add remote files
+    def add_remote_files(self, files):
+        self.remoteFiles = self.remoteFiles.union([f.fileID for f in files])
+
     # get locality of a file
-    def getFileLocality(self,fileSpec):
-        for tmpFileSpec in self.localDiskFiles:
-            if tmpFileSpec.fileID == fileSpec.fileID:
-                return 'localdisk'
-        for tmpFileSpec in self.localTapeFiles:
-            if tmpFileSpec.fileID == fileSpec.fileID:
-                return 'localtape'
-        for tmpFileSpec in self.cacheFiles:
-            if tmpFileSpec.fileID == fileSpec.fileID:
-                return 'cache'
-        for tmpFileSpec in self.remoteFiles:
-            if tmpFileSpec.fileID == fileSpec.fileID:
-                return 'remote'
+    def getFileLocality(self, fileSpec):
+        if fileSpec.fileID in self.localDiskFiles:
+            return 'localdisk'
+        if fileSpec.fileID in self.localTapeFiles:
+            return 'localtape'
+        if fileSpec.fileID in self.cacheFiles:
+            return 'cache'
+        if fileSpec.fileID in self.remoteFiles:
+            return 'remote'
         return None
 
     # add available files
