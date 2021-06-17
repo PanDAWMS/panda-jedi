@@ -179,6 +179,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         avoidVP = False
         summaryList = []
         for scanSiteList, checkDataLocality in scanSiteLists:
+            useUnionLocality = False
             self.summaryList = []
             self.summaryList.append('===== Brokerage summary =====')
             self.summaryList.append('data locality check: {}'.format(checkDataLocality))
@@ -256,6 +257,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 # get the list of sites where data is available
                 scanSiteList = None
                 scanSiteListOnDisk = None
+                scanSiteListUnion = None
+                scanSiteListOnDiskUnion = None
+                scanSiteWoVpUnion = None
                 normFactor = 0
                 for datasetName,tmpDataSite in iteritems(self.dataSiteMap):
                     normFactor += 1
@@ -322,12 +326,16 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                 continue
                             scanSiteListOnDisk.add(tmpSiteName)
                         scanSiteWoVP = tmpNonVpSiteList
+                        scanSiteListUnion = set(scanSiteList)
+                        scanSiteListOnDiskUnion = set(scanSiteListOnDisk)
+                        scanSiteWoVpUnion = set(scanSiteWoVP)
                         continue
                     # pickup sites which have all data
                     newScanList = []
                     for tmpSiteName in tmpSiteList + list(tmpSatelliteSites.keys()):
                         if tmpSiteName in scanSiteList and tmpSiteName not in newScanList:
                             newScanList.append(tmpSiteName)
+                        scanSiteListUnion.add(tmpSiteName)
                     scanSiteList = newScanList
                     tmpLog.debug('{0} is available at {1} sites'.format(datasetName,len(scanSiteList)))
                     # pickup sites which have all data on DISK
@@ -335,22 +343,34 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     for tmpSiteName in tmpDiskSiteList + list(tmpSatelliteSites.keys()):
                         if tmpSiteName in scanSiteListOnDisk:
                             newScanListOnDisk.add(tmpSiteName)
+                        scanSiteListOnDiskUnion.add(tmpSiteName)
                     scanSiteListOnDisk = newScanListOnDisk
                     # get common elements
                     scanSiteWoVP = list(set(scanSiteWoVP).intersection(tmpNonVpSiteList))
+                    scanSiteWoVpUnion = scanSiteWoVpUnion.union(tmpNonVpSiteList)
                     tmpLog.debug('{0} is available at {1} sites on DISK'.format(datasetName,len(scanSiteListOnDisk)))
                 # check for preassigned
-                if sitePreAssigned and preassignedSite not in scanSiteList:
-                    scanSiteList = []
-                    tmpLog.info('data is unavailable locally or remotely at preassigned site {0}'.format(preassignedSite))
+                if sitePreAssigned:
+                    if preassignedSite not in scanSiteList and preassignedSite not in scanSiteListUnion:
+                        scanSiteList = []
+                        tmpLog.info('data is unavailable locally or remotely at preassigned site {0}'.format(preassignedSite))
+                    elif preassignedSite not in scanSiteList:
+                        scanSiteList = list(scanSiteListUnion)
                 elif len(scanSiteListOnDisk) > 0:
                     # use only disk sites
                     scanSiteList = list(scanSiteListOnDisk)
+                elif not scanSiteList and scanSiteListUnion:
+                    tmpLog.info('use union list for data locality check since no site has all data')
+                    if scanSiteListOnDiskUnion:
+                        scanSiteList = list(scanSiteListOnDiskUnion)
+                    elif scanSiteListUnion:
+                        scanSiteList = list(scanSiteListUnion)
+                    scanSiteWoVP = list(scanSiteWoVpUnion)
+                    useUnionLocality = True
                 scanSiteList = self.get_pseudo_sites(scanSiteList, oldScanSiteList)
                 # dump
                 for tmpSiteName in oldScanSiteList:
                     if tmpSiteName not in scanSiteList:
-                        #tmpLog.info('  skip site={0} data is unavailable criteria=-input'.format(tmpSiteName))
                         pass
                 tmpLog.info('{0} candidates have input data'.format(len(scanSiteList)))
                 self.add_summary_message(oldScanSiteList, scanSiteList, 'input data check')
@@ -1314,13 +1334,18 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     checkCompleteness = False
                 else:
                     checkCompleteness = True
+                if not datasetSpec.isMaster():
+                    useCompleteOnly = True
+                else:
+                    useCompleteOnly = False
                 # get available files per site/endpoint
                 tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
                                                             siteStorageEP,
                                                             self.siteMapper,
                                                             check_completeness=checkCompleteness,
                                                             use_vp=useVP,
-                                                            file_scan_in_container=False)
+                                                            file_scan_in_container=False,
+                                                            complete_only=useCompleteOnly)
                 if tmpAvFileMap is None:
                     raise Interaction.JEDITemporaryError('ddmIF.getAvailableFiles failed')
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
@@ -1443,7 +1468,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             diskNorm = 10
             tapeNorm = 1000
             localSize = totalSize
-            if checkDataLocality:
+            if checkDataLocality and not useUnionLocality:
                 tmpDataWeight = 1
                 if tmpSiteName in dataWeight:
                     weight *= dataWeight[tmpSiteName]
@@ -1663,7 +1688,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['cache']) or \
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localtape']) or \
                             (tmpDatasetSpec.isDistributed() and len(availableFiles[tmpSiteName]['all']) > 0) or \
-                            (checkDataLocality is False and not tmpSiteSpec.use_only_local_data()):
+                            ((checkDataLocality is False or useUnionLocality) and not tmpSiteSpec.use_only_local_data()):
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['localdisk']
                         # add cached files to local list since cached files go to pending when reassigned
                         siteCandidateSpec.localDiskFiles  += availableFiles[tmpSiteName]['cache']

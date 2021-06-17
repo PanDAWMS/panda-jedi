@@ -2906,7 +2906,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    minPriority=None, maxNumJobs=None, typicalNumFilesMap=None,
                                    fullSimulation=False, simDatasets=None,
                                    mergeUnThrottled=None, readMinFiles=False,
-                                   numNewTaskWithJumbo=0, resource_name=None):
+                                   numNewTaskWithJumbo=0, resource_name=None,
+                                   ignore_lock=False):
 
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
@@ -3202,7 +3203,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to read task
             sqlRT = "SELECT {0} ".format(JediTaskSpec.columnNames())
             sqlRT += "FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
-            sqlRT += "WHERE jediTaskID=:jediTaskID AND status=:statusInDB AND lockedBy IS NULL "
+            sqlRT += "WHERE jediTaskID=:jediTaskID AND status=:statusInDB "
+            if not ignore_lock:
+                sqlRT += "AND lockedBy IS NULL "
             if simTasks is None:
                 sqlRT += "FOR UPDATE NOWAIT "
             # sql to read locked task

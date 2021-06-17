@@ -177,7 +177,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
                                    maxNumJobs=None,typicalNumFilesMap=None,
                                    fullSimulation=False,simDatasets=None,
                                    mergeUnThrottled=None,readMinFiles=False,
-                                   numNewTaskWithJumbo=0, resource_name=None):
+                                   numNewTaskWithJumbo=0, resource_name=None,
+                                   ignore_lock=False):
         with self.proxyPool.get() as proxy:
             return proxy.getTasksToBeProcessed_JEDI(pid,vo,workQueue,prodSourceLabel,cloudName,nTasks,nFiles,
                                                   simTasks=simTasks,
@@ -189,7 +190,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
                                                   mergeUnThrottled=mergeUnThrottled,
                                                   readMinFiles=readMinFiles,
                                                   numNewTaskWithJumbo=numNewTaskWithJumbo,
-                                                  resource_name=resource_name)
+                                                  resource_name=resource_name,
+                                                  ignore_lock=ignore_lock)
 
     # get tasks to be processed
     def checkWaitingTaskPrio_JEDI(self, vo, workQueue, prodSourceLabel, cloudName, resource_name=None):
