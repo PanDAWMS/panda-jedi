@@ -516,39 +516,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 retVal = retTmpError
                 continue
             ######################################
-            # selection for GPU + architecture
-            newScanSiteList = []
-            oldScanSiteList = copy.copy(scanSiteList)
-            jsonCheck = None
-            for tmpSiteName in scanSiteList:
-                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                if tmpSiteSpec.isGPU() and not taskSpec.is_hpo_workflow():
-                    if taskSpec.get_sw_platform() in ['', None]:
-                        tmpLog.info('  skip site={0} since architecture is required for GPU queues'.format(tmpSiteName))
-                        continue
-                    if jsonCheck is None:
-                        jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
-                    siteListWithCMTCONFIG = [tmpSiteSpec.get_unified_name()]
-                    siteListWithCMTCONFIG, sitesNoJsonCheck = jsonCheck.check(siteListWithCMTCONFIG, None,
-                                                                              None, None,
-                                                                              taskSpec.get_sw_platform(),
-                                                                              False, True)
-                    siteListWithCMTCONFIG += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                                    cmtConfig=taskSpec.get_sw_platform(),
-                                                                                    onlyCmtConfig=True)
-                    if len(siteListWithCMTCONFIG) == 0:
-                        tmpLog.info('  skip site={0} since architecture={1} is unavailable'.format(tmpSiteName, taskSpec.get_sw_platform()))
-                        continue
-                newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList
-            tmpLog.info('{0} candidates passed for architecture check'.format(len(scanSiteList)))
-            self.add_summary_message(oldScanSiteList, scanSiteList, 'architecture check')
-            if not scanSiteList:
-                self.dump_summary(tmpLog)
-                tmpLog.error('no candidates')
-                retVal = retTmpError
-                continue
-            ######################################
             # selection for closed
             if not sitePreAssigned and not inputChunk.isMerging:
                 oldScanSiteList = copy.copy(scanSiteList)

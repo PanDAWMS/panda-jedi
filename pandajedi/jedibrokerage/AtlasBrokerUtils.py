@@ -882,12 +882,12 @@ class JsonSoftwareCheck:
                             if 'gpu' not in architecture_map:
                                 continue
                             # check vendor
-                            if host_cpu_spec['vendor'] == '*':
+                            if host_gpu_spec['vendor'] == '*':
                                 if 'excl' in architecture_map['gpu']['vendor']:
                                     continue
                             else:
                                 if 'any' not in architecture_map['gpu']['vendor'] and \
-                                        host_gpu_spec['arch'] not in architecture_map['gpu']['vendor']:
+                                        host_gpu_spec['vendor'] not in architecture_map['gpu']['vendor']:
                                     continue
                             # check model
                             if host_gpu_spec['model'] == '*':
