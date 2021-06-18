@@ -593,7 +593,7 @@ class JediTaskSpec(object):
     def useLocalIO(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['useLocalIO']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
+            if tmpMatch is not None and int(tmpMatch.group(1)):
                 return True
         return False
 

@@ -238,7 +238,6 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap,'nGBPerJob',        JediTaskSpec.splitRuleToken['nGBPerJob'])
         self.setSplitRule(taskParamMap,'nMaxFilesPerJob',  JediTaskSpec.splitRuleToken['nMaxFilesPerJob'])
         self.setSplitRule(taskParamMap,'nEventsPerWorker', JediTaskSpec.splitRuleToken['nEventsPerWorker'])
-        self.setSplitRule(taskParamMap,'useLocalIO',       JediTaskSpec.splitRuleToken['useLocalIO'])
         self.setSplitRule(taskParamMap,'disableAutoRetry', JediTaskSpec.splitRuleToken['disableAutoRetry'])
         self.setSplitRule(taskParamMap,'nEsConsumers',     JediTaskSpec.splitRuleToken['nEsConsumers'])
         self.setSplitRule(taskParamMap,'waitInput',        JediTaskSpec.splitRuleToken['waitInput'])
@@ -257,6 +256,13 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap, 'maxNumJobs', JediTaskSpec.splitRuleToken['maxNumJobs'])
         self.setSplitRule(taskParamMap, 'totNumJobs', JediTaskSpec.splitRuleToken['totNumJobs'])
         self.setSplitRule(taskParamMap, 'nChunksToWait', JediTaskSpec.splitRuleToken['nChunksToWait'])
+        if 'forceStaged' in taskParamMap:
+            taskParamMap['useLocalIO'] = taskParamMap['forceStaged']
+        if 'useLocalIO' in taskParamMap:
+            if taskParamMap['useLocalIO']:
+                self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['useLocalIO'])
+            else:
+                self.setSplitRule(None, 0, JediTaskSpec.splitRuleToken['useLocalIO'])
         if 'nJumboJobs' in taskParamMap:
             self.setSplitRule(taskParamMap,'nJumboJobs',JediTaskSpec.splitRuleToken['nJumboJobs'])
             taskSpec.useJumbo = JediTaskSpec.enum_useJumbo['waiting']
