@@ -9059,7 +9059,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # retry or incrementally execute a task
     def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5,useCommit=True,statusCheck=True,retryChildTasks=True,
-                       discardEvents=False):
+                       discardEvents=False, release_unstaged=False):
         comment = ' /* JediDBProxy.retryTask_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -9186,7 +9186,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # get input datasets
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
-                        sqlDS  = "SELECT datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,status,state,type "
+                        sqlDS  = "SELECT datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,"\
+                                 "status,state,type,datasetName "
                         sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
                         sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
                         for tmpType in JediDatasetSpec.getInputTypes():
@@ -9199,7 +9200,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         resDS = self.cur.fetchall()
                         changedMasterList = []
                         secMap  = {}
-                        for datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,status,state,datasetType \
+                        for datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,\
+                            status, state, datasetType, datasetName \
                                 in resDS:
                             if masterID is not None:
                                 if state not in [None,'']:
@@ -9307,6 +9309,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 self.cur.execute(sqlRD+comment,varMap)
                                 # collect masterIDs
                                 changedMasterList.append(datasetID)
+                                # release unstaged
+                                if release_unstaged:
+                                    self.updateInputDatasetsStagedAboutIdds_JEDI(jediTaskID,
+                                                                                 datasetName.split(':')[0],
+                                                                                 [datasetName.split(':')[-1]],
+                                                                                 use_commit=False)
                         # update secondary
                         for masterID in changedMasterList:
                             # no seconday
@@ -13260,7 +13268,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update input datasets stage-in done according to message from idds
-    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames):
+    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames, use_commit=True):
         comment = ' /* JediDBProxy.updateInputDatasetsStagedAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' < jediTaskID={0} >'.format(jeditaskid)
@@ -13285,7 +13293,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                      'AND status=:old_status '
                     ).format(jedi_config.db.schemaJEDI)
             # begin transaction
-            self.conn.begin()
+            if use_commit:
+                self.conn.begin()
             for dsname in dsnames:
                 varMap[':datasetName'] = '{0}:{1}'.format(scope, dsname)
                 tmpLog.debug('running sql: {0} {1}'.format(sqlUD, varMap))
@@ -13293,13 +13302,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 retVal += self.cur.rowcount
             self.fix_associated_files_in_staging(jeditaskid)
             # commit
-            if not self._commit():
-                raise RuntimeError('Commit error')
+            if use_commit:
+                if not self._commit():
+                    raise RuntimeError('Commit error')
             tmpLog.debug('updated {0} files'.format(retVal))
             return retVal
         except Exception:
-            # roll back
-            self._rollback()
+            if use_commit:
+                # roll back
+                self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
             return None

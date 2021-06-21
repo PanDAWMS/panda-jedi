@@ -278,9 +278,15 @@ class TaskCommandoThread (WorkerThread):
                             discardEvents = True
                         else:
                             discardEvents = False
+                        # release un-staged files
+                        if 'staged ' in commentStr:
+                            releaseUnstaged = True
+                        else:
+                            releaseUnstaged = False
                         tmpRet,newTaskStatus = self.taskBufferIF.retryTask_JEDI(jediTaskID,commandStr,
                                                                                 retryChildTasks=retryChildTasks,
-                                                                                discardEvents=discardEvents)
+                                                                                discardEvents=discardEvents,
+                                                                                release_unstaged=releaseUnstaged)
                         if tmpRet is True:
                             tmpMsg = 'set task_status={0}'.format(newTaskStatus)
                             tmpLog.sendMsg(tmpMsg,self.msgType)
