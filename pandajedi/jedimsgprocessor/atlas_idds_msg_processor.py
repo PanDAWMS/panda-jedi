@@ -53,11 +53,11 @@ class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
             raise
         # run different plugins according to message type
         try:
-            if msg_type in ('file_stagein', 'collection_stagein'):
+            if msg_type in ('file_stagein', 'collection_stagein', 'work_stagein'):
                 self.plugin_TapeCarousel.process(msg_obj, decoded_data=msg_dict)
-            elif msg_type in ('file_hyperparameteropt', 'collection_hyperparameteropt'):
+            elif msg_type in ('file_hyperparameteropt', 'collection_hyperparameteropt', 'work_hyperparameteropt'):
                 self.plugin_HPO.process(msg_obj, decoded_data=msg_dict)
-            elif msg_type in ('file_processing', 'collection_processing'):
+            elif msg_type in ('file_processing', 'collection_processing', 'work_processing'):
                 self.plugin_Processing.process(msg_obj, decoded_data=msg_dict)
             else:
                 # Asked by iDDS and message broker guys, JEDI needs to consume unknown types of messages and do nothing...

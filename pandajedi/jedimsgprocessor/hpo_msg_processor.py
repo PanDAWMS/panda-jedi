@@ -38,6 +38,8 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
             elif msg_type == 'collection_hyperparameteropt':
                 # to finish the task
                 pass
+            elif msg_type == 'work_hyperparameteropt':
+                pass
             else:
                 raise ValueError('invalid msg_type value: {0}'.format(msg_type))
         except Exception as e:
@@ -96,5 +98,9 @@ class HPOMsgProcPlugin(BaseMsgProcPlugin):
                 err_str = 'failed to parse message object, skipped. {0} : {1}'.format(e.__class__.__name__, e)
                 tmp_log.error(err_str)
                 raise
+        else:
+            # do nothing
+            tmp_log.debug('jeditaskid={jeditaskid}, msg_type={msg_type}, did nothing'.format(
+                            jeditaskid=jeditaskid, msg_type=msg_type))
         # done
         tmp_log.info('done')
