@@ -129,7 +129,10 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                     # register location
                                     tmpToRegister = False
                                     if userSetup and targetName == datasetSpec.datasetName and datasetSpec.site not in ['',None]:
-                                        userName = taskSpec.userName
+                                        if taskSpec.workingGroup:
+                                            userName = taskSpec.workingGroup
+                                        else:
+                                            userName = taskSpec.userName
                                         grouping = None
                                         tmpToRegister = True
                                     elif DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
@@ -138,8 +141,9 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                         tmpToRegister = True
                                     if tmpToRegister:
                                         activity = DataServiceUtils.getActivityForOut(taskSpec.prodSourceLabel)
-                                        tmpLog.info('registering location={0} lifetime={1} days activity={2} grouping={3}'.format(locForRule,lifetime,
-                                                                                                                                 activity,grouping))
+                                        tmpLog.info('registering location={} lifetime={} days activity={} grouping={} '
+                                                    'owner={}'.format(locForRule, lifetime, activity, grouping,
+                                                                      userName))
                                         tmpStat = ddmIF.registerDatasetLocation(targetName,locForRule,owner=userName,
                                                                                 lifetime=lifetime,backEnd=ddmBackEnd,
                                                                                 activity=activity,grouping=grouping)

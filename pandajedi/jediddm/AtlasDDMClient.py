@@ -956,6 +956,13 @@ class AtlasDDMClient(DDMClientBase):
                         userInfo = {'nickname':i['account'],
                                     'email':i['email']}
                         break
+                try:
+                    if userInfo is None:
+                        i = client.get_account(userName)
+                        userInfo = {'nickname': i['account'],
+                                    'email': i['email']}
+                except Exception:
+                    pass
                 if userInfo is not None:
                     break
             if userInfo is None:
