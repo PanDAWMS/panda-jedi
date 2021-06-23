@@ -141,6 +141,6 @@ class MsgWrapper:
                 # release HTTP handler
                 tmpPandaLogger.release()
                 if (iMsg+1) % nChunk == 0:
-                    time.sleep(1)
+                    time.sleep(0.01)
         except Exception:
             pass
