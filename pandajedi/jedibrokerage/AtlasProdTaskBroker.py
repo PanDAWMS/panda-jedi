@@ -259,7 +259,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
     # wrapper for return
     def sendLogMessage(self,tmpLog):
         # send info to logger
-        tmpLog.bulkSendMsg('taskbrokerage',loggerName='bamboo')
+        #tmpLog.bulkSendMsg('taskbrokerage',loggerName='bamboo')
         tmpLog.debug('sent')
 
 

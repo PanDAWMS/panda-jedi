@@ -6702,6 +6702,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sqlLK+comment,varMap)
             # get tasks to force avalanche
             if simTasks is None:
+                taskstatus = 'scouting'
                 varMap = {}
                 varMap[':taskstatus'] = taskstatus
                 sqlFA  = "SELECT jediTaskID "

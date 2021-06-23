@@ -37,7 +37,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
     # wrapper for return
     def sendLogMessage(self, tmpLog):
         # send info to logger
-        tmpLog.bulkSendMsg('analy_brokerage')
+        #tmpLog.bulkSendMsg('analy_brokerage')
         tmpLog.debug('sent')
 
     # make summary

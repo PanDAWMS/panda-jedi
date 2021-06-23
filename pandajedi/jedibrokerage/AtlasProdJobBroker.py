@@ -94,7 +94,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if self.suppressLogSending:
             return
         # send info to logger
-        tmpLog.bulkSendMsg('prod_brokerage')
+        #tmpLog.bulkSendMsg('prod_brokerage')
         tmpLog.debug('sent')
 
 
