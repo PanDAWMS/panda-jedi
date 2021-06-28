@@ -798,9 +798,7 @@ class JobGeneratorThread (WorkerThread):
                         if idxInputList+1 == len(inputList):
                             taskSpec.lockedBy = None
                             taskSpec.lockedTime = None
-                            if taskSpec.status == 'running' and nFileReset > 0 and taskSpec.currentPriority > 900:
-                                setOldModTime = True
-                            elif taskSpec.status == 'running' and inputChunk.useJumbo is not None:
+                            if taskSpec.status == 'running':
                                 setOldModTime = True
                         else:
                             taskSpec.lockedBy = self.pid
