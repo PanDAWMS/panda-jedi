@@ -1033,22 +1033,38 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for network connectivity
         if not sitePreAssigned:
             ipConnectivity = taskSpec.getIpConnectivity()
-            if ipConnectivity is not None:
+            ipStack =  taskSpec.getIpStack()
+            if ipConnectivity or ipStack:
                 newScanSiteList = []
                 for tmpSiteName in scanSiteList:
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                    # check at the site
-                    if tmpSiteSpec.wnconnectivity == 'full':
-                        pass
-                    elif tmpSiteSpec.wnconnectivity == 'http' and ipConnectivity == 'http':
-                        pass
-                    else:
-                        tmpMsg = '  skip site={0} due to insufficient connectivity (connectivity={1}) for task={2} '.format(tmpSiteName,
-                                                                                                                    tmpSiteSpec.wnconnectivity,
-                                                                                                                    ipConnectivity)
-                        tmpMsg += 'criteria=-network'
-                        tmpLog.info(tmpMsg)
-                        continue
+                    # check connectivity
+                    if ipConnectivity:
+                        wn_connectivity = tmpSiteSpec.get_wn_connectivity()
+                        if wn_connectivity == 'full':
+                            pass
+                        elif wn_connectivity == 'http' and ipConnectivity == 'http':
+                            pass
+                        else:
+                            tmpMsg = '  skip site={0} due to insufficient connectivity site={1} vs task={2} '.format(tmpSiteName,
+                                                                                                                        wn_connectivity,
+                                                                                                                        ipConnectivity)
+                            tmpMsg += 'criteria=-network'
+                            tmpLog.info(tmpMsg)
+                            continue
+                    # check IP stack
+                    if ipStack:
+                        wn_ipstack = tmpSiteSpec.get_ipstack()
+                        if ipStack != wn_ipstack:
+                            tmpMsg = '  skip site={0} due to IP stack mismatch site={1} vs task={2} '.format(tmpSiteName,
+                                                                                                             wn_ipstack,
+                                                                                                             ipStack)
+                            tmpMsg += 'criteria=-network'
+                            tmpLog.info(tmpMsg)
+                            continue
+
+
+
                     newScanSiteList.append(tmpSiteName)
                 scanSiteList = newScanSiteList
                 tmpLog.info('{0} candidates passed network check ({1})'.format(len(scanSiteList),

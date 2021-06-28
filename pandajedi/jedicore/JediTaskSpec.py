@@ -62,6 +62,7 @@ class JediTaskSpec(object):
         'hpoWorkflow'        : 'HO',
         'instantiateTmplSite': 'IA',
         'inFilePosEvtNum'    : 'IF',
+        'ipStack'            : 'IK',
         'allowInputLAN'      : 'IL',
         'ignoreMissingInDS'  : 'IM',
         'ipConnectivity'     : 'IP',
@@ -148,6 +149,9 @@ class JediTaskSpec(object):
     # enum for IP connectivity
     enum_ipConnectivity = {'1' : 'full',
                            '2' : 'http'}
+    # enum for IP stack
+    enum_ipStack = {'4' : 'IPv4',
+                    '6' : 'IPv6'}
     # enum for alternative stage-out
     enum_altStageOut = {'1' : 'on',
                         '2' : 'off',
@@ -1242,17 +1246,26 @@ class JediTaskSpec(object):
                 return False
         return True
 
-
-
-    # set IP connectivity
-    def setIpConnectivity(self,value):
-        if value in self.enum_ipConnectivity.values():
-            for tmpKey,tmpVal in iteritems(self.enum_ipConnectivity):
-                if value == tmpVal:
-                    self.setSplitRule('ipConnectivity',tmpKey)
+    # set IP connectivity and stack
+    def setIpConnectivity(self, value):
+        if not value:
+            return
+        values = value.split('#')
+        if not values:
+            return
+        ipConnectivity = values[0]
+        if ipConnectivity in self.enum_ipConnectivity.values():
+            for tmpKey, tmpVal in iteritems(self.enum_ipConnectivity):
+                if ipConnectivity == tmpVal:
+                    self.setSplitRule('ipConnectivity', tmpKey)
                     break
-
-
+        if len(values) > 1:
+            ipStack = values[1]
+            if ipStack in self.enum_ipStack.values():
+                for tmpKey, tmpVal in iteritems(self.enum_ipStack):
+                    if ipStack == tmpVal:
+                        self.setSplitRule('ipStack', tmpKey)
+                        break
 
     # get IP connectivity
     def getIpConnectivity(self):
@@ -1262,7 +1275,13 @@ class JediTaskSpec(object):
                 return self.enum_ipConnectivity[tmpMatch.group(1)]
         return None
 
-
+    # get IP connectivity
+    def getIpStack(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['ipStack']+'=(\d+)',self.splitRule)
+            if tmpMatch is not None:
+                return self.enum_ipStack[tmpMatch.group(1)]
+        return None
 
     # use HS06 for walltime estimation
     def useHS06(self):
