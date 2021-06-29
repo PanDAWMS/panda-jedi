@@ -54,7 +54,7 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
             to_proceed = False
             # type filters
             if msg_type in ['file_processing', 'collection_processing'] \
-                    and relation_type in ['output']:
+                    and relation_type in ['input']:
                 to_proceed = True
             # whether to proceed the targets
             if to_proceed:
