@@ -14271,10 +14271,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError('Commit error')
             tmpLog.debug('done set {0} missing files'.format(nFileRow))
-            return True
+            return nFileRow
         except Exception:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return False
+            return None
