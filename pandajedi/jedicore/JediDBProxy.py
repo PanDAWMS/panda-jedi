@@ -14245,7 +14245,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames):
         comment = ' /* JediDBProxy.setMissingFilesAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' <jediTaskID={0} nfiles={1}>'.format(jediTaskID, len(filenames))
+        methodName += ' <jediTaskID={0} nfiles={1}>'.format(jeditaskid, len(filenames))
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
