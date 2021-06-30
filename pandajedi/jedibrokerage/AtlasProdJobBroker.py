@@ -1682,7 +1682,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 else:
                     ngMsg += 'nDefined_rt+nActivated_rt+nStarting_rt={0} '.format(tmpRTqueue)
                     ngMsg += '(nAssigned_rt ignored due to data locally available) '
-                ngMsg = 'with gshare+resource_type is greater than '
+                ngMsg += 'with gshare+resource_type is greater than '
                 ngMsg += 'max({0},{1}*nRun_rt={1}*{2}) '.format(cutOffValue, RT_Cap, tmpRTrunning)
                 ngMsg += 'criteria=-cap_rt'
             elif nRunning + nActivated + nAssigned + nStarting + nDefined == 0 and \
