@@ -1652,22 +1652,23 @@ class AtlasProdJobBroker (JobBrokerBase):
             elif skipRemoteData:
                 ngMsg = '  skip site={0} due to non-local data '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-non_local'
-            elif not useAssigned and siteCandidateSpec.nQueuedJobs > nRunningCap:
-                ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nStarting={2} '.format(
-                    tmpPseudoSiteName,
-                    weight,
-                    nActivated+nStarting)
-                ngMsg += '(nAssigned ignored due to data locally available) '
-                ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
-                ngMsg += '{0} '.format(weightStr)
-                ngMsg += 'criteria=-cap'
-            elif useAssigned and siteCandidateSpec.nQueuedJobs > nRunningCap:
-                ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} '.format(tmpPseudoSiteName,
-                                                                                                                weight,
-                                                                                                                nDefined+nActivated+nAssigned+nStarting)
-                ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
-                ngMsg += '{0} '.format(weightStr)
-                ngMsg += 'criteria=-cap'
+            # cap replaced by cap_rt
+            # elif not useAssigned and siteCandidateSpec.nQueuedJobs > nRunningCap:
+            #     ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nStarting={2} '.format(
+            #         tmpPseudoSiteName,
+            #         weight,
+            #         nActivated+nStarting)
+            #     ngMsg += '(nAssigned ignored due to data locally available) '
+            #     ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
+            #     ngMsg += '{0} '.format(weightStr)
+            #     ngMsg += 'criteria=-cap'
+            # elif useAssigned and siteCandidateSpec.nQueuedJobs > nRunningCap:
+            #     ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} '.format(tmpPseudoSiteName,
+            #                                                                                                     weight,
+            #                                                                                                     nDefined+nActivated+nAssigned+nStarting)
+            #     ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
+            #     ngMsg += '{0} '.format(weightStr)
+            #     ngMsg += 'criteria=-cap'
             elif taskSpec.useWorldCloud() and self.nwActive and inputChunk.isExpress() \
                     and weightNw < self.nw_threshold * self.nw_weight_multiplier:
                 ngMsg = '  skip site={0} due to low network weight for express task weightNw={1} threshold={2} '\
@@ -1681,7 +1682,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 else:
                     ngMsg += 'nDefined_rt+nActivated_rt+nStarting_rt={0} '.format(tmpRTqueue)
                     ngMsg += '(nAssigned_rt ignored due to data locally available) '
-                ngMsg = 'with gshare+resource_type is greater than '
+                ngMsg += 'with gshare+resource_type is greater than '
                 ngMsg += 'max({0},{1}*nRun_rt={1}*{2}) '.format(cutOffValue, RT_Cap, tmpRTrunning)
                 ngMsg += 'criteria=-cap_rt'
             elif nRunning + nActivated + nAssigned + nStarting + nDefined == 0 and \
