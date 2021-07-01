@@ -1592,10 +1592,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning
             if tmpSiteName not in siteSizeMap or siteSizeMap[tmpSiteName] >= totalSize:
-                siteCandidateSpec.nQueuedJobs = nActivated + nStarting
                 useAssigned = False
             else:
-                siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
                 useAssigned = True
             siteCandidateSpec.nAssignedJobs = nAssigned
             # set available files
@@ -1628,12 +1626,15 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpRTqueue += tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('starting', 0)
             else:
                 useCapRT = False
+                tmpRTqueue = 0
+                tmpRTrunning = 0
             # check cap with nRunning
             nPilot *= corrNumPilot
             cutOffValue = 20
             cutOffFactor = 2
-            nRunningCap = max(cutOffValue,cutOffFactor*nRunning)
+            nRunningCap = max(cutOffValue, cutOffFactor*tmpRTrunning)
             siteCandidateSpec.nRunningJobsCap = nRunningCap
+            siteCandidateSpec.nQueuedJobs = tmpRTqueue
             if taskSpec.getNumJumboJobs() is None or not tmpSiteSpec.useJumboJobs():
                 forJumbo = False
             else:
