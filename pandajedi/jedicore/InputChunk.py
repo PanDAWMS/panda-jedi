@@ -194,6 +194,7 @@ class InputChunk:
             nOK = 0
             nBoosted = 0
             nFull = 0
+            fullStr = ''
             for siteCandidate in siteCandidateList:
                 # remove NG sites
                 if siteCandidate.siteName in ngSites:
@@ -206,12 +207,18 @@ class InputChunk:
                 # skip incapable
                 if not siteCandidate.can_accept_jobs():
                     nFull += 1
+                    fullStr += '{}:{}/{} '.format(siteCandidate.siteName,
+                                                 siteCandidate.nQueuedJobs,
+                                                 siteCandidate.nRunningJobsCap)
                     continue
                 totalWeight += siteCandidate.weight
                 newSiteCandidateList.append(siteCandidate)
                 nOK += 1
             siteCandidateList = newSiteCandidateList
-            retMsg = 'OK={0} NG={1} bootstrapped={3} Full={2}'.format(nOK, nNG, nFull, nBoosted)
+            if fullStr:
+                fullStr = " (skipped {})".format(fullStr[:-1])
+            retMsg = 'OK={} NG={} bootstrapped={} Full={}{}'.format(nOK, nNG, nBoosted, nFull,
+                                                                    fullStr)
             # empty
             if not siteCandidateList:
                 if get_msg:

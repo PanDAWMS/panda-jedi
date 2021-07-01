@@ -726,7 +726,7 @@ class JobGeneratorThread (WorkerThread):
                             if nSkipJumbo > 0:
                                 tmpLog.debug('{0} jumbo jobs were skipped'.format(nSkipJumbo))
                             # check if submission was successful
-                            if len(pandaIDs) == len(pandaJobs):
+                            if len(pandaIDs) == len(pandaJobs) and pandaJobs:
                                 tmpMsg = 'successfully submitted '
                                 tmpMsg += 'jobs_submitted={0} / jobs_possible={1} for VO={2} cloud={3} queue={4} resource_type={5} status={6} nucleus={7}'.format(len(pandaIDs),
                                                                                                                                               len(pandaJobs),
@@ -767,7 +767,11 @@ class JobGeneratorThread (WorkerThread):
                                     if taskSpec.useScout():
                                         taskSpec.setUseScout(False)
                             else:
-                                tmpErrStr = 'submitted only {0}/{1}'.format(len(pandaIDs),len(pandaJobs))
+                                if not pandaJobs:
+                                    tmpErrStr = 'candidates became full after the brokerage decision '\
+                                                'and skipped during the submission cycle'
+                                else:
+                                    tmpErrStr = 'submitted only {0}/{1}'.format(len(pandaIDs),len(pandaJobs))
                                 tmpLog.error(tmpErrStr)
                                 taskSpec.setOnHold()
                                 taskSpec.setErrDiag(tmpErrStr)
@@ -798,7 +802,7 @@ class JobGeneratorThread (WorkerThread):
                         if idxInputList+1 == len(inputList):
                             taskSpec.lockedBy = None
                             taskSpec.lockedTime = None
-                            if taskSpec.status == 'running':
+                            if taskSpec.status in ['running', 'scouting']:
                                 setOldModTime = True
                         else:
                             taskSpec.lockedBy = self.pid
