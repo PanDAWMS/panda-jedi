@@ -792,3 +792,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def undoPreassignedTasks_JEDI(self, jedi_taskids, task_orig_priority_map, params_map, force=False):
         with self.proxyPool.get() as proxy:
             return proxy.undoPreassignedTasks_JEDI(jedi_taskids, task_orig_priority_map, params_map, force)
+
+    # set missing files according to iDDS messages
+    def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames):
+        with self.proxyPool.get() as proxy:
+            return proxy.setMissingFilesAboutIdds_JEDI(jeditaskid, filenames)

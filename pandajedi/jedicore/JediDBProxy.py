@@ -14239,3 +14239,42 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+
+    # set missing files according to iDDS messages
+    def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames):
+        comment = ' /* JediDBProxy.setMissingFilesAboutIdds_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <jediTaskID={0} nfiles={1}>'.format(jeditaskid, len(filenames))
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql to set missing files
+            sqlF = (
+                "UPDATE {0}.JEDI_Dataset_Contents "
+                "SET status=:nStatus "
+                "WHERE jediTaskID=:jediTaskID AND lfn=:lfn AND status!=:nStatus "
+                ).format(jedi_config.db.schemaJEDI)
+            # begin transaction
+            self.conn.begin()
+            nFileRow = 0
+            # update contents
+            for filename in filenames:
+                varMap = {}
+                varMap[':jediTaskID'] = jeditaskid
+                varMap[':lfn'] = filename
+                varMap[':nStatus'] = 'missing'
+                self.cur.execute(sqlF+comment, varMap)
+                nRow = self.cur.rowcount
+                nFileRow += nRow
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            tmpLog.debug('done set {0} missing files'.format(nFileRow))
+            return nFileRow
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return None

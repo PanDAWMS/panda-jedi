@@ -54,12 +54,13 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
             to_proceed = False
             # type filters
             if msg_type in ['file_processing', 'collection_processing'] \
-                    and relation_type in ['output']:
+                    and relation_type in ['input']:
                 to_proceed = True
             # whether to proceed the targets
             if to_proceed:
-                # map
+                # initialize
                 scope_name_list_map = {}
+                missing_files_list = []
                 # loop over targets
                 for target in target_list:
                     name = target['name']
@@ -68,6 +69,9 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
                             or (msg_type == 'collection_processing' and target['status'] in ['Closed']):
                         scope_name_list_map.setdefault(scope, [])
                         scope_name_list_map[scope].append(name)
+                    elif (msg_type == 'file_processing' and target['status'] in ['Missing']):
+                        # missing files
+                        missing_files_list.append(name)
                     else:
                         # got target in bad attributes, do nothing
                         tmp_log.debug('jeditaskid={jeditaskid}, scope={scope}, msg_type={msg_type}, status={status}, did nothing for bad target'.format(
@@ -104,6 +108,21 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
                     else:
                         tmp_log.warning('jeditaskid={0}, scope={1}, something unwanted happened...'.format(
                                                                                 jeditaskid, scope))
+                # handle missing files
+                n_missing = len(missing_files_list)
+                if n_missing > 0:
+                    res = self.tbIF.setMissingFilesAboutIdds_JEDI(jeditaskid=jeditaskid, filenames=missing_files_list)
+                    if res == n_missing:
+                        tmp_log.debug('jeditaskid={0}, marked all {1} files missing'.format(jeditaskid, n_missing))
+                    elif res < n_missing:
+                        tmp_log.warning('jeditaskid={0}, only {1} out of {2} files marked missing...'.format(
+                                                                                jeditaskid, res, n_missing))
+                    elif res > n_missing:
+                        tmp_log.warning('jeditaskid={0}, strangely, {1} out of {2} files marked missing...'.format(
+                                                                                jeditaskid, res, n_missing))
+                    else:
+                        tmp_log.warning('jeditaskid={0}, res={1}, something unwanted happened about missing files...'.format(
+                                                                                jeditaskid, res))
             else:
                 # do nothing
                 tmp_log.debug('jeditaskid={jeditaskid}, msg_type={msg_type}, relation_type={relation_type}, nothing done'.format(
