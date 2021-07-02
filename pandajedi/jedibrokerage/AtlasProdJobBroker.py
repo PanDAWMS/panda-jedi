@@ -1473,21 +1473,25 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                                       tmpPseudoSiteName,
                                                                                                       nRunning))
                 nRunning = nWorkers
-            # take into account the number of standby jobs only for low priority tasks
-            if taskSpec.currentPriority > self.max_prio_for_bootstrap:
-                numStandby = None
-            else:
-                numStandby = tmpSiteSpec.getNumStandby(wq_tag, taskSpec.resource_type)
+            # take into account the number of standby jobs
+            numStandby = tmpSiteSpec.getNumStandby(wq_tag, taskSpec.resource_type)
             if numStandby is None:
                 pass
+            elif taskSpec.currentPriority > self.max_prio_for_bootstrap:
+                # don't use numSlots for high prio tasks
+                tmpLog.debug('ignored numSlots at {} due to prio={} > {}'.format(tmpPseudoSiteName,
+                                                                                 taskSpec.currentPriority,
+                                                                                 self.max_prio_for_bootstrap))
             elif numStandby == 0:
                 # use the number of starting jobs as the number of standby jobs
                 nRunning = nStarting+nRunning
-                tmpLog.debug('using dynamic workload provisioning at {0} to set nRunning={1}'.format(tmpPseudoSiteName, nRunning))
+                tmpLog.debug('using nStarting+nRunning at {} to set nRunning={} due to numSlot={}'.format(
+                    tmpPseudoSiteName, nRunning, numStandby))
             else:
                 # the number of standby jobs is defined
                 nRunning = max(int(numStandby/tmpSiteSpec.coreCount), nRunning)
-                tmpLog.debug('using static workload provisioning at {0} with nStandby={1} to set nRunning={2}'.format(tmpPseudoSiteName, numStandby, nRunning))
+                tmpLog.debug('using numSlots={1}/coreCount at {0} to set nRunning={2}'.format(tmpPseudoSiteName,
+                                                                                              numStandby, nRunning))
             manyAssigned = float(nAssigned + 1) / float(nActivated + 1)
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
