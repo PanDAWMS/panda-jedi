@@ -70,9 +70,9 @@ class TaskCommando (JediKnight):
                             # join
                             threadPool.join()
                 tmpLog.debug('done')
-            except Exception:
-                errtype,errvalue = sys.exc_info()[:2]
-                tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
+            except Exception as e:
+                tmpLog.error('failed in {}.start() with {} {}'.format(self.__class__.__name__, str(e),
+                                                                      traceback.format_exc()))
             # sleep if needed
             loopCycle = jedi_config.tcommando.loopCycle
             timeDelta = datetime.datetime.utcnow() - startTime
@@ -194,7 +194,7 @@ class TaskCommandoThread (WorkerThread):
                                     if iLoop > 0:
                                         break
                                     # wait or kill jobs
-                                    if 'soft finish' in commentStr:
+                                    if commentStr and 'soft finish' in commentStr:
                                         queuedPandaIDs = self.taskBufferIF.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
                                         tmpMsg = "trying to kill {0} queued jobs for soft finish".format(len(queuedPandaIDs))
                                         tmpLog.info(tmpMsg)
@@ -250,7 +250,7 @@ class TaskCommandoThread (WorkerThread):
                                     # noBuild
                                     for tmpParam in taskParamMap['jobParameters']:
                                         if tmpParam['type'] == 'constant' and re.search('^-a [^ ]+$',tmpParam['value']) is not None:
-                                            tmpParam['value'] = '-a {0}'.taskParamMap['fixedSandbox']
+                                            tmpParam['value'] = '-a {0}'.format(taskParamMap['fixedSandbox'])
                                     # build
                                     if 'buildSpec' in taskParamMap:
                                         taskParamMap['buildSpec']['archiveName'] = taskParamMap['fixedSandbox']
@@ -264,9 +264,9 @@ class TaskCommandoThread (WorkerThread):
                                 if tmpRet is not True:
                                     tmpLog.error('failed to update task params')
                                     continue
-                            except Exception:
-                                errtype,errvalue = sys.exc_info()[:2]
-                                tmpLog.error('failed to change task params with {0}:{1}'.format(errtype.__name__,errvalue))
+                            except Exception as e:
+                                tmpLog.error('failed to change task params with {} {}'.format(str(e),
+                                                                                              traceback.format_exc()))
                                 continue
                         # retry child tasks
                         if 'sole ' in commentStr:
@@ -294,10 +294,9 @@ class TaskCommandoThread (WorkerThread):
                         tmpLog.info('done with {0}'.format(tmpRet))
                     else:
                         tmpLog.error('unknown command')
-            except Exception:
-                errtype,errvalue = sys.exc_info()[:2]
-                errStr  = '{0} failed in runImpl() with {1}:{2} '.format(self.__class__.__name__,errtype.__name__,errvalue)
-                errStr += traceback.format_exc()
+            except Exception as e:
+                errStr = '{} failed in runImpl() with {} {} '.format(self.__class__.__name__, str(e),
+                                                                     traceback.format_exc())
                 logger.error(errStr)
 
 
