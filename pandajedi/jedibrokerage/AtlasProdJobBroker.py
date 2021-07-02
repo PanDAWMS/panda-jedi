@@ -140,7 +140,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpLog = glLog
 
         if not hintForTB:
-            tmpLog.debug('start')
+            tmpLog.debug('start currentPriority={}'.format(taskSpec.currentPriority))
 
         if self.nwActive:
             tmpLog.debug('Network weights are ACTIVE!')
@@ -1473,7 +1473,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                                       tmpPseudoSiteName,
                                                                                                       nRunning))
                 nRunning = nWorkers
-            # take into account the number of standby jobs
+            # take into account the number of standby jobs only for low priority tasks
             if taskSpec.currentPriority > self.max_prio_for_bootstrap:
                 numStandby = None
             else:
@@ -1491,18 +1491,40 @@ class AtlasProdJobBroker (JobBrokerBase):
             manyAssigned = float(nAssigned + 1) / float(nActivated + 1)
             manyAssigned = min(2.0,manyAssigned)
             manyAssigned = max(1.0,manyAssigned)
+            # take into account nAssigned when jobs need input data transfer
+            if tmpSiteName not in siteSizeMap or siteSizeMap[tmpSiteName] >= totalSize:
+                useAssigned = False
+            else:
+                useAssigned = True
+            # stat with resource type
+            RT_Cap = 2
+            if tmpSiteName in tmpStatMapRT and taskSpec.resource_type in tmpStatMapRT[tmpSiteName]:
+                useCapRT = True
+                tmpRTrunning = tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('running', 0)
+                tmpRTrunning = max(tmpRTrunning, nRunning)
+                tmpRTqueue = tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('defined', 0)
+                if useAssigned:
+                    tmpRTqueue += tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('assigned', 0)
+                tmpRTqueue += tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('activated', 0)
+                tmpRTqueue += tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('starting', 0)
+            else:
+                useCapRT = False
+                tmpRTqueue = 0
+                tmpRTrunning = 0
             if totalSize == 0 or totalSize-siteSizeMap[tmpSiteName] <= 0:
                 weight = float(nRunning + 1) / float(nActivated + nStarting + nDefined + 10)
-                weightStr = 'nRun={0} nAct={1} nStart={3} nDef={4} nPilot={7}{9} totalSizeMB={5} totalNumFiles={8} '
+                weightStr = 'nRun={0} nAct={1} nStart={3} nDef={4} nPilot={7}{9} totalSizeMB={5} totalNumFiles={8} '\
+                            'nRun_rt={10} nQueued_rt={11} '
             else:
                 weight = float(nRunning + 1) / float(nActivated + nAssigned + nStarting + nDefined + 10) / manyAssigned
-                weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7}{9} totalSizeMB={5} totalNumFiles={8} '
+                weightStr = 'nRun={0} nAct={1} nAss={2} nStart={3} nDef={4} manyAss={6} nPilot={7}{9} totalSizeMB={5} '\
+                            'totalNumFiles={8} nRun_rt={10} nQueued_rt={11} '
             weightStr = weightStr.format(nRunning, nActivated, nAssigned,
                                          nStarting, nDefined,
                                          long(totalSize/1024/1024),
                                          manyAssigned, nPilot,
                                          maxNumFiles,
-                                         corrNumPilotStr)
+                                         corrNumPilotStr, tmpRTrunning, tmpRTqueue)
             # reduce weights by taking data availability into account
             skipRemoteData = False
             if totalSize > 0:
@@ -1591,10 +1613,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             # set weight and params
             siteCandidateSpec.weight = weight
             siteCandidateSpec.nRunningJobs = nRunning
-            if tmpSiteName not in siteSizeMap or siteSizeMap[tmpSiteName] >= totalSize:
-                useAssigned = False
-            else:
-                useAssigned = True
             siteCandidateSpec.nAssignedJobs = nAssigned
             # set available files
             for tmpDatasetName,availableFiles in iteritems(availableFileMap):
@@ -1613,21 +1631,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             if taskSpec.useWorldCloud():
                 lockedByBrokerage = self.checkSiteLock(taskSpec.vo, taskSpec.prodSourceLabel,
                                                        tmpPseudoSiteName, taskSpec.workQueue_ID, taskSpec.resource_type)
-            # stat with resource type
-            RT_Cap = 2
-            if tmpSiteName in tmpStatMapRT and taskSpec.resource_type in tmpStatMapRT[tmpSiteName]:
-                useCapRT = True
-                tmpRTrunning = tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('running', 0)
-                tmpRTrunning = max(tmpRTrunning, nRunning)
-                tmpRTqueue = tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('defined', 0)
-                if useAssigned:
-                    tmpRTqueue += tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('assigned', 0)
-                tmpRTqueue += tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('activated', 0)
-                tmpRTqueue += tmpStatMapRT[tmpSiteName][taskSpec.resource_type].get('starting', 0)
-            else:
-                useCapRT = False
-                tmpRTqueue = 0
-                tmpRTrunning = 0
             # check cap with nRunning
             nPilot *= corrNumPilot
             cutOffValue = 20
