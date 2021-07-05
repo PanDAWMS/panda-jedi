@@ -549,8 +549,8 @@ class JobGeneratorThread (WorkerThread):
                                 if inputChunk is not None and inputChunk.hasCandidatesForJumbo():
                                     pendingJumbo = True
                                 else:
-                                    tmpErrStr = 'brokerage failed for {0} input datasets when trying {1} datasets'.format(nBrokergeFailed, len(inputList))
-                                    tmpLog.error(tmpErrStr)
+                                    tmpErrStr = 'brokerage failed for {0} input datasets when trying {1} datasets.'.format(nBrokergeFailed, len(inputList))
+                                    tmpLog.error('{} {}'.format(tmpErrStr, taskSpec.get_original_error_dialog()))
                                     if nSubmitSucceeded == 0:
                                         taskSpec.setOnHold()
                                     taskSpec.setErrDiag(tmpErrStr,True)
@@ -818,12 +818,12 @@ class JobGeneratorThread (WorkerThread):
                         tmpLog.info(tmpMsg)
                         regTime = datetime.datetime.utcnow() - loopStart
                         tmpLog.info('done. took cycle_t={0} sec'.format(regTime.seconds))
-            except Exception:
-                errtype,errvalue = sys.exc_info()[:2]
-                logger.error('%s.runImpl() failed with %s %s lastJediTaskID=%s' % (self.__class__.__name__,errtype.__name__,errvalue,
-                                                                                   lastJediTaskID))
-
-
+            except Exception as e:
+                logger.error('%s.runImpl() failed with {} lastJediTaskID={} {}'.format(
+                    self.__class__.__name__,
+                    str(e),
+                    lastJediTaskID,
+                    traceback.format_exc()))
 
     # read task parameters
     def readTaskParams(self,taskSpec,taskParamMap,tmpLog):

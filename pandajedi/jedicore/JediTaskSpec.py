@@ -193,12 +193,17 @@ class JediTaskSpec(object):
         object.__setattr__(self,'jobParamsTemplate','')
         # associated datasets
         object.__setattr__(self,'datasetSpecList',[])
+        # original error dialog
+        object.__setattr__(self, 'origErrorDialog', None)
 
 
     # override __setattr__ to collect the changed attributes
     def __setattr__(self, name, value):
         oldVal = getattr(self,name)
         if name in self._limitLength and value is not None:
+            # keep original dialog
+            if name == 'errorDialog':
+                object.__setattr__(self, 'origErrorDialog', value)
             value = value[:self._limitLength[name]]
         object.__setattr__(self,name,value)
         newVal = getattr(self,name)
@@ -1770,3 +1775,11 @@ class JediTaskSpec(object):
             if re.search(self.splitRuleToken['encJobParams']+'=(\d+)', self.splitRule):
                 return True
         return False
+
+    # get original error dialog
+    def get_original_error_dialog(self):
+        if not self.origErrorDialog:
+            return ''
+        # remove log URL
+        tmpStr = re.sub('<a href.+</a> : ', '', self.origErrorDialog)
+        return tmpStr.split('. ')[-1]
