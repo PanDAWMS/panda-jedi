@@ -337,9 +337,13 @@ class AtlasDDMClient(DDMClientBase):
         tmp_log = MsgWrapper(logger, method_name)
         loopStart = datetime.datetime.utcnow()
         try:
-            tmp_log.debug('start datasetName={0} check_completeness={1} nFiles={2}'.format(dataset_spec.datasetName,
-                                                                                           check_completeness,
-                                                                                           len(dataset_spec.Files)))
+            tmp_log.debug('start datasetName={} check_completeness={} nFiles={} nSites={} '
+                          'complete_only={}'.format(
+                dataset_spec.datasetName,
+                check_completeness,
+                len(dataset_spec.Files),
+                len(site_endpoint_map),
+                complete_only))
             # update the definition of all endpoints from AGIS
             self.updateEndPointDict()
 
@@ -385,6 +389,9 @@ class AtlasDDMClient(DDMClientBase):
             for site_name, endpoint_list in iteritems(site_endpoint_map):
                 tmp_site_spec = site_mapper.getSite(site_name)
 
+                has_complete = False
+                tmp_rse_list = []
+
                 # loop over all endpoints
                 for endpoint in endpoint_list:
 
@@ -399,6 +406,7 @@ class AtlasDDMClient(DDMClientBase):
                         or (endpoint in dataset_replica_map and not check_completeness) \
                             or DataServiceUtils.isCachedFile(dataset_spec.datasetName, tmp_site_spec):
                         complete_replica_map[endpoint] = storage_type
+                        has_complete = True
 
                     # no scan for many-time datasets or disabled completeness check
                     if dataset_spec.isManyTime() \
@@ -406,11 +414,15 @@ class AtlasDDMClient(DDMClientBase):
                        or complete_only:
                         continue
 
-                    # dislable file lookup if nessesary
+                    # disable file lookup if unnecessary
                     if endpoint not in rse_list and (file_scan_in_container or not is_container):
-                        rse_list.append(endpoint)
+                        tmp_rse_list.append(endpoint)
 
                     endpoint_storagetype_map[endpoint] = storage_type
+
+                # add to list to trigger file lookup if complete replica is unavailable
+                if not has_complete and tmp_rse_list:
+                    rse_list += tmp_rse_list
 
             # get the file locations from Rucio
             if len(rse_list) > 0:
@@ -495,6 +507,7 @@ class AtlasDDMClient(DDMClientBase):
             tmp_log.debug('done in {} sec'.format(regTime.seconds))
             return self.SC_SUCCEEDED, return_map
         except Exception as e:
+            regTime = datetime.datetime.utcnow() - loopStart
             error_message = 'failed in {} sec with {} {} '.format(regTime.seconds, str(e), traceback.format_exc())
             tmp_log.error(error_message)
             return self.SC_FAILED, '{0}.{1} {2}'.format(self.__class__.__name__, method_name, error_message)
@@ -509,16 +522,21 @@ class AtlasDDMClient(DDMClientBase):
             max_guid = 1000 # do 1000 guids in each Rucio call
             lfn_to_rses_map = {}
             dids = []
+            i_loop = 0
+            startTime = datetime.datetime.utcnow()
+            tmp_log.debug('start')
             for guid, lfn in iteritems(files):
                 i_guid += 1
                 scope = scopes[lfn]
                 dids.append({'scope': scope, 'name': lfn})
                 if len(dids) % max_guid == 0 or i_guid == len(files):
-                    tmp_log.debug('lookup start')
+                    i_loop += 1
+                    tmp_log.debug('lookup {} start'.format(i_loop))
                     loopStart = datetime.datetime.utcnow()
                     x = client.list_replicas(dids, ['srm', 'gsiftp'], resolve_archives=True)
                     regTime = datetime.datetime.utcnow() - loopStart
-                    tmp_log.info('rucio.list_replicas took list_replicas_t={0} sec for list_replicas_f={1} files'.format(regTime.seconds, len(dids)))
+                    tmp_log.info('rucio.list_replicas took {0} sec for {1} files'.format(regTime.seconds, len(dids)))
+                    loopStart = datetime.datetime.utcnow()
                     for tmp_dict in x:
                         try:
                             tmp_LFN = str(tmp_dict['name'])
@@ -527,10 +545,14 @@ class AtlasDDMClient(DDMClientBase):
                             pass
                     # reset the dids list for the next bulk for Rucio
                     dids = []
-                    tmp_log.debug('lookup end')
-        except Exception:
-            err_type, err_value = sys.exc_info()[:2]
-            return self.SC_FAILED, "file lookup failed with {0}:{1} {2}".format(err_type, err_value, traceback.format_exc())
+                    regTime = datetime.datetime.utcnow() - loopStart
+                    tmp_log.debug('lookup {} end in {} sec'.format(i_loop, regTime.seconds))
+            regTime = datetime.datetime.utcnow() - startTime
+            tmp_log.debug('end in {} sec'.format(regTime.seconds))
+        except Exception as e:
+            regTime = datetime.datetime.utcnow() - startTime
+            tmp_log.error('failed in {} sec'.format(regTime.seconds))
+            return self.SC_FAILED, "file lookup failed with {} {}".format(str(e), traceback.format_exc())
 
         return self.SC_SUCCEEDED, lfn_to_rses_map
 
