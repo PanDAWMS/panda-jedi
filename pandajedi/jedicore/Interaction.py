@@ -186,8 +186,16 @@ class MethodClass(object):
                 # wait response
                 stepIdx = 4
                 timeoutPeriod = 600
+                timeNow = datetime.datetime.utcnow()
                 if not pipe.poll(timeoutPeriod):
                     raise JEDITimeoutError("did not get response for %ssec" % timeoutPeriod)
+                regTime = datetime.datetime.utcnow() - timeNow
+                if regTime > datetime.timedelta(seconds=60):
+                    dumpStdOut(self.className,
+                              'methodName={} took {}.{:03d} sec in pid={}'.format(self.methodName,
+                                                                                  regTime.seconds,
+                                                                                  int(regTime.microseconds / 1000),
+                                                                                  child_process.pid))
                 # get response
                 stepIdx = 5
                 ret = pipe.recv()

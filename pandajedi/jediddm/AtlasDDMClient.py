@@ -335,7 +335,7 @@ class AtlasDDMClient(DDMClientBase):
         method_name += ' pid={0}'.format(self.pid)
         method_name += ' < jediTaskID={0} datasetID={1} >'.format(dataset_spec.jediTaskID, dataset_spec.datasetID)
         tmp_log = MsgWrapper(logger, method_name)
-
+        loopStart = datetime.datetime.utcnow()
         try:
             tmp_log.debug('start datasetName={0} check_completeness={1} nFiles={2}'.format(dataset_spec.datasetName,
                                                                                            check_completeness,
@@ -346,7 +346,8 @@ class AtlasDDMClient(DDMClientBase):
             # get the file map
             tmp_status, tmp_output = self.getDatasetMetaData(dataset_spec.datasetName)
             if tmp_status != self.SC_SUCCEEDED:
-                tmp_log.error('failed to get metadata with {0}'.format(tmp_output))
+                regTime = datetime.datetime.utcnow() - loopStart
+                tmp_log.error('failed in {} sec to get metadata with {}'.format(regTime.seconds, tmp_output))
                 return tmp_status, tmp_output
             total_files_in_dataset = tmp_output['length']
             if total_files_in_dataset is None:
@@ -361,7 +362,8 @@ class AtlasDDMClient(DDMClientBase):
                                                                                     use_vp=use_vp,
                                                                                     detailed=True)
             if tmp_status != self.SC_SUCCEEDED:
-                tmp_log.error('failed to get dataset replicas with {0}'.format(tmp_output))
+                regTime = datetime.datetime.utcnow() - loopStart
+                tmp_log.error('failed in {} sec to get dataset replicas with {}'.format(regTime.seconds, tmp_output))
                 return tmp_status, tmp_output
             dataset_replica_map = tmp_output
 
@@ -489,12 +491,11 @@ class AtlasDDMClient(DDMClientBase):
             tmp_log.debug(logging_str)
 
             # return
-            tmp_log.debug('done')
+            regTime = datetime.datetime.utcnow() - loopStart
+            tmp_log.debug('done in {} sec'.format(regTime.seconds))
             return self.SC_SUCCEEDED, return_map
-        except Exception:
-            error_type, error_value = sys.exc_info()[:2]
-            error_message = 'failed with {0} {1} '.format(error_type.__name__, error_value)
-            error_message += traceback.format_exc()
+        except Exception as e:
+            error_message = 'failed in {} sec with {} {} '.format(regTime.seconds, str(e), traceback.format_exc())
             tmp_log.error(error_message)
             return self.SC_FAILED, '{0}.{1} {2}'.format(self.__class__.__name__, method_name, error_message)
 

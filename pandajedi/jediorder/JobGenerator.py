@@ -483,7 +483,7 @@ class JobGeneratorThread (WorkerThread):
                     lastJediTaskID = tmpJediTaskID
                     # loop over all inputs
                     nBrokergeFailed = 0
-                    nBrokergeSucceeded = 0
+                    nSubmitSucceeded = 0
                     for idxInputList,tmpInputItem in enumerate(inputList):
                         taskSpec,cloudName,inputChunk = tmpInputItem
                         # reset error dialog
@@ -551,12 +551,11 @@ class JobGeneratorThread (WorkerThread):
                                 else:
                                     tmpErrStr = 'brokerage failed for {0} input datasets when trying {1} datasets'.format(nBrokergeFailed, len(inputList))
                                     tmpLog.error(tmpErrStr)
-                                    if nBrokergeSucceeded == 0:
+                                    if nSubmitSucceeded == 0:
                                         taskSpec.setOnHold()
                                     taskSpec.setErrDiag(tmpErrStr,True)
                                 goForward = False
                             else:
-                                nBrokergeSucceeded += 1
                                 # collect brokerage lock ID
                                 brokerageLockID = jobBroker.getBaseLockID(taskSpec.vo,taskSpec.prodSourceLabel)
                                 if brokerageLockID is not None:
@@ -754,6 +753,7 @@ class JobGeneratorThread (WorkerThread):
                                                                               firstSubmission=firstSubmission)
                                     tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDsForExec),retExe))
                                 jobsSubmitted = True
+                                nSubmitSucceeded += 1
                                 if inputChunk.isMerging:
                                     # don't change task status by merging
                                     pass

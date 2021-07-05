@@ -9,7 +9,6 @@ class DDMInterface:
     def __init__(self):
         self.interfaceMap = {}
 
-
     # setup interface
     def setupInterface(self):
         # parse config
@@ -22,25 +21,42 @@ class DDMInterface:
                 maxSize = int(items[1])
                 moduleName = items[2]
                 className  = items[3]
+                if len(items) >= 5:
+                    group = items[4]
+                    if not group:
+                        group = None
+                else:
+                    group = None
             except Exception:
                 # TODO add config error message
                 continue
             # add VO interface
             voIF = Interaction.CommandSendInterface(vo,maxSize,moduleName,className)
             voIF.initialize()
-            self.interfaceMap[vo] = voIF
+            key = self.get_dict_key(vo, group)
+            self.interfaceMap[key] = voIF
 
 
     # get interface with VO
-    def getInterface(self,vo):
-        if vo in self.interfaceMap:
-            return self.interfaceMap[vo]
+    def getInterface(self, vo, group=None):
+        # vo + group
+        key = self.get_dict_key(vo, group)
+        if key in self.interfaceMap:
+            return self.interfaceMap[key]
+        # only vo
+        key = self.get_dict_key(vo, None)
+        if key in self.interfaceMap:
+            return self.interfaceMap[key]
         # catchall
-        cacheAll = 'any'
+        cacheAll = self.get_dict_key('any', None)
         if cacheAll in self.interfaceMap:
             return self.interfaceMap[cacheAll]
         # not found
         return None
+
+    # get dict key
+    def get_dict_key(self, vo, group):
+        return vo, group
 
 
 
