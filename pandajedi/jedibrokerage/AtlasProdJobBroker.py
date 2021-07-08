@@ -1642,7 +1642,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             cutOffFactor = 2
             nRunningCap = max(cutOffValue, cutOffFactor*tmpRTrunning)
             siteCandidateSpec.nRunningJobsCap = nRunningCap
-            if useCapRT:
+            if tmpSiteSpec.capability == 'ucore':
                 siteCandidateSpec.nQueuedJobs = tmpRTqueue
             elif useAssigned:
                 siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
@@ -1666,7 +1666,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             elif skipRemoteData:
                 ngMsg = '  skip site={0} due to non-local data '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-non_local'
-            elif not useCapRT and siteCandidateSpec.nQueuedJobs > nRunningCap:
+            elif tmpSiteSpec.capability != 'ucore' and siteCandidateSpec.nQueuedJobs > nRunningCap:
                 if not useAssigned:
                     ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nStarting={2} '.format(
                         tmpPseudoSiteName, weight,
