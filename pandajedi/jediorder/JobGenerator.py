@@ -1519,7 +1519,8 @@ class JobGeneratorThread (WorkerThread):
             datasetToRegister = []
             # get sites which share DDM endpoint
             associatedSites = DataServiceUtils.getSitesShareDDM(self.siteMapper, siteName, taskSpec.prodSourceLabel,
-                                                                JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType))
+                                                                JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType),
+                                                                True)
             associatedSites.sort()
             # key for map of buildSpec
             secondKey = [siteName] + associatedSites
