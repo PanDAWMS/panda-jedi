@@ -3889,7 +3889,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     elif taskSpec.respectLumiblock() or taskSpec.orderByLB():
                                         orderBy = 'lumiBlockNr,lfn'
                                     elif not taskSpec.useLoadXML():
-                                        orderBy = 'lfn,fileID'
+                                        orderBy = 'fileID'
                                     else:
                                         orderBy = 'boundaryID'
                                     # read files to make FileSpec

@@ -1640,14 +1640,15 @@ class AtlasProdJobBroker (JobBrokerBase):
             nPilot *= corrNumPilot
             cutOffValue = 20
             cutOffFactor = 2
-            nRunningCap = max(cutOffValue, cutOffFactor*tmpRTrunning)
-            siteCandidateSpec.nRunningJobsCap = nRunningCap
             if tmpSiteSpec.capability == 'ucore':
+                siteCandidateSpec.nRunningJobsCap = max(cutOffValue, cutOffFactor * tmpRTrunning)
                 siteCandidateSpec.nQueuedJobs = tmpRTqueue
-            elif useAssigned:
-                siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
             else:
-                siteCandidateSpec.nQueuedJobs = nActivated + nStarting
+                siteCandidateSpec.nRunningCap = max(cutOffValue, cutOffFactor * nRunning)
+                if useAssigned:
+                    siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
+                else:
+                    siteCandidateSpec.nQueuedJobs = nActivated + nStarting
             if taskSpec.getNumJumboJobs() is None or not tmpSiteSpec.useJumboJobs():
                 forJumbo = False
             else:
@@ -1666,16 +1667,16 @@ class AtlasProdJobBroker (JobBrokerBase):
             elif skipRemoteData:
                 ngMsg = '  skip site={0} due to non-local data '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-non_local'
-            elif tmpSiteSpec.capability != 'ucore' and siteCandidateSpec.nQueuedJobs > nRunningCap:
+            elif tmpSiteSpec.capability != 'ucore' and siteCandidateSpec.nQueuedJobs > siteCandidateSpec.nRunningCap:
                 if not useAssigned:
                     ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nStarting={2} '.format(
                         tmpPseudoSiteName, weight,
-                        nActivated+nStarting)
+                        siteCandidateSpec.nQueuedJobs)
                     ngMsg += '(nAssigned ignored due to data locally available) '
                 else:
                     ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nAssigned+nStarting={2} '.format(
                         tmpPseudoSiteName, weight,
-                        nDefined+nActivated+nAssigned+nStarting)
+                        siteCandidateSpec.nQueuedJobs)
                 ngMsg += 'greater than max({0},{1}*nRun) '.format(cutOffValue, cutOffFactor)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-cap'
