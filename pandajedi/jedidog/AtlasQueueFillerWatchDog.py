@@ -276,6 +276,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 # site attributes
                 site_maxrss =  tmpSiteSpec.maxrss if tmpSiteSpec.maxrss not in (0, None) else 999999
                 site_corecount = tmpSiteSpec.coreCount
+                site_capability = str(tmpSiteSpec.capability).lower()
                 # make sql parameters of rses
                 available_rses = list(available_rses)
                 rse_params_list = []
@@ -321,6 +322,11 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 for resource_type in resource_type_list:
                     # key name for preassigned_tasks_map = site + resource_type
                     key_name = '{0}|{1}'.format(site, resource_type)
+                    # skip if not match with site capability
+                    if site_capability == 'score' and not resource_type.startswith('SCORE'):
+                        continue
+                    elif site_capability == 'mcore' and not resource_type.startswith('MCORE'):
+                        continue
                     # params map
                     params_map = {
                             ':prodSourceLabel': prod_source_label,
