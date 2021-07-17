@@ -14147,6 +14147,25 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.error('updated {0} rows with same jediTaskID={1}'.format(nRow, jedi_taskid))
             if not self._commit():
                 raise RuntimeError('Commit error')
+            # close jobs
+            sqlJC = (   "SELECT pandaID "
+                        "FROM {0}.jobsActive4 "
+                        "WHERE jediTaskID=:jediTaskID "
+                            "AND jobStatus='activated' "
+                            "AND computingSite!=:computingSite "
+                ).format(jedi_config.db.schemaPANDA)
+            for (jedi_taskid, orig_priority) in updated_tasks_prio:
+                varMap = {}
+                varMap[':jediTaskID'] = jedi_taskid
+                varMap[':computingSite'] = site
+                self.cur.execute(sqlJC+comment, varMap)
+                pandaIDs = self.cur.fetchall()
+                n_jobs_closed = 0
+                for pandaID in pandaIDs:
+                    res_close = self.killJob(pandaID, 'reassign', '51', True)
+                    if res_close:
+                        n_jobs_closed += 1
+                tmpLog.debug('for jediTaskID={0} to preassign to site={1}, closed {2} jobs'.format(jedi_taskid, site, n_jobs_closed))
             tmpLog.debug('done with {0} rows to site={1}'.format(n_updated, site))
             # return
             return updated_tasks_prio
