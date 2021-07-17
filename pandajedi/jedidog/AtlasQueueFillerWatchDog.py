@@ -146,8 +146,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         else:
             return None
 
-    # get available sites
-    def get_available_sites(self):
+    # get available sites sorted list
+    def get_available_sites_list(self):
         available_sites_dict = {}
         # get global share
         tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(self.vo)
@@ -184,10 +184,15 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             for jobStatus in ['activated', 'starting']:
                 nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus)
             # available sites: must be idle now
-            if nQueue < max(20, nRunning*2)*0.25:
-                available_sites_dict[tmpSiteName] = tmpSiteSpec
+            n_jobs_to_fill = max(20, nRunning*2)*0.25 - nQueue
+            if n_jobs_to_fill > 0:
+                available_sites_dict[tmpSiteName] = (tmpSiteName, tmpSiteSpec, n_jobs_to_fill)
+        # list
+        available_sites_list = list(available_sites_dict.values())
+        # sort by n_jobs_to_fill
+        available_sites_list.sort(key=(lambda x: x[2]), reverse=True)
         # return
-        return available_sites_dict
+        return available_sites_list
 
     # get busy sites
     def get_busy_sites(self):
@@ -249,14 +254,14 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             if min_files_remaining is None:
                 min_files_remaining = 100
             # available sites
-            available_sites_dict = self.get_available_sites()
+            available_sites_list = self.get_available_sites_list()
             # get blacklisted_tasks_map from cache
             blacklisted_tasks_map = self._get_from_bt_cache()
             blacklisted_tasks_set = set()
             for bt_list in blacklisted_tasks_map.values():
                 blacklisted_tasks_set |= set(bt_list)
             # loop over available sites to preassign
-            for site, tmpSiteSpec in available_sites_dict.items():
+            for (site, tmpSiteSpec, n_jobs_to_fill) in available_sites_list:
                 # rses of the available site
                 available_rses = set()
                 try:
