@@ -294,7 +294,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 sql_query = (
                     "SELECT t.jediTaskID, t.currentPriority "
                     "FROM {jedi_schema}.JEDI_Tasks t "
-                    "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
+                    "WHERE t.status IN ('ready','running') AND t.lockedBy IS NULL "
                         "AND t.prodSourceLabel=:prodSourceLabel "
                         "AND t.resource_type=:resource_type "
                         "AND site IS NULL "
@@ -356,7 +356,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         dry_sql_query = (
                             "SELECT t.jediTaskID, t.currentPriority "
                             "FROM {jedi_schema}.JEDI_Tasks t "
-                            "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
+                            "WHERE t.status IN ('ready','running') AND t.lockedBy IS NULL "
                                 "AND t.prodSourceLabel=:prodSourceLabel "
                                 "AND t.resource_type=:resource_type "
                                 "AND site IS NULL "
@@ -515,7 +515,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             "WHERE t.jediTaskID IN ({preassigned_tasks_params_str}) "
                                 "AND t.site IS NOT NULL "
                                 "AND NOT ( "
-                                        "t.status IN ('ready','running','scouting') "
+                                        "t.status IN ('ready','running') "
                                         "AND EXISTS ( "
                                             "SELECT d.datasetID FROM {0}.JEDI_Datasets d "
                                             "WHERE t.jediTaskID=d.jediTaskID AND d.type='input' "

@@ -14179,7 +14179,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     "WHERE t.jediTaskID=:jediTaskID "
                         "AND t.site IS NOT NULL "
                         "AND NOT ( "
-                                "t.status IN ('ready','running','scouting') "
+                                "t.status IN ('ready','running') "
                                 "AND EXISTS ( "
                                     "SELECT d.datasetID FROM {0}.JEDI_Datasets d "
                                     "WHERE t.jediTaskID=d.jediTaskID AND d.type='input' "
