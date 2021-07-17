@@ -14183,7 +14183,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 "AND EXISTS ( "
                                     "SELECT d.datasetID FROM {0}.JEDI_Datasets d "
                                     "WHERE t.jediTaskID=d.jediTaskID AND d.type='input' "
-                                        "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
+                                        "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFiles-d.nFilesUsed>=:min_files_remaining "
                                     ") "
                             ") "
                   ).format(jedi_config.db.schemaJEDI)
