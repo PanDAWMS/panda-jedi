@@ -14161,7 +14161,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sqlJC+comment, varMap)
                 pandaIDs = self.cur.fetchall()
                 n_jobs_closed = 0
-                for pandaID in pandaIDs:
+                for (pandaID, ) in pandaIDs:
                     res_close = self.killJob(pandaID, 'reassign', '51', True)
                     if res_close:
                         n_jobs_closed += 1

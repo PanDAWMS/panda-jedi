@@ -138,9 +138,9 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         return site_rse_map
 
     # get to-running rate of sites between 24 hours ago ~ 6 hours ago
-    def get_site_ttr_map(self):
+    def get_site_trr_map(self):
         ret_val, ret_map = AtlasBrokerUtils.getSiteToRunRateStats(
-                            self.taskBufferIF, self.vo, time_window=86400, cutoff=21600, cache_lifetime=600)
+                            self.taskBufferIF, self.vo, time_window=86400, cutoff=0, cache_lifetime=600)
         if ret_val:
             return ret_map
         else:
@@ -148,6 +148,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
 
     # get available sites sorted list
     def get_available_sites_list(self):
+        tmp_log = MsgWrapper(logger, 'get_available_sites_list')
+        # initialize
         available_sites_dict = {}
         # get global share
         tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(self.vo)
@@ -155,9 +157,16 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # got nothing...
             return available_sites_dict
         # get to-running rate of sites
-        site_ttr_map = self.get_site_ttr_map()
-        if site_ttr_map is None:
+        site_trr_map = self.get_site_trr_map()
+        if site_trr_map is None:
             return available_sites_dict
+        # record for excluded site reasons
+        excluded_sites_dict = {
+                'not_online': set(),
+                'has_minrss': set(),
+                'low_trr': set(),
+                'enough_nq': set(),
+            }
         # loop over sites
         for tmpPseudoSiteName in self.allSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
@@ -165,18 +174,21 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # skip site already added
             if tmpSiteName in available_sites_dict:
                 continue
-            # skip site is not online
-            if tmpSiteSpec.status not in ('online'):
-                continue
             # skip site if not for production
             if not tmpSiteSpec.runs_production():
                 continue
+            # skip site is not online
+            if tmpSiteSpec.status not in ('online'):
+                excluded_sites_dict['not_online'].add(tmpSiteName)
+                continue
             # skip if site has memory limitations
             if tmpSiteSpec.minrss not in (0, None):
+                excluded_sites_dict['has_minrss'].add(tmpPseudoSiteName)
                 continue
             # skip if site has not enough activity in the past 24 hours
-            site_ttr = site_ttr_map.get(tmpSiteName)
-            if site_ttr is None or site_ttr < 0.8:
+            site_trr = site_trr_map.get(tmpSiteName)
+            if site_trr is None or site_trr < 0.6:
+                excluded_sites_dict['low_trr'].add(tmpSiteName)
                 continue
             # get nQueue and nRunning
             nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running')
@@ -187,10 +199,18 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             n_jobs_to_fill = max(20, nRunning*2)*0.25 - nQueue
             if n_jobs_to_fill > 0:
                 available_sites_dict[tmpSiteName] = (tmpSiteName, tmpSiteSpec, n_jobs_to_fill)
+            else:
+                excluded_sites_dict['enough_nq'].add(tmpSiteName)
         # list
         available_sites_list = list(available_sites_dict.values())
         # sort by n_jobs_to_fill
         available_sites_list.sort(key=(lambda x: x[2]), reverse=True)
+        # log message
+        for reason, sites_set in excluded_sites_dict.items():
+            excluded_sites_str = ','.join(sorted(sites_set))
+            tmp_log.debug('excluded sites due to {reason} : {sites}'.format(reason=reason, sites=excluded_sites_str))
+        included_sites_str = ','.join(sorted([ x[0] for x in available_sites_list ]))
+        tmp_log.debug('included sites : {sites}'.format(reason=reason, sites=included_sites_str))
         # return
         return available_sites_list
 
@@ -203,8 +223,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # got nothing...
             return busy_sites_dict
         # get to-running rate of sites
-        site_ttr_map = self.get_site_ttr_map()
-        if site_ttr_map is None:
+        site_trr_map = self.get_site_trr_map()
+        if site_trr_map is None:
             return busy_sites_dict
         # loop over sites
         for tmpPseudoSiteName in self.allSiteList:
