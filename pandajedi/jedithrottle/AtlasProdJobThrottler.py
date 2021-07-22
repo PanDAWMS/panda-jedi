@@ -24,13 +24,15 @@ class AtlasProdJobThrottler (JobThrottlerBase):
 
     # constructor
     def __init__(self,taskBufferIF):
+        self.compName = 'prod_job_throttler'
+        self.app = 'jedi'
         JobThrottlerBase.__init__(self,taskBufferIF)
 
     def __getConfiguration(self, vo, queue_name, resource_name):
 
         # component name
-        compName = 'prod_job_throttler'
-        app = 'jedi'
+        compName = self.compName
+        app = self.app
 
         # Avoid memory fragmentation
         resource_ms = None
@@ -189,7 +191,9 @@ class AtlasProdJobThrottler (JobThrottlerBase):
     def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, resource_name):
         # params
         nBunch = 4
-        threshold = 2.0
+        threshold = self.taskBufferIF.getConfigValue(self.compName, 'THROTTLE_THRESHOLD', self.app, vo)
+        if threshold is None:
+            threshold = 2.0
         nJobsInBunchMax = 600
         nJobsInBunchMin = 500
         minTotalWalltime = 50*1000*1000
@@ -206,7 +210,7 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         workQueueName = '_'.join(workQueue.queue_name.split(' '))
         msgHeader = '{0}:{1} cloud={2} queue={3} resource_type={4}:'.format(vo, prodSourceLabel, cloudName,
                                                                             workQueueName, resource_name)
-        tmpLog.debug('{0} start workQueueID={1}'.format(msgHeader, workQueueID))
+        tmpLog.debug('{} start workQueueID={} threshold={}'.format(msgHeader, workQueueID, threshold))
 
         # get central configuration values
         config_map = self.__getConfiguration(vo, workQueue.queue_name, resource_name)

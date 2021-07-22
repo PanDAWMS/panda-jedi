@@ -123,7 +123,6 @@ class AtlasProdPostProcessor (PostProcessorBase):
         if taskSpec.status in ['done','finished'] or \
                 (taskSpec.status == 'paused' and taskSpec.oldStatus in ['done','finished']):
             trnLifeTime = 14*24*60*60
-            trnLifeTimeLong = 28*24*60*60
             trnLifeTimeMerge = 60*24*60*60
             ddmIF = self.ddmIF.getInterface(taskSpec.vo)
             # set lifetime to transient datasets
