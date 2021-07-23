@@ -891,11 +891,12 @@ class JsonSoftwareCheck:
                                     continue
                             # check model
                             if host_gpu_spec['model'] == '*':
-                                if 'excl' in architecture_map['gpu']['model']:
+                                if 'model' in architecture_map['gpu'] and 'excl' in architecture_map['gpu']['model']:
                                     continue
                             else:
-                                if 'any' not in architecture_map['gpu']['model'] and \
-                                        host_gpu_spec['model'] not in architecture_map['gpu']['model']:
+                                if 'model' not in architecture_map['gpu'] or \
+                                        ('any' not in architecture_map['gpu']['model'] and \
+                                         host_gpu_spec['model'] not in architecture_map['gpu']['model']):
                                     continue
                     go_ahead = True
                 except Exception as e:
