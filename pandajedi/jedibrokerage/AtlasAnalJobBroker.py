@@ -651,17 +651,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     sitesNonAuto = list(set(tmpListWithSW).difference(set(sitesAuto)))
                     siteListWithSW += tmpListWithSW
                 else:
-                    # nightlies or standalone
-                    siteListWithCVMFS = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                releases='CVMFS')
-                    if taskSpec.get_sw_platform() in ['', None]:
-                        # architecture is not set
-                        siteListWithCMTCONFIG = copy.copy(unified_site_list)
-                    else:
-                        siteListWithCMTCONFIG = \
-                            self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                            cmtConfig=taskSpec.get_sw_platform(),
-                            onlyCmtConfig=True)
+                    # nightlies or standalone uses only AUTO
                     if taskSpec.transHome is not None:
                         # CVMFS check for nightlies
                         siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
@@ -674,7 +664,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                            host_gpu_spec=host_gpu_spec,
                                                                            log_stream=tmpLog)
                         sitesAuto = copy.copy(siteListWithSW)
-                        sitesNonAuto = list((set(siteListWithCVMFS) & set(siteListWithCMTCONFIG)).difference(set(sitesAuto)))
+                        sitesNonAuto = []
                         siteListWithSW += sitesNonAuto
                     else:
                         # no CVMFS check for standalone SW
