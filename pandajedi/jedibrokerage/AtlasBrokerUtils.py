@@ -948,7 +948,7 @@ class JsonSoftwareCheck:
                     continue
                 # only cmt config check
                 if cmt_config_only:
-                    if cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
+                    if not cmt_config or cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
                         okSite.append(tmpSiteName)
                     continue
                 # check if CVMFS is available

@@ -826,7 +826,7 @@ class JediTaskSpec(object):
 
     # output scales with the number of events
     def outputScaleWithEvents(self):
-        if self.outDiskUnit is not None and self.outDiskUnit.endswith('PerEvent'):
+        if self.outDiskUnit is not None and 'PerEvent' in self.outDiskUnit:
             return True
         return False
 

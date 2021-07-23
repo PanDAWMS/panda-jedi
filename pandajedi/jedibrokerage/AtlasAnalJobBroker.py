@@ -573,9 +573,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             # selection for release
             host_cpu_spec = taskSpec.get_host_cpu_spec()
             host_gpu_spec = taskSpec.get_host_gpu_spec()
-            if not sitePreAssigned and \
-                    (taskSpec.transHome is not None or host_cpu_spec is not None or host_gpu_spec is not None or \
-                    (taskSpec.processingType is not None and taskSpec.processingType.endswith('jedi-cont'))):
+            if not sitePreAssigned:
                 jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
                 unified_site_list = self.get_unified_sites(scanSiteList)
                 if taskSpec.transHome is not None:
@@ -690,10 +688,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                            host_gpu_spec=host_gpu_spec,
                                                                            log_stream=tmpLog)
                         sitesAuto = copy.copy(siteListWithSW)
-                        if host_cpu_spec or host_gpu_spec:
-                            sitesNonAuto = []
-                        else:
-                            sitesNonAuto = list(set(siteListWithCMTCONFIG).difference(set(sitesAuto)))
+                        sitesNonAuto = []
                         siteListWithSW += sitesNonAuto
                 newScanSiteList = []
                 oldScanSiteList = copy.copy(scanSiteList)

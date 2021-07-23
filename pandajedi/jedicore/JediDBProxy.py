@@ -5967,19 +5967,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     tmpWorkSize /= (1024 * 1024)
                             except Exception:
                                 pass
-                            if preOutputScaleWithEvents:
-                                # scale with events
-                                if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
-                                    tmpVal = long(math.ceil(float(outputFileBytes) / inEventsMap[pandaID]))
-                                if pandaID not in inEventsMap or inEventsMap[pandaID] >= 10:
-                                    outSizeList.append(tmpVal)
-                                    outSizeDict[tmpVal] = pandaID
-                            else:
-                                # scale with input size
-                                tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
-                                if pandaID not in inEventsMap or inEventsMap[pandaID] >= 10:
-                                    outSizeList.append(tmpVal)
-                                    outSizeDict[tmpVal] = pandaID
+                            if preOutDiskUnit is None or 'Fixed' not in preOutDiskUnit:
+                                if preOutputScaleWithEvents:
+                                    # scale with events
+                                    if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
+                                        tmpVal = long(math.ceil(float(outputFileBytes) / inEventsMap[pandaID]))
+                                    if pandaID not in inEventsMap or inEventsMap[pandaID] >= 10:
+                                        outSizeList.append(tmpVal)
+                                        outSizeDict[tmpVal] = pandaID
+                                else:
+                                    # scale with input size
+                                    tmpVal = long(math.ceil(float(outputFileBytes) / totalFSize))
+                                    if pandaID not in inEventsMap or inEventsMap[pandaID] >= 10:
+                                        outSizeList.append(tmpVal)
+                                        outSizeDict[tmpVal] = pandaID
                         except Exception:
                             pass
 
