@@ -709,7 +709,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         sitesAny.append(tmpSiteName)
                     else:
                         # release is unavailable
-                        tmpLog.info('  skip site=%s due to missing rel/cache %s:%s sw_platform=%s '
+                        tmpLog.info('  skip site=%s due to rel/cache %s:%s sw_platform=%s '
                                     ' cpu=%s gpu=%s criteria=-cache' % \
                                      (tmpSiteName, taskSpec.transUses, taskSpec.transHome, taskSpec.get_sw_platform(),
                                       str(host_cpu_spec), str(host_gpu_spec)))

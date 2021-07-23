@@ -738,7 +738,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     else:
                         autoStr = 'without AUTO'
                     # release is unavailable
-                    tmpLog.info('  skip site=%s %s due to missing cache=%s:%s sw_platform="%s" '
+                    tmpLog.info('  skip site=%s %s due to cache=%s:%s sw_platform="%s" '
                                 'cpu=%s gpu=%s criteria=-cache' % \
                                  (tmpSiteName, autoStr, taskSpec.transHome, taskSpec.get_sw_platform(),
                                   taskSpec.container_name, str(host_cpu_spec), str(host_gpu_spec)))

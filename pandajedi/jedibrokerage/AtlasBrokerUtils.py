@@ -829,7 +829,7 @@ class JsonSoftwareCheck:
                         for k in architecture_map['cpu']:
                             if isinstance(architecture_map['cpu'][k], list):
                                 if 'excl' in architecture_map['cpu'][k]:
-                                    cpu = True
+                                    need_cpu = True
                                     break
                         if need_cpu and host_cpu_spec is None:
                             continue
