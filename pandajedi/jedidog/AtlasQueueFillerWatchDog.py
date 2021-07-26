@@ -138,16 +138,18 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         return site_rse_map
 
     # get to-running rate of sites between 24 hours ago ~ 6 hours ago
-    def get_site_ttr_map(self):
+    def get_site_trr_map(self):
         ret_val, ret_map = AtlasBrokerUtils.getSiteToRunRateStats(
-                            self.taskBufferIF, self.vo, time_window=86400, cutoff=21600, cache_lifetime=600)
+                            self.taskBufferIF, self.vo, time_window=86400, cutoff=0, cache_lifetime=600)
         if ret_val:
             return ret_map
         else:
             return None
 
-    # get available sites
-    def get_available_sites(self):
+    # get available sites sorted list
+    def get_available_sites_list(self):
+        tmp_log = MsgWrapper(logger, 'get_available_sites_list')
+        # initialize
         available_sites_dict = {}
         # get global share
         tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(self.vo)
@@ -155,9 +157,16 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # got nothing...
             return available_sites_dict
         # get to-running rate of sites
-        site_ttr_map = self.get_site_ttr_map()
-        if site_ttr_map is None:
+        site_trr_map = self.get_site_trr_map()
+        if site_trr_map is None:
             return available_sites_dict
+        # record for excluded site reasons
+        excluded_sites_dict = {
+                'not_online': set(),
+                'has_minrss': set(),
+                'low_trr': set(),
+                'enough_nq': set(),
+            }
         # loop over sites
         for tmpPseudoSiteName in self.allSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
@@ -165,18 +174,21 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # skip site already added
             if tmpSiteName in available_sites_dict:
                 continue
-            # skip site is not online
-            if tmpSiteSpec.status not in ('online'):
-                continue
             # skip site if not for production
             if not tmpSiteSpec.runs_production():
                 continue
+            # skip site is not online
+            if tmpSiteSpec.status not in ('online'):
+                excluded_sites_dict['not_online'].add(tmpSiteName)
+                continue
             # skip if site has memory limitations
             if tmpSiteSpec.minrss not in (0, None):
+                excluded_sites_dict['has_minrss'].add(tmpPseudoSiteName)
                 continue
             # skip if site has not enough activity in the past 24 hours
-            site_ttr = site_ttr_map.get(tmpSiteName)
-            if site_ttr is None or site_ttr < 0.8:
+            site_trr = site_trr_map.get(tmpSiteName)
+            if site_trr is None or site_trr < 0.6:
+                excluded_sites_dict['low_trr'].add(tmpSiteName)
                 continue
             # get nQueue and nRunning
             nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running')
@@ -184,10 +196,23 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             for jobStatus in ['activated', 'starting']:
                 nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus)
             # available sites: must be idle now
-            if nQueue < max(20, nRunning*2)*0.25:
-                available_sites_dict[tmpSiteName] = tmpSiteSpec
+            n_jobs_to_fill = max(20, nRunning*2)*0.25 - nQueue
+            if n_jobs_to_fill > 0:
+                available_sites_dict[tmpSiteName] = (tmpSiteName, tmpSiteSpec, n_jobs_to_fill)
+            else:
+                excluded_sites_dict['enough_nq'].add(tmpSiteName)
+        # list
+        available_sites_list = list(available_sites_dict.values())
+        # sort by n_jobs_to_fill
+        available_sites_list.sort(key=(lambda x: x[2]), reverse=True)
+        # log message
+        for reason, sites_set in excluded_sites_dict.items():
+            excluded_sites_str = ','.join(sorted(sites_set))
+            tmp_log.debug('excluded sites due to {reason} : {sites}'.format(reason=reason, sites=excluded_sites_str))
+        included_sites_str = ','.join(sorted([ x[0] for x in available_sites_list ]))
+        tmp_log.debug('included sites : {sites}'.format(reason=reason, sites=included_sites_str))
         # return
-        return available_sites_dict
+        return available_sites_list
 
     # get busy sites
     def get_busy_sites(self):
@@ -198,8 +223,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # got nothing...
             return busy_sites_dict
         # get to-running rate of sites
-        site_ttr_map = self.get_site_ttr_map()
-        if site_ttr_map is None:
+        site_trr_map = self.get_site_trr_map()
+        if site_trr_map is None:
             return busy_sites_dict
         # loop over sites
         for tmpPseudoSiteName in self.allSiteList:
@@ -249,14 +274,14 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             if min_files_remaining is None:
                 min_files_remaining = 100
             # available sites
-            available_sites_dict = self.get_available_sites()
+            available_sites_list = self.get_available_sites_list()
             # get blacklisted_tasks_map from cache
             blacklisted_tasks_map = self._get_from_bt_cache()
             blacklisted_tasks_set = set()
             for bt_list in blacklisted_tasks_map.values():
                 blacklisted_tasks_set |= set(bt_list)
             # loop over available sites to preassign
-            for site, tmpSiteSpec in available_sites_dict.items():
+            for (site, tmpSiteSpec, n_jobs_to_fill) in available_sites_list:
                 # rses of the available site
                 available_rses = set()
                 try:
@@ -294,7 +319,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 sql_query = (
                     "SELECT t.jediTaskID, t.currentPriority "
                     "FROM {jedi_schema}.JEDI_Tasks t "
-                    "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
+                    "WHERE t.status IN ('ready','running') AND t.lockedBy IS NULL "
                         "AND t.prodSourceLabel=:prodSourceLabel "
                         "AND t.resource_type=:resource_type "
                         "AND site IS NULL "
@@ -309,7 +334,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         "AND EXISTS ( "
                             "SELECT d.datasetID FROM {jedi_schema}.JEDI_Datasets d "
                             "WHERE t.jediTaskID=d.jediTaskID AND d.type='input' "
-                                "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
+                                "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready "
+                                "AND d.nFiles-d.nFilesUsed>=:min_files_remaining "
                             ") "
                         "AND t.currentPriority<:magic_priority "
                         "AND t.container_name IS NULL "
@@ -355,7 +381,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         dry_sql_query = (
                             "SELECT t.jediTaskID, t.currentPriority "
                             "FROM {jedi_schema}.JEDI_Tasks t "
-                            "WHERE t.status IN ('ready','running','scouting') AND t.lockedBy IS NULL "
+                            "WHERE t.status IN ('ready','running') AND t.lockedBy IS NULL "
                                 "AND t.prodSourceLabel=:prodSourceLabel "
                                 "AND t.resource_type=:resource_type "
                                 "AND site IS NULL "
@@ -370,7 +396,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                 "AND EXISTS ( "
                                     "SELECT d.datasetID FROM {jedi_schema}.JEDI_Datasets d "
                                     "WHERE t.jediTaskID=d.jediTaskID AND d.type='input' "
-                                        "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
+                                        "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready "
+                                        "AND d.nFiles-d.nFilesUsed>=:min_files_remaining "
                                     ") "
                                 "AND t.currentPriority<:magic_priority "
                                 "AND t.container_name IS NULL "
@@ -513,11 +540,11 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                             "WHERE t.jediTaskID IN ({preassigned_tasks_params_str}) "
                                 "AND t.site IS NOT NULL "
                                 "AND NOT ( "
-                                        "t.status IN ('ready','running','scouting') "
+                                        "t.status IN ('ready','running') "
                                         "AND EXISTS ( "
                                             "SELECT d.datasetID FROM {0}.JEDI_Datasets d "
                                             "WHERE t.jediTaskID=d.jediTaskID AND d.type='input' "
-                                                "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFilesToBeUsed>=:min_files_remaining "
+                                                "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready AND d.nFiles-d.nFilesUsed>=:min_files_remaining "
                                             ") "
                                     ") "
                         ).format(jedi_schema=jedi_config.db.schemaJEDI, preassigned_tasks_params_str=preassigned_tasks_params_str)
