@@ -1147,7 +1147,8 @@ class AtlasProdJobBroker (JobBrokerBase):
         newScanSiteList = []
         newSkippedTmp = dict()
         for tmpSiteName in self.get_unified_sites(scanSiteList):
-            if tmpSiteName not in t1Sites+sitesShareSeT1:
+            tmpAtlasSiteName = storageMapping[tmpSiteName]['default']
+            if tmpSiteName not in t1Sites+sitesShareSeT1 and nucleus != tmpAtlasSiteName:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # limit
                 def_maxTransferring = 2000
