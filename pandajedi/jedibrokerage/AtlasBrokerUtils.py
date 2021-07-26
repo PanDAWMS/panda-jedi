@@ -829,7 +829,7 @@ class JsonSoftwareCheck:
                         for k in architecture_map['cpu']:
                             if isinstance(architecture_map['cpu'][k], list):
                                 if 'excl' in architecture_map['cpu'][k]:
-                                    cpu = True
+                                    need_cpu = True
                                     break
                         if need_cpu and host_cpu_spec is None:
                             continue
@@ -891,11 +891,12 @@ class JsonSoftwareCheck:
                                     continue
                             # check model
                             if host_gpu_spec['model'] == '*':
-                                if 'excl' in architecture_map['gpu']['model']:
+                                if 'model' in architecture_map['gpu'] and 'excl' in architecture_map['gpu']['model']:
                                     continue
                             else:
-                                if 'any' not in architecture_map['gpu']['model'] and \
-                                        host_gpu_spec['model'] not in architecture_map['gpu']['model']:
+                                if 'model' not in architecture_map['gpu'] or \
+                                        ('any' not in architecture_map['gpu']['model'] and \
+                                         host_gpu_spec['model'] not in architecture_map['gpu']['model']):
                                     continue
                     go_ahead = True
                 except Exception as e:
@@ -947,7 +948,7 @@ class JsonSoftwareCheck:
                     continue
                 # only cmt config check
                 if cmt_config_only:
-                    if cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
+                    if not cmt_config or cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
                         okSite.append(tmpSiteName)
                     continue
                 # check if CVMFS is available

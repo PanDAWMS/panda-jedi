@@ -573,9 +573,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             # selection for release
             host_cpu_spec = taskSpec.get_host_cpu_spec()
             host_gpu_spec = taskSpec.get_host_gpu_spec()
-            if not sitePreAssigned and \
-                    (taskSpec.transHome is not None or host_cpu_spec is not None or host_gpu_spec is not None or \
-                    (taskSpec.processingType is not None and taskSpec.processingType.endswith('jedi-cont'))):
+            if not sitePreAssigned:
                 jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
                 unified_site_list = self.get_unified_sites(scanSiteList)
                 if taskSpec.transHome is not None:
@@ -653,17 +651,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     sitesNonAuto = list(set(tmpListWithSW).difference(set(sitesAuto)))
                     siteListWithSW += tmpListWithSW
                 else:
-                    # nightlies or standalone
-                    siteListWithCVMFS = self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                                                                                releases='CVMFS')
-                    if taskSpec.get_sw_platform() in ['', None]:
-                        # architecture is not set
-                        siteListWithCMTCONFIG = copy.copy(unified_site_list)
-                    else:
-                        siteListWithCMTCONFIG = \
-                            self.taskBufferIF.checkSitesWithRelease(unified_site_list,
-                            cmtConfig=taskSpec.get_sw_platform(),
-                            onlyCmtConfig=True)
+                    # nightlies or standalone uses only AUTO
                     if taskSpec.transHome is not None:
                         # CVMFS check for nightlies
                         siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
@@ -676,7 +664,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                            host_gpu_spec=host_gpu_spec,
                                                                            log_stream=tmpLog)
                         sitesAuto = copy.copy(siteListWithSW)
-                        sitesNonAuto = list((set(siteListWithCVMFS) & set(siteListWithCMTCONFIG)).difference(set(sitesAuto)))
+                        sitesNonAuto = []
                         siteListWithSW += sitesNonAuto
                     else:
                         # no CVMFS check for standalone SW
@@ -690,10 +678,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                            host_gpu_spec=host_gpu_spec,
                                                                            log_stream=tmpLog)
                         sitesAuto = copy.copy(siteListWithSW)
-                        if host_cpu_spec or host_gpu_spec:
-                            sitesNonAuto = []
-                        else:
-                            sitesNonAuto = list(set(siteListWithCMTCONFIG).difference(set(sitesAuto)))
+                        sitesNonAuto = []
                         siteListWithSW += sitesNonAuto
                 newScanSiteList = []
                 oldScanSiteList = copy.copy(scanSiteList)
@@ -709,7 +694,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         sitesAny.append(tmpSiteName)
                     else:
                         # release is unavailable
-                        tmpLog.info('  skip site=%s due to missing rel/cache %s:%s sw_platform=%s '
+                        tmpLog.info('  skip site=%s due to rel/cache %s:%s sw_platform=%s '
                                     ' cpu=%s gpu=%s criteria=-cache' % \
                                      (tmpSiteName, taskSpec.transUses, taskSpec.transHome, taskSpec.get_sw_platform(),
                                       str(host_cpu_spec), str(host_gpu_spec)))
