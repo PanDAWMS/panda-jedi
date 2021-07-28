@@ -14112,6 +14112,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to query
             self.cur.execute(sql_query+comment, params_map)
             taskIDs = self.cur.fetchall()
+            tmpLog.debug('{0} {1} ; got {2} taskIDs'.format(sql_query, params_map, len(taskIDs)))
             # sql to preassign the task to a site
             sqlPDG = (  "UPDATE {0}.JEDI_Tasks "
                         "SET lockedBy=NULL, lockedTime=NULL, "
@@ -14229,9 +14230,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             updated_tasks = []
             force_str = ''
             for jedi_taskid in jedi_taskids:
+                if str(jedi_taskid) not in task_orig_priority_map:
+                    tmpLog.warning('missed original priority of jediTaskID={0} ; set it to be 222 '.format(jedi_taskid))
+                orig_priority = task_orig_priority_map.get(str(jedi_taskid), 222)
                 varMap = {}
                 varMap[':jediTaskID'] = jedi_taskid
-                varMap[':orig_priority'] = task_orig_priority_map[str(jedi_taskid)]
+                varMap[':orig_priority'] = orig_priority
                 varMap[':magic_priority'] = params_map[':magic_priority']
                 if force:
                     force_str = 'force'

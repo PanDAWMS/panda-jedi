@@ -128,12 +128,12 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             tmpSiteName = tmpSiteSpec.get_unified_name()
             scope_input, scope_output = DataServiceUtils.select_scope(tmpSiteSpec, prod_source_label, prod_source_label)
             try:
-                endpoint_token_map = tmpSiteSpec.ddm_endpoints_input[scope_input].getTokenMap('input')
+                endpoint_token_map = tmpSiteSpec.ddm_endpoints_input[scope_input].all
             except KeyError:
                 continue
             else:
                 # fill
-                site_rse_map[tmpSiteName] = list(endpoint_token_map.values())
+                site_rse_map[tmpSiteName] = [ k for k, v in endpoint_token_map.items() if v.get('order_read') is not None ]
         # return
         return site_rse_map
 
@@ -287,6 +287,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 try:
                     available_rses.update(set(site_rse_map[site]))
                 except KeyError:
+                    tmp_log.debug('skipped {site} since no good RSE'.format(site=site))
                     continue
                 # do not consider TAPE rses
                 for rse in set(available_rses):
@@ -294,9 +295,11 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                         available_rses.remove(rse)
                 # skip if no rse for available site
                 if not available_rses:
+                    tmp_log.debug('skipped {site} since no available RSE'.format(site=site))
                     continue
                 # skip if no coreCount set
                 if not tmpSiteSpec.coreCount or not tmpSiteSpec.coreCount > 0:
+                    tmp_log.debug('skipped {site} since coreCount is not set'.format(site=site))
                     continue
                 # site attributes
                 site_maxrss =  tmpSiteSpec.maxrss if tmpSiteSpec.maxrss not in (0, None) else 999999
@@ -444,6 +447,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                 for taskid in updated_tasks:
                                     tmp_log.debug('#ATM #KV jediTaskID={taskid} action=do_preassign site={site} rtype={rtype} preassigned '.format(
                                                     taskid=taskid, site=site, rtype=resource_type))
+                            else:
+                                tmp_log.debug('{key_name:<64} found no proper task to preassign'.format(key_name=key_name))
         # total preassigned tasks
         n_pt_tot = sum([ len(pt_list) for pt_list in preassigned_tasks_map.values() ])
         tmp_log.debug('now {n_pt_tot} tasks preassigned in total'.format(n_pt_tot=n_pt_tot))
