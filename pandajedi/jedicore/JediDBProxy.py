@@ -12106,15 +12106,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         comment = ' /* JediDBProxy.getNumTasksWithRunningJumbo_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += " <vo={0} label={1} cloud={2} queue={3}>".format(vo, prodSourceLabel, cloudName, workqueue.queue_name)
-        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
         try:
             # get tasks
-            sqlDJ  = "SELECT COUNT(*) FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlDJ  = "SELECT task_count FROM {0}.MV_RUNNING_JUMBO_TASK_COUNT ".format(jedi_config.db.schemaJEDI)
             sqlDJ += "WHERE vo=:vo AND prodSourceLabel=:label AND cloud=:cloud "
             sqlDJ += "AND useJumbo in (:useJumbo1,:useJumbo2) AND status IN (:st1,:st2,:st3) "
             varMap = {}
-            varMap[':vo']  = vo
+            varMap[':vo'] = vo
             varMap[':label'] = prodSourceLabel
             varMap[':cloud'] = cloudName
             if workqueue.is_global_share:
@@ -12131,11 +12131,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':useJumbo2'] = JediTaskSpec.enum_useJumbo['pending']
             # start transaction
             self.conn.begin()
-            self.cur.execute(sqlDJ+comment,varMap)
+            self.cur.execute(sqlDJ+comment, varMap)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
-            nTasks, = self.cur.fetchone()
+            res = self.cur.fetchone()
+            if res is None:
+                nTasks = 0
+            else:
+                nTasks = res[0]
             # return
             tmpLog.debug("got {0} tasks".format(nTasks))
             return nTasks
