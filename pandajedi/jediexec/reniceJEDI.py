@@ -5,7 +5,7 @@ proc = subprocess.Popen("ps -l x -U {0}".format(jedi_config.master.uname),
                         shell=True,
                         stdout=subprocess.PIPE,
                         )
-stdoutList = proc.communicate()[0].split('\n')
+stdoutList = str(proc.communicate()[0]).split('\n')
 for line in stdoutList:
     try:
         items = line.split()
