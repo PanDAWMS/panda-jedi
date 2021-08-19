@@ -10690,7 +10690,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlFR += "SELECT {0} ".format(JediFileSpec.columnNames(defaultVales=defaultVales,skipDefaultAttr=True))
             sqlFR += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlFR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND fileID IN ( "
-            sqlFR += "SELECT MIN(fileID) minFileID "
+            sqlFR += "SELECT /*+ UNNEST */ MIN(fileID) minFileID "
             sqlFR += "FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlFR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             sqlFR += "GROUP BY lfn,startEvent,endEvent) "
