@@ -534,6 +534,13 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 else:
                                     newNucleusList[tmpNucleus] = tmpNucleusSpec
                             totInputSize = list(availableData.values())[0]['tot_size']/1024/1024/1024
+                            data_locality_check_str = (
+                                '(ioIntensity ({0}) is None or less than {1} kBPerS '
+                                'and input size ({2} GB) is less than {3}) '
+                                'or task.currentPriority ({4}) is higher than or equal to {5}').format(
+                                taskSpec.ioIntensity, minIoIntensityWithLD,
+                                int(totInputSize), minInputSizeWithLD,
+                                taskSpec.taskPriority, maxTaskPrioWithLD)
                             if len(newNucleusList) > 0:
                                 nucleusList = newNucleusList
                                 for tmpMsg in skipMsgList:
@@ -543,16 +550,17 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                   and totInputSize <= minInputSizeWithLD) \
                                   or taskSpec.taskPriority >= maxTaskPrioWithLD:
                                 availableData = {}
-                                tmpLog.info(('  disable data locality check since no nucleus has input data, '
-                                            '(ioIntensity {0} kBPerS is None or less than {1} '
-                                            'and input size {2} GB is less than {3}) '
-                                            'or task priority {4} is higher than or equal to {5}').format(
-                                    taskSpec.ioIntensity, minIoIntensityWithLD,
-                                    totInputSize, minInputSizeWithLD,
-                                    taskSpec.taskPriority, maxTaskPrioWithLD)
-                                )
+                                tmpLog.info(
+                                    '  disable data locality check since no nucleus has input data, {}'.format(
+                                        data_locality_check_str))
                             else:
+                                # no candidate + unavoidable data locality check
                                 nucleusList = newNucleusList
+                                for tmpMsg in skipMsgList:
+                                    tmpLog.info(tmpMsg)
+                                tmpLog.info(
+                                    '  the following conditions required to disable data locality check: {}'.format(
+                                        data_locality_check_str))
                             tmpLog.info('{0} candidates passed data check'.format(len(nucleusList)))
                             if nucleusList == {}:
                                 tmpLog.error('no candidates')
