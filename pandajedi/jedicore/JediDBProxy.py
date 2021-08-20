@@ -3581,12 +3581,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                           'finish',
                                                           comQualifier='soft')
                             continue
-                        # reset frozenTime
-                        if origTaskSpec.frozenTime is not None:
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':frozenTime'] = None
-                            self.cur.execute(sqlFZT + comment, varMap)
                 # read datasets
                 if not toSkip:
                     iDsPerTask = 0
