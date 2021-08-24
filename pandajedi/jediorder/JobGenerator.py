@@ -1095,9 +1095,11 @@ class JobGeneratorThread (WorkerThread):
                             # collect old PandaIDs
                             if tmpFileSpec.PandaID is not None and tmpFileSpec.PandaID not in subOldPandaIDs:
                                 subOldPandaIDs.append(tmpFileSpec.PandaID)
+                                """
                                 subOldMergePandaIDs = self.taskBufferIF.getOldMergeJobPandaIDs_JEDI(taskSpec.jediTaskID,
                                                                                                     tmpFileSpec.PandaID)
                                 subOldPandaIDs += subOldMergePandaIDs
+                                """
                             # set specialHandling for normal Event Service
                             if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging \
                                     and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.isPseudo():
