@@ -16,6 +16,7 @@ from pandajedi.jedicore.ProcessUtils import ProcessWrapper
 
 from pandajedi.jediconfig import jedi_config
 
+
 # the master class of JEDI which runs the main process
 class JediMaster:
 
@@ -23,14 +24,12 @@ class JediMaster:
     def __init__(self):
         self.stopEventList = []
 
-
-
     # spawn a knight to have own file descriptors
-    def launcher(self,moduleName,*args,**kwargs):
+    def launcher(self, moduleName, *args, **kwargs):
         # import module
         mod = __import__(moduleName)
         for subModuleName in moduleName.split('.')[1:]:
-            mod = getattr(mod,subModuleName)
+            mod = getattr(mod, subModuleName)
         # launch
         timeNow = datetime.datetime.utcnow()
         print("{0} {1}: INFO    start {2} with pid={3}".format(str(timeNow),
@@ -39,10 +38,8 @@ class JediMaster:
                                                                os.getpid()))
         mod.launcher(*args, **kwargs)
 
-
-
     # convert config parameters
-    def convParams(self,itemStr):
+    def convParams(self, itemStr):
         items = itemStr.split(':')
         newItems = []
         for item in items:
@@ -56,8 +53,6 @@ class JediMaster:
                 except Exception:
                     newItems.append(item)
         return newItems
-
-
 
     # main loop
     def start(self):
@@ -74,96 +69,100 @@ class JediMaster:
         # setup TaskRefiner
         for itemStr in jedi_config.taskrefine.procConfig.split(';'):
             items = self.convParams(itemStr)
-            vo     = items[0]
+            vo = items[0]
             plabel = items[1]
-            nProc  = items[2]
+            nProc = items[2]
             for iproc in range(nProc):
                 parent_conn, child_conn = multiprocessing.Pipe()
                 proc = multiprocessing.Process(target=self.launcher,
                                                args=('pandajedi.jediorder.TaskRefiner',
-                                                     child_conn,taskBufferIF,ddmIF,
-                                                     vo,plabel))
+                                                     child_conn, taskBufferIF, ddmIF,
+                                                     vo, plabel))
                 proc.start()
                 knightList.append(proc)
         # setup TaskBrokerage
         for itemStr in jedi_config.taskbroker.procConfig.split(';'):
             items = self.convParams(itemStr)
-            vo     = items[0]
+            vo = items[0]
             plabel = items[1]
-            nProc  = items[2]
+            nProc = items[2]
             for iproc in range(nProc):
                 parent_conn, child_conn = multiprocessing.Pipe()
                 proc = multiprocessing.Process(target=self.launcher,
                                                args=('pandajedi.jediorder.TaskBroker',
-                                                     child_conn,taskBufferIF,ddmIF,
-                                                     vo,plabel))
+                                                     child_conn, taskBufferIF, ddmIF,
+                                                     vo, plabel))
                 proc.start()
                 knightList.append(proc)
         # setup ContentsFeeder
         for itemStr in jedi_config.confeeder.procConfig.split(';'):
             items = self.convParams(itemStr)
-            vo     = items[0]
+            vo = items[0]
             plabel = items[1]
-            nProc  = items[2]
+            nProc = items[2]
             for iproc in range(nProc):
                 parent_conn, child_conn = multiprocessing.Pipe()
                 proc = multiprocessing.Process(target=self.launcher,
                                                args=('pandajedi.jediorder.ContentsFeeder',
-                                                     child_conn,taskBufferIF,ddmIF,
-                                                     vo,plabel))
+                                                     child_conn, taskBufferIF,
+                                                     ddmIF, vo, plabel))
                 proc.start()
                 knightList.append(proc)
         # setup JobGenerator
         for itemStr in jedi_config.jobgen.procConfig.split(';'):
             items = self.convParams(itemStr)
-            vo     = items[0]
+            vo = items[0]
             plabel = items[1]
-            nProc  = items[2]
-            cloud  = items[3]
-            if not isinstance(cloud,list):
+            nProc = items[2]
+            cloud = items[3]
+            try:
+                loop_cycle = items[4]
+            except IndexError:
+                loop_cycle = None
+
+            if not isinstance(cloud, list):
                 cloud = [cloud]
             for iproc in range(nProc):
                 parent_conn, child_conn = multiprocessing.Pipe()
                 proc = ProcessWrapper(target=self.launcher,
-                                      args=('pandajedi.jediorder.JobGenerator',
-                                            child_conn,taskBufferIF,ddmIF,
-                                            vo,plabel,cloud,True,True))
+                                      args=('pandajedi.jediorder.JobGenerator', child_conn, taskBufferIF, ddmIF, vo,
+                                            plabel, cloud, True, True, loop_cycle))
                 proc.start()
                 knightList.append(proc)
         # setup PostProcessor
         for itemStr in jedi_config.postprocessor.procConfig.split(';'):
             items = self.convParams(itemStr)
-            vo     = items[0]
+            vo = items[0]
             plabel = items[1]
-            nProc  = items[2]
+            nProc = items[2]
             for iproc in range(nProc):
                 parent_conn, child_conn = multiprocessing.Pipe()
                 proc = multiprocessing.Process(target=self.launcher,
                                                args=('pandajedi.jediorder.PostProcessor',
-                                                     child_conn,taskBufferIF,ddmIF,
-                                                     vo,plabel))
+                                                     child_conn, taskBufferIF, ddmIF,
+                                                     vo, plabel))
                 proc.start()
                 knightList.append(proc)
         # setup TaskCommando
         for itemStr in jedi_config.tcommando.procConfig.split(';'):
             items = self.convParams(itemStr)
-            vo     = items[0]
+            vo = items[0]
             plabel = items[1]
-            nProc  = items[2]
+            nProc = items[2]
             for iproc in range(nProc):
                 parent_conn, child_conn = multiprocessing.Pipe()
                 proc = multiprocessing.Process(target=self.launcher,
                                                args=('pandajedi.jediorder.TaskCommando',
-                                                     child_conn,taskBufferIF,ddmIF,
-                                                     vo,plabel))
+                                                     child_conn, taskBufferIF, ddmIF,
+                                                     vo, plabel))
                 proc.start()
                 knightList.append(proc)
         # setup WatchDog
         for itemStr in jedi_config.watchdog.procConfig.split(';'):
             items = self.convParams(itemStr)
-            vo     = items[0]
+            vo = items[0]
             plabel = items[1]
-            nProc  = items[2]
+            nProc = items[2]
             subStr = items[3] if len(items) > 3 else None
             period = items[4] if len(items) > 4 else None
             for iproc in range(nProc):
@@ -175,13 +174,14 @@ class JediMaster:
                 proc.start()
                 knightList.append(proc)
         # setup JediMsgProcessor agent (only one system process)
-        if hasattr(jedi_config, 'msgprocessor') and hasattr(jedi_config.msgprocessor, 'configFile') and jedi_config.msgprocessor.configFile:
+        if hasattr(jedi_config, 'msgprocessor') and hasattr(jedi_config.msgprocessor,
+                                                            'configFile') and jedi_config.msgprocessor.configFile:
             stop_event = multiprocessing.Event()
             self.stopEventList.append(stop_event)
             parent_conn, child_conn = multiprocessing.Pipe()
             proc = multiprocessing.Process(target=self.launcher,
                                            args=('pandajedi.jediorder.JediMsgProcessor',
-                                                    stop_event))
+                                                 stop_event))
             proc.start()
             knightList.append(proc)
         # setup JediDaemon agent (only one system process)
@@ -189,7 +189,7 @@ class JediMaster:
             parent_conn, child_conn = multiprocessing.Pipe()
             proc = multiprocessing.Process(target=self.launcher,
                                            args=('pandajedi.jediorder.JediDaemon',
-                                                    taskBufferIF, ddmIF))
+                                                 taskBufferIF, ddmIF))
             proc.start()
             knightList.append(proc)
         # check initial failures
@@ -200,7 +200,7 @@ class JediMaster:
                 print("{0} {1}: ERROR    pid={2} died in initialization".format(str(timeNow),
                                                                                 self.__class__.__name__,
                                                                                 knight.pid))
-                os.killpg(os.getpgrp(),signal.SIGKILL)
+                os.killpg(os.getpgrp(), signal.SIGKILL)
         # join
         for knight in knightList:
             knight.join()
@@ -217,14 +217,13 @@ def kill_whole(sig, frame):
     os.killpg(os.getpgrp(), signal.SIGKILL)
 
 
-
 # main
 if __name__ == "__main__":
     # parse option
     parser = optparse.OptionParser()
-    parser.add_option('--pid',action='store',dest='pid',default=None,
+    parser.add_option('--pid', action='store', dest='pid', default=None,
                       help='pid filename')
-    options,args = parser.parse_args()
+    options, args = parser.parse_args()
     uid = pwd.getpwnam(jedi_config.master.uname).pw_uid
     gid = grp.getgrnam(jedi_config.master.gname).gr_gid
     timeNow = datetime.datetime.utcnow()
@@ -248,13 +247,15 @@ if __name__ == "__main__":
             pidFile.close()
             # master
             master = JediMaster()
+
             # set handler
             def catch_sig(sig, frame):
                 master.stop()
                 time.sleep(3)
                 kill_whole(sig, frame)
+
             signal.signal(signal.SIGINT, catch_sig)
             signal.signal(signal.SIGHUP, catch_sig)
-            signal.signal(signal.SIGTERM,catch_sig)
+            signal.signal(signal.SIGTERM, catch_sig)
             # start master
             master.start()
