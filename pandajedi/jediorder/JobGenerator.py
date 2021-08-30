@@ -312,6 +312,7 @@ class JobGenerator (JediKnight):
             timeDelta = datetime.datetime.utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
             if sleepPeriod > 0:
+                tmpLog.debug('sleeping {0}s'.format(sleepPeriod))
                 time.sleep(sleepPeriod)
             # randomize cycle
             self.randomSleep(max_val=loopCycle)
