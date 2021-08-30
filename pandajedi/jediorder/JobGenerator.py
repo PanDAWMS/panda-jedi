@@ -68,6 +68,7 @@ class JobGenerator(JediKnight):
         self.cloudList = cloudList
         self.withThrottle = withThrottle
         self.execJobs = execJobs
+        self.loopCycle_cust = loopCycle_cust
         self.paramsToGetTasks = None
 
     # main
@@ -324,8 +325,8 @@ class JobGenerator(JediKnight):
             except Exception:
                 pass
             # sleep if needed. It can be specified for the particular JobGenerator instance or use the default value
-            if loopCycle_cust:
-                loopCycle = loopCycle_cust
+            if self.loopCycle_cust:
+                loopCycle = self.loopCycle_cust
             else:
                 loopCycle = jedi_config.jobgen.loopCycle
             timeDelta = datetime.datetime.utcnow() - startTime
