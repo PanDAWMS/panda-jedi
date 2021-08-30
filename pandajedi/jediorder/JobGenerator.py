@@ -2409,7 +2409,7 @@ class JobGeneratorThread(WorkerThread):
 ########## launch
 
 def launcher(commuChannel, taskBufferIF, ddmIF, vos, prodSourceLabels, cloudList,
-             withThrottle=True, execJobs=True):
+             withThrottle=True, execJobs=True, loopCycle_cust=None):
     p = JobGenerator(commuChannel, taskBufferIF, ddmIF, vos, prodSourceLabels, cloudList,
-                     withThrottle, execJobs)
+                     withThrottle, execJobs, loopCycle_cust)
     p.start()
