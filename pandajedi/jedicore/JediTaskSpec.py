@@ -1765,7 +1765,8 @@ class JediTaskSpec(object):
     # check if looping check is disabled
     def no_looping_check(self):
         if self.splitRule is not None:
-            if re.search(self.splitRuleToken['noLoopingCheck']+'=(\d+)', self.splitRule):
+            tmpMatch = re.search(self.splitRuleToken['noLoopingCheck']+'=(\d+)', self.splitRule)
+            if tmpMatch and int(tmpMatch.group(1)):
                 return True
         return False
 
