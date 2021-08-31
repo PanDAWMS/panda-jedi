@@ -783,15 +783,15 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.deleteOutdatedDatasetLocality_JEDI(before_timestamp)
 
-    # query tasks and preassign them to a site, sql_query should query jeditaskid
-    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, blacklist=set(), priority=1023, limit=1):
+    # query tasks and preassign them to dedicate workqueue, sql_query should query jeditaskid
+    def queryTasksToPreassign_JEDI(self, sql_query, params_map, site, blacklist=set(), limit=1):
         with self.proxyPool.get() as proxy:
-            return proxy.queryTasksToPreassign_JEDI(sql_query, params_map, site, blacklist, priority, limit)
+            return proxy.queryTasksToPreassign_JEDI(sql_query, params_map, site, blacklist, limit)
 
     # undo preassigned tasks
-    def undoPreassignedTasks_JEDI(self, jedi_taskids, task_orig_priority_map, params_map, force=False):
+    def undoPreassignedTasks_JEDI(self, jedi_taskids, task_orig_attr_map, params_map, force=False):
         with self.proxyPool.get() as proxy:
-            return proxy.undoPreassignedTasks_JEDI(jedi_taskids, task_orig_priority_map, params_map, force)
+            return proxy.undoPreassignedTasks_JEDI(jedi_taskids, task_orig_attr_map, params_map, force)
 
     # set missing files according to iDDS messages
     def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames):
