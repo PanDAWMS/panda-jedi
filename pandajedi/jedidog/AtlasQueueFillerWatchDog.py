@@ -28,9 +28,6 @@ logger = PandaLogger().getLogger(__name__.split('.')[-1])
 # dry run or not
 DRY_RUN = False
 
-# boosted task priority when preassigned
-# magic_priority = 1023
-
 # dedicated workqueue for preassigned task
 magic_workqueue_id = 400
 magic_workqueue_name = 'wd_queuefiller'
@@ -50,8 +47,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         self.dc_main_key = 'AtlasQueueFillerWatchDog'
         self.dc_sub_key_pt = 'PreassignedTasks'
         self.dc_sub_key_bt = 'BlacklistedTasks'
-        # self.dc_sub_key_prio = 'OriginalTaskPriority'
         self.dc_sub_key_attr = 'OriginalTaskAttributes'
+        self.dc_sub_key_ses = 'SiteEmptySince'
         # call refresh
         self.refresh()
 
@@ -104,6 +101,20 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
     # get task original attributes map from cache
     def _get_from_attr_cache(self):
         cache_spec = self.taskBufferIF.getCache_JEDI(main_key=self.dc_main_key, sub_key=self.dc_sub_key_attr)
+        if cache_spec is not None:
+            ret_map = json.loads(cache_spec.data)
+            return ret_map
+        else:
+            return dict()
+
+    # update site empty-since map to cache
+    def _update_to_ses_cache(self, qsmap):
+        data_json = json.dumps(attrmap)
+        self.taskBufferIF.updateCache_JEDI(main_key=self.dc_main_key, sub_key=self.dc_sub_key_ses, data=data_json)
+
+    # get site empty-since map from cache
+    def _get_from_ses_cache(self):
+        cache_spec = self.taskBufferIF.getCache_JEDI(main_key=self.dc_main_key, sub_key=self.dc_sub_key_ses)
         if cache_spec is not None:
             ret_map = json.loads(cache_spec.data)
             return ret_map
@@ -262,6 +273,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         self.refresh()
         # list of resource type
         resource_type_list = [ rt.resource_name for rt in self.taskBufferIF.load_resource_types() ]
+        # threshold of time duration in second that the queue keeps empty to trigger preassignment
+        empty_duration_threshold = 1800
         # loop
         for prod_source_label in self.prodSourceLabelList:
             # site-rse map
@@ -279,8 +292,27 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                         'queue_filler', 'MIN_FILES_REMAINING_{0}'.format(prod_source_label), 'jedi', self.vo)
             if min_files_remaining is None:
                 min_files_remaining = 100
+            # load site empty-since map from cache
+            site_empty_since_map_orig = self._get_from_ses_cache()
             # available sites
             available_sites_list = self.get_available_sites_list()
+            # now timestamp
+            now_time = datetime.datetime.utcnow()
+            now_time_ts = int(now_time.timestamp())
+            # update site empty-since map
+            site_empty_since_map = copy.deepcopy(site_empty_since_map_orig)
+            available_site_name_list = [ x[0] for x in available_sites_list ]
+            for site in site_empty_since_map_orig:
+                # remove sites that are no longer empty
+                if site not in available_site_name_list:
+                    del site_empty_since_map[site]
+            for site in available_site_name_list:
+                # add newly found empty sites
+                if site not in site_empty_since_map_orig:
+                    site_empty_since_map[site] = now_time_ts
+            self._update_to_ses_cache(site_empty_since_map)
+            # evaluate sites to preaassign according to cache
+            empty_duration_threshold
             # get blacklisted_tasks_map from cache
             blacklisted_tasks_map = self._get_from_bt_cache()
             blacklisted_tasks_set = set()
@@ -288,6 +320,18 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                 blacklisted_tasks_set |= set(bt_list)
             # loop over available sites to preassign
             for (site, tmpSiteSpec, n_jobs_to_fill) in available_sites_list:
+                # skip if not empty for long enough
+                # now timestamp
+                now_time = datetime.datetime.utcnow()
+                now_time_ts = int(now_time.timestamp())
+                if site not in site_empty_since_map:
+                    tmp_log.error('skipped {site} since not in empty-since map (should not happen)'.format(site=site))
+                    continue
+                empty_duration = now_time_ts - site_empty_since_map[site]
+                if empty_duration < empty_duration_threshold:
+                    tmp_log.debug('skipped {site} since not empty for enough time ({ed}s < {edt}s)'.format(
+                                    site=site, ed=empty_duration, edt=empty_duration_threshold))
+                    continue
                 # rses of the available site
                 available_rses = set()
                 try:

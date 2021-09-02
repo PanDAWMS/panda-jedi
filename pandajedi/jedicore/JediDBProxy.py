@@ -14212,9 +14212,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             ") "
                   ).format(jedi_config.db.schemaJEDI)
         # sql to force to undo a preassigned task no matter what
-        sqlUPTF = ( "UPDATE {0}.JEDI_Tasks "
+        sqlUPTF = ( "UPDATE {0}.JEDI_Tasks t "
                     "SET "
-                        "site=NULL, "
+                        "t.site=NULL, "
                         "t.workQueue_ID=( "
                                 "CASE "
                                     "WHEN t.workQueue_ID=:magic_workqueue_id "
@@ -14222,9 +14222,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     "ELSE t.workQueue_ID "
                                 "END "
                             "), "
-                        "modificationtime=CURRENT_DATE "
-                    "WHERE jediTaskID=:jediTaskID "
-                        "AND site IS NOT NULL "
+                        "t.modificationtime=CURRENT_DATE "
+                    "WHERE t.jediTaskID=:jediTaskID "
+                        "AND t.site IS NOT NULL "
                   ).format(jedi_config.db.schemaJEDI)
         try:
             self.conn.begin()
