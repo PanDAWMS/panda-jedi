@@ -14151,25 +14151,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.error('updated {0} rows with same jediTaskID={1}'.format(nRow, jedi_taskid))
             if not self._commit():
                 raise RuntimeError('Commit error')
-            # # close jobs; comment for now since killJob can timeout with ORA-00054 and block the whole method for minutes
-            # sqlJC = (   "SELECT pandaID "
-            #             "FROM {0}.jobsActive4 "
-            #             "WHERE jediTaskID=:jediTaskID "
-            #                 "AND jobStatus='activated' "
-            #                 "AND computingSite!=:computingSite "
-            #     ).format(jedi_config.db.schemaPANDA)
-            # for (jedi_taskid, orig_attr) in updated_tasks_attr:
-            #     varMap = {}
-            #     varMap[':jediTaskID'] = jedi_taskid
-            #     varMap[':computingSite'] = site
-            #     self.cur.execute(sqlJC+comment, varMap)
-            #     pandaIDs = self.cur.fetchall()
-            #     n_jobs_closed = 0
-            #     for (pandaID, ) in pandaIDs:
-            #         res_close = self.killJob(pandaID, 'reassign', '51', True)
-            #         if res_close:
-            #             n_jobs_closed += 1
-            #     tmpLog.debug('for jediTaskID={0} to preassign to site={1}, closed {2} jobs'.format(jedi_taskid, site, n_jobs_closed))
             tmpLog.debug('done with {0} rows to site={1}'.format(n_updated, site))
             # return
             return updated_tasks_attr
@@ -14180,12 +14161,67 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return None
 
+    # close and reassign N jobs of a preassigned task
+    def reassignJobsInPreassignedTask_JEDI(self, jedi_taskid, site, n_jobs_to_close):
+        comment = ' /* JediDBProxy.reassignJobsInPreassignedTask_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += " < jediTaskID={0} to {1} to close {2} jobs >".format(jedi_taskid, site, n_jobs_to_close)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        try:
+            self.conn.begin()
+            # check if task is still running and brokered to the site
+            sqlT = (
+                    "SELECT jediTaskID "
+                    "FROM {0}.JEDI_Tasks t "
+                    "WHERE t.jediTaskID=:jediTaskID "
+                        "AND t.site =:site "
+                        "AND t.status IN ('ready','running') "
+                ).format(jedi_config.db.schemaJEDI)
+            varMap = {}
+            varMap[':jediTaskID'] = jedi_taskid
+            varMap[':site'] = site
+            self.cur.execute(sqlT+comment, varMap)
+            resT = self.cur.fetchall()
+            if not resT:
+                # skip as preassigned task not running and brokered
+                tmpLog.debug('no longer brokered to site or not ready/running ; skipped')
+                return None
+            # timer
+            t0 = time.time()
+            # close jobs
+            sqlJC = (   "SELECT pandaID "
+                        "FROM {0}.jobsActive4 "
+                        "WHERE jediTaskID=:jediTaskID "
+                            "AND jobStatus='activated' "
+                            "AND computingSite!=:computingSite "
+                ).format(jedi_config.db.schemaPANDA)
+            varMap = {}
+            varMap[':jediTaskID'] = jedi_taskid
+            varMap[':computingSite'] = site
+            self.cur.execute(sqlJC+comment, varMap)
+            pandaIDs = self.cur.fetchall()
+            n_jobs_closed = 0
+            for (pandaID, ) in pandaIDs:
+                res_close = self.killJob(pandaID, 'reassign', '51', True)
+                if res_close:
+                    n_jobs_closed += 1
+                if n_jobs_closed >= n_jobs_to_close:
+                    break
+            # duration
+            duration = int(time.time() - t0)
+            tmpLog.debug('closed {0} jobs, took {1}s'.format(n_jobs_closed, duration))
+            return n_jobs_closed
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
 
     # undo preassigned tasks
     def undoPreassignedTasks_JEDI(self, jedi_taskids, task_orig_attr_map, params_map, force):
         comment = ' /* JediDBProxy.undoPreassignedTasks_JEDI */'
         methodName = self.getMethodName(comment)
-        # methodName += " < sql={0} >".format(sql_query)
         tmpLog = MsgWrapper(logger, methodName)
         magic_workqueue_id = 400
         # sql to undo a preassigned task if it moves off the status to generate jobs

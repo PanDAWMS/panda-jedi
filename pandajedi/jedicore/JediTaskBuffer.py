@@ -788,6 +788,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.queryTasksToPreassign_JEDI(sql_query, params_map, site, blacklist, limit)
 
+    # close and reassign N jobs of a preassigned task
+    def reassignJobsInPreassignedTask_JEDI(self, jedi_taskid, site, n_jobs_to_close):
+        with self.proxyPool.get() as proxy:
+            return proxy.reassignJobsInPreassignedTask_JEDI(jedi_taskid, site, n_jobs_to_close)
+
     # undo preassigned tasks
     def undoPreassignedTasks_JEDI(self, jedi_taskids, task_orig_attr_map, params_map, force=False):
         with self.proxyPool.get() as proxy:
