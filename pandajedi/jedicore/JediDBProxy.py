@@ -14187,8 +14187,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # skip as preassigned task not running and brokered
                 tmpLog.debug('no longer brokered to site or not ready/running ; skipped')
                 return None
-            # timer
-            t0 = time.time()
             # close jobs
             sqlJC = (   "SELECT pandaID "
                         "FROM {0}.jobsActive4 "
@@ -14208,9 +14206,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     n_jobs_closed += 1
                 if n_jobs_closed >= n_jobs_to_close:
                     break
-            # duration
-            duration = int(time.time() - t0)
-            tmpLog.debug('closed {0} jobs, took {1}s'.format(n_jobs_closed, duration))
+            tmpLog.debug('closed {0} jobs'.format(n_jobs_closed))
             return n_jobs_closed
         except Exception:
             # roll back

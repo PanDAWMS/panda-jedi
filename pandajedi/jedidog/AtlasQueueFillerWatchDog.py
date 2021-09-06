@@ -4,6 +4,7 @@ import copy
 import re
 import json
 import socket
+import time
 import datetime
 import traceback
 
@@ -679,7 +680,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # compute n_jobs_to_close from n_jobs_to_fill
             n_jobs_to_close = int(n_jobs_to_fill/3)
             # reassign
-            n_jobs_closed = reassignJobsInPreassignedTask_JEDI(self, jedi_taskid, site, n_jobs_to_close)
+            n_jobs_closed = self.taskBufferIF.reassignJobsInPreassignedTask_JEDI(jedi_taskid, site, n_jobs_to_close)
             if n_jobs_closed is None:
                 tmp_log.debug('jediTaskID={0} no longer ready/running or not assigned to {1} , skipped'.format(jedi_taskid, site))
             else:
@@ -700,15 +701,18 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # undo preassigned tasks
             self.undo_preassign()
             # preassign tasks to sites
-            to_reassign_map = self.do_preassign()
+            ret_map = self.do_preassign()
             # unlock
             # self._release_lock()
             # origTmpLog.debug('released lock')
-            # wait some minutes so that preassigned tasks can be brokered, before reassigning jobs
-            origTmpLog.debug('wait {0}s'.format(reassign_jobs_wait_time))
-            time.sleep(reassign_jobs_wait_time)
-            # reassign jobs of preassigned tasks
-            self.reassign_jobs(to_reassign_map)
+            # to-reassign map
+            to_reassign_map = ret_map['to_reassign']
+            if to_reassign_map:
+                # wait some minutes so that preassigned tasks can be brokered, before reassigning jobs
+                origTmpLog.debug('wait {0}s before reassigning jobs'.format(reassign_jobs_wait_time))
+                time.sleep(reassign_jobs_wait_time)
+                # reassign jobs of preassigned tasks
+                self.reassign_jobs(to_reassign_map)
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
             err_str = traceback.format_exc()
