@@ -16,6 +16,7 @@ from . import AtlasBrokerUtils
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread, MapWithLock
+from pandajedi.jedirefine import RefinerUtils
 
 from pandaserver.userinterface import Client as PandaClient
 from pandaserver.dataservice import DataServiceUtils
@@ -323,6 +324,15 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                                                                                                     thrInputNum,
                                                                                                                     thrInputSizeFrac,
                                                                                                                     thrInputNumFrac))
+                    # read task parameters
+                    try:
+                        taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
+                        taskParamMap = RefinerUtils.decodeJSON(taskParam)
+                    except Exception:
+                        tmpLog.error('failed to read task params')
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        self.sendLogMessage(tmpLog)
+                        continue
                     # RW
                     taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)
                     # get nuclei
@@ -447,8 +457,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         tmpSiteList = list(set(tmpSiteList))
                         tmpLog.debug('===== start for job check')
                         jobBroker = AtlasProdJobBroker(self.ddmIF,self.taskBufferIF)
-                        tmpSt,tmpRet = jobBroker.doBrokerage(taskSpec,taskSpec.cloud,inputChunk,None,True,
-                                                             tmpSiteList,tmpLog)
+                        tmpSt,tmpRet = jobBroker.doBrokerage(taskSpec, taskSpec.cloud, inputChunk, None,
+                                                             True, tmpSiteList, tmpLog)
                         tmpLog.debug('===== done for job check')
                         if tmpSt != Interaction.SC_SUCCEEDED:
                             tmpLog.error('no sites can run jobs')
@@ -484,6 +494,9 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 continue
                             # skip locality check
                             if DataServiceUtils.getDatasetType(datasetSpec.datasetName) in datasetTypeToSkipCheck:
+                                continue
+                            # primary only
+                            if taskParamMap.get('taskBrokerOnMaster') is True and not datasetSpec.isMaster():
                                 continue
                             # use deep scan for primary dataset unless data carousel
                             if datasetSpec.isMaster() and not taskSpec.inputPreStaging():
