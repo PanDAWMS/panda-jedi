@@ -43,7 +43,7 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
             else:
                 raise ValueError('invalid msg_type value: {0}'.format(msg_type))
             # relation type
-            relation_type = msg_dict['relation_type']
+            relation_type = msg_dict.get('relation_type')
         except Exception as e:
             err_str = 'failed to parse message object dict {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_dict)
             tmp_log.error(err_str)
