@@ -198,7 +198,7 @@ class TaskRefinerThread (WorkerThread):
                             tmpStat = Interaction.SC_FAILED
                     # staging
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        if 'toStaging' in taskParamMap and taskStatus != 'staged':
+                        if 'toStaging' in taskParamMap and taskStatus not in ['staged', 'rerefine']:
                             errStr = 'wait until staging is done'
                             impl.taskSpec.status = 'staging'
                             impl.taskSpec.oldStatus = taskStatus
