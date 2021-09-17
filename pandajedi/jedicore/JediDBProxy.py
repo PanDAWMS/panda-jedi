@@ -1070,11 +1070,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':jediTaskID'] = datasetSpec.jediTaskID
                             varMap[':datasetID'] = datasetSpec.datasetID
                             varMap[':fileID'] = fileVarMap['fileID']
+                            lostInPending = False
                             if uniqueFileKey not in uniqueFileKeySet:
                                 if fileVarMap['status'] == 'lost':
                                     continue
-                                if fileVarMap['status'] != 'ready':
+                                if fileVarMap['status'] not in ['ready', 'pending', 'staging']:
                                     continue
+                                elif fileVarMap['status'] != 'ready':
+                                    lostInPending = True
                                 varMap['status'] = 'lost'
                             elif fileVarMap['status'] in ['lost','missing'] and \
                                      fileSpecMap[uniqueFileKey].status != fileVarMap['status']:
@@ -1088,9 +1091,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 nReady += 1
                                 if fileVarMap['nevents'] is not None:
                                     nEventsExist += fileVarMap['nevents']
-                            if varMap['status'] in ['lost','missing']:
+                            if varMap['status'] in ['lost', 'missing']:
                                 nLost += 1
-                                nReady -= 1
+                                if not lostInPending:
+                                    nReady -= 1
                                 if fileVarMap['nevents'] is not None:
                                     nEventsExist -= fileVarMap['nevents']
                             self.cur.execute(sqlFU+comment,varMap)
