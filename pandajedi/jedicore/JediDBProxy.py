@@ -6752,7 +6752,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRD += ') '
             # sql to check if there is mutable dataset
             sqlMTC  = "SELECT COUNT(*) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
-            sqlMTC += "WHERE jediTaskID=:jediTaskID AND state=:state AND type IN ("
+            sqlMTC += "WHERE jediTaskID=:jediTaskID AND state=:state AND masterID IS NULL AND type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
                 mapKey = ':type_'+tmpType
                 sqlMTC += '{0},'.format(mapKey)
@@ -6910,7 +6910,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         preprocessedFlag = False
                         for datasetID,dsStatus,nFiles,nFilesFinished,masterID,dsState in resRD:
                             # parent could be still running
-                            if dsState == 'mutable':
+                            if dsState == 'mutable' and masterID is None:
                                 mutableFlag = True
                                 break
                             # set status for input datasets
