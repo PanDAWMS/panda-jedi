@@ -1184,6 +1184,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug("the number of requested file records : {0}".format(numReqFileRecords))
                         if isMutableDataset and numReqFileRecords is not None and varMap[':nFilesTobeUsed'] >= numReqFileRecords:
                             varMap[':state'] = 'open'
+                        elif inputPreStaging and nStaging == 0 and datasetSpec.isMaster():
+                            varMap[':state'] = 'closed'
                         else:
                             varMap[':state'] = datasetState
                         varMap[':stateUpdateTime'] = stateUpdateTime
