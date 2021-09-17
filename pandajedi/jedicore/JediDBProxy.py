@@ -901,6 +901,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if inputPreStaging:
                                 # go to staging
                                 fileSpec.status = 'staging'
+                                nStaging += 1
                             elif isMutableDataset:
                                 # go pending if no wait
                                 fileSpec.status = 'pending'
@@ -1028,6 +1029,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         if isMutableDataset:
                             if not datasetSpec.isMaster():
                                 # activate all files except master dataset
+                                toActivateFID = pendingFID
+                            elif inputPreStaging and nStaging == 0:
+                                # all files are staged
                                 toActivateFID = pendingFID
                             else:
                                 if datasetSpec.isMaster() and taskSpec.respectSplitRule() and (useScout or isMutableDataset):
@@ -1207,7 +1211,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
-            tmpLog.debug(('inserted rows={0} with activated={1}, pending={2}, ready={3},'
+            tmpLog.debug(('inserted rows={0} with activated={1}, pending={2}, ready={3}, '
                          'unprocessed={4}, staging={5} status={6}->{7}').format(nInsert, nActivatedPending,
                                                                     nPending-nActivatedPending,
                                                                     nReady,
