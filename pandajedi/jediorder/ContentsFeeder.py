@@ -457,8 +457,15 @@ class ContentsFeederThread (WorkerThread):
                                             nMaxFiles = taskParamMap['nFiles']
                                         else:
                                             # calculate for secondary
-                                            nMaxFiles = datasetSpec.getNumMultByRatio(origNumFiles)
-                                            # multipled by the number of jobs per file for event-level splitting
+                                            if not datasetSpec.isPseudo():
+                                                # check nFilesPerJob
+                                                nFilesPerJobSec = datasetSpec.getNumFilesPerJob()
+                                                if nFilesPerJobSec is not None:
+                                                    nMaxFiles = origNumFiles * nFilesPerJobSec
+                                            # check ratio
+                                            if nMaxFiles is None:
+                                                nMaxFiles = datasetSpec.getNumMultByRatio(origNumFiles)
+                                            # multiplied by the number of jobs per file for event-level splitting
                                             if nMaxFiles is not None:
                                                 if 'nEventsPerFile' in taskParamMap:
                                                     if 'nEventsPerJob' in taskParamMap:
