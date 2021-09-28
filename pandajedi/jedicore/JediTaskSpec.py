@@ -101,6 +101,7 @@ class JediTaskSpec(object):
         'registerEsFiles'    : 'RE',
         'respectLB'          : 'RL',
         'reuseSecOnDemand'   : 'RO',
+        'releasePerLB'       : 'RP',
         'respectSplitRule'   : 'RR',
         'randomSeed'         : 'RS',
         'resurrectConsumers' : 'SC',
@@ -1165,7 +1166,13 @@ class JediTaskSpec(object):
                 return True
         return False
 
-
+    # release files per Lumiblock
+    def releasePerLumiblock(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['releasePerLB']+'=(\d+)',self.splitRule)
+            if tmpMatch is not None:
+                return True
+        return False
 
     # order by Lumiblock numbers
     def orderByLB(self):

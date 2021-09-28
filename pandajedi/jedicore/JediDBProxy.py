@@ -666,7 +666,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDs  = "SELECT status,nFilesToBeUsed-nFilesUsed,state,nFilesToBeUsed FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDs += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to get existing files
-            sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent,boundaryID,nEvents FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent,boundaryID,nEvents,lumiBlockNr FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlCh += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to count existing files
             sqlCo  = "SELECT count(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
@@ -715,6 +715,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nEventsInsert = 0
             nEventsLost   = 0
             nEventsExist  = 0
+            stagingLB = set()
             retVal = None,missingFileList,None,diagMap
             # begin transaction
             self.conn.begin()
@@ -827,7 +828,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlCh+comment,varMap)
                         tmpRes = self.cur.fetchall()
                         existingFiles = {}
-                        for fileID,lfn,status,startEvent,endEvent,boundaryID,nEventsInDS in tmpRes:
+                        for fileID,lfn,status,startEvent,endEvent,boundaryID,nEventsInDS,lumiBlockNr in tmpRes:
                             uniqueFileKey = '{0}.{1}.{2}.{3}'.format(lfn,startEvent,endEvent,boundaryID)
                             existingFiles[uniqueFileKey] = {'fileID':fileID,'status':status}
                             if startEvent is not None and endEvent is not None:
@@ -852,6 +853,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         pass
                             elif status == 'staging':
                                 nStaging += 1
+                                stagingLB.add(lumiBlockNr)
                             elif status not in ['lost','missing']:
                                 nUsed += 1
                             elif status in ['lost','missing']:
@@ -902,6 +904,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 # go to staging
                                 fileSpec.status = 'staging'
                                 nStaging += 1
+                                stagingLB.add(fileSpec.lumiBlockNr)
                             elif isMutableDataset:
                                 # go pending if no wait
                                 fileSpec.status = 'pending'
@@ -966,14 +969,33 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':status'] = 'ready'
                             self.cur.execute(sqlFR+comment,varMap)
                             resFileList = self.cur.fetchall()
+                            if taskSpec.releasePerLumiblock():
+                                newPendingFID = []
                             for resFile in resFileList:
                                 # make FileSpec
                                 tmpFileSpec = JediFileSpec()
                                 tmpFileSpec.pack(resFile)
+                                # wait until all files in the LB are staged-in
+                                if taskSpec.releasePerLumiblock():
+                                    if tmpFileSpec.lumiBlockNr in stagingLB:
+                                        continue
+                                    else:
+                                        newPendingFID.append(tmpFileSpec.fileID)
                                 tmpDatasetSpec.addFile(tmpFileSpec)
                             if not isMutableDataset and datasetSpec.state == 'mutable':
                                 for tmpFileSpec in fileSpecsForInsert:
+                                    # wait until all files in the LB are staged-in
+                                    if taskSpec.releasePerLumiblock():
+                                        if tmpFileSpec.lumiBlockNr in stagingLB:
+                                            continue
+                                        else:
+                                            newPendingFID.append(tmpFileSpec.fileID)
                                     tmpDatasetSpec.addFile(tmpFileSpec)
+                            # use only LBs where all files are staged
+                            if taskSpec.releasePerLumiblock():
+                                tmpLog.debug('new pending FIDs to release per LB {} -> {}'.format(len(pendingFID),
+                                                                                                  len(newPendingFID)))
+                                pendingFID = newPendingFID
                             tmpInputChunk = InputChunk(taskSpec)
                             tmpInputChunk.addMasterDS(tmpDatasetSpec)
                             maxSizePerJob = taskSpec.getMaxSizePerJob()
