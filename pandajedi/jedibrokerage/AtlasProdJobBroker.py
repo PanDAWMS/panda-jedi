@@ -1187,7 +1187,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if t1Weight < 0 and not inputChunk.isMerging:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
-                if tmpSiteName not in t1Sites:
+                if tmpSiteName not in t1Sites+sitesShareSeT1:
                     tmpLog.info('  skip site={0} due to negative T1 weight criteria=-t1weight'.format(tmpSiteName))
                     continue
                 newScanSiteList.append(tmpSiteName)
