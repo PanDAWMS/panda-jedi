@@ -503,6 +503,7 @@ class JobGeneratorThread(WorkerThread):
                     # loop over all inputs
                     nBrokergeFailed = 0
                     nSubmitSucceeded = 0
+                    task_common_dict = {}
                     for idxInputList, tmpInputItem in enumerate(inputList):
                         taskSpec, cloudName, inputChunk = tmpInputItem
                         # reset error dialog
@@ -537,9 +538,12 @@ class JobGeneratorThread(WorkerThread):
                                 taskSpec.setErrDiag(tmpErrStr)
                                 goForward = False
                             # set live counter
-                            jobBroker.setLiveCounter(taskSpec.vo, taskSpec.prodSourceLabel, self.liveCounter)
+                            jobBrokerCore = jobBroker.getImpl(taskSpec.vo, taskSpec.prodSourceLabel)
+                            jobBrokerCore.setLiveCounter(self.liveCounter)
                             # set lock ID
-                            jobBroker.setLockID(taskSpec.vo, taskSpec.prodSourceLabel, self.pid, self.ident)
+                            jobBrokerCore.setLockID(self.pid, self.ident)
+                            # set common dict
+                            jobBrokerCore.set_task_common_dict(task_common_dict)
                         # read task params if nessesary
                         if taskSpec.useLimitedSites():
                             tmpStat, taskParamMap = self.readTaskParams(taskSpec, taskParamMap, tmpLog)

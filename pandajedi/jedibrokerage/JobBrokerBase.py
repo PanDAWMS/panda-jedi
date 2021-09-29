@@ -12,8 +12,20 @@ class JobBrokerBase (object):
         self.useLock = False
         self.testMode = False
         self.refresh()
+        self.task_common = None
 
+    # set task common dictionary
+    def set_task_common_dict(self, task_common):
+        self.task_common = task_common
 
+    # get task common attribute
+    def get_task_common(self, attr_name):
+        if self.task_common:
+            return self.task_common.get(attr_name)
+
+    # set task common attribute
+    def set_task_common(self, attr_name, attr_value):
+        self.task_common[attr_name] = attr_value
 
     def refresh(self):
         self.siteMapper = self.taskBufferIF.getSiteMapper()

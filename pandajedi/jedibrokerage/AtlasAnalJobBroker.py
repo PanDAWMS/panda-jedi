@@ -158,7 +158,11 @@ class AtlasAnalJobBroker(JobBrokerBase):
         timeWindowForFC = self.taskBufferIF.getConfigValue('anal_jobbroker', 'TW_DONE_JOB_STAT', 'jedi', taskSpec.vo)
         if timeWindowForFC is None:
             timeWindowForFC = 6
-        failureCounts = self.taskBufferIF.getFailureCountsForTask_JEDI(taskSpec.jediTaskID, timeWindowForFC)
+
+        failureCounts = self.get_task_common('failureCounts')
+        if failureCounts is None:
+            failureCounts = self.taskBufferIF.getFailureCountsForTask_JEDI(taskSpec.jediTaskID, timeWindowForFC)
+            self.set_task_common('failureCounts', failureCounts)
         # two loops with/without data locality check
         scanSiteLists = [(copy.copy(scanSiteList), True)]
         if len(inputChunk.getDatasets()) > 0:

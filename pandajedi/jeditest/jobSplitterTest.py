@@ -63,10 +63,13 @@ taskSetupper = TaskSetupper(vo,prodSourceLabel)
 taskSetupper.initializeMods(tbIF,ddmIF)
 
 for dummyID,tmpList in tmpListList:
+    task_common = {}
     for taskSpec,cloudName,inputChunk in tmpList:
         jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
         tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo),tbIF)
-        jobBroker.setTestMode(taskSpec.vo,taskSpec.prodSourceLabel)
+        jobBrokerCore = jobBroker.getImpl(taskSpec.vo, taskSpec.prodSourceLabel)
+        jobBrokerCore.setTestMode()
+        jobBrokerCore.set_task_common_dict(task_common)
         splitter = JobSplitter()
         gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper,None,
                                  None,'dummy',None,None,brokerageLockIDs, False)
