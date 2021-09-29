@@ -550,10 +550,10 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             data_locality_check_str = (
                                 '(ioIntensity ({0}) is None or less than {1} kBPerS '
                                 'and input size ({2} GB) is less than {3}) '
-                                'or task.taskPriority ({4}) is higher than or equal to {5}').format(
+                                'or task.currentPriority ({4}) is higher than or equal to {5}').format(
                                 taskSpec.ioIntensity, minIoIntensityWithLD,
                                 int(totInputSize), minInputSizeWithLD,
-                                taskSpec.taskPriority, maxTaskPrioWithLD)
+                                taskSpec.currentPriority, maxTaskPrioWithLD)
                             if len(newNucleusList) > 0:
                                 nucleusList = newNucleusList
                                 for tmpMsg in skipMsgList:
@@ -561,7 +561,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             elif ((taskSpec.ioIntensity is None
                                   or taskSpec.ioIntensity <= minIoIntensityWithLD)
                                   and totInputSize <= minInputSizeWithLD) \
-                                  or taskSpec.taskPriority >= maxTaskPrioWithLD:
+                                  or taskSpec.currentPriority >= maxTaskPrioWithLD:
                                 availableData = {}
                                 tmpLog.info(
                                     '  disable data locality check since no nucleus has input data, {}'.format(
