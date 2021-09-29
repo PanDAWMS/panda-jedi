@@ -550,7 +550,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             data_locality_check_str = (
                                 '(ioIntensity ({0}) is None or less than {1} kBPerS '
                                 'and input size ({2} GB) is less than {3}) '
-                                'or task.currentPriority ({4}) is higher than or equal to {5}').format(
+                                'or task.taskPriority ({4}) is higher than or equal to {5}').format(
                                 taskSpec.ioIntensity, minIoIntensityWithLD,
                                 int(totInputSize), minInputSizeWithLD,
                                 taskSpec.taskPriority, maxTaskPrioWithLD)
