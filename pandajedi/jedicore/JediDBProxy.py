@@ -1152,6 +1152,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     varMap[':nFilesTobeUsed'] = nReady + nUsed
                                 else:
                                     varMap[':nFilesTobeUsed'] = numFilesWithSL + nUsed
+                        elif datasetSpec.isMaster() and useScout \
+                                and taskStatus in ['scouting', 'ready', 'assigning']:
+                            varMap[':nFilesTobeUsed'] = nFilesToUseDS
                         elif xmlConfig is not None:
                             # disable scout for --loadXML
                             varMap[':nFilesTobeUsed'] = nReady + nUsed
