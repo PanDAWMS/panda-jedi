@@ -3514,6 +3514,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpLog.error('skipped since failed to get DN for {0} jediTaskID={1}'.format(
                                 origTaskSpec.userName, jediTaskID))
                         else:
+                            origTaskSpec.origUserName = origTaskSpec.userName
                             origTaskSpec.userName, = resDN
                             if origTaskSpec.userName in ['', None]:
                                 # DN is empty
@@ -11629,6 +11630,56 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if jobStatus not in retMap[computingSite]:
                     retMap[computingSite][jobStatus] = 0
                 retMap[computingSite][jobStatus] += cnt
+            tmpLog.debug(str(retMap))
+            return retMap
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return {}
+
+    # count the number of jobs and cores per user or working group
+    def countJobsPerTarget_JEDI(self, target, is_user):
+        comment = ' /* JediDBProxy.countJobsPerTarget_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <target={}>'.format(target)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql
+            sql  = "SELECT COUNT(*),SUM(coreCount),jobStatus FROM ("
+            sql += "SELECT PandaID,jobStatus,coreCount FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            if is_user:
+                sql += "WHERE prodUserName=:target "
+            else:
+                sql += "WHERE workingGroup=:target "
+            sql += "UNION "
+            sql += "SELECT PandaID,jobStatus,coreCount FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+            if is_user:
+                sql += "WHERE prodUserName=:target "
+            else:
+                sql += "WHERE workingGroup=:target "
+            sql += ') GROUP BY jobStatus '
+            varMap = {}
+            varMap[':target'] = target
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sql+comment, varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # make dict
+            retMap = {'nQueuedJobs': 0, 'nQueuedCores': 0,
+                      'nRunJobs': 0, 'nRunCores': 0}
+            for nJobs, nCores, jobStatus in resList:
+                if jobStatus in ['defined', 'assigned', 'activated', 'starting', 'throttled']:
+                    retMap['nQueuedJobs'] += nJobs
+                    retMap['nQueuedCores'] += nCores
+                elif jobStatus in ['running']:
+                    retMap['nRunJobs'] += nJobs
+                    retMap['nRunCores'] += nCores
             tmpLog.debug(str(retMap))
             return retMap
         except Exception:
