@@ -4678,9 +4678,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to look for locked tasks
             sqlTR  = "SELECT jediTaskID,lockedBy,lockedTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTR += "WHERE lockedBy IS NOT NULL AND lockedTime<:timeLimit "
-            if vo is not None:
+            if vo not in [None, '', 'any']:
                 sqlTR += "AND vo=:vo "
-            if prodSourceLabel is not None:
+            if prodSourceLabel not in [None, '', 'any']:
                 sqlTR += "AND prodSourceLabel=:prodSourceLabel "
             if hostName is not None:
                 sqlTR += "AND lockedBy LIKE :patt "
@@ -4705,9 +4705,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             timeLimit = timeNow - datetime.timedelta(minutes=waitTime)
             varMap = {}
             varMap[':timeLimit'] = timeLimit
-            if vo is not None:
+            if vo not in [None, '', 'any']:
                 varMap[':vo'] = vo
-            if prodSourceLabel is not None:
+            if prodSourceLabel not in [None, '', 'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
             if hostName is not None:
                 varMap[':patt'] = '{0}-%'.format(hostName)
