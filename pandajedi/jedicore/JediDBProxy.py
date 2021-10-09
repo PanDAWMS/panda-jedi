@@ -954,7 +954,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         numFilesWithSL = 0
                         if datasetSpec.isMaster() and taskSpec.respectSplitRule() and \
                                 (useScout or isMutableDataset or datasetSpec.state == 'mutable'):
-                            tmpDatasetSpec = copy.copy(datasetSpec)
+                            tmpDatasetSpecMap = {}
                             # read files
                             sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
                             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
@@ -969,39 +969,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':status'] = 'ready'
                             self.cur.execute(sqlFR+comment,varMap)
                             resFileList = self.cur.fetchall()
-                            if taskSpec.releasePerLumiblock():
-                                newPendingFID = []
                             for resFile in resFileList:
                                 # make FileSpec
                                 tmpFileSpec = JediFileSpec()
                                 tmpFileSpec.pack(resFile)
-                                # wait until all files in the LB are staged-in
+                                # make a list per LB
                                 if taskSpec.releasePerLumiblock():
-                                    if tmpFileSpec.lumiBlockNr in stagingLB:
-                                        continue
-                                    else:
-                                        newPendingFID.append(tmpFileSpec.fileID)
-                                tmpDatasetSpec.addFile(tmpFileSpec)
+                                    tmpLumiBlockNr = tmpFileSpec.lumiBlockNr
+                                else:
+                                    tmpLumiBlockNr = None
+                                tmpDatasetSpecMap.setdefault(tmpLumiBlockNr,
+                                                             {'datasetSpec': copy.deepcopy(datasetSpec),
+                                                              'newPandingFID': []})
+                                tmpDatasetSpecMap[tmpLumiBlockNr]['newPandingFID'].append(tmpFileSpec.fileID)
+                                tmpDatasetSpecMap[tmpLumiBlockNr]['datasetSpec'].addFile(tmpFileSpec)
                             if not isMutableDataset and datasetSpec.state == 'mutable':
                                 for tmpFileSpec in fileSpecsForInsert:
-                                    # wait until all files in the LB are staged-in
+                                    # make a list per LB
                                     if taskSpec.releasePerLumiblock():
-                                        if tmpFileSpec.lumiBlockNr in stagingLB:
-                                            continue
-                                        else:
-                                            newPendingFID.append(tmpFileSpec.fileID)
-                                    tmpDatasetSpec.addFile(tmpFileSpec)
-                            # use only LBs where all files are staged
-                            if taskSpec.releasePerLumiblock():
-                                tmpLog.debug('new pending FIDs to release per LB {} -> {}'.format(len(pendingFID),
-                                                                                                  len(newPendingFID)))
-                                pendingFID = newPendingFID
-                            tmpInputChunk = InputChunk(taskSpec)
-                            tmpInputChunk.addMasterDS(tmpDatasetSpec)
-                            maxSizePerJob = taskSpec.getMaxSizePerJob()
-                            if maxSizePerJob is not None:
-                                maxSizePerJob += InputChunk.defaultOutputSize
-                                maxSizePerJob += taskSpec.getWorkDiskSize()
+                                        tmpLumiBlockNr = tmpFileSpec.lumiBlockNr
+                                    else:
+                                        tmpLumiBlockNr = None
+                                    tmpDatasetSpecMap.setdefault(tmpLumiBlockNr,
+                                                                 {'datasetSpec': copy.deepcopy(datasetSpec),
+                                                                  'newPandingFID': []})
+                                    tmpDatasetSpecMap[tmpLumiBlockNr]['newPandingFID'].append(tmpFileSpec.fileID)
+                                    tmpDatasetSpecMap[tmpLumiBlockNr]['datasetSpec'].addFile(tmpFileSpec)
                             # make sub chunks
                             if taskSpec.status == 'running':
                                 maxNumChunks = 100
@@ -1015,8 +1008,28 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if maxWalltime is None:
                                 maxWalltime = 345600
                             corePower = 10
+                            maxSizePerJob = None
+                            tmpInputChunk = None
+                            newPendingFID = []
+                            tmpDatasetSpecMapIdxList = list(tmpDatasetSpecMap.keys())
                             for ii in range(maxNumChunks):
-                                for i in range(nChunks):
+                                tmp_nChunks = 0
+                                tmp_enoughPendingWithSL = False
+                                tmp_numFilesWithSL = 0
+                                while tmp_nChunks < nChunks:
+                                    # make input chunk
+                                    if tmpInputChunk is None:
+                                        if not tmpDatasetSpecMapIdxList:
+                                            break
+                                        tmpLumiBlockNr = tmpDatasetSpecMapIdxList.pop()
+                                        tmpInputChunk = InputChunk(taskSpec)
+                                        tmpInputChunk.addMasterDS(tmpDatasetSpecMap[tmpLumiBlockNr]['datasetSpec'])
+                                        maxSizePerJob = taskSpec.getMaxSizePerJob()
+                                        if maxSizePerJob is not None:
+                                            maxSizePerJob += InputChunk.defaultOutputSize
+                                            maxSizePerJob += taskSpec.getWorkDiskSize()
+                                        tmp_nChunksLB = 0
+                                    # get a chunk
                                     tmpInputChunk.getSubChunk(None, maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
                                                               nFilesPerJob=taskSpec.getNumFilesPerJob(),
                                                               walltimeGradient=walltimeGradient,
@@ -1028,18 +1041,34 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                               coreCount=taskSpec.coreCount,
                                                               corePower=corePower,
                                                               respectLB=taskSpec.respectLumiblock())
-                                    enoughPendingWithSL = tmpInputChunk.checkUnused()
-                                    if not enoughPendingWithSL:
-                                        break
-                                if enoughPendingWithSL:
-                                    numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                                    tmp_enoughPendingWithSL = tmpInputChunk.checkUnused()
+                                    if not tmp_enoughPendingWithSL:
+                                        if tmp_nChunksLB > 0 or \
+                                                (taskSpec.releasePerLumiblock() and tmpLumiBlockNr not in stagingLB):
+                                            if taskSpec.releasePerLumiblock() and tmpLumiBlockNr not in stagingLB:
+                                                tmp_nChunks += 1
+                                                tmp_numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                                            numFilesWithSL += tmp_numFilesWithSL
+                                            newPendingFID += tmpDatasetSpecMap[tmpLumiBlockNr][
+                                                                 'newPandingFID'][:tmp_numFilesWithSL]
+
+                                        tmpInputChunk = None
+                                    else:
+                                        tmp_nChunksLB += 1
+                                        tmp_nChunks += 1
+                                        tmp_numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                                if tmp_enoughPendingWithSL:
+                                    enoughPendingWithSL = True
                                 else:
                                     # one set of sub chunks is at least available
-                                    if ii > 0:
+                                    if ii > 0 or tmp_nChunks >= nChunks:
                                         enoughPendingWithSL = True
-                                    else:
-                                        numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
                                     break
+                            if tmpInputChunk:
+                                numFilesWithSL += tmpInputChunk.getMasterUsedIndex()
+                                newPendingFID += tmpDatasetSpecMap[tmpLumiBlockNr][
+                                                     'newPandingFID'][:tmpInputChunk.getMasterUsedIndex()]
+                            pendingFID = newPendingFID
                             tmpLog.debug(('respecting SR nFiles={0} isEnough={1} '
                                          'nFilesPerJob={2} maxSize={3} maxNumChunks={4}').format(
                                 numFilesWithSL, enoughPendingWithSL,
