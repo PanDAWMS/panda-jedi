@@ -350,6 +350,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             isMutableDataset = True
         else:
             isMutableDataset = False
+        tmpLog.debug('isMutableDataset={} respectSplitRule={}'.format(isMutableDataset, taskSpec.respectSplitRule()))
         # event level splitting
         if nEventsPerJob is not None and nFilesPerJob is None:
             isEventSplit = True
@@ -1050,15 +1051,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                               respectLB=taskSpec.respectLumiblock())
                                     tmp_enoughPendingWithSL = tmpInputChunk.checkUnused()
                                     if not tmp_enoughPendingWithSL:
-                                        if tmp_nChunksLB > 0 or \
+                                        if (not isMutableDataset) or \
                                                 (taskSpec.releasePerLumiblock() and tmpLumiBlockNr not in stagingLB):
-                                            if taskSpec.releasePerLumiblock() and tmpLumiBlockNr not in stagingLB:
-                                                tmp_nChunks += 1
-                                                tmp_numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                                            tmp_nChunksLB += 1
+                                            tmp_nChunks += 1
+                                            tmp_numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                                        if tmp_nChunksLB > 0:
                                             numFilesWithSL += tmp_numFilesWithSL
                                             newPendingFID += tmpDatasetSpecMap[tmpLumiBlockNr][
                                                                  'newPandingFID'][:tmp_numFilesWithSL]
-
                                         tmpInputChunk = None
                                     else:
                                         tmp_nChunksLB += 1
