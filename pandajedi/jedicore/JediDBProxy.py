@@ -114,7 +114,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # dump error message
-    def dumpErrorMessage(self,tmpLog,methodName=None,msgType=None):
+    def dumpErrorMessage(self, tmpLog, methodName=None, msgType=None, check_fatal=False):
         # error
         errtype,errvalue = sys.exc_info()[:2]
         if methodName is not None:
@@ -123,12 +123,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             errStr = ''
         errStr += ": %s %s" % (errtype.__name__,errvalue)
         errStr.strip()
+        tmp_diag = errStr
+        errStr += '\n'
         errStr += traceback.format_exc()
         if msgType == 'debug':
             tmpLog.debug(errStr)
         else:
             tmpLog.error(errStr)
-
+        if check_fatal:
+            err_code = str(errvalue).split()[0][:-1]
+            if err_code in ['ORA-01438']:
+                return True, tmp_diag
+            else:
+                return False, tmp_diag
 
     # get work queue map
     def getWorkQueueMap(self):
@@ -1282,10 +1289,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog)
+            is_fatal, tmp_diag = self.dumpErrorMessage(tmpLog, check_fatal=True)
             regTime = datetime.datetime.utcnow() - regStart
             tmpLog.debug('took %s.%03d sec' % (regTime.seconds,regTime.microseconds/1000))
-            return harmlessRet
+            if is_fatal:
+                diagMap['errMsg'] = tmp_diag
+                return failedRet
+            else:
+                return harmlessRet
 
 
 
