@@ -159,10 +159,63 @@ class AtlasAnalJobBroker(JobBrokerBase):
         if timeWindowForFC is None:
             timeWindowForFC = 6
 
+        # get total job stat
+        totalJobStat = self.get_task_common('totalJobStat')
+        if totalJobStat is None:
+            if taskSpec.workingGroup:
+                totalJobStat = self.taskBufferIF.countJobsPerTarget_JEDI(taskSpec.workingGroup, False)
+            else:
+                totalJobStat = self.taskBufferIF.countJobsPerTarget_JEDI(taskSpec.origUserName, True)
+            self.set_task_common('totalJobStat', totalJobStat)
+        # check total to cap
+        if totalJobStat:
+            if taskSpec.workingGroup:
+                gdp_token_jobs = 'CAP_RUNNING_GROUP_JOBS'
+                gdp_token_cores = 'CAP_RUNNING_GROUP_CORES'
+            else:
+                gdp_token_jobs = 'CAP_RUNNING_USER_JOBS'
+                gdp_token_cores = 'CAP_RUNNING_USER_CORES'
+            maxNumRunJobs = self.taskBufferIF.getConfigValue('prio_mgr', gdp_token_jobs)
+            maxNumRunCores = self.taskBufferIF.getConfigValue('prio_mgr', gdp_token_cores)
+            maxFactor = 2
+
+            if maxNumRunJobs:
+                if totalJobStat['nRunJobs'] > maxNumRunJobs:
+                    tmpLog.error(
+                        'throttle to generate jobs due to too many jobs {} > {}'.format(totalJobStat['nRunJobs'],
+                                                                                        gdp_token_jobs))
+                    self.sendLogMessage(tmpLog)
+                    return retTmpError
+                elif totalJobStat['nQueuedJobs'] > maxFactor*maxNumRunJobs:
+                    tmpLog.error(
+                        'throttle to generate jobs due to too queued jobs {} > {}x{}'.format(
+                            totalJobStat['nQueuedJobs'],
+                            maxFactor,
+                            gdp_token_jobs))
+                    self.sendLogMessage(tmpLog)
+                    return retTmpError
+            if maxNumRunCores:
+                if totalJobStat['nRunCores'] > maxNumRunCores:
+                    tmpLog.error(
+                        'throttle to generate cores due to too many jobs {} > {}'.format(totalJobStat['nRunCores'],
+                                                                                        gdp_token_cores))
+                    self.sendLogMessage(tmpLog)
+                    return retTmpError
+                elif totalJobStat['nQueuedCores'] > maxFactor*maxNumRunCores:
+                    tmpLog.error(
+                        'throttle to generate cores due to too queued jobs {} > {}x{}'.format(
+                            totalJobStat['nQueuedCores'],
+                            maxFactor,
+                            gdp_token_cores))
+                    self.sendLogMessage(tmpLog)
+                    return retTmpError
+
+        # get failure count
         failureCounts = self.get_task_common('failureCounts')
         if failureCounts is None:
             failureCounts = self.taskBufferIF.getFailureCountsForTask_JEDI(taskSpec.jediTaskID, timeWindowForFC)
             self.set_task_common('failureCounts', failureCounts)
+
         # two loops with/without data locality check
         scanSiteLists = [(copy.copy(scanSiteList), True)]
         if len(inputChunk.getDatasets()) > 0:

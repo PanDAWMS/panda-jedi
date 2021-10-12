@@ -215,8 +215,13 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             nQueue = 0
             for jobStatus in ['activated', 'starting']:
                 nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus)
+            # get nStandby; for queues that specify num_slots in harvester_slots
+            tmp_num_slots = tmpSiteSpec.getNumStandby(None, None)
+            tmp_num_slots = 0 if tmp_num_slots is None else tmp_num_slots
+            tmp_core_count = tmpSiteSpec.coreCount if tmpSiteSpec.coreCount else 8
+            nStandby = tmp_num_slots//tmp_core_count
             # available sites: must be idle now
-            n_jobs_to_fill = max(20, nRunning*2)*0.25 - nQueue
+            n_jobs_to_fill = max(20, max(nRunning, nStandby)*2)*0.25 - nQueue
             if n_jobs_to_fill > 0:
                 available_sites_dict[tmpSiteName] = (tmpSiteName, tmpSiteSpec, n_jobs_to_fill)
             else:

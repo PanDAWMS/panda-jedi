@@ -196,6 +196,8 @@ class JediTaskSpec(object):
         object.__setattr__(self,'datasetSpecList',[])
         # original error dialog
         object.__setattr__(self, 'origErrorDialog', None)
+        # original user name
+        object.__setattr__(self, 'origUserName', None)
 
 
     # override __setattr__ to collect the changed attributes

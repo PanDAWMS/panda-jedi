@@ -114,7 +114,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # dump error message
-    def dumpErrorMessage(self,tmpLog,methodName=None,msgType=None):
+    def dumpErrorMessage(self, tmpLog, methodName=None, msgType=None, check_fatal=False):
         # error
         errtype,errvalue = sys.exc_info()[:2]
         if methodName is not None:
@@ -123,12 +123,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             errStr = ''
         errStr += ": %s %s" % (errtype.__name__,errvalue)
         errStr.strip()
+        tmp_diag = errStr
+        errStr += '\n'
         errStr += traceback.format_exc()
         if msgType == 'debug':
             tmpLog.debug(errStr)
         else:
             tmpLog.error(errStr)
-
+        if check_fatal:
+            err_code = str(errvalue).split()[0][:-1]
+            if err_code in ['ORA-01438']:
+                return True, tmp_diag
+            else:
+                return False, tmp_diag
 
     # get work queue map
     def getWorkQueueMap(self):
@@ -343,6 +350,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             isMutableDataset = True
         else:
             isMutableDataset = False
+        tmpLog.debug('isMutableDataset={} respectSplitRule={}'.format(isMutableDataset, taskSpec.respectSplitRule()))
         # event level splitting
         if nEventsPerJob is not None and nFilesPerJob is None:
             isEventSplit = True
@@ -954,7 +962,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         numFilesWithSL = 0
                         if datasetSpec.isMaster() and taskSpec.respectSplitRule() and \
                                 (useScout or isMutableDataset or datasetSpec.state == 'mutable'):
-                            tmpDatasetSpec = copy.copy(datasetSpec)
+                            tmpDatasetSpecMap = {}
                             # read files
                             sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
                             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
@@ -969,39 +977,32 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':status'] = 'ready'
                             self.cur.execute(sqlFR+comment,varMap)
                             resFileList = self.cur.fetchall()
-                            if taskSpec.releasePerLumiblock():
-                                newPendingFID = []
                             for resFile in resFileList:
                                 # make FileSpec
                                 tmpFileSpec = JediFileSpec()
                                 tmpFileSpec.pack(resFile)
-                                # wait until all files in the LB are staged-in
+                                # make a list per LB
                                 if taskSpec.releasePerLumiblock():
-                                    if tmpFileSpec.lumiBlockNr in stagingLB:
-                                        continue
-                                    else:
-                                        newPendingFID.append(tmpFileSpec.fileID)
-                                tmpDatasetSpec.addFile(tmpFileSpec)
+                                    tmpLumiBlockNr = tmpFileSpec.lumiBlockNr
+                                else:
+                                    tmpLumiBlockNr = None
+                                tmpDatasetSpecMap.setdefault(tmpLumiBlockNr,
+                                                             {'datasetSpec': copy.deepcopy(datasetSpec),
+                                                              'newPandingFID': []})
+                                tmpDatasetSpecMap[tmpLumiBlockNr]['newPandingFID'].append(tmpFileSpec.fileID)
+                                tmpDatasetSpecMap[tmpLumiBlockNr]['datasetSpec'].addFile(tmpFileSpec)
                             if not isMutableDataset and datasetSpec.state == 'mutable':
                                 for tmpFileSpec in fileSpecsForInsert:
-                                    # wait until all files in the LB are staged-in
+                                    # make a list per LB
                                     if taskSpec.releasePerLumiblock():
-                                        if tmpFileSpec.lumiBlockNr in stagingLB:
-                                            continue
-                                        else:
-                                            newPendingFID.append(tmpFileSpec.fileID)
-                                    tmpDatasetSpec.addFile(tmpFileSpec)
-                            # use only LBs where all files are staged
-                            if taskSpec.releasePerLumiblock():
-                                tmpLog.debug('new pending FIDs to release per LB {} -> {}'.format(len(pendingFID),
-                                                                                                  len(newPendingFID)))
-                                pendingFID = newPendingFID
-                            tmpInputChunk = InputChunk(taskSpec)
-                            tmpInputChunk.addMasterDS(tmpDatasetSpec)
-                            maxSizePerJob = taskSpec.getMaxSizePerJob()
-                            if maxSizePerJob is not None:
-                                maxSizePerJob += InputChunk.defaultOutputSize
-                                maxSizePerJob += taskSpec.getWorkDiskSize()
+                                        tmpLumiBlockNr = tmpFileSpec.lumiBlockNr
+                                    else:
+                                        tmpLumiBlockNr = None
+                                    tmpDatasetSpecMap.setdefault(tmpLumiBlockNr,
+                                                                 {'datasetSpec': copy.deepcopy(datasetSpec),
+                                                                  'newPandingFID': []})
+                                    tmpDatasetSpecMap[tmpLumiBlockNr]['newPandingFID'].append(tmpFileSpec.fileID)
+                                    tmpDatasetSpecMap[tmpLumiBlockNr]['datasetSpec'].addFile(tmpFileSpec)
                             # make sub chunks
                             if taskSpec.status == 'running':
                                 maxNumChunks = 100
@@ -1015,8 +1016,28 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             if maxWalltime is None:
                                 maxWalltime = 345600
                             corePower = 10
+                            maxSizePerJob = None
+                            tmpInputChunk = None
+                            newPendingFID = []
+                            tmpDatasetSpecMapIdxList = list(tmpDatasetSpecMap.keys())
                             for ii in range(maxNumChunks):
-                                for i in range(nChunks):
+                                tmp_nChunks = 0
+                                tmp_enoughPendingWithSL = False
+                                tmp_numFilesWithSL = 0
+                                while tmp_nChunks < nChunks:
+                                    # make input chunk
+                                    if tmpInputChunk is None:
+                                        if not tmpDatasetSpecMapIdxList:
+                                            break
+                                        tmpLumiBlockNr = tmpDatasetSpecMapIdxList.pop()
+                                        tmpInputChunk = InputChunk(taskSpec)
+                                        tmpInputChunk.addMasterDS(tmpDatasetSpecMap[tmpLumiBlockNr]['datasetSpec'])
+                                        maxSizePerJob = taskSpec.getMaxSizePerJob()
+                                        if maxSizePerJob is not None:
+                                            maxSizePerJob += InputChunk.defaultOutputSize
+                                            maxSizePerJob += taskSpec.getWorkDiskSize()
+                                        tmp_nChunksLB = 0
+                                    # get a chunk
                                     tmpInputChunk.getSubChunk(None, maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
                                                               nFilesPerJob=taskSpec.getNumFilesPerJob(),
                                                               walltimeGradient=walltimeGradient,
@@ -1028,18 +1049,34 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                               coreCount=taskSpec.coreCount,
                                                               corePower=corePower,
                                                               respectLB=taskSpec.respectLumiblock())
-                                    enoughPendingWithSL = tmpInputChunk.checkUnused()
-                                    if not enoughPendingWithSL:
-                                        break
-                                if enoughPendingWithSL:
-                                    numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                                    tmp_enoughPendingWithSL = tmpInputChunk.checkUnused()
+                                    if not tmp_enoughPendingWithSL:
+                                        if (not isMutableDataset) or \
+                                                (taskSpec.releasePerLumiblock() and tmpLumiBlockNr not in stagingLB):
+                                            tmp_nChunksLB += 1
+                                            tmp_nChunks += 1
+                                            tmp_numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                                        if tmp_nChunksLB > 0:
+                                            numFilesWithSL += tmp_numFilesWithSL
+                                            newPendingFID += tmpDatasetSpecMap[tmpLumiBlockNr][
+                                                                 'newPandingFID'][:tmp_numFilesWithSL]
+                                        tmpInputChunk = None
+                                    else:
+                                        tmp_nChunksLB += 1
+                                        tmp_nChunks += 1
+                                        tmp_numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
+                                if tmp_enoughPendingWithSL:
+                                    enoughPendingWithSL = True
                                 else:
                                     # one set of sub chunks is at least available
-                                    if ii > 0:
+                                    if ii > 0 or tmp_nChunks >= nChunks:
                                         enoughPendingWithSL = True
-                                    else:
-                                        numFilesWithSL = tmpInputChunk.getMasterUsedIndex()
                                     break
+                            if tmpInputChunk:
+                                numFilesWithSL += tmpInputChunk.getMasterUsedIndex()
+                                newPendingFID += tmpDatasetSpecMap[tmpLumiBlockNr][
+                                                     'newPandingFID'][:tmpInputChunk.getMasterUsedIndex()]
+                            pendingFID = newPendingFID
                             tmpLog.debug(('respecting SR nFiles={0} isEnough={1} '
                                          'nFilesPerJob={2} maxSize={3} maxNumChunks={4}').format(
                                 numFilesWithSL, enoughPendingWithSL,
@@ -1253,10 +1290,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # roll back
             self._rollback()
             # error
-            self.dumpErrorMessage(tmpLog)
+            is_fatal, tmp_diag = self.dumpErrorMessage(tmpLog, check_fatal=True)
             regTime = datetime.datetime.utcnow() - regStart
             tmpLog.debug('took %s.%03d sec' % (regTime.seconds,regTime.microseconds/1000))
-            return harmlessRet
+            if is_fatal:
+                diagMap['errMsg'] = tmp_diag
+                return failedRet
+            else:
+                return harmlessRet
 
 
 
@@ -3514,6 +3555,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpLog.error('skipped since failed to get DN for {0} jediTaskID={1}'.format(
                                 origTaskSpec.userName, jediTaskID))
                         else:
+                            origTaskSpec.origUserName = origTaskSpec.userName
                             origTaskSpec.userName, = resDN
                             if origTaskSpec.userName in ['', None]:
                                 # DN is empty
@@ -4677,9 +4719,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to look for locked tasks
             sqlTR  = "SELECT jediTaskID,lockedBy,lockedTime FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlTR += "WHERE lockedBy IS NOT NULL AND lockedTime<:timeLimit "
-            if vo is not None:
+            if vo not in [None, '', 'any']:
                 sqlTR += "AND vo=:vo "
-            if prodSourceLabel is not None:
+            if prodSourceLabel not in [None, '', 'any']:
                 sqlTR += "AND prodSourceLabel=:prodSourceLabel "
             if hostName is not None:
                 sqlTR += "AND lockedBy LIKE :patt "
@@ -4704,9 +4746,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             timeLimit = timeNow - datetime.timedelta(minutes=waitTime)
             varMap = {}
             varMap[':timeLimit'] = timeLimit
-            if vo is not None:
+            if vo not in [None, '', 'any']:
                 varMap[':vo'] = vo
-            if prodSourceLabel is not None:
+            if prodSourceLabel not in [None, '', 'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
             if hostName is not None:
                 varMap[':patt'] = '{0}-%'.format(hostName)
@@ -11638,6 +11680,56 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return {}
 
+    # count the number of jobs and cores per user or working group
+    def countJobsPerTarget_JEDI(self, target, is_user):
+        comment = ' /* JediDBProxy.countJobsPerTarget_JEDI */'
+        methodName = self.getMethodName(comment)
+        methodName += ' <target={}>'.format(target)
+        tmpLog = MsgWrapper(logger,methodName)
+        tmpLog.debug('start')
+        try:
+            # sql
+            sql  = "SELECT COUNT(*),SUM(coreCount),jobStatus FROM ("
+            sql += "SELECT PandaID,jobStatus,coreCount FROM {0}.jobsDefined4 ".format(jedi_config.db.schemaPANDA)
+            if is_user:
+                sql += "WHERE prodUserName=:target "
+            else:
+                sql += "WHERE workingGroup=:target "
+            sql += "UNION "
+            sql += "SELECT PandaID,jobStatus,coreCount FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
+            if is_user:
+                sql += "WHERE prodUserName=:target "
+            else:
+                sql += "WHERE workingGroup=:target "
+            sql += ') GROUP BY jobStatus '
+            varMap = {}
+            varMap[':target'] = target
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sql+comment, varMap)
+            resList = self.cur.fetchall()
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+            # make dict
+            retMap = {'nQueuedJobs': 0, 'nQueuedCores': 0,
+                      'nRunJobs': 0, 'nRunCores': 0}
+            for nJobs, nCores, jobStatus in resList:
+                if jobStatus in ['defined', 'assigned', 'activated', 'starting', 'throttled']:
+                    retMap['nQueuedJobs'] += nJobs
+                    retMap['nQueuedCores'] += nCores
+                elif jobStatus in ['running']:
+                    retMap['nRunJobs'] += nJobs
+                    retMap['nRunCores'] += nCores
+            tmpLog.debug(str(retMap))
+            return retMap
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmpLog)
+            return {}
+
 
     # get old merge job PandaIDs
     def getOldMergeJobPandaIDs_JEDI(self,jediTaskID,pandaID):
@@ -14350,7 +14442,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlF = (
                 "UPDATE {0}.JEDI_Dataset_Contents "
                 "SET status=:nStatus "
-                "WHERE jediTaskID=:jediTaskID AND lfn=:lfn AND status!=:nStatus "
+                "WHERE jediTaskID=:jediTaskID AND lfn LIKE :lfn AND status!=:nStatus "
                 ).format(jedi_config.db.schemaJEDI)
             # begin transaction
             self.conn.begin()
@@ -14359,7 +14451,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for filename in filenames:
                 varMap = {}
                 varMap[':jediTaskID'] = jeditaskid
-                varMap[':lfn'] = filename
+                varMap[':lfn'] = '%' + filename
                 varMap[':nStatus'] = 'missing'
                 self.cur.execute(sqlF+comment, varMap)
                 nRow = self.cur.rowcount

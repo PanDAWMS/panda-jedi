@@ -608,6 +608,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.getFailureCountsForTask_JEDI(jediTaskID,timeWindow)
 
+        # count the number of queued jobs per user or working group
+    def countJobsPerTarget_JEDI(self, target, is_user):
+        with self.proxyPool.get() as proxy:
+            return proxy.countJobsPerTarget_JEDI(target, is_user)
+
     # get old merge job PandaIDs
     def getOldMergeJobPandaIDs_JEDI(self,jediTaskID,pandaID):
         with self.proxyPool.get() as proxy:
