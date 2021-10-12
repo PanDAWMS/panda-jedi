@@ -14442,7 +14442,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlF = (
                 "UPDATE {0}.JEDI_Dataset_Contents "
                 "SET status=:nStatus "
-                "WHERE jediTaskID=:jediTaskID AND lfn=:lfn AND status!=:nStatus "
+                "WHERE jediTaskID=:jediTaskID AND lfn LIKE :lfn AND status!=:nStatus "
                 ).format(jedi_config.db.schemaJEDI)
             # begin transaction
             self.conn.begin()
@@ -14451,7 +14451,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             for filename in filenames:
                 varMap = {}
                 varMap[':jediTaskID'] = jeditaskid
-                varMap[':lfn'] = filename
+                varMap[':lfn'] = '%' + filename
                 varMap[':nStatus'] = 'missing'
                 self.cur.execute(sqlF+comment, varMap)
                 nRow = self.cur.rowcount
