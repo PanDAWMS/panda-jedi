@@ -331,8 +331,8 @@ class JobGenerator(JediKnight):
                 loopCycle = jedi_config.jobgen.loopCycle
             timeDelta = datetime.datetime.utcnow() - startTime
             sleepPeriod = loopCycle - timeDelta.seconds
+            tmpLog.debug('loopCycle {0}s; sleeping {1}s'.format(loopCycle, sleepPeriod))
             if sleepPeriod > 0:
-                tmpLog.debug('loopCycle {0}s; sleeping {1}s'.format(loopCycle, sleepPeriod))
                 time.sleep(sleepPeriod)
             # randomize cycle
             self.randomSleep(max_val=loopCycle)

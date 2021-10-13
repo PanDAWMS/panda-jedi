@@ -1142,11 +1142,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 elif fileVarMap['status'] != 'ready':
                                     lostInPending = True
                                 varMap['status'] = 'lost'
-                            elif fileVarMap['status'] in ['lost','missing'] and \
-                                     fileSpecMap[uniqueFileKey].status != fileVarMap['status']:
-                                varMap['status'] = fileSpecMap[uniqueFileKey].status
-                                if fileVarMap['nevents'] is not None:
-                                    nEventsExist += fileVarMap['nevents']
                             else:
                                 continue
                             if varMap['status'] == 'ready':
