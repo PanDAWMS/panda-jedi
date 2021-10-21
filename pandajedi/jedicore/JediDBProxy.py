@@ -957,6 +957,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # bulk insert
                         tmpLog.debug('bulk insert {0} files'.format(len(varMaps)))
                         self.cur.executemany(sqlIn+comment,varMaps)
+                        # keep original pendingFID
+                        orig_pendingFID = set(pendingFID)
                         # respect split rule
                         enoughPendingWithSL = False
                         numFilesWithSL = 0
@@ -1116,15 +1118,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         else:
                             nReady += nInsert
                             toActivateFID = pendingFID
+                        tmpLog.debug('length of pendingFID {} -> {}'.format(len(orig_pendingFID), len(toActivateFID)))
                         for tmpFileID in toActivateFID:
-                            varMap = {}
-                            varMap[':status'] = 'ready'
-                            varMap[':jediTaskID'] = datasetSpec.jediTaskID
-                            varMap[':datasetID'] = datasetSpec.datasetID
-                            varMap[':fileID'] = tmpFileID
-                            self.cur.execute(sqlFU+comment,varMap)
-                            nActivatedPending += 1
-                            nReady += 1
+                            if tmpFileID in orig_pendingFID:
+                                varMap = {}
+                                varMap[':status'] = 'ready'
+                                varMap[':jediTaskID'] = datasetSpec.jediTaskID
+                                varMap[':datasetID'] = datasetSpec.datasetID
+                                varMap[':fileID'] = tmpFileID
+                                self.cur.execute(sqlFU+comment,varMap)
+                                nActivatedPending += 1
+                                nReady += 1
+                        tmpLog.debug('nReady={0} nActivatedPending={1} after activation'.format(
+                            nReady, nActivatedPending))
                         # lost or recovered files
                         tmpLog.debug('lost or recovered files')
                         uniqueFileKeySet = set(uniqueFileKeyList)
@@ -1156,7 +1162,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 if fileVarMap['nevents'] is not None:
                                     nEventsExist -= fileVarMap['nevents']
                             self.cur.execute(sqlFU+comment,varMap)
-                        tmpLog.debug('changed nReady={0} nLost={1}'.format(nReady,nLost))
+                        tmpLog.debug('nReady={0} nLost={1} after lost/recovery check'.format(nReady, nLost))
                         # get master status
                         masterStatus = None
                         if not datasetSpec.isMaster():
