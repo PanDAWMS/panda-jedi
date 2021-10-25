@@ -185,6 +185,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         'throttle to generate jobs due to too many running jobs {} > {}'.format(
                             totalJobStat['nRunJobs'],
                             gdp_token_jobs))
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     self.sendLogMessage(tmpLog)
                     return retTmpError
                 elif totalJobStat['nQueuedJobs'] > maxFactor*maxNumRunJobs:
@@ -193,6 +194,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             totalJobStat['nQueuedJobs'],
                             maxFactor,
                             gdp_token_jobs))
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     self.sendLogMessage(tmpLog)
                     return retTmpError
             if maxNumRunCores:
@@ -201,6 +203,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         'throttle to generate jobs due to too many running cores {} > {}'.format(
                             totalJobStat['nRunCores'],
                             gdp_token_cores))
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     self.sendLogMessage(tmpLog)
                     return retTmpError
                 elif totalJobStat['nQueuedCores'] > maxFactor*maxNumRunCores:
@@ -209,6 +212,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             totalJobStat['nQueuedCores'],
                             maxFactor,
                             gdp_token_cores))
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     self.sendLogMessage(tmpLog)
                     return retTmpError
 
@@ -219,6 +223,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             quota_ok, quota_msg = self.ddmIF.check_quota(taskSpec.userName)
         if not quota_ok:
             tmpLog.error('throttle to generate jobs due to {}'.format(quota_msg))
+            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             self.sendLogMessage(tmpLog)
             return retTmpError
 
