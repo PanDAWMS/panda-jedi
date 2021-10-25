@@ -1522,3 +1522,33 @@ class AtlasDDMClient(DDMClientBase):
             return errCode, '{0} : {1}'.format(methodName, errMsg)
         tmpLog.debug('got ruleID={0}'.format(ruleID))
         return self.SC_SUCCEEDED, ruleID
+
+    # check quota
+    def check_quota(self, userName):
+        methodName = 'check_quota'
+        methodName += ' pid={0}'.format(self.pid)
+        methodName = '{0} userName={1}'.format(methodName, userName)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        retVal = True, None
+        try:
+            # cleanup DN
+            userName = self.parse_dn(userName)
+            # get rucio API
+            client = RucioClient()
+            tmpStat, user_info = self.finger(userName)
+            if tmpStat != self.SC_SUCCEEDED:
+                retVal = False, "failed to get nickname"
+            else:
+                owner = user_info['nickname']
+                quota_info = client.get_global_account_usage(owner)
+                for info in quota_info:
+                    if info['bytes'] >= info['bytes_limit']:
+                        retVal = False, 'exceeded quota on {}'.format(info['rse_expression'])
+                        break
+        except Exception as e:
+            errMsg = 'failed to get quota info with {}'.format(str(e))
+            tmpLog.error(errMsg)
+            retVal = False, errMsg
+        tmpLog.debug('done {} {}'.format(*retVal))
+        return self.SC_SUCCEEDED, retVal

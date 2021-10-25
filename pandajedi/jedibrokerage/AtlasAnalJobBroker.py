@@ -182,13 +182,14 @@ class AtlasAnalJobBroker(JobBrokerBase):
             if maxNumRunJobs:
                 if totalJobStat['nRunJobs'] > maxNumRunJobs:
                     tmpLog.error(
-                        'throttle to generate jobs due to too many jobs {} > {}'.format(totalJobStat['nRunJobs'],
-                                                                                        gdp_token_jobs))
+                        'throttle to generate jobs due to too many running jobs {} > {}'.format(
+                            totalJobStat['nRunJobs'],
+                            gdp_token_jobs))
                     self.sendLogMessage(tmpLog)
                     return retTmpError
                 elif totalJobStat['nQueuedJobs'] > maxFactor*maxNumRunJobs:
                     tmpLog.error(
-                        'throttle to generate jobs due to too queued jobs {} > {}x{}'.format(
+                        'throttle to generate jobs due to too many queued jobs {} > {}x{}'.format(
                             totalJobStat['nQueuedJobs'],
                             maxFactor,
                             gdp_token_jobs))
@@ -197,18 +198,29 @@ class AtlasAnalJobBroker(JobBrokerBase):
             if maxNumRunCores:
                 if totalJobStat['nRunCores'] > maxNumRunCores:
                     tmpLog.error(
-                        'throttle to generate cores due to too many jobs {} > {}'.format(totalJobStat['nRunCores'],
-                                                                                        gdp_token_cores))
+                        'throttle to generate jobs due to too many running cores {} > {}'.format(
+                            totalJobStat['nRunCores'],
+                            gdp_token_cores))
                     self.sendLogMessage(tmpLog)
                     return retTmpError
                 elif totalJobStat['nQueuedCores'] > maxFactor*maxNumRunCores:
                     tmpLog.error(
-                        'throttle to generate cores due to too queued jobs {} > {}x{}'.format(
+                        'throttle to generate jobs due to too many queued cores {} > {}x{}'.format(
                             totalJobStat['nQueuedCores'],
                             maxFactor,
                             gdp_token_cores))
                     self.sendLogMessage(tmpLog)
                     return retTmpError
+
+        # check global disk quota
+        if taskSpec.workingGroup:
+            quota_ok, quota_msg = self.ddmIF.check_quota(taskSpec.workingGroup)
+        else:
+            quota_ok, quota_msg = self.ddmIF.check_quota(taskSpec.userName)
+        if not quota_ok:
+            tmpLog.error('throttle to generate jobs due to {}'.format(quota_msg))
+            self.sendLogMessage(tmpLog)
+            return retTmpError
 
         # get failure count
         failureCounts = self.get_task_common('failureCounts')
