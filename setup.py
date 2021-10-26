@@ -230,6 +230,8 @@ setup(
               ],
     install_requires=[
         'six',
+        'panda-common',
+        'panda-server',
         'python-daemon',
         'numpy',
         'pyyaml',

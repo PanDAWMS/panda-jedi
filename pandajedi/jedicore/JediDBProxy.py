@@ -5865,7 +5865,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # get the size of lib
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
-        varMap['type'] = 'lib'
+        varMap[':type'] = 'lib'
         varMap[':status'] = 'finished'
         self.cur.execute(sqlLIB+comment,varMap)
         resLIB = self.cur.fetchone()
