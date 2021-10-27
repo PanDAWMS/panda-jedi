@@ -1117,7 +1117,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         diagMap['errMsg'] = '{0} files available, {1}'.format(nPending,strSizePendingFileChunk)
                         else:
                             nReady += nInsert
-                            toActivateFID = pendingFID
+                            toActivateFID = orig_pendingFID
                         tmpLog.debug('length of pendingFID {} -> {}'.format(len(orig_pendingFID), len(toActivateFID)))
                         for tmpFileID in toActivateFID:
                             if tmpFileID in orig_pendingFID:
