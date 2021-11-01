@@ -1,9 +1,9 @@
+import os
 import re
 import sys
+import json
 
 from six import iteritems
-
-from pandaserver.config import panda_config
 
 from liveconfigparser.LiveConfigParser import LiveConfigParser
 
@@ -17,10 +17,22 @@ tmpConf.read('panda_jedi.cfg')
 class _SectionClass:
     pass
 
+# load configmap
+config_map_data = {}
+if 'PANDA_HOME' in os.environ:
+    config_map_name = 'panda_jedi_configmap.json'
+    config_map_path = os.path.join(os.environ['PANDA_HOME'], 'etc/configmap', config_map_name)
+    if os.path.exists(config_map_path):
+        with open(config_map_path) as f:
+            config_map_data = json.load(f)
+
 # loop over all sections
 for tmpSection in tmpConf.sections():
     # read section
-    tmpDict = getattr(tmpConf,tmpSection)
+    tmpDict = getattr(tmpConf, tmpSection)
+    # load configmap
+    if tmpSection in config_map_data:
+        tmpDict.update(config_map_data[tmpSection])
     # make section class
     tmpSelf = _SectionClass()
     # update module dict
@@ -34,7 +46,7 @@ for tmpSection in tmpConf.sections():
             tmpVal = False
         elif tmpVal == 'None':
             tmpVal = None
-        elif re.match('^\d+$',tmpVal):
+        elif isinstance(tmpVal, str) and re.match('^\d+$',tmpVal):
             tmpVal = int(tmpVal)
         # update dict
         setattr(tmpSelf,tmpKey,tmpVal)
