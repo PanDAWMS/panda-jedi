@@ -205,9 +205,12 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             if tmpSiteSpec.minrss not in (0, None):
                 excluded_sites_dict['has_minrss'].add(tmpPseudoSiteName)
                 continue
-            # skip if site has not enough activity in the past 24 hours
+            # tmp_num_slots as  num_slots in harvester_slots
+            tmp_num_slots = tmpSiteSpec.getNumStandby(None, None)
+            tmp_num_slots = 0 if tmp_num_slots is None else tmp_num_slots
+            # skip if site has no harvester_slots setup and has not enough activity in the past 24 hours
             site_trr = site_trr_map.get(tmpSiteName)
-            if site_trr is None or site_trr < 0.6:
+            if tmp_num_slots == 0 and (site_trr is None or site_trr < 0.6):
                 excluded_sites_dict['low_trr'].add(tmpSiteName)
                 continue
             # get nQueue and nRunning
@@ -216,8 +219,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             for jobStatus in ['activated', 'starting']:
                 nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus)
             # get nStandby; for queues that specify num_slots in harvester_slots
-            tmp_num_slots = tmpSiteSpec.getNumStandby(None, None)
-            tmp_num_slots = 0 if tmp_num_slots is None else tmp_num_slots
             tmp_core_count = tmpSiteSpec.coreCount if tmpSiteSpec.coreCount else 8
             nStandby = tmp_num_slots//tmp_core_count
             # available sites: must be idle now
@@ -324,7 +325,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     site_empty_since_map[site] = now_time_ts
             self._update_to_ses_cache(site_empty_since_map)
             # evaluate sites to preaassign according to cache
-            empty_duration_threshold
             # get blacklisted_tasks_map from cache
             blacklisted_tasks_map = self._get_from_bt_cache()
             blacklisted_tasks_set = set()
@@ -407,7 +407,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                 "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready "
                                 "AND d.nFiles-d.nFilesUsed>=:min_files_remaining "
                             ") "
-                        "AND t.container_name IS NULL "
                     "ORDER BY t.currentPriority DESC "
                     "FOR UPDATE "
                 ).format(jedi_schema=jedi_config.db.schemaJEDI,
@@ -467,7 +466,6 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                                         "AND d.nFilesToBeUsed-d.nFilesUsed>=:min_files_ready "
                                         "AND d.nFiles-d.nFilesUsed>=:min_files_remaining "
                                     ") "
-                                "AND t.container_name IS NULL "
                             "ORDER BY t.currentPriority DESC "
                         ).format(jedi_schema=jedi_config.db.schemaJEDI,
                                     rse_params_str=rse_params_str,
