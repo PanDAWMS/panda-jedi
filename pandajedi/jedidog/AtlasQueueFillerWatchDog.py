@@ -264,13 +264,19 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # site is not online viewed as busy
             if tmpSiteSpec.status not in ('online'):
                 is_busy = True
+            # tmp_num_slots as  num_slots in harvester_slots
+            tmp_num_slots = tmpSiteSpec.getNumStandby(None, None)
+            tmp_num_slots = 0 if tmp_num_slots is None else tmp_num_slots
+            # get nStandby; for queues that specify num_slots in harvester_slots
+            tmp_core_count = tmpSiteSpec.coreCount if tmpSiteSpec.coreCount else 8
+            nStandby = tmp_num_slots//tmp_core_count
             # get nQueue and nRunning
             nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running')
             nQueue = 0
             for jobStatus in ['activated', 'starting']:
                 nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus)
             # busy sites
-            if nQueue > max(20, nRunning*2)*0.375:
+            if nQueue > max(max(20, nRunning*2)*0.375, nStandby):
                 busy_sites_dict[tmpSiteName] = tmpSiteSpec
         # return
         return busy_sites_dict
