@@ -955,21 +955,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 siteMaxTime = tmpSiteSpec.maxtime
                 origSiteMaxTime = siteMaxTime
-                # sending scouts or merge or wallime-undefined jobs to only sites where walltime is more than 1 day
-                if (not sitePreAssigned and inputChunk.useScout()) or inputChunk.isMerging or \
-                        (taskSpec.walltime in [0,None] and taskSpec.walltimeUnit in ['',None] and taskSpec.cpuTimeUnit in ['',None]):
-                    minTimeForZeroWalltime = 24*60*60
-                    if siteMaxTime != 0 and siteMaxTime < minTimeForZeroWalltime:
-                        tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient '.format(tmpSiteName,
-                                                                                                                    siteMaxTime)
-                        if inputChunk.useScout():
-                            tmpMsg += 'for scouts ({0} at least) '.format(minTimeForZeroWalltime)
-                            tmpMsg += 'criteria=-scoutwalltime'
-                        else:
-                            tmpMsg += 'for zero walltime ({0} at least) '.format(minTimeForZeroWalltime)
-                            tmpMsg += 'criteria=-zerowalltime'
-                        tmpLog.info(tmpMsg)
-                        continue
                 # check max walltime at the site
                 tmpSiteStr = '{0}'.format(siteMaxTime)
                 if taskSpec.useHS06():
@@ -993,6 +978,23 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpMsg += 'criteria=-shortwalltime'
                     tmpLog.info(tmpMsg)
                     continue
+                # sending scouts or merge or wallime-undefined jobs to only sites where walltime is more than 1 day
+                if (not sitePreAssigned and inputChunk.useScout()) or inputChunk.isMerging or \
+                        (not taskSpec.walltime and not taskSpec.walltimeUnit and not taskSpec.cpuTimeUnit):
+                    minTimeForZeroWalltime = 24
+                    str_minTimeForZeroWalltime = "{}hr*10HS06s".format(minTimeForZeroWalltime)
+                    minTimeForZeroWalltime *= 60*60*10
+                    if siteMaxTime != 0 and siteMaxTime < minTimeForZeroWalltime:
+                        tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient '.\
+                            format(tmpSiteName, tmpSiteStr)
+                        if inputChunk.useScout():
+                            tmpMsg += 'for scouts ({0} at least) '.format(str_minTimeForZeroWalltime)
+                            tmpMsg += 'criteria=-scoutwalltime'
+                        else:
+                            tmpMsg += 'for zero walltime ({0} at least) '.format(str_minTimeForZeroWalltime)
+                            tmpMsg += 'criteria=-zerowalltime'
+                        tmpLog.info(tmpMsg)
+                        continue
                 # check min walltime at the site
                 siteMinTime = tmpSiteSpec.mintime
                 origSiteMinTime = siteMinTime
