@@ -365,7 +365,8 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
                     tmp_log.error('skipped {site} since not in empty-since map (should not happen)'.format(site=site))
                     continue
                 empty_duration = now_time_ts - site_empty_since_map[site]
-                if empty_duration < empty_duration_threshold:
+                tmp_num_slots = tmpSiteSpec.getNumStandby(None, None)
+                if empty_duration < empty_duration_threshold and not tmp_num_slots:
                     tmp_log.debug('skipped {site} since not empty for enough time ({ed}s < {edt}s)'.format(
                                     site=site, ed=empty_duration, edt=empty_duration_threshold))
                     continue
