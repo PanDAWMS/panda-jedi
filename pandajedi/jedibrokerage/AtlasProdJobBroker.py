@@ -1165,7 +1165,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     nRunJobs = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteName,'running')
                     if max(maxTransferring,2*nRunJobs) < nTraJobs:
                         tmpStr = '  skip site=%s due to too many transferring=%s greater than max(%s,2x%s) criteria=-transferring' % \
-                            (tmpSiteName,nTraJobs,def_maxTransferring,nRunJobs)
+                            (tmpSiteName, nTraJobs, maxTransferring, nRunJobs)
                         newSkippedTmp[tmpSiteName] = tmpStr
             except KeyError:
                 pass
