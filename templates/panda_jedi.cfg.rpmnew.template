@@ -66,7 +66,8 @@ schemaMETA = ATLAS_PANDAMETA
 
 # interface config
 #modConfig = atlas:3:pandajedi.jediddm.AtlasDDMClient:AtlasDDMClient,vo_example:1:pandajedi.jediddm.GenDDMClient:GenDDMClient
-modConfig = atlas:3:pandajedi.jediddm.AtlasDDMClient:AtlasDDMClient
+#modConfig = atlas:3:pandajedi.jediddm.AtlasDDMClient:AtlasDDMClient
+modConfig = wlcg:1:pandajedi.jediddm.GenDDMClient:GenDDMClient
 
 # list of VOs which use scope
 voWithScope = atlas
@@ -82,7 +83,8 @@ voWithScope = atlas
 [confeeder]
 
 # process config
-procConfig = atlas:managed:1
+#procConfig = atlas:managed:1
+procConfig = wlcg:any:1
 
 # number of workers
 nWorkers = 5
@@ -102,7 +104,8 @@ loopCycle = 60
 
 # interface config
 #modConfig = atlas:any:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner:any,atlas:any:pandajedi.jedirefine.FileRecovery:FileRecovery:recov,atlas:user:pandajedi.jedirefine.AtlasAnalTaskRefiner:AtlasAnalTaskRefiner:any,vo_example:any:pandajedi.jedirefine.GenTaskRefiner:GenTaskRefiner
-modConfig = atlas:any:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner:any,atlas:any:pandajedi.jedirefine.FileRecovery:FileRecovery:recov,atlas:user:pandajedi.jedirefine.AtlasAnalTaskRefiner:AtlasAnalTaskRefiner:any
+#modConfig = atlas:any:pandajedi.jedirefine.AtlasProdTaskRefiner:AtlasProdTaskRefiner:any,atlas:any:pandajedi.jedirefine.FileRecovery:FileRecovery:recov,atlas:user:pandajedi.jedirefine.AtlasAnalTaskRefiner:AtlasAnalTaskRefiner:any
+modConfig = wlcg:any:pandajedi.jedirefine.GenTaskRefiner:GenTaskRefiner
 
 # process config
 procConfig = ::1
@@ -125,7 +128,8 @@ loopCycle = 60
 
 # interface config
 #modConfig = atlas:any:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBroker,atlas:user:pandajedi.jedibrokerage.AtlasAnalJobBroker:AtlasAnalJobBroker,vo_example:any:pandajedi.jedibrokerage.GenJobBroker:GenJobBroker
-modConfig = atlas:any:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBroker,atlas:user:pandajedi.jedibrokerage.AtlasAnalJobBroker:AtlasAnalJobBroker
+#modConfig = atlas:any:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBroker,atlas:user:pandajedi.jedibrokerage.AtlasAnalJobBroker:AtlasAnalJobBroker
+modConfig = wlcg:any:pandajedi.jedibrokerage.GenJobBroker:GenJobBroker
 
 
 
@@ -139,7 +143,8 @@ modConfig = atlas:any:pandajedi.jedibrokerage.AtlasProdJobBroker:AtlasProdJobBro
 
 # interface config
 #modConfig = atlas:any:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProdJobThrottler,atlas:user:pandajedi.jedithrottle.AtlasAnalJobThrottler:AtlasAnalJobThrottler,vo_example:any:pandajedi.jedithrottle.GenJobThrottler:GenJobThrottler
-modConfig = atlas:any:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProdJobThrottler,atlas:user:pandajedi.jedithrottle.AtlasAnalJobThrottler:AtlasAnalJobThrottler
+#modConfig = atlas:any:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProdJobThrottler,atlas:user:pandajedi.jedithrottle.AtlasAnalJobThrottler:AtlasAnalJobThrottler
+modConfig = wlcg:any:pandajedi.jedithrottle.GenJobThrottler:GenJobThrottler
 
 
 
@@ -153,7 +158,8 @@ modConfig = atlas:any:pandajedi.jedithrottle.AtlasProdJobThrottler:AtlasProdJobT
 
 # process config
 #procConfig = atlas:managed|test|ptest:2:CA,CERN,DE,ES,FR,IT,ND,NL,RU,TW,UK,US;atlas:user:1:;vo_example:any:1:
-procConfig = atlas:managed|test|ptest:2:CA,CERN,DE,ES,FR,IT,ND,NL,RU,TW,UK,US;atlas:user:1:
+#procConfig = atlas:managed|test|ptest:2:CA,CERN,DE,ES,FR,IT,ND,NL,RU,TW,UK,US;atlas:user:1:
+procConfig = wlcg:any:1:
 
 # number of tasks per cycle
 nTasks = 50
@@ -182,7 +188,8 @@ typicalNumFile = :::logmerge:1000000
 
 # interface config
 #modConfig = atlas:any:pandajedi.jedipprocess.AtlasProdPostProcessor:AtlasProdPostProcessor,atlas:user:pandajedi.jedipprocess.AtlasAnalPostProcessor:AtlasAnalPostProcessor,vo_example:any:pandajedi.jedipprocess.GenPostProcessor:GenPostProcessor
-modConfig = atlas:any:pandajedi.jedipprocess.AtlasProdPostProcessor:AtlasProdPostProcessor,atlas:user:pandajedi.jedipprocess.AtlasAnalPostProcessor:AtlasAnalPostProcessor
+#modConfig = atlas:any:pandajedi.jedipprocess.AtlasProdPostProcessor:AtlasProdPostProcessor,atlas:user:pandajedi.jedipprocess.AtlasAnalPostProcessor:AtlasAnalPostProcessor
+modConfig = wlcg:any:pandajedi.jedipprocess.GenPostProcessor:GenPostProcessor
 
 # process config
 procConfig = ::1
@@ -208,7 +215,8 @@ loopCycle = 60
 
 # interface config
 #modConfig = atlas:managed|test:pandajedi.jedidog.AtlasProdWatchDog:AtlasProdWatchDog,atlas:user:pandajedi.jedidog.AtlasAnalWatchDog:AtlasAnalWatchDog,vo_example:any:pandajedi.jedidog.GenWatchDog:GenWatchDog
-modConfig = atlas:managed|test:pandajedi.jedidog.AtlasProdWatchDog:AtlasProdWatchDog,atlas:user:pandajedi.jedidog.AtlasAnalWatchDog:AtlasAnalWatchDog
+#modConfig = atlas:managed|test:pandajedi.jedidog.AtlasProdWatchDog:AtlasProdWatchDog,atlas:user:pandajedi.jedidog.AtlasAnalWatchDog:AtlasAnalWatchDog
+modConfig = wlcg:any:pandajedi.jedidog.GenWatchDog:GenWatchDog
 
 # process config
 procConfig = ::1
@@ -254,7 +262,8 @@ waitForAchieved = 60
 modConfig = atlas:managed|test:pandajedi.jedibrokerage.AtlasProdTaskBroker:AtlasProdTaskBroker
 
 # process config
-procConfig = atlas:managed:1
+#procConfig = atlas:managed:1
+procConfig = wlcg:managed:1
 
 # number of workers
 nWorkers = 1
@@ -306,8 +315,8 @@ modConfig = atlas:managed|test:pandajedi.jedigen.AtlasTaskGenerator:AtlasTaskGen
 
 # interface config
 #modConfig = atlas:any:pandajedi.jedisetup.AtlasTaskSetupper:AtlasTaskSetupper,vo_example:any:pandajedi.jedisetup.GenTaskSetupper:GenTaskSetupper
-modConfig = atlas:any:pandajedi.jedisetup.AtlasTaskSetupper:AtlasTaskSetupper
-
+#modConfig = atlas:any:pandajedi.jedisetup.AtlasTaskSetupper:AtlasTaskSetupper
+modConfig = wlcg:any:pandajedi.jedisetup.GenTaskSetupper:GenTaskSetupper
 
 
 

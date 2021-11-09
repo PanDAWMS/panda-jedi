@@ -24,8 +24,8 @@ RUN mv /opt/panda/etc/panda/panda_server.sysconfig.rpmnew /etc/sysconfig/panda_s
 RUN mv /opt/panda/etc/sysconfig/panda_jedi /etc/sysconfig/panda_jedi
 RUN mv /opt/panda/etc/panda/panda_server-httpd-FastCGI.conf.rpmnew /opt/panda/etc/panda/panda_server-httpd.conf
 
-RUN ln -fs /mnt/config/hostkey.pem /etc/grid-security/hostkey.pem
-RUN ln -fs /mnt/config/hostcert.pem /etc/grid-security/hostcert.pem
+RUN ln -fs /opt/panda/etc/cert/hostkey.pem /etc/grid-security/hostkey.pem
+RUN ln -fs /opt/panda/etc/cert/hostcert.pem /etc/grid-security/hostcert.pem
 
 RUN ln -s /opt/panda/etc/rc.d/init.d/panda_server /etc/rc.d/init.d/httpd-pandasrv
 RUN ln -s /opt/panda/etc/rc.d/init.d/panda_jedi /etc/rc.d/init.d/panda-jedi
