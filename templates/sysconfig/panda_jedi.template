@@ -11,7 +11,11 @@ export X509_CERT_DIR=/etc/grid-security/certificates
 export X509_USER_PROXY=/data/atlpan/x509up_u25606
 
 # panda home
-export PANDA_HOME=/data/atlpan
+if [[ -n "${VIRTUAL_ENV}" ]]; then
+  export PANDA_HOME=${VIRTUAL_ENV}
+else
+  export PANDA_HOME=/data/atlpan
+fi
 
 # timezone
 export TZ=UTC
