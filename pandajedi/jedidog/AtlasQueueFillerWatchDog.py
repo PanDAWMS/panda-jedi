@@ -184,6 +184,7 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
         excluded_sites_dict = {
                 'not_online': set(),
                 'has_minrss': set(),
+                'es_jobseed': set(),
                 'low_trr': set(),
                 'enough_nq': set(),
             }
@@ -204,6 +205,10 @@ class AtlasQueueFillerWatchDog(WatchDogBase):
             # skip if site has memory limitations
             if tmpSiteSpec.minrss not in (0, None):
                 excluded_sites_dict['has_minrss'].add(tmpPseudoSiteName)
+                continue
+            # skip if site has event service jobseed
+            if tmpSiteSpec.getJobSeed() in ['es']:
+                excluded_sites_dict['es_jobseed'].add(tmpPseudoSiteName)
                 continue
             # tmp_num_slots as  num_slots in harvester_slots
             tmp_num_slots = tmpSiteSpec.getNumStandby(None, None)
