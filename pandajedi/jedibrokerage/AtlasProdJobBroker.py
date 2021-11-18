@@ -335,6 +335,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tempFlag = False
                     criteria = '-link_unusable'
                     from_str = 'from satellite={0}'.format(tmpAtlasSiteName)
+                    reason = ''
                     if nucleus == tmpAtlasSiteName:
                         # nucleus
                         skipFlag = False
