@@ -16,9 +16,9 @@ import grp
 import site
 
 import PandaPkgInfo
-import distutils
 from setuptools import setup
 from setuptools.command.install import install as install_org
+import distutils
 from distutils.command.install_data import install_data as install_data_org
 
 # define user name and group

@@ -331,38 +331,43 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpPandaSiteName in self.get_unified_sites(scanSiteList):
                 try:
                     tmpAtlasSiteName = storageMapping[tmpPandaSiteName]['default']
-                    if nucleus == tmpAtlasSiteName or \
-                                    (networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] != BLOCKED_LINK and \
-                                    networkMap[tmpAtlasSiteName][queued_tag] < self.queue_threshold and \
-                                     totalQueued < self.total_queue_threshold):
-                        newScanSiteList.append(tmpPandaSiteName)
-                    else:
-                        skipFlag = True
-                        criteria = '-link_unusable'
-                        from_str = 'from satellite={0}'.format(tmpAtlasSiteName)
-                        if networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] == BLOCKED_LINK:
-                            reason = 'agis_closeness={0}'.format(networkMap[tmpAtlasSiteName][AGIS_CLOSENESS])
-                        elif networkMap[tmpAtlasSiteName][queued_tag] >= self.queue_threshold:
-                            reason = 'too many output files queued in the channel {0}(>{1} link limit)'\
+                    skipFlag = True
+                    tempFlag = False
+                    criteria = '-link_unusable'
+                    from_str = 'from satellite={0}'.format(tmpAtlasSiteName)
+                    if nucleus == tmpAtlasSiteName:
+                        # nucleus
+                        skipFlag = False
+                    elif totalQueued >= self.total_queue_threshold:
+                        # total exceed
+                        reason = 'too many output files being transferred to the nucleus {0}(>{1} total limit)' \
+                            .format(totalQueued, self.total_queue_threshold)
+                        criteria = '-links_full'
+                        from_str = ''
+                        tempFlag = True
+                    elif tmpAtlasSiteName not in networkMap:
+                        # Don't skip missing links for the moment. In later stages missing links
+                        # default to the worst connectivity and will be penalized.
+                        skipFlag = False
+                    elif AGIS_CLOSENESS in networkMap[tmpAtlasSiteName] and \
+                            networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] == BLOCKED_LINK:
+                        # blocked link
+                        reason = 'agis_closeness={0}'.format(networkMap[tmpAtlasSiteName][AGIS_CLOSENESS])
+                    elif queued_tag in networkMap[tmpAtlasSiteName] and \
+                            networkMap[tmpAtlasSiteName][queued_tag] >= self.queue_threshold:
+                        # too many queued
+                        reason = 'too many output files queued in the channel {0}(>{1} link limit)'\
                                 .format(networkMap[tmpAtlasSiteName][queued_tag], self.queue_threshold)
-                            # temporary problem
-                            skipFlag = False
-                        elif totalQueued >= self.total_queue_threshold:
-                            reason = 'too many output files being transferred to the nucleus {0}(>{1} total limit)'\
-                                .format(totalQueued, self.total_queue_threshold)
-                            # temporary problem
-                            skipFlag = False
-                            criteria = '-links_full'
-                            from_str = ''
-                        else:
-                            reason = 'reason unknown'
-                        tmpStr = '  skip site={0} due to {1}, {2} to nucleus={3}: criteria={4}'\
-                            .format(tmpPandaSiteName, reason, from_str, nucleus, criteria)
-                        if skipFlag:
-                            tmpLog.info(tmpStr)
-                        else:
+                        tempFlag = True
+                    # add
+                    tmpStr = '  skip site={0} due to {1}, {2} to nucleus={3}: criteria={4}'\
+                        .format(tmpPandaSiteName, reason, from_str, nucleus, criteria)
+                    if skipFlag:
+                        tmpLog.info(tmpStr)
+                    else:
+                        newScanSiteList.append(tmpPandaSiteName)
+                        if tempFlag:
                             newSkippedTmp[tmpPandaSiteName] = tmpStr
-                            newScanSiteList.append(tmpPandaSiteName)
                 except KeyError:
                     # Don't skip missing links for the moment. In later stages missing links
                     # default to the worst connectivity and will be penalized.
