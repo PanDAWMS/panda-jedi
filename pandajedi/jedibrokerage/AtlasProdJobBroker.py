@@ -331,14 +331,14 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpPandaSiteName in self.get_unified_sites(scanSiteList):
                 try:
                     tmpAtlasSiteName = storageMapping[tmpPandaSiteName]['default']
-                    skipFlag = True
+                    skipFlag = False
                     tempFlag = False
                     criteria = '-link_unusable'
                     from_str = 'from satellite={0}'.format(tmpAtlasSiteName)
                     reason = ''
                     if nucleus == tmpAtlasSiteName:
                         # nucleus
-                        skipFlag = False
+                        pass
                     elif totalQueued >= self.total_queue_threshold:
                         # total exceed
                         reason = 'too many output files being transferred to the nucleus {0}(>{1} total limit)' \
@@ -349,11 +349,12 @@ class AtlasProdJobBroker (JobBrokerBase):
                     elif tmpAtlasSiteName not in networkMap:
                         # Don't skip missing links for the moment. In later stages missing links
                         # default to the worst connectivity and will be penalized.
-                        skipFlag = False
+                        pass
                     elif AGIS_CLOSENESS in networkMap[tmpAtlasSiteName] and \
                             networkMap[tmpAtlasSiteName][AGIS_CLOSENESS] == BLOCKED_LINK:
                         # blocked link
                         reason = 'agis_closeness={0}'.format(networkMap[tmpAtlasSiteName][AGIS_CLOSENESS])
+                        skipFlag = True
                     elif queued_tag in networkMap[tmpAtlasSiteName] and \
                             networkMap[tmpAtlasSiteName][queued_tag] >= self.queue_threshold:
                         # too many queued
