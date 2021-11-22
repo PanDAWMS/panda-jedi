@@ -108,6 +108,7 @@ class JediTaskSpec(object):
         'switchEStoNormal'   : 'SE',
         'stayOutputOnSite'   : 'SO',
         'scoutSuccessRate'   : 'SS',
+        'useSecrets'         : 'ST',
         'segmentedWork'      : 'SW',
         'totNumJobs'         : 'TJ',
         'tgtMaxOutputForNG'  : 'TN',
@@ -1793,3 +1794,10 @@ class JediTaskSpec(object):
         # remove log URL
         tmpStr = re.sub('<a href.+</a> : ', '', self.origErrorDialog)
         return tmpStr.split('. ')[-1]
+
+    # check if secrets are used
+    def use_secrets(self):
+        if self.splitRule is not None:
+            if re.search(self.splitRuleToken['useSecrets']+'=(\d+)', self.splitRule):
+                return True
+        return False

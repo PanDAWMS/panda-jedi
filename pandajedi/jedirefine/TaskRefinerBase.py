@@ -364,8 +364,10 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['hpoWorkflow'])
         if 'noLoopingCheck' in taskParamMap and taskParamMap['noLoopingCheck']:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['noLoopingCheck'])
-        if 'encJobParams' in taskParamMap and 'encJobParams' in taskParamMap:
+        if 'encJobParams' in taskParamMap and taskParamMap['encJobParams']:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['encJobParams'])
+        if 'useSecrets' in taskParamMap and taskParamMap['useSecrets']:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['useSecrets'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:

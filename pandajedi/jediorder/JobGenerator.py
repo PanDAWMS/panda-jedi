@@ -1285,6 +1285,9 @@ class JobGeneratorThread(WorkerThread):
                     # encode job parameters
                     if taskSpec.encode_job_params():
                         jobSpec.set_encode_job_params()
+                    # use secrets
+                    if taskSpec.use_secrets():
+                        jobSpec.set_use_secrets()
                     # extract middle name
                     middleName = ''
                     if taskSpec.getFieldNumToLFN() is not None and jobSpec.prodDBlock not in [None, 'NULL', '']:
