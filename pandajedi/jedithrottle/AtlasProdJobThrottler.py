@@ -309,6 +309,16 @@ class AtlasProdJobThrottler (JobThrottlerBase):
         tmpLog.info("{0} at global share level: nQueued={1} nDefine={2} nRunning={3}".format(msgHeader,
                                                                                              nNotRun_gs + nDefine_gs,
                                                                                              nDefine_gs, nRunning_gs))
+        tmpMsg = ''
+        if config_map[NQUEUECAP]['level'] == LEVEL_MS:
+            tmpMsg = "{} at MCORE/SCORE level: ".format(msgHeader)
+            tmpMsg += "nQueued_ms={} ".format(nNotRun_queuecap)
+        if config_map[NRUNNINGCAP]['level'] == LEVEL_MS:
+            if not tmpMsg:
+                tmpMsg = "{} at MCORE/SCORE level: ".format(msgHeader)
+            tmpMsg += "nRunning_ms={} ".format(nRunning_runningcap)
+        if tmpMsg:
+            tmpLog.info(tmpMsg)
         tmpLog.info("{0} at resource type level: nQueued_rt={1} nDefine_rt={2} nRunning_rt={3} totWalltime={4}".format(msgHeader,
                                                                                                                 nNotRun_rt + nDefine_rt,
                                                                                                                 nDefine_rt, nRunning_rt,
