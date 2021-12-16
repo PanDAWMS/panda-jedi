@@ -1436,6 +1436,13 @@ class AtlasProdJobBroker (JobBrokerBase):
         workerStat = self.taskBufferIF.ups_load_worker_stats()
         upsQueues = set(self.taskBufferIF.ups_get_queues())
         tmpLog.info('calculate weight and check cap for {0} candidates'.format(len(scanSiteList)))
+        cutoffName = 'NQUEUELIMITSITE_{}'.format(taskSpec.gshare)
+        cutOffValue = self.taskBufferIF.getConfigValue(COMPONENT, cutoffName,
+                                                       APP, VO)
+        if not cutOffValue:
+            cutOffValue = 20
+        else:
+            tmpLog.info('using {}={} as cutoff for nQueued'.format(cutoffName, cutOffValue))
         weightMapPrimary = {}
         weightMapSecondary = {}
         weightMapJumbo = {}
@@ -1651,10 +1658,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                        tmpPseudoSiteName, taskSpec.workQueue_ID, taskSpec.resource_type)
             # check cap with nRunning
             nPilot *= corrNumPilot
-            cutOffValue = self.taskBufferIF.getConfigValue(COMPONENT, 'NQUEUELIMITSITE_{}'.format(taskSpec.gshare),
-                                                           APP, VO)
-            if not cutOffValue:
-                cutOffValue = 20
             cutOffFactor = 2
             if tmpSiteSpec.capability == 'ucore':
                 siteCandidateSpec.nRunningJobsCap = max(cutOffValue, cutOffFactor * tmpRTrunning)
