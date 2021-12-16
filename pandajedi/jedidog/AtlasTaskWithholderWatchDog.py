@@ -166,7 +166,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                     }
                 params_map.update(rse_params_map)
                 # pending reason
-                reason = 'no local input data, ioIntensity>{ioIntensity}, currentPriority<{currentPriority}, nQueue/nRunning>2 at all sites where the task can run'.format(
+                reason = 'no local input data, ioIntensity>={ioIntensity}, currentPriority<{currentPriority}, nQueue/nRunning>2 at all sites where the task can run'.format(
                             ioIntensity=upplimit_ioIntensity,currentPriority=lowlimit_currentPriority)
                 # set pending
                 dry_run = False
