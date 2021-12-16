@@ -1651,7 +1651,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                        tmpPseudoSiteName, taskSpec.workQueue_ID, taskSpec.resource_type)
             # check cap with nRunning
             nPilot *= corrNumPilot
-            cutOffValue = 20
+            cutOffValue = self.taskBufferIF.getConfigValue(COMPONENT, 'NQUEUELIMITSITE_{}'.format(taskSpec.gshare),
+                                                           APP, VO)
+            if not cutOffValue:
+                cutOffValue = 20
             cutOffFactor = 2
             if tmpSiteSpec.capability == 'ucore':
                 siteCandidateSpec.nRunningJobsCap = max(cutOffValue, cutOffFactor * tmpRTrunning)
@@ -1699,7 +1702,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     .format(tmpPseudoSiteName, weightNw, self.nw_threshold)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-lowNetworkWeight'
-            elif useCapRT and tmpRTqueue > max(20, tmpRTrunning * RT_Cap):
+            elif useCapRT and tmpRTqueue > max(cutOffValue, tmpRTrunning * RT_Cap):
                 ngMsg = '  skip site={0} since '.format(tmpSiteName)
                 if useAssigned:
                     ngMsg += 'nDefined_rt+nActivated_rt+nAssigned_rt+nStarting_rt={0} '.format(tmpRTqueue)

@@ -66,7 +66,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
         return site_rse_map
 
     # get busy sites
-    def get_busy_sites(self, gshare):
+    def get_busy_sites(self, gshare, cutoff):
         busy_sites_list = []
         # get global share
         tmpSt, jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(self.vo)
@@ -82,7 +82,7 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
             for jobStatus in ['defined', 'assigned', 'activated', 'starting']:
                 nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus, gshare)
             # busy sites
-            if nQueue > max(20, nRunning*2):
+            if nQueue > max(cutoff, nRunning*2):
                 busy_sites_list.append(tmpSiteName)
         # return
         return busy_sites_list
@@ -126,8 +126,13 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
             # loop over work queue
             for work_queue in work_queue_list:
                 gshare = work_queue.queue_name
+                # get cutoff
+                cutoff = self.taskBufferIF.getConfigValue('jobbroker', 'NQUEUELIMITSITE_{}'.format(gshare),
+                                                          'jedi', self.vo)
+                if not cutoff:
+                    cutoff = 20
                 # busy sites
-                busy_sites_list = self.get_busy_sites(gshare)
+                busy_sites_list = self.get_busy_sites(gshare, cutoff)
                 # rses of busy sites
                 busy_rses = set()
                 for site in busy_sites_list:
@@ -166,8 +171,10 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                     }
                 params_map.update(rse_params_map)
                 # pending reason
-                reason = 'no local input data, ioIntensity>={ioIntensity}, currentPriority<{currentPriority}, nQueue/nRunning>2 at all sites where the task can run'.format(
-                            ioIntensity=upplimit_ioIntensity,currentPriority=lowlimit_currentPriority)
+                reason = 'no local input data, ioIntensity>={ioIntensity}, currentPriority<{currentPriority},'\
+                         'nQueue/max({cutOff},nRunning)>2 at all sites where the task can run'.format(
+                    ioIntensity=upplimit_ioIntensity,currentPriority=lowlimit_currentPriority,
+                    cutOff=cutoff)
                 # set pending
                 dry_run = False
                 if dry_run:
