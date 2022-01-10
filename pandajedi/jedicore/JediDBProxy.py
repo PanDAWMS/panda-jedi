@@ -6845,7 +6845,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlFUD += '{0},'.format(mapKey)
             sqlFUD  = sqlFUD[:-1]
             sqlFUD += ") AND tabD.jediTaskID=:jediTaskID AND tabD.masterID IS NULL "
-            sqlFUD += "AND NOT tabC.status IN (:status1,:status2,:status3) "
+            sqlFUD += "AND NOT tabC.status IN (:status1,:status2,:status3,:status4) "
             sqlFUD += "GROUP BY tabD.datasetID "
             # sql to update nFiles of dataset
             sqlFUU  = "UPDATE {0}.JEDI_Datasets SET nFilesToBeUsed=:nFilesToBeUsed,modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
@@ -6937,6 +6937,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':status1'] = 'pending'
                         varMap[':status2'] = 'lost'
                         varMap[':status3'] = 'missing'
+                        varMap[':status4'] = 'staging'
                         for tmpType in JediDatasetSpec.getInputTypes():
                             mapKey = ':type_'+tmpType
                             varMap[mapKey] = tmpType
@@ -6948,6 +6949,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':jediTaskID'] = jediTaskID
                             varMap[':datasetID'] = datasetID
                             varMap[':nFilesToBeUsed'] = nReadyFiles
+                            tmpLog.debug('jediTaskID={} datasetID={} set nFilesToBeUsed={}'.format(jediTaskID,
+                                                                                                   datasetID,
+                                                                                                   nReadyFiles))
                             self.cur.execute(sqlFUU+comment,varMap)
                         # new task status
                         if scoutSucceeded or noBroken or jediTaskID in toAvalancheTasks:
