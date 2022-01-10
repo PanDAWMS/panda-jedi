@@ -307,12 +307,14 @@ class ContentsFeederThread (WorkerThread):
                                                                          )
                                         tmpLog.debug('got {0} files in {1}'.format(len(tmpRet),tmpDatasetName))
                                         # remove lost files
+                                        """
                                         tmpLostFiles = ddmIF.findLostFiles(tmpDatasetName,tmpRet)
                                         if tmpLostFiles != {}:
                                             tmpLog.debug('found {0} lost files in {1}'.format(len(tmpLostFiles),tmpDatasetName))
                                             for tmpListGUID,tmpLostLFN in iteritems(tmpLostFiles):
                                                 tmpLog.debug('removed {0}'.format(tmpLostLFN))
                                                 del tmpRet[tmpListGUID]
+                                        """
                                     else:
                                         if datasetSpec.isSeqNumber():
                                             # make dummy files for seq_number
