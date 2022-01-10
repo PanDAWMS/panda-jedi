@@ -680,6 +680,13 @@ class JobGeneratorThread(WorkerThread):
                                 taskSpec.setOnHold()
                                 taskSpec.setErrDiag(tmpErrStr, append=True, prepend=True)
                                 goForward = False
+                            elif not pandaJobs:
+                                tmpErrStr = 'candidates became full after the brokerage decision ' \
+                                            'and skipped during the submission cycle'
+                                tmpLog.error(tmpErrStr)
+                                taskSpec.setOnHold()
+                                taskSpec.setErrDiag(tmpErrStr)
+                                goForward = False
                         # lock task
                         if goForward:
                             tmpLog.debug('lock task')
@@ -801,11 +808,7 @@ class JobGeneratorThread(WorkerThread):
                                     if taskSpec.useScout():
                                         taskSpec.setUseScout(False)
                             else:
-                                if not pandaJobs:
-                                    tmpErrStr = 'candidates became full after the brokerage decision ' \
-                                                'and skipped during the submission cycle'
-                                else:
-                                    tmpErrStr = 'submitted only {0}/{1}'.format(len(pandaIDs), len(pandaJobs))
+                                tmpErrStr = 'submitted only {0}/{1}'.format(len(pandaIDs), len(pandaJobs))
                                 tmpLog.error(tmpErrStr)
                                 taskSpec.setOnHold()
                                 taskSpec.setErrDiag(tmpErrStr)
