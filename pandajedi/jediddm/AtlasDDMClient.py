@@ -21,6 +21,7 @@ from rucio.common.exception import UnsupportedOperation,DataIdentifierNotFound,D
     DuplicateRule,DuplicateContent, InvalidObject
 
 from pandaserver.dataservice import DataServiceUtils
+from pandaserver.srvcore import CoreUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -49,14 +50,6 @@ class AtlasDDMClient(DDMClientBase):
         self.timeIntervalEP = datetime.timedelta(seconds=60*10)
         # pid
         self.pid = os.getpid()
-
-    # get a parsed certificate DN
-    def parse_dn(self, tmpDN):
-        if tmpDN is not None:
-            tmpDN = re.sub('/CN=limited proxy','',tmpDN)
-            tmpDN = re.sub('(/CN=proxy)+$', '', tmpDN)
-            # tmpDN = re.sub('(/CN=\d+)+$', '', tmpDN)
-        return tmpDN
 
     # get files in dataset
     def getFilesInDataset(self, datasetName, getNumEvents=False, skipDuplicate=True,
@@ -955,30 +948,38 @@ class AtlasDDMClient(DDMClientBase):
             return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # finger
-    def finger(self,userName):
+    def finger(self, dn):
         methodName = 'finger'
         methodName += ' pid={0}'.format(self.pid)
-        methodName = '{0} userName={1}'.format(methodName,userName)
+        methodName = '{0} userName={1}'.format(methodName, dn)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
-            # cleanup DN
-            userName = self.parse_dn(userName)
             # get rucio API
             client = RucioClient()
             userInfo = None
+            x509_user_name = CoreUtils.get_bare_dn(dn)
+            oidc_user_name = CoreUtils.get_id_from_dn(dn)
+            if oidc_user_name == x509_user_name:
+                oidc_user_name = None
+            else:
+                x509_user_name = None
             for accType in ['USER', 'GROUP']:
-                for i in client.list_accounts(account_type=accType, identity=userName):
-                    userInfo = {'nickname':i['account'],
-                                'email':i['email']}
-                    break
-                if userInfo is None:
-                    # remove /CN=\d
-                    userName = re.sub('(/CN=\d+)+$','',userName)
+                if x509_user_name is not None:
+                    userName = x509_user_name
                     for i in client.list_accounts(account_type=accType, identity=userName):
                         userInfo = {'nickname':i['account'],
                                     'email':i['email']}
                         break
+                    if userInfo is None:
+                        # remove /CN=\d
+                        userName = CoreUtils.get_bare_dn(dn, keep_digits=False)
+                        for i in client.list_accounts(account_type=accType, identity=userName):
+                            userInfo = {'nickname':i['account'],
+                                        'email':i['email']}
+                            break
+                else:
+                    userName = oidc_user_name
                 try:
                     if userInfo is None:
                         i = client.get_account(userName)
@@ -1037,8 +1038,6 @@ class AtlasDDMClient(DDMClientBase):
         try:
             # get rucio API
             client = RucioClient()
-            # cleanup DN
-            owner = self.parse_dn(owner)
             # get scope and name
             scope,dsn = self.extract_scope(datasetName)
             # lifetime
@@ -1073,7 +1072,7 @@ class AtlasDDMClient(DDMClientBase):
             errCode, errMsg = self.checkError(errType)
             tmpLog.error(errMsg)
             return errCode, '{0} : {1}'.format(methodName, errMsg)
-        tmpLog.debug('done')
+        tmpLog.debug('done for owner={}'.format(owner))
         return self.SC_SUCCEEDED,True
 
     # delete dataset
@@ -1532,8 +1531,6 @@ class AtlasDDMClient(DDMClientBase):
         tmpLog.debug('start')
         retVal = True, None
         try:
-            # cleanup DN
-            userName = self.parse_dn(userName)
             # get rucio API
             client = RucioClient()
             tmpStat, user_info = self.finger(userName)
