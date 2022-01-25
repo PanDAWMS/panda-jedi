@@ -751,20 +751,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if taskLockedBy != pid:
                     # task is locked
                     tmpLog.debug('task is locked by {0}'.format(taskLockedBy))
-                elif not (taskStatus in JediTaskSpec.statusToUpdateContents() or \
-                              (taskStatus in ['running', 'ready', 'scouting', 'assigning'] and \
-                                   (datasetState == 'mutable' or datasetSpec.state == 'mutable' or datasetSpec.isSeqNumber()))):
+                elif not (taskStatus in JediTaskSpec.statusToUpdateContents() or
+                          (taskStatus in ['running', 'ready', 'scouting', 'assigning', 'pending'] and
+                          (datasetState == 'mutable' or datasetSpec.state == 'mutable' or datasetSpec.isSeqNumber()))):
                     # task status is irrelevant
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
                 else:
                     tmpLog.debug('task.status={0}'.format(taskStatus))
                     # running task
-                    if taskStatus in ['running', 'assigning', 'ready', 'scouting']:
+                    if taskStatus in ['running', 'assigning', 'ready', 'scouting', 'pending']:
                         diagMap['isRunningTask'] = True
                     # size of pending input chunk to be activated
                     sizePendingEventChunk = None
                     strSizePendingEventChunk = ''
-                    if taskStatus in ['defined', 'ready', 'scouting', 'assigning'] and useScout:
+                    if (set([taskStatus, taskSpec.oldStatus]) & set(['defined', 'ready', 'scouting', 'assigning'])) \
+                            and useScout:
                         nChunks = nChunksForScout
                         # number of files for scout
                         sizePendingFileChunk = nChunksForScout
@@ -810,9 +811,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     elif resDs[2] != datasetSpec.state:
                         tmpLog.debug('dataset.state changed from {0} to {1} in DB'.format(datasetSpec.state, resDs[2]))
                     elif not (resDs[0] in JediDatasetSpec.statusToUpdateContents() or
-                              (taskStatus in ['running', 'assigning', 'ready', 'scouting'] and
+                              (taskStatus in ['running', 'assigning', 'ready', 'scouting', 'pending'] and
                               (datasetState == 'mutable' or datasetSpec.state == 'mutable') or
-                              (taskStatus in ['running','defined', 'ready', 'scouting', 'assigning'] and
+                              (taskStatus in ['running','defined', 'ready', 'scouting', 'assigning', 'pending'] and
                               datasetSpec.isSeqNumber()))):
                         tmpLog.debug('ds.status={0} is not for contents update'.format(resDs[0]))
                         oldDsStatus = resDs[0]
@@ -1183,7 +1184,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':nFiles'] = nInsert + len(existingFiles) - nLost
                         varMap[':nEvents'] = nEventsInsert + nEventsExist
                         if datasetSpec.isMaster() and taskSpec.respectSplitRule() and useScout:
-                            if taskStatus in ['scouting', 'ready', 'assigning']:
+                            if (set([taskStatus, taskSpec.oldStatus]) &
+                                    set(['scouting', 'ready', 'assigning'])):
                                 varMap[':nFilesTobeUsed'] = nFilesToUseDS
                             else:
                                 if isMutableDataset:
@@ -1191,17 +1193,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 else:
                                     varMap[':nFilesTobeUsed'] = numFilesWithSL + nUsed
                         elif datasetSpec.isMaster() and useScout \
-                                and taskStatus in ['scouting', 'ready', 'assigning']:
+                                and (set([taskStatus, taskSpec.oldStatus]) &
+                                     set(['scouting', 'ready', 'assigning'])):
                             varMap[':nFilesTobeUsed'] = nFilesToUseDS
                         elif xmlConfig is not None:
                             # disable scout for --loadXML
                             varMap[':nFilesTobeUsed'] = nReady + nUsed
-                        elif taskStatus in ['defined', 'ready', 'scouting', 'assigning'] and useScout \
+                        elif (set([taskStatus, taskSpec.oldStatus]) &
+                              set(['defined', 'ready', 'scouting', 'assigning'])) \
+                                and useScout \
                                 and not isEventSplit and \
                                 nChunksForScout is not None and nReady > sizePendingFileChunk:
                             # set a fewer number for scout for file level splitting
                             varMap[':nFilesTobeUsed'] = sizePendingFileChunk
-                        elif taskStatus in ['defined', 'ready', 'scouting', 'assigning'] and useScout \
+                        elif  [1 for tmpStat in [taskStatus, taskSpec.oldStatus]
+                               if tmpStat in ['defined', 'ready', 'scouting', 'assigning']] and useScout \
                                 and isEventSplit and \
                                 nReady > max(nFilesToUseEventSplit,nFilesToUseDS):
                             # set a fewer number for scout for event level splitting
