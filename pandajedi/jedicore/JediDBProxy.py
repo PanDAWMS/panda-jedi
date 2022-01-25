@@ -757,7 +757,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # task status is irrelevant
                     tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
                 else:
-                    tmpLog.debug('task.status={0}'.format(taskStatus))
+                    tmpLog.debug('task.status={} task.oldStatus={}'.format(taskStatus, taskSpec.oldStatus))
                     # running task
                     if taskStatus in ['running', 'assigning', 'ready', 'scouting', 'pending']:
                         diagMap['isRunningTask'] = True
