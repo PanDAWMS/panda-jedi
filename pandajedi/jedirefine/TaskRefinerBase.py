@@ -368,6 +368,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['encJobParams'])
         if 'useSecrets' in taskParamMap and taskParamMap['useSecrets']:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['useSecrets'])
+        if 'debugMode' in taskParamMap and taskParamMap['debugMode']:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['debugMode'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:

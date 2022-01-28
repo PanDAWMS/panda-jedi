@@ -50,6 +50,7 @@ class JediTaskSpec(object):
         'ddmBackEnd'         : 'DE',
         'disableAutoFinish'  : 'DF',
         'disableReassign'    : 'DI',
+        'debugMode'          : 'DM',
         'disableAutoRetry'   : 'DR',
         'dynamicNumEvents'   : 'DY',
         'nEsConsumers'       : 'EC',
@@ -1706,6 +1707,14 @@ class JediTaskSpec(object):
     def is_hpo_workflow(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['hpoWorkflow']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None:
+                return True
+        return False
+
+    # debug mode
+    def is_debug_mode(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['debugMode']+'=(\d+)', self.splitRule)
             if tmpMatch is not None:
                 return True
         return False
