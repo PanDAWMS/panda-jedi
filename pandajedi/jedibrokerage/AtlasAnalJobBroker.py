@@ -795,7 +795,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                     # scale RAM by nCores
                     minRamCount = origMinRamCount
-                    if not inputChunk.isMerging:
+                    if taskSpec.ramPerCore() and not inputChunk.isMerging:
                         if tmpSiteSpec.coreCount not in [None, 0]:
                             minRamCount = origMinRamCount * tmpSiteSpec.coreCount
                     minRamCount = JobUtils.compensate_ram_count(minRamCount)
