@@ -233,6 +233,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
             failureCounts = self.taskBufferIF.getFailureCountsForTask_JEDI(taskSpec.jediTaskID, timeWindowForFC)
             self.set_task_common('failureCounts', failureCounts)
 
+        # IO intensity cutoff in kB/sec to allow input transfers
+        io_intensity_cutoff = self.taskBufferIF.getConfigValue('anal_jobbroker', 'IO_INTENSITY_CUTOFF_USER',
+                                                               'jedi', taskSpec.vo)
+
         # two loops with/without data locality check
         scanSiteLists = [(copy.copy(scanSiteList), True)]
         if len(inputChunk.getDatasets()) > 0:
@@ -240,7 +244,14 @@ class AtlasAnalJobBroker(JobBrokerBase):
             for datasetSpec in inputChunk.getDatasets():
                 if not datasetSpec.isPseudo():
                     nRealDS += 1
-            if taskSpec.taskPriority >= 2000:
+            task_prio_cutoff_for_input_data_motion = 2000
+            if taskSpec.taskPriority >= task_prio_cutoff_for_input_data_motion or \
+                    (io_intensity_cutoff is not None and taskSpec.ioIntensity is not None and
+                     io_intensity_cutoff >= taskSpec.ioIntensity):
+                tmpLog.info('ignoring input data locality due to high taskPriority ({}>={}) '
+                            'or low ioIntensity ({}<={})'.format(
+                    taskSpec.taskPriority, task_prio_cutoff_for_input_data_motion,
+                    taskSpec.ioIntensity, io_intensity_cutoff))
                 if inputChunk.isMerging:
                     scanSiteLists.append((copy.copy(scanSiteList), False))
                 else:
