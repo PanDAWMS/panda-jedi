@@ -98,6 +98,9 @@ class AtlasAnalTaskRefiner (TaskRefinerBase):
                         taskParamMap['useLocalIO'] = 1
             except Exception:
                 pass
+        # scout success rate
+        if 'scoutSuccessRate' not in taskParamMap:
+            taskParamMap['scoutSuccessRate'] = 5
         # directIO
         if 'useLocalIO' not in taskParamMap and 'allowInputLAN' not in taskParamMap:
             taskParamMap['allowInputLAN'] = 'use'
