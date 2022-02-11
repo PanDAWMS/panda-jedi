@@ -7,6 +7,7 @@ from pandajedi.jedicore.SiteCandidate import SiteCandidate
 from pandajedi.jedicore import JediCoreUtils
 from .JobBrokerBase import JobBrokerBase
 from . import AtlasBrokerUtils
+from pandajedi.jedirefine import RefinerUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -39,6 +40,9 @@ class GenJobBroker (JobBrokerBase):
             tmpLog.debug('site={0} is pre-assigned in masterDS'.format(inputChunk.getPreassignedSite()))
         else:
             site_preassigned = False
+            if not taskParamMap:
+                taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
+                taskParamMap = RefinerUtils.decodeJSON(taskParam)
             if not taskSpec.cloud and 'cloud' in taskParamMap:
                 taskSpec.cloud = taskParamMap['cloud']
             scanSiteList = self.siteMapper.getCloud(taskSpec.cloud)['sites']
