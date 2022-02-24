@@ -23,6 +23,10 @@ class GenTaskRefiner (TaskRefinerBase):
                         tmpItem['value'] = re.sub('\$\{SURL\}', taskParamMap['sourceURL'], tmpItem['value'])
         except Exception:
             pass
+        # min ram count
+        if 'ramCount' not in taskParamMap:
+            taskParamMap['ramCount'] = 2000
+            taskParamMap['ramUnit'] = 'MBPerCore'
         # update task parameters
         self.updatedTaskParams = taskParamMap
         # call base method
