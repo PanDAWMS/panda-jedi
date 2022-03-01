@@ -1,5 +1,4 @@
 import re
-import sys
 import random
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -30,21 +29,33 @@ class GenJobBroker (JobBrokerBase):
         # return for failure
         retFatal    = self.SC_FATAL,inputChunk
         retTmpError = self.SC_FAILED,inputChunk
-        # get sites in the cloud
-        site_preassigned = True
-        if taskSpec.site not in ['',None]:
-            scanSiteList = [taskSpec.site]
-            tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
-        elif inputChunk.getPreassignedSite() is not None:
-            scanSiteList = [inputChunk.getPreassignedSite()]
-            tmpLog.debug('site={0} is pre-assigned in masterDS'.format(inputChunk.getPreassignedSite()))
-        else:
-            site_preassigned = False
+        # set cloud
+        try:
             if not taskParamMap:
                 taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
                 taskParamMap = RefinerUtils.decodeJSON(taskParam)
             if not taskSpec.cloud and 'cloud' in taskParamMap:
                 taskSpec.cloud = taskParamMap['cloud']
+        except Exception:
+            pass
+        # get sites in the cloud
+        site_preassigned = True
+        if taskSpec.site not in ['', None]:
+            tmpLog.debug('site={0} is pre-assigned'.format(taskSpec.site))
+            if self.siteMapper.checkSite(taskSpec.site):
+                scanSiteList = [taskSpec.site]
+            else:
+                scanSiteList = []
+                for tmpSite in self.siteMapper.getCloud(taskSpec.cloud)['sites']:
+                    if re.search(taskSpec.site, tmpSite):
+                        scanSiteList.append(tmpSite)
+                if not scanSiteList:
+                    scanSiteList = [taskSpec.site]
+        elif inputChunk.getPreassignedSite() is not None:
+            scanSiteList = [inputChunk.getPreassignedSite()]
+            tmpLog.debug('site={0} is pre-assigned in masterDS'.format(inputChunk.getPreassignedSite()))
+        else:
+            site_preassigned = False
             scanSiteList = self.siteMapper.getCloud(taskSpec.cloud)['sites']
             # remove NA
             if 'NA' in scanSiteList:
