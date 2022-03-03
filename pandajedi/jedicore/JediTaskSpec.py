@@ -47,6 +47,7 @@ class JediTaskSpec(object):
         'allowPartialFinish' : 'AP',
         'altStageOut'        : 'AT',
         'avoidVP'            : 'AV',
+        'maxCoreCount'       : 'CC',
         'ddmBackEnd'         : 'DE',
         'disableAutoFinish'  : 'DF',
         'disableReassign'    : 'DI',
@@ -1810,3 +1811,11 @@ class JediTaskSpec(object):
             if re.search(self.splitRuleToken['useSecrets']+'=(\d+)', self.splitRule):
                 return True
         return False
+
+    # get max core count
+    def get_max_core_count(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['maxCoreCount']+'=(\d+)', self.splitRule)
+            if tmpMatch is not None:
+                return int(tmpMatch.group(1))
+        return None

@@ -638,12 +638,18 @@ class AtlasProdJobBroker (JobBrokerBase):
                 # check at the site
                 if useMP == 'any' or (useMP == 'only' and tmpSiteSpec.coreCount > 1) or \
                         (useMP =='unuse' and tmpSiteSpec.coreCount in [0,1,None]):
+                    max_core_count = taskSpec.get_max_core_count()
+                    if max_core_count and tmpSiteSpec.coreCount and tmpSiteSpec.coreCount > max_core_count:
+                        tmpLog.info(
+                            '  skip site=%s due to larger core count site:%s than task_max=%s criteria=-cpucore' % \
+                            (tmpSiteName, tmpSiteSpec.coreCount, max_core_count))
+                    else:
                         newScanSiteList.append(tmpSiteName)
                 else:
                     tmpLog.info('  skip site=%s due to core mismatch site:%s <> task:%s criteria=-cpucore' % \
                                  (tmpSiteName,tmpSiteSpec.coreCount,taskCoreCount))
             scanSiteList = newScanSiteList
-            tmpLog.info('{0} candidates passed for useMP={1}'.format(len(scanSiteList),useMP))
+            tmpLog.info('{0} candidates passed for core count check with policy={1}'.format(len(scanSiteList),useMP))
             if scanSiteList == []:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))

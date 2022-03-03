@@ -370,6 +370,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['useSecrets'])
         if 'debugMode' in taskParamMap and taskParamMap['debugMode']:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['debugMode'])
+        if 'maxCoreCount' in taskParamMap:
+            self.setSplitRule(taskParamMap, 'maxCoreCount', JediTaskSpec.splitRuleToken['maxCoreCount'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
