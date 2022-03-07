@@ -63,18 +63,22 @@ class GenJobBroker (JobBrokerBase):
             tmpLog.debug('cloud=%s has %s candidates' % (taskSpec.cloud, len(scanSiteList)))
         tmpLog.debug('initial {0} candidates'.format(len(scanSiteList)))
         ######################################
-        # selection for status
+        # selection for status and PandaSite
         newScanSiteList = []
         for tmpSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check site status
-            skipFlag = False
             if tmpSiteSpec.status != 'online' and not site_preassigned:
-                skipFlag = True
-            if not skipFlag:
-                newScanSiteList.append(tmpSiteName)
-            else:
-                tmpLog.debug('  skip %s due to status=%s' % (tmpSiteName,tmpSiteSpec.status))
+                tmpLog.debug('  skip %s due to status=%s' % (tmpSiteName, tmpSiteSpec.status))
+                continue
+            # check PandaSite
+            if 'PandaSite' in taskParam:
+                if tmpSiteSpec.pandasite != taskParam['PandaSite']:
+                    tmpLog.debug('  skip %s due to wrong PandaSite=%s <> %s' % (tmpSiteName,
+                                                                                tmpSiteSpec.pandasite,
+                                                                                taskParam['PandaSite']))
+                    continue
+            newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
         tmpLog.debug('{0} candidates passed site status check'.format(len(scanSiteList)))
         if scanSiteList == []:
