@@ -72,11 +72,11 @@ class GenJobBroker (JobBrokerBase):
                 tmpLog.debug('  skip %s due to status=%s' % (tmpSiteName, tmpSiteSpec.status))
                 continue
             # check PandaSite
-            if 'PandaSite' in taskParam:
-                if tmpSiteSpec.pandasite != taskParam['PandaSite']:
+            if 'PandaSite' in taskParamMap:
+                if tmpSiteSpec.pandasite != taskParamMap['PandaSite']:
                     tmpLog.debug('  skip %s due to wrong PandaSite=%s <> %s' % (tmpSiteName,
                                                                                 tmpSiteSpec.pandasite,
-                                                                                taskParam['PandaSite']))
+                                                                                taskParamMap['PandaSite']))
                     continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList

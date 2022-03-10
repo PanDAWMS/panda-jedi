@@ -3915,7 +3915,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 maxNumFiles = nFiles
                             # set lower limit to avoid too fine slashing
                             lowerLimitOnMaxNumFiles = 100
-                            if maxNumFiles < lowerLimitOnMaxNumFiles:
+                            if maxNumFiles < lowerLimitOnMaxNumFiles and simTasks is None:
                                 maxNumFiles = lowerLimitOnMaxNumFiles
                             # read files
                             readBlock = False
