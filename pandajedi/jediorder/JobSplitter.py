@@ -252,7 +252,8 @@ class JobSplitter:
                                               splitByFields=splitByFields,
                                               tmpLog=tmpLog,
                                               useDirectIO=useDirectIO,
-                                              maxDiskSize=maxDiskSize)
+                                              maxDiskSize=maxDiskSize,
+                                              enableLog=True)
             if subChunk is None:
                 break
             if subChunk != []:

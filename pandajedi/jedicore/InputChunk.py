@@ -440,7 +440,8 @@ class InputChunk:
                     splitByFields=None,
                     tmpLog=None,
                     useDirectIO=False,
-                    maxDiskSize=None):
+                    maxDiskSize=None,
+                    enableLog=False):
         # check if there are unused files/events
         if not self.checkUnused():
             return None
@@ -511,6 +512,7 @@ class InputChunk:
         inputFileSet   = set()
         fieldStr       = None
         diskSize       = 0
+        dumpStr = ''
         while (maxNumFiles is None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or \
                    (dynNumEvents and len(inputFileSet) <= maxNumFiles and inputNumFiles <= maxNumEventRanges)) \
                 and (maxSize is None or (maxSize is not None and fileSize <= maxSize)) \
@@ -711,21 +713,27 @@ class InputChunk:
             firstLoop = False
             # check if there are unused files/evets
             if not self.checkUnused():
+                dumpStr = 'no more files'
                 break
             # break if nFilesPerJob is used as multiplicand
             if nFilesPerJob is not None and not respectLB:
+                dumpStr = 'nFilesPerJob specified'
                 break
-            # boundayID is changed
+            # boundaryID is changed
             if newBoundaryID:
+                dumpStr = 'new BoundaryID'
                 break
             # LB is changed
             if newLumiBlockNr:
+                dumpStr = 'new LB'
                 break
             # event jump
             if eventJump:
+                dumpStr = 'event jump'
                 break
             # distributed files are unavailable
             if not siteAvailable:
+                dumpStr = 'distributed files are unavailable'
                 break
             primaryHasEvents = False
             # check master in the next loop
@@ -752,6 +760,7 @@ class InputChunk:
                     if newNextStartEvent is not None and newNextStartEvent != tmpFileSpec.startEvent:
                         # no files in the next loop
                         if newInputNumFiles == 0:
+                            dumpStr = 'no files with continuous events in the next loop'
                             terminateFlag = True
                         break
                     newNextStartEvent = tmpFileSpec.endEvent + 1
@@ -760,12 +769,14 @@ class InputChunk:
                         and useBoundary['inSplit'] != 3:
                     # no files in the next loop
                     if newInputNumFiles == 0:
+                        dumpStr = 'no files with the same BoundaryID in the next loop'
                         terminateFlag = True
                     break
                 # check LB
                 if respectLB and lumiBlockNr is not None and lumiBlockNr != tmpFileSpec.lumiBlockNr:
                     # no files in the next loop
                     if newInputNumFiles == 0:
+                        dumpStr = 'no files with the same LB in the next loop'
                         terminateFlag = True
                     break
                 # check field
@@ -774,6 +785,7 @@ class InputChunk:
                     if tmpFieldStr != fieldStr:
                         # no files in the next loop
                         if newInputNumFiles == 0:
+                            dumpStr = 'no files with the same LFN field in the next loop'
                             terminateFlag = True
                         break
                 # check for distributed datasets
@@ -878,6 +890,28 @@ class InputChunk:
                     or (maxNumEvents is not None and newInputNumEvents > maxNumEvents) \
                     or (maxOutSize is not None and self.getOutSize(newOutSizeMap) > maxOutSize) \
                     or (maxDiskSize is not None and newDiskSize > maxDiskSize):
+                dumpStr = 'check for the next loop. '
+                if maxNumFiles is not None and (not dynNumEvents and newInputNumFiles > maxNumFiles):
+                    dumpStr += 'maxNumFiles exceeds maxNumFiles={} newInputNumFiles={}. '.format(
+                        maxNumFiles, newInputNumFiles)
+                if maxSize is not None and newFileSize > maxSize:
+                    dumpStr += 'maxSize exceeds maxSize={} newFileSize={}. '.format(
+                        maxSize, newFileSize)
+                if maxSize is not None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize:
+                    dumpStr += 'maxSize exceeds with outSize maxSize={} minOutSize={} newFileSize={} newOutSize={}. '.\
+                        format(maxSize, minOutSize, newFileSize, newOutSize)
+                if maxWalltime > 0 and newExpWalltime > maxWalltime:
+                    dumpStr += 'maxWalltime exceeds maxWalltime={} newExpWalltime={}. '.format(
+                        maxWalltime, newExpWalltime)
+                if maxNumEvents is not None and newInputNumEvents > maxNumEvents:
+                    dumpStr += 'maxNumEvents exceeds maxNumEvents={} newInputNumEvents={}. '.format(
+                        maxNumEvents, newInputNumEvents)
+                if maxOutSize is not None and self.getOutSize(newOutSizeMap) > maxOutSize:
+                    dumpStr += 'maxOutSize exceeds maxOutSize={} getOutSize(newOutSizeMap)={}. '.format(
+                        maxOutSize, self.getOutSize(newOutSizeMap))
+                if maxDiskSize is not None and newDiskSize > maxDiskSize:
+                    dumpStr += 'maxDiskSize exceeds maxDiskSize={} newDiskSize={}. '.format(
+                        maxDiskSize, newDiskSize)
                 break
         # reset nUsed for repeated datasets
         for tmpDatasetID,datasetUsage in iteritems(self.datasetMap):
@@ -906,6 +940,10 @@ class InputChunk:
             # add to return map
             tmpDatasetSpec = self.getDatasetWithID(tmpDatasetID)
             returnList.append((tmpDatasetSpec,tmpRetList))
+        # dump only problematic splitting
+        if enableLog and tmpLog and returnList:
+            if maxNumEvents is not None and inputNumEvents < maxNumEvents:
+                tmpLog.debug('not enough events at {}: numMaster={} {}'.format(siteName, numMaster, dumpStr))
         # return
         return returnList
 
