@@ -758,6 +758,7 @@ class InputChunk:
             newBoundaryIDs    = set()
             newInputFileSet   = copy.copy(inputFileSet)
             newDiskSize       = diskSize
+            new_nSecEventsMap = copy.copy(nSecEventsMap)
             if self.masterDataset.datasetID not in newOutSizeMap:
                 newOutSizeMap[self.masterDataset.datasetID] = 0
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
@@ -856,6 +857,7 @@ class InputChunk:
                     newBoundaryIDs.add(tmpFileSpec.boundaryID)
             # check secondaries
             firstSecondary = True
+            newSecMap = {}
             for datasetSpec in self.secondaryDatasetList:
                 if datasetSpec.datasetID not in newOutSizeMap:
                     newOutSizeMap[datasetSpec.datasetID] = 0
@@ -864,29 +866,42 @@ class InputChunk:
                     if splitWithBoundaryID and boundaryID is not None and boundaryID != tmpFileSpec.boundaryID \
                             and useBoundary['inSplit'] != 3:
                         break
+                    newSecMap.setdefault(datasetSpec.datasetID, {'in_size': 0, 'out_size': 0})
                     newNumSecondary = datasetSpec.getNumMultByRatio(newNumMaster) - nSecFilesMap[datasetSpec.datasetID]
                     if newNumSecondary < 0:
                         newNumSecondary = 0
+                    newSecMap[datasetSpec.datasetID]['nSec'] = newNumSecondary
+                    newSecMap[datasetSpec.datasetID]['nSecReal'] = 0
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
                     for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+newNumSecondary]:
                         # check boundaryID
                         if splitWithBoundaryID and boundaryID is not None and boundaryID != tmpFileSpec.boundaryID \
                                 and tmpFileSpec.boundaryID not in boundaryIDs and tmpFileSpec.boundaryID not in newBoundaryIDs:
                             break
+                        # check ratio
+                        if datasetSpec.getEventRatio() is not None and newInputNumEvents > 0:
+                            if float(new_nSecEventsMap[datasetSpec.datasetID]) / float(newInputNumEvents) \
+                                    >= datasetSpec.getEventRatio():
+                                break
                         newFileSize += tmpFileSpec.fsize
+                        newSecMap[datasetSpec.datasetID]['in_size'] += tmpFileSpec.fsize
+                        newSecMap[datasetSpec.datasetID]['nSecReal'] += 1
                         if not useDirectIO:
                             newDiskSize += tmpFileSpec.fsize
                         if sizeGradientsPerInSize is not None:
                             tmpOutSize = (tmpFileSpec.fsize * sizeGradientsPerInSize)
                             newFileSize += tmpOutSize
                             newDiskSize += tmpOutSize
-                            newOutSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                            newOutSizeMap[datasetSpec.datasetID] += tmpOutSize
+                            newSecMap[datasetSpec.datasetID]['out_size'] += tmpOutSize
                         # the number of events
                         if firstSecondary and maxNumEvents is not None and not primaryHasEvents:
                             if tmpFileSpec.startEvent is not None and tmpFileSpec.endEvent is not None:
                                 newInputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
                             elif tmpFileSpec.nEvents is not None:
                                 newInputNumEvents += tmpFileSpec.nEvents
+                        if tmpFileSpec.nEvents is not None:
+                            new_nSecEventsMap[datasetSpec.datasetID] += tmpFileSpec.nEvents
                     firstSecondary = False
             # termination
             if terminateFlag:
@@ -906,9 +921,9 @@ class InputChunk:
                     dumpStr += 'maxNumFiles exceeds maxNumFiles={} inputNumFiles={} newInputNumFiles={}. '.format(
                         maxNumFiles, inputNumFiles, newInputNumFiles)
                 if maxSize is not None and newFileSize > maxSize:
-                    dumpStr += 'maxSize exceeds maxSize={} fileSize={} masterSize={} newFileSize={}. '.format(
+                    dumpStr += 'maxSize exceeds maxSize={} fileSize={} masterSize={} newFileSize={} newSecMap={}. '.format(
                         self.get_value_str(maxSize), self.get_value_str(fileSize), self.get_value_str(masterSize),
-                        self.get_value_str(newFileSize))
+                        self.get_value_str(newFileSize), str(newSecMap))
                 if maxSize is not None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize:
                     dumpStr += 'maxSize exceeds with outSize maxSize={} minOutSize={} fileSize={} newFileSize={} newOutSize={}. '.\
                         format(self.get_value_str(maxSize), self.get_value_str(minOutSize), self.get_value_str(fileSize),
