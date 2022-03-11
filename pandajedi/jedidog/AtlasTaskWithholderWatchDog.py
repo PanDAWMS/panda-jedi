@@ -48,22 +48,29 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
             allSiteList.append(siteName)
         self.allSiteList = allSiteList
 
-    # get map of site to list of RSEs
-    def get_site_rse_map(self, prod_source_label):
+    # get map of site to list of RSEs and blacklisted RSEs
+    def get_site_rse_map_and_blacklisted_rse_set(self, prod_source_label):
         site_rse_map = {}
+        blacklisted_rse_set = set()
         for tmpPseudoSiteName in self.allSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
             scope_input, scope_output = DataServiceUtils.select_scope(tmpSiteSpec, prod_source_label, prod_source_label)
             try:
-                endpoint_token_map = tmpSiteSpec.ddm_endpoints_input[scope_input].getTokenMap('input')
+                tmp_ddm_spec = tmpSiteSpec.ddm_endpoints_input[scope_input]
+                endpoint_name = tmpSiteSpec.ddm_input[scope_input]
+                endpoint_token_map = tmp_ddm_spec.getTokenMap('input')
+                tmp_endpoint = tmp_ddm_spec.getEndPoint(endpoint_name)
             except KeyError:
                 continue
             else:
-                # fill
+                # fill site rse map
                 site_rse_map[tmpSiteName] = list(endpoint_token_map.values())
+                # blacklisted rse
+                if tmp_endpoint is not None and tmp_endpoint['blacklisted'] == 'Y':
+                    blacklisted_rse_set.add(endpoint_name)
         # return
-        return site_rse_map
+        return site_rse_map, blacklisted_rse_set
 
     # get busy sites
     def get_busy_sites(self, gshare, cutoff):
@@ -109,8 +116,9 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
         # resource_type_list = [ rt.resource_name for rt in self.taskBufferIF.load_resource_types() ]
         # loop
         for prod_source_label in self.prodSourceLabelList:
-            # site-rse map
-            site_rse_map = self.get_site_rse_map(prod_source_label)
+            # site-rse map and blacklisted rses
+            site_rse_map, blacklisted_rse_set = self.get_site_rse_map_and_blacklisted_rse_set(prod_source_label)
+            tmp_log.debug('Found {0} blacklisted RSEs : {1}'.format(len(blacklisted_rse_set), ','.join(list(blacklisted_rse_set))))
             # parameter from GDP config
             upplimit_ioIntensity = self.taskBufferIF.getConfigValue(
                                         'task_withholder', 'LIMIT_IOINTENSITY_{0}'.format(prod_source_label), 'jedi', self.vo)
@@ -140,11 +148,11 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                         busy_rses.update(set(site_rse_map[site]))
                     except KeyError:
                         continue
-                busy_rses = list(busy_rses)
                 # make sql parameters of rses
+                to_exclude_rses = list(busy_rses|blacklisted_rse_set)
                 rse_params_list = []
                 rse_params_map = {}
-                for j, rse in enumerate(busy_rses):
+                for j, rse in enumerate(to_exclude_rses):
                     rse_param = ':rse_{0}'.format(j + 1)
                     rse_params_list.append(rse_param)
                     rse_params_map[rse_param] = rse
