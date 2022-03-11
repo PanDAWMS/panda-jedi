@@ -141,10 +141,12 @@ class ContentsFeederThread (WorkerThread):
                         # get task parameters
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                         taskParamMap = RefinerUtils.decodeJSON(taskParam)
-                    except Exception:
-                        errtype,errvalue = sys.exc_info()[:2]
-                        tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
-                        taskBroken = True
+                    except Exception as e:
+                        tmpLog.error('task param conversion from json failed with {}'.format(str(e)))
+                        # unlock
+                        tmpStat = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID, self.pid)
+                        tmpLog.debug('unlocked with {}'.format(tmpStat))
+                        continue
                     # renaming of parameters
                     if 'nEventsPerInputFile' in taskParamMap:
                         taskParamMap['nEventsPerFile'] = taskParamMap['nEventsPerInputFile']
