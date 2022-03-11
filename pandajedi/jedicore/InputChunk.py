@@ -1,4 +1,5 @@
 import copy
+import math
 import random
 
 from six import iteritems
@@ -421,7 +422,12 @@ class InputChunk:
         except Exception:
             return 0
 
-
+    # get value with unit
+    def get_value_str(self, value):
+        try:
+            return '{}MB'.format(int(math.ceil(value/1024/1024)))
+        except Exception:
+            return None
 
     # get subchunk with a selection criteria
     def getSubChunk(self,siteName,maxNumFiles=None,maxSize=None,
@@ -505,6 +511,7 @@ class InputChunk:
         nSecFilesMap   = {}
         nSecEventsMap  = {}
         numMaster      = 0
+        masterSize     = 0
         outSizeMap     = {}
         lumiBlockNr    = None
         newLumiBlockNr = False
@@ -573,6 +580,7 @@ class InputChunk:
                     diskSize += tmpOutSize
                     if not dynNumEvents or tmpFileSpec.lfn not in inputFileSet:
                         fileSize += long(tmpFileSpec.fsize)
+                        masterSize += long(tmpFileSpec.fsize)
                         if not useDirectIO:
                             diskSize += long(tmpFileSpec.fsize)
                     outSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveNumEvents)
@@ -582,6 +590,7 @@ class InputChunk:
                     diskSize += tmpOutSize
                     if not dynNumEvents or tmpFileSpec.lfn not in inputFileSet:
                         fileSize += long(tmpFileSpec.fsize)
+                        masterSize += long(tmpFileSpec.fsize)
                         if not useDirectIO:
                             diskSize += long(tmpFileSpec.fsize)
                     outSizeMap[self.masterDataset.datasetID] += long(sizeGradients * effectiveFsize)
@@ -856,8 +865,10 @@ class InputChunk:
                             and useBoundary['inSplit'] != 3:
                         break
                     newNumSecondary = datasetSpec.getNumMultByRatio(newNumMaster) - nSecFilesMap[datasetSpec.datasetID]
+                    if newNumSecondary < 0:
+                        newNumSecondary = 0
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
-                    for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
+                    for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+newNumSecondary]:
                         # check boundaryID
                         if splitWithBoundaryID and boundaryID is not None and boundaryID != tmpFileSpec.boundaryID \
                                 and tmpFileSpec.boundaryID not in boundaryIDs and tmpFileSpec.boundaryID not in newBoundaryIDs:
@@ -892,26 +903,28 @@ class InputChunk:
                     or (maxDiskSize is not None and newDiskSize > maxDiskSize):
                 dumpStr = 'check for the next loop. '
                 if maxNumFiles is not None and (not dynNumEvents and newInputNumFiles > maxNumFiles):
-                    dumpStr += 'maxNumFiles exceeds maxNumFiles={} newInputNumFiles={}. '.format(
-                        maxNumFiles, newInputNumFiles)
+                    dumpStr += 'maxNumFiles exceeds maxNumFiles={} inputNumFiles={} newInputNumFiles={}. '.format(
+                        maxNumFiles, inputNumFiles, newInputNumFiles)
                 if maxSize is not None and newFileSize > maxSize:
-                    dumpStr += 'maxSize exceeds maxSize={} newFileSize={}. '.format(
-                        maxSize, newFileSize)
+                    dumpStr += 'maxSize exceeds maxSize={} fileSize={} masterSize={} newFileSize={}. '.format(
+                        self.get_value_str(maxSize), self.get_value_str(fileSize), self.get_value_str(masterSize),
+                        self.get_value_str(newFileSize))
                 if maxSize is not None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize:
-                    dumpStr += 'maxSize exceeds with outSize maxSize={} minOutSize={} newFileSize={} newOutSize={}. '.\
-                        format(maxSize, minOutSize, newFileSize, newOutSize)
+                    dumpStr += 'maxSize exceeds with outSize maxSize={} minOutSize={} fileSize={} newFileSize={} newOutSize={}. '.\
+                        format(self.get_value_str(maxSize), self.get_value_str(minOutSize), self.get_value_str(fileSize),
+                               self.get_value_str(newFileSize), self.get_value_str(newOutSize))
                 if maxWalltime > 0 and newExpWalltime > maxWalltime:
-                    dumpStr += 'maxWalltime exceeds maxWalltime={} newExpWalltime={}. '.format(
-                        maxWalltime, newExpWalltime)
+                    dumpStr += 'maxWalltime exceeds maxWalltime={} expWalltime={} newExpWalltime={}. '.format(
+                        maxWalltime, expWalltime, newExpWalltime)
                 if maxNumEvents is not None and newInputNumEvents > maxNumEvents:
-                    dumpStr += 'maxNumEvents exceeds maxNumEvents={} newInputNumEvents={}. '.format(
-                        maxNumEvents, newInputNumEvents)
+                    dumpStr += 'maxNumEvents exceeds maxNumEvents={} inputNumEvents={} newInputNumEvents={}. '.format(
+                        maxNumEvents, inputNumEvents, newInputNumEvents)
                 if maxOutSize is not None and self.getOutSize(newOutSizeMap) > maxOutSize:
                     dumpStr += 'maxOutSize exceeds maxOutSize={} getOutSize(newOutSizeMap)={}. '.format(
-                        maxOutSize, self.getOutSize(newOutSizeMap))
+                        self.get_value_str(maxOutSize), self.get_value_str(self.getOutSize(newOutSizeMap)))
                 if maxDiskSize is not None and newDiskSize > maxDiskSize:
-                    dumpStr += 'maxDiskSize exceeds maxDiskSize={} newDiskSize={}. '.format(
-                        maxDiskSize, newDiskSize)
+                    dumpStr += 'maxDiskSize exceeds maxDiskSize={} diskSize={} newDiskSize={}. '.format(
+                        self.get_value_str(maxDiskSize), self.get_value_str(diskSize), self.get_value_str(newDiskSize))
                 break
         # reset nUsed for repeated datasets
         for tmpDatasetID,datasetUsage in iteritems(self.datasetMap):
@@ -943,7 +956,8 @@ class InputChunk:
         # dump only problematic splitting
         if enableLog and tmpLog and returnList:
             if maxNumEvents is not None and inputNumEvents < maxNumEvents:
-                tmpLog.debug('not enough events at {}: numMaster={} {}'.format(siteName, numMaster, dumpStr))
+                tmpLog.debug('not enough events {}>{} at {}: numMaster={}. {}'.format(maxNumEvents, inputNumEvents,
+                                                                                      siteName, numMaster, dumpStr))
         # return
         return returnList
 
