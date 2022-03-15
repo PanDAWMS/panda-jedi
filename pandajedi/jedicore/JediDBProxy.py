@@ -5700,7 +5700,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
     # get scout job data
     def getScoutJobData_JEDI(self,jediTaskID,useTransaction=False,scoutSuccessRate=None,
-                             mergeScout=False,flagJob=False,setPandaID=None):
+                             mergeScout=False,flagJob=False,setPandaID=None, site_mapper=None, task_spec=None):
         comment = ' /* JediDBProxy.getScoutJobData_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -5931,6 +5931,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         corePowerMap = {}
         jMetricsMap  = {}
         execTimeMap  = {}
+        siteMap      = {}
         diskIoList   = []
         pandaIDList  = set()
         totInSizeMap = {}
@@ -6011,6 +6012,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if pandaID not in inEventsMap or eventServiceJob == EventServiceUtils.esJobFlagNumber:
                         inEventsMap[pandaID] = nEvents
                     totInSizeMap[pandaID] = inputFileByte
+
+                    siteMap[pandaID] = computingSite
 
                     # get core power
                     if computingSite not in corePowerMap:
@@ -6286,10 +6289,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             addTag(jobTagMap,cpuEffDict,minCpuEfficiency,'cpuEfficiency')
             extraInfo['minCpuEfficiency'] = minCpuEfficiency
         nShortJobs = 0
-        for tmpExecTime in execTimeMap.values():
+        nShortJobsWithCtoS = 0
+        for tmpPandaID, tmpExecTime in iteritems(execTimeMap):
             if tmpExecTime <= datetime.timedelta(minutes=shortExecTime):
+                if site_mapper and task_spec:
+                    # ignore if the site enforces to use copy-to-scratch
+                    tmpSiteSpec = site_mapper.getSite(siteMap[tmpPandaID])
+                    if not task_spec.useLocalIO() and not JediCoreUtils.use_direct_io_for_job(task_spec, tmpSiteSpec):
+                        nShortJobsWithCtoS += 1
+                        continue
                 nShortJobs += 1
         extraInfo['nShortJobs'] = nShortJobs
+        extraInfo['nShortJobsWithCtoS'] = nShortJobsWithCtoS
         # tag jobs
         if flagJob:
             for tmpPandaID,tmpTags in iteritems(jobTagMap):
@@ -6371,7 +6382,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # set scout job data
-    def setScoutJobData_JEDI(self,taskSpec,useCommit,useExhausted):
+    def setScoutJobData_JEDI(self,taskSpec,useCommit,useExhausted, site_mapper):
         comment = ' /* JediDBProxy.setScoutJobData_JEDI */'
         methodName = self.getMethodName(comment)
         jediTaskID = taskSpec.jediTaskID
@@ -6389,7 +6400,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # set average job data
         scoutSucceeded, scoutData, extraInfo = self.getScoutJobData_JEDI(jediTaskID,
                                                                          scoutSuccessRate=taskSpec.getScoutSuccessRate(),
-                                                                         flagJob=True)
+                                                                         flagJob=True,
+                                                                         site_mapper=site_mapper,
+                                                                         task_spec=taskSpec)
         # sql to update task data
         if scoutData != {}:
             varMap = {}
@@ -6516,11 +6529,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             toExhausted = False
                     if toExhausted:
                         errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
-                        errMsg += '({0} is greater than {1}) less than {2} min and the expected num of jobs ({3}) is larger than {4}'.format(extraInfo['nShortJobs'],
-                                                                                                                                             maxShortJobs,
-                                                                                                                                             extraInfo['shortExecTime'],
-                                                                                                                                             extraInfo['expectedNumJobs'],
-                                                                                                                                             shortJobCutoff)
+                        errMsg += '{} jobs (greater than {}, excluding {} jobs that the site config enforced '\
+                                  'to run with copy-to-scratch) had shorter execution time than {} min '\
+                                  'and the expected num of jobs ({}) is larger than {}'.format(
+                            extraInfo['nShortJobs'],
+                            maxShortJobs,
+                            extraInfo['nShortJobsWithCtoS'],
+                            extraInfo['shortExecTime'],
+                            extraInfo['expectedNumJobs'],
+                            shortJobCutoff)
                         tmpLog.info(errMsg)
                         taskSpec.setErrDiag(errMsg)
                         taskSpec.status = 'exhausted'
@@ -6571,7 +6588,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # set scout job data to tasks
-    def setScoutJobDataToTasks_JEDI(self,vo,prodSourceLabel):
+    def setScoutJobDataToTasks_JEDI(self,vo,prodSourceLabel, site_mapper):
         comment = ' /* JediDBProxy.setScoutJobDataToTasks_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
@@ -6616,7 +6633,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpStat,taskSpec = self.getTaskWithID_JEDI(jediTaskID,False)
                 if tmpStat:
                     tmpLog.debug('set jediTaskID={0}'.format(jediTaskID))
-                    self.setScoutJobData_JEDI(taskSpec,True,True)
+                    self.setScoutJobData_JEDI(taskSpec, True, True, site_mapper)
                     # update exhausted task status
                     if taskSpec.status == 'exhausted':
                         # begin transaction
@@ -6655,7 +6672,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # prepare tasks to be finished
-    def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None,pid='lock',noBroken=False):
+    def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None,pid='lock',noBroken=False,
+                                      site_mapper=None):
         comment = ' /* JediDBProxy.prepareTasksToBeFinished_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
@@ -6937,7 +6955,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':status'] = taskSpec.status
                             self.cur.execute(sqlRWU+comment,varMap)
                         # set average job data
-                        scoutSucceeded,mergeScoutSucceeded = self.setScoutJobData_JEDI(taskSpec,False,True)
+                        scoutSucceeded,mergeScoutSucceeded = self.setScoutJobData_JEDI(taskSpec, False, True,
+                                                                                       site_mapper)
                         # get nFiles to be used
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID

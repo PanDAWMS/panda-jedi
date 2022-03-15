@@ -314,12 +314,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     # set tasks to be assigned
     def setScoutJobDataToTasks_JEDI(self,vo,prodSourceLabel):
         with self.proxyPool.get() as proxy:
-            return proxy.setScoutJobDataToTasks_JEDI(vo,prodSourceLabel)
+            return proxy.setScoutJobDataToTasks_JEDI(vo, prodSourceLabel, self.siteMapper)
 
     # prepare tasks to be finished
     def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None,pid='lock',noBroken=False):
         with self.proxyPool.get() as proxy:
-            return proxy.prepareTasksToBeFinished_JEDI(vo,prodSourceLabel,nTasks,simTasks,pid,noBroken)
+            return proxy.prepareTasksToBeFinished_JEDI(vo,prodSourceLabel,nTasks,simTasks,pid,noBroken,
+                                                       self.siteMapper)
 
     # get tasks to be assigned
     def getTasksToAssign_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):

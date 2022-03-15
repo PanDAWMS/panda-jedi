@@ -184,7 +184,7 @@ def getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec
 # use direct IO for job
 def use_direct_io_for_job(task_spec, site_spec, input_chunk):
     # not for merging
-    if input_chunk.isMerging:
+    if input_chunk and input_chunk.isMerging:
         return False
     # force copy-to-scratch
     if task_spec.useLocalIO():
