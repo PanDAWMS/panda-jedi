@@ -6295,7 +6295,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if site_mapper and task_spec:
                     # ignore if the site enforces to use copy-to-scratch
                     tmpSiteSpec = site_mapper.getSite(siteMap[tmpPandaID])
-                    if not task_spec.useLocalIO() and not JediCoreUtils.use_direct_io_for_job(task_spec, tmpSiteSpec):
+                    if not task_spec.useLocalIO() and not JediCoreUtils.use_direct_io_for_job(task_spec, tmpSiteSpec,
+                                                                                              None):
                         nShortJobsWithCtoS += 1
                         continue
                 nShortJobs += 1
