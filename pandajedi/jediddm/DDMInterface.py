@@ -16,6 +16,7 @@ class DDMInterface:
             configStr = configStr.strip()
             items = configStr.split(':')
             # check format
+            active = True
             try:
                 vo = items[0]
                 maxSize = int(items[1])
@@ -27,12 +28,17 @@ class DDMInterface:
                         group = None
                 else:
                     group = None
+                if len(items) >= 6 and items[5] == 'off':
+                    active = False
             except Exception:
                 # TODO add config error message
                 continue
             # add VO interface
-            voIF = Interaction.CommandSendInterface(vo,maxSize,moduleName,className)
-            voIF.initialize()
+            if active:
+                voIF = Interaction.CommandSendInterface(vo,maxSize,moduleName,className)
+                voIF.initialize()
+            else:
+                voIF = None
             key = self.get_dict_key(vo, group)
             self.interfaceMap[key] = voIF
 

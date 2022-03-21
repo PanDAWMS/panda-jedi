@@ -541,12 +541,17 @@ class TaskRefinerBase (object):
                             tmpDatasetNameList = [datasetName]
                             if self.taskSpec.is_work_segmented():
                                 tmpDatasetNameList *= len(taskParamMap['segmentSpecs'])
-                        elif 'expand' in tmpItem and tmpItem['expand'] is True:
-                            # expand dataset container
-                            tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).expandContainer(datasetName)
                         else:
-                            # normal dataset name
-                            tmpDatasetNameList = self.ddmIF.getInterface(self.taskSpec.vo).listDatasets(datasetName)
+                            tmpIF = self.ddmIF.getInterface(self.taskSpec.vo)
+                            if not tmpIF:
+                                tmpDatasetNameList = []
+                            else:
+                                if 'expand' in tmpItem and tmpItem['expand'] is True:
+                                    # expand dataset container
+                                    tmpDatasetNameList = tmpIF.expandContainer(datasetName)
+                                else:
+                                    # normal dataset name
+                                    tmpDatasetNameList = tmpIF.listDatasets(datasetName)
                         i_element = 0
                         for elementDatasetName in tmpDatasetNameList:
                             if nIn > 0 or elementDatasetName not in tmpItem['expandedList'] or \
