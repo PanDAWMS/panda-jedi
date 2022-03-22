@@ -912,7 +912,7 @@ class InputChunk:
                                              or (dynNumEvents and (len(newInputFileSet) > maxNumFiles or newInputNumFiles > maxNumEventRanges)))) \
                     or (maxSize is not None and newFileSize > maxSize) \
                     or (maxSize is not None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize) \
-                    or (maxWalltime > 0 and newExpWalltime > maxWalltime) \
+                    or (maxWalltime is not None and 0 < maxWalltime < newExpWalltime) \
                     or (maxNumEvents is not None and newInputNumEvents > maxNumEvents) \
                     or (maxOutSize is not None and self.getOutSize(newOutSizeMap) > maxOutSize) \
                     or (maxDiskSize is not None and newDiskSize > maxDiskSize):
@@ -928,7 +928,7 @@ class InputChunk:
                     dumpStr += 'maxSize exceeds with outSize maxSize={} minOutSize={} fileSize={} newFileSize={} newOutSize={}. '.\
                         format(self.get_value_str(maxSize), self.get_value_str(minOutSize), self.get_value_str(fileSize),
                                self.get_value_str(newFileSize), self.get_value_str(newOutSize))
-                if maxWalltime > 0 and newExpWalltime > maxWalltime:
+                if maxWalltime is not None and 0 < maxWalltime < newExpWalltime:
                     dumpStr += 'maxWalltime exceeds maxWalltime={} expWalltime={} newExpWalltime={}. '.format(
                         maxWalltime, expWalltime, newExpWalltime)
                 if maxNumEvents is not None and newInputNumEvents > maxNumEvents:
