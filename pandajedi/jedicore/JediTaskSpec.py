@@ -96,6 +96,7 @@ class JediTaskSpec(object):
         'orderByLB'          : 'OL',
         'osMatching'         : 'OS',
         'onlyTagsForFC'      : 'OT',
+        'pushStatusChanges'  : 'PC',
         'pfnList'            : 'PL',
         'putLogToOS'         : 'PO',
         'runUntilClosed'     : 'RC',
@@ -1819,3 +1820,19 @@ class JediTaskSpec(object):
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
+
+    # push status changes
+    def push_status_changes(self):
+        return push_status_changes(self.splitRule)
+
+
+# utils
+
+# check if push status changes without class instance
+def push_status_changes(split_rule):
+    if not split_rule:
+        return False
+    tmpMatch = re.search(JediTaskSpec.splitRuleToken['pushStatusChanges'] + r'=(\d+)', split_rule)
+    if not tmpMatch or int(tmpMatch.group(1)) <= 0:
+        return False
+    return True
