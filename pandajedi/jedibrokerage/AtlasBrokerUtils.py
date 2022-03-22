@@ -870,9 +870,11 @@ class JsonSoftwareCheck:
                                     continue
                             # check instruction set
                             if host_cpu_spec['instr'] == '*':
-                                if 'excl' in architecture_map['cpu']['instr']:
+                                if 'instr' in architecture_map['cpu'] and 'excl' in architecture_map['cpu']['instr']:
                                     continue
                             else:
+                                if 'instr' not in architecture_map['cpu']:
+                                    continue
                                 if 'any' not in architecture_map['cpu']['instr'] and \
                                         host_cpu_spec['instr'] not in architecture_map['cpu']['instr']:
                                     continue
