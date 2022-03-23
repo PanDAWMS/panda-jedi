@@ -11730,7 +11730,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql += "UNION "
             sql += "SELECT PandaID,jobStatus,coreCount FROM {0}.jobsActive4 ".format(jedi_config.db.schemaPANDA)
             if is_user:
-                sql += "WHERE prodUserName=:target "
+                sql += "WHERE prodUserName=:target AND workingGroup IS NULL "
             else:
                 sql += "WHERE workingGroup=:target "
             sql += ') GROUP BY jobStatus '
