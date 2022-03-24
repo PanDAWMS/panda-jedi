@@ -6839,7 +6839,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlLK  = "UPDATE {0}.JEDI_Tasks SET lockedBy=:newLockedBy ".format(jedi_config.db.schemaJEDI)
             sqlLK += "WHERE jediTaskID=:jediTaskID AND status=:status AND lockedBy IS NULL "
             # sql to read dataset status
-            sqlRD  = "SELECT datasetID,status,nFiles,nFilesFinished,masterID,state "
+            sqlRD  = "SELECT datasetID,status,nFiles,nFilesFinished,nFilesFailed,masterID,state "
             sqlRD += "FROM {0}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND status=:status AND type IN (".format(jedi_config.db.schemaJEDI)
             for tmpType in JediDatasetSpec.getProcessTypes():
                 mapKey = ':type_'+tmpType
@@ -7009,10 +7009,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMapList = []
                         mutableFlag = False
                         preprocessedFlag = False
-                        for datasetID,dsStatus,nFiles,nFilesFinished,masterID,dsState in resRD:
+                        for datasetID,dsStatus,nFiles,nFilesFinished,nFilesFailed,masterID,dsState in resRD:
                             # parent could be still running
                             if dsState == 'mutable' and masterID is None:
                                 mutableFlag = True
+                                break
+                            # check if there are unprocessed files
+                            if masterID is None and nFiles and nFiles > nFilesFinished+nFilesFailed:
+                                tmpLog.debug('skip jediTaskID={} datasetID={} has unprocessed files'.format(jediTaskID,
+                                                                                                            datasetID))
+                                toSkip = True
                                 break
                             # set status for input datasets
                             varMap = {}
@@ -7034,54 +7040,55 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     # partially succeeded
                                     varMap[':status'] = 'finished'
                             varMapList.append(varMap)
-                        # check just in case if there is mutable dataset
-                        if not mutableFlag:
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':state']  = 'mutable'
-                            for tmpType in JediDatasetSpec.getInputTypes():
-                                mapKey = ':type_'+tmpType
-                                varMap[mapKey] = tmpType
-                            self.cur.execute(sqlMTC+comment,varMap)
-                            resMTC = self.cur.fetchone()
-                            numMutable, = resMTC
-                            tmpLog.debug('jediTaskID={0} has {1} mutable datasetes'.format(jediTaskID,numMutable))
-                            if numMutable > 0:
-                                mutableFlag = True
-                        if mutableFlag:
-                            # go to defined to trigger CF
-                            newTaskStatus = 'defined'
-                            # change status of mutable datasets to trigger CF
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':state']  = 'mutable'
-                            varMap[':status'] = 'toupdate'
-                            self.cur.execute(sqlMUT+comment,varMap)
-                            nRow = self.cur.rowcount
-                            tmpLog.debug('jediTaskID={0} updated {1} mutable datasetes'.format(jediTaskID,nRow))
-                        else:
-                            # update input datasets
-                            for varMap in varMapList:
-                                self.cur.execute(sqlDIU+comment,varMap)
-                            # update output datasets
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':type1']  = 'log'
-                            varMap[':type2']  = 'output'
-                            varMap[':status'] = 'prepared'
-                            self.cur.execute(sqlDOU+comment,varMap)
-                            # new task status
-                            if taskSpec.status == 'preprocessing' and preprocessedFlag:
-                                # failed preprocess goes to prepared to terminate the task
-                                newTaskStatus = 'registered'
-                                # update split rule
-                                taskSpec.setPreProcessed()
+                        if not toSkip:
+                            # check just in case if there is mutable dataset
+                            if not mutableFlag:
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
-                                varMap[':splitRule']  = taskSpec.splitRule
-                                self.cur.execute(sqlUSL+comment,varMap)
+                                varMap[':state']  = 'mutable'
+                                for tmpType in JediDatasetSpec.getInputTypes():
+                                    mapKey = ':type_'+tmpType
+                                    varMap[mapKey] = tmpType
+                                self.cur.execute(sqlMTC+comment,varMap)
+                                resMTC = self.cur.fetchone()
+                                numMutable, = resMTC
+                                tmpLog.debug('jediTaskID={0} has {1} mutable datasetes'.format(jediTaskID,numMutable))
+                                if numMutable > 0:
+                                    mutableFlag = True
+                            if mutableFlag:
+                                # go to defined to trigger CF
+                                newTaskStatus = 'defined'
+                                # change status of mutable datasets to trigger CF
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':state']  = 'mutable'
+                                varMap[':status'] = 'toupdate'
+                                self.cur.execute(sqlMUT+comment,varMap)
+                                nRow = self.cur.rowcount
+                                tmpLog.debug('jediTaskID={0} updated {1} mutable datasetes'.format(jediTaskID,nRow))
                             else:
-                                newTaskStatus = 'prepared'
+                                # update input datasets
+                                for varMap in varMapList:
+                                    self.cur.execute(sqlDIU+comment,varMap)
+                                # update output datasets
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':type1']  = 'log'
+                                varMap[':type2']  = 'output'
+                                varMap[':status'] = 'prepared'
+                                self.cur.execute(sqlDOU+comment,varMap)
+                                # new task status
+                                if taskSpec.status == 'preprocessing' and preprocessedFlag:
+                                    # failed preprocess goes to prepared to terminate the task
+                                    newTaskStatus = 'registered'
+                                    # update split rule
+                                    taskSpec.setPreProcessed()
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    varMap[':splitRule']  = taskSpec.splitRule
+                                    self.cur.execute(sqlUSL+comment,varMap)
+                                else:
+                                    newTaskStatus = 'prepared'
                     else:
                         toSkip = True
                         tmpLog.debug('skip jediTaskID={0} due to status={1}'.format(jediTaskID,taskSpec.status))
@@ -9220,7 +9227,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to reset running files
             sqlRR  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlRR += "SET status=:newStatus,attemptNr=attemptNr+1,maxAttempt=maxAttempt+:maxAttempt,proc_status=:proc_status "
-            sqlRR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:oldStatus "
+            sqlRR += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status IN (:oldStatus1,:oldStatus2) "
             sqlRR += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL "
             # sql to update output/lib/log datasets
             sqlUO  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
@@ -9374,7 +9381,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':datasetID']  = datasetID
-                                varMap[':oldStatus'] = 'picked'
+                                varMap[':oldStatus1'] = 'picked'
+                                varMap[':oldStatus2'] = 'running'
                                 varMap[':newStatus']  = 'ready'
                                 varMap[':proc_status'] = 'ready'
                                 varMap[':keepTrack']  = 1
@@ -9444,7 +9452,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':datasetID']  = datasetID
-                                varMap[':oldStatus'] = 'picked'
+                                varMap[':oldStatus1'] = 'picked'
+                                varMap[':oldStatus2'] = 'running'
                                 varMap[':newStatus']  = 'ready'
                                 varMap[':proc_status'] = 'ready'
                                 varMap[':keepTrack']  = 1
