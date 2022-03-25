@@ -50,7 +50,9 @@ class GenJobBroker (JobBrokerBase):
                     if re.search(taskSpec.site, tmpSite):
                         scanSiteList.append(tmpSite)
                 if not scanSiteList:
-                    scanSiteList = [taskSpec.site]
+                    tmpLog.error('unknown site={}'.format(taskSpec.site))
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    return retTmpError
         elif inputChunk.getPreassignedSite() is not None:
             scanSiteList = [inputChunk.getPreassignedSite()]
             tmpLog.debug('site={0} is pre-assigned in masterDS'.format(inputChunk.getPreassignedSite()))
