@@ -6755,23 +6755,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':prodSourceLabel'] = prodSourceLabel
                 else:
                     varMap[':prodSourceLabel'] = 'managed'
-                varMap[':fileStatus'] = 'finished'
-                varMap[':minSuccess'] = minSuccessScouts
                 varMap[':timeLimit'] = timeToCheck
                 if vo is not None:
                     varMap[':vo'] = vo
-                sqlEA  = "SELECT jediTaskID,COUNT(*) FROM "
-                sqlEA += "(SELECT tabT.jediTaskID,tabF.PandaID "
-                sqlEA += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabF ".format(jedi_config.db.schemaJEDI)
+                sqlEA  = "SELECT tabT.jediTaskID,SUM(tabD.nFilesToBeUsed),SUM(tabD.nFilesFinished) "
+                sqlEA += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
                 sqlEA += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
                 sqlEA += "AND tabT.jediTaskID=tabD.jediTaskID "
-                sqlEA += "AND tabD.jediTaskID=tabF.jediTaskID AND tabD.datasetID=tabF.datasetID "
                 sqlEA += "AND tabT.status=:taskstatus AND prodSourceLabel=:prodSourceLabel "
                 sqlEA += "AND (tabT.assessmentTime IS NULL OR tabT.assessmentTime<:timeLimit) "
                 if vo is not None:
                     sqlEA += "AND tabT.vo=:vo "
                 sqlEA += "AND tabT.lockedBy IS NULL "
-                sqlEA += "AND tabD.masterID IS NULL AND tabD.nFilesFinished>=:minSuccess "
+                sqlEA += "AND tabD.masterID IS NULL AND tabD.nFilesToBeUsed>0 "
                 sqlEA += 'AND tabD.type IN ('
                 for tmpType in JediDatasetSpec.getInputTypes():
                     mapKey = ':type_'+tmpType
@@ -6779,9 +6775,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[mapKey] = tmpType
                 sqlEA  = sqlEA[:-1]
                 sqlEA += ') '
-                sqlEA += 'AND tabF.status=:fileStatus '
-                sqlEA += 'GROUP BY tabT.jediTaskID,tabF.PandaID) '
-                sqlEA += 'GROUP BY jediTaskID '
+                sqlEA += 'GROUP BY tabT.jediTaskID '
                 # get tasks
                 tmpLog.debug(sqlEA+comment+str(varMap))
                 self.cur.execute(sqlEA+comment,varMap)
@@ -6790,12 +6784,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlLK  = "UPDATE {0}.JEDI_Tasks SET assessmentTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
                 sqlLK += "WHERE jediTaskID=:jediTaskID AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) AND status=:status "
                 # append to list
-                for jediTaskID,totFinished in resList:
-                    if totFinished>=minSuccessScouts:
+                for jediTaskID, totFiles, totFinished in resList:
+                    if totFinished >= totFiles * minSuccessScouts / 10:
                         if jediTaskID not in jediTaskIDstatusMap:
                             jediTaskIDstatusMap[jediTaskID] = taskstatus
-                            tmpLog.debug('got jediTaskID={0} {1} finihsed jobs for early avalanche'.format(jediTaskID,
-                                                                                                           totFinished))
+                            tmpLog.debug('got jediTaskID={} {}/{} finished for early avalanche'.format(jediTaskID,
+                                                                                                       totFinished,
+                                                                                                       totFiles))
                     # update assessmentTime to avoid frequent check
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID

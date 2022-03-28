@@ -194,7 +194,10 @@ class JobSplitter:
                     elif nEventsPerJob is not None or nFilesPerJob is not None:
                         maxSize = None
                     else:
-                        maxSize = max(50000, siteSpec.maxwdir) * 1024 * 1024
+                        maxSize = siteCandidate.get_overridden_attribute('maxwdir')
+                        if maxSize is None:
+                            maxSize = siteSpec.maxwdir
+                        maxSize = max(50000, maxSize) * 1024 * 1024
                 else:
                     # add offset
                     maxSize += sizeIntercepts
