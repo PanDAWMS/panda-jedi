@@ -6745,13 +6745,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # tasks to force avalanche
             toAvalancheTasks = set()
             # get tasks for early avalanche
-            if simTasks is None and prodSourceLabel in [None,'managed']:
+            if simTasks is None:
                 minSuccessScouts = 5
                 timeToCheck = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
                 taskstatus = 'scouting'
                 varMap = {}
                 varMap[':taskstatus'] = taskstatus
-                varMap[':prodSourceLabel'] = 'managed'
+                if prodSourceLabel:
+                    varMap[':prodSourceLabel'] = prodSourceLabel
+                else:
+                    varMap[':prodSourceLabel'] = 'managed'
                 varMap[':fileStatus'] = 'finished'
                 varMap[':minSuccess'] = minSuccessScouts
                 varMap[':timeLimit'] = timeToCheck
