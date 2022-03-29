@@ -10,6 +10,7 @@ import datetime
 import traceback
 import socket
 import uuid
+import json
 
 from six import iteritems
 
@@ -36,6 +37,7 @@ from .MsgWrapper import MsgWrapper
 from . import ParseJobXML
 from . import JediCoreUtils
 
+from pandacommon.pandamsgbkr.msg_processor import MsgProcAgentBase
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -64,6 +66,17 @@ for tmpHdr in tmpLoggerFiltered.handlers:
     tmpHdr.setLevel(logging.INFO)
     logger.addHandler(tmpHdr)
     tmpLoggerFiltered.removeHandler(tmpHdr)
+
+
+# get mb proxies used in DBProxy methods
+def get_mb_proxy_dict():
+    in_q_list = []
+    out_q_list = ['jedi_taskstatus']
+    mq_agent = MsgProcAgentBase(config_file=jedi_config.mq.configFile)
+    mb_proxy_dict = mq_agent.start_passive_mode(prefetch_size=999)
+    return mb_proxy_dict
+
+mb_proxy_dict = get_mb_proxy_dict()
 
 
 class DBProxy(taskbuffer.OraDBProxy.DBProxy):
@@ -13524,7 +13537,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return None
 
     # task status logging
-    def record_task_status_change(self, jedi_task_id):
+    def record_task_status_change(self, jedi_task_id, status=None):
         comment = ' /* JediDBProxy.record_task_status_change */'
         methodName = self.getMethodName(comment)
         methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
@@ -13541,6 +13554,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                  'FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID '
                  ).format(jedi_config.db.schemaJEDI)
         self.cur.execute(sqlNS + comment, varMap)
+        # send task status messages to mq
+        try:
+            msg_dict = {'taskid': jedi_task_id, 'status': status}
+            msg = json.dumps(msg_dict)
+            mb_proxy = mb_proxy_dict['out']['jedi_taskstatus']
+            if mb_proxy.got_disconnected:
+                mb_proxy.restart()
+            mb_proxy.send(msg)
+        except Exception:
+            self.dumpErrorMessage(tmpLog)
         tmpLog.debug('done')
 
 
