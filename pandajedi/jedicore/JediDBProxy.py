@@ -1845,6 +1845,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.setSuperStatus_JEDI(jediTaskID,taskStatus)
                     # task status logging
                     self.record_task_status_change(jediTaskID)
+                    self.push_task_status_message(taskSpec, jediTaskID, taskStatus)
                     tmpLog.debug('set to {0}'.format(taskStatus))
             # commit
             if not self._commit():
@@ -2020,6 +2021,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 # status change logging
                 if statusUpdated:
                     self.record_task_status_change(taskSpec.jediTaskID)
+                    self.push_task_status_message(taskSpec, taskSpec.jediTaskID, taskSpec.status)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -2376,6 +2378,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     if nRows > 0:
                         self.setSuperStatus_JEDI(jediTaskID, 'running')
                         self.record_task_status_change(jediTaskID)
+                        self.push_task_status_message(None, jediTaskID, varMap[':newStatus'], splitRule)
                         # enable jumbo
                         self.enableJumboInTask_JEDI(jediTaskID, eventService, site, useJumbo, splitRule)
                 else:
@@ -5658,6 +5661,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sql+comment,varMap)
             # task status logging
             self.record_task_status_change(taskSpec.jediTaskID)
+            self.push_task_status_message(taskSpec, taskSpec.jediTaskID, taskSpec.status)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -6665,6 +6669,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.setDeftStatus_JEDI(taskSpec.jediTaskID, taskSpec.status)
                             self.setSuperStatus_JEDI(taskSpec.jediTaskID, taskSpec.status)
                             self.record_task_status_change(taskSpec.jediTaskID)
+                            self.push_task_status_message(taskSpec, taskSpec.jediTaskID, taskSpec.status)
                         # commit
                         if not self._commit():
                             raise RuntimeError('Commit error')
@@ -7121,6 +7126,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.setDeftStatus_JEDI(jediTaskID, newTaskStatus)
                             self.setSuperStatus_JEDI(jediTaskID,newTaskStatus)
                         self.record_task_status_change(jediTaskID)
+                        self.push_task_status_message(taskSpec, jediTaskID, newTaskStatus)
                 # commit
                 if not self._commit():
                     raise RuntimeError('Commit error')
@@ -7323,6 +7329,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sql+comment,varMap)
                         nRow = self.cur.rowcount
                         tmpLog.debug('set nucleus={0} for jediTaskID={1} with {2}'.format(tmpVal['nucleus'],jediTaskID,nRow))
+                        newStatus = varMap[':newStatus']
                     # update DEFT
                     if nRow > 0:
                         deftStatus = 'ready'
@@ -7341,6 +7348,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.enableJumboInTask_JEDI(jediTaskID, eventService, site, useJumbo, splitRule)
                         # task status logging
                         self.record_task_status_change(jediTaskID)
+                        try:
+                            (newStatus, splitRule)
+                        except NameError:
+                            pass
+                        else:
+                            self.push_task_status_message(None, jediTaskID, newStatus, splitRule)
                     # commit
                     if not self._commit():
                         raise RuntimeError('Commit error')
@@ -8344,6 +8357,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow += tmpRow
                 if tmpRow > 0 and not keepFlag:
                     self.record_task_status_change(jediTaskID)
+                    self.push_task_status_message(None, jediTaskID, varMap[':newStatus'], splitRule)
                 # update DEFT for timeout
                 if timeoutFlag:
                     deftStatus = varMap[':newStatus']
@@ -8512,6 +8526,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow = self.cur.rowcount
                 if nRow > 0:
                     self.record_task_status_change(jediTaskID)
+                    self.push_task_status_message(None, jediTaskID, varMap[':newStatus'])
                     tmpLog.debug('jediTaskID={0} reset to defined'.format(jediTaskID))
                     nTasks += 1
             # commit
@@ -9531,6 +9546,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sqlTT+comment,varMap)
                     # task status log
                     self.record_task_status_change(jediTaskID)
+                    self.push_task_status_message(None, jediTaskID, newTaskStatus)
                 else:
                     tmpLog.debug('back to taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
                     varMap[':updateTime'] = datetime.datetime.utcnow()
@@ -10576,6 +10592,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.info(errorDialog)
                         nTasks += 1
                         self.record_task_status_change(jediTaskID)
+                        self.push_task_status_message(None, jediTaskID, varMap[':newStatus'])
                 except Exception:
                     tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
                 # commit
@@ -10619,6 +10636,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('done with {0}'.format(nRow))
             if nRow > 0:
                 self.record_task_status_change(jediTaskID)
+                self.push_task_status_message(None, jediTaskID, varMap[':newStatus'])
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -10689,6 +10707,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow += iRow
                 if iRow > 0:
                     self.record_task_status_change(jediTaskID)
+                    self.push_task_status_message(None, jediTaskID, None)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -10726,6 +10745,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('done with {0}'.format(nRow))
             if nRow > 0:
                 self.record_task_status_change(jediTaskID)
+                self.push_task_status_message(None, jediTaskID, None)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -13537,7 +13557,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return None
 
     # task status logging
-    def record_task_status_change(self, jedi_task_id, status=None):
+    def record_task_status_change(self, jedi_task_id):
         comment = ' /* JediDBProxy.record_task_status_change */'
         methodName = self.getMethodName(comment)
         methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
@@ -13554,6 +13574,23 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                  'FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID '
                  ).format(jedi_config.db.schemaJEDI)
         self.cur.execute(sqlNS + comment, varMap)
+        tmpLog.debug('done')
+
+    # push task status message
+    def push_task_status_message(self, task_spec, jedi_task_id, status, split_rule=None):
+        to_push = False
+        if task_spec is not None:
+            to_push = task_spec.push_status_changes()
+        elif split_rule is not None:
+            to_push = JediTaskSpec.push_status_changes(split_rule)
+        # only run if to push status change
+        if not to_push:
+            return
+        comment = ' /* JediDBProxy.push_task_status_message */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
         # send task status messages to mq
         try:
             msg_dict = {'taskid': jedi_task_id, 'status': status}
@@ -13565,7 +13602,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         except Exception:
             self.dumpErrorMessage(tmpLog)
         tmpLog.debug('done')
-
 
     # task progress
     def get_task_progress(self, jedi_task_id):
@@ -14137,6 +14173,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow = self.cur.rowcount
                 if nRow == 1:
                     self.record_task_status_change(jedi_taskid)
+                    self.push_task_status_message(None, jedi_taskid, varMap[':status'])
                     n_updated += 1
                     tmpLog.debug('made pending jediTaskID={0}'.format(jedi_taskid))
                 elif nRow > 1:
