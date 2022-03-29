@@ -6758,10 +6758,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':timeLimit'] = timeToCheck
                 if vo is not None:
                     varMap[':vo'] = vo
-                sqlEA  = "SELECT tabT.jediTaskID,SUM(tabD.nFilesToBeUsed),SUM(tabD.nFilesFinished) "
-                sqlEA += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI)
+                sqlEA  = "SELECT jediTaskID,COUNT(*),SUM(CASE WHEN status='finished' THEN 1 ELSE 0 END) FROM "
+                sqlEA += "(SELECT DISTINCT tabT.jediTaskID,tabF.PandaID,tabF.status "
+                sqlEA += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabF ".format(jedi_config.db.schemaJEDI)
                 sqlEA += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
                 sqlEA += "AND tabT.jediTaskID=tabD.jediTaskID "
+                sqlEA += "AND tabD.jediTaskID=tabF.jediTaskID AND tabD.datasetID=tabF.datasetID "
                 sqlEA += "AND tabT.status=:taskstatus AND prodSourceLabel=:prodSourceLabel "
                 sqlEA += "AND (tabT.assessmentTime IS NULL OR tabT.assessmentTime<:timeLimit) "
                 if vo is not None:
@@ -6775,7 +6777,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[mapKey] = tmpType
                 sqlEA  = sqlEA[:-1]
                 sqlEA += ') '
-                sqlEA += 'GROUP BY tabT.jediTaskID '
+                sqlEA += 'AND tabF.PandaID IS NOT NULL '
+                sqlEA += ') '
+                sqlEA += 'GROUP BY jediTaskID '
                 # get tasks
                 tmpLog.debug(sqlEA+comment+str(varMap))
                 self.cur.execute(sqlEA+comment,varMap)
@@ -6784,13 +6788,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlLK  = "UPDATE {0}.JEDI_Tasks SET assessmentTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
                 sqlLK += "WHERE jediTaskID=:jediTaskID AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) AND status=:status "
                 # append to list
-                for jediTaskID, totFiles, totFinished in resList:
-                    if totFinished >= totFiles * minSuccessScouts / 10:
+                for jediTaskID, totJobs, totFinished in resList:
+                    if totFinished and totFinished >= totJobs * minSuccessScouts / 10:
                         if jediTaskID not in jediTaskIDstatusMap:
                             jediTaskIDstatusMap[jediTaskID] = taskstatus
                             tmpLog.debug('got jediTaskID={} {}/{} finished for early avalanche'.format(jediTaskID,
                                                                                                        totFinished,
-                                                                                                       totFiles))
+                                                                                                       totJobs))
                     # update assessmentTime to avoid frequent check
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
