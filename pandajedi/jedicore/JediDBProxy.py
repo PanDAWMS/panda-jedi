@@ -37,7 +37,6 @@ from .MsgWrapper import MsgWrapper
 from . import ParseJobXML
 from . import JediCoreUtils
 
-from pandajedi.jediorder.JediMsgProcessor import MsgProcAgent
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -69,14 +68,16 @@ for tmpHdr in tmpLoggerFiltered.handlers:
 
 
 # get mb proxies used in DBProxy methods
+mb_proxy_dict = None
 def get_mb_proxy_dict():
+    # delay import to open logger file inside python daemon
+    from pandajedi.jediorder.JediMsgProcessor import MsgProcAgent
     in_q_list = []
     out_q_list = ['jedi_taskstatus']
     mq_agent = MsgProcAgent(config_file=jedi_config.mq.configFile)
-    mb_proxy_dict = mq_agent.start_passive_mode(prefetch_size=999)
+    mb_proxy_dict = mq_agent.start_passive_mode(
+                        in_q_list=in_q_list, out_q_list=out_q_list, prefetch_size=999)
     return mb_proxy_dict
-
-mb_proxy_dict = get_mb_proxy_dict()
 
 
 class DBProxy(taskbuffer.OraDBProxy.DBProxy):
@@ -13623,6 +13624,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             msg_dict = {'taskid': jedi_task_id, 'status': status}
             msg = json.dumps(msg_dict)
+            if mb_proxy_dict is None:
+                mb_proxy_dict = get_mb_proxy_dict()
             mb_proxy = mb_proxy_dict['out']['jedi_taskstatus']
             if mb_proxy.got_disconnected:
                 mb_proxy.restart()
