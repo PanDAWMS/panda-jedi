@@ -8555,7 +8555,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow = self.cur.rowcount
                 if nRow > 0:
                     self.record_task_status_change(jediTaskID)
-                    self.push_task_status_message(None, jediTaskID, varMap[':newStatus'])
+                    # self.push_task_status_message(None, jediTaskID, varMap[':newStatus'])
                     tmpLog.debug('jediTaskID={0} reset to defined'.format(jediTaskID))
                     nTasks += 1
             # commit
@@ -9575,7 +9575,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.cur.execute(sqlTT+comment,varMap)
                     # task status log
                     self.record_task_status_change(jediTaskID)
-                    self.push_task_status_message(None, jediTaskID, newTaskStatus)
+                    # self.push_task_status_message(None, jediTaskID, newTaskStatus)
                 else:
                     tmpLog.debug('back to taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
                     varMap[':updateTime'] = datetime.datetime.utcnow()
@@ -10621,7 +10621,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.info(errorDialog)
                         nTasks += 1
                         self.record_task_status_change(jediTaskID)
-                        self.push_task_status_message(None, jediTaskID, varMap[':newStatus'])
+                        # self.push_task_status_message(None, jediTaskID, varMap[':newStatus'])
                 except Exception:
                     tmpLog.debug('skip locked jediTaskID={0}'.format(jediTaskID))
                 # commit
@@ -10665,7 +10665,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('done with {0}'.format(nRow))
             if nRow > 0:
                 self.record_task_status_change(jediTaskID)
-                self.push_task_status_message(None, jediTaskID, varMap[':newStatus'])
+                # self.push_task_status_message(None, jediTaskID, varMap[':newStatus'])
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -10736,7 +10736,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow += iRow
                 if iRow > 0:
                     self.record_task_status_change(jediTaskID)
-                    self.push_task_status_message(None, jediTaskID, None)
+                    # self.push_task_status_message(None, jediTaskID, None)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -10774,7 +10774,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug('done with {0}'.format(nRow))
             if nRow > 0:
                 self.record_task_status_change(jediTaskID)
-                self.push_task_status_message(None, jediTaskID, None)
+                # self.push_task_status_message(None, jediTaskID, None)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -14204,7 +14204,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow = self.cur.rowcount
                 if nRow == 1:
                     self.record_task_status_change(jedi_taskid)
-                    self.push_task_status_message(None, jedi_taskid, varMap[':status'])
+                    # self.push_task_status_message(None, jedi_taskid, varMap[':status'])
                     n_updated += 1
                     tmpLog.debug('made pending jediTaskID={0}'.format(jedi_taskid))
                 elif nRow > 1:
