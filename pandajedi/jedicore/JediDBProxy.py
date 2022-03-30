@@ -5772,6 +5772,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if setPandaID is not None:
             sqlSCF += "AND tabF.PandaID=:usePandaID "
 
+        # sql to check scout success rate
+        sqlCSSR = "SELECT COUNT(*),SUM(CASE WHEN status='finished' THEN 1 ELSE 0 END) FROM "
+        sqlCSSR += "(SELECT DISTINCT tabF.PandaID,tabF.status "
+        sqlCSSR += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
+        sqlCSSR += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.PandaID IS NOT NULL "
+        sqlCSSR += "AND tabD.datasetID=tabF.datasetID "
+        sqlCSSR += "AND tabF.type IN ("
+        for tmpType in JediDatasetSpec.getInputTypes():
+            mapKey = ':type_' + tmpType
+            sqlCSSR += '{0},'.format(mapKey)
+        sqlCSSR = sqlCSSR[:-1]
+        sqlCSSR += ") AND tabD.masterID IS NULL "
+        sqlCSSR += ") "
+
         # sql to get normal scout job data from Panda
         sqlSCDN = "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
         sqlSCDN += "actualCoreCount, coreCount, startTime, endTime, computingSite, maxPSS, jobMetrics, nEvents, "
@@ -5916,11 +5930,25 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':usePandaID'] = setPandaID
         self.cur.execute(sqlSCF+comment,varMap)
         resList = self.cur.fetchall()
-        # scout scceeded or not
-        if resList == [] or (scoutSuccessRate is not None and len(resList) < scoutSuccessRate):
+        # scout succeeded or not
+        scoutSucceeded = True
+        if not resList:
             scoutSucceeded = False
+            tmpLog.debug('no scouts succeeded')
         else:
-            scoutSucceeded = True
+            if not mergeScout and task_spec and task_spec.useScout():
+                # check scout success rate
+                varMap = {}
+                varMap[':jediTaskID'] = jediTaskID
+                for tmpType in JediDatasetSpec.getInputTypes():
+                    mapKey = ':type_' + tmpType
+                    varMap[mapKey] = tmpType
+                self.cur.execute(sqlCSSR + comment, varMap)
+                scTotal, scOK = self.cur.fetchone()
+                tmpLog.debug('scout total={} finished={} rate={}'.format(scTotal, scOK, scoutSuccessRate))
+                if scoutSuccessRate and scTotal and scOK*10 < scTotal*scoutSuccessRate:
+                    tmpLog.debug('not enough scouts succeeded')
+                    scoutSucceeded = False
         # upper limit
         limitWallTime = 999999999
         # loop over all files
