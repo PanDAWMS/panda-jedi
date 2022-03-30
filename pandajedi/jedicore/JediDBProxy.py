@@ -37,7 +37,7 @@ from .MsgWrapper import MsgWrapper
 from . import ParseJobXML
 from . import JediCoreUtils
 
-from pandacommon.pandamsgbkr.msg_processor import MsgProcAgentBase
+from pandajedi.jediorder.JediMsgProcessor import MsgProcAgent
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -72,7 +72,7 @@ for tmpHdr in tmpLoggerFiltered.handlers:
 def get_mb_proxy_dict():
     in_q_list = []
     out_q_list = ['jedi_taskstatus']
-    mq_agent = MsgProcAgentBase(config_file=jedi_config.mq.configFile)
+    mq_agent = MsgProcAgent(config_file=jedi_config.mq.configFile)
     mb_proxy_dict = mq_agent.start_passive_mode(prefetch_size=999)
     return mb_proxy_dict
 

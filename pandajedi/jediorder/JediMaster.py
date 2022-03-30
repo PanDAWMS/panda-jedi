@@ -14,7 +14,7 @@ from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 from pandajedi.jedicore.ThreadUtils import ZombiCleaner
 from pandajedi.jedicore.ProcessUtils import ProcessWrapper
 
-from pandacommon.pandamsgbkr.msg_processor import MsgProcAgentBase
+from pandajedi.jediorder.JediMsgProcessor import MsgProcAgent
 
 from pandajedi.jediconfig import jedi_config
 
@@ -67,7 +67,7 @@ class JediMaster:
         taskBufferIF = JediTaskBufferInterface()
         taskBufferIF.setupInterface()
         # setup intra-node message queue broker proxies
-        mq_agent = MsgProcAgentBase(config_file=jedi_config.mq.configFile)
+        mq_agent = MsgProcAgent(config_file=jedi_config.mq.configFile)
         mb_proxy_dict = mq_agent.start_passive_mode(prefetch_size=999)
         # the list of JEDI knights
         knightList = []
