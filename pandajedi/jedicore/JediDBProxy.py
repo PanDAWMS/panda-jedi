@@ -27,7 +27,7 @@ from pandaserver.taskbuffer import JobUtils
 from pandaserver.taskbuffer import EventServiceUtils
 from .WorkQueueMapper import WorkQueueMapper
 
-from .JediTaskSpec import JediTaskSpec
+from .JediTaskSpec import JediTaskSpec, push_status_changes
 from .JediFileSpec import JediFileSpec
 from .JediDatasetSpec import JediDatasetSpec
 from .JediCacheSpec import JediCacheSpec
@@ -8387,9 +8387,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 nRow += tmpRow
                 if tmpRow > 0 and not keepFlag:
                     self.record_task_status_change(jediTaskID)
-                    self.push_task_status_message(None, jediTaskID, varMap[':newStatus'], splitRule)
                 # update DEFT for timeout
                 if timeoutFlag:
+                    self.push_task_status_message(None, jediTaskID, varMap[':newStatus'], splitRule)
                     deftStatus = varMap[':newStatus']
                     self.setDeftStatus_JEDI(jediTaskID, deftStatus)
                     self.setSuperStatus_JEDI(jediTaskID,deftStatus)
@@ -13612,7 +13612,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if task_spec is not None:
             to_push = task_spec.push_status_changes()
         elif split_rule is not None:
-            to_push = JediTaskSpec.push_status_changes(split_rule)
+            to_push = push_status_changes(split_rule)
         # only run if to push status change
         if not to_push:
             return
