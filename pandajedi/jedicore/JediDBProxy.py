@@ -13623,7 +13623,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         # send task status messages to mq
         try:
-            msg_dict = {'taskid': jedi_task_id, 'status': status}
+            msg_dict = {
+                    'msg_type': 'task_status',
+                    'taskid': jedi_task_id,
+                    'status': status,
+                }
             msg = json.dumps(msg_dict)
             if mb_proxy_dict is None:
                 mb_proxy_dict = get_mb_proxy_dict()
