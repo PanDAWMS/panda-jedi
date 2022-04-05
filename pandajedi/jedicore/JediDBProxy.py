@@ -68,7 +68,6 @@ for tmpHdr in tmpLoggerFiltered.handlers:
 
 
 # get mb proxies used in DBProxy methods
-mb_proxy_dict = None
 def get_mb_proxy_dict():
     if hasattr(jedi_config, 'mq') and hasattr(jedi_config.mq, 'configFile') and jedi_config.mq.configFile:
         # delay import to open logger file inside python daemon
@@ -95,6 +94,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         # typical input cache
         self.typical_input_cache = {}
+
+        # mb proxy
+        self.mb_proxy_dict = None
 
 
     # connect to DB (just for INTR)
@@ -13629,11 +13631,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     'status': status,
                 }
             msg = json.dumps(msg_dict)
-            if mb_proxy_dict is None:
-                mb_proxy_dict = get_mb_proxy_dict()
-                if mb_proxy_dict is None:
+            if self.mb_proxy_dict is None:
+                self.mb_proxy_dict = get_mb_proxy_dict()
+                if self.mb_proxy_dict is None:
                     tmpLog.warning('Failed to get mb_proxy of internal MQs. Skipped ')
-            mb_proxy = mb_proxy_dict['out']['jedi_taskstatus']
+            mb_proxy = self.mb_proxy_dict['out']['jedi_taskstatus']
             if mb_proxy.got_disconnected:
                 mb_proxy.restart()
             mb_proxy.send(msg)
