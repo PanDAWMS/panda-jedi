@@ -26,6 +26,9 @@ class GenTaskRefiner (TaskRefinerBase):
         if 'ramCount' not in taskParamMap:
             taskParamMap['ramCount'] = 2000
             taskParamMap['ramUnit'] = 'MBPerCore'
+        # push status changes
+        if 'pushStatusChanges' not in taskParamMap:
+            taskParamMap['pushStatusChanges'] = True
         # update task parameters
         self.updatedTaskParams = taskParamMap
         # call base method
