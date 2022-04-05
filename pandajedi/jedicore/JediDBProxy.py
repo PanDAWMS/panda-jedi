@@ -13618,6 +13618,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # only run if to push status change
         if not to_push:
             return
+        # skip statuses unnecessary to push
+        if status in ['pending']:
+            return
         comment = ' /* JediDBProxy.push_task_status_message */'
         methodName = self.getMethodName(comment)
         methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
@@ -13626,7 +13629,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # send task status messages to mq
         try:
             now_time = datetime.datetime.utcnow()
-            now_ts = now_time.timestamp()
+            now_ts = int(now_time.timestamp())
             msg_dict = {
                     'msg_type': 'task_status',
                     'taskid': jedi_task_id,
