@@ -328,4 +328,16 @@ modConfig = wlcg:any:pandajedi.jedisetup.GenTaskSetupper:GenTaskSetupper
 [msgprocessor]
 
 # json config file of message processors
-#configFile = /some/config.json
+#configFile = /etc/panda/jedi_msg_proc_config.json
+
+
+
+##########################
+#
+# Internal Message Queue parameters
+#
+
+[mq]
+
+# json config file of internal message queues
+#configFile = /etc/panda/jedi_mq_config.json

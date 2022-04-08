@@ -8,11 +8,13 @@ from pandajedi.jedicore.ThreadUtils import ZombiCleaner
 
 class JediKnight(Interaction.CommandReceiveInterface):
     # constructor
-    def __init__(self, commuChannel, taskBufferIF, ddmIF, logger):
+    def __init__(self, commuChannel, taskBufferIF, ddmIF, logger, **kwargs):
         Interaction.CommandReceiveInterface.__init__(self, commuChannel)
         self.taskBufferIF = taskBufferIF
         self.ddmIF = ddmIF
         self.logger = logger
+        # intra-node message broker proxies
+        self.mb_proxy_dict = kwargs.get('mb_proxy_dict')
         # start zombie cleaner
         ZombiCleaner().start()
 
