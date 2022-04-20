@@ -29,6 +29,8 @@ class GenTaskRefiner (TaskRefinerBase):
         # push status changes
         if 'pushStatusChanges' not in taskParamMap:
             taskParamMap['pushStatusChanges'] = True
+        # use cloud as VO
+        taskParamMap['cloudAsVO'] = True
         # update task parameters
         self.updatedTaskParams = taskParamMap
         # call base method

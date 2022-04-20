@@ -80,10 +80,9 @@ class SimpleTaskSetupper (TaskSetupperBase):
                             ddmBackEnd = 'rucio'
                             if targetName == datasetSpec.datasetName:
                                 # dataset
-                                tmpLog.info('site={0} token={1}'.format(datasetSpec.site, datasetSpec.storageToken))
-                                location = siteMapper.getDdmEndpoint(datasetSpec.site, datasetSpec.storageToken,
-                                                                     taskSpec.prodSourceLabel,
-                                                                     'default')
+                                tmpLog.info('dest={0}'.format(datasetSpec.destination))
+                                if datasetSpec.destination:
+                                    location = datasetSpec.destination
                             if locForRule is None:
                                 locForRule = location
                             # set metadata

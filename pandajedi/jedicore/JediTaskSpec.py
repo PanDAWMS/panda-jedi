@@ -48,6 +48,7 @@ class JediTaskSpec(object):
         'altStageOut'        : 'AT',
         'avoidVP'            : 'AV',
         'maxCoreCount'       : 'CC',
+        'cloudAsVO'          : 'CV',
         'ddmBackEnd'         : 'DE',
         'disableAutoFinish'  : 'DF',
         'disableReassign'    : 'DI',
@@ -1824,6 +1825,13 @@ class JediTaskSpec(object):
     # push status changes
     def push_status_changes(self):
         return push_status_changes(self.splitRule)
+
+    # use cloud as VO
+    def cloud_as_vo(self):
+        if self.splitRule is not None:
+            if re.search(self.splitRuleToken['cloudAsVO']+'=(\d+)', self.splitRule):
+                return True
+        return False
 
 
 # utils

@@ -1010,7 +1010,10 @@ class JobGeneratorThread(WorkerThread):
                             jobSpec.computingSite = siteName
                         else:
                             jobSpec.computingSite = siteSpec.get_unified_name()
-                    jobSpec.cloud = cloudName
+                    if taskSpec.cloud_as_vo():
+                        jobSpec.cloud = taskSpec.cloud
+                    else:
+                        jobSpec.cloud = cloudName
                     jobSpec.nucleus = taskSpec.nucleus
                     jobSpec.VO = taskSpec.vo
                     jobSpec.prodSeriesLabel = 'pandatest'

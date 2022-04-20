@@ -374,6 +374,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['pushStatusChanges'])
         if 'maxCoreCount' in taskParamMap:
             self.setSplitRule(taskParamMap, 'maxCoreCount', JediTaskSpec.splitRuleToken['maxCoreCount'])
+        if 'cloudAsVO' in taskParamMap:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['cloudAsVO'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
