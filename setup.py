@@ -235,6 +235,7 @@ setup(
         'python-daemon',
         'numpy',
         'pyyaml',
+        'requests',
     ],
     extras_require={
         'oracle': ['cx_Oracle'],

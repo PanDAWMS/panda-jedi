@@ -1,8 +1,10 @@
 import re
+import six
 import random
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore.SiteCandidate import SiteCandidate
+from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediCoreUtils
 from .JobBrokerBase import JobBrokerBase
 from . import AtlasBrokerUtils
@@ -227,6 +229,46 @@ class GenJobBroker (JobBrokerBase):
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
         ######################################
+        # get list of available files
+        availableFileMap = {}
+        for datasetSpec in inputChunk.getDatasets():
+            try:
+                # get list of site to be scanned
+                tmpLog.debug('getting the list of available files for {0}'.format(datasetSpec.datasetName))
+                fileScanSiteList = []
+                for tmpPseudoSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+                    tmpSiteName = tmpSiteSpec.get_unified_name()
+                    if tmpSiteName in fileScanSiteList:
+                        continue
+                    fileScanSiteList.append(tmpSiteName)
+                # mapping between sites and input storage endpoints
+                siteStorageEP = AtlasBrokerUtils.getSiteInputStorageEndpointMap(fileScanSiteList, self.siteMapper,
+                                                                                taskSpec.prodSourceLabel, None)
+                # disable file lookup for merge jobs
+                if inputChunk.isMerging:
+                    checkCompleteness = False
+                else:
+                    checkCompleteness = True
+                if not datasetSpec.isMaster():
+                    useCompleteOnly = True
+                else:
+                    useCompleteOnly = False
+                # get available files per site/endpoint
+                tmpAvFileMap = self.ddmIF.getAvailableFiles(datasetSpec,
+                                                            siteStorageEP,
+                                                            self.siteMapper,
+                                                            check_completeness=checkCompleteness,
+                                                            file_scan_in_container=False,
+                                                            complete_only=useCompleteOnly)
+                if tmpAvFileMap is None:
+                    raise Interaction.JEDITemporaryError('ddmIF.getAvailableFiles failed')
+                availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
+            except Exception as e:
+                tmpLog.error('failed to get available files with {}'.format(e))
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                return retTmpError
+        ######################################
         # calculate weight
         tmpSt,jobStatPrioMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
         if not tmpSt:
@@ -249,6 +291,10 @@ class GenJobBroker (JobBrokerBase):
             siteCandidateSpec = SiteCandidate(tmpSiteName)
             # set weight
             siteCandidateSpec.weight = weight
+            # files
+            for tmpDatasetName, availableFiles in six.iteritems(availableFileMap):
+                if tmpSiteName in availableFiles:
+                    siteCandidateSpec.add_local_disk_files(availableFiles[tmpSiteName]['localdisk'])
             # append
             if tmpSiteName in sitesUsedByTask:
                 candidateSpecList.append(siteCandidateSpec)
@@ -274,12 +320,12 @@ class GenJobBroker (JobBrokerBase):
         # append candidates
         newScanSiteList = []
         for siteCandidateSpec in candidateSpecList:
-            tmpSiteName = siteCandidateSpec.siteName
             # append
             inputChunk.addSiteCandidate(siteCandidateSpec)
             newScanSiteList.append(siteCandidateSpec.siteName)
-            tmpLog.debug('  use {0} with weight={1}'.format(siteCandidateSpec.siteName,
-                                                            siteCandidateSpec.weight))
+            tmpLog.debug('  use {} with weight={} nFiles={}'.format(siteCandidateSpec.siteName,
+                                                                    siteCandidateSpec.weight,
+                                                                    len(siteCandidateSpec.localDiskFiles)))
         scanSiteList = newScanSiteList
         if scanSiteList == []:
             tmpLog.error('no candidates')

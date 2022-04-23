@@ -4,11 +4,18 @@ import sys
 import datetime
 import json
 import traceback
+import requests
 
 try:
     from urllib.request import urlopen
 except ImportError:
     from urllib2 import urlopen
+
+try:
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+except Exception:
+    pass
 
 from six import iteritems
 
@@ -22,6 +29,8 @@ from rucio.common.exception import UnsupportedOperation,DataIdentifierNotFound,D
 
 from pandaserver.dataservice import DataServiceUtils
 from pandaserver.srvcore import CoreUtils
+
+from pandajedi.jediconfig import jedi_config
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
@@ -1423,9 +1432,16 @@ class AtlasDDMClient(DDMClientBase):
         # get json
         try:
             tmpLog.debug('start')
-            with open('/cvmfs/atlas.cern.ch/repo/sw/local/etc/cric_ddmendpoints.json') as f:
-                ddd = json.load(f)
-                self.endPointDict = {k: ddd[k] for k in ddd if ddd[k]['state'] == 'ACTIVE'}
+            if hasattr(jedi_config.ddm, 'endpoints_json_path'):
+                tmp_path = jedi_config.ddm.endpoints_json_path
+            else:
+                tmp_path = '/cvmfs/atlas.cern.ch/repo/sw/local/etc/cric_ddmendpoints.json'
+            if tmp_path.startswith('http'):
+                ddd = requests.get(tmp_path, verify=False).json()
+            else:
+                with open(tmp_path) as f:
+                    ddd = json.load(f)
+            self.endPointDict = {k: ddd[k] for k in ddd if ddd[k]['state'] == 'ACTIVE'}
             tmpLog.debug('got {0} endpoints '.format(len(self.endPointDict)))
         except Exception as e:
             errStr = 'failed to update EP with {0}'.format(str(e))
