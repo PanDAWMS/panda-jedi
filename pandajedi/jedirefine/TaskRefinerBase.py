@@ -546,7 +546,7 @@ class TaskRefinerBase (object):
                             if self.taskSpec.is_work_segmented():
                                 tmpDatasetNameList *= len(taskParamMap['segmentSpecs'])
                         else:
-                            tmpIF = self.ddmIF.getInterface(self.taskSpec.vo)
+                            tmpIF = self.ddmIF.getInterface(self.taskSpec.vo, self.taskSpec.cloud)
                             if not tmpIF:
                                 tmpDatasetNameList = []
                             else:

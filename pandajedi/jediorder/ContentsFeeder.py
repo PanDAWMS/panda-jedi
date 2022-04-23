@@ -189,7 +189,7 @@ class ContentsFeederThread (WorkerThread):
                     checkedMaster = False
                     setFrozenTime = True
                     if not taskBroken:
-                        ddmIF = self.ddmIF.getInterface(taskSpec.vo)
+                        ddmIF = self.ddmIF.getInterface(taskSpec.vo, taskSpec.cloud)
                         origNumFiles = None
                         if 'nFiles' in taskParamMap:
                             origNumFiles = taskParamMap['nFiles']
@@ -668,7 +668,7 @@ class ContentsFeederThread (WorkerThread):
                         continue
                     rule_id = task_params_map['prestagingRuleID'][tmp_name]
                 else:
-                    rule_id = self.ddmIF.getInterface(task_spec.vo).getActiveStagingRule(
+                    rule_id = self.ddmIF.getInterface(task_spec.vo, task_spec.cloud).getActiveStagingRule(
                         tmp_scope + ':' + tmp_name)
                     if rule_id is None:
                         continue
