@@ -863,8 +863,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpRes = self.cur.fetchall()
                         tmpLog.debug('{} file records in DB'.format(len(tmpRes)))
                         existingFiles = {}
+                        statusMap = {}
                         for fileID,lfn,status,startEvent,endEvent,boundaryID,nEventsInDS,lumiBlockNr,\
                                 attemptNr,maxAttempt,failedAttempt,maxFailure in tmpRes:
+                            statusMap.setdefault(status, 0)
+                            statusMap[status] += 1
                             uniqueFileKey = '{0}.{1}.{2}.{3}'.format(lfn,startEvent,endEvent,boundaryID)
                             existingFiles[uniqueFileKey] = {'fileID':fileID,'status':status}
                             if startEvent is not None and endEvent is not None:
@@ -908,6 +911,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     nEventsExist += existingFiles[uniqueFileKey]['nevents']
                         tmpLog.debug('inDB nReady={} nPending={} nUsed={} nUsedInDB={} nLost={} nStaging={}'.format(
                             nReady, nPending, nUsed, nFilesUsedInDS, nLost, nStaging))
+                        tmpLog.debug('inDB {}'.format(str(statusMap)))
                         # insert files
                         uniqueLfnList = {}
                         totalNumEventsF = 0
@@ -1295,7 +1299,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':state'] = datasetState
                         varMap[':stateUpdateTime'] = stateUpdateTime
                         newDsStatus = varMap[':status']
-                        if False: #nUsed != nFilesUsedInDS:
+                        if nUsed != nFilesUsedInDS:
                             varMap[':nFilesUsed'] = nUsed
                             tmpLog.debug(sqlDUx+comment+str(varMap))
                             self.cur.execute(sqlDUx+comment,varMap)
