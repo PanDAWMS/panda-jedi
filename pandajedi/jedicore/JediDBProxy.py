@@ -689,10 +689,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to check if task is locked
             sqlTL = "SELECT status,lockedBy FROM {0}.JEDI_Tasks WHERE jediTaskID=:jediTaskID FOR UPDATE NOWAIT ".format(jedi_config.db.schemaJEDI)
             # sql to check dataset status
-            sqlDs  = "SELECT status,nFilesToBeUsed-nFilesUsed,state,nFilesToBeUsed FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDs  = "SELECT status,nFilesToBeUsed-nFilesUsed,state,nFilesToBeUsed,nFilesUsed FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDs += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to get existing files
-            sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent,boundaryID,nEvents,lumiBlockNr FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlCh  = "SELECT fileID,lfn,status,startEvent,endEvent,boundaryID,nEvents,lumiBlockNr,attemptNr,maxAttempt,failedAttempt,maxFailure FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlCh += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID FOR UPDATE "
             # sql to count existing files
             sqlCo  = "SELECT count(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
@@ -714,6 +714,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlDU += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,"
             sqlDU += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed,nEvents=:nEvents "
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # sql to update dataset including nFilesUsed
+            sqlDUx = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlDUx += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,"
+            sqlDUx += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed,nEvents=:nEvents,nFilesUsed=:nFilesUsed "
+            sqlDUx += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to propagate number of input events to DEFT
             sqlCE  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
             sqlCE += "SET total_input_events=LEAST(9999999999,("
@@ -846,16 +851,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             numUniqueLfn = resCo[0]
                             retVal = True,missingFileList,numUniqueLfn,diagMap
                     else:
-                        oldDsStatus,nFilesUnprocessed,dsStateInDB,nFilesToUseDS = resDs
+                        oldDsStatus,nFilesUnprocessed,dsStateInDB,nFilesToUseDS, nFilesUsedInDS = resDs
                         tmpLog.debug('ds.state={0} in DB'.format(dsStateInDB))
+                        if not nFilesUsedInDS:
+                            nFilesUsedInDS = 0
                         # get existing file list
                         varMap = {}
                         varMap[':jediTaskID'] = datasetSpec.jediTaskID
                         varMap[':datasetID'] = datasetSpec.datasetID
                         self.cur.execute(sqlCh+comment,varMap)
                         tmpRes = self.cur.fetchall()
+                        tmpLog.debug('{} file records in DB'.format(len(tmpRes)))
                         existingFiles = {}
-                        for fileID,lfn,status,startEvent,endEvent,boundaryID,nEventsInDS,lumiBlockNr in tmpRes:
+                        for fileID,lfn,status,startEvent,endEvent,boundaryID,nEventsInDS,lumiBlockNr,\
+                                attemptNr,maxAttempt,failedAttempt,maxFailure in tmpRes:
                             uniqueFileKey = '{0}.{1}.{2}.{3}'.format(lfn,startEvent,endEvent,boundaryID)
                             existingFiles[uniqueFileKey] = {'fileID':fileID,'status':status}
                             if startEvent is not None and endEvent is not None:
@@ -864,9 +873,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 existingFiles[uniqueFileKey]['nevents'] = nEventsInDS
                             else:
                                 existingFiles[uniqueFileKey]['nevents'] = None
+                            existingFiles[uniqueFileKey]['is_failed'] = False
                             lostFlag = False
                             if status == 'ready':
                                 nReady += 1
+                                if (maxAttempt is not None and attemptNr is not None and attemptNr >= maxAttempt) or \
+                                        (failedAttempt is not None and maxFailure is not None
+                                         and failedAttempt >= maxFailure):
+                                    nUsed += 1
+                                    existingFiles[uniqueFileKey]['is_failed'] = True
                             elif status == 'pending':
                                 nPending += 1
                                 pendingFID.append(fileID)
@@ -891,8 +906,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     nEventsLost += existingFiles[uniqueFileKey]['nevents']
                                 else:
                                     nEventsExist += existingFiles[uniqueFileKey]['nevents']
-                        tmpLog.debug('inDB nReady={0} nPending={1} nUsed={2} nLost={3} nStaging={4}'.format(
-                            nReady, nPending, nUsed, nLost, nStaging))
+                        tmpLog.debug('inDB nReady={} nPending={} nUsed={} nUsedInDB={} nLost={} nStaging={}'.format(
+                            nReady, nPending, nUsed, nFilesUsedInDS, nLost, nStaging))
                         # insert files
                         uniqueLfnList = {}
                         totalNumEventsF = 0
@@ -1180,8 +1195,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     nReady -= 1
                                 if fileVarMap['nevents'] is not None:
                                     nEventsExist -= fileVarMap['nevents']
+                                if fileVarMap['is_failed']:
+                                    nUsed -= 1
                             self.cur.execute(sqlFU+comment,varMap)
-                        tmpLog.debug('nReady={0} nLost={1} after lost/recovery check'.format(nReady, nLost))
+                        tmpLog.debug('nReady={} nLost={} nUsed={} nUsedInDB={} nUsedConsistent={} after lost/recovery check'.format(
+                            nReady, nLost, nUsed, nFilesUsedInDS, nUsed == nFilesUsedInDS))
                         # get master status
                         masterStatus = None
                         if not datasetSpec.isMaster():
@@ -1277,8 +1295,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':state'] = datasetState
                         varMap[':stateUpdateTime'] = stateUpdateTime
                         newDsStatus = varMap[':status']
-                        tmpLog.debug(sqlDU+comment+str(varMap))
-                        self.cur.execute(sqlDU+comment,varMap)
+                        if False: #nUsed != nFilesUsedInDS:
+                            varMap[':nFilesUsed'] = nUsed
+                            tmpLog.debug(sqlDUx+comment+str(varMap))
+                            self.cur.execute(sqlDUx+comment,varMap)
+                        else:
+                            tmpLog.debug(sqlDU+comment+str(varMap))
+                            self.cur.execute(sqlDU+comment,varMap)
                         # propagate number of input events to DEFT
                         if datasetSpec.isMaster():
                             varMap = {}

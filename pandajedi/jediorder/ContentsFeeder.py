@@ -257,7 +257,7 @@ class ContentsFeederThread (WorkerThread):
                                     # ignore missing
                                     datasetStatus = 'finished'
                                     # update dataset status
-                                    self.updateDatasetStatus(datasetSpec, datasetStatus, tmpLog)
+                                    self.updateDatasetStatus(datasetSpec, datasetStatus, tmpLog, 'closed')
                                     tmpLog.debug('disabled missing {0}'.format(datasetSpec.datasetName))
                                     continue
                                 # get file list specified in task parameters
@@ -642,11 +642,13 @@ class ContentsFeederThread (WorkerThread):
 
 
     # update dataset
-    def updateDatasetStatus(self,datasetSpec,datasetStatus,tmpLog):
+    def updateDatasetStatus(self,datasetSpec,datasetStatus,tmpLog, datasetState=None):
         # update dataset status
         datasetSpec.status   = datasetStatus
         datasetSpec.lockedBy = None
-        tmpLog.info('update dataset status with {0}'.format(datasetSpec.status))
+        if datasetState:
+            datasetSpec.state = datasetState
+        tmpLog.info('update dataset status to {} state to {}'.format(datasetSpec.status, datasetSpec.state))
         self.taskBufferIF.updateDataset_JEDI(datasetSpec,
                                              {'datasetID':datasetSpec.datasetID,
                                               'jediTaskID':datasetSpec.jediTaskID},
