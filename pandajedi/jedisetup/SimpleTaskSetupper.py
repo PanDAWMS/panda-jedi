@@ -82,7 +82,10 @@ class SimpleTaskSetupper (TaskSetupperBase):
                                 # dataset
                                 tmpLog.info('dest={0}'.format(datasetSpec.destination))
                                 if datasetSpec.destination:
-                                    location = datasetSpec.destination
+                                    if siteMapper.checkSite(datasetSpec.destination):
+                                        location = siteMapper.getSite('BNL_OSG_SPHENIX').ddm_output['default']
+                                    else:
+                                        location = datasetSpec.destination
                             if locForRule is None:
                                 locForRule = location
                             # set metadata
@@ -106,10 +109,13 @@ class SimpleTaskSetupper (TaskSetupperBase):
                                 return retFatal
                             # register location
                             if locForRule:
+                                """
                                 if taskSpec.workingGroup:
                                     userName = taskSpec.workingGroup
                                 else:
                                     userName = taskSpec.userName
+                                """
+                                userName = None
                                 activity = None
                                 grouping = None
                                 tmpLog.info('registering location={} lifetime={} days activity={} grouping={} '
