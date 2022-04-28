@@ -1,5 +1,6 @@
 import re
 from .TaskRefinerBase import TaskRefinerBase
+from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
 
 # refiner for general purpose
 class GenTaskRefiner (TaskRefinerBase):
@@ -40,4 +41,11 @@ class GenTaskRefiner (TaskRefinerBase):
     def doRefine(self,jediTaskID,taskParamMap):
         # normal refine
         self.doBasicRefine(taskParamMap)
+        # get DDM I/F to check
+        if self.ddmIF.getInterface(self.taskSpec.vo, self.taskSpec.cloud):
+            # use template dataset
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['instantiateTmpl'])
+            self.setSplitRule(None,1,JediTaskSpec.splitRuleToken['instantiateTmplSite'])
+            for datasetSpec in self.outDatasetSpecList:
+                datasetSpec.type = "tmpl_{0}".format(datasetSpec.type)
         return self.SC_SUCCEEDED
