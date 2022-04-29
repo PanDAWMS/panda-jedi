@@ -221,7 +221,7 @@ class TaskRefinerThread (WorkerThread):
                                 if tmpStat == 'completed':
                                     # parent is done
                                     tmpStat = Interaction.SC_SUCCEEDED
-                                elif tmpStat == 'running':
+                                elif tmpStat is None or tmpStat == 'running':
                                     if not impl.taskSpec.noWaitParent():
                                         # parent is running
                                         errStr = 'pending until parent task {0} is done'.format(parent_tid)

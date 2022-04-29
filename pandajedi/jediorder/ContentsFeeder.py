@@ -169,7 +169,7 @@ class ContentsFeederThread (WorkerThread):
                     parentOutDatasets = set()
                     if taskSpec.noWaitParent() and taskSpec.parent_tid not in [None,taskSpec.jediTaskID]:
                         tmpStat = self.taskBufferIF.checkParentTask_JEDI(taskSpec.parent_tid)
-                        if tmpStat == 'running':
+                        if tmpStat is None or tmpStat == 'running':
                             noWaitParent = True
                             # get output datasets from parent task
                             tmpParentStat,tmpParentOutDatasets = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.parent_tid,
