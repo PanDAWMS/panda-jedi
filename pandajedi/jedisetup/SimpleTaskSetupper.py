@@ -49,6 +49,7 @@ class SimpleTaskSetupper (TaskSetupperBase):
                 # loop over all datasets
                 avDatasetList = []
                 cnDatasetMap  = {}
+                ddmBackEnd = 'rucio'
                 for datasetID in datasetToRegister:
                     # get output and log datasets
                     tmpLog.info('getting datasetSpec with datasetID={0}'.format(datasetID))
@@ -77,7 +78,6 @@ class SimpleTaskSetupper (TaskSetupperBase):
                             # get location
                             location = None
                             locForRule = None
-                            ddmBackEnd = 'rucio'
                             if targetName == datasetSpec.datasetName:
                                 # dataset
                                 tmpLog.info('dest={0}'.format(datasetSpec.destination))
