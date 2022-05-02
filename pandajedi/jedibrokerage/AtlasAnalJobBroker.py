@@ -964,7 +964,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     minWalltime = taskSpec.getCpuTime() * tmpMaxAtomSize
                 else:
                     minWalltime = None
-                strMinWalltime = 'cpuTime*minEventsPerJob={0}*{1}'.format(taskSpec.getCpuTime(), tmpMaxAtomSize)
+                strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.getCpuTime(), tmpMaxAtomSize)
             if minWalltime and minWalltime > 0 and not inputChunk.isMerging:
                 newScanSiteList = []
                 oldScanSiteList = copy.copy(scanSiteList)
@@ -1026,10 +1026,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 scanSiteList = newScanSiteList
                 if not taskSpec.useHS06():
                     tmpLog.info('{0} candidates passed walltime check {1}({2})'.format(
-                        len(scanSiteList), minWalltime,
-                        taskSpec.walltimeUnit if taskSpec.walltimeUnit else 'secPerMB'))
+                        len(scanSiteList), strMinWalltime,
+                        taskSpec.walltimeUnit+'PerMB' if taskSpec.walltimeUnit else 'kSI2ksecondsPerMB'))
                 else:
-                    tmpLog.info('{0} candidates passed walltime check {1}({2}*minEventsPerJob)'.format(
+                    tmpLog.info('{0} candidates passed walltime check {1}({2}*nEventsPerJob)'.format(
                         len(scanSiteList), strMinWalltime, taskSpec.cpuTimeUnit))
                 self.add_summary_message(oldScanSiteList, scanSiteList, 'walltime check')
                 if not scanSiteList:
