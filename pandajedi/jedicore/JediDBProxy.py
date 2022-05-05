@@ -9336,7 +9336,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlUTB += "WHERE jediTaskID=:jediTaskID "
             sqlUTN  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlUTN += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,"
-            sqlUTN += "stateChangeTime=CURRENT_DATE,startTime=NULL,attemptNr=attemptNr+1 "
+            sqlUTN += "stateChangeTime=CURRENT_DATE,startTime=NULL,attemptNr=attemptNr+1,frozenTime=NULL "
             sqlUTN += "WHERE jediTaskID=:jediTaskID "
             # sql to update DEFT task status
             sqlTT  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
