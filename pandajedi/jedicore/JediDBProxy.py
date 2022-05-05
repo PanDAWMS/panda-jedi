@@ -5735,7 +5735,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if nRow != 1:
             # update archive table
             sqlA  = "UPDATE {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
-            sqlA += "SET jobMetrics=:newStr WHERE PandaID=:PandaID AND modificationTime>(CURRENT_DATE-14) "
+            sqlA += "SET jobMetrics=:newStr WHERE PandaID=:PandaID AND modificationTime>(CURRENT_DATE-30) "
             varMap = {}
             varMap[':PandaID'] = pandaID
             varMap[':newStr']  = newSH
@@ -5829,7 +5829,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlSCDN += "totRBYTES, totWBYTES, inputFileBytes, memory_leak, memory_leak_x2 "
         sqlSCDN += "FROM {0}.jobsArchived ".format(jedi_config.db.schemaPANDAARCH)
         sqlSCDN += "WHERE PandaID=:pandaID AND jobStatus=:jobStatus AND jediTaskID=:jediTaskID "
-        sqlSCDN += "AND modificationTime>(CURRENT_DATE-14) "
+        sqlSCDN += "AND modificationTime>(CURRENT_DATE-30) "
 
         # sql to get ES scout job data from Panda
         sqlSCDE  = "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
@@ -6817,6 +6817,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             resList = self.cur.fetchall()
             # make list
             jediTaskIDstatusMap = {}
+            set_scout_data_only = set()
             for jediTaskID,taskStatus in resList:
                 jediTaskIDstatusMap[jediTaskID] = taskStatus
             # tasks to force avalanche
@@ -6825,9 +6826,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if simTasks is None:
                 minSuccessScouts = 5
                 timeToCheck = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
-                taskstatus = 'scouting'
                 varMap = {}
-                varMap[':taskstatus'] = taskstatus
+                varMap[':scouting'] = 'scouting'
+                varMap[':running'] = 'running'
                 if prodSourceLabel:
                     varMap[':prodSourceLabel'] = prodSourceLabel
                 else:
@@ -6835,13 +6836,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':timeLimit'] = timeToCheck
                 if vo is not None:
                     varMap[':vo'] = vo
-                sqlEA  = "SELECT jediTaskID,COUNT(*),SUM(CASE WHEN status='finished' THEN 1 ELSE 0 END) FROM "
-                sqlEA += "(SELECT DISTINCT tabT.jediTaskID,tabF.PandaID,tabF.status "
+                sqlEA  = "SELECT jediTaskID,t_status,COUNT(*),SUM(CASE WHEN f_status='finished' THEN 1 ELSE 0 END) FROM "
+                sqlEA += "(SELECT DISTINCT tabT.jediTaskID,tabT.status as t_status,tabF.PandaID,tabF.status as f_status "
                 sqlEA += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA,{0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabF ".format(jedi_config.db.schemaJEDI)
                 sqlEA += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
                 sqlEA += "AND tabT.jediTaskID=tabD.jediTaskID "
                 sqlEA += "AND tabD.jediTaskID=tabF.jediTaskID AND tabD.datasetID=tabF.datasetID "
-                sqlEA += "AND tabT.status=:taskstatus AND prodSourceLabel=:prodSourceLabel "
+                sqlEA += "AND (tabT.status=:scouting OR (tabT.status=:running AND tabT.walltimeUnit IS NULL)) "
+                sqlEA += "AND tabT.prodSourceLabel=:prodSourceLabel "
                 sqlEA += "AND (tabT.assessmentTime IS NULL OR tabT.assessmentTime<:timeLimit) "
                 if vo is not None:
                     sqlEA += "AND tabT.vo=:vo "
@@ -6856,28 +6858,38 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlEA += ') '
                 sqlEA += 'AND tabF.PandaID IS NOT NULL '
                 sqlEA += ') '
-                sqlEA += 'GROUP BY jediTaskID '
+                sqlEA += 'GROUP BY jediTaskID,t_status '
                 # get tasks
                 tmpLog.debug(sqlEA+comment+str(varMap))
                 self.cur.execute(sqlEA+comment,varMap)
                 resList = self.cur.fetchall()
                 # update assessmentTime
                 sqlLK  = "UPDATE {0}.JEDI_Tasks SET assessmentTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
-                sqlLK += "WHERE jediTaskID=:jediTaskID AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) AND status=:status "
+                sqlLK += "WHERE jediTaskID=:jediTaskID AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) "
+                sqlLK += "AND (status=:scouting OR (status=:running AND walltimeUnit IS NULL)) "
                 # append to list
-                for jediTaskID, totJobs, totFinished in resList:
-                    if totFinished and totFinished >= totJobs * minSuccessScouts / 10:
-                        if jediTaskID not in jediTaskIDstatusMap:
-                            jediTaskIDstatusMap[jediTaskID] = taskstatus
-                            tmpLog.debug('got jediTaskID={} {}/{} finished for early avalanche'.format(jediTaskID,
-                                                                                                       totFinished,
-                                                                                                       totJobs))
+                for jediTaskID, taskstatus, totJobs, totFinished in resList:
                     # update assessmentTime to avoid frequent check
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
                     varMap[':timeLimit'] = timeToCheck
-                    varMap[':status'] = taskstatus
+                    varMap[':scouting'] = 'scouting'
+                    varMap[':running'] = 'running'
                     self.cur.execute(sqlLK+comment,varMap)
+                    nRow = self.cur.rowcount
+                    if nRow and totFinished and totFinished >= totJobs * minSuccessScouts / 10:
+                        if jediTaskID not in jediTaskIDstatusMap:
+                            if taskstatus == 'running':
+                                set_scout_data_only.add(jediTaskID)
+                                msg_piece = 'reset in running'
+                            else:
+                                msg_piece = 'early avalanche'
+                            jediTaskIDstatusMap[jediTaskID] = taskstatus
+                            tmpLog.debug('got jediTaskID={} {}/{} finished for {}'.format(jediTaskID,
+                                                                                          totFinished,
+                                                                                          totJobs,
+                                                                                          msg_piece))
+
             # get tasks to force avalanche
             if simTasks is None:
                 taskstatus = 'scouting'
@@ -6908,7 +6920,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if not self._commit():
                 raise RuntimeError('Commit error')
             jediTaskIDList = list(jediTaskIDstatusMap.keys())
-            jediTaskIDList.sort()
+            random.shuffle(jediTaskIDList)
             tmpLog.debug('got {0} tasks'.format(len(jediTaskIDList)))
             # sql to read task
             sqlRT  = "SELECT {0} ".format(JediTaskSpec.columnNames())
@@ -6960,6 +6972,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlTU += "SET status=:status,modificationTime=CURRENT_DATE,lockedBy=NULL,lockedTime=NULL,"
             sqlTU += "errorDialog=:errorDialog,splitRule=:splitRule,stateChangeTime=CURRENT_DATE,oldStatus=:oldStatus "
             sqlTU += "WHERE jediTaskID=:jediTaskID "
+            # sql to unlock task
+            sqlTUU  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+            sqlTUU += "SET lockedBy=NULL,lockedTime=NULL "
+            sqlTUU += "WHERE jediTaskID=:jediTaskID AND status=:status "
             # sql to update split rule
             sqlUSL  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlUSL += "SET splitRule=:splitRule WHERE jediTaskID=:jediTaskID "
@@ -6967,10 +6983,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRWU  = "UPDATE {0}.JEDI_Tasks SET walltimeUnit=NULL ".format(jedi_config.db.schemaJEDI)
             sqlRWU += "WHERE jediTaskID=:jediTaskID AND status=:status AND walltimeUnit IS NOT NULL "
             # loop over all tasks
-            iTasks = 0
+            iTasks = 1
             for jediTaskID in jediTaskIDList:
                 taskStatus = jediTaskIDstatusMap[jediTaskID]
-                tmpLog.debug('start jediTaskID={0} status={1}'.format(jediTaskID,taskStatus))
+                tmpLog.debug('start {}/{} jediTaskID={} status={}'.format(iTasks, len(jediTaskIDList),
+                                                                          jediTaskID, taskStatus))
+                iTasks += 1
                 # begin transaction
                 self.conn.begin()
                 # read task
@@ -7023,10 +7041,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         raise errType(errValue)
                 # update dataset
                 if not toSkip:
-                    tmpLog.debug('jediTaskID={0} status={1} useScout={2} isPostScout={3}'.format(jediTaskID,taskSpec.status,
-                                                                                                 taskSpec.useScout(),
-                                                                                                 taskSpec.isPostScout()))
-                    if taskSpec.status == 'scouting' or \
+                    tmpLog.debug('jediTaskID={} status={} useScout={} isPostScout={} onlyData={}'.format(
+                        jediTaskID,taskSpec.status,
+                        taskSpec.useScout(),
+                        taskSpec.isPostScout(),
+                        jediTaskID in set_scout_data_only))
+                    if taskSpec.status == 'scouting' or jediTaskID in set_scout_data_only or \
                             (taskSpec.status == 'ready' and taskSpec.useScout() and not taskSpec.isPostScout()):
                         # reset walltimeUnit
                         if jediTaskID in toAvalancheTasks:
@@ -7037,44 +7057,50 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # set average job data
                         scoutSucceeded,mergeScoutSucceeded = self.setScoutJobData_JEDI(taskSpec, False, True,
                                                                                        site_mapper)
-                        # get nFiles to be used
-                        varMap = {}
-                        varMap[':jediTaskID'] = jediTaskID
-                        varMap[':status1'] = 'pending'
-                        varMap[':status2'] = 'lost'
-                        varMap[':status3'] = 'missing'
-                        varMap[':status4'] = 'staging'
-                        for tmpType in JediDatasetSpec.getInputTypes():
-                            mapKey = ':type_'+tmpType
-                            varMap[mapKey] = tmpType
-                        self.cur.execute(sqlFUD+comment,varMap)
-                        resFUD = self.cur.fetchall()
-                        # update nFiles to be used
-                        for datasetID,nReadyFiles in resFUD:
+                        if jediTaskID in set_scout_data_only:
+                            toSkip = True
+                            tmpLog.debug('done set only scout data for jediTaskID={} in status={}'.format(
+                                jediTaskID,
+                                taskSpec.status))
+                        else:
+                            # get nFiles to be used
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID'] = datasetID
-                            varMap[':nFilesToBeUsed'] = nReadyFiles
-                            tmpLog.debug('jediTaskID={} datasetID={} set nFilesToBeUsed={}'.format(jediTaskID,
-                                                                                                   datasetID,
-                                                                                                   nReadyFiles))
-                            self.cur.execute(sqlFUU+comment,varMap)
-                        # new task status
-                        if scoutSucceeded or noBroken or jediTaskID in toAvalancheTasks:
-                            if taskSpec.status == 'exhausted':
-                                # went to exhausted since real cpuTime etc is too large
-                                newTaskStatus = 'exhausted'
-                                errorDialog = taskSpec.errorDialog
-                                oldStatus = taskStatus
+                            varMap[':status1'] = 'pending'
+                            varMap[':status2'] = 'lost'
+                            varMap[':status3'] = 'missing'
+                            varMap[':status4'] = 'staging'
+                            for tmpType in JediDatasetSpec.getInputTypes():
+                                mapKey = ':type_'+tmpType
+                                varMap[mapKey] = tmpType
+                            self.cur.execute(sqlFUD+comment,varMap)
+                            resFUD = self.cur.fetchall()
+                            # update nFiles to be used
+                            for datasetID,nReadyFiles in resFUD:
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID'] = datasetID
+                                varMap[':nFilesToBeUsed'] = nReadyFiles
+                                tmpLog.debug('jediTaskID={} datasetID={} set nFilesToBeUsed={}'.format(jediTaskID,
+                                                                                                       datasetID,
+                                                                                                       nReadyFiles))
+                                self.cur.execute(sqlFUU+comment,varMap)
+                            # new task status
+                            if scoutSucceeded or noBroken or jediTaskID in toAvalancheTasks:
+                                if taskSpec.status == 'exhausted':
+                                    # went to exhausted since real cpuTime etc is too large
+                                    newTaskStatus = 'exhausted'
+                                    errorDialog = taskSpec.errorDialog
+                                    oldStatus = taskStatus
+                                else:
+                                    newTaskStatus = 'scouted'
+                                taskSpec.setPostScout()
                             else:
-                                newTaskStatus = 'scouted'
-                            taskSpec.setPostScout()
-                        else:
-                            newTaskStatus = 'tobroken'
-                            if taskSpec.getScoutSuccessRate() is None:
-                                errorDialog = 'no scout jobs succeeded'
-                            else:
-                                errorDialog = 'not enough scout jobs succeeded'
+                                newTaskStatus = 'tobroken'
+                                if taskSpec.getScoutSuccessRate() is None:
+                                    errorDialog = 'no scout jobs succeeded'
+                                else:
+                                    errorDialog = 'not enough scout jobs succeeded'
                     elif taskSpec.status in ['running','merging','preprocessing','ready']:
                         # get input datasets
                         varMap = {}
@@ -7180,12 +7206,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':errorDialog'] = errorDialog
                         varMap[':splitRule'] = taskSpec.splitRule
                         self.cur.execute(sqlTU+comment,varMap)
-                        tmpLog.debug('done new status={0} for jediTaskID={1} since {2}'.format(newTaskStatus,jediTaskID,errorDialog))
+                        tmpLog.debug('done new status={} for jediTaskID={}{}'.format(
+                            newTaskStatus,jediTaskID,
+                            ' since {}'.format(errorDialog) if errorDialog else ''))
                         if newTaskStatus == 'exhausted':
                             self.setDeftStatus_JEDI(jediTaskID, newTaskStatus)
                             self.setSuperStatus_JEDI(jediTaskID,newTaskStatus)
                         self.record_task_status_change(jediTaskID)
                         self.push_task_status_message(taskSpec, jediTaskID, newTaskStatus)
+                    else:
+                        # unlock
+                        varMap = {}
+                        varMap[':jediTaskID'] = jediTaskID
+                        varMap[':status'] = taskSpec.status
+                        self.cur.execute(sqlTUU + comment, varMap)
                 # commit
                 if not self._commit():
                     raise RuntimeError('Commit error')
