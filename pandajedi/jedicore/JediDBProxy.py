@@ -9100,13 +9100,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         # sql to get jobPrams for runXYZ
-        sqlSCF  = "SELECT tabF.fileID,tabF.datasetID,tabF.attemptNr "
+        sqlSCF  = "SELECT tabF.PandaID "
         sqlSCF += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
         sqlSCF += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status "
         sqlSCF += "AND tabD.datasetID=tabF.datasetID "
         sqlSCF += "AND tabF.type=:type AND tabD.masterID IS NULL "
-        sqlSCP  = "SELECT PandaID FROM {0}.filesTable4 ".format(jedi_config.db.schemaPANDA)
-        sqlSCP += "WHERE fileID=:fileID AND jediTaskID=:jediTaskID AND datasetID=:datasetID AND attemptNr=:attemptNr"
         sqlSCD  = "SELECT metaData FROM {0}.metaTable ".format(jedi_config.db.schemaPANDA)
         sqlSCD += "WHERE PandaID=:pandaID "
         failedRet = False,None
@@ -9124,32 +9122,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if tmpRes is None:
                 tmpLog.error('no successful input file')
             else:
-                fileID,datasetID,attemptNr = tmpRes
-                # get PandaID
+                pandaID, = tmpRes
+                # get metadata
+                metaData = None
                 varMap = {}
-                varMap[':jediTaskID'] = jediTaskID
-                varMap[':datasetID']  = datasetID
-                varMap[':fileID']     = fileID
-                varMap[':attemptNr']  = attemptNr
-                self.cur.execute(sqlSCP+comment,varMap)
-                resPandaID = self.cur.fetchone()
-                if resPandaID is None:
-                    tmpLog.error('no PandaID for fileID={0}'.format(fileID))
+                varMap[':pandaID'] = pandaID
+                self.cur.execute(sqlSCD+comment,varMap)
+                for clobMeta, in self.cur:
+                    metaData = clobMeta
+                    break
+                if metaData is None:
+                    tmpLog.error('no metaData for PandaID={0}'.format(pandaID))
                 else:
-                    pandaID, = resPandaID
-                    # get metadata
-                    metaData = None
-                    varMap = {}
-                    varMap[':pandaID'] = pandaID
-                    self.cur.execute(sqlSCD+comment,varMap)
-                    for clobMeta, in self.cur:
-                        metaData = clobMeta
-                        break
-                    if metaData is None:
-                        tmpLog.error('no metaData for PandaID={0}'.format(pandaID))
-                    else:
-                        retVal = True,metaData
-                        tmpLog.debug('got metaData from PandaID={0}'.format(pandaID))
+                    retVal = True,metaData
+                    tmpLog.debug('got metaData from PandaID={0}'.format(pandaID))
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
