@@ -435,10 +435,19 @@ class AtlasDDMClient(DDMClientBase):
                     raise RuntimeError(rucio_lfn_to_rse_map)
             else:
                 rucio_lfn_to_rse_map = dict()
-                if (not file_scan_in_container and is_container):
+                if not file_scan_in_container and is_container:
+                    # remove incomplete
+                    detailed_comp_replica_map = dict()
+                    for tmp_ds_name, tmp_ds_value in iteritems(detailed_replica_map):
+                        new_map = {}
+                        for tmp_k, tmp_v in iteritems(tmp_ds_value):
+                            if tmp_v[0]['total'] and tmp_v[0]['total'] == tmp_v[0]['found']:
+                                new_map[tmp_k] = tmp_v
+                        if new_map:
+                            detailed_comp_replica_map[tmp_ds_name] = new_map
                     # make file list from detailed replica map
                     files_in_container = {}
-                    for tmp_ds_name in detailed_replica_map.keys():
+                    for tmp_ds_name in detailed_comp_replica_map.keys():
                         tmp_status, tmp_files = self.getFilesInDataset(tmp_ds_name, ignoreUnknown=True, lfn_only=True)
                         if tmp_status != self.SC_SUCCEEDED:
                             raise RuntimeError(tmp_files)
@@ -446,8 +455,9 @@ class AtlasDDMClient(DDMClientBase):
                             files_in_container[tmp_lfn] = tmp_ds_name
                     for tmp_file in dataset_spec.Files:
                         if tmp_file.lfn in files_in_container and \
-                                files_in_container[tmp_file.lfn] in detailed_replica_map:
-                            rucio_lfn_to_rse_map[tmp_file.lfn] = detailed_replica_map[files_in_container[tmp_file.lfn]]
+                                files_in_container[tmp_file.lfn] in detailed_comp_replica_map:
+                            rucio_lfn_to_rse_map[tmp_file.lfn] = \
+                                detailed_comp_replica_map[files_in_container[tmp_file.lfn]]
 
             # initialize the return map and add complete/cached replicas
             return_map = {}
