@@ -2055,7 +2055,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     self.push_task_status_message(taskSpec, taskSpec.jediTaskID, taskSpec.status)
                     # task attempt end log
                     if taskSpec.status in ['done', 'finished', 'failed', 'broken', 'aborted', 'exhausted']:
-                        self.log_task_attempt_start(taskSpec.jediTaskID)
+                        self.log_task_attempt_end(taskSpec.jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -13723,7 +13723,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 ).format(jedi_config.db.schemaJEDI)
         sqlITA = (  'INSERT INTO {0}.TASK_ATTEMPTS '
                     '(jeditaskid, attemptnr, starttime, startstatus) '
-                    'SELECT jediTaskID, MAX(:grandAttemptNr, attemptNr), modificationTime, status '
+                    'SELECT jediTaskID, GREATEST(:grandAttemptNr, COALESCE(attemptNr, 0)), modificationTime, status '
                     'FROM {0}.JEDI_Tasks '
                     'WHERE jediTaskID=:jediTaskID '
                  ).format(jedi_config.db.schemaJEDI)
