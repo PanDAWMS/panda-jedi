@@ -96,7 +96,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.typical_input_cache = {}
 
         # mb proxy
-        self.mb_proxy_dict = None
+        self.jedi_mb_proxy_dict = None
 
 
     # connect to DB (just for INTR)
@@ -13691,11 +13691,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     'timestamp': now_ts,
                 }
             msg = json.dumps(msg_dict)
-            if self.mb_proxy_dict is None:
-                self.mb_proxy_dict = get_mb_proxy_dict()
-                if self.mb_proxy_dict is None:
+            if self.jedi_mb_proxy_dict is None:
+                self.jedi_mb_proxy_dict = get_mb_proxy_dict()
+                if self.jedi_mb_proxy_dict is None:
                     tmpLog.warning('Failed to get mb_proxy of internal MQs. Skipped ')
-            mb_proxy = self.mb_proxy_dict['out']['jedi_taskstatus']
+            try:
+                mb_proxy = self.jedi_mb_proxy_dict['out']['jedi_taskstatus']
+            except KeyError as e:
+                tmpLog.warning('Skipped due to {0} ; jedi_mb_proxy_dict is {1}'.format(e, self.jedi_mb_proxy_dict))
+                return
             if mb_proxy.got_disconnected:
                 mb_proxy.restart()
             mb_proxy.send(msg)
