@@ -229,8 +229,14 @@ if __name__ == "__main__":
     parser.add_option('--pid', action='store', dest='pid', default=None,
                       help='pid filename')
     options, args = parser.parse_args()
-    uid = pwd.getpwnam(jedi_config.master.uname).pw_uid
-    gid = grp.getgrnam(jedi_config.master.gname).gr_gid
+    if jedi_config.master.uname:
+        uid = pwd.getpwnam(jedi_config.master.uname).pw_uid
+    else:
+        uid = None
+    if jedi_config.master.gname:
+        gid = grp.getgrnam(jedi_config.master.gname).gr_gid
+    else:
+        gid = None
     timeNow = datetime.datetime.utcnow()
     print("{0} JediMaster: INFO    start".format(str(timeNow)))
     # make daemon context
