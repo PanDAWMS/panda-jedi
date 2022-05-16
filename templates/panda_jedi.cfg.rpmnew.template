@@ -28,31 +28,33 @@ loggername = jedi
 dbhost = ADCR_PANDA
 
 # user
-dbuser = ATLAS_PANDA_WRITER
+#dbuser = ATLAS_PANDA_WRITER
+dbuser = panda
 
 # password
 dbpasswd = FIXME
 
 # database
-dbname = PandaDB
+#dbname = PandaDB
+dbname = panda_db
 
 # number of task buffer instances
 nWorkers = 5
 
 # JEDI schema
-schemaJEDI = ATLAS_PANDA
+schemaJEDI = DOMA_PANDA
 
 # DEFT schema
-schemaDEFT = ATLAS_DEFT
+schemaDEFT = DOMA_DEFT
 
 # Active Panda schema
-schemaPANDA = ATLAS_PANDA
+schemaPANDA = DOMA_PANDA
 
 # Archived Panda schema
-schemaPANDAARCH = ATLAS_PANDAARCH
+schemaPANDAARCH = DOMA_PANDAARCH
 
 # META schema
-schemaMETA = ATLAS_PANDAMETA
+schemaMETA = DOMA_PANDAMETA
 
 
 
