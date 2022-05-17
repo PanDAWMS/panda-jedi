@@ -96,7 +96,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         self.typical_input_cache = {}
 
         # mb proxy
-        self.mb_proxy_dict = None
+        self.jedi_mb_proxy_dict = None
 
 
     # connect to DB (just for INTR)
@@ -2053,6 +2053,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if statusUpdated:
                     self.record_task_status_change(taskSpec.jediTaskID)
                     self.push_task_status_message(taskSpec, taskSpec.jediTaskID, taskSpec.status)
+                    # task attempt end log
+                    if taskSpec.status in ['done', 'finished', 'failed', 'broken', 'aborted', 'exhausted']:
+                        self.log_task_attempt_end(taskSpec.jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -5693,6 +5696,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # task status logging
             self.record_task_status_change(taskSpec.jediTaskID)
             self.push_task_status_message(taskSpec, taskSpec.jediTaskID, taskSpec.status)
+            # task attempt start log
+            self.log_task_attempt_start(taskSpec.jediTaskID)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -9626,6 +9631,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # task status log
                     self.record_task_status_change(jediTaskID)
                     # self.push_task_status_message(None, jediTaskID, newTaskStatus)
+                    # task attempt start log
+                    self.log_task_attempt_start(jediTaskID)
                 else:
                     tmpLog.debug('back to taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
                     varMap[':updateTime'] = datetime.datetime.utcnow()
@@ -13684,16 +13691,73 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     'timestamp': now_ts,
                 }
             msg = json.dumps(msg_dict)
-            if self.mb_proxy_dict is None:
-                self.mb_proxy_dict = get_mb_proxy_dict()
-                if self.mb_proxy_dict is None:
+            if self.jedi_mb_proxy_dict is None:
+                self.jedi_mb_proxy_dict = get_mb_proxy_dict()
+                if self.jedi_mb_proxy_dict is None:
                     tmpLog.warning('Failed to get mb_proxy of internal MQs. Skipped ')
-            mb_proxy = self.mb_proxy_dict['out']['jedi_taskstatus']
+            try:
+                mb_proxy = self.jedi_mb_proxy_dict['out']['jedi_taskstatus']
+            except KeyError as e:
+                tmpLog.warning('Skipped due to {0} ; jedi_mb_proxy_dict is {1}'.format(e, self.jedi_mb_proxy_dict))
+                return
             if mb_proxy.got_disconnected:
                 mb_proxy.restart()
             mb_proxy.send(msg)
         except Exception:
             self.dumpErrorMessage(tmpLog)
+        tmpLog.debug('done')
+
+    # task attempt start logging
+    def log_task_attempt_start(self, jedi_task_id):
+        comment = ' /* JediDBProxy.log_task_attempt_start */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        varMap = dict()
+        varMap[':jediTaskID'] = jedi_task_id
+        # sql
+        sqlGLTA = ( 'SELECT MAX(attemptnr) '
+                    'FROM {0}.TASK_ATTEMPTS '
+                    'WHERE jediTaskID=:jediTaskID '
+                ).format(jedi_config.db.schemaJEDI)
+        sqlITA = (  'INSERT INTO {0}.TASK_ATTEMPTS '
+                    '(jeditaskid, attemptnr, starttime, startstatus) '
+                    'SELECT jediTaskID, GREATEST(:grandAttemptNr, COALESCE(attemptNr, 0)), modificationTime, status '
+                    'FROM {0}.JEDI_Tasks '
+                    'WHERE jediTaskID=:jediTaskID '
+                 ).format(jedi_config.db.schemaJEDI)
+        # get grand attempt number
+        self.cur.execute(sqlGLTA + comment, varMap)
+        (last_attemptnr, ) = self.cur.fetchone()
+        grand_attemptnr = 0
+        if last_attemptnr is not None:
+            grand_attemptnr = last_attemptnr + 1
+        varMap[':grandAttemptNr'] = grand_attemptnr
+        # insert task attempt
+        self.cur.execute(sqlITA + comment, varMap)
+        tmpLog.debug('done')
+
+    # task attempt end logging
+    def log_task_attempt_end(self, jedi_task_id):
+        comment = ' /* JediDBProxy.log_task_attempt_end */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        varMap = dict()
+        varMap[':jediTaskID'] = jedi_task_id
+        # sql
+        sqlUTA = (  'UPDATE {0}.TASK_ATTEMPTS '
+                        'SET (endtime, endstatus) = ( '
+                            'SELECT modificationTime,status '
+                            'FROM {0}.JEDI_Tasks '
+                            'WHERE jediTaskID=:jediTaskID '
+                        ') '
+                    'WHERE jediTaskID=:jediTaskID '
+                        'AND endtime IS NULL '
+                 ).format(jedi_config.db.schemaJEDI)
+        self.cur.execute(sqlUTA + comment, varMap)
         tmpLog.debug('done')
 
     # task progress
