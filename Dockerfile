@@ -9,8 +9,8 @@ RUN /opt/panda/bin/pip install -U setuptools
 RUN adduser atlpan
 RUN groupadd zp
 RUN usermod -a -G zp atlpan
-RUN /opt/panda/bin/pip install "git+git://github.com/PanDAWMS/panda-server.git#egg=panda-server[postgres]"
-RUN /opt/panda/bin/pip install "git+git://github.com/PanDAWMS/panda-jedi.git#egg=panda-jedi[postgres]"
+RUN /opt/panda/bin/pip install "git+https://github.com/PanDAWMS/panda-server.git#egg=panda-server[postgres]"
+RUN /opt/panda/bin/pip install "git+https://github.com/PanDAWMS/panda-jedi.git#egg=panda-jedi[postgres]"
 RUN /opt/panda/bin/pip install rucio-clients
 RUN ln -s /opt/panda/lib/python*/site-packages/mod_wsgi/server/mod_wsgi*.so /etc/httpd/modules/mod_wsgi.so
 
@@ -32,7 +32,14 @@ RUN ln -s /opt/panda/etc/rc.d/init.d/panda_jedi /etc/rc.d/init.d/panda-jedi
 
 RUN mkdir -p /data/atlpan
 RUN mkdir -p /var/log/panda/wsgisocks
+RUN mkdir -p /run/httpd/wsgisocks
 RUN chown -R atlpan:zp /var/log/panda
+
+# to run with non-root PID
+RUN chmod -R 777 /var/log/panda
+RUN chmod -R 777 /home/atlpan
+RUN chmod -R 777 /run/httpd
+RUN chmod -R 777 /var/lock
 
 CMD exec /bin/bash -c "trap : TERM INT; sleep infinity & wait"
 
