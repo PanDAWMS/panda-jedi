@@ -13730,7 +13730,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 ).format(jedi_config.db.schemaJEDI)
         sqlITA = (  'INSERT INTO {0}.TASK_ATTEMPTS '
                     '(jeditaskid, attemptnr, starttime, startstatus) '
-                    'SELECT jediTaskID, GREATEST(:grandAttemptNr, COALESCE(attemptNr, 0)), modificationTime, status '
+                    'SELECT jediTaskID, GREATEST(:grandAttemptNr, COALESCE(attemptNr, 0)), CURRENT_DATE, status '
                     'FROM {0}.JEDI_Tasks '
                     'WHERE jediTaskID=:jediTaskID '
                  ).format(jedi_config.db.schemaJEDI)
@@ -13757,7 +13757,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # sql
         sqlUTA = (  'UPDATE {0}.TASK_ATTEMPTS '
                         'SET (endtime, endstatus) = ( '
-                            'SELECT modificationTime,status '
+                            'SELECT CURRENT_DATE,status '
                             'FROM {0}.JEDI_Tasks '
                             'WHERE jediTaskID=:jediTaskID '
                         ') '
