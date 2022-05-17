@@ -7060,7 +7060,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':status'] = taskSpec.status
                             self.cur.execute(sqlRWU+comment,varMap)
                         # set average job data
-                        scoutSucceeded,mergeScoutSucceeded = self.setScoutJobData_JEDI(taskSpec, False, True,
+                        if jediTaskID in set_scout_data_only:
+                            use_exhausted = False
+                        else:
+                            use_exhausted = True
+                        scoutSucceeded,mergeScoutSucceeded = self.setScoutJobData_JEDI(taskSpec, False, use_exhausted,
                                                                                        site_mapper)
                         if jediTaskID in set_scout_data_only:
                             toSkip = True
@@ -7225,6 +7229,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':jediTaskID'] = jediTaskID
                         varMap[':status'] = taskSpec.status
                         self.cur.execute(sqlTUU + comment, varMap)
+                        nRow = self.cur.rowcount
+                        tmpLog.debug('unlock jediTaskID={} in status={} with {}'.format(jediTaskID, taskSpec.status,
+                                                                                        nRow))
                 # commit
                 if not self._commit():
                     raise RuntimeError('Commit error')
