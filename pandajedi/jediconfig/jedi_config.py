@@ -52,7 +52,7 @@ for tmpSection in tmpConf.sections():
         setattr(tmpSelf,tmpKey,tmpVal)
     # database info via env
     if tmpSection == 'db':
-        if 'PANDA_DBHOST' in os.environ:
-            tmpSelf.dbhost = os.environ['PANDA_DBHOST']
-        if 'PANDA_PASSWORD' in os.environ:
-            tmpSelf.dbpasswd = os.environ['PANDA_PASSWORD']
+        if 'PANDA_DB_HOST' in os.environ:
+            tmpSelf.dbhost = os.environ['PANDA_DB_HOST']
+        if 'PANDA_DB_PASSWORD' in os.environ:
+            tmpSelf.dbpasswd = os.environ['PANDA_DB_PASSWORD']
