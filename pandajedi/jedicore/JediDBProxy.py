@@ -6569,7 +6569,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     # taskSpec.status = 'exhausted'
 
         # short job check
-        if scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
+        if useExhausted and scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
             # check execution time
             if taskSpec.status != 'exhausted':
                 # get exectime threshold for exhausted
