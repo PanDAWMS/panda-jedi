@@ -1,5 +1,8 @@
 Release Notes
 
+* 5/25/2022
+  * 0.0.6 for containerization
+
 * 2/18/2020
   * using use_only_local_data in AtlasPJB
 
