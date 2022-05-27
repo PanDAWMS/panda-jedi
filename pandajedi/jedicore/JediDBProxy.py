@@ -13701,7 +13701,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if self.jedi_mb_proxy_dict is None:
                 self.jedi_mb_proxy_dict = get_mb_proxy_dict()
                 if self.jedi_mb_proxy_dict is None:
-                    tmpLog.warning('Failed to get mb_proxy of internal MQs. Skipped ')
+                    tmpLog.debug('Failed to get mb_proxy of internal MQs. Skipped ')
+                    return
             try:
                 mb_proxy = self.jedi_mb_proxy_dict['out']['jedi_taskstatus']
             except KeyError as e:
