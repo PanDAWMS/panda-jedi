@@ -76,6 +76,8 @@ class TaskRefinerBase (object):
         taskSpec.vo = taskParamMap['vo']
         taskSpec.prodSourceLabel = taskParamMap['prodSourceLabel']
         taskSpec.taskPriority = taskParamMap['taskPriority']
+        if taskSpec.taskPriority is None:
+            taskSpec.taskPriority = 0
         if 'currentPriority' in taskParamMap:
             taskSpec.currentPriority = taskParamMap['currentPriority']
         else:
