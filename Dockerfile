@@ -25,6 +25,7 @@ RUN mv /opt/panda/etc/panda/panda_server.sysconfig.rpmnew /etc/sysconfig/panda_s
 RUN mv /opt/panda/etc/sysconfig/panda_jedi /etc/sysconfig/panda_jedi
 
 RUN ln -s /opt/panda/etc/rc.d/init.d/panda_jedi /etc/rc.d/init.d/panda-jedi
+RUN ln -s /etc/sysconfig/panda_server /opt/panda/etc/panda/panda_server.sysconfig
 
 RUN mkdir -p /data/atlpan
 RUN mkdir -p /var/log/panda/wsgisocks
@@ -35,6 +36,15 @@ RUN chown -R atlpan:zp /var/log/panda
 RUN chmod -R 777 /var/log/panda
 RUN chmod -R 777 /home/atlpan
 RUN chmod -R 777 /var/lock
+
+# make a wrapper script to launch services and periodic jobs in non-root container
+RUN echo $'#!/bin/bash \n\
+set -m \n\
+/data/panda/init-jedi \n\
+/data/panda/run-jedi-crons & \n\
+/etc/rc.d/init.d/panda-jedi start \n ' > /etc/rc.d/init.d/run-jedi-services
+
+RUN chmod +x /etc/rc.d/init.d/run-jedi-services
 
 CMD exec /bin/bash -c "trap : TERM INT; sleep infinity & wait"
 
