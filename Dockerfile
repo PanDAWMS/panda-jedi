@@ -28,6 +28,7 @@ RUN ln -s /opt/panda/etc/rc.d/init.d/panda_jedi /etc/rc.d/init.d/panda-jedi
 RUN ln -s /etc/sysconfig/panda_server /opt/panda/etc/panda/panda_server.sysconfig
 
 RUN mkdir -p /data/atlpan
+RUN mkdir -p /data/panda
 RUN mkdir -p /var/log/panda/wsgisocks
 RUN mkdir -p /run/httpd/wsgisocks
 RUN chown -R atlpan:zp /var/log/panda
@@ -36,6 +37,7 @@ RUN chown -R atlpan:zp /var/log/panda
 RUN chmod -R 777 /var/log/panda
 RUN chmod -R 777 /home/atlpan
 RUN chmod -R 777 /var/lock
+RUN chmod -R 777 /data/panda
 
 # make a wrapper script to launch services and periodic jobs in non-root container
 RUN echo $'#!/bin/bash \n\
