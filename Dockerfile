@@ -20,7 +20,6 @@ RUN mkdir -p /etc/idds
 RUN mv /opt/panda/etc/panda/panda_common.cfg.rpmnew /etc/panda/panda_common.cfg
 RUN mv /opt/panda/etc/panda/panda_server.cfg.rpmnew /etc/panda/panda_server.cfg
 RUN mv /opt/panda/etc/panda/panda_jedi.cfg.rpmnew /etc/panda/panda_jedi.cfg
-RUN mv /opt/panda/etc/idds/idds.cfg.client.template /opt/panda/etc/idds/idds.cfg
 RUN mv /opt/panda/etc/panda/panda_server.sysconfig.rpmnew /etc/sysconfig/panda_server
 RUN mv /opt/panda/etc/sysconfig/panda_jedi /etc/sysconfig/panda_jedi
 
@@ -32,6 +31,11 @@ RUN mkdir -p /data/panda
 RUN mkdir -p /var/log/panda/wsgisocks
 RUN mkdir -p /run/httpd/wsgisocks
 RUN chown -R atlpan:zp /var/log/panda
+
+RUN mv /opt/panda/etc/rucio.cfg.template /data/panda/rucio.cfg
+RUN mv /opt/panda/etc/idds/idds.cfg.client.template /data/panda/idds.cfg
+RUN ln -fs /data/panda/idds.cfg /opt/panda/etc/idds/idds.cfg
+RUN ln -fs /data/panda/rucio.cfg /opt/panda/etc/rucio.cfg
 
 # to run with non-root PID
 RUN chmod -R 777 /var/log/panda
