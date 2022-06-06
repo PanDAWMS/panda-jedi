@@ -42,6 +42,8 @@ RUN chmod -R 777 /var/log/panda
 RUN chmod -R 777 /home/atlpan
 RUN chmod -R 777 /var/lock
 RUN chmod -R 777 /data/panda
+RUN mkdir -p /etc/grid-security/certificates
+RUN chmod -R 777 /etc/grid-security/certificates
 
 # make a wrapper script to launch services and periodic jobs in non-root container
 RUN echo $'#!/bin/bash \n\
