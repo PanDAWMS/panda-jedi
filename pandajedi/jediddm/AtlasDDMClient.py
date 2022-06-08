@@ -72,9 +72,11 @@ class AtlasDDMClient(DDMClientBase):
             # get Rucio API
             client = RucioClient()
             # extract scope from dataset
-            scope,dsn = self.extract_scope(datasetName)
+            scope, dsn = self.extract_scope(datasetName)
             if dsn.endswith('/'):
                 dsn = dsn[:-1]
+            # get length
+            tmpMeta = client.get_metadata(scope, dsn)
             # get files
             fileMap = {}
             baseLFNmap = {}
@@ -124,10 +126,17 @@ class AtlasDDMClient(DDMClientBase):
                     baseLFNmap[baseLFN] = {'guid':guid,
                                            'attNr':attNr}
                 fileMap[guid] = attrs
-            tmpLog.debug('done')
             if lfn_only:
-                return self.SC_SUCCEEDED, fileSet
-            return self.SC_SUCCEEDED, fileMap
+                return_list = fileSet
+            else:
+                return_list = fileMap
+            tmpLog.debug('done len={} meta={}'.format(len(return_list), tmpMeta['length']))
+            if tmpMeta['length'] and tmpMeta['length'] > len(return_list):
+                errMsg = "file list length mismatch len={} != meta={}".format(len(return_list),
+                                                                              tmpMeta['length'])
+                tmpLog.error(errMsg)
+                return self.SC_FAILED, errMsg
+            return self.SC_SUCCEEDED, return_list
         except DataIdentifierNotFound as e:
             if ignoreUnknown:
                 return self.SC_SUCCEEDED, {}
