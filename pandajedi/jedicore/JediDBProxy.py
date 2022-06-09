@@ -5857,8 +5857,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlLIB += "tabD.type=:type AND tabF.type=:type "
 
         # get core power
-        sqlCore  = "SELECT corepower FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
-        sqlCore += "WHERE siteID=:site "
+        sqlCore  = "SELECT scj.data.corepower FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
+        sqlCore += "WHERE panda_queue=:site "
 
         # get nJobs
         sqlNumJobs = "SELECT SUM(nFiles),SUM(nFilesFinished),SUM(nFilesUsed) FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
@@ -9236,12 +9236,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get sites with best connections to source
-    def getBestNNetworkSites_JEDI(self,source,protocol,nSites,threshold,cutoff,maxWeight):
+    def getBestNNetworkSites_JEDI(self, source, protocol, nSites, threshold, cutoff, maxWeight):
         comment = ' /* JediDBProxy.getBestNNetworkSites_JEDI */'
         methodName = self.getMethodName(comment)
         tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start for src={0} protocol={1} nSites={2} thr={3}'.format(source,protocol,
-                                                                                nSites,threshold))
+        tmpLog.debug('start for src={0} protocol={1} nSites={2} thr={3}'.format(source, protocol,
+                                                                                nSites, threshold))
         # return for failure
         failedRet = False,None
         # check protocol
@@ -9253,11 +9253,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql
             sqlDS =  "SELECT * FROM "
-            sqlDS += "(SELECT destination,CASE WHEN {0}>={1} THEN {2} ".format(field,cutoff,maxWeight)
-            sqlDS += "ELSE ROUND({0}/{1}*{2},2) END AS {0} ".format(field,cutoff,maxWeight)
-            sqlDS += "FROM {0}.sites_matrix_data tabM, {0}.schedconfig tabS ".format(jedi_config.db.schemaMETA)
-            sqlDS += "WHERE source=:source AND tabM.destination=tabS.siteid "
-            sqlDS += "AND wansinklimit IS NOT NULL AND wansinklimit<>0 "
+            sqlDS += "(SELECT destination,CASE WHEN {0}>={1} THEN {2} ".format(field, cutoff, maxWeight)
+            sqlDS += "ELSE ROUND({0}/{1}*{2},2) END AS {0} ".format(field, cutoff, maxWeight)
+            sqlDS += "FROM {0}.sites_matrix_data tabM, {0}.schedconfig_json tabS ".format(jedi_config.db.schemaJEDI)
+            sqlDS += "WHERE source=:source AND tabM.destination=tabS.panda_queue "
+            sqlDS += "AND tabS.data.wansinklimit IS NOT NULL AND tabS.data.wansinklimit<>0 "
             sqlDS += "AND xrdcp_last_update>=(SYSDATE-3/24) "
             sqlDS += "AND {0} IS NOT NULL AND {0}>:threshold ORDER BY {0} DESC) ".format(field)
             sqlDS += "WHERE rownum<=:nSites"
@@ -12571,8 +12571,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # get num of done jobs
             varMap = dict()
             varMap[':status'] = 'standby'
-            sql  = "SELECT siteid,catchall FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
-            sql += "WHERE status=:status "
+            sql  = "SELECT panda_queue, scj.data.catchall FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
+            sql += "WHERE scj.data.status=:status "
             self.conn.begin()
             self.cur.execute(sql+comment,varMap)
             resList = self.cur.fetchall()
@@ -13109,15 +13109,17 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get releases
-            sqlAV = "SELECT release,cmtconfig,COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
-            sqlAV += "WHERE siteid IN (SELECT siteid FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
-            sqlAV += "WHERE catchall LIKE :patt AND status=:status) AND cache=:cache "
-            sqlAV += "GROUP BY release,cmtconfig "
+            sqlAV = "SELECT release, cmtconfig, COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
+            sqlAV += "WHERE siteid IN (SELECT panda_queue FROM {0}.schedconfig_json ".format(jedi_config.db.schemaJEDI)
+            sqlAV += "WHERE scj.data.catchall LIKE :patt AND scj.data.status=:status) AND cache=:cache "
+            sqlAV += "GROUP BY release, cmtconfig "
+
             # sql to get caches
-            sqlAC = "SELECT cache,cmtconfig,COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
-            sqlAC += "WHERE siteid IN (SELECT siteid FROM {0}.schedconfig ".format(jedi_config.db.schemaMETA)
-            sqlAC += "WHERE catchall LIKE :patt AND status=:status) "
-            sqlAC += "GROUP BY cache,cmtconfig "
+            sqlAC = "SELECT cache, cmtconfig, COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
+            sqlAC += "WHERE siteid IN (SELECT panda_queue FROM {0}.schedconfig_json ".format(jedi_config.db.schemaJEDI)
+            sqlAC += "WHERE scj.data. LIKE :patt AND scj.data.status=:status) "
+            sqlAC += "GROUP BY cache, cmtconfig "
+
             self.conn.begin()
             # get tasks
             varMap = dict()
