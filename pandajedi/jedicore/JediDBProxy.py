@@ -13729,6 +13729,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     'FROM {0}.TASK_ATTEMPTS '
                     'WHERE jediTaskID=:jediTaskID '
                 ).format(jedi_config.db.schemaJEDI)
+        sqlELTA = ( 'UPDATE {0}.TASK_ATTEMPTS '
+                        'SET (endtime, endstatus) = ( '
+                            'SELECT CURRENT_DATE,status '
+                            'FROM {0}.JEDI_Tasks '
+                            'WHERE jediTaskID=:jediTaskID '
+                        ') '
+                    'WHERE jediTaskID=:jediTaskID '
+                        'AND attemptnr=:last_attemptnr '
+                        'AND endtime IS NULL '
+                 ).format(jedi_config.db.schemaJEDI)
         sqlITA = (  'INSERT INTO {0}.TASK_ATTEMPTS '
                     '(jeditaskid, attemptnr, starttime, startstatus) '
                     'SELECT jediTaskID, GREATEST(:grandAttemptNr, COALESCE(attemptNr, 0)), CURRENT_DATE, status '
@@ -13741,6 +13751,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         grand_attemptnr = 0
         if last_attemptnr is not None:
             grand_attemptnr = last_attemptnr + 1
+            # end last attempt in case log_task_attempt_end is not called
+            varMap[':last_attemptnr'] = last_attemptnr
+            self.cur.execute(sqlELTA + comment, varMap)
         varMap[':grandAttemptNr'] = grand_attemptnr
         # insert task attempt
         self.cur.execute(sqlITA + comment, varMap)
