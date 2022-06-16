@@ -13722,8 +13722,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
-        varMap = dict()
-        varMap[':jediTaskID'] = jedi_task_id
         # sql
         sqlGLTA = ( 'SELECT MAX(attemptnr) '
                     'FROM {0}.TASK_ATTEMPTS '
@@ -13746,14 +13744,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     'WHERE jediTaskID=:jediTaskID '
                  ).format(jedi_config.db.schemaJEDI)
         # get grand attempt number
+        varMap = dict()
+        varMap[':jediTaskID'] = jedi_task_id
         self.cur.execute(sqlGLTA + comment, varMap)
         (last_attemptnr, ) = self.cur.fetchone()
         grand_attemptnr = 0
         if last_attemptnr is not None:
             grand_attemptnr = last_attemptnr + 1
             # end last attempt in case log_task_attempt_end is not called
+            varMap = dict()
+            varMap[':jediTaskID'] = jedi_task_id
             varMap[':last_attemptnr'] = last_attemptnr
             self.cur.execute(sqlELTA + comment, varMap)
+        varMap = dict()
+        varMap[':jediTaskID'] = jedi_task_id
         varMap[':grandAttemptNr'] = grand_attemptnr
         # insert task attempt
         self.cur.execute(sqlITA + comment, varMap)
