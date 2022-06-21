@@ -9316,7 +9316,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRFF += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxFailure IS NOT NULL AND (maxAttempt<=attemptNr OR maxFailure<=failedAttempt) "
             # sql to reset ramCount
             sqlRRC  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
-            sqlRRC += "ramCount=0 "
+            sqlRRC += "SET ramCount=0 "
             sqlRRC += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlRRC += "AND keepTrack=:keepTrack "
             # sql to count unprocessd files
