@@ -3049,7 +3049,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if simTasks is not None:
             methodName += ' <jediTasks={0}>'.format(str(simTasks))
         elif target_tasks:
-            methodName += ' <jediTasks={0}>'.format(','.join(target_tasks))
+            methodName += ' <jediTasks={0}>'.format(str(target_tasks))
         elif workQueue is None:
             methodName += ' <vo={0} queue={1} cloud={2} pid={3} {4}>'.format(vo, None, cloudName, pid, timeNow)
         else:
