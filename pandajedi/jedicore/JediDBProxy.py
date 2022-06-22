@@ -3041,13 +3041,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    fullSimulation=False, simDatasets=None,
                                    mergeUnThrottled=None, readMinFiles=False,
                                    numNewTaskWithJumbo=0, resource_name=None,
-                                   ignore_lock=False):
+                                   ignore_lock=False, target_tasks=None):
 
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
         timeNow = datetime.datetime.utcnow().strftime('%Y/%m/%d %H:%M:%S')
         if simTasks is not None:
             methodName += ' <jediTasks={0}>'.format(str(simTasks))
+        elif target_tasks:
+            methodName += ' <jediTasks={0}>'.format(','.join(target_tasks))
         elif workQueue is None:
             methodName += ' <vo={0} queue={1} cloud={2} pid={3} {4}>'.format(vo, None, cloudName, pid, timeNow)
         else:
@@ -3088,7 +3090,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 setGroupByAttr = True
             # sql to get tasks/datasets
-            if simTasks is None:
+            if not simTasks and not target_tasks:
                 varMap = {}
                 varMap[':vo'] = vo
                 if prodSourceLabel not in [None, '', 'any']:
@@ -3188,7 +3190,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "FROM {0}.JEDI_Tasks tabT,{1}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI,
                                                                                  jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ("
-                for tmpTaskIdx, tmpTaskID in enumerate(simTasks):
+                if simTasks:
+                    tasks_to_loop = simTasks
+                else:
+                    tasks_to_loop = target_tasks
+                for tmpTaskIdx, tmpTaskID in enumerate(tasks_to_loop):
                     tmpKey = ':jediTaskID{0}'.format(tmpTaskIdx)
                     varMap[tmpKey] = tmpTaskID
                     sql += '{0},'.format(tmpKey)
