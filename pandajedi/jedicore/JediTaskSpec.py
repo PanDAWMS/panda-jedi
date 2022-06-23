@@ -1679,7 +1679,7 @@ class JediTaskSpec(object):
             m = re.search('#([^@&]*)', self.architecture)
             spec_str = m.group(1)
             if not spec_str:
-                spec_str = '*'
+                return None
             spec_str += '-*' * (2 - spec_str.count('-'))
             if '-' not in spec_str:
                 spec_str += '-*'
@@ -1698,6 +1698,8 @@ class JediTaskSpec(object):
                 return None
             m = re.search('&([^@#]*)', self.architecture)
             spec_str = m.group(1)
+            if not spec_str:
+                return None
             spec_str += '-*' * (1 - spec_str.count('-'))
             items = spec_str.split('-')
             spec = {'vendor': items[0],
