@@ -5857,7 +5857,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlLIB += "tabD.type=:type AND tabF.type=:type "
 
         # get core power
-        sqlCore  = "SELECT scj.data.corepower FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
+        sqlCore  = "SELECT /* use_json_typ */ scj.data.corepower FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
         sqlCore += "WHERE panda_queue=:site "
 
         # get nJobs
@@ -6104,6 +6104,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         resCore = self.cur.fetchone()
                         if resCore is not None:
                             corePower, = resCore
+                            corePower = float(corePower)
                         else:
                             corePower = None
                         corePowerMap[computingSite] = corePower
@@ -12571,7 +12572,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # get num of done jobs
             varMap = dict()
             varMap[':status'] = 'standby'
-            sql  = "SELECT panda_queue, scj.data.catchall FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
+            sql  = "SELECT /* use_json_type */ panda_queue, scj.data.catchall FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE scj.data.status=:status "
             self.conn.begin()
             self.cur.execute(sql+comment,varMap)
@@ -13109,13 +13110,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         try:
             # sql to get releases
-            sqlAV = "SELECT release, cmtconfig, COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
+            sqlAV = "SELECT /* use_json_type */ release, cmtconfig, COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
             sqlAV += "WHERE siteid IN (SELECT panda_queue FROM {0}.schedconfig_json ".format(jedi_config.db.schemaJEDI)
             sqlAV += "WHERE scj.data.catchall LIKE :patt AND scj.data.status=:status) AND cache=:cache "
             sqlAV += "GROUP BY release, cmtconfig "
 
             # sql to get caches
-            sqlAC = "SELECT cache, cmtconfig, COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
+            sqlAC = "SELECT /* use_json_type */ cache, cmtconfig, COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
             sqlAC += "WHERE siteid IN (SELECT panda_queue FROM {0}.schedconfig_json ".format(jedi_config.db.schemaJEDI)
             sqlAC += "WHERE scj.data. LIKE :patt AND scj.data.status=:status) "
             sqlAC += "GROUP BY cache, cmtconfig "
