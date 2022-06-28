@@ -862,7 +862,7 @@ class JsonSoftwareCheck:
                                     continue
                             # check vendor
                             if host_cpu_spec['vendor'] == '*':
-                                if 'excl' in architecture_map['cpu']['vendor']:
+                                if 'vendor' in architecture_map['cpu'] and 'excl' in architecture_map['cpu']['vendor']:
                                     continue
                             else:
                                 if 'any' not in architecture_map['cpu']['vendor'] and \
@@ -903,8 +903,9 @@ class JsonSoftwareCheck:
                     go_ahead = True
                 except Exception as e:
                     if log_stream:
-                        log_stream.error('json check failed for {} {} {}'.format(tmpSiteName, str(e),
-                                                                                 traceback.format_exc()))
+                        log_stream.error('json check {} failed for {} {} {} '.format(str(architecture_map),
+                                                                                     tmpSiteName, str(e),
+                                                                                     traceback.format_exc()))
                 if not go_ahead:
                     continue
                 # only HW check

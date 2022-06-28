@@ -3041,13 +3041,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    fullSimulation=False, simDatasets=None,
                                    mergeUnThrottled=None, readMinFiles=False,
                                    numNewTaskWithJumbo=0, resource_name=None,
-                                   ignore_lock=False):
+                                   ignore_lock=False, target_tasks=None):
 
         comment = ' /* JediDBProxy.getTasksToBeProcessed_JEDI */'
         methodName = self.getMethodName(comment)
         timeNow = datetime.datetime.utcnow().strftime('%Y/%m/%d %H:%M:%S')
         if simTasks is not None:
             methodName += ' <jediTasks={0}>'.format(str(simTasks))
+        elif target_tasks:
+            methodName += ' <jediTasks={0}>'.format(str(target_tasks))
         elif workQueue is None:
             methodName += ' <vo={0} queue={1} cloud={2} pid={3} {4}>'.format(vo, None, cloudName, pid, timeNow)
         else:
@@ -3088,7 +3090,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 setGroupByAttr = True
             # sql to get tasks/datasets
-            if simTasks is None:
+            if not simTasks and not target_tasks:
                 varMap = {}
                 varMap[':vo'] = vo
                 if prodSourceLabel not in [None, '', 'any']:
@@ -3188,7 +3190,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "FROM {0}.JEDI_Tasks tabT,{1}.JEDI_Datasets tabD ".format(jedi_config.db.schemaJEDI,
                                                                                  jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.jediTaskID=tabD.jediTaskID AND tabT.jediTaskID IN ("
-                for tmpTaskIdx, tmpTaskID in enumerate(simTasks):
+                if simTasks:
+                    tasks_to_loop = simTasks
+                else:
+                    tasks_to_loop = target_tasks
+                for tmpTaskIdx, tmpTaskID in enumerate(tasks_to_loop):
                     tmpKey = ':jediTaskID{0}'.format(tmpTaskIdx)
                     varMap[tmpKey] = tmpTaskID
                     sql += '{0},'.format(tmpKey)
@@ -9315,6 +9321,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRFF += "SET maxAttempt=maxAttempt+:maxAttempt,maxFailure=maxFailure+:maxAttempt,proc_status=:proc_status "
             sqlRFF += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
             sqlRFF += "AND keepTrack=:keepTrack AND maxAttempt IS NOT NULL AND maxFailure IS NOT NULL AND (maxAttempt<=attemptNr OR maxFailure<=failedAttempt) "
+            # sql to reset ramCount
+            sqlRRC  = "UPDATE {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
+            sqlRRC += "SET ramCount=0 "
+            sqlRRC += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
+            sqlRRC += "AND keepTrack=:keepTrack "
             # sql to count unprocessd files
             sqlCU  = "SELECT COUNT(*) FROM {0}.JEDI_Dataset_Contents ".format(jedi_config.db.schemaJEDI)
             sqlCU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
@@ -9511,6 +9522,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':maxAttempt'] = maxAttempt
                                 self.cur.execute(sqlRR+comment,varMap)
                                 nRun = self.cur.rowcount
+                                # reset ramCount
+                                if commStr == 'incexec':
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    varMap[':datasetID'] = datasetID
+                                    varMap[':status'] = 'ready'
+                                    varMap[':keepTrack'] = 1
+                                    self.cur.execute(sqlRRC + comment, varMap)
                                 # no retry if no failed files
                                 if commStr == 'retry' and nDiff == 0 and nUnp == 0 and nRun == 0 and state != 'mutable':
                                     tmpLog.debug('no {0} for datasetID={1} : nDiff/nReady/nRun=0'.format(commStr,datasetID))
@@ -9582,6 +9601,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':maxAttempt'] = maxAttempt
                                 self.cur.execute(sqlRR+comment,varMap)
                                 nRun = self.cur.rowcount
+                                # reset ramCount
+                                if commStr == 'incexec':
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    varMap[':datasetID'] = datasetID
+                                    varMap[':status'] = 'ready'
+                                    varMap[':keepTrack'] = 1
+                                    self.cur.execute(sqlRRC + comment, varMap)
                                 # update dataset
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
@@ -13725,13 +13752,21 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += ' < jediTaskID={0} >'.format(jedi_task_id)
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
-        varMap = dict()
-        varMap[':jediTaskID'] = jedi_task_id
         # sql
         sqlGLTA = ( 'SELECT MAX(attemptnr) '
                     'FROM {0}.TASK_ATTEMPTS '
                     'WHERE jediTaskID=:jediTaskID '
                 ).format(jedi_config.db.schemaJEDI)
+        sqlELTA = ( 'UPDATE {0}.TASK_ATTEMPTS '
+                        'SET (endtime, endstatus) = ( '
+                            'SELECT CURRENT_DATE,status '
+                            'FROM {0}.JEDI_Tasks '
+                            'WHERE jediTaskID=:jediTaskID '
+                        ') '
+                    'WHERE jediTaskID=:jediTaskID '
+                        'AND attemptnr=:last_attemptnr '
+                        'AND endtime IS NULL '
+                 ).format(jedi_config.db.schemaJEDI)
         sqlITA = (  'INSERT INTO {0}.TASK_ATTEMPTS '
                     '(jeditaskid, attemptnr, starttime, startstatus) '
                     'SELECT jediTaskID, GREATEST(:grandAttemptNr, COALESCE(attemptNr, 0)), CURRENT_DATE, status '
@@ -13739,11 +13774,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     'WHERE jediTaskID=:jediTaskID '
                  ).format(jedi_config.db.schemaJEDI)
         # get grand attempt number
+        varMap = dict()
+        varMap[':jediTaskID'] = jedi_task_id
         self.cur.execute(sqlGLTA + comment, varMap)
         (last_attemptnr, ) = self.cur.fetchone()
         grand_attemptnr = 0
         if last_attemptnr is not None:
             grand_attemptnr = last_attemptnr + 1
+            # end last attempt in case log_task_attempt_end is not called
+            varMap = dict()
+            varMap[':jediTaskID'] = jedi_task_id
+            varMap[':last_attemptnr'] = last_attemptnr
+            self.cur.execute(sqlELTA + comment, varMap)
+        varMap = dict()
+        varMap[':jediTaskID'] = jedi_task_id
         varMap[':grandAttemptNr'] = grand_attemptnr
         # insert task attempt
         self.cur.execute(sqlITA + comment, varMap)
