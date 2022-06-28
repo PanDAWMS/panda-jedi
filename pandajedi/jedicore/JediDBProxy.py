@@ -9241,62 +9241,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.dumpErrorMessage(tmpLog)
             return failedRet
 
-
-    # get sites with best connections to source
-    def getBestNNetworkSites_JEDI(self, source, protocol, nSites, threshold, cutoff, maxWeight):
-        comment = ' /* JediDBProxy.getBestNNetworkSites_JEDI */'
-        methodName = self.getMethodName(comment)
-        tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start for src={0} protocol={1} nSites={2} thr={3}'.format(source, protocol,
-                                                                                nSites, threshold))
-        # return for failure
-        failedRet = False,None
-        # check protocol
-        if protocol in ['xrd','fax']:
-            field = 'xrdcpval'
-        else:
-            tmpLog.error('unsupported protocol={0}'.format(protocol))
-            return failedRet
-        try:
-            # sql
-            sqlDS =  "SELECT * FROM "
-            sqlDS += "(SELECT destination,CASE WHEN {0}>={1} THEN {2} ".format(field, cutoff, maxWeight)
-            sqlDS += "ELSE ROUND({0}/{1}*{2},2) END AS {0} ".format(field, cutoff, maxWeight)
-            sqlDS += "FROM {0}.sites_matrix_data tabM, {0}.schedconfig_json tabS ".format(jedi_config.db.schemaJEDI)
-            sqlDS += "WHERE source=:source AND tabM.destination=tabS.panda_queue "
-            sqlDS += "AND tabS.data.wansinklimit IS NOT NULL AND tabS.data.wansinklimit<>0 "
-            sqlDS += "AND xrdcp_last_update>=(SYSDATE-3/24) "
-            sqlDS += "AND {0} IS NOT NULL AND {0}>:threshold ORDER BY {0} DESC) ".format(field)
-            sqlDS += "WHERE rownum<=:nSites"
-            # start transaction
-            self.conn.begin()
-            self.cur.arraysize = 100
-            varMap = {}
-            varMap[':source']    = source
-            varMap[':nSites']    = nSites
-            varMap[':threshold'] = threshold
-            # execute
-            tmpLog.debug(sqlDS+comment+str(varMap))
-            self.cur.execute(sqlDS+comment,varMap)
-            resList = self.cur.fetchall()
-            siteList = {}
-            for siteName,costVal in resList:
-                siteList[siteName] = costVal
-            # commit
-            if not self._commit():
-                raise RuntimeError('Commit error')
-            # return
-            tmpLog.debug("done -> {0}".format(str(siteList)))
-            return True,siteList
-        except Exception:
-            # roll back
-            self._rollback()
-            # error
-            self.dumpErrorMessage(tmpLog)
-            return False,None
-
-
-
     # retry or incrementally execute a task
     def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5,useCommit=True,statusCheck=True,retryChildTasks=True,
                        discardEvents=False, release_unstaged=False):

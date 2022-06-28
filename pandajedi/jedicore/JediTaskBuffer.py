@@ -443,12 +443,6 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.getPreproLog_JEDI(jediTaskID,simul)
 
-    # get sites with best connections to source
-    def getBestNNetworkSites_JEDI(self,source,protocol,nSites,threshold,cutoff,maxWeight):
-        with self.proxyPool.get() as proxy:
-            return proxy.getBestNNetworkSites_JEDI(source,protocol,nSites,threshold,
-                                                 cutoff,maxWeight)
-
     # get jobsetID
     def getUserJobsetID_JEDI(self,userName):
         with self.proxyPool.get() as proxy:
