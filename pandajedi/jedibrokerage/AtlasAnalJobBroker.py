@@ -359,17 +359,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     tmpNonVpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite, includeTape=True,
                                                                                  use_vp=False,
                                                                                  use_incomplete=useIncomplete)
-                    # get sites which can remotely access source sites
-                    if inputChunk.isMerging or taskSpec.useLocalIO():
-                        # disable remote access for merging
-                        tmpSatelliteSites = {}
-                    elif (not sitePreAssigned) or (sitePreAssigned and preassignedSite not in tmpSiteList):
-                        tmpSatelliteSites = AtlasBrokerUtils.getSatelliteSites(tmpDiskSiteList,
-                                                                               self.taskBufferIF,
-                                                                               self.siteMapper,nSites=50,
-                                                                               protocol=allowedRemoteProtocol)
-                    else:
-                        tmpSatelliteSites = {}
+
                     # make weight map for local
                     for tmpSiteName in tmpSiteList:
                         if tmpSiteName not in dataWeight:
@@ -379,35 +369,17 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             dataWeight[tmpSiteName] += 1
                         else:
                             dataWeight[tmpSiteName] += 0.001
-                    # make weight map for remote
-                    for tmpSiteName,tmpWeightSrcMap in iteritems(tmpSatelliteSites):
-                        # skip since local data is available
-                        if tmpSiteName in tmpSiteList:
-                            continue
-                        tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                        # negative weight for remote access
-                        wRemote = 50.0
-                        if tmpSiteSpec.wansinklimit not in [0,None]:
-                            wRemote /= float(tmpSiteSpec.wansinklimit)
-                        # sum weight
-                        if tmpSiteName not in dataWeight:
-                            dataWeight[tmpSiteName] = float(tmpWeightSrcMap['weight'])/wRemote
-                        else:
-                            dataWeight[tmpSiteName] += float(tmpWeightSrcMap['weight'])/wRemote
-                        # make remote source list
-                        if tmpSiteName not in remoteSourceList:
-                            remoteSourceList[tmpSiteName] = {}
-                        remoteSourceList[tmpSiteName][datasetName] = tmpWeightSrcMap['source']
+
                     # first list
                     if scanSiteList is None:
                         scanSiteList = []
-                        for tmpSiteName in tmpSiteList + list(tmpSatelliteSites.keys()):
+                        for tmpSiteName in tmpSiteList:
                             if tmpSiteName not in oldScanUnifiedSiteList:
                                 continue
                             if tmpSiteName not in scanSiteList:
                                 scanSiteList.append(tmpSiteName)
                         scanSiteListOnDisk = set()
-                        for tmpSiteName in tmpDiskSiteList + list(tmpSatelliteSites.keys()):
+                        for tmpSiteName in tmpDiskSiteList:
                             if tmpSiteName not in oldScanUnifiedSiteList:
                                 continue
                             scanSiteListOnDisk.add(tmpSiteName)
@@ -418,7 +390,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         continue
                     # pickup sites which have all data
                     newScanList = []
-                    for tmpSiteName in tmpSiteList + list(tmpSatelliteSites.keys()):
+                    for tmpSiteName in tmpSiteList:
                         if tmpSiteName in scanSiteList and tmpSiteName not in newScanList:
                             newScanList.append(tmpSiteName)
                         scanSiteListUnion.add(tmpSiteName)
@@ -426,7 +398,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     tmpLog.debug('{0} is available at {1} sites'.format(datasetName,len(scanSiteList)))
                     # pickup sites which have all data on DISK
                     newScanListOnDisk = set()
-                    for tmpSiteName in tmpDiskSiteList + list(tmpSatelliteSites.keys()):
+                    for tmpSiteName in tmpDiskSiteList:
                         if tmpSiteName in scanSiteListOnDisk:
                             newScanListOnDisk.add(tmpSiteName)
                         scanSiteListOnDiskUnion.add(tmpSiteName)
