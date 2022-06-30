@@ -4,6 +4,15 @@ from pandajedi.jedicore import Interaction
 # throttle level
 THR_LEVEL5 = 5
 
+LEVEL_None = 0 # There is no configuration defined
+LEVEL_GS = 1 # There is a configuration defined at global share level
+LEVEL_MS = 2 # There is a configuration defined at MCORE/SCORE level
+LEVEL_RT = 3 # There is a configuration defined at resource type level
+
+NQUEUELIMIT = 'NQUEUELIMIT'
+NRUNNINGCAP = 'NRUNNINGCAP'
+NQUEUECAP = 'NQUEUECAP'
+
 # base class for job throttle
 class JobThrottlerBase(object):
 
