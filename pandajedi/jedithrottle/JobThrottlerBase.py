@@ -1,8 +1,8 @@
+from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from pandajedi.jedicore import Interaction
 
 # throttle level
 THR_LEVEL5 = 5
-
 
 # base class for job throttle
 class JobThrottlerBase(object):
@@ -209,7 +209,7 @@ class JobThrottlerBase(object):
         return return_map
 
     # check if throttled
-    def toBeThrottledBase(self, vo, prodSourceLabel, cloudName, workQueue, resource_name):
+    def toBeThrottledBase(self, vo, prodSourceLabel, cloudName, workQueue, resource_name, logger):
 
         # check if unthrottled
         if not workQueue.throttled:

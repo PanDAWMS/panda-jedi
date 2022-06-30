@@ -1,5 +1,3 @@
-from pandajedi.jedicore import Interaction
-from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from .JobThrottlerBase import JobThrottlerBase
 
 # logger
@@ -13,13 +11,14 @@ class AtlasAnalJobThrottler(JobThrottlerBase):
 
     # constructor
     def __init__(self, taskBufferIF):
+        JobThrottlerBase.__init__(self, taskBufferIF)
+        self.logger_name = __name__.split('.')[-1]
         self.comp_name = 'anal_job_throttler'
         self.app = 'jedi'
-        JobThrottlerBase.__init__(self, taskBufferIF)
 
     # check if throttled
     def toBeThrottled(self, vo, prodSourceLabel, cloudName, workQueue, resource_name):
-        return self.toBeThrottledBase(vo, prodSourceLabel, cloudName, workQueue, resource_name)
+        return self.toBeThrottledBase(vo, prodSourceLabel, cloudName, workQueue, resource_name, logger)
 
     # check if throttled
     def toBeThrottled_old(self, vo, prodSourceLabel, cloudName, workQueue, resource_name):
