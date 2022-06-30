@@ -209,18 +209,10 @@ class JobThrottlerBase(object):
         return return_map
 
     # check if throttled
-    def toBeThrottledBase(self, vo, prodSourceLabel, cloudName, workQueue, resource_name, logger):
+    def toBeThrottledBase(self, vo, prodSourceLabel, cloud_name, workQueue, resource_name, logger):
 
-        tmp_log = MsgWrapper(logger)
-        msg_header = '{0}:{1} cloud={2} queue={3} resource_type={4}:'.format(vo, prodSourceLabel, cloudName,
-                                                                            workQueueName, resource_name)
-        tmp_log.debug('{} start workQueueID={} threshold={}'.format(msg_header, workQueueID, threshold))
-
-        # check if unthrottled
-        if not workQueue.throttled:
-            msg_body = "PASS unthrottled since GS_throttled is False"
-            tmp_log.info(msg_header+" "+msg_body)
-            return self.retUnThrottled
+        workqueue_id = workQueue.getID()
+        workqueue_name = '_'.join(workQueue.queue_name.split(' '))
 
         # params
         nBunch = 4
@@ -234,11 +226,18 @@ class JobThrottlerBase(object):
         nWaitingBunchLimit = 2
         nParallel = 2
         nParallelCap = 5
+
         # make logger
         tmp_log = MsgWrapper(logger)
+        msg_header = '{0}:{1} cloud={2} queue={3} resource_type={4}:'.format(vo, prodSourceLabel, cloud_name,
+                                                                             workqueue_name, resource_name)
+        tmp_log.debug('{} start workqueue_id={} threshold={}'.format(msg_header, workqueue_id, threshold))
 
-        workQueueID = workQueue.getID()
-        workQueueName = '_'.join(workQueue.queue_name.split(' '))
+        # check if unthrottled
+        if not workQueue.throttled:
+            msg_body = "PASS unthrottled since GS_throttled is False"
+            tmp_log.info(msg_header+" "+msg_body)
+            return self.retUnThrottled
 
         # get central configuration values
         config_map = self.__getConfiguration(vo, workQueue.queue_name, resource_name)
@@ -268,14 +267,14 @@ class JobThrottlerBase(object):
         # check if higher prio tasks are waiting
         if workQueue.queue_name in non_rt_wqs:
             # find highest priority of currently defined jobs
-            tmpStat, highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI(prodSourceLabel, cloudName, workQueue)
+            tmpStat, highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI(prodSourceLabel, cloud_name, workQueue)
             # the highest priority of waiting tasks
-            highestPrioWaiting = self.taskBufferIF.checkWaitingTaskPrio_JEDI(vo, workQueue, prodSourceLabel, cloudName)
+            highestPrioWaiting = self.taskBufferIF.checkWaitingTaskPrio_JEDI(vo, workQueue, prodSourceLabel, cloud_name)
         else:
             # find highest priority of currently defined jobs
-            tmpStat, highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI(prodSourceLabel, cloudName, workQueue, resource_name)
+            tmpStat, highestPrioJobStat = self.taskBufferIF.getHighestPrioJobStat_JEDI(prodSourceLabel, cloud_name, workQueue, resource_name)
             # the highest priority of waiting tasks
-            highestPrioWaiting = self.taskBufferIF.checkWaitingTaskPrio_JEDI(vo, workQueue, prodSourceLabel, cloudName, resource_name)
+            highestPrioWaiting = self.taskBufferIF.checkWaitingTaskPrio_JEDI(vo, workQueue, prodSourceLabel, cloud_name, resource_name)
 
         highestPrioInPandaDB = highestPrioJobStat['highestPrio']
         nNotRunHighestPrio   = highestPrioJobStat['nNotRun']
