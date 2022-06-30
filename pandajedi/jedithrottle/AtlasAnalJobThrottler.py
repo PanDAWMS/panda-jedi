@@ -24,7 +24,7 @@ class AtlasAnalJobThrottler(JobThrottlerBase):
     def toBeThrottled_old(self, vo, prodSourceLabel, cloudName, workQueue, resource_name):
         # make logger
         tmpLog = MsgWrapper(logger)
-        tmpLog.debug('start vo={0} label={1} cloud={2} workQueue={3}'.format(vo, prodSourceLabel, cloudName,
+        tmp_log.debug('start vo={0} label={1} cloud={2} workQueue={3}'.format(vo, prodSourceLabel, cloudName,
                                                                              workQueue.queue_name))
 
         # check if unthrottled
