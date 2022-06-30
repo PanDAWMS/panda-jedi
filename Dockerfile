@@ -12,7 +12,10 @@ RUN adduser atlpan
 RUN groupadd zp
 RUN usermod -a -G zp atlpan
 RUN /opt/panda/bin/pip install "git+https://github.com/PanDAWMS/panda-server.git#egg=panda-server[postgres]"
-RUN /opt/panda/bin/pip install "git+https://github.com/PanDAWMS/panda-jedi.git#egg=panda-jedi[postgres]"
+RUN mkdir /tmp/src
+WORKDIR /tmp/src
+COPY . .
+RUN /opt/panda/bin/python setup.py sdist; /opt/panda/bin/pip install `ls dist/p*.tar.gz`[postgres]
 RUN /opt/panda/bin/pip install rucio-clients
 
 RUN mkdir -p /etc/panda
@@ -32,10 +35,10 @@ RUN mkdir -p /var/log/panda/wsgisocks
 RUN mkdir -p /run/httpd/wsgisocks
 RUN chown -R atlpan:zp /var/log/panda
 
-RUN mv /opt/panda/etc/rucio.cfg.template /data/panda/rucio.cfg
-RUN mv /opt/panda/etc/idds/idds.cfg.client.template /data/panda/idds.cfg
 RUN ln -fs /data/panda/idds.cfg /opt/panda/etc/idds/idds.cfg
 RUN ln -fs /data/panda/rucio.cfg /opt/panda/etc/rucio.cfg
+RUN ln -fs /data/panda/jedi_mq_config.json /opt/panda/etc/panda/jedi_mq_config.json
+RUN ln -fs /data/panda/jedi_msg_proc_config.json /opt/panda/etc/panda/jedi_msg_proc_config.json
 
 # to run with non-root PID
 RUN chmod -R 777 /var/log/panda
@@ -55,4 +58,3 @@ set -m \n\
 RUN chmod +x /etc/rc.d/init.d/run-jedi-services
 
 CMD exec /bin/bash -c "trap : TERM INT; sleep infinity & wait"
-

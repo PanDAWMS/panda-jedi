@@ -332,39 +332,6 @@ def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True, use_in
     return siteWithIncomp
 
 
-
-# get sites which can remotely access source sites
-def getSatelliteSites(siteList,taskBufferIF,siteMapper,protocol='xrd',nSites=5,threshold=0.5,
-                      cutoff=15,maxWeight=0.5):
-    # loop over all sites
-    retVal = {}
-    for siteName in siteList:
-        # check if the site can be used as source
-        tmpSiteSpec = siteMapper.getSite(siteName)
-        if tmpSiteSpec.wansourcelimit <= 0:
-            continue
-        # get sites with better network connections to sources
-        tmpStat,tmpVal = taskBufferIF.getBestNNetworkSites_JEDI(siteName,protocol,nSites,
-                                                                threshold,cutoff,maxWeight,
-                                                                useResultCache=3600)
-        # DB failure
-        if tmpStat is False:
-            return {}
-        # loop over all destinations
-        for tmpD,tmpW in iteritems(tmpVal):
-            # skip source sites
-            if tmpD in siteList:
-                continue
-            # use first or larger value
-            tmpSiteSpec = siteMapper.getSite(tmpD)
-            if tmpD not in retVal or retVal[tmpD]['weight'] < tmpW:
-                retVal[tmpD] = {'weight':tmpW,'source':[siteName]}
-            elif tmpD in retVal and retVal[tmpD]['weight'] == tmpW:
-                retVal[tmpD]['source'].append(siteName)
-    return retVal
-
-
-
 # get the number of jobs in a status
 def getNumJobs(jobStatMap, computingSite, jobStatus, cloud=None, workQueue_tag=None):
     if computingSite not in jobStatMap:
@@ -862,7 +829,7 @@ class JsonSoftwareCheck:
                                     continue
                             # check vendor
                             if host_cpu_spec['vendor'] == '*':
-                                if 'excl' in architecture_map['cpu']['vendor']:
+                                if 'vendor' in architecture_map['cpu'] and 'excl' in architecture_map['cpu']['vendor']:
                                     continue
                             else:
                                 if 'any' not in architecture_map['cpu']['vendor'] and \
@@ -903,8 +870,9 @@ class JsonSoftwareCheck:
                     go_ahead = True
                 except Exception as e:
                     if log_stream:
-                        log_stream.error('json check failed for {} {} {}'.format(tmpSiteName, str(e),
-                                                                                 traceback.format_exc()))
+                        log_stream.error('json check {} failed for {} {} {} '.format(str(architecture_map),
+                                                                                     tmpSiteName, str(e),
+                                                                                     traceback.format_exc()))
                 if not go_ahead:
                     continue
                 # only HW check
