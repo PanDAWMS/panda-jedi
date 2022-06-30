@@ -13,6 +13,11 @@ NQUEUELIMIT = 'NQUEUELIMIT'
 NRUNNINGCAP = 'NRUNNINGCAP'
 NQUEUECAP = 'NQUEUECAP'
 
+# workqueues that do not work at resource type level.
+# E.g. event service is a special case, since MCORE tasks generate SCORE jobs. Therefore we can't work at
+# resource type level and need to go to the global level, in order to avoid over-generating jobs
+non_rt_wqs = ['eventservice']
+
 # base class for job throttle
 class JobThrottlerBase(object):
 

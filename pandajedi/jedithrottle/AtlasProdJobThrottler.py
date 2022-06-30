@@ -5,11 +5,6 @@ from .JobThrottlerBase import JobThrottlerBase
 from pandacommon.pandalogger.PandaLogger import PandaLogger
 logger = PandaLogger().getLogger(__name__.split('.')[-1])
 
-# workqueues that do not work at resource type level.
-# E.g. event service is a special case, since MCORE tasks generate SCORE jobs. Therefore we can't work at
-# resource type level and need to go to the global level, in order to avoid over-generating jobs
-non_rt_wqs = ['eventservice']
-
 # class to throttle ATLAS production jobs
 class AtlasProdJobThrottler (JobThrottlerBase):
 
