@@ -132,6 +132,8 @@ class TaskRefinerBase (object):
             taskSpec.ramCount = 0
         if 'ramUnit' in taskParamMap:
             taskSpec.ramUnit = taskParamMap['ramUnit']
+        elif 'ramCountUnit' in taskParamMap:
+            taskSpec.ramUnit = taskParamMap['ramCountUnit']
         if 'baseRamCount' in taskParamMap:
             taskSpec.baseRamCount = taskParamMap['baseRamCount']
         else:
