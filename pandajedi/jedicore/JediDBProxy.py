@@ -5795,7 +5795,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlGPV += "WHERE jediTaskID=:jediTaskID "
 
         # sql to get scout job data from JEDI
-        sqlSCF  = "SELECT tabF.PandaID,tabF.fsize,tabF.startEvent,tabF.endEvent,tabF.nEvents "
+        sqlSCF  = "SELECT tabF.PandaID,tabF.fsize,tabF.startEvent,tabF.endEvent,tabF.nEvents,tabF.type "
         sqlSCF += "FROM {0}.JEDI_Datasets tabD, {0}.JEDI_Dataset_Contents tabF WHERE ".format(jedi_config.db.schemaJEDI)
         sqlSCF += "tabD.jediTaskID=tabF.jediTaskID AND tabD.jediTaskID=:jediTaskID AND tabF.status=:status "
         sqlSCF += "AND tabD.datasetID=tabF.datasetID "
@@ -6024,7 +6024,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         totInSizeMap = {}
         masterInSize = {}
         coreCountMap = {}
-        for pandaID,fsize,startEvent,endEvent,nEvents in resList:
+        pseudoInput = set()
+        for pandaID, fsize, startEvent, endEvent, nEvents, fType in resList:
             pandaIDList.add(pandaID)
             if pandaID not in inFSizeMap:
                 inFSizeMap[pandaID] = 0
@@ -6039,6 +6040,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if pandaID not in masterInSize:
                 masterInSize[pandaID] = 0
             masterInSize[pandaID] += fsize
+            if fType == 'pseudo_input':
+                pseudoInput.add(pandaID)
         # get nFiles
         totalJobs = 0
         totFiles = 0
@@ -6178,6 +6181,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 if pandaID in inEventsMap and inEventsMap[pandaID] > 0:
                                     tmpVal /= float(inEventsMap[pandaID])
                                 if pandaID not in inEventsMap or inEventsMap[pandaID] >= (10*coreCount) or \
+                                    pandaID in pseudoInput or \
                                         (inEventsMap[pandaID] < (10*coreCount) and pandaID in execTimeMap
                                          and execTimeMap[pandaID] > datetime.timedelta(seconds=6*3600)):
                                     cpuTimeList.append(tmpVal)
