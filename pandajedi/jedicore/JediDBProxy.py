@@ -5939,9 +5939,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         shortExecTime = self.getConfigValue('dbproxy','SCOUT_SHORT_EXECTIME_{0}'.format(prodSourceLabel), 'jedi')
         if shortExecTime is None:
             shortExecTime = 0
+        # get limit for cpu-inefficient jobs
+        lowCpuEff = self.getConfigValue('dbproxy','SCOUT_LOW_CPU_EFFICIENCY_{0}'.format(prodSourceLabel), 'jedi')
+        if lowCpuEff is None:
+            lowCpuEff = 0
         # cap on diskIO
         capOnDiskIO = self.getConfigValue('dbproxy', 'SCOUT_DISK_IO_CAP', 'jedi')
         extraInfo['shortExecTime'] = shortExecTime
+        extraInfo['cpuEfficiencyCap'] = lowCpuEff
         # get the size of lib
         varMap = {}
         varMap[':jediTaskID'] = jediTaskID
@@ -6011,6 +6016,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         ioIntentDict = {}
         cpuEffList   = []
         cpuEffDict   = {}
+        cpuEffMap    = {}
         finishedJobs = []
         inFSizeList  = []
         inFSizeMap   = {}
@@ -6267,6 +6273,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpCpuEff = int(math.ceil(float(cpuConsumptionTime) / (coreCount * float(tmpTimeDelta.seconds + tmpTimeDelta.days*24*3600)) * 100))
                             cpuEffList.append(tmpCpuEff)
                             cpuEffDict[tmpCpuEff] = pandaID
+                            cpuEffMap[pandaID] = tmpCpuEff
                         except Exception:
                             pass
         # add tags
@@ -6304,7 +6311,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 maxWallTime = 0
             median = float(maxWallTime) / float(max(inFSizeList)) * 1.5
             median = math.ceil(median)
-            returnMap['walltime']     = long(median)
+            returnMap['walltime'] = long(median)
             # use preset value if larger
             if preWalltime is not None and (preWalltime > returnMap['walltime'] or preWalltime < 0):
                 returnMap['walltime'] = preWalltime
@@ -6382,6 +6389,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             extraInfo['minCpuEfficiency'] = minCpuEfficiency
         nShortJobs = 0
         nShortJobsWithCtoS = 0
+        nTotalForShort = 0
         for tmpPandaID, tmpExecTime in iteritems(execTimeMap):
             if tmpExecTime <= datetime.timedelta(minutes=shortExecTime):
                 if site_mapper and task_spec:
@@ -6392,8 +6400,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         nShortJobsWithCtoS += 1
                         continue
                 nShortJobs += 1
+            nTotalForShort += 1
         extraInfo['nShortJobs'] = nShortJobs
         extraInfo['nShortJobsWithCtoS'] = nShortJobsWithCtoS
+        extraInfo['nTotalForShort'] = nTotalForShort
+        nInefficientJobs = 0
+        for tmpPandaID, tmpCpuEff in iteritems(cpuEffMap):
+            if tmpCpuEff < lowCpuEff:
+                nInefficientJobs += 1
+        extraInfo['nInefficientJobs'] = nInefficientJobs
+        extraInfo['nTotalForIneff'] = len(cpuEffMap)
         # tag jobs
         if flagJob:
             for tmpPandaID,tmpTags in iteritems(jobTagMap):
@@ -6558,7 +6574,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # check ramCount
             if taskSpec.status != 'exhausted':
                 if taskSpec.ramPerCore() and 'ramCount' in scoutData and extraInfo['oldRamCount'] is not None \
-                        and extraInfo['oldRamCount'] < ramThr and scoutData['ramCount'] > ramThr:
+                        and extraInfo['oldRamCount'] < ramThr < scoutData['ramCount']:
                     errMsg = '#KV #ATM action=set_exhausted reason=scout_ramCount {0} MB is larger than {1} MB '.format(scoutData['ramCount'],
                                                                                                                  ramThr)
                     errMsg += 'while task_ramCount {0} MB is less than {1} MB'.format(extraInfo['oldRamCount'],
@@ -6584,10 +6600,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # check execution time
             if taskSpec.status != 'exhausted':
                 # get exectime threshold for exhausted
-                maxShortJobs = self.getConfigValue('dbproxy','SCOUT_NUM_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
-                shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel), 'jedi')
-                if maxShortJobs is not None and 'nShortJobs' in extraInfo and extraInfo['nShortJobs'] >= maxShortJobs and \
-                        shortJobCutoff is not None and 'expectedNumJobs' in extraInfo and extraInfo['expectedNumJobs'] > shortJobCutoff:
+                maxShortJobs = self.getConfigValue('dbproxy','SCOUT_NUM_SHORT_{0}'.format(taskSpec.prodSourceLabel),
+                                                   'jedi')
+                shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel),
+                                                     'jedi')
+                if maxShortJobs is not None and extraInfo['nShortJobs'] >= maxShortJobs and \
+                        shortJobCutoff is not None and extraInfo['expectedNumJobs'] > shortJobCutoff:
                     # remove wrong rules
                     toExhausted = True
                     if self.getConfigValue('dbproxy', 'SCOUT_CHANGE_SR_{0}'.format(taskSpec.prodSourceLabel), 'jedi'):
@@ -6622,10 +6640,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             toExhausted = False
                     if toExhausted:
                         errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
-                        errMsg += '{} jobs (greater than {}, excluding {} jobs that the site config enforced '\
+                        errMsg += '{}/{} jobs (greater than {}/10, excluding {} jobs that the site config enforced '\
                                   'to run with copy-to-scratch) had shorter execution time than {} min '\
                                   'and the expected num of jobs ({}) is larger than {}'.format(
                             extraInfo['nShortJobs'],
+                            extraInfo['nTotalForShort'],
                             maxShortJobs,
                             extraInfo['nShortJobsWithCtoS'],
                             extraInfo['shortExecTime'],
@@ -6637,15 +6656,37 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
             # check CPU efficiency
             if taskSpec.status != 'exhausted':
-                if taskSpec.getMinCpuEfficiency() is not None and 'minCpuEfficiency' in extraInfo and \
-                        extraInfo['minCpuEfficiency'] < taskSpec.getMinScoutEfficiency():
-                    errMsg = '#ATM #KV action=set_exhausted since reason=low_efficiency '
-                    errMsg += 'min CPU efficiency {0} is less than {1}%'.format(extraInfo['minCpuEfficiency'],
-                                                                                taskSpec.getMinScoutEfficiency())
-                    tmpLog.info(errMsg)
-                    taskSpec.setErrDiag(errMsg)
-                    taskSpec.status = 'exhausted'
-
+                # OK if minCpuEfficiency is satisfied
+                if taskSpec.getMinCpuEfficiency() and \
+                        extraInfo['minCpuEfficiency'] >= taskSpec.getMinScoutEfficiency():
+                    pass
+                else:
+                    # get inefficiency threshold for exhausted
+                    maxIneffJobs = self.getConfigValue('dbproxy',
+                                                       'SCOUT_NUM_CPU_INEFFICIENT_{0}'.format(taskSpec.prodSourceLabel),
+                                                       'jedi')
+                    ineffJobCutoff = self.getConfigValue('dbproxy',
+                                                         'SCOUT_THR_CPU_INEFFICIENT_{0}'.format(taskSpec.prodSourceLabel),
+                                                         'jedi')
+                    if (taskSpec.getMinCpuEfficiency() and
+                            extraInfo['minCpuEfficiency'] < taskSpec.getMinCpuEfficiency()) or \
+                            (maxIneffJobs and extraInfo['nInefficientJobs'] >= maxIneffJobs and
+                            ineffJobCutoff and extraInfo['expectedNumJobs'] > ineffJobCutoff):
+                        errMsg = '#ATM #KV action=set_exhausted since reason=low_efficiency '
+                        errMsg += 'lowest CPU efficiency {} is less than getMinCpuEfficiency={}, '\
+                                  'or {}/{} jobs (greater than {}/10) had lower CPU efficiencies than {}'\
+                                  'and expected num of jobs ({}) is larger than {}'.format(
+                            extraInfo['minCpuEfficiency'],
+                            taskSpec.getMinCpuEfficiency(),
+                            extraInfo['nInefficientJobs'],
+                            extraInfo['nTotalForIneff'],
+                            maxIneffJobs,
+                            extraInfo['cpuEfficiencyCap'],
+                            extraInfo['expectedNumJobs'],
+                            ineffJobCutoff)
+                        tmpLog.info(errMsg)
+                        taskSpec.setErrDiag(errMsg)
+                        taskSpec.status = 'exhausted'
             # cpu abuse
             if taskSpec.status != 'exhausted':
                 try:
@@ -12550,6 +12591,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql  = "SELECT /* use_json_type */ panda_queue, scj.data.catchall FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
             sql += "WHERE scj.data.status=:status "
             self.conn.begin()
+            self.cur.arraysize = 1000
             self.cur.execute(sql+comment,varMap)
             resList = self.cur.fetchall()
             # commit
@@ -13086,14 +13128,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             # sql to get releases
             sqlAV = "SELECT /* use_json_type */ release, cmtconfig, COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
-            sqlAV += "WHERE siteid IN (SELECT panda_queue FROM {0}.schedconfig_json ".format(jedi_config.db.schemaJEDI)
+            sqlAV += "WHERE siteid IN (SELECT panda_queue FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
             sqlAV += "WHERE scj.data.catchall LIKE :patt AND scj.data.status=:status) AND cache=:cache "
             sqlAV += "GROUP BY release, cmtconfig "
 
             # sql to get caches
             sqlAC = "SELECT /* use_json_type */ cache, cmtconfig, COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
-            sqlAC += "WHERE siteid IN (SELECT panda_queue FROM {0}.schedconfig_json ".format(jedi_config.db.schemaJEDI)
-            sqlAC += "WHERE scj.data. LIKE :patt AND scj.data.status=:status) "
+            sqlAC += "WHERE siteid IN (SELECT panda_queue FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
+            sqlAC += "WHERE scj.data.catchall LIKE :patt AND scj.data.status=:status) "
             sqlAC += "GROUP BY cache, cmtconfig "
 
             self.conn.begin()

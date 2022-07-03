@@ -67,6 +67,9 @@ class TaskRefinerBase (object):
 
     # extract common parameters
     def extractCommon(self,jediTaskID,taskParamMap,workQueueMapper,splitRule):
+        # remove irrelevant
+        if 'maxAttempt' in taskParamMap and not taskParamMap['maxAttempt']:
+            del taskParamMap['maxAttempt']
         # make task spec
         taskSpec = JediTaskSpec()
         taskSpec.jediTaskID = jediTaskID
