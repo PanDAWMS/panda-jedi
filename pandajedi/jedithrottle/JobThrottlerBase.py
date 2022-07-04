@@ -264,6 +264,8 @@ class JobThrottlerBase(object):
 
         # get the jobs statistics for our wq/gs and expand the stats map
         jobstats_map = self.__prepareJobStats(workQueue, resource_name, config_map)
+
+        tmp_log.debug('jobstats_map: {0}'.format(jobstats_map))
         nRunning_rt = jobstats_map['nRunning_rt']
         nRunning_gs = jobstats_map['nRunning_gs']
         nRunning_runningcap = jobstats_map['nRunning_runningcap']
@@ -299,9 +301,10 @@ class JobThrottlerBase(object):
 
         # high priority tasks are waiting
         highPrioQueued = False
-        if highestPrioWaiting > highestPrioInPandaDB \
-                or (highestPrioWaiting == highestPrioInPandaDB and nNotRunHighestPrio < nJobsInBunchMin):
-            highPrioQueued = True
+        if prodSourceLabel != 'user':
+            if highestPrioWaiting > highestPrioInPandaDB \
+                    or (highestPrioWaiting == highestPrioInPandaDB and nNotRunHighestPrio < nJobsInBunchMin):
+                highPrioQueued = True
         tmp_log.debug("{0} highestPrio waiting:{1} inPanda:{2} numNotRun:{3} -> highPrioQueued={4}".format(msg_header,
                                                                                                           highestPrioWaiting,
                                                                                                           highestPrioInPandaDB,
