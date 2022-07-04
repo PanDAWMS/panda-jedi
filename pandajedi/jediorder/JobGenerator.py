@@ -1300,6 +1300,9 @@ class JobGeneratorThread(WorkerThread):
                     # publish status changes
                     if taskSpec.push_status_changes():
                         jobSpec.set_push_status_changes()
+                    # push job
+                    if taskSpec.push_job():
+                        jobSpec.set_push_job()
                     # extract middle name
                     middleName = ''
                     if taskSpec.getFieldNumToLFN() is not None and jobSpec.prodDBlock not in [None, 'NULL', '']:

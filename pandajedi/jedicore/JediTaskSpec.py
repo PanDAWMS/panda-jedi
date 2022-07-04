@@ -98,6 +98,7 @@ class JediTaskSpec(object):
         'osMatching'         : 'OS',
         'onlyTagsForFC'      : 'OT',
         'pushStatusChanges'  : 'PC',
+        'pushJob'            : 'PJ',
         'pfnList'            : 'PL',
         'putLogToOS'         : 'PO',
         'runUntilClosed'     : 'RC',
@@ -1832,6 +1833,13 @@ class JediTaskSpec(object):
     def cloud_as_vo(self):
         if self.splitRule is not None:
             if re.search(self.splitRuleToken['cloudAsVO']+'=(\d+)', self.splitRule):
+                return True
+        return False
+
+    # push job
+    def push_job(self):
+        if self.splitRule is not None:
+            if re.search(self.splitRuleToken['pushJob']+'=(\d+)', self.splitRule):
                 return True
         return False
 
