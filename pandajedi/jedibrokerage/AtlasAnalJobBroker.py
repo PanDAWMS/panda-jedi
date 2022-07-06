@@ -238,6 +238,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
         io_intensity_cutoff = self.taskBufferIF.getConfigValue('anal_jobbroker', io_intensity_key,
                                                                'jedi', taskSpec.vo)
 
+        # timelimit for data locality check
+        loc_check_timeout_key = 'DATA_CHECK_TIMEOUT_USER'
+        loc_check_timeout_val = self.taskBufferIF.getConfigValue('anal_jobbroker', loc_check_timeout_key,
+                                                                 'jedi', taskSpec.vo)
         # two loops with/without data locality check
         scanSiteLists = [(copy.copy(scanSiteList), True)]
         if len(inputChunk.getDatasets()) > 0:
@@ -246,13 +250,26 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 if not datasetSpec.isPseudo():
                     nRealDS += 1
             task_prio_cutoff_for_input_data_motion = 2000
-            if taskSpec.taskPriority >= task_prio_cutoff_for_input_data_motion or \
-                    (io_intensity_cutoff is not None and taskSpec.ioIntensity is not None and
-                     io_intensity_cutoff >= taskSpec.ioIntensity):
-                tmpLog.info('ignoring input data locality due to high taskPriority ({}>={}) '
-                            'or low ioIntensity ({}<={})'.format(
-                    taskSpec.taskPriority, task_prio_cutoff_for_input_data_motion,
-                    taskSpec.ioIntensity, io_intensity_key))
+            to_ignore_data_loc = False
+            tmp_msg = 'ignoring input data locality due to '
+            if taskSpec.taskPriority >= task_prio_cutoff_for_input_data_motion:
+                to_ignore_data_loc = True
+                tmp_msg += 'high taskPriority {} is larger than or equal to {}'.format(
+                    taskSpec.taskPriority,
+                    task_prio_cutoff_for_input_data_motion)
+            elif io_intensity_cutoff and taskSpec.ioIntensity and \
+                    io_intensity_cutoff >= taskSpec.ioIntensity:
+                to_ignore_data_loc = True
+                tmp_msg += 'low ioIntensity {} is less than or equal to {} ({})'.format(taskSpec.ioIntensity,
+                                                                                        io_intensity_key,
+                                                                                        io_intensity_cutoff)
+            elif loc_check_timeout_val and taskSpec.frozenTime and \
+                    datetime.datetime.utcnow()-taskSpec.frozenTime > datetime.timedelta(hours=loc_check_timeout_val):
+                to_ignore_data_loc = True
+                tmp_msg += 'check timeout (last successful cycle at {} was more than {} ({}hrs) ago)'.format(
+                    taskSpec.frozenTime, loc_check_timeout_key, loc_check_timeout_val)
+            if to_ignore_data_loc:
+                tmpLog.info(tmp_msg)
                 if inputChunk.isMerging:
                     scanSiteLists.append((copy.copy(scanSiteList), False))
                 else:
