@@ -39,6 +39,7 @@ RUN ln -fs /data/panda/idds.cfg /opt/panda/etc/idds/idds.cfg
 RUN ln -fs /data/panda/rucio.cfg /opt/panda/etc/rucio.cfg
 RUN ln -fs /data/panda/jedi_mq_config.json /opt/panda/etc/panda/jedi_mq_config.json
 RUN ln -fs /data/panda/jedi_msg_proc_config.json /opt/panda/etc/panda/jedi_msg_proc_config.json
+RUN ln -fs /data/panda/panda_mbproxy_config.json /opt/panda/etc/panda/panda_mbproxy_config.json
 
 # to run with non-root PID
 RUN chmod -R 777 /var/log/panda
