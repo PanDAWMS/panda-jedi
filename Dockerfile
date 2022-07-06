@@ -46,7 +46,6 @@ RUN chmod -R 777 /var/log/panda
 RUN chmod -R 777 /home/atlpan
 RUN chmod -R 777 /var/lock
 RUN chmod -R 777 /data/panda
-RUN chmod -R 777 /opt/panda/lib
 RUN mkdir -p /etc/grid-security/certificates
 RUN chmod -R 777 /etc/grid-security/certificates
 
