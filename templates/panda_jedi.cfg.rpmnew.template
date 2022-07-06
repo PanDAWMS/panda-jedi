@@ -173,7 +173,7 @@ nFiles = 100
 nWorkers = 5
 
 # loop interval in seconds
-loopCycle = 30
+loopCycle = 15
 
 # typical number of files per job type
 typicalNumFile = :::logmerge:1000000
