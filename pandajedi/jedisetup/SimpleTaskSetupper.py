@@ -73,6 +73,7 @@ class SimpleTaskSetupper (TaskSetupperBase):
                         # set lifetime
                         lifetime = None
                         # check dataset/container in DDM
+                        tmpLog.info('aaaaaaaa')
                         tmpList = ddmIF.listDatasets(targetName)
                         if not tmpList:
                             # get location
