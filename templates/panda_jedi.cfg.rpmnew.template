@@ -92,7 +92,7 @@ procConfig = wlcg:any:1
 nWorkers = 5
 
 # loop interval in seconds
-loopCycle = 20
+loopCycle = 10
 
 
 
@@ -116,7 +116,7 @@ procConfig = ::1
 nWorkers = 1
 
 # loop interval in seconds
-loopCycle = 20
+loopCycle = 10
 
 
 
@@ -173,7 +173,7 @@ nFiles = 100
 nWorkers = 5
 
 # loop interval in seconds
-loopCycle = 15
+loopCycle = 10
 
 # typical number of files per job type
 typicalNumFile = :::logmerge:1000000
