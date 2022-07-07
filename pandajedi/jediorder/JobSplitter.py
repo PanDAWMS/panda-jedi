@@ -197,7 +197,10 @@ class JobSplitter:
                         maxSize = siteCandidate.get_overridden_attribute('maxwdir')
                         if maxSize is None:
                             maxSize = siteSpec.maxwdir
-                        maxSize = max(50000, maxSize) * 1024 * 1024
+                        if inputChunk.useScout():
+                            maxSize = max(50000, maxSize) * 1024 * 1024
+                        else:
+                            maxSize = max(500000, maxSize) * 1024 * 1024
                 else:
                     # add offset
                     maxSize += sizeIntercepts
