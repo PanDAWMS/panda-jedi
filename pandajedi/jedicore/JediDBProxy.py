@@ -6598,6 +6598,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # short job check
         if useExhausted and scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
             # check execution time
+            sl_changed = False
             if taskSpec.status != 'exhausted':
                 # get exectime threshold for exhausted
                 maxShortJobs = self.getConfigValue('dbproxy','SCOUT_NUM_SHORT_{0}'.format(taskSpec.prodSourceLabel),
@@ -6623,6 +6624,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             taskSpec.setMaxNumFilesPerJob(str(MAX_NUM_FILES))
                             updateSL.append('MF')
                         if updateSL or removeSL:
+                            sl_changed = True
                             tmpMsg = '#KV #ATM action=change_split_rule reason=many_shorter_jobs'
                             if removeSL:
                                 tmpMsg += ' removed {},'.format(','.join(removeSL))
@@ -6655,7 +6657,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         taskSpec.status = 'exhausted'
 
             # check CPU efficiency
-            if taskSpec.status != 'exhausted':
+            if taskSpec.status != 'exhausted' and not sl_changed:
                 # OK if minCpuEfficiency is satisfied
                 if taskSpec.getMinCpuEfficiency() and \
                         extraInfo['minCpuEfficiency'] >= taskSpec.getMinScoutEfficiency():
@@ -6668,22 +6670,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     ineffJobCutoff = self.getConfigValue('dbproxy',
                                                          'SCOUT_THR_CPU_INEFFICIENT_{0}'.format(taskSpec.prodSourceLabel),
                                                          'jedi')
-                    if (taskSpec.getMinCpuEfficiency() and
-                            extraInfo['minCpuEfficiency'] < taskSpec.getMinCpuEfficiency()) or \
-                            (maxIneffJobs and extraInfo['nInefficientJobs'] >= maxIneffJobs and
-                            ineffJobCutoff and extraInfo['expectedNumJobs'] > ineffJobCutoff):
-                        errMsg = '#ATM #KV action=set_exhausted since reason=low_efficiency '
-                        errMsg += 'lowest CPU efficiency {} is less than getMinCpuEfficiency={}, '\
-                                  'or {}/{} jobs (greater than {}/10) had lower CPU efficiencies than {}'\
-                                  'and expected num of jobs ({}) is larger than {}'.format(
+                    tmp_skip = False
+                    errMsg = '#ATM #KV action=set_exhausted since reason=low_efficiency '
+                    if taskSpec.getMinCpuEfficiency() and \
+                            extraInfo['minCpuEfficiency'] < taskSpec.getMinCpuEfficiency():
+                        tmp_skip = True
+                        errMsg += 'lowest CPU efficiency {} is less than getMinCpuEfficiency={}'.format(
                             extraInfo['minCpuEfficiency'],
-                            taskSpec.getMinCpuEfficiency(),
+                            taskSpec.getMinCpuEfficiency())
+                    elif maxIneffJobs and extraInfo['nInefficientJobs'] >= maxIneffJobs and \
+                            ineffJobCutoff and extraInfo['expectedNumJobs'] > ineffJobCutoff:
+                        tmp_skip = True
+                        errMsg += '{}/{} jobs (greater than {}/10) had lower CPU efficiencies than {} '\
+                                  'and expected num of jobs ({}) is larger than {}'.format(
                             extraInfo['nInefficientJobs'],
                             extraInfo['nTotalForIneff'],
                             maxIneffJobs,
                             extraInfo['cpuEfficiencyCap'],
                             extraInfo['expectedNumJobs'],
                             ineffJobCutoff)
+                    if tmp_skip:
                         tmpLog.info(errMsg)
                         taskSpec.setErrDiag(errMsg)
                         taskSpec.status = 'exhausted'
