@@ -84,10 +84,12 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
             # get nQueue and nRunning
-            nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running', gshare)
+            nRunning = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running',
+                                                   workQueue_tag=gshare)
             nQueue = 0
             for jobStatus in ['defined', 'assigned', 'activated', 'starting']:
-                nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus, gshare)
+                nQueue += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, jobStatus,
+                                                      workQueue_tag=gshare)
             # busy sites
             if nQueue > max(cutoff, nRunning*2):
                 busy_sites_list.append(tmpSiteName)

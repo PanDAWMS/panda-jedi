@@ -1448,7 +1448,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not cutOffValue:
             cutOffValue = 20
         else:
-            tmpLog.info('using {}={} as cutoff for nQueued'.format(cutoffName, cutOffValue))
+            tmpLog.info('using {}={} as lower limit for nQueued'.format(cutoffName, cutOffValue))
         weightMapPrimary = {}
         weightMapSecondary = {}
         weightMapJumbo = {}
