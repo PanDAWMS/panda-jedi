@@ -1062,6 +1062,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 if AtlasBrokerUtils.isMatched(tmpSiteName,excludeList):
                     tmpLog.info('  skip site={0} excluded criteria=-excluded'.format(tmpSiteName))
                     continue
+
                 # check inclusion
                 if includeList is not None and not AtlasBrokerUtils.isMatched(tmpSiteName,includeList):
                     if 'AUTO' in includeList:
@@ -1070,12 +1071,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         tmpLog.info('  skip site={0} not included criteria=-notincluded'.format(tmpSiteName))
                         continue
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                # limited access
-                if tmpSiteSpec.accesscontrol == 'grouplist':
-                    if tmpSiteSpec.sitename not in siteAccessMap or \
-                            siteAccessMap[tmpSiteSpec.sitename] != 'approved':
-                        tmpLog.info('  skip site={0} limited access criteria=-limitedaccess'.format(tmpSiteName))
-                        continue
+
                 # check cloud
                 if taskSpec.cloud not in [None,'','any',tmpSiteSpec.cloud]:
                     tmpLog.info('  skip site={0} cloud mismatch criteria=-cloudmismatch'.format(tmpSiteName))
