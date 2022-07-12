@@ -246,6 +246,11 @@ class JediTaskSpec(object):
         except Exception:
             pass
 
+    # reserve old attributes
+    def reserve_old_attributes(self):
+        for attName in ['ramCount', 'walltime', 'cpuTime', 'startTime', 'cpuTimeUnit',
+                        'outDiskCount', 'workDiskCount', 'ioIntensity', 'diskIO']:
+            self.resetChangedAttr(attName)
 
     # force update
     def forceUpdate(self,name):
@@ -1532,6 +1537,7 @@ class JediTaskSpec(object):
     def resetRefinedAttrs(self):
         self.resetChangedAttr('splitRule')
         self.resetChangedAttr('eventService')
+        self.reserve_old_attributes()
 
 
 
