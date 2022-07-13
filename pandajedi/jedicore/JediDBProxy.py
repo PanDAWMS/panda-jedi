@@ -736,6 +736,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nUsed    = 0
             nLost    = 0
             nStaging = 0
+            nFailed  = 0
             pendingFID = []
             oldDsStatus = None
             newDsStatus = None
@@ -879,12 +880,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             existingFiles[uniqueFileKey]['is_failed'] = False
                             lostFlag = False
                             if status == 'ready':
-                                nReady += 1
                                 if (maxAttempt is not None and attemptNr is not None and attemptNr >= maxAttempt) or \
                                         (failedAttempt is not None and maxFailure is not None
                                          and failedAttempt >= maxFailure):
                                     nUsed += 1
                                     existingFiles[uniqueFileKey]['is_failed'] = True
+                                    nFailed += 1
+                                else:
+                                    nReady += 1
                             elif status == 'pending':
                                 nPending += 1
                                 pendingFID.append(fileID)
@@ -909,8 +912,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     nEventsLost += existingFiles[uniqueFileKey]['nevents']
                                 else:
                                     nEventsExist += existingFiles[uniqueFileKey]['nevents']
-                        tmpLog.debug('inDB nReady={} nPending={} nUsed={} nUsedInDB={} nLost={} nStaging={}'.format(
-                            nReady, nPending, nUsed, nFilesUsedInDS, nLost, nStaging))
+                        tmStr = 'inDB nReady={} nPending={} nUsed={} nUsedInDB={} nLost={} nStaging={} nFailed={}'
+                        tmpLog.debug(tmStr.format(nReady, nPending, nUsed, nFilesUsedInDS, nLost, nStaging, nFailed))
                         tmpLog.debug('inDB {}'.format(str(statusMap)))
                         # insert files
                         uniqueLfnList = {}
@@ -3456,6 +3459,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to update datasets with empty requirements
             sqlUFU = "UPDATE {0}.JEDI_Datasets SET nFilesUsed=:nFilesUsed ".format(jedi_config.db.schemaJEDI)
             sqlUFU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            sqlUFB = "UPDATE {0}.JEDI_Datasets SET nFilesToBeUsed=:nFilesToBeUsed ".format(jedi_config.db.schemaJEDI)
+            sqlUFB += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to get number of events
             sqlGNE = ("SELECT COUNT(*),datasetID FROM {0}.JEDI_Events "
                       "WHERE jediTaskID=:jediTaskID AND status=:eventStatus "
@@ -3780,10 +3785,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             nFailed = 0
                             nActive = 0
                             nRunning = 0
+                            nReady = 0
                             nUnknown = 0
+                            nLost = 0
                             for cer_status, cer_attemptNr, cer_maxAttempt, cer_failedAttempt, cer_maxFailure in resCER:
-                                if cer_status in ['finished', 'failed', 'cancelled', 'lost'] or \
-                                        cer_status == 'ready' and (cer_attemptNr >= cer_maxAttempt or (cer_maxFailure is not None and cer_failedAttempt >= cer_maxFailure)):
+                                if cer_status in ['missing', 'lost']:
+                                    nLost += 1
+                                elif cer_status in ['finished', 'failed', 'cancelled'] or \
+                                        (cer_status == 'ready' and
+                                         (cer_attemptNr >= cer_maxAttempt or
+                                         (cer_maxFailure and cer_failedAttempt >= cer_maxFailure))):
                                     nDone += 1
                                     if cer_status == 'finished':
                                         nFinished += 1
@@ -3791,33 +3802,57 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         nFailed += 1
                                 else:
                                     nActive += 1
-                                    if cer_status == 'running':
+                                    if cer_status in ['running', 'merging', 'picked']:
                                         nRunning += 1
+                                    elif cer_status == 'ready':
+                                        nReady += 1
                                     else:
                                         nUnknown += 1
-                            tmpMsg = 'check jediTaskID={0} datasetID={1} due to empty memory requirements : nDone={2} nActive={3} '.format(jediTaskID,
-                                                                                                                                           primaryDatasetID,
-                                                                                                                                           nDone, nActive)
-                            tmpMsg += 'nRunning={0} nFinished={1} nFailed={2} nUnknown={3} '.format(nRunning, nFinished, nFailed, nUnknown)
-                            tmpMsg += 'nFilesUsed={0} nFilesToBeUsed={1} ds.nFilesFinished={2} ds.nFilesFailed={3}'.format(cdd_nFilesUsed, cdd_nFilesToBeUsed, cdd_nFilesFinished, cdd_nFilesFailed)
+                            tmpMsg = 'jediTaskID={} datasetID={} to check due to empty memory requirements :'\
+                                     ' nDone={} nActive={} nReady={} '.format(
+                                     jediTaskID,
+                                     primaryDatasetID,
+                                     nDone, nActive, nReady)
+                            tmpMsg += 'nRunning={} nFinished={} nFailed={} nUnknown={} nLost={} '.format(
+                                nRunning, nFinished, nFailed, nUnknown, nLost)
+                            tmpMsg += 'ds.nFilesUsed={} nFilesToBeUsed={} ds.nFilesFinished={} '\
+                                      'ds.nFilesFailed={}'.format(
+                                cdd_nFilesUsed, cdd_nFilesToBeUsed, cdd_nFilesFinished, cdd_nFilesFailed)
                             tmpLog.debug(tmpMsg)
                             if cdd_nFilesUsed < cdd_nFilesToBeUsed and cdd_nFilesToBeUsed > 0 and nUnknown == 0:
                                 varMap = dict()
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':datasetID'] = primaryDatasetID
-                                varMap[':nFilesUsed'] = nDone + nRunning
+                                varMap[':nFilesUsed'] = nDone + nActive
                                 self.cur.execute(sqlUFU+comment, varMap)
-                                tmpLog.debug('set nFilesUsed={2} to jediTaskID={0} datasetID={1} to fix empty memory requirements'.format(jediTaskID,
-                                                                                                                                          primaryDatasetID,
-                                                                                                                                          varMap[':nFilesUsed']))
+                                tmpLog.debug('jediTaskID={} datasetID={} set nFilesUsed={} from {} '
+                                             'to fix empty memory req'.format(
+                                    jediTaskID,
+                                    primaryDatasetID,
+                                    varMap[':nFilesUsed'],
+                                    cdd_nFilesUsed))
+                            if cdd_nFilesToBeUsed > nDone + nRunning + nReady:
+                                varMap = dict()
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':datasetID'] = primaryDatasetID
+                                varMap[':nFilesToBeUsed'] = nDone + nRunning + nReady
+                                self.cur.execute(sqlUFB+comment, varMap)
+                                tmpLog.debug('jediTaskID={} datasetID={} set nFilesToBeUsed={} from {} '
+                                             'to fix empty memory req '.format(
+                                    jediTaskID,
+                                    primaryDatasetID,
+                                    varMap[':nFilesToBeUsed'],
+                                    cdd_nFilesToBeUsed))
                             if nActive == 0:
                                 varMap = dict()
                                 varMap[':jediTaskID'] = jediTaskID
                                 varMap[':datasetID'] = primaryDatasetID
                                 varMap[':status'] = 'finished'
                                 self.cur.execute(sqlUER+comment, varMap)
-                                tmpLog.debug('set status=finished to jediTaskID={0} datasetID={1} to fix empty memory requirements'.format(jediTaskID,
-                                                                                                                                           primaryDatasetID))
+                                tmpLog.debug('jediTaskID={} datasetID={} set status=finished '
+                                             'to fix empty memory requirements'.format(
+                                    jediTaskID,
+                                    primaryDatasetID))
                             continue
                         else:
                             # make InputChunks by ram count
@@ -10016,8 +10051,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     raise RuntimeError('Commit error')
             if resTK is None:
                 tmpLog.error('parent not found')
-                # set 1 (running) just in case
-                retVal = 1
+                retVal = 'unknown'
             else:
                 # task status
                 taskStatus, = resTK

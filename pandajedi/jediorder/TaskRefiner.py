@@ -259,8 +259,12 @@ class TaskRefinerThread (WorkerThread):
                             if ((impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput()) \
                                     and errtype == JediException.UnknownDatasetError) or parentState == 'running' \
                                     or errtype == Interaction.JEDITemporaryError:
-                                if impl.taskSpec.noWaitParent() or parentState == 'running':
-                                    tmpErrStr = 'pending until parent produces input'
+                                if impl.taskSpec.noWaitParent() and errtype == JediException.UnknownDatasetError \
+                                    and parentState != 'running':
+                                    tmpErrStr = 'pending due to missing input while parent is {}'.format(parentState)
+                                    setFrozenTime = True
+                                elif impl.taskSpec.noWaitParent() or parentState == 'running':
+                                    tmpErrStr = 'pending until parent produces input. parent is {}'.format(parentState)
                                     setFrozenTime=False
                                 elif errtype == Interaction.JEDITemporaryError:
                                     tmpErrStr = 'pending due to DDM problem. {0}'.format(errvalue)
@@ -342,9 +346,7 @@ class TaskRefinerThread (WorkerThread):
                                 if not impl.taskSpec.useScout(splitRule):
                                     impl.taskSpec.setUseScout(False)
                                 # disallow to reset some attributes
-                                for attName in ['ramCount', 'walltime', 'cpuTime', 'startTime', 'cpuTimeUnit',
-                                                'outDiskCount', 'workDiskCount', 'ioIntensity', 'diskIO']:
-                                    impl.taskSpec.resetChangedAttr(attName)
+                                impl.taskSpec.reserve_old_attributes()
                                 # update task with new params
                                 self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
                                                                   oldStatus=[taskStatus])

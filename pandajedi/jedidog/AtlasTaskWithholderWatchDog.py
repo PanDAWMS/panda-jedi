@@ -152,6 +152,8 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
                         continue
                 # make sql parameters of rses
                 to_exclude_rses = list(busy_rses|blacklisted_rse_set)
+                if not to_exclude_rses:
+                    continue
                 rse_params_list = []
                 rse_params_map = {}
                 for j, rse in enumerate(to_exclude_rses):
