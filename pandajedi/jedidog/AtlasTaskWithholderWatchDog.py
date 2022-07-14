@@ -35,6 +35,14 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
         # call refresh
         self.refresh()
 
+    # get process lock
+    def _get_lock(self):
+        return self.taskBufferIF.lockProcess_JEDI(
+                vo=self.vo, prodSourceLabel='managed',
+                cloud=None, workqueue_id=None, resource_name=None,
+                component='AtlasTaskWithholderWatchDog',
+                pid=self.pid, timeLimit=5)
+
     # refresh information stored in the instance
     def refresh(self):
         # work queue mapper
@@ -231,6 +239,12 @@ class AtlasTaskWithholderWatchDog(WatchDogBase):
             # get logger
             origTmpLog = MsgWrapper(logger)
             origTmpLog.debug('start')
+            # lock
+            got_lock = self._get_lock()
+            if not got_lock:
+                origTmpLog.debug('locked by another process. Skipped')
+                return self.SC_SUCCEEDED
+            origTmpLog.debug('got lock')
             # make tasks pending under certain conditions
             self.do_for_data_locality()
         except Exception:
