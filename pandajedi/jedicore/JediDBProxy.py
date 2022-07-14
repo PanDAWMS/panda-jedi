@@ -5898,7 +5898,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         sqlLIB += "tabD.type=:type AND tabF.type=:type "
 
         # get core power
-        sqlCore  = "SELECT /* use_json_typ */ scj.data.corepower FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
+        sqlCore  = "SELECT /* use_json_type */ scj.data.corepower FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
         sqlCore += "WHERE panda_queue=:site "
 
         # get nJobs
