@@ -6640,56 +6640,65 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                    'jedi')
                 shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel),
                                                      'jedi')
-                if maxShortJobs is not None and extraInfo['nShortJobs'] >= maxShortJobs and \
-                        shortJobCutoff is not None and extraInfo['expectedNumJobs'] > shortJobCutoff:
+                if maxShortJobs and shortJobCutoff:
+                    # jobs inclusing copy-to-scratch
+                    nJobsAll = extraInfo['nTotalForShort'] + extraInfo['nShortJobsWithCtoS']
+                    nShortJobsAll = extraInfo['nShortJobs'] + extraInfo['nShortJobsWithCtoS']
+                    # many short jobs including copy-to-scratch
+                    manyShortJobsAll = nJobsAll > 0 and nShortJobsAll / nJobsAll >= maxShortJobs / 10
+                    # many short jobs w/o copy-to-scratch
+                    manyShortJobs = extraInfo['nTotalForShort'] > 0 and \
+                                    extraInfo['nShortJobs'] / extraInfo['nTotalForShort'] >= maxShortJobs / 10
                     # remove wrong rules
-                    toExhausted = True
-                    if self.getConfigValue('dbproxy', 'SCOUT_CHANGE_SR_{0}'.format(taskSpec.prodSourceLabel), 'jedi'):
-                        updateSL = []
-                        removeSL = []
-                        if taskSpec.getNumFilesPerJob() is not None:
-                            taskSpec.removeNumFilesPerJob()
-                            removeSL.append('NF')
-                        if taskSpec.getMaxSizePerJob() is not None:
-                            taskSpec.removeMaxSizePerJob()
-                            removeSL.append('NG')
-                        MAX_NUM_FILES = 200
-                        if taskSpec.getMaxNumFilesPerJob() is not None and \
-                                taskSpec.getMaxNumFilesPerJob() < MAX_NUM_FILES:
-                            taskSpec.setMaxNumFilesPerJob(str(MAX_NUM_FILES))
-                            updateSL.append('MF')
-                        if updateSL or removeSL:
-                            sl_changed = True
-                            tmpMsg = '#KV #ATM action=change_split_rule reason=many_shorter_jobs'
-                            if removeSL:
-                                tmpMsg += ' removed {},'.format(','.join(removeSL))
-                            if updateSL:
-                                tmpMsg += ' changed {},'.format(','.join(updateSL))
-                            tmpMsg = tmpMsg[:-1]
-                            tmpLog.info(tmpMsg)
-                            varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':splitRule'] = taskSpec.splitRule
-                            sqlTSL = "UPDATE {0}.JEDI_Tasks SET splitRule=:splitRule ".format(jedi_config.db.schemaJEDI)
-                            sqlTSL += " WHERE jediTaskID=:jediTaskID "
-                            tmpLog.debug(sqlTSL + comment + str(varMap))
-                            self.cur.execute(sqlTSL + comment, varMap)
-                            toExhausted = False
-                    if toExhausted:
-                        errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
-                        errMsg += '{}/{} jobs (greater than {}/10, excluding {} jobs that the site config enforced '\
-                                  'to run with copy-to-scratch) had shorter execution time than {} min '\
-                                  'and the expected num of jobs ({}) is larger than {}'.format(
-                            extraInfo['nShortJobs'],
-                            extraInfo['nTotalForShort'],
-                            maxShortJobs,
-                            extraInfo['nShortJobsWithCtoS'],
-                            extraInfo['shortExecTime'],
-                            extraInfo['expectedNumJobs'],
-                            shortJobCutoff)
-                        tmpLog.info(errMsg)
-                        taskSpec.setErrDiag(errMsg)
-                        taskSpec.status = 'exhausted'
+                    if manyShortJobsAll or manyShortJobs:
+                        toExhausted = True
+                        if self.getConfigValue('dbproxy', 'SCOUT_CHANGE_SR_{0}'.format(taskSpec.prodSourceLabel),
+                                               'jedi'):
+                            updateSL = []
+                            removeSL = []
+                            if taskSpec.getNumFilesPerJob() is not None:
+                                taskSpec.removeNumFilesPerJob()
+                                removeSL.append('NF')
+                            if taskSpec.getMaxSizePerJob() is not None:
+                                taskSpec.removeMaxSizePerJob()
+                                removeSL.append('NG')
+                            MAX_NUM_FILES = 200
+                            if taskSpec.getMaxNumFilesPerJob() is not None and \
+                                    taskSpec.getMaxNumFilesPerJob() < MAX_NUM_FILES:
+                                taskSpec.setMaxNumFilesPerJob(str(MAX_NUM_FILES))
+                                updateSL.append('MF')
+                            if updateSL or removeSL:
+                                sl_changed = True
+                                tmpMsg = '#KV #ATM action=change_split_rule reason=many_shorter_jobs'
+                                if removeSL:
+                                    tmpMsg += ' removed {},'.format(','.join(removeSL))
+                                if updateSL:
+                                    tmpMsg += ' changed {},'.format(','.join(updateSL))
+                                tmpMsg = tmpMsg[:-1]
+                                tmpLog.info(tmpMsg)
+                                varMap = {}
+                                varMap[':jediTaskID'] = jediTaskID
+                                varMap[':splitRule'] = taskSpec.splitRule
+                                sqlTSL = "UPDATE {0}.JEDI_Tasks SET splitRule=:splitRule ".format(jedi_config.db.schemaJEDI)
+                                sqlTSL += " WHERE jediTaskID=:jediTaskID "
+                                tmpLog.debug(sqlTSL + comment + str(varMap))
+                                self.cur.execute(sqlTSL + comment, varMap)
+                                toExhausted = False
+                        if toExhausted and manyShortJobs:
+                            errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
+                            errMsg += '{}/{} jobs (greater than {}/10, excluding {} jobs that the site config enforced '\
+                                      'to run with copy-to-scratch) had shorter execution time than {} min '\
+                                      'and the expected num of jobs ({}) is larger than {}'.format(
+                                extraInfo['nShortJobs'],
+                                extraInfo['nTotalForShort'],
+                                maxShortJobs,
+                                extraInfo['nShortJobsWithCtoS'],
+                                extraInfo['shortExecTime'],
+                                extraInfo['expectedNumJobs'],
+                                shortJobCutoff)
+                            tmpLog.info(errMsg)
+                            taskSpec.setErrDiag(errMsg)
+                            taskSpec.status = 'exhausted'
 
             # check CPU efficiency
             if taskSpec.status != 'exhausted' and not sl_changed:
@@ -6713,7 +6722,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         errMsg += 'lowest CPU efficiency {} is less than getMinCpuEfficiency={}'.format(
                             extraInfo['minCpuEfficiency'],
                             taskSpec.getMinCpuEfficiency())
-                    elif maxIneffJobs and extraInfo['nInefficientJobs'] >= maxIneffJobs and \
+                    elif maxIneffJobs and extraInfo['nTotalForIneff'] > 0 and \
+                            extraInfo['nInefficientJobs']/extraInfo['nTotalForIneff'] >= maxIneffJobs/10 and \
                             ineffJobCutoff and extraInfo['expectedNumJobs'] > ineffJobCutoff:
                         tmp_skip = True
                         errMsg += '{}/{} jobs (greater than {}/10) had lower CPU efficiencies than {} '\
