@@ -524,6 +524,7 @@ class TaskRefinerBase (object):
                 datasetSpec.nFilesFailed = 0
                 datasetSpec.nFilesOnHold = 0
                 datasetSpec.nFilesWaiting = 0
+                datasetSpec.nFilesMissing = 0
                 datasetSpec.nEvents = 0
                 datasetSpec.nEventsUsed = 0
                 datasetSpec.nEventsToBeUsed = 0

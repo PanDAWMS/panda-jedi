@@ -712,12 +712,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to update dataset
             sqlDU  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDU += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,"
-            sqlDU += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed,nEvents=:nEvents "
+            sqlDU += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed,nEvents=:nEvents,"\
+                     "nFilesMissing=:nFilesMissing "
             sqlDU += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update dataset including nFilesUsed
             sqlDUx = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDUx += "SET status=:status,state=:state,stateCheckTime=:stateUpdateTime,"
-            sqlDUx += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed,nEvents=:nEvents,nFilesUsed=:nFilesUsed "
+            sqlDUx += "nFiles=:nFiles,nFilesTobeUsed=:nFilesTobeUsed,nEvents=:nEvents,"\
+                      "nFilesUsed=:nFilesUsed,nFilesMissing=:nFilesMissing "
             sqlDUx += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to propagate number of input events to DEFT
             sqlCE  = "UPDATE {0}.T_TASK ".format(jedi_config.db.schemaDEFT)
@@ -1226,6 +1228,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap[':datasetID'] = datasetSpec.datasetID
                         varMap[':nFiles'] = nInsert + len(existingFiles) - nLost
                         varMap[':nEvents'] = nEventsInsert + nEventsExist
+                        varMap[':nFilesMissing'] = nLost
                         if datasetSpec.isMaster() and taskSpec.respectSplitRule() and useScout:
                             if (set([taskStatus, taskSpec.oldStatus]) &
                                     set(['scouting', 'ready', 'assigning'])):
