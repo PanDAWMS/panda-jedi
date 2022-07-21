@@ -20,6 +20,10 @@ class InputChunk:
 
     # default output size 2G + 500MB (safety merging)
     defaultOutputSize = 2500 * 1024 * 1024
+    # max input size for scouts in MB
+    maxInputSizeScouts = 50000
+    # max input size for jobs after avalanche in MB
+    maxInputSizeAvalanche = 500000
 
     def __str__(self):
         sb = []
