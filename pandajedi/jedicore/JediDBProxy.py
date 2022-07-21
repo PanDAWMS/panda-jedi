@@ -6428,8 +6428,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         nShortJobs = 0
         nShortJobsWithCtoS = 0
         nTotalForShort = 0
+        longestShortExecTime = 0
         for tmpPandaID, tmpExecTime in iteritems(execTimeMap):
             if tmpExecTime <= datetime.timedelta(minutes=shortExecTime):
+                longestShortExecTime = max(longestShortExecTime, tmpExecTime.total_seconds())
                 if site_mapper and task_spec:
                     # ignore if the site enforces to use copy-to-scratch
                     tmpSiteSpec = site_mapper.getSite(siteMap[tmpPandaID])
@@ -6442,6 +6444,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         extraInfo['nShortJobs'] = nShortJobs
         extraInfo['nShortJobsWithCtoS'] = nShortJobsWithCtoS
         extraInfo['nTotalForShort'] = nTotalForShort
+        extraInfo['longestShortExecTime'] = longestShortExecTime
         nInefficientJobs = 0
         for tmpPandaID, tmpCpuEff in iteritems(cpuEffMap):
             if tmpCpuEff < lowCpuEff:
@@ -6688,20 +6691,39 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 self.cur.execute(sqlTSL + comment, varMap)
                                 toExhausted = False
                         if toExhausted and manyShortJobs:
-                            errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
-                            errMsg += '{}/{} jobs (greater than {}/10, excluding {} jobs that the site config enforced '\
-                                      'to run with copy-to-scratch) had shorter execution time than {} min '\
-                                      'and the expected num of jobs ({}) is larger than {}'.format(
-                                extraInfo['nShortJobs'],
-                                extraInfo['nTotalForShort'],
-                                maxShortJobs,
-                                extraInfo['nShortJobsWithCtoS'],
-                                extraInfo['shortExecTime'],
-                                extraInfo['expectedNumJobs'],
-                                shortJobCutoff)
-                            tmpLog.info(errMsg)
-                            taskSpec.setErrDiag(errMsg)
-                            taskSpec.status = 'exhausted'
+                            # check scaled walltime
+                            scMsg = ''
+                            if taskSpec.useScout():
+                                scaled_max_walltime = extraInfo['longestShortExecTime']
+                                scaled_max_walltime *= InputChunk.maxInputSizeAvalanche / InputChunk.maxInputSizeScouts
+                                scaled_max_walltime = int(scaled_max_walltime / 60)
+                                if scaled_max_walltime > extraInfo['shortExecTime']:
+                                    tmpLog.debug('not to set exahusted since scaled execution time ({}) is longer '\
+                                                 'than {} min'.format(scaled_max_walltime,
+                                                                      extraInfo['shortExecTime']))
+                                    toExhausted = False
+                                else:
+                                    scMsg = ' and scaled execution time ({} = walltime * {}/{}) less than {} min'.\
+                                        format(scaled_max_walltime, InputChunk.maxInputSizeAvalanche,
+                                               InputChunk.maxInputSizeScouts, extraInfo['shortExecTime'])
+                            if toExhausted:
+                                errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
+                                errMsg += '{}/{} jobs (greater than {}/10, excluding {} jobs that the site '\
+                                          'config enforced '\
+                                          'to run with copy-to-scratch) had shorter execution time than {} min '\
+                                          'and the expected num of jobs ({}) is larger than {} {}'.format(
+                                    extraInfo['nShortJobs'],
+                                    extraInfo['nTotalForShort'],
+                                    maxShortJobs,
+                                    extraInfo['nShortJobsWithCtoS'],
+                                    extraInfo['shortExecTime'],
+                                    extraInfo['expectedNumJobs'],
+                                    shortJobCutoff,
+                                    scMsg
+                                )
+                                tmpLog.info(errMsg)
+                                taskSpec.setErrDiag(errMsg)
+                                taskSpec.status = 'exhausted'
 
             # check CPU efficiency
             if taskSpec.status != 'exhausted' and not sl_changed:
