@@ -23,12 +23,12 @@ PROGNAME='python -u @@install_purelib@@/pandajedi/jediorder/JediMaster.py'
 @@virtual_env_setup@@
 
 # pid and lock files
-if [[ -z "${PANDA_JEDI_LOCKDIR}" ]]; then
+if [[ -z "${PANDA_LOCK_DIR}" ]]; then
     PIDFILE='/var/log/panda/panda_jedi.pid'
     LOCKFILE='/var/lock/subsys/panda_jedi'
 else
-    PIDFILE=${PANDA_JEDI_LOCKDIR}'/panda_jedi.pid'
-    LOCKFILE=${PANDA_JEDI_LOCKDIR}'/panda_jedi'
+    PIDFILE=${PANDA_LOCK_DIR}'/panda_jedi.pid'
+    LOCKFILE=${PANDA_LOCK_DIR}'/panda_jedi'
 fi
 
 # log files
