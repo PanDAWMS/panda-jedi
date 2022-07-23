@@ -49,9 +49,13 @@ RUN chmod -R 777 /data/panda
 RUN mkdir -p /etc/grid-security/certificates
 RUN chmod -R 777 /etc/grid-security/certificates
 
+ENV PANDA_JEDI_LOCKDIR /var/run/panda
+RUN mkdir -p ${PANDA_JEDI_LOCKDIR} && chmod 777 ${PANDA_JEDI_LOCKDIR}
+
 # make a wrapper script to launch services and periodic jobs in non-root container
 RUN echo $'#!/bin/bash \n\
 set -m \n\
+chmod -R 777 /var/log/panda \n\
 /data/panda/init-jedi \n\
 /data/panda/run-jedi-crons & \n\
 /etc/rc.d/init.d/panda-jedi start \n ' > /etc/rc.d/init.d/run-jedi-services
