@@ -6020,6 +6020,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         if not resList:
             scoutSucceeded = False
             tmpLog.debug('no scouts succeeded')
+            extraInfo['successRate'] = 0
         else:
             if not mergeScout and task_spec and task_spec.useScout():
                 # check scout success rate
@@ -6031,6 +6032,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sqlCSSR + comment, varMap)
                 scTotal, scOK = self.cur.fetchone()
                 tmpLog.debug('scout total={} finished={} rate={}'.format(scTotal, scOK, scoutSuccessRate))
+                if scTotal > 0:
+                    extraInfo['successRate'] = scOK / scTotal
+                else:
+                    extraInfo['successRate'] = 0
                 if scoutSuccessRate and scTotal and scOK*10 < scTotal*scoutSuccessRate:
                     tmpLog.debug('not enough scouts succeeded')
                     scoutSucceeded = False
@@ -6539,17 +6544,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         methodName += ' < jediTaskID={0} label={1}>'.format(jediTaskID, taskSpec.prodSourceLabel)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
-        # get memory threshold for exausted
+        # get thresholds for exausted
         ramThr = self.getConfigValue('dbproxy','RAM_THR_EXAUSTED','jedi')
         if ramThr is None:
             ramThr = 4
         ramThr *= 1024
+        # send tasks to exhausted when task.successRate > rate >= thr
+        minNumOkScoutsForExhausted = self.getConfigValue('dbproxy','SCOUT_MIN_OK_RATE_EXHAUSTED_{0}'.format(
+            taskSpec.prodSourceLabel), 'jedi')
+        scoutSuccessRate = taskSpec.getScoutSuccessRate()
+        if scoutSuccessRate and minNumOkScoutsForExhausted:
+            if scoutSuccessRate > minNumOkScoutsForExhausted * 10:
+                scoutSuccessRate = minNumOkScoutsForExhausted * 10
+            else:
+                minNumOkScoutsForExhausted = None
         if useCommit:
             # begin transaction
             self.conn.begin()
         # set average job data
         scoutSucceeded, scoutData, extraInfo = self.getScoutJobData_JEDI(jediTaskID,
-                                                                         scoutSuccessRate=taskSpec.getScoutSuccessRate(),
+                                                                         scoutSuccessRate=scoutSuccessRate,
                                                                          flagJob=True,
                                                                          site_mapper=site_mapper,
                                                                          task_spec=taskSpec)
@@ -6636,9 +6650,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     taskSpec.setErrDiag(errMsg)
                     # taskSpec.status = 'exhausted'
 
-        # short job check
-        if useExhausted and scoutSucceeded and extraInfo['nNewJobs'] > nNewJobsCutoff:
-            # check execution time
+            # short job check
             sl_changed = False
             if taskSpec.status != 'exhausted':
                 # get exectime threshold for exhausted
@@ -6725,7 +6737,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 taskSpec.setErrDiag(errMsg)
                                 taskSpec.status = 'exhausted'
 
-            # check CPU efficiency
+            # CPU efficiency
             if taskSpec.status != 'exhausted' and not sl_changed:
                 # OK if minCpuEfficiency is satisfied
                 if taskSpec.getMinCpuEfficiency() and \
@@ -6763,6 +6775,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.info(errMsg)
                         taskSpec.setErrDiag(errMsg)
                         taskSpec.status = 'exhausted'
+
             # cpu abuse
             if taskSpec.status != 'exhausted':
                 try:
@@ -6783,6 +6796,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 except Exception:
                     tmpLog.error('failed to check CPU abuse')
                     pass
+
+            # low success rate
+            if taskSpec.status != 'exhausted' and minNumOkScoutsForExhausted:
+                if taskSpec.getScoutSuccessRate() and extraInfo['successRate'] < taskSpec.getScoutSuccessRate()/10:
+                    errMsg = '#ATM #KV action=set_exhausted since reason=row_success_rate between {} and {} '.format(
+                        minNumOkScoutsForExhausted, taskSpec.getScoutSuccessRate()/10)
+                    tmpLog.info(errMsg)
+                    taskSpec.setErrDiag(errMsg)
+                    taskSpec.status = 'exhausted'
+
         if useCommit:
             # commit
             if not self._commit():
