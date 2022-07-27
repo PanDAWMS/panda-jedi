@@ -517,11 +517,11 @@ class JediTaskSpec(object):
 
     # use build
     def useBuild(self):
-        self.check_split_rule('useBuild')
+        return self.check_split_rule('useBuild')
 
     # use sjob cloning
     def useJobCloning(self):
-        self.check_split_rule('useJobCloning')
+        return self.check_split_rule('useJobCloning')
 
     # get job cloning type
     def getJobCloningType(self):
@@ -533,11 +533,11 @@ class JediTaskSpec(object):
 
     # reuse secondary on demand
     def reuseSecOnDemand(self):
-        self.check_split_rule('reuseSecOnDemand')
+        return self.check_split_rule('reuseSecOnDemand')
 
     # not wait for completion of parent
     def noWaitParent(self):
-        self.check_split_rule('noWaitParent')
+        return self.check_split_rule('noWaitParent')
 
     # check splitRule if not wait for completion of parent
     def noWaitParentSL(cls,splitRule):
@@ -550,7 +550,7 @@ class JediTaskSpec(object):
 
     # use only limited sites
     def useLimitedSites(self):
-        self.check_split_rule('limitedSites')
+        return self.check_split_rule('limitedSites')
 
     # set limited sites
     def setLimitedSites(self,policy):
@@ -623,19 +623,19 @@ class JediTaskSpec(object):
 
     # disable automatic retry
     def disableAutoRetry(self):
-        self.check_split_rule('disableAutoRetry')
+        return self.check_split_rule('disableAutoRetry')
 
     # disable reassign
     def disableReassign(self):
-        self.check_split_rule('disableReassign')
+        return self.check_split_rule('disableReassign')
 
     # allow empty input
     def allowEmptyInput(self):
-        self.check_split_rule('allowEmptyInput')
+        return self.check_split_rule('allowEmptyInput')
 
     # use PFN list
     def useListPFN(self):
-        self.check_split_rule('pfnList')
+        return self.check_split_rule('pfnList')
 
     # set preprocessing
     def setPrePro(self):
@@ -706,19 +706,19 @@ class JediTaskSpec(object):
 
     # instantiate template datasets
     def instantiateTmpl(self):
-        self.check_split_rule('instantiateTmpl')
+        return self.check_split_rule('instantiateTmpl')
 
     # instantiate template datasets at site
     def instantiateTmplSite(self):
-        self.check_split_rule('instantiateTmplSite')
+        return self.check_split_rule('instantiateTmplSite')
 
     # merge output
     def mergeOutput(self):
-        self.check_split_rule('mergeOutput')
+        return self.check_split_rule('mergeOutput')
 
     # use random seed
     def useRandomSeed(self):
-        self.check_split_rule('randomSeed')
+        return self.check_split_rule('randomSeed')
 
     # get the size of workDisk in bytes
     def getWorkDiskSize(self):
@@ -873,7 +873,7 @@ class JediTaskSpec(object):
 
     # use loadXML
     def useLoadXML(self):
-        self.check_split_rule('loadXML')
+        return self.check_split_rule('loadXML')
 
     # make VOMS FQANs
     def makeFQANs(self):
@@ -948,15 +948,15 @@ class JediTaskSpec(object):
 
     # use exhausted
     def useExhausted(self):
-        self.check_split_rule('useExhausted')
+        return self.check_split_rule('useExhausted')
 
     # use real number of events
     def useRealNumEvents(self):
-        self.check_split_rule('useRealNumEvents')
+        return self.check_split_rule('useRealNumEvents')
 
     # use input LFN as source for output LFN
     def useFileAsSourceLFN(self):
-        self.check_split_rule('useFileAsSourceLFN')
+        return self.check_split_rule('useFileAsSourceLFN')
 
     # post scout
     def isPostScout(self):
@@ -968,7 +968,7 @@ class JediTaskSpec(object):
 
     # wait until input shows up
     def waitInput(self):
-        self.check_split_rule('waitInput')
+        return self.check_split_rule('waitInput')
 
     # input prestaging
     def inputPreStaging(self):
@@ -1049,23 +1049,23 @@ class JediTaskSpec(object):
 
     # respect Lumiblock boundaries
     def respectLumiblock(self):
-        self.check_split_rule('respectLB')
+        return self.check_split_rule('respectLB')
 
     # release files per Lumiblock
     def releasePerLumiblock(self):
-        self.check_split_rule('releasePerLB')
+        return self.check_split_rule('releasePerLB')
 
     # order by Lumiblock numbers
     def orderByLB(self):
-        self.check_split_rule('orderByLB')
+        return self.check_split_rule('orderByLB')
 
     # respect split rule
     def respectSplitRule(self):
-        self.check_split_rule('respectSplitRule')
+        return self.check_split_rule('respectSplitRule')
 
     # allow partial finish
     def allowPartialFinish(self):
-        self.check_split_rule('allowPartialFinish')
+        return self.check_split_rule('allowPartialFinish')
 
     # check if datasets should be registered
     def toRegisterDatasets(self):
@@ -1179,15 +1179,15 @@ class JediTaskSpec(object):
 
     # run until input is closed
     def runUntilClosed(self):
-        self.check_split_rule('runUntilClosed')
+        return self.check_split_rule('runUntilClosed')
 
     # stay output on site
     def stayOutputOnSite(self):
-        self.check_split_rule('stayOutputOnSite')
+        return self.check_split_rule('stayOutputOnSite')
 
     # fail when goal unreached
     def failGoalUnreached(self):
-        self.check_split_rule('failGoalUnreached')
+        return self.check_split_rule('failGoalUnreached')
 
     # unset fail when goal unreached
     def unsetFailGoalUnreached(self):
@@ -1195,7 +1195,7 @@ class JediTaskSpec(object):
 
     # switch ES to normal when jobs land at normal sites
     def switchEStoNormal(self):
-        self.check_split_rule('switchEStoNormal')
+        return self.check_split_rule('switchEStoNormal')
 
     # use world cloud
     def useWorldCloud(self):
@@ -1237,7 +1237,7 @@ class JediTaskSpec(object):
 
     # allow WAN for input access
     def allowInputWAN(self):
-        self.check_split_rule('allowInputWAN')
+        return self.check_split_rule('allowInputWAN')
 
     # set mode for input LAN access
     def setAllowInputLAN(self,value):
@@ -1257,35 +1257,35 @@ class JediTaskSpec(object):
 
     # put log files to OS
     def putLogToOS(self):
-        self.check_split_rule('putLogToOS')
+        return self.check_split_rule('putLogToOS')
 
     # merge ES on Object Store
     def mergeEsOnOS(self):
-        self.check_split_rule('mergeEsOnOS')
+        return self.check_split_rule('mergeEsOnOS')
 
     # write input to file
     def writeInputToFile(self):
-        self.check_split_rule('writeInputToFile')
+        return self.check_split_rule('writeInputToFile')
 
     # ignore missing input datasets
     def ignoreMissingInDS(self):
-        self.check_split_rule('ignoreMissingInDS')
+        return self.check_split_rule('ignoreMissingInDS')
 
     # suppress execute string conversion
     def noExecStrCnv(self):
-        self.check_split_rule('noExecStrCnv')
+        return self.check_split_rule('noExecStrCnv')
 
     # in-file positional event number
     def inFilePosEvtNum(self):
-        self.check_split_rule('inFilePosEvtNum')
+        return self.check_split_rule('inFilePosEvtNum')
 
     # register event service files
     def registerEsFiles(self):
-        self.check_split_rule('registerEsFiles')
+        return self.check_split_rule('registerEsFiles')
 
     # disable auto finish
     def disableAutoFinish(self):
-        self.check_split_rule('disableAutoFinish')
+        return self.check_split_rule('disableAutoFinish')
 
     # reset refined attributes which may confuse they system
     def resetRefinedAttrs(self):
@@ -1295,7 +1295,7 @@ class JediTaskSpec(object):
 
     # resurrect consumers
     def resurrectConsumers(self):
-        self.check_split_rule('resurrectConsumers')
+        return self.check_split_rule('resurrectConsumers')
 
     # use prefetcher
     def usePrefetcher(self):
