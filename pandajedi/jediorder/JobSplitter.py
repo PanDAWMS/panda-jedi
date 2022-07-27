@@ -103,6 +103,11 @@ class JobSplitter:
                 splitByFields = None
         # LB
         respectLB = taskSpec.respectLumiblock()
+        # no split for on-site merging
+        if taskSpec.on_site_merging():
+            no_split = True
+        else:
+            no_split = False
         # dump
         tmpLog.debug('maxNumFiles={0} sizeGradients={1} sizeIntercepts={2} useBoundary={3}'.format(maxNumFiles,
                                                                                                    sizeGradients,
@@ -116,8 +121,8 @@ class JobSplitter:
                                                                                                        maxOutSize,
                                                                                                        respectLB,
                                                                                                        dynNumEvents))
-        tmpLog.debug('multiplicity={0} splitByFields={1} nFiles={2}'.format(multiplicity,str(splitByFields),
-                                                                            inputChunk.getNumFilesInMaster()))
+        tmpLog.debug(f'multiplicity={multiplicity} splitByFields={str(splitByFields)} '
+                     f'nFiles={inputChunk.getNumFilesInMaster()} no_split={no_split}')
         # split
         returnList = []
         subChunks  = []
@@ -259,7 +264,8 @@ class JobSplitter:
                                               tmpLog=tmpLog,
                                               useDirectIO=useDirectIO,
                                               maxDiskSize=maxDiskSize,
-                                              enableLog=True)
+                                              enableLog=True,
+                                              no_split=no_split)
             if subChunk is None:
                 break
             if subChunk != []:

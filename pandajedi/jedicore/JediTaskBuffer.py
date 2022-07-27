@@ -223,11 +223,11 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     # generate output files for task
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None,
                             isUnMerging=False,isPrePro=False,xmlConfigJob=None,siteDsMap=None,middleName='',
-                            registerDatasets=False,parallelOutMap=None,fileIDPool=[]):
+                            registerDatasets=False,parallelOutMap=None,fileIDPool=[], n_files_per_chunk=1):
         with self.proxyPool.get() as proxy:
             return proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,
                                            isUnMerging,isPrePro,xmlConfigJob,siteDsMap,middleName,
-                                           registerDatasets,parallelOutMap,fileIDPool)
+                                           registerDatasets,parallelOutMap,fileIDPool, n_files_per_chunk)
 
     # insert output file templates
     def insertOutputTemplate_JEDI(self,templates):

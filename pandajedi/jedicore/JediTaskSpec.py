@@ -95,6 +95,7 @@ class JediTaskSpec(object):
         'nChunksToWait'      : 'NT',
         'noWaitParent'       : 'NW',
         'orderByLB'          : 'OL',
+        'onSiteMerging'      : 'OM',
         'osMatching'         : 'OS',
         'onlyTagsForFC'      : 'OT',
         'pushStatusChanges'  : 'PC',
@@ -327,7 +328,12 @@ class JediTaskSpec(object):
         ret += ' '
         return ret
 
-
+    # check split rule
+    def check_split_rule(self, key):
+        if self.splitRule is not None:
+            if re.search(self.splitRuleToken[key]+r'=(\d+)', self.splitRule):
+                return True
+        return False
 
     # get the max size per job if defined
     def getMaxSizePerJob(self):
@@ -363,9 +369,6 @@ class JediTaskSpec(object):
     # set MaxNumFilesPerJob
     def setMaxNumFilesPerJob(self, value):
         self.setSplitRule('nMaxFilesPerJob', value)
-
-    # set
-
 
     # get the maxnumber of files per merge job if defined
     def getMaxNumFilesPerMergeJob(self):
@@ -512,27 +515,13 @@ class JediTaskSpec(object):
                 return retMap
         return None
 
-
-
     # use build
     def useBuild(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['useBuild']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('useBuild')
 
     # use sjob cloning
     def useJobCloning(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['useJobCloning']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('useJobCloning')
 
     # get job cloning type
     def getJobCloningType(self):
@@ -542,27 +531,13 @@ class JediTaskSpec(object):
                 return tmpMatch.group(1)
         return ''
 
-
-
     # reuse secondary on demand
     def reuseSecOnDemand(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['reuseSecOnDemand']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('reuseSecOnDemand')
 
     # not wait for completion of parent
     def noWaitParent(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['noWaitParent']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('noWaitParent')
 
     # check splitRule if not wait for completion of parent
     def noWaitParentSL(cls,splitRule):
@@ -573,17 +548,9 @@ class JediTaskSpec(object):
         return False
     noWaitParentSL = classmethod(noWaitParentSL)
 
-
-
     # use only limited sites
     def useLimitedSites(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['limitedSites']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('limitedSites')
 
     # set limited sites
     def setLimitedSites(self,policy):
@@ -654,47 +621,21 @@ class JediTaskSpec(object):
                 return int(tmpMatch.group(1))
         return None
 
-
-
     # disable automatic retry
     def disableAutoRetry(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['disableAutoRetry']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('disableAutoRetry')
 
     # disable reassign
     def disableReassign(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['disableReassign']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('disableReassign')
 
     # allow empty input
     def allowEmptyInput(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['allowEmptyInput']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('allowEmptyInput')
 
     # use PFN list
     def useListPFN(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['pfnList']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('pfnList')
 
     # set preprocessing
     def setPrePro(self):
@@ -763,47 +704,21 @@ class JediTaskSpec(object):
                                         self.splitRule)
         return
 
-
-
     # instantiate template datasets
     def instantiateTmpl(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['instantiateTmpl']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('instantiateTmpl')
 
     # instantiate template datasets at site
     def instantiateTmplSite(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['instantiateTmplSite']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('instantiateTmplSite')
 
     # merge output
     def mergeOutput(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['mergeOutput']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('mergeOutput')
 
     # use random seed
     def useRandomSeed(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['randomSeed']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('randomSeed')
 
     # get the size of workDisk in bytes
     def getWorkDiskSize(self):
@@ -956,17 +871,9 @@ class JediTaskSpec(object):
         else:
             self.errorDialog = diag
 
-
-
     # use loadXML
     def useLoadXML(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['loadXML']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('loadXML')
 
     # make VOMS FQANs
     def makeFQANs(self):
@@ -1029,8 +936,6 @@ class JediTaskSpec(object):
     def setPostScout(self):
         self.setSplitRule('useScout',self.enum_postScout)
 
-
-
     # use scout
     def useScout(self,splitRule=None):
         if splitRule is None:
@@ -1041,37 +946,17 @@ class JediTaskSpec(object):
                 return True
         return False
 
-
-
     # use exhausted
     def useExhausted(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['useExhausted']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('useExhausted')
 
     # use real number of events
     def useRealNumEvents(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['useRealNumEvents']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('useRealNumEvents')
 
     # use input LFN as source for output LFN
     def useFileAsSourceLFN(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['useFileAsSourceLFN']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('useFileAsSourceLFN')
 
     # post scout
     def isPostScout(self):
@@ -1081,16 +966,9 @@ class JediTaskSpec(object):
                 return True
         return False
 
-
-
     # wait until input shows up
     def waitInput(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['waitInput']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
+        self.check_split_rule('waitInput')
 
     # input prestaging
     def inputPreStaging(self):
@@ -1169,53 +1047,25 @@ class JediTaskSpec(object):
                 return int(tmpMatch.group(1))
         return 0
 
-
-
     # respect Lumiblock boundaries
     def respectLumiblock(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['respectLB']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
+        self.check_split_rule('respectLB')
 
     # release files per Lumiblock
     def releasePerLumiblock(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['releasePerLB']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
+        self.check_split_rule('releasePerLB')
 
     # order by Lumiblock numbers
     def orderByLB(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['orderByLB']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('orderByLB')
 
     # respect split rule
     def respectSplitRule(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['respectSplitRule']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('respectSplitRule')
 
     # allow partial finish
     def allowPartialFinish(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['allowPartialFinish']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('allowPartialFinish')
 
     # check if datasets should be registered
     def toRegisterDatasets(self):
@@ -1327,59 +1177,29 @@ class JediTaskSpec(object):
     def ramPerCore(self):
         return self.ramUnit in ['MBPerCore','MBPerCoreFixed']
 
-
-
     # run until input is closed
     def runUntilClosed(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['runUntilClosed']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('runUntilClosed')
 
     # stay output on site
     def stayOutputOnSite(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['stayOutputOnSite']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('stayOutputOnSite')
 
     # fail when goal unreached
     def failGoalUnreached(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['failGoalUnreached']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('failGoalUnreached')
 
     # unset fail when goal unreached
     def unsetFailGoalUnreached(self):
         self.removeSplitRule(self.splitRuleToken['failGoalUnreached'])
 
-
-
     # switch ES to normal when jobs land at normal sites
     def switchEStoNormal(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['switchEStoNormal']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('switchEStoNormal')
 
     # use world cloud
     def useWorldCloud(self):
         return self.cloud == self.worldCloudName
-
-
 
     # dynamic number of events
     def dynamicNumEvents(self):
@@ -1391,8 +1211,6 @@ class JediTaskSpec(object):
                 return True
         return False
 
-
-
     # get min granularity for dynamic number of events
     def get_min_granularity(self):
         if self.splitRule is not None:
@@ -1400,8 +1218,6 @@ class JediTaskSpec(object):
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
-
-
 
     # set alternative stage-out
     def setAltStageOut(self,value):
@@ -1411,8 +1227,6 @@ class JediTaskSpec(object):
                     self.setSplitRule('altStageOut',tmpKey)
                     break
 
-
-
     # get alternative stage-out
     def getAltStageOut(self):
         if self.splitRule is not None:
@@ -1421,17 +1235,9 @@ class JediTaskSpec(object):
                 return self.enum_altStageOut[tmpMatch.group(1)]
         return None
 
-
-
     # allow WAN for input access
     def allowInputWAN(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['allowInputWAN']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('allowInputWAN')
 
     # set mode for input LAN access
     def setAllowInputLAN(self,value):
@@ -1441,8 +1247,6 @@ class JediTaskSpec(object):
                     self.setSplitRule('allowInputLAN',tmpKey)
                     break
 
-
-
     # check if LAN is used for input access
     def allowInputLAN(self):
         if self.splitRule is not None:
@@ -1451,87 +1255,37 @@ class JediTaskSpec(object):
                 return self.enum_inputLAN[tmpMatch.group(1)]
         return None
 
-
-
     # put log files to OS
     def putLogToOS(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['putLogToOS']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('putLogToOS')
 
     # merge ES on Object Store
     def mergeEsOnOS(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['mergeEsOnOS']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('mergeEsOnOS')
 
     # write input to file
     def writeInputToFile(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['writeInputToFile']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('writeInputToFile')
 
     # ignore missing input datasets
     def ignoreMissingInDS(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['ignoreMissingInDS']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('ignoreMissingInDS')
 
     # suppress execute string conversion
     def noExecStrCnv(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['noExecStrCnv']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('noExecStrCnv')
 
     # in-file positional event number
     def inFilePosEvtNum(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['inFilePosEvtNum']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('inFilePosEvtNum')
 
     # register event service files
     def registerEsFiles(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['registerEsFiles']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('registerEsFiles')
 
     # disable auto finish
     def disableAutoFinish(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['disableAutoFinish']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('disableAutoFinish')
 
     # reset refined attributes which may confuse they system
     def resetRefinedAttrs(self):
@@ -1539,35 +1293,17 @@ class JediTaskSpec(object):
         self.resetChangedAttr('eventService')
         self.reserve_old_attributes()
 
-
-
     # resurrect consumers
     def resurrectConsumers(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['resurrectConsumers']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        self.check_split_rule('resurrectConsumers')
 
     # use prefetcher
     def usePrefetcher(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['usePrefetcher']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        return self.check_split_rule('usePrefetcher')
 
     # no input pooling
     def noInputPooling(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['noInputPooling']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
+        return self.check_split_rule('noInputPooling')
 
     # get num of input chunks to wait
     def nChunksToWait(self):
@@ -1596,17 +1332,9 @@ class JediTaskSpec(object):
                 return int(tmpMatch.group(1))
         return None
 
-
-
     # not discard events
     def notDiscardEvents(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['notDiscardEvents']+'=(\d+)',self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        return self.check_split_rule('notDiscardEvents')
 
     # get min CPU efficiency
     def getMinCpuEfficiency(self):
@@ -1616,35 +1344,17 @@ class JediTaskSpec(object):
                 return int(tmpMatch.group(1))
         return None
 
-
-
     # decrement attemptNr of events only when failed
     def decAttOnFailedES(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['decAttOnFailedES']+'=(\d+)', self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        return self.check_split_rule('decAttOnFailedES')
 
     # use zip files to pin input files
     def useZipToPin(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['useZipToPin']+'=(\d+)', self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
-
-
+        return self.check_split_rule('useZipToPin')
 
     # require OS matching
     def osMatching(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['osMatching']+'=(\d+)', self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
+        return self.check_split_rule('osMatching')
 
     # architecture: sw_platform<@base_platform><#host_cpu_spec><&host_gpu_spec>
     # host_cpu_spec: architecture<-vendor<-instruction_set>>
@@ -1717,27 +1427,15 @@ class JediTaskSpec(object):
 
     # HPO workflow
     def is_hpo_workflow(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['hpoWorkflow']+'=(\d+)', self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
+        return self.check_split_rule('hpoWorkflow')
 
     # debug mode
     def is_debug_mode(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['debugMode']+'=(\d+)', self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
+        return self.check_split_rule('debugMode')
 
     # multi-step execution
     def is_multi_step_exec(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['multiStepExec']+'=(\d+)', self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
+        return self.check_split_rule('multiStepExec')
 
     # get max number of jobs
     def get_max_num_jobs(self):
@@ -1757,19 +1455,11 @@ class JediTaskSpec(object):
 
     # use only tags for fat container
     def use_only_tags_fc(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['onlyTagsForFC']+'=(\d+)', self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
+        return self.check_split_rule('onlyTagsForFC')
 
     # avoid VP
     def avoid_vp(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['avoidVP']+'=(\d+)', self.splitRule)
-            if tmpMatch is not None:
-                return True
-        return False
+        return self.check_split_rule('avoidVP')
 
     # set first contents feed
     def set_first_contents_feed(self, is_first):
@@ -1788,25 +1478,15 @@ class JediTaskSpec(object):
 
     # check if work is segmented
     def is_work_segmented(self):
-        if self.splitRule is not None:
-            if re.search(self.splitRuleToken['segmentedWork']+'=(\d+)', self.splitRule):
-                return True
-        return False
+        return self.check_split_rule('segmentedWork')
 
     # check if looping check is disabled
     def no_looping_check(self):
-        if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['noLoopingCheck']+'=(\d+)', self.splitRule)
-            if tmpMatch and int(tmpMatch.group(1)):
-                return True
-        return False
+        return self.check_split_rule('noLoopingCheck')
 
     # encode job parameters
     def encode_job_params(self):
-        if self.splitRule is not None:
-            if re.search(self.splitRuleToken['encJobParams']+'=(\d+)', self.splitRule):
-                return True
-        return False
+        return self.check_split_rule('encJobParams')
 
     # get original error dialog
     def get_original_error_dialog(self):
@@ -1818,10 +1498,7 @@ class JediTaskSpec(object):
 
     # check if secrets are used
     def use_secrets(self):
-        if self.splitRule is not None:
-            if re.search(self.splitRuleToken['useSecrets']+'=(\d+)', self.splitRule):
-                return True
-        return False
+        return self.check_split_rule('useSecrets')
 
     # get max core count
     def get_max_core_count(self):
@@ -1837,17 +1514,15 @@ class JediTaskSpec(object):
 
     # use cloud as VO
     def cloud_as_vo(self):
-        if self.splitRule is not None:
-            if re.search(self.splitRuleToken['cloudAsVO']+'=(\d+)', self.splitRule):
-                return True
-        return False
+        return self.check_split_rule('cloudAsVO')
 
     # push job
     def push_job(self):
-        if self.splitRule is not None:
-            if re.search(self.splitRuleToken['pushJob']+'=(\d+)', self.splitRule):
-                return True
-        return False
+        return self.check_split_rule('pushJob')
+
+    # on site merging
+    def on_site_merging(self):
+        return self.check_split_rule('onSiteMerging')
 
 
 # utils

@@ -1421,6 +1421,17 @@ class JobGeneratorThread(WorkerThread):
                         except Exception:
                             tmpLog.error('failed to get XML config for N={0}'.format(boundaryID))
                             return failedRet
+                    # num of output files per job
+                    if taskSpec.on_site_merging():
+                        tmpStat, taskParamMap = self.readTaskParams(taskSpec, taskParamMap, tmpLog)
+                        if not tmpStat:
+                            return failedRet
+                        if 'nEventsPerOutputFile' in taskParamMap and totalMasterEvents:
+                            n_files_per_chunk = int(totalMasterEvents / taskParamMap['nEventsPerOutputFile'])
+                        else:
+                            n_files_per_chunk = 1
+                    else:
+                        n_files_per_chunk = 1
                     # outputs
                     outSubChunk, serialNr, tmpToRegister, siteDsMap, tmpParOutMap = self.taskBufferIF.getOutputFiles_JEDI(
                         taskSpec.jediTaskID,
@@ -1435,7 +1446,8 @@ class JobGeneratorThread(WorkerThread):
                         middleName,
                         registerDatasets,
                         None,
-                        fileIDPool)
+                        fileIDPool,
+                        n_files_per_chunk)
                     if outSubChunk is None:
                         # failed
                         tmpLog.error('failed to get OutputFiles')
@@ -1943,7 +1955,9 @@ class JobGeneratorThread(WorkerThread):
             skipEvents = 0
         # output
         for streamName, tmpFileSpec in iteritems(outSubChunk):
-            streamLFNsMap[streamName] = [tmpFileSpec.lfn]
+            streamName = streamName.split('|')[0]
+            streamLFNsMap.setdefault(streamName, [])
+            streamLFNsMap[streamName].append(tmpFileSpec.lfn)
         # extract place holders with range expression, e.g., IN[0:2]
         for tmpMatch in re.finditer('\$\{([^\}]+)\}', parTemplate):
             tmpPatt = tmpMatch.group(1)

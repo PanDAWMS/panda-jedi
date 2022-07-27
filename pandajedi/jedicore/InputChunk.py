@@ -451,7 +451,8 @@ class InputChunk:
                     tmpLog=None,
                     useDirectIO=False,
                     maxDiskSize=None,
-                    enableLog=False):
+                    enableLog=False,
+                    no_split=False):
         # check if there are unused files/events
         if not self.checkUnused():
             return None
@@ -524,13 +525,14 @@ class InputChunk:
         fieldStr       = None
         diskSize       = 0
         dumpStr = ''
-        while (maxNumFiles is None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or \
+        while no_split or (
+                (maxNumFiles is None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or \
                    (dynNumEvents and len(inputFileSet) <= maxNumFiles and inputNumFiles <= maxNumEventRanges)) \
                 and (maxSize is None or (maxSize is not None and fileSize <= maxSize)) \
                 and (maxWalltime is None or maxWalltime <= 0 or expWalltime <= maxWalltime) \
                 and (maxNumEvents is None or (maxNumEvents is not None and inputNumEvents <= maxNumEvents)) \
                 and (maxOutSize is None or self.getOutSize(outSizeMap) <= maxOutSize) \
-                and (maxDiskSize is None or diskSize <= maxDiskSize):
+                and (maxDiskSize is None or diskSize <= maxDiskSize)):
             # get one file (or one file group for MP) from master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             if self.masterDataset.datasetID not in outSizeMap:
@@ -907,6 +909,9 @@ class InputChunk:
                         if tmpFileSpec.nEvents is not None:
                             new_nSecEventsMap[datasetSpec.datasetID] += tmpFileSpec.nEvents
                     firstSecondary = False
+            # no split:
+            if no_split:
+                continue
             # termination
             if terminateFlag:
                 break

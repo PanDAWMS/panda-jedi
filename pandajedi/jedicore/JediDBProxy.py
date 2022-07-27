@@ -2718,7 +2718,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
     # generate output files for task, and instantiate template datasets if necessary
     def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSites,isUnMerging,
                             isPrePro,xmlConfigJob,siteDsMap,middleName,registerDatasets,parallelOutMap,
-                            fileIDPool):
+                            fileIDPool, n_files_per_chunk=1):
         comment = ' /* JediDBProxy.getOutputFiles_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0}>'.format(jediTaskID)
@@ -2728,6 +2728,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                                             instantiatedSites))
         tmpLog.debug('isUnMerging={0} isPrePro={1} xmlConfigJob={2}'.format(isUnMerging,isPrePro,type(xmlConfigJob)))
         tmpLog.debug('middleName={0} registerDatasets={1} idPool={2}'.format(middleName,registerDatasets,len(fileIDPool)))
+        tmpLog.debug(f'n_files_per_chunk={n_files_per_chunk}')
         try:
             if instantiatedSites is None:
                 instantiatedSites = ''
@@ -2923,54 +2924,62 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             newStreamName = tmpFileName
                             newFileNameTemplate = fileNameTemplate + '.' + xmlConfigJob.prepend_string() + '.' + newStreamName
                             fileNameTemplateList.append((newFileNameTemplate,newStreamName))
+                    if outType.endswith('log'):
+                        nFileLoop = 1
+                    else:
+                        nFileLoop = n_files_per_chunk
                     # loop over all filename templates
                     for fileNameTemplate,streamName in fileNameTemplateList:
                         firstFileID = None
                         for fileDatasetID in fileDatasetIDs:
-                            fileSpec = JediFileSpec()
-                            fileSpec.jediTaskID   = jediTaskID
-                            fileSpec.datasetID = fileDatasetID
-                            nameTemplate = fileNameTemplate.replace('${SN}','{SN:06d}')
-                            nameTemplate = nameTemplate.replace('${SN/P}','{SN:06d}')
-                            nameTemplate = nameTemplate.replace('${SN','{SN')
-                            nameTemplate = nameTemplate.replace('${MIDDLENAME}',middleName)
-                            fileSpec.lfn          = nameTemplate.format(SN=serialNr)
-                            fileSpec.status       = 'defined'
-                            fileSpec.creationDate = timeNow
-                            fileSpec.type         = outType
-                            fileSpec.keepTrack    = 1
-                            if maxSerialNr is None or maxSerialNr < serialNr:
-                                maxSerialNr = serialNr
-                            # scope
-                            if vo in jedi_config.ddm.voWithScope.split(','):
-                                fileSpec.scope = self.extractScope(datasetName)
-                            if not simul:
-                                # insert
-                                if indexFileID < len(fileIDPool):
-                                    fileSpec.fileID = fileIDPool[indexFileID]
-                                    varMap = fileSpec.valuesMap()
-                                    varMapsForInsert.append(varMap)
-                                    indexFileID += 1
+                            for iFileLoop in range(nFileLoop):
+                                fileSpec = JediFileSpec()
+                                fileSpec.jediTaskID   = jediTaskID
+                                fileSpec.datasetID = fileDatasetID
+                                nameTemplate = fileNameTemplate.replace('${SN}','{SN:06d}')
+                                nameTemplate = nameTemplate.replace('${SN/P}','{SN:06d}')
+                                nameTemplate = nameTemplate.replace('${SN','{SN')
+                                nameTemplate = nameTemplate.replace('${MIDDLENAME}',middleName)
+                                fileSpec.lfn          = nameTemplate.format(SN=serialNr)
+                                fileSpec.status       = 'defined'
+                                fileSpec.creationDate = timeNow
+                                fileSpec.type         = outType
+                                fileSpec.keepTrack    = 1
+                                if maxSerialNr is None or maxSerialNr < serialNr:
+                                    maxSerialNr = serialNr
+                                # scope
+                                if vo in jedi_config.ddm.voWithScope.split(','):
+                                    fileSpec.scope = self.extractScope(datasetName)
+                                if not simul:
+                                    # insert
+                                    if indexFileID < len(fileIDPool):
+                                        fileSpec.fileID = fileIDPool[indexFileID]
+                                        varMap = fileSpec.valuesMap()
+                                        varMapsForInsert.append(varMap)
+                                        indexFileID += 1
+                                    else:
+                                        varMap = fileSpec.valuesMap(useSeq=True)
+                                        varMap[':newFileID'] = self.cur.var(varNUMBER)
+                                        self.cur.execute(sqlI+comment,varMap)
+                                        val = self.getvalue_corrector(self.cur.getvalue(varMap[':newFileID']))
+                                        fileSpec.fileID = long(val)
+                                    # increment SN
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    varMap[':outTempID']  = outTempID
+                                    varMapsForSN.append(varMap)
                                 else:
-                                    varMap = fileSpec.valuesMap(useSeq=True)
-                                    varMap[':newFileID'] = self.cur.var(varNUMBER)
-                                    self.cur.execute(sqlI+comment,varMap)
-                                    val = self.getvalue_corrector(self.cur.getvalue(varMap[':newFileID']))
-                                    fileSpec.fileID = long(val)
-                                # increment SN
-                                varMap = {}
-                                varMap[':jediTaskID'] = jediTaskID
-                                varMap[':outTempID']  = outTempID
-                                varMapsForSN.append(varMap)
-                            else:
-                                # set dummy for simulation
-                                fileSpec.fileID = fileSpec.datasetID
-                            # append
-                            if firstFileID is None:
-                                outMap[streamName] = fileSpec
-                                firstFileID = fileSpec.fileID
-                                parallelOutMap[firstFileID] = []
-                            parallelOutMap[firstFileID].append(fileSpec)
+                                    # set dummy for simulation
+                                    fileSpec.fileID = fileSpec.datasetID
+                                # append
+                                if firstFileID is None:
+                                    outMap[streamName] = fileSpec
+                                    firstFileID = fileSpec.fileID
+                                    parallelOutMap[firstFileID] = []
+                                if nFileLoop > 1:
+                                    outMap[streamName + f'|{iFileLoop}'] = fileSpec
+                                    continue
+                                parallelOutMap[firstFileID].append(fileSpec)
             # bulk increment
             if len(varMapsForSN) > 0:
                 tmpLog.debug('bulk increment {0} SNs'.format(len(varMapsForSN)))

@@ -1,3 +1,4 @@
+import json
 import re
 import sys
 import uuid
@@ -385,6 +386,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['cloudAsVO'])
         if 'pushJob' in taskParamMap and taskParamMap['pushJob']:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['pushJob'])
+        if 'onSiteMerging' in  taskParamMap and taskParamMap['onSiteMerging']:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['onSiteMerging'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
@@ -883,7 +886,7 @@ class TaskRefinerBase (object):
     # get parameters for event service merging
     def getParamsForEventServiceMerging(self,taskParamMap):
         # no event service
-        if not self.taskSpec.useEventService():
+        if not self.taskSpec.useEventService() and self.taskSpec.on_site_merging():
             return None
         # extract parameters
         transPath = 'UnDefined'
@@ -892,8 +895,14 @@ class TaskRefinerBase (object):
             if 'transPath' in taskParamMap['esmergeSpec']:
                 transPath = taskParamMap['esmergeSpec']['transPath']
             if 'jobParameters' in taskParamMap['esmergeSpec']:
-                jobParameters = taskParamMap['esmergeSpec']['jobParameters']
+                jobParameters = jobParameters['esmergeSpec']['jobParameters']
         # return
+        if self.taskSpec.on_site_merging():
+            data = {}
+            data['transPath'] = transPath
+            data['jobParameters'] = jobParameters
+            data['nEventsPerOutputFile'] = jobParameters['nEventsPerOutputFile']
+            return '<___PANDA_MERGE___>' + json.dumps(data)
         return '<PANDA_ESMERGE_TRF>'+transPath+'</PANDA_ESMERGE_TRF>'+'<PANDA_ESMERGE_JOBP>'+jobParameters+'</PANDA_ESMERGE_JOBP>'
 
 
