@@ -221,7 +221,7 @@ loopCycle = 20
 modConfig = wlcg:any:pandajedi.jedidog.GenWatchDog:GenWatchDog
 
 # process config
-procConfig = ::1
+procConfig = wlcg:any:1
 
 # loop interval in seconds
 loopCycle = 300
