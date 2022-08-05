@@ -886,7 +886,7 @@ class TaskRefinerBase (object):
     # get parameters for event service merging
     def getParamsForEventServiceMerging(self,taskParamMap):
         # no event service
-        if not self.taskSpec.useEventService() and self.taskSpec.on_site_merging():
+        if not self.taskSpec.useEventService() or self.taskSpec.on_site_merging():
             return None
         # extract parameters
         transPath = 'UnDefined'
@@ -897,12 +897,6 @@ class TaskRefinerBase (object):
             if 'jobParameters' in taskParamMap['esmergeSpec']:
                 jobParameters = jobParameters['esmergeSpec']['jobParameters']
         # return
-        if self.taskSpec.on_site_merging():
-            data = {}
-            data['transPath'] = transPath
-            data['jobParameters'] = jobParameters
-            data['nEventsPerOutputFile'] = jobParameters['nEventsPerOutputFile']
-            return '<___PANDA_MERGE___>' + json.dumps(data)
         return '<PANDA_ESMERGE_TRF>'+transPath+'</PANDA_ESMERGE_TRF>'+'<PANDA_ESMERGE_JOBP>'+jobParameters+'</PANDA_ESMERGE_JOBP>'
 
 

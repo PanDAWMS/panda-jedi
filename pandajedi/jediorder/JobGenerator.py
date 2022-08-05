@@ -1551,6 +1551,11 @@ class JobGeneratorThread(WorkerThread):
                                                                                   jobSpec.Files, useEStoMakeJP)
                     if multiExecStep is not None:
                         jobSpec.addMultiStepExec(multiExecStep)
+                    elif taskSpec.on_site_merging():
+                        # add merge spec for on-site-merging
+                        tmp_data = {'esMergeSpec': copy.deepcopy(taskParamMap['esMergeSpec'])}
+                        tmp_data['esMergeSpec']['nEventsPerOutputFile'] = taskParamMap['nEventsPerOutputFile']
+                        jobSpec.addMultiStepExec(tmp_data)
                     # set destinationSE for fake co-jumbo
                     if inputChunk.useJumbo in ['fake', 'only']:
                         jobSpec.destinationSE = DataServiceUtils.checkJobDestinationSE(jobSpec)
