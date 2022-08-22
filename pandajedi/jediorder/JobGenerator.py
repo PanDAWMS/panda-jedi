@@ -1303,6 +1303,9 @@ class JobGeneratorThread(WorkerThread):
                     # push job
                     if taskSpec.push_job():
                         jobSpec.set_push_job()
+                    # on-site merging
+                    if taskSpec.on_site_merging():
+                        jobSpec.set_on_site_merging()
                     # extract middle name
                     middleName = ''
                     if taskSpec.getFieldNumToLFN() is not None and jobSpec.prodDBlock not in [None, 'NULL', '']:
