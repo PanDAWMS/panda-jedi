@@ -269,10 +269,16 @@ class AtlasProdJobBroker (JobBrokerBase):
             workQueueGS = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(None, taskSpec.gshare)
             wq_tag_global_share = workQueueGS.queue_name
 
+        # init summary list
+        self.init_summary_list('Job brokerage summary',
+                               None,
+                               scanSiteList)
+
         ######################################
         # selection for status
         if not sitePreAssigned and not siteListPreAssigned:
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # skip unified queues
@@ -294,7 +300,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                         siteSkippedTmp[tmpSiteName] = tmpStr
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed site status check'.format(len(scanSiteList)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'status check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -327,6 +335,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 totalQueued = 0
             tmpLog.debug('Total number of files being transferred to the nucleus : {0}'.format(totalQueued))
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             newSkippedTmp = dict()
             for tmpPandaSiteName in self.get_unified_sites(scanSiteList):
                 try:
@@ -377,7 +386,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed link check'.format(len(scanSiteList)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'link check')
             if not scanSiteList:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -391,6 +402,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if taskSpec.currentPriority >= 900 or inputChunk.useScout():
                     t1WeightForHighPrio = 100
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 if not tmpSiteSpec.is_opportunistic():
@@ -401,7 +413,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpLog.info(tmpMsg)
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed for opportunistic check'.format(len(scanSiteList)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'opportunistic check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -415,6 +429,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             inactiveTimeLimit = 2
             inactiveSites = self.taskBufferIF.getInactiveSites_JEDI('production',inactiveTimeLimit)
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             newSkippedTmp = dict()
             tmpMsgList = []
             for tmpSiteName in self.get_unified_sites(scanSiteList):
@@ -436,7 +451,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed for slowness/inactive check'.format(len(scanSiteList)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'slowness/inactive check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -513,6 +530,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for fairshare
         if sitePreAssigned and taskSpec.prodSourceLabel not in [JobUtils.PROD_PS] or workQueue.queue_name not in ['test', 'validation']:
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
@@ -522,7 +540,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed zero share check'.format(len(scanSiteList)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'zero share check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -531,6 +551,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for jumbo jobs
         if not sitePreAssigned and taskSpec.getNumJumboJobs() is None:
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 if tmpSiteSpec.useJumboJobs():
@@ -539,7 +560,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed jumbo job check'.format(len(scanSiteList)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'jumbo job check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -548,6 +571,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             nReadyEvents = self.taskBufferIF.getNumReadyEvents(taskSpec.jediTaskID)
             if nReadyEvents is not None:
                 newScanSiteList = []
+                oldScanSiteList = copy.copy(scanSiteList)
                 for tmpSiteName in scanSiteList:
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                     if tmpSiteSpec.useJumboJobs():
@@ -560,7 +584,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                     newScanSiteList.append(tmpSiteName)
                 scanSiteList = newScanSiteList
                 tmpLog.info('{0} candidates passed jumbo events check nReadyEvents={1}'.format(len(scanSiteList), nReadyEvents))
+                self.add_summary_message(oldScanSiteList, scanSiteList, 'jumbo events check')
                 if scanSiteList == []:
+                    self.dump_summary(tmpLog)
                     tmpLog.error('no candidates')
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     self.sendLogMessage(tmpLog)
@@ -578,6 +604,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         diskio_percore_usage = self.taskBufferIF.getAvgDiskIO_JEDI()
         unified_site_list = self.get_unified_sites(scanSiteList)
         newScanSiteList = []
+        oldScanSiteList = copy.copy(scanSiteList)
         newSkippedTmp = dict()
         for tmpSiteName in unified_site_list:
 
@@ -623,7 +650,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
 
         tmpLog.info('{0} candidates passed diskIO check'.format(len(scanSiteList)))
+        self.add_summary_message(oldScanSiteList, scanSiteList, 'diskIO check')
         if not scanSiteList:
+            self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             self.sendLogMessage(tmpLog)
@@ -633,6 +662,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for MP
         if not sitePreAssigned:
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # check at the site
@@ -650,7 +680,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                                  (tmpSiteName,tmpSiteSpec.coreCount,taskCoreCount))
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed for core count check with policy={1}'.format(len(scanSiteList),useMP))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'core count check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -733,6 +765,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                     sitesNonAuto = copy.copy(tmpListWithSW)
                     siteListWithSW += tmpListWithSW
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             sitesAny = []
             for tmpSiteName in unified_site_list:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -762,7 +795,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpLog.info(
                 '{} candidates ({} with AUTO, {} without AUTO, {} with ANY) passed SW check '.format(
                     len(scanSiteList), len(sitesAuto), len(sitesNonAuto), len(sitesAny)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'SW check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -778,6 +813,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             if not inputChunk.isMerging and taskSpec.baseRamCount not in [0,None]:
                 strMinRamCount += '+{0}'.format(taskSpec.baseRamCount)
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # job memory requirement
@@ -814,7 +850,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed memory check {1}'.format(len(scanSiteList),strMinRamCount))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'memory check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -834,6 +872,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         minDiskCountL  = minDiskCountL // 1024 // 1024
         minDiskCountD  = minDiskCountD // 1024 // 1024
         newScanSiteList = []
+        oldScanSiteList = copy.copy(scanSiteList)
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
             # check direct access
@@ -877,7 +916,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed scratch disk check minDiskCount>{1} MB'.format(len(scanSiteList),
                                                                                           minDiskCount))
+        self.add_summary_message(oldScanSiteList, scanSiteList, 'disk check')
         if scanSiteList == []:
+            self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             self.sendLogMessage(tmpLog)
@@ -885,6 +926,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for available space in SE
         newScanSiteList = []
+        oldScanSiteList = copy.copy(scanSiteList)
         newSkippedTmp = dict()
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -912,7 +954,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed SE space check'.format(len(scanSiteList)))
+        self.add_summary_message(oldScanSiteList, scanSiteList, 'SE space check')
         if scanSiteList == []:
+            self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             self.sendLogMessage(tmpLog)
@@ -964,6 +1008,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             minWalltime /= (nEsConsumers * maxAttemptEsJob)
         if minWalltime is not None or inputChunk.useScout():
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 siteMaxTime = tmpSiteSpec.maxtime
@@ -1039,7 +1084,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 tmpLog.info('{0} candidates passed walltime check {1}({2})'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
             else:
                 tmpLog.info('{0} candidates passed walltime check {1}({2}*nEventsPerJob)'.format(len(scanSiteList),strMinWalltime,taskSpec.cpuTimeUnit))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'walltime check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -1051,6 +1098,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             ipStack =  taskSpec.getIpStack()
             if ipConnectivity or ipStack:
                 newScanSiteList = []
+                oldScanSiteList = copy.copy(scanSiteList)
                 for tmpSiteName in scanSiteList:
                     tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                     # check connectivity
@@ -1084,7 +1132,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 scanSiteList = newScanSiteList
                 tmpLog.info('{0} candidates passed network check ({1})'.format(len(scanSiteList),
                                                                                 ipConnectivity))
+                self.add_summary_message(oldScanSiteList, scanSiteList, 'network check')
                 if scanSiteList == []:
+                    self.dump_summary(tmpLog)
                     tmpLog.error('no candidates')
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     self.sendLogMessage(tmpLog)
@@ -1093,6 +1143,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for event service
         if not sitePreAssigned:
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # event service
@@ -1123,7 +1174,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed EventService check'.format(len(scanSiteList)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'EventService check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -1132,6 +1185,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         # selection for dynamic number of events
         if not sitePreAssigned and taskSpec.dynamicNumEvents():
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             minGranularity = taskSpec.get_min_granularity()
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -1152,7 +1206,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed DynNumEvents check'.format(len(scanSiteList)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'dynamic number of events check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -1160,6 +1216,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # selection for transferring
         newScanSiteList = []
+        oldScanSiteList = copy.copy(scanSiteList)
         newSkippedTmp = dict()
         for tmpSiteName in self.get_unified_sites(scanSiteList):
             try:
@@ -1186,7 +1243,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
         scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
         tmpLog.info('{0} candidates passed transferring check'.format(len(scanSiteList)))
+        self.add_summary_message(oldScanSiteList, scanSiteList, 'transferring check')
         if scanSiteList == []:
+            self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             self.sendLogMessage(tmpLog)
@@ -1202,6 +1261,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 t1Weight = self.siteMapper.getCloud(cloudName)['weight']
             else:
                 t1Weight = 1
+        oldScanSiteList = copy.copy(scanSiteList)
         if t1Weight < 0 and not inputChunk.isMerging:
             newScanSiteList = []
             for tmpSiteName in scanSiteList:
@@ -1214,7 +1274,9 @@ class AtlasProdJobBroker (JobBrokerBase):
         t1Weight = max(t1Weight,t1WeightForHighPrio)
         tmpLog.info('T1 weight {0}'.format(t1Weight))
         tmpLog.info('{0} candidates passed T1 weight check'.format(len(scanSiteList)))
+        self.add_summary_message(oldScanSiteList, scanSiteList, 'T1 weight check')
         if scanSiteList == []:
+            self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             self.sendLogMessage(tmpLog)
@@ -1225,6 +1287,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not sitePreAssigned and not siteListPreAssigned:
             nWNmap = self.taskBufferIF.getCurrentSiteData()
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             newSkippedTmp = dict()
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
@@ -1243,7 +1306,9 @@ class AtlasProdJobBroker (JobBrokerBase):
             siteSkippedTmp = self.add_pseudo_sites_to_skip(newSkippedTmp, scanSiteList, siteSkippedTmp)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info('{0} candidates passed pilot activity check'.format(len(scanSiteList)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'pilot check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -1253,6 +1318,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             ######################################
             # temporary problems
             newScanSiteList = []
+            oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in scanSiteList:
                 if tmpSiteName in siteSkippedTmp:
                     tmpLog.info(siteSkippedTmp[tmpSiteName])
@@ -1260,7 +1326,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                     newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed temporary problem check'.format(len(scanSiteList)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'temp problem check')
             if scanSiteList == []:
+                self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
@@ -1397,9 +1465,12 @@ class AtlasProdJobBroker (JobBrokerBase):
                 else:
                     for tmpMsg in msgList:
                         tmpLog.info(tmpMsg)
+                oldScanSiteList = copy.copy(scanSiteList)
                 scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
                 tmpLog.info('{0} candidates passed IO check'.format(len(scanSiteList)))
+                self.add_summary_message(oldScanSiteList, scanSiteList, 'IO check')
                 if scanSiteList == []:
+                    self.dump_summary(tmpLog)
                     tmpLog.error('no candidates')
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     self.sendLogMessage(tmpLog)
@@ -1407,6 +1478,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         ######################################
         # temporary problems
         newScanSiteList = []
+        oldScanSiteList = copy.copy(scanSiteList)
         for tmpSiteName in scanSiteList:
             if tmpSiteName in siteSkippedTmp:
                 tmpLog.info(siteSkippedTmp[tmpSiteName])
@@ -1414,7 +1486,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
         tmpLog.info('{0} candidates passed temporary problem check'.format(len(scanSiteList)))
+        self.add_summary_message(oldScanSiteList, scanSiteList, 'temporary problem check')
         if scanSiteList == []:
+            self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             self.sendLogMessage(tmpLog)
@@ -1800,9 +1874,12 @@ class AtlasProdJobBroker (JobBrokerBase):
                 else:
                     # dump NG message
                     tmpLog.info(tmpNgMsg)
+        oldScanSiteList = copy.copy(scanSiteList)
         scanSiteList = newScanSiteList
+        self.add_summary_message(oldScanSiteList, scanSiteList, 'final check')
         # final check
         if scanSiteList == []:
+            self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             self.sendLogMessage(tmpLog)
@@ -1812,7 +1889,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             for tmpSiteName in scanSiteList:
                 #self.lockSite(# FIXME)
                 pass
-        tmpLog.info('final {0} candidates'.format(len(scanSiteList)))
+        self.dump_summary(tmpLog, scanSiteList)
         # return
         self.sendLogMessage(tmpLog)
         tmpLog.info('done')

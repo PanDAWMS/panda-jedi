@@ -1,5 +1,7 @@
 import sys
 import random
+import copy
+import math
 import traceback
 
 from six import iteritems
@@ -255,7 +257,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
         self.prioRW       = prioRW
         self.numTasks     = 0
         self.workQueue    = workQueue
-
+        self.summaryList = None
 
     # wrapper for return
     def sendLogMessage(self,tmpLog):
@@ -263,6 +265,33 @@ class AtlasProdTaskBrokerThread (WorkerThread):
         #tmpLog.bulkSendMsg('taskbrokerage',loggerName='bamboo')
         tmpLog.debug('sent')
 
+    # init summary list
+    def init_summary_list(self, header, comment, initial_list):
+        self.summaryList = []
+        self.summaryList.append('===== {} ====='.format(header))
+        if comment:
+            self.summaryList.append(comment)
+        self.summaryList.append('the number of initial candidates: {}'.format(len(initial_list)))
+
+    # dump summary
+    def dump_summary(self, tmp_log, final_candidates=None):
+        if not self.summaryList:
+            return
+        tmp_log.info('')
+        for m in self.summaryList:
+            tmp_log.info(m)
+        if not final_candidates:
+            final_candidates = []
+        tmp_log.info('the number of final candidates: {}'.format(len(final_candidates)))
+        tmp_log.info('')
+
+    # make summary
+    def add_summary_message(self, old_list, new_list, message):
+        if old_list and len(old_list) != len(new_list):
+            red = int(math.ceil(((len(old_list) - len(new_list)) * 100) / len(old_list)))
+            self.summaryList.append('{:>5} -> {:>3} candidates, {:>3}% cut : {}'.format(len(old_list),
+                                                                                        len(new_list),
+                                                                                        red, message))
 
     # main function
     def runImpl(self):
@@ -341,6 +370,10 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)
                     # get nuclei
                     nucleusList = siteMapper.nuclei
+                    # init summary list
+                    self.init_summary_list('Task brokerage summary',
+                                           None,
+                                           nucleusList)
                     if taskSpec.nucleus in siteMapper.nuclei:
                         candidateNucleus = taskSpec.nucleus
                     elif taskSpec.nucleus in siteMapper.satellites:
@@ -351,6 +384,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         ######################################
                         # check status
                         newNucleusList = {}
+                        oldNucleusList = copy.copy(nucleusList)
                         for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
                             if tmpNucleusSpec.state not in ['ACTIVE']:
                                 tmpLog.info('  skip nucleus={0} due to status={1} criteria=-status'.format(tmpNucleus,
@@ -359,7 +393,9 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 newNucleusList[tmpNucleus] = tmpNucleusSpec
                         nucleusList = newNucleusList
                         tmpLog.info('{0} candidates passed status check'.format(len(nucleusList)))
+                        self.add_summary_message(oldNucleusList, nucleusList, 'status check')
                         if nucleusList == {}:
+                            self.dump_summary(tmpLog)
                             tmpLog.error('no candidates')
                             taskSpec.resetChangedList()
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -375,6 +411,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             tmpLog.info('skip transfer backlog check due to negative T1Weight')
                         else:
                             newNucleusList = {}
+                            oldNucleusList = copy.copy(nucleusList)
                             backlogged_nuclei = self.taskBufferIF.getBackloggedNuclei()
                             for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
                                 if tmpNucleus in backlogged_nuclei:
@@ -384,7 +421,9 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     newNucleusList[tmpNucleus] = tmpNucleusSpec
                             nucleusList = newNucleusList
                             tmpLog.info('{0} candidates passed transfer backlog check'.format(len(nucleusList)))
+                            self.add_summary_message(oldNucleusList, nucleusList, 'transfer backlog check')
                             if nucleusList == {}:
+                                self.dump_summary(tmpLog)
                                 tmpLog.error('no candidates')
                                 taskSpec.resetChangedList()
                                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -397,6 +436,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         # check endpoint
                         fractionFreeSpace = {}
                         newNucleusList = {}
+                        oldNucleusList = copy.copy(nucleusList)
                         tmpStat,tmpDatasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,
                                                                                                       ['output','log'])
                         for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
@@ -454,7 +494,9 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 newNucleusList[tmpNucleus] = tmpNucleusSpec
                         nucleusList = newNucleusList
                         tmpLog.info('{0} candidates passed endpoint check {1} TB'.format(len(nucleusList),diskThreshold/1024))
+                        self.add_summary_message(oldNucleusList, nucleusList, 'storage endpoint check')
                         if nucleusList == {}:
+                            self.dump_summary(tmpLog)
                             tmpLog.error('no candidates')
                             taskSpec.resetChangedList()
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -466,6 +508,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         ######################################
                         # ability to execute jobs
                         newNucleusList = {}
+                        oldNucleusList = copy.copy(nucleusList)
                         # get all panda sites
                         tmpSiteList = []
                         for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
@@ -496,7 +539,9 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 tmpLog.info('  skip nucleus={0} due to missing ability to run jobs criteria=-job'.format(tmpNucleus))
                         nucleusList = newNucleusList
                         tmpLog.info('{0} candidates passed job check'.format(len(nucleusList)))
+                        self.add_summary_message(oldNucleusList, nucleusList, 'job check')
                         if nucleusList == {}:
+                            self.dump_summary(tmpLog)
                             tmpLog.error('no candidates')
                             taskSpec.resetChangedList()
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -552,6 +597,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             continue
                         if availableData != {}:
                             newNucleusList = {}
+                            oldNucleusList = copy.copy(nucleusList)
                             # skip if no data
                             skipMsgList = []
                             for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
@@ -603,7 +649,9 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     '  the following conditions required to disable data locality check: {}'.format(
                                         data_locality_check_str))
                             tmpLog.info('{0} candidates passed data check'.format(len(nucleusList)))
+                            self.add_summary_message(oldNucleusList, nucleusList, 'data check')
                             if nucleusList == {}:
+                                self.dump_summary(tmpLog)
                                 tmpLog.error('no candidates')
                                 taskSpec.resetChangedList()
                                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -612,6 +660,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                                                   setFrozenTime=False)
                                 self.sendLogMessage(tmpLog)
                                 continue
+                        self.dump_summary(tmpLog, nucleusList)
                         ######################################
                         # weight
                         self.prioRW.acquire()
@@ -654,7 +703,6 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             tmpLog.info('  use nucleus={0} weight={1} {2} criteria=+use'.format(tmpNucleus,weight,wStr))
                             totalWeight += weight
                             nucleusweights.append((tmpNucleus,weight))
-                        tmpLog.info('final {0} candidates'.format(len(nucleusList)))
                         ######################################
                         # final selection
                         tgtWeight = random.uniform(0,totalWeight)

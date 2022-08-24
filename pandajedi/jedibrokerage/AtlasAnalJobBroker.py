@@ -32,31 +32,12 @@ class AtlasAnalJobBroker(JobBrokerBase):
     def __init__(self, ddmIF, taskBufferIF):
         JobBrokerBase.__init__(self, ddmIF, taskBufferIF)
         self.dataSiteMap = {}
-        self.summaryList = None
 
     # wrapper for return
     def sendLogMessage(self, tmpLog):
         # send info to logger
         #tmpLog.bulkSendMsg('analy_brokerage')
         tmpLog.debug('sent')
-
-    # make summary
-    def add_summary_message(self, old_list, new_list, message):
-        if len(old_list) != len(new_list):
-            red = int(((len(old_list) - len(new_list)) * 100) / len(old_list))
-            self.summaryList.append('{:>5} -> {:>3} candidates, {:>3}% cut : {}'.format(len(old_list),
-                                                                                         len(new_list),
-                                                                                         red, message))
-
-    # dump summary
-    def dump_summary(self, tmp_log, final_candidates=None):
-        tmp_log.info('')
-        for m in self.summaryList:
-            tmp_log.info(m)
-        if not final_candidates:
-            final_candidates = []
-        tmp_log.info('the number of final candidates: {}'.format(len(final_candidates)))
-        tmp_log.info('')
 
     # main
     def doBrokerage(self, taskSpec, cloudName, inputChunk, taskParamMap):
@@ -283,10 +264,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
         summaryList = []
         for scanSiteList, checkDataLocality in scanSiteLists:
             useUnionLocality = False
-            self.summaryList = []
-            self.summaryList.append('===== Brokerage summary =====')
-            self.summaryList.append('data locality check: {}'.format(checkDataLocality))
-            self.summaryList.append('the number of initial candidates: {}'.format(len(scanSiteList)))
+            self.init_summary_list('Job brokerage summary',
+                                   'data locality check: {}'.format(checkDataLocality),
+                                   scanSiteList)
             if checkDataLocality:
                 tmpLog.debug('!!! look for candidates WITH data locality check')
             else:
