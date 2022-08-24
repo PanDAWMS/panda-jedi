@@ -330,7 +330,11 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         taskParamMap = RefinerUtils.decodeJSON(taskParam)
                     except Exception:
                         tmpLog.error('failed to read task params')
+                        taskSpec.resetChangedList()
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
+                                                          oldStatus=['assigning'], updateDEFT=False,
+                                                          setFrozenTime=False)
                         self.sendLogMessage(tmpLog)
                         continue
                     # RW
@@ -357,7 +361,11 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         tmpLog.info('{0} candidates passed status check'.format(len(nucleusList)))
                         if nucleusList == {}:
                             tmpLog.error('no candidates')
+                            taskSpec.resetChangedList()
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                            self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
+                                                              oldStatus=['assigning'], updateDEFT=False,
+                                                              setFrozenTime=False)
                             self.sendLogMessage(tmpLog)
                             continue
                         ######################################
@@ -378,7 +386,11 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             tmpLog.info('{0} candidates passed transfer backlog check'.format(len(nucleusList)))
                             if nucleusList == {}:
                                 tmpLog.error('no candidates')
+                                taskSpec.resetChangedList()
                                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                                self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
+                                                                  oldStatus=['assigning'], updateDEFT=False,
+                                                                  setFrozenTime=False)
                                 self.sendLogMessage(tmpLog)
                                 continue
                         ######################################
@@ -444,7 +456,11 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         tmpLog.info('{0} candidates passed endpoint check {1} TB'.format(len(nucleusList),diskThreshold/1024))
                         if nucleusList == {}:
                             tmpLog.error('no candidates')
+                            taskSpec.resetChangedList()
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                            self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
+                                                              oldStatus=['assigning'], updateDEFT=False,
+                                                              setFrozenTime=False)
                             self.sendLogMessage(tmpLog)
                             continue
                         ######################################
@@ -462,7 +478,11 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         tmpLog.debug('===== done for job check')
                         if tmpSt != Interaction.SC_SUCCEEDED:
                             tmpLog.error('no sites can run jobs')
+                            taskSpec.resetChangedList()
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                            self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
+                                                              oldStatus=['assigning'], updateDEFT=False,
+                                                              setFrozenTime=False)
                             self.sendLogMessage(tmpLog)
                             continue
                         okNuclei = set()
@@ -478,7 +498,11 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         tmpLog.info('{0} candidates passed job check'.format(len(nucleusList)))
                         if nucleusList == {}:
                             tmpLog.error('no candidates')
+                            taskSpec.resetChangedList()
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                            self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
+                                                              oldStatus=['assigning'], updateDEFT=False,
+                                                              setFrozenTime=False)
                             self.sendLogMessage(tmpLog)
                             continue
                         ######################################
@@ -510,7 +534,11 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                                                               deepScan)
                             if tmpSt != Interaction.SC_SUCCEEDED:
                                 tmpLog.error('failed to get nuclei where data is available, since {0}'.format(tmpRet))
+                                taskSpec.resetChangedList()
                                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                                self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
+                                                                  oldStatus=['assigning'], updateDEFT=False,
+                                                                  setFrozenTime=False)
                                 self.sendLogMessage(tmpLog)
                                 toSkip = True
                                 break
@@ -577,7 +605,11 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             tmpLog.info('{0} candidates passed data check'.format(len(nucleusList)))
                             if nucleusList == {}:
                                 tmpLog.error('no candidates')
+                                taskSpec.resetChangedList()
                                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                                self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
+                                                                  oldStatus=['assigning'], updateDEFT=False,
+                                                                  setFrozenTime=False)
                                 self.sendLogMessage(tmpLog)
                                 continue
                         ######################################

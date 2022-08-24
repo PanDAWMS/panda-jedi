@@ -1191,6 +1191,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 elif fileVarMap['status'] != 'ready':
                                     lostInPending = True
                                 varMap['status'] = 'lost'
+                                tmpLog.debug('{} was lost from {}'.format(uniqueFileKey, str(uniqueFileKeySet)))
                             else:
                                 continue
                             if varMap['status'] == 'ready':
@@ -7449,7 +7450,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlSCF += "AND workQueue_ID=:wq_id "
                 varMap[':wq_id'] = workQueue.queue_id
             sqlSCF += "ORDER BY currentPriority DESC,jediTaskID FOR UPDATE"
-            sqlSPC  = "UPDATE {0}.JEDI_Tasks SET modificationTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
+            sqlSPC  = "UPDATE {0}.JEDI_Tasks SET modificationTime=CURRENT_DATE,errorDialog=NULL ".format(jedi_config.db.schemaJEDI)
             sqlSPC += "WHERE jediTaskID=:jediTaskID "
             # begin transaction
             self.conn.begin()
@@ -9437,6 +9438,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRD  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlRD += "SET status=:status,nFilesUsed=nFilesUsed-:nDiff-:nRun,nFilesFailed=nFilesFailed-:nDiff "
             sqlRD += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            # sql to reset lost files in datasets
+            sqlRL  = "UPDATE {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlRL += "SET nFiles=nFiles+nFilesMissing,nFilesToBeUsed=nFilesToBeUsed+nFilesMissing,nFilesMissing=0 "
+            sqlRL += "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # sql to update task status
             sqlUTB  = "UPDATE {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
             sqlUTB += "SET status=:status,oldStatus=NULL,modificationtime=:updateTime,errorDialog=:errorDialog,stateChangeTime=CURRENT_DATE "
@@ -9529,7 +9534,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
                         sqlDS  = "SELECT datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,"\
-                                 "status,state,type,datasetName "
+                                 "status,state,type,datasetName,nFilesMissing "
                         sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
                         sqlDS += "WHERE jediTaskID=:jediTaskID AND type IN ("
                         for tmpType in JediDatasetSpec.getInputTypes():
@@ -9543,7 +9548,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         changedMasterList = []
                         secMap  = {}
                         for datasetID,masterID,nFiles,nFilesFinished,nFilesFailed,nFilesUsed,\
-                            status, state, datasetType, datasetName \
+                            status, state, datasetType, datasetName, nFilesMissing \
                                 in resDS:
                             if masterID is not None:
                                 if state not in [None,'']:
@@ -9627,6 +9632,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     varMap[':status'] = 'ready'
                                     varMap[':keepTrack'] = 1
                                     self.cur.execute(sqlRRC + comment, varMap)
+                                    # reset lost files
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    varMap[':datasetID']  = datasetID
+                                    varMap[':oldStatus1'] = 'lost'
+                                    varMap[':oldStatus2'] = 'missing'
+                                    varMap[':newStatus']  = 'ready'
+                                    varMap[':proc_status'] = 'ready'
+                                    varMap[':keepTrack']  = 1
+                                    varMap[':maxAttempt'] = maxAttempt
+                                    self.cur.execute(sqlRR+comment,varMap)
+                                    nLost = self.cur.rowcount
+                                    if nLost > 0 and nFilesMissing:
+                                        varMap = {}
+                                        varMap[':jediTaskID'] = jediTaskID
+                                        varMap[':datasetID'] = datasetID
+                                        self.cur.execute(sqlRL+comment, varMap)
+                                        tmpLog.debug('reset nFilesMissing for datasetID={}'.format(datasetID))
                                 # no retry if no failed files
                                 if commStr == 'retry' and nDiff == 0 and nUnp == 0 and nRun == 0 and state != 'mutable':
                                     tmpLog.debug('no {0} for datasetID={1} : nDiff/nReady/nRun=0'.format(commStr,datasetID))
@@ -9706,6 +9729,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     varMap[':status'] = 'ready'
                                     varMap[':keepTrack'] = 1
                                     self.cur.execute(sqlRRC + comment, varMap)
+                                    # reset lost files
+                                    varMap = {}
+                                    varMap[':jediTaskID'] = jediTaskID
+                                    varMap[':datasetID']  = datasetID
+                                    varMap[':oldStatus1'] = 'lost'
+                                    varMap[':oldStatus2'] = 'missing'
+                                    varMap[':newStatus']  = 'ready'
+                                    varMap[':proc_status'] = 'ready'
+                                    varMap[':keepTrack']  = 1
+                                    varMap[':maxAttempt'] = maxAttempt
+                                    self.cur.execute(sqlRR+comment,varMap)
+                                    nLost = self.cur.rowcount
+                                    if nLost > 0 and nFilesMissing:
+                                        varMap = {}
+                                        varMap[':jediTaskID'] = jediTaskID
+                                        varMap[':datasetID'] = datasetID
+                                        self.cur.execute(sqlRL+comment, varMap)
+                                        tmpLog.debug('reset nFilesMissing for datasetID={}'.format(datasetID))
                                 # update dataset
                                 varMap = {}
                                 varMap[':jediTaskID'] = jediTaskID
