@@ -2948,6 +2948,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 fileSpec.keepTrack    = 1
                                 if maxSerialNr is None or maxSerialNr < serialNr:
                                     maxSerialNr = serialNr
+                                serialNr += 1
                                 # scope
                                 if vo in jedi_config.ddm.voWithScope.split(','):
                                     fileSpec.scope = self.extractScope(datasetName)
@@ -2972,11 +2973,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     outMap[streamName] = fileSpec
                                     firstFileID = fileSpec.fileID
                                     parallelOutMap[firstFileID] = []
-                                if nFileLoop > 1:
+                                if iFileLoop > 0:
                                     outMap[streamName + f'|{iFileLoop}'] = fileSpec
                                     continue
                                 parallelOutMap[firstFileID].append(fileSpec)
-                                serialNr += 1
                             # increment SN
                             varMap = {}
                             varMap[':jediTaskID'] = jediTaskID
