@@ -1558,6 +1558,8 @@ class JobGeneratorThread(WorkerThread):
                         # add merge spec for on-site-merging
                         tmp_data = {'esmergeSpec': copy.deepcopy(taskParamMap['esmergeSpec'])}
                         tmp_data['esmergeSpec']['nEventsPerOutputFile'] = taskParamMap['nEventsPerOutputFile']
+                        if 'nEventsPerInputFile' in taskParamMap:
+                            tmp_data['nEventsPerInputFile'] = taskParamMap['nEventsPerInputFile']
                         jobSpec.addMultiStepExec(tmp_data)
                     # set destinationSE for fake co-jumbo
                     if inputChunk.useJumbo in ['fake', 'only']:
