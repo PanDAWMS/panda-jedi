@@ -716,15 +716,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    host_gpu_spec=host_gpu_spec,
                                                                    log_stream=tmpLog)
                 sitesAuto = copy.copy(siteListWithSW)
-                if len(sitesNoJsonCheck) > 0:
-                    tmpListWithSW = self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                              releases=taskSpec.transHome.split('-')[-1],
-                                                                              cmtConfig=taskSpec.get_sw_platform())
-                    tmpListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                             caches=taskSpec.transHome,
-                                                                             cmtConfig=taskSpec.get_sw_platform())
-                    sitesNonAuto = copy.copy(tmpListWithSW)
-                    siteListWithSW += tmpListWithSW
+
             elif re.search('rel_\d+(\n|$)', taskSpec.transHome) is None and \
                     re.search('\d{4}-\d{2}-\d{2}T\d{4}$', taskSpec.transHome) is None:
                 # only cache is checked for normal tasks
@@ -740,12 +732,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    host_gpu_spec=host_gpu_spec,
                                                                    log_stream=tmpLog)
                 sitesAuto = copy.copy(siteListWithSW)
-                if len(sitesNoJsonCheck) > 0:
-                    tmpListWithSW = self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                            caches=taskSpec.transHome,
-                                                                            cmtConfig=taskSpec.get_sw_platform())
-                    sitesNonAuto = copy.copy(tmpListWithSW)
-                    siteListWithSW += tmpListWithSW
+
             else:
                 # nightlies
                 siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
@@ -759,11 +746,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    host_gpu_spec=host_gpu_spec,
                                                                    log_stream=tmpLog)
                 sitesAuto = copy.copy(siteListWithSW)
-                if len(sitesNoJsonCheck) > 0:
-                    tmpListWithSW = self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                            releases='CVMFS')
-                    sitesNonAuto = copy.copy(tmpListWithSW)
-                    siteListWithSW += tmpListWithSW
+
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
             sitesAny = []

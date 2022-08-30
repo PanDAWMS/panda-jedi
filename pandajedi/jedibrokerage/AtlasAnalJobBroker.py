@@ -588,12 +588,11 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                               None, None,
                                                                               taskSpec.get_sw_platform(),
                                                                               False, True)
-                    siteListWithCMTCONFIG += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                                    cmtConfig=taskSpec.get_sw_platform(),
-                                                                                    onlyCmtConfig=True)
+
                     if len(siteListWithCMTCONFIG) == 0:
                         tmpLog.info('  skip site={0} since architecture={1} is unavailable'.format(tmpSiteName, taskSpec.get_sw_platform()))
                         continue
+
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed for architecture check'.format(len(scanSiteList)))
@@ -654,11 +653,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                        host_gpu_spec=host_gpu_spec,
                                                                        log_stream=tmpLog)
                     sitesAuto = copy.copy(siteListWithSW)
-                    tmpListWithSW = self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                              caches=transHome,
-                                                                              cmtConfig=taskSpec.get_sw_platform())
-                    sitesNonAuto = copy.copy(tmpListWithSW)
-                    siteListWithSW += tmpListWithSW
+
                 elif (transHome == '' and taskSpec.transUses is not None) or \
                         (re.search('-\d+\.\d+\.\d+$',transHome) is not None and
                         (taskSpec.transUses is None or re.search('-\d+\.\d+$', taskSpec.transUses) is None)):
@@ -695,16 +690,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                               log_stream=tmpLog)
                         siteListWithSW += tmpSiteListWithSW
                     sitesAuto = copy.copy(siteListWithSW)
-                    tmpListWithSW = []
-                    if transUses is not None:
-                        tmpListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                                  releases=transUses,
-                                                                                  cmtConfig=taskSpec.get_sw_platform())
-                    tmpListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                              caches=transHome,
-                                                                              cmtConfig=taskSpec.get_sw_platform())
-                    sitesNonAuto = list(set(tmpListWithSW).difference(set(sitesAuto)))
-                    siteListWithSW += tmpListWithSW
+
                 else:
                     # nightlies or standalone uses only AUTO
                     if taskSpec.transHome is not None:
