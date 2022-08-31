@@ -694,7 +694,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
             unified_site_list = self.get_unified_sites(scanSiteList)
             sitesAuto = []
-            sitesNonAuto = []
             sitesAny = []
             host_cpu_spec = taskSpec.get_host_cpu_spec()
             host_gpu_spec = taskSpec.get_host_gpu_spec()
@@ -772,12 +771,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                                  (tmpSiteName, autoStr, taskSpec.transHome, taskSpec.get_sw_platform(),
                                   taskSpec.container_name, str(host_cpu_spec), str(host_gpu_spec)))
             sitesAuto = self.get_pseudo_sites(sitesAuto, scanSiteList)
-            sitesNonAuto = self.get_pseudo_sites(sitesNonAuto, scanSiteList)
             sitesAny = self.get_pseudo_sites(sitesAny, scanSiteList)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info(
-                '{} candidates ({} with AUTO, {} without AUTO, {} with ANY) passed SW check '.format(
-                    len(scanSiteList), len(sitesAuto), len(sitesNonAuto), len(sitesAny)))
+                '{} candidates ({} with AUTO, {} with ANY) passed SW check '.format(
+                    len(scanSiteList), len(sitesAuto), len(sitesAny)))
             self.add_summary_message(oldScanSiteList, scanSiteList, 'SW check')
             if scanSiteList == []:
                 self.dump_summary(tmpLog)

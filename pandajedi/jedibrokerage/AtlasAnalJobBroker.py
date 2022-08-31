@@ -705,8 +705,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                            host_gpu_spec=host_gpu_spec,
                                                                            log_stream=tmpLog)
                         sitesAuto = copy.copy(siteListWithSW)
-                        sitesNonAuto = []
-                        siteListWithSW += sitesNonAuto
+
                     else:
                         # no CVMFS check for standalone SW
                         siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, None,
@@ -719,8 +718,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                            host_gpu_spec=host_gpu_spec,
                                                                            log_stream=tmpLog)
                         sitesAuto = copy.copy(siteListWithSW)
-                        sitesNonAuto = []
-                        siteListWithSW += sitesNonAuto
+
                 newScanSiteList = []
                 oldScanSiteList = copy.copy(scanSiteList)
                 sitesAny = []
@@ -740,12 +738,11 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                      (tmpSiteName, taskSpec.transUses, taskSpec.transHome, taskSpec.get_sw_platform(),
                                       str(host_cpu_spec), str(host_gpu_spec)))
                 sitesAuto = self.get_pseudo_sites(sitesAuto, scanSiteList)
-                sitesNonAuto = self.get_pseudo_sites(sitesNonAuto, scanSiteList)
                 sitesAny = self.get_pseudo_sites(sitesAny, scanSiteList)
                 scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
                 tmpLog.info(
-                    '{} candidates ({} with AUTO, {} without AUTO, {} with ANY) passed SW check '.format(
-                        len(scanSiteList), len(sitesAuto), len(sitesNonAuto), len(sitesAny)))
+                    '{} candidates ({} with AUTO, {} with ANY) passed SW check '.format(
+                        len(scanSiteList), len(sitesAuto), len(sitesAny)))
                 self.add_summary_message(oldScanSiteList, scanSiteList, 'release/cache/CPU/GPU check')
                 if not scanSiteList:
                     self.dump_summary(tmpLog)
