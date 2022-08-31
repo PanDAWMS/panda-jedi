@@ -694,7 +694,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
             unified_site_list = self.get_unified_sites(scanSiteList)
             sitesAuto = []
-            sitesNonAuto = []
             sitesAny = []
             host_cpu_spec = taskSpec.get_host_cpu_spec()
             host_gpu_spec = taskSpec.get_host_gpu_spec()
@@ -716,15 +715,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    host_gpu_spec=host_gpu_spec,
                                                                    log_stream=tmpLog)
                 sitesAuto = copy.copy(siteListWithSW)
-                if len(sitesNoJsonCheck) > 0:
-                    tmpListWithSW = self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                              releases=taskSpec.transHome.split('-')[-1],
-                                                                              cmtConfig=taskSpec.get_sw_platform())
-                    tmpListWithSW += self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                             caches=taskSpec.transHome,
-                                                                             cmtConfig=taskSpec.get_sw_platform())
-                    sitesNonAuto = copy.copy(tmpListWithSW)
-                    siteListWithSW += tmpListWithSW
+
             elif re.search('rel_\d+(\n|$)', taskSpec.transHome) is None and \
                     re.search('\d{4}-\d{2}-\d{2}T\d{4}$', taskSpec.transHome) is None:
                 # only cache is checked for normal tasks
@@ -740,12 +731,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    host_gpu_spec=host_gpu_spec,
                                                                    log_stream=tmpLog)
                 sitesAuto = copy.copy(siteListWithSW)
-                if len(sitesNoJsonCheck) > 0:
-                    tmpListWithSW = self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                            caches=taskSpec.transHome,
-                                                                            cmtConfig=taskSpec.get_sw_platform())
-                    sitesNonAuto = copy.copy(tmpListWithSW)
-                    siteListWithSW += tmpListWithSW
+
             else:
                 # nightlies
                 siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
@@ -759,11 +745,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                    host_gpu_spec=host_gpu_spec,
                                                                    log_stream=tmpLog)
                 sitesAuto = copy.copy(siteListWithSW)
-                if len(sitesNoJsonCheck) > 0:
-                    tmpListWithSW = self.taskBufferIF.checkSitesWithRelease(sitesNoJsonCheck,
-                                                                            releases='CVMFS')
-                    sitesNonAuto = copy.copy(tmpListWithSW)
-                    siteListWithSW += tmpListWithSW
+
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
             sitesAny = []
@@ -789,12 +771,11 @@ class AtlasProdJobBroker (JobBrokerBase):
                                  (tmpSiteName, autoStr, taskSpec.transHome, taskSpec.get_sw_platform(),
                                   taskSpec.container_name, str(host_cpu_spec), str(host_gpu_spec)))
             sitesAuto = self.get_pseudo_sites(sitesAuto, scanSiteList)
-            sitesNonAuto = self.get_pseudo_sites(sitesNonAuto, scanSiteList)
             sitesAny = self.get_pseudo_sites(sitesAny, scanSiteList)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
             tmpLog.info(
-                '{} candidates ({} with AUTO, {} without AUTO, {} with ANY) passed SW check '.format(
-                    len(scanSiteList), len(sitesAuto), len(sitesNonAuto), len(sitesAny)))
+                '{} candidates ({} with AUTO, {} with ANY) passed SW check '.format(
+                    len(scanSiteList), len(sitesAuto), len(sitesAny)))
             self.add_summary_message(oldScanSiteList, scanSiteList, 'SW check')
             if scanSiteList == []:
                 self.dump_summary(tmpLog)
