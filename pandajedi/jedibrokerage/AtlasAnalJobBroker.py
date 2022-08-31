@@ -1263,7 +1263,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     retVal = retTmpError
                     continue
             ######################################
-            # skip sites where the user queues too much
+            # consider grid usage of the user
             user_name = self.taskBufferIF.cleanUserID(taskSpec.userName)
             tmpSt, jobsStatsPerUser = AtlasBrokerUtils.getUsersJobsStats(   tbIF=self.taskBufferIF,
                                                                             vo=taskSpec.vo,
@@ -1406,13 +1406,15 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                 key=k, max_nQ_pq=max_nQ_pq, max_user_fraction=max_user_fraction)
                                 description_of_max_nQ_pq_user += ' , where {0} , and {1}'.format(description_of_max_nQ_pq, description_of_max_user_fraction)
                             break
-                    # check
+                    # skip sites where the user queues too much (Analysis Stabilizer)
                     if nQ_pq_user > max_nQ_pq_user:
                         tmpMsg = ' consider {0} unsuitable for the user due to long queue of the user: '.format(tmpSiteName)
                         tmpMsg += 'nQ_pq_user({0}) > {1} '.format(nQ_pq_user, description_of_max_nQ_pq_user)
                         # view as problematic site in order to throttle
                         problematic_sites_dict.setdefault(tmpSiteName, set())
                         problematic_sites_dict[tmpSiteName].add(tmpMsg)
+                    # task rank according to usage of user
+
             ############
             # loop end
             if len(scanSiteList) > 0:
