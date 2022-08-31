@@ -8,8 +8,6 @@ class TaskBrokerBase (object):
         self.taskBufferIF = taskBufferIF
         self.refresh()
 
-
-
     def refresh(self):
         self.siteMapper = self.taskBufferIF.getSiteMapper()
 

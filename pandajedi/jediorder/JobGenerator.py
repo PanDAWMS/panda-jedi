@@ -1303,6 +1303,9 @@ class JobGeneratorThread(WorkerThread):
                     # push job
                     if taskSpec.push_job():
                         jobSpec.set_push_job()
+                    # on-site merging
+                    if taskSpec.on_site_merging():
+                        jobSpec.set_on_site_merging()
                     # extract middle name
                     middleName = ''
                     if taskSpec.getFieldNumToLFN() is not None and jobSpec.prodDBlock not in [None, 'NULL', '']:
@@ -1555,6 +1558,8 @@ class JobGeneratorThread(WorkerThread):
                         # add merge spec for on-site-merging
                         tmp_data = {'esmergeSpec': copy.deepcopy(taskParamMap['esmergeSpec'])}
                         tmp_data['esmergeSpec']['nEventsPerOutputFile'] = taskParamMap['nEventsPerOutputFile']
+                        if 'nEventsPerInputFile' in taskParamMap:
+                            tmp_data['nEventsPerInputFile'] = taskParamMap['nEventsPerInputFile']
                         jobSpec.addMultiStepExec(tmp_data)
                     # set destinationSE for fake co-jumbo
                     if inputChunk.useJumbo in ['fake', 'only']:

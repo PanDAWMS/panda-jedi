@@ -1,3 +1,5 @@
+import math
+
 from pandajedi.jedicore import Interaction
 
 # base class for job brokerage
@@ -13,6 +15,7 @@ class JobBrokerBase (object):
         self.testMode = False
         self.refresh()
         self.task_common = None
+        self.summaryList = None
 
     # set task common dictionary
     def set_task_common_dict(self, task_common):
@@ -108,6 +111,34 @@ class JobBrokerBase (object):
             if tmpSiteSpec.get_unified_name() in unified_dict:
                 skipped_dict[tmpSiteName] = unified_dict[tmpSiteSpec.get_unified_name()]
         return skipped_dict
+
+    # init summary list
+    def init_summary_list(self, header, comment, initial_list):
+        self.summaryList = []
+        self.summaryList.append('===== {} ====='.format(header))
+        if comment:
+            self.summaryList.append(comment)
+        self.summaryList.append('the number of initial candidates: {}'.format(len(initial_list)))
+
+    # dump summary
+    def dump_summary(self, tmp_log, final_candidates=None):
+        if not self.summaryList:
+            return
+        tmp_log.info('')
+        for m in self.summaryList:
+            tmp_log.info(m)
+        if not final_candidates:
+            final_candidates = []
+        tmp_log.info('the number of final candidates: {}'.format(len(final_candidates)))
+        tmp_log.info('')
+
+    # make summary
+    def add_summary_message(self, old_list, new_list, message):
+        if old_list and len(old_list) != len(new_list):
+            red = int(math.ceil(((len(old_list) - len(new_list)) * 100) / len(old_list)))
+            self.summaryList.append('{:>5} -> {:>3} candidates, {:>3}% cut : {}'.format(len(old_list),
+                                                                                        len(new_list),
+                                                                                        red, message))
 
 
 Interaction.installSC(JobBrokerBase)
