@@ -693,62 +693,49 @@ class AtlasProdJobBroker (JobBrokerBase):
         if taskSpec.transHome is not None:
             jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
             unified_site_list = self.get_unified_sites(scanSiteList)
-            sitesAuto = []
-            sitesAny = []
+
             host_cpu_spec = taskSpec.get_host_cpu_spec()
             host_gpu_spec = taskSpec.get_host_gpu_spec()
+
             if taskSpec.get_base_platform() is None:
-                useContainer = False
+                use_container = False
             else:
-                useContainer = True
-            if re.search('-\d+\.\d+\.\d+$', taskSpec.transHome) is not None:
-                # 3 digits base release
-                siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
-                                                                   taskSpec.transHome.split('-')[0],
-                                                                   taskSpec.transHome.split('-')[1],
-                                                                   taskSpec.get_sw_platform(),
-                                                                   False, False,
-                                                                   need_container=useContainer,
-                                                                   container_name=taskSpec.container_name,
-                                                                   only_tags_fc=taskSpec.use_only_tags_fc(),
-                                                                   host_cpu_spec=host_cpu_spec,
-                                                                   host_gpu_spec=host_gpu_spec,
-                                                                   log_stream=tmpLog)
-                sitesAuto = copy.copy(siteListWithSW)
+                use_container = True
 
-            elif re.search('rel_\d+(\n|$)', taskSpec.transHome) is None and \
-                    re.search('\d{4}-\d{2}-\d{2}T\d{4}$', taskSpec.transHome) is None:
-                # only cache is checked for normal tasks
-                siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
-                                                                   taskSpec.transHome.split('-')[0],
-                                                                   taskSpec.transHome.split('-')[1],
-                                                                   taskSpec.get_sw_platform(),
-                                                                   False, False,
-                                                                   need_container=useContainer,
-                                                                   container_name=taskSpec.container_name,
-                                                                   only_tags_fc=taskSpec.use_only_tags_fc(),
-                                                                   host_cpu_spec=host_cpu_spec,
-                                                                   host_gpu_spec=host_gpu_spec,
-                                                                   log_stream=tmpLog)
-                sitesAuto = copy.copy(siteListWithSW)
+            cmt_config = taskSpec.get_sw_platform()
+            need_cvmfs = False
 
+            # 3 digits base release or normal tasks
+            if (re.search('-\d+\.\d+\.\d+$', taskSpec.transHome) is not None) \
+                    or (re.search('rel_\d+(\n|$)', taskSpec.transHome) is None
+                        and re.search('\d{4}-\d{2}-\d{2}T\d{4}$', taskSpec.transHome) is None):
+                cvmfs_repo = "atlas"
+                sw_project = taskSpec.transHome.split('-')[0]
+                sw_version = taskSpec.transHome.split('-')[1]
+                cmt_config_only = False
+
+            # nightlies
             else:
-                # nightlies
-                siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
-                                                                   None, None,
-                                                                   taskSpec.get_sw_platform(),
-                                                                   True, False,
-                                                                   need_container=useContainer,
-                                                                   container_name=taskSpec.container_name,
-                                                                   only_tags_fc=taskSpec.use_only_tags_fc(),
-                                                                   host_cpu_spec=host_cpu_spec,
-                                                                   host_gpu_spec=host_gpu_spec,
-                                                                   log_stream=tmpLog)
-                sitesAuto = copy.copy(siteListWithSW)
+                cvmfs_repo = "nightlies"
+                sw_project = None
+                sw_version = None
+                cmt_config_only = False
+
+            siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, cvmfs_repo,
+                                                               sw_project, sw_version, cmt_config,
+                                                               need_cvmfs, cmt_config_only,
+                                                               need_container=use_container,
+                                                               container_name=taskSpec.container_name,
+                                                               only_tags_fc=taskSpec.use_only_tags_fc(),
+                                                               host_cpu_spec=host_cpu_spec,
+                                                               host_gpu_spec=host_gpu_spec,
+                                                               log_stream=tmpLog)
+            sitesAuto = copy.copy(siteListWithSW)
+            sitesAny = []
 
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
-            sitesAny = []
+
             for tmpSiteName in unified_site_list:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 if tmpSiteName in siteListWithSW:
@@ -767,15 +754,16 @@ class AtlasProdJobBroker (JobBrokerBase):
                         autoStr = 'without AUTO'
                     # release is unavailable
                     tmpLog.info('  skip site=%s %s due to cache=%s:%s sw_platform="%s" '
-                                'cpu=%s gpu=%s criteria=-cache' % \
-                                 (tmpSiteName, autoStr, taskSpec.transHome, taskSpec.get_sw_platform(),
-                                  taskSpec.container_name, str(host_cpu_spec), str(host_gpu_spec)))
+                                'cpu=%s gpu=%s criteria=-cache' %(tmpSiteName, autoStr, taskSpec.transHome,
+                                                                  taskSpec.get_sw_platform(), taskSpec.container_name,
+                                                                  str(host_cpu_spec), str(host_gpu_spec)))
+
             sitesAuto = self.get_pseudo_sites(sitesAuto, scanSiteList)
             sitesAny = self.get_pseudo_sites(sitesAny, scanSiteList)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info(
-                '{} candidates ({} with AUTO, {} with ANY) passed SW check '.format(
-                    len(scanSiteList), len(sitesAuto), len(sitesAny)))
+            tmpLog.info('{} candidates ({} with AUTO, {} with ANY) passed SW check '.format(len(scanSiteList),
+                                                                                            len(sitesAuto),
+                                                                                            len(sitesAny)))
             self.add_summary_message(oldScanSiteList, scanSiteList, 'SW check')
             if scanSiteList == []:
                 self.dump_summary(tmpLog)
@@ -783,6 +771,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 self.sendLogMessage(tmpLog)
                 return retTmpError
+
         ######################################
         # selection for memory
         origMinRamCount = inputChunk.getMaxRamCount()
