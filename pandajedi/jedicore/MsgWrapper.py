@@ -112,35 +112,3 @@ class MsgWrapper:
         except Exception:
             pass
 
-
-
-    # bulk send messages to logger
-    def bulkSendMsg(self,msgType,msgLevel='info',loggerName=None):
-        try:
-            nChunk = 20
-            if loggerName is None:
-                loggerName = jedi_config.master.loggername
-            for iMsg,message in enumerate(self.msgBuffer):
-                # get logger
-                tmpPandaLogger = PandaLogger()
-                # lock HTTP handler
-                tmpPandaLogger.lock()
-                tmpPandaLogger.setParams({'Type':msgType})
-                # get logger
-                tmpLogger = tmpPandaLogger.getHttpLogger(loggerName)
-                # add message
-                message = self.monToken + ' ' + message
-                if msgLevel=='error':
-                    tmpLogger.error(message)
-                elif msgLevel=='warning':
-                    tmpLogger.warning(message)
-                elif msgLevel=='info':
-                    tmpLogger.info(message)
-                else:
-                    tmpLogger.debug(message)                
-                # release HTTP handler
-                tmpPandaLogger.release()
-                if (iMsg+1) % nChunk == 0:
-                    time.sleep(0.01)
-        except Exception:
-            pass
