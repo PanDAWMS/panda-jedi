@@ -37,6 +37,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         try:
             self.sw_map = taskBufferIF.load_sw_map()
         except:
+            logger.error('Failed to load the SW tags map!!!')
             self.sw_map = {}
 
     # main
@@ -564,15 +565,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
             # selection for GPU + architecture
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
-            jsonCheck = None
+            jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper, self.sw_map)
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 if tmpSiteSpec.isGPU() and not taskSpec.is_hpo_workflow():
                     if taskSpec.get_sw_platform() in ['', None]:
                         tmpLog.info('  skip site={0} since architecture is required for GPU queues'.format(tmpSiteName))
                         continue
-                    if jsonCheck is None:
-                        jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper, self.sw_map)
                     siteListWithCMTCONFIG = [tmpSiteSpec.get_unified_name()]
                     siteListWithCMTCONFIG, sitesNoJsonCheck = jsonCheck.check(siteListWithCMTCONFIG, None,
                                                                               None, None,
@@ -618,7 +617,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
             host_cpu_spec = taskSpec.get_host_cpu_spec()
             host_gpu_spec = taskSpec.get_host_gpu_spec()
             if not sitePreAssigned:
-                jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
                 unified_site_list = self.get_unified_sites(scanSiteList)
                 if taskSpec.transHome is not None:
                     transHome = taskSpec.transHome

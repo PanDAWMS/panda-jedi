@@ -91,6 +91,7 @@ class AtlasProdJobBroker(JobBrokerBase):
         try:
             self.sw_map = taskBufferIF.load_sw_map()
         except:
+            logger.error('Failed to load the SW tags map!!!')
             self.sw_map = {}
 
     def convertMBpsToWeight(self, mbps):
