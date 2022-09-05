@@ -48,8 +48,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                    datetime.datetime.utcnow().isoformat('/')))
         tmpLog.debug('start')
         # return for failure
-        retFatal    = self.SC_FATAL,inputChunk
-        retTmpError = self.SC_FAILED,inputChunk
+        retFatal    = self.SC_FATAL, inputChunk
+        retTmpError = self.SC_FAILED, inputChunk
         # new maxwdir
         newMaxwdir = {}
         # get primary site candidates
@@ -1812,4 +1812,4 @@ class AtlasAnalJobBroker(JobBrokerBase):
         self.dump_summary(tmpLog, scanSiteList)
         # return
         tmpLog.debug('done')
-        return self.SC_SUCCEEDED,inputChunk
+        return self.SC_SUCCEEDED, inputChunk
