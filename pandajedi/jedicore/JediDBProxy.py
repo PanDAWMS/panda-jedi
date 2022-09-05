@@ -8998,13 +8998,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.debug("got lib.tgz={0}".format(fileSpec.lfn))
             else:
                 tmpLog.debug("no lib.tgz")
-            return True,fileSpec,datasetSpec
+            return True, fileSpec, datasetSpec
         except Exception:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return False,None
+            return False, None, None
 
 
 
