@@ -728,9 +728,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 sitesAuto = self.get_pseudo_sites(sitesAuto, scanSiteList)
                 sitesAny = self.get_pseudo_sites(sitesAny, scanSiteList)
                 scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-                tmpLog.info(
-                    '{} candidates ({} with AUTO, {} with ANY) passed SW check '.format(
-                        len(scanSiteList), len(sitesAuto), len(sitesAny)))
+                tmpLog.info('{} candidates ({} with AUTO, {} with ANY) passed SW check '.format(len(scanSiteList),
+                                                                                                len(sitesAuto),
+                                                                                                len(sitesAny)))
                 self.add_summary_message(oldScanSiteList, scanSiteList, 'release/cache/CPU/GPU check')
                 if not scanSiteList:
                     self.dump_summary(tmpLog)
