@@ -199,7 +199,10 @@ class PostProcessorBase (object):
         elif nFiles == nFilesFinished:
             # check parent status
             if checkParent and taskSpec.parent_tid not in [None,taskSpec.jediTaskID]:
-                if self.taskBufferIF.getTaskStatus_JEDI(taskSpec.parent_tid) != 'done':
+                parent_status = self.taskBufferIF.getTaskStatus_JEDI(taskSpec.parent_tid)
+                if parent_status in ['failed', 'broken', 'aborted']:
+                    status = 'failed'
+                elif parent_status != 'done':
                     status = 'finished'
                 else:
                     # check if input is mutable
