@@ -61,6 +61,7 @@ class JediTaskSpec(object):
         'firstContentsFeed'  : 'FC',
         'failGoalUnreached'  : 'FG',
         'firstEvent'         : 'FT',
+        'fullChain'          : 'FU',
         'groupBoundaryID'    : 'GB',
         'hpoWorkflow'        : 'HO',
         'instantiateTmplSite': 'IA',
@@ -186,6 +187,11 @@ class JediTaskSpec(object):
     enum_inputPreStaging = {'use': '1',
                             'notUse': '0'}
 
+    # enum for full chain
+    class FullChain(str, enum.Enum):
+        Only = '1'
+        Require = '2'
+        Capable = '3'
 
     # constructor
     def __init__(self):
@@ -1524,6 +1530,45 @@ class JediTaskSpec(object):
     def on_site_merging(self):
         return self.check_split_rule('onSiteMerging')
 
+    # set full chain flag
+    def set_full_chain(self, mode):
+        var = None
+        if mode == 'only':
+            var = self.FullChain.Only
+        elif mode == 'require':
+            var = self.FullChain.Require
+        elif mode == 'capable':
+            var = self.FullChain.Capable
+        if var:
+            self.setSplitRule('fullChain', var)
+
+    # get full chain flag
+    def get_full_chain(self):
+        if self.splitRule:
+            tmpMatch = re.search(self.splitRuleToken['fullChain']+r'=(\d+)', self.splitRule)
+            if tmpMatch:
+                return tmpMatch.group(1)
+        return None
+
+    # check full chain with mode
+    def check_full_chain_with_mode(self, mode):
+        task_flag = self.get_full_chain()
+        if mode == 'only':
+            if task_flag == self.FullChain.Only:
+                return True
+        elif mode == 'require':
+            if task_flag == self.FullChain.Require:
+                return True
+        elif mode == 'capable':
+            if task_flag == self.FullChain.Capable:
+                return True
+        return False
+
+    # check full chain with nucleus
+    def check_full_chain_with_nucleus(self, nucleus):
+        if self.get_full_chain() and nucleus.get_bare_nucleus_mode():
+            return True
+        return False
 
 # utils
 
