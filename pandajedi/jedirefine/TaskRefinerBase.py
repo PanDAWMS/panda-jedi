@@ -388,6 +388,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['pushJob'])
         if 'onSiteMerging' in  taskParamMap and taskParamMap['onSiteMerging']:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['onSiteMerging'])
+        if 'fullChain' in taskParamMap:
+            self.taskSpec.set_full_chain(taskParamMap['fullChain'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
@@ -546,6 +548,25 @@ class TaskRefinerBase (object):
                         for tmpDatasetName in taskParamMap[incexecDS].split(','):
                             if tmpDatasetName not in datasetNameList:
                                 datasetNameList.append(tmpDatasetName)
+                    # consolidation
+                    if len(datasetNameList) > 1 and 'consolidate' in tmpItem:
+                        tmpIF = self.ddmIF.getInterface(self.taskSpec.vo, self.taskSpec.cloud)
+                        if tmpIF:
+                            containerName = tmpItem['consolidate']
+                            tmpStat = tmpIF.registerNewDataset(containerName)
+                            if not tmpStat:
+                                errStr = 'failed to register {}'.format(containerName)
+                                raise JediException.ExternalTempError(errStr)
+                            tmpDsListInCont = tmpIF.listDatasetsInContainer(containerName)
+                            for tmpContName in datasetNameList:
+                                tmpDsNameList = tmpIF.expandContainer(tmpContName)
+                                for tmpDsName in tmpDsNameList:
+                                    if tmpDsName not in tmpDsListInCont:
+                                        tmpStat = tmpIF.addDatasetsToContainer(containerName, [tmpDsName])
+                                        if not tmpStat:
+                                            errStr = 'failed to add {} to {}'.format(tmpDsName, containerName)
+                                            raise JediException.ExternalTempError(errStr)
+                            datasetNameList = [containerName]
                     # loop over all dataset names
                     inDatasetSpecList = []
                     for datasetName in datasetNameList:
