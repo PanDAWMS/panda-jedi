@@ -287,6 +287,19 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                                                                         len(new_list),
                                                                                         red, message))
 
+    # post-process for errors
+    def post_process_for_error(self, task_spec, tmp_log, msg, dump_summary=True):
+        if dump_summary:
+            self.dump_summary(tmp_log)
+        tmp_log.error(msg)
+        task_spec.resetChangedList()
+        task_spec.setErrDiag(tmp_log.uploadLog(task_spec.jediTaskID))
+        self.taskBufferIF.updateTask_JEDI(task_spec, {'jediTaskID': task_spec.jediTaskID},
+                                          oldStatus=['assigning'], updateDEFT=False,
+                                          setFrozenTime=False)
+        self.sendLogMessage(tmp_log)
+
+
     # main function
     def runImpl(self):
         # cutoff for disk in TB
@@ -387,14 +400,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         nucleusList = newNucleusList
                         tmpLog.info('{0} candidates passed status check'.format(len(nucleusList)))
                         self.add_summary_message(oldNucleusList, nucleusList, 'status check')
-                        if nucleusList == {}:
-                            self.dump_summary(tmpLog)
-                            tmpLog.error('no candidates')
-                            taskSpec.resetChangedList()
-                            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                            self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
-                                                              oldStatus=['assigning'], updateDEFT=False,
-                                                              setFrozenTime=False)
+                        if not nucleusList:
+                            self.post_process_for_error(taskSpec, tmpLog, 'no candidates')
                             continue
                         ######################################
                         # check status of transfer backlog
@@ -414,14 +421,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             nucleusList = newNucleusList
                             tmpLog.info('{0} candidates passed transfer backlog check'.format(len(nucleusList)))
                             self.add_summary_message(oldNucleusList, nucleusList, 'transfer backlog check')
-                            if nucleusList == {}:
-                                self.dump_summary(tmpLog)
-                                tmpLog.error('no candidates')
-                                taskSpec.resetChangedList()
-                                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                                self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
-                                                                  oldStatus=['assigning'], updateDEFT=False,
-                                                                  setFrozenTime=False)
+                            if not nucleusList:
+                                self.post_process_for_error(taskSpec, tmpLog, 'no candidates')
                                 continue
                         ######################################
                         # check endpoint
@@ -486,14 +487,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         nucleusList = newNucleusList
                         tmpLog.info('{0} candidates passed endpoint check {1} TB'.format(len(nucleusList),diskThreshold/1024))
                         self.add_summary_message(oldNucleusList, nucleusList, 'storage endpoint check')
-                        if nucleusList == {}:
-                            self.dump_summary(tmpLog)
-                            tmpLog.error('no candidates')
-                            taskSpec.resetChangedList()
-                            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                            self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
-                                                              oldStatus=['assigning'], updateDEFT=False,
-                                                              setFrozenTime=False)
+                        if not nucleusList:
+                            self.post_process_for_error(taskSpec, tmpLog, 'no candidates')
                             continue
                         ######################################
                         # ability to execute jobs
@@ -529,14 +524,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         nucleusList = newNucleusList
                         tmpLog.info('{0} candidates passed job check'.format(len(nucleusList)))
                         self.add_summary_message(oldNucleusList, nucleusList, 'job check')
-                        if nucleusList == {}:
-                            self.dump_summary(tmpLog)
-                            tmpLog.error('no candidates')
-                            taskSpec.resetChangedList()
-                            taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                            self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
-                                                              oldStatus=['assigning'], updateDEFT=False,
-                                                              setFrozenTime=False)
+                        if not nucleusList:
+                            self.post_process_for_error(taskSpec, tmpLog, 'no candidates')
                             continue
                         ######################################
                         # data locality
@@ -566,12 +555,10 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                                                               list(nucleusList.keys()),
                                                                               deepScan)
                             if tmpSt != Interaction.SC_SUCCEEDED:
-                                tmpLog.error('failed to get nuclei where data is available, since {0}'.format(tmpRet))
-                                taskSpec.resetChangedList()
-                                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                                self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
-                                                                  oldStatus=['assigning'], updateDEFT=False,
-                                                                  setFrozenTime=False)
+                                self.post_process_for_error(taskSpec, tmpLog,
+                                                            'failed to get nuclei where data is available, '
+                                                            'since {0}'.format(tmpRet),
+                                                            False)
                                 toSkip = True
                                 break
                             # sum
@@ -637,15 +624,49 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                         data_locality_check_str))
                             tmpLog.info('{0} candidates passed data check'.format(len(nucleusList)))
                             self.add_summary_message(oldNucleusList, nucleusList, 'data check')
-                            if nucleusList == {}:
-                                self.dump_summary(tmpLog)
-                                tmpLog.error('no candidates')
-                                taskSpec.resetChangedList()
-                                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                                self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
-                                                                  oldStatus=['assigning'], updateDEFT=False,
-                                                                  setFrozenTime=False)
+                            if not nucleusList:
+                                self.post_process_for_error(taskSpec, tmpLog, 'no candidates')
                                 continue
+                        ######################################
+                        # check for full chain
+                        newNucleusList = {}
+                        oldNucleusList = copy.copy(nucleusList)
+                        parentTaskSpec = None
+                        if taskSpec.get_full_chain() and taskSpec.jediTaskID != taskSpec.parent_tid:
+                            tmpStat, parentTaskSpec = self.taskBufferIF.getTaskWithID_JEDI(taskSpec.parent_tid, False)
+
+                            if not tmpStat or parentTaskSpec is None:
+                                self.post_process_for_error(taskSpec, tmpLog,
+                                                            'failed to get parent taskSpec with '
+                                                            'jediTaskID={0}'.format(taskSpec.parent_tid),
+                                                            False)
+                                continue
+                        for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
+                            # nucleus to run only full-chain tasks
+                            if tmpNucleusSpec.get_bare_nucleus_mode() == 'only' and taskSpec.get_full_chain() is None:
+                                tmpLog.info('  skip nucleus={} since only full-chain tasks are '
+                                            'allowed criteria=-full_chain'.format(tmpNucleus))
+                                continue
+                            # task requirement to run on nucleus with full-chain support
+                            if tmpNucleusSpec.get_bare_nucleus_mode() is None and \
+                                (taskSpec.check_full_chain_with_mode('only') or
+                                 taskSpec.check_full_chain_with_mode('require')):
+                                tmpLog.info('  skip nucleus={} due to lack of full-chain capability '
+                                            'criteria=-full_chain'.format(tmpNucleus))
+                                continue
+                            # check parent task
+                            if taskSpec.get_full_chain() and parentTaskSpec:
+                                if tmpNucleus != parentTaskSpec.nucleus:
+                                    tmpLog.info('  skip nucleus={} since the parent of the full-chain ran elsewhere '
+                                                'criteria=-full_chain'.format(tmpNucleus))
+                                    continue
+                            newNucleusList[tmpNucleus] = tmpNucleusSpec
+                        nucleusList = newNucleusList
+                        tmpLog.info('{0} candidates passed full-chain check'.format(len(nucleusList)))
+                        self.add_summary_message(oldNucleusList, nucleusList, 'full-chain check')
+                        if not nucleusList:
+                            self.post_process_for_error(taskSpec, tmpLog, 'no candidates')
+                            continue
                         self.dump_summary(tmpLog, nucleusList)
                         ######################################
                         # weight

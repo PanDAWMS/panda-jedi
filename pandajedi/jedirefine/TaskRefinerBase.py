@@ -388,6 +388,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['pushJob'])
         if 'onSiteMerging' in  taskParamMap and taskParamMap['onSiteMerging']:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['onSiteMerging'])
+        if 'fullChain' in taskParamMap:
+            self.taskSpec.set_full_chain(taskParamMap['fullChain'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
