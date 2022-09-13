@@ -1634,7 +1634,7 @@ class JobGeneratorThread(WorkerThread):
                                                                                          associatedSites)
             # failed
             if not tmpStat:
-                tmpLog.error('failed to get lib.tgz for jediTaskID={0} siteName={0}'.format(taskSpec.jediTaskID,
+                tmpLog.error('failed to get lib.tgz for jediTaskID={0} siteName={1}'.format(taskSpec.jediTaskID,
                                                                                             siteName))
                 return failedRet
             # lib.tgz is already available

@@ -45,10 +45,10 @@ COMPONENT = 'jobbroker'
 VO = 'atlas'
 
 # brokerage for ATLAS production
-class AtlasProdJobBroker (JobBrokerBase):
+class AtlasProdJobBroker(JobBrokerBase):
 
     # constructor
-    def __init__(self,ddmIF,taskBufferIF):
+    def __init__(self, ddmIF, taskBufferIF):
         JobBrokerBase.__init__(self, ddmIF, taskBufferIF)
         self.hospitalQueueMap = AtlasBrokerUtils.getHospitalQueues(self.siteMapper, JobUtils.PROD_PS, JobUtils.PROD_PS)
         self.dataSiteMap = {}
@@ -83,20 +83,16 @@ class AtlasProdJobBroker (JobBrokerBase):
         if self.io_intensity_cutoff is None:
             self.io_intensity_cutoff = 200
 
-        self.max_prio_for_bootstrap =  taskBufferIF.getConfigValue(COMPONENT, 'MAX_PRIO_TO_BOOTSTRAP', APP, VO)
+        self.max_prio_for_bootstrap = taskBufferIF.getConfigValue(COMPONENT, 'MAX_PRIO_TO_BOOTSTRAP', APP, VO)
         if self.max_prio_for_bootstrap is None:
             self.max_prio_for_bootstrap = 150
 
-
-    # wrapper for return
-    def sendLogMessage(self,tmpLog):
-        # log suppression
-        if self.suppressLogSending:
-            return
-        # send info to logger
-        #tmpLog.bulkSendMsg('prod_brokerage')
-        tmpLog.debug('sent')
-
+        # load the SW availability map
+        try:
+            self.sw_map = taskBufferIF.load_sw_map()
+        except:
+            logger.error('Failed to load the SW tags map!!!')
+            self.sw_map = {}
 
     def convertMBpsToWeight(self, mbps):
         """
@@ -110,22 +106,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 return weight
         return 1
 
-
-    # get all T1 sites
-    def getAllT1Sites(self):
-        cloudList = self.siteMapper.getCloudList()
-        t1Sites = set()
-        for cloudName in cloudList:
-            # T1
-            t1SiteName = self.siteMapper.getCloud(cloudName)['source']
-            t1Sites.add(t1SiteName)
-            # hospital
-            if cloudName in self.hospitalQueueMap:
-                for tmpSiteName in self.hospitalQueueMap[cloudName]:
-                    t1Sites.add(tmpSiteName)
-        return list(t1Sites)
-
-
     # main
     def doBrokerage(self, taskSpec, cloudName, inputChunk, taskParamMap, hintForTB=False, siteListForTB=None, glLog=None):
         # suppress sending log
@@ -133,7 +113,7 @@ class AtlasProdJobBroker (JobBrokerBase):
             self.suppressLogSending = True
         # make logger
         if glLog is None:
-            tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),
+            tmpLog = MsgWrapper(logger, '<jediTaskID={0}>'.format(taskSpec.jediTaskID),
                                 monToken='<jediTaskID={0} {1}>'.format(taskSpec.jediTaskID,
                                                                        datetime.datetime.utcnow().isoformat('/')))
         else:
@@ -148,17 +128,21 @@ class AtlasProdJobBroker (JobBrokerBase):
             tmpLog.debug('Network weights are PASSIVE!')
 
         timeNow = datetime.datetime.utcnow()
+
         # return for failure
-        retFatal    = self.SC_FATAL,inputChunk
-        retTmpError = self.SC_FAILED,inputChunk
+        retFatal    = self.SC_FATAL, inputChunk
+        retTmpError = self.SC_FAILED, inputChunk
+
         # new maxwdir
         newMaxwdir = {}
+
         # get sites in the cloud
         siteSkippedTmp = dict()
         sitePreAssigned = False
         siteListPreAssigned = False
         if siteListForTB is not None:
             scanSiteList = siteListForTB
+
         elif taskSpec.site not in ['',None] and inputChunk.getPreassignedSite() is None:
             # convert to pseudo queues if needed
             scanSiteList = []
@@ -175,6 +159,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 siteListPreAssigned = True
             else:
                 sitePreAssigned = True
+
         elif inputChunk.getPreassignedSite() is not None:
             if inputChunk.masterDataset.creationTime is not None and inputChunk.masterDataset.modificationTime is not None and \
                     inputChunk.masterDataset.modificationTime != inputChunk.masterDataset.creationTime and \
@@ -194,21 +179,24 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                                                                                       inputChunk.getPreassignedSite())
                 tmpMsg += 'criteria=+premerge'
                 tmpLog.info(tmpMsg)
+
         else:
             scanSiteList = self.siteMapper.getCloud(cloudName)['sites']
             tmpLog.info('cloud=%s has %s candidates' % (cloudName,len(scanSiteList)))
+
         # high prio ES
         if taskSpec.useEventService() and not taskSpec.useJobCloning() and (taskSpec.currentPriority >= 900 or inputChunk.useScout()):
             esHigh = True
         else:
             esHigh = False
+
         # get job statistics
         tmpSt,jobStatMap = self.taskBufferIF.getJobStatisticsByGlobalShare(taskSpec.vo)
         if not tmpSt:
             tmpLog.error('failed to get job statistics')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            self.sendLogMessage(tmpLog)
             return retTmpError
+
         # T1
         nucleusSpec = None
         if not taskSpec.useWorldCloud():
@@ -224,7 +212,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 if nucleusSpec is None:
                     tmpLog.error('unknown nucleus {0}'.format(taskSpec.nucleus))
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
                     return retTmpError
                 t1Sites = []
                 t1Sites = nucleusSpec.allPandaSites
@@ -240,13 +227,13 @@ class AtlasProdJobBroker (JobBrokerBase):
                                                                JobUtils.PROD_PS, JobUtils.PROD_PS)
         else:
             sitesShareSeT1 = []
-        # all T1
-        allT1Sites = self.getAllT1Sites()
+
         # core count
         if inputChunk.isMerging and taskSpec.mergeCoreCount is not None:
             taskCoreCount = taskSpec.mergeCoreCount
         else:
             taskCoreCount = taskSpec.coreCount
+
         # MP
         if taskCoreCount is not None and taskCoreCount > 1:
             # use MCORE only
@@ -260,6 +247,7 @@ class AtlasProdJobBroker (JobBrokerBase):
         else:
             # not use MCORE
             useMP = 'unuse'
+
         # get workQueue
         workQueue = self.taskBufferIF.getWorkQueueMap().getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
         if workQueue.is_global_share:
@@ -282,23 +270,27 @@ class AtlasProdJobBroker (JobBrokerBase):
             oldScanSiteList = copy.copy(scanSiteList)
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+
                 # skip unified queues
                 if tmpSiteSpec.is_unified:
                     continue
                 # check site status
                 msgFlag = False
                 skipFlag = False
+
                 if tmpSiteSpec.status in ['online', 'standby']:
                     newScanSiteList.append(tmpSiteName)
                 else:
                     msgFlag = True
                     skipFlag = True
+
                 if msgFlag:
                     tmpStr = '  skip site=%s due to status=%s criteria=-status' % (tmpSiteName,tmpSiteSpec.status)
                     if skipFlag:
                         tmpLog.info(tmpStr)
                     else:
                         siteSkippedTmp[tmpSiteName] = tmpStr
+
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed site status check'.format(len(scanSiteList)))
             self.add_summary_message(oldScanSiteList, scanSiteList, 'status check')
@@ -306,7 +298,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
 
         #################################################
@@ -334,6 +325,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                 totalQueued = networkMap['total'][queued_tag]
             else:
                 totalQueued = 0
+
             tmpLog.debug('Total number of files being transferred to the nucleus : {0}'.format(totalQueued))
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
@@ -371,6 +363,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         reason = 'too many output files queued in the channel {0}(>{1} link limit)'\
                                 .format(networkMap[tmpAtlasSiteName][queued_tag], self.queue_threshold)
                         tempFlag = True
+
                     # add
                     tmpStr = '  skip site={0} due to {1}, {2} to nucleus={3}: criteria={4}'\
                         .format(tmpPandaSiteName, reason, from_str, nucleus, criteria)
@@ -392,18 +385,19 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
         # selection for high priorities
         t1WeightForHighPrio = 1
         if (taskSpec.currentPriority >= 800 or inputChunk.useScout()) \
                 and not sitePreAssigned and not siteListPreAssigned:
+
             if not taskSpec.useEventService():
                 if taskSpec.currentPriority >= 900 or inputChunk.useScout():
                     t1WeightForHighPrio = 100
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
+
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 if not tmpSiteSpec.is_opportunistic():
@@ -412,15 +406,17 @@ class AtlasProdJobBroker (JobBrokerBase):
                     tmpMsg = '  skip site={0} to avoid opportunistic for high priority jobs '.format(tmpSiteName)
                     tmpMsg += 'criteria=-opportunistic'
                     tmpLog.info(tmpMsg)
+
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed for opportunistic check'.format(len(scanSiteList)))
             self.add_summary_message(oldScanSiteList, scanSiteList, 'opportunistic check')
+
             if not scanSiteList:
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
+
         ######################################
         # selection to avoid slow or inactive sites
         if (taskSpec.currentPriority >= 800 or inputChunk.useScout() or \
@@ -432,17 +428,13 @@ class AtlasProdJobBroker (JobBrokerBase):
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
             newSkippedTmp = dict()
-            tmpMsgList = []
+
             for tmpSiteName in self.get_unified_sites(scanSiteList):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                nToGetAll = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteSpec.get_unified_name(),'activated') + \
-                    AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteSpec.get_unified_name(),'starting')
-                if tmpSiteName in ['BNL_CLOUD','BNL_CLOUD_MCORE','ATLAS_OPP_OSG']:
-                    tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid slow sites '.format(tmpSiteName)
-                    tmpMsg += 'criteria=-slow'
-                    tmpLog.info(tmpMsg)
-                    continue
-                elif tmpSiteName in inactiveSites and nToGetAll > 0:
+                nToGetAll = AtlasBrokerUtils.getNumJobs(jobStatMap,tmpSiteSpec.get_unified_name(), 'activated') + \
+                    AtlasBrokerUtils.getNumJobs(jobStatMap, tmpSiteSpec.get_unified_name(), 'starting')
+
+                if tmpSiteName in inactiveSites and nToGetAll > 0:
                     tmpMsg = '  skip site={0} since high prio/scouts/merge needs to avoid inactive sites (laststart is older than {1}h) '.format(tmpSiteName,
                                                                                                                                                  inactiveTimeLimit)
                     tmpMsg += 'criteria=-inactive'
@@ -457,7 +449,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
         # selection for data availability
@@ -478,12 +469,10 @@ class AtlasProdJobBroker (JobBrokerBase):
                     if tmpSt == self.SC_FAILED:
                         tmpLog.error('failed to get the list of sites where data is available, since %s' % tmpRet)
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        self.sendLogMessage(tmpLog)
                         return retTmpError
                     if tmpSt == self.SC_FATAL:
                         tmpLog.error('fatal error when getting the list of sites where data is available, since %s' % tmpRet)
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                        self.sendLogMessage(tmpLog)
                         return retFatal
                     # append
                     self.dataSiteMap[datasetName] = tmpRet
@@ -527,6 +516,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         return retTmpError
         """
+
         ######################################
         # selection for fairshare
         if sitePreAssigned and taskSpec.prodSourceLabel not in [JobUtils.PROD_PS] or workQueue.queue_name not in ['test', 'validation']:
@@ -546,8 +536,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
+
         ######################################
         # selection for jumbo jobs
         if not sitePreAssigned and taskSpec.getNumJumboJobs() is None:
@@ -566,7 +556,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
         elif not sitePreAssigned and taskSpec.getNumJumboJobs() is not None:
             nReadyEvents = self.taskBufferIF.getNumReadyEvents(taskSpec.jediTaskID)
@@ -590,7 +579,6 @@ class AtlasProdJobBroker (JobBrokerBase):
                     self.dump_summary(tmpLog)
                     tmpLog.error('no candidates')
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
                     return retTmpError
 
         ######################################
@@ -656,7 +644,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            self.sendLogMessage(tmpLog)
             return retTmpError
 
         ######################################
@@ -686,70 +673,56 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
 
         ######################################
         # selection for release
         if taskSpec.transHome is not None:
-            jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
+            jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper, self.sw_map)
             unified_site_list = self.get_unified_sites(scanSiteList)
-            sitesAuto = []
-            sitesAny = []
+
             host_cpu_spec = taskSpec.get_host_cpu_spec()
             host_gpu_spec = taskSpec.get_host_gpu_spec()
+
             if taskSpec.get_base_platform() is None:
-                useContainer = False
+                use_container = False
             else:
-                useContainer = True
-            if re.search('-\d+\.\d+\.\d+$', taskSpec.transHome) is not None:
-                # 3 digits base release
-                siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
-                                                                   taskSpec.transHome.split('-')[0],
-                                                                   taskSpec.transHome.split('-')[1],
-                                                                   taskSpec.get_sw_platform(),
-                                                                   False, False,
-                                                                   need_container=useContainer,
-                                                                   container_name=taskSpec.container_name,
-                                                                   only_tags_fc=taskSpec.use_only_tags_fc(),
-                                                                   host_cpu_spec=host_cpu_spec,
-                                                                   host_gpu_spec=host_gpu_spec,
-                                                                   log_stream=tmpLog)
-                sitesAuto = copy.copy(siteListWithSW)
+                use_container = True
 
-            elif re.search('rel_\d+(\n|$)', taskSpec.transHome) is None and \
-                    re.search('\d{4}-\d{2}-\d{2}T\d{4}$', taskSpec.transHome) is None:
-                # only cache is checked for normal tasks
-                siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "atlas",
-                                                                   taskSpec.transHome.split('-')[0],
-                                                                   taskSpec.transHome.split('-')[1],
-                                                                   taskSpec.get_sw_platform(),
-                                                                   False, False,
-                                                                   need_container=useContainer,
-                                                                   container_name=taskSpec.container_name,
-                                                                   only_tags_fc=taskSpec.use_only_tags_fc(),
-                                                                   host_cpu_spec=host_cpu_spec,
-                                                                   host_gpu_spec=host_gpu_spec,
-                                                                   log_stream=tmpLog)
-                sitesAuto = copy.copy(siteListWithSW)
+            cmt_config = taskSpec.get_sw_platform()
+            need_cvmfs = False
 
+            # 3 digits base release or normal tasks
+            if (re.search('-\d+\.\d+\.\d+$', taskSpec.transHome) is not None) \
+                    or (re.search('rel_\d+(\n|$)', taskSpec.transHome) is None
+                        and re.search('\d{4}-\d{2}-\d{2}T\d{4}$', taskSpec.transHome) is None):
+                cvmfs_repo = "atlas"
+                sw_project = taskSpec.transHome.split('-')[0]
+                sw_version = taskSpec.transHome.split('-')[1]
+                cmt_config_only = False
+
+            # nightlies
             else:
-                # nightlies
-                siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, "nightlies",
-                                                                   None, None,
-                                                                   taskSpec.get_sw_platform(),
-                                                                   True, False,
-                                                                   need_container=useContainer,
-                                                                   container_name=taskSpec.container_name,
-                                                                   only_tags_fc=taskSpec.use_only_tags_fc(),
-                                                                   host_cpu_spec=host_cpu_spec,
-                                                                   host_gpu_spec=host_gpu_spec,
-                                                                   log_stream=tmpLog)
-                sitesAuto = copy.copy(siteListWithSW)
+                cvmfs_repo = "nightlies"
+                sw_project = None
+                sw_version = None
+                cmt_config_only = False
+
+            siteListWithSW, sitesNoJsonCheck = jsonCheck.check(unified_site_list, cvmfs_repo,
+                                                               sw_project, sw_version, cmt_config,
+                                                               need_cvmfs, cmt_config_only,
+                                                               need_container=use_container,
+                                                               container_name=taskSpec.container_name,
+                                                               only_tags_fc=taskSpec.use_only_tags_fc(),
+                                                               host_cpu_spec=host_cpu_spec,
+                                                               host_gpu_spec=host_gpu_spec,
+                                                               log_stream=tmpLog)
+            sitesAuto = copy.copy(siteListWithSW)
+            sitesAny = []
 
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
-            sitesAny = []
+
             for tmpSiteName in unified_site_list:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 if tmpSiteName in siteListWithSW:
@@ -768,22 +741,23 @@ class AtlasProdJobBroker (JobBrokerBase):
                         autoStr = 'without AUTO'
                     # release is unavailable
                     tmpLog.info('  skip site=%s %s due to cache=%s:%s sw_platform="%s" '
-                                'cpu=%s gpu=%s criteria=-cache' % \
-                                 (tmpSiteName, autoStr, taskSpec.transHome, taskSpec.get_sw_platform(),
-                                  taskSpec.container_name, str(host_cpu_spec), str(host_gpu_spec)))
+                                'cpu=%s gpu=%s criteria=-cache' %(tmpSiteName, autoStr, taskSpec.transHome,
+                                                                  taskSpec.get_sw_platform(), taskSpec.container_name,
+                                                                  str(host_cpu_spec), str(host_gpu_spec)))
+
             sitesAuto = self.get_pseudo_sites(sitesAuto, scanSiteList)
             sitesAny = self.get_pseudo_sites(sitesAny, scanSiteList)
             scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-            tmpLog.info(
-                '{} candidates ({} with AUTO, {} with ANY) passed SW check '.format(
-                    len(scanSiteList), len(sitesAuto), len(sitesAny)))
+            tmpLog.info('{} candidates ({} with AUTO, {} with ANY) passed SW check '.format(len(scanSiteList),
+                                                                                            len(sitesAuto),
+                                                                                            len(sitesAny)))
             self.add_summary_message(oldScanSiteList, scanSiteList, 'SW check')
             if not scanSiteList:
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
+
         ######################################
         # selection for memory
         origMinRamCount = inputChunk.getMaxRamCount()
@@ -837,8 +811,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
+
         ######################################
         # selection for scratch disk
         if taskSpec.outputScaleWithEvents():
@@ -903,8 +877,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            self.sendLogMessage(tmpLog)
             return retTmpError
+
         ######################################
         # selection for available space in SE
         newScanSiteList = []
@@ -941,8 +915,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            self.sendLogMessage(tmpLog)
             return retTmpError
+
         ######################################
         # selection for walltime
         if taskSpec.useEventService() and not taskSpec.useJobCloning():
@@ -1071,8 +1045,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
+
         ######################################
         # selection for network connectivity
         if not sitePreAssigned:
@@ -1119,8 +1093,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                     self.dump_summary(tmpLog)
                     tmpLog.error('no candidates')
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
                     return retTmpError
+
         ######################################
         # selection for event service
         if not sitePreAssigned:
@@ -1161,8 +1135,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
+
         ######################################
         # selection for dynamic number of events
         if not sitePreAssigned and taskSpec.dynamicNumEvents():
@@ -1193,8 +1167,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
+
         ######################################
         # selection for transferring
         newScanSiteList = []
@@ -1230,7 +1204,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            self.sendLogMessage(tmpLog)
             return retTmpError
 
         ######################################
@@ -1261,8 +1234,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            self.sendLogMessage(tmpLog)
             return retTmpError
+
         ######################################
         # selection for full chain
         if nucleusSpec:
@@ -1314,8 +1287,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
+
         # return if to give a hint for task brokerage
         if hintForTB:
             ######################################
@@ -1334,9 +1307,9 @@ class AtlasProdJobBroker (JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
             return self.SC_SUCCEEDED,scanSiteList
+
         ######################################
         # get available files
         siteSizeMap = {}
@@ -1373,7 +1346,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             except Exception as e:
                 tmpLog.error('failed to get available files with {0}'.format(str(e).replace('\n', ' ')))
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
             # loop over all sites to get the size of available files
             for tmpSiteName in self.get_unified_sites(scanSiteList):
@@ -1408,6 +1380,7 @@ class AtlasProdJobBroker (JobBrokerBase):
                         pass
         # get max num of available files
         maxNumFiles = len(allLFNs)
+
         ######################################
         # selection for fileSizeToMove
         moveSizeCutoffGB = self.taskBufferIF.getConfigValue(COMPONENT, 'SIZE_CUTOFF_TO_MOVE_INPUT', APP, VO)
@@ -1476,8 +1449,8 @@ class AtlasProdJobBroker (JobBrokerBase):
                     self.dump_summary(tmpLog)
                     tmpLog.error('no candidates')
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
                     return retTmpError
+
         ######################################
         # temporary problems
         newScanSiteList = []
@@ -1494,8 +1467,8 @@ class AtlasProdJobBroker (JobBrokerBase):
             self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            self.sendLogMessage(tmpLog)
             return retTmpError
+
         ######################################
         # calculate weight
         jobStatPrioMapGS = dict()
@@ -1514,7 +1487,6 @@ class AtlasProdJobBroker (JobBrokerBase):
         if not tmpSt:
             tmpLog.error('failed to get job statistics with priority')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            self.sendLogMessage(tmpLog)
             return retTmpError
         workerStat = self.taskBufferIF.ups_load_worker_stats()
         upsQueues = set(self.taskBufferIF.ups_get_queues())
@@ -1885,7 +1857,6 @@ class AtlasProdJobBroker (JobBrokerBase):
             self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            self.sendLogMessage(tmpLog)
             return retTmpError
         # lock sites for WORLD
         if taskSpec.useWorldCloud():
@@ -1894,6 +1865,5 @@ class AtlasProdJobBroker (JobBrokerBase):
                 pass
         self.dump_summary(tmpLog, scanSiteList)
         # return
-        self.sendLogMessage(tmpLog)
         tmpLog.info('done')
-        return self.SC_SUCCEEDED,inputChunk
+        return self.SC_SUCCEEDED, inputChunk

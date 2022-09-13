@@ -8998,13 +8998,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 tmpLog.debug("got lib.tgz={0}".format(fileSpec.lfn))
             else:
                 tmpLog.debug("no lib.tgz")
-            return True,fileSpec,datasetSpec
+            return True, fileSpec, datasetSpec
         except Exception:
             # roll back
             self._rollback()
             # error
             self.dumpErrorMessage(tmpLog)
-            return False,None
+            return False, None, None
 
 
 
@@ -14924,3 +14924,29 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmpLog)
             return None
+
+    def load_sw_map(self):
+        comment = ' /* JediDBProxy.load_sw_map */'
+        method_name = self.getMethodName(comment)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug('start')
+        
+        sw_map = {}
+
+        try:
+            # sql to get size
+            sql = "SELECT PANDA_QUEUE, DATA FROM {0}.SW_TAGS".format(jedi_config.db.schemaPANDA)
+            self.cur.execute(sql + comment)
+            results = self.cur.fetchall()
+            for panda_queue, data in results:
+                sw_map[panda_queue] = json.loads(data)
+
+            tmp_log.debug('done')
+            return sw_map
+
+        except Exception:
+            self._rollback()
+            self.dumpErrorMessage(tmp_log)
+            return None
+
+

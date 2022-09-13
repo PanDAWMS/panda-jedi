@@ -33,11 +33,12 @@ class AtlasAnalJobBroker(JobBrokerBase):
         JobBrokerBase.__init__(self, ddmIF, taskBufferIF)
         self.dataSiteMap = {}
 
-    # wrapper for return
-    def sendLogMessage(self, tmpLog):
-        # send info to logger
-        #tmpLog.bulkSendMsg('analy_brokerage')
-        tmpLog.debug('sent')
+        # load the SW availability map
+        try:
+            self.sw_map = taskBufferIF.load_sw_map()
+        except:
+            logger.error('Failed to load the SW tags map!!!')
+            self.sw_map = {}
 
     # main
     def doBrokerage(self, taskSpec, cloudName, inputChunk, taskParamMap):
@@ -47,8 +48,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                    datetime.datetime.utcnow().isoformat('/')))
         tmpLog.debug('start')
         # return for failure
-        retFatal    = self.SC_FATAL,inputChunk
-        retTmpError = self.SC_FAILED,inputChunk
+        retFatal    = self.SC_FATAL, inputChunk
+        retTmpError = self.SC_FAILED, inputChunk
         # new maxwdir
         newMaxwdir = {}
         # get primary site candidates
@@ -167,7 +168,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             totalJobStat['nRunJobs'],
                             gdp_token_jobs))
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
                     return retTmpError
                 elif totalJobStat['nQueuedJobs'] > maxFactor*maxNumRunJobs:
                     tmpLog.error(
@@ -176,7 +176,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             maxFactor,
                             gdp_token_jobs))
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
                     return retTmpError
             if maxNumRunCores:
                 if totalJobStat['nRunCores'] > maxNumRunCores:
@@ -185,7 +184,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             totalJobStat['nRunCores'],
                             gdp_token_cores))
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
                     return retTmpError
                 elif totalJobStat['nQueuedCores'] > maxFactor*maxNumRunCores:
                     tmpLog.error(
@@ -194,7 +192,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             maxFactor,
                             gdp_token_cores))
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
                     return retTmpError
 
         # check global disk quota
@@ -205,7 +202,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
         if not quota_ok:
             tmpLog.error('throttle to generate jobs due to {}'.format(quota_msg))
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            self.sendLogMessage(tmpLog)
             return retTmpError
 
         # get failure count
@@ -293,14 +289,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         if tmpSt in [Interaction.JEDITemporaryError,Interaction.JEDITimeoutError]:
                             tmpLog.error('temporary failed to get the list of sites where data is available, since %s' % tmpRet)
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                            # send info to logger
-                            self.sendLogMessage(tmpLog)
                             return retTmpError
                         if tmpSt == Interaction.JEDIFatalError:
                             tmpLog.error('fatal error when getting the list of sites where data is available, since %s' % tmpRet)
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                            # send info to logger
-                            self.sendLogMessage(tmpLog)
                             return retFatal
                         # append
                         self.dataSiteMap[datasetName] = tmpRet
@@ -528,7 +520,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
             ######################################
             # selection for VP
@@ -574,15 +565,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
             # selection for GPU + architecture
             newScanSiteList = []
             oldScanSiteList = copy.copy(scanSiteList)
-            jsonCheck = None
+            jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper, self.sw_map)
             for tmpSiteName in scanSiteList:
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 if tmpSiteSpec.isGPU() and not taskSpec.is_hpo_workflow():
                     if taskSpec.get_sw_platform() in ['', None]:
                         tmpLog.info('  skip site={0} since architecture is required for GPU queues'.format(tmpSiteName))
                         continue
-                    if jsonCheck is None:
-                        jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
                     siteListWithCMTCONFIG = [tmpSiteSpec.get_unified_name()]
                     siteListWithCMTCONFIG, sitesNoJsonCheck = jsonCheck.check(siteListWithCMTCONFIG, None,
                                                                               None, None,
@@ -628,7 +617,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
             host_cpu_spec = taskSpec.get_host_cpu_spec()
             host_gpu_spec = taskSpec.get_host_gpu_spec()
             if not sitePreAssigned:
-                jsonCheck = AtlasBrokerUtils.JsonSoftwareCheck(self.siteMapper)
                 unified_site_list = self.get_unified_sites(scanSiteList)
                 if taskSpec.transHome is not None:
                     transHome = taskSpec.transHome
@@ -740,9 +728,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 sitesAuto = self.get_pseudo_sites(sitesAuto, scanSiteList)
                 sitesAny = self.get_pseudo_sites(sitesAny, scanSiteList)
                 scanSiteList = self.get_pseudo_sites(newScanSiteList, scanSiteList)
-                tmpLog.info(
-                    '{} candidates ({} with AUTO, {} with ANY) passed SW check '.format(
-                        len(scanSiteList), len(sitesAuto), len(sitesAny)))
+                tmpLog.info('{} candidates ({} with AUTO, {} with ANY) passed SW check '.format(len(scanSiteList),
+                                                                                                len(sitesAuto),
+                                                                                                len(sitesAny)))
                 self.add_summary_message(oldScanSiteList, scanSiteList, 'release/cache/CPU/GPU check')
                 if not scanSiteList:
                     self.dump_summary(tmpLog)
@@ -1071,15 +1059,11 @@ class AtlasAnalJobBroker(JobBrokerBase):
             if not tmpSt:
                 tmpLog.error('failed to get job statistics with priority')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                # send info to logger
-                self.sendLogMessage(tmpLog)
                 return retTmpError
             tmpSt, siteToRunRateMap = AtlasBrokerUtils.getSiteToRunRateStats(tbIF=self.taskBufferIF, vo=taskSpec.vo)
             if not tmpSt:
                 tmpLog.error('failed to get site to-running rate')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                # send info to logger
-                self.sendLogMessage(tmpLog)
                 return retTmpError
             # check for preassigned
             if sitePreAssigned:
@@ -1159,7 +1143,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     self.dump_summary(tmpLog)
                     tmpLog.error('no candidates')
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
                     return retTmpError
             ######################################
             # selection for un-overloaded sites
@@ -1236,7 +1219,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 tmpLog.error('failed to get users jobs statistics')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 # send info to logger
-                self.sendLogMessage(tmpLog)
                 return retTmpError
             elif not inputChunk.isMerging:
                 # parameters
@@ -1386,8 +1368,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
         # failed
         if retVal is not None:
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            # send info to logger
-            self.sendLogMessage(tmpLog)
             return retVal
         # get list of available files
         availableFileMap = {}
@@ -1433,8 +1413,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 errtype,errvalue = sys.exc_info()[:2]
                 tmpLog.error('failed to get available files with %s %s' % (errtype.__name__,errvalue))
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                # send info to logger
-                self.sendLogMessage(tmpLog)
                 return retTmpError
         # make data weight
         totalSize = 0
@@ -1832,12 +1810,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
             self.dump_summary(tmpLog)
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-            # send info to logger
-            self.sendLogMessage(tmpLog)
             return retTmpError
         self.dump_summary(tmpLog, scanSiteList)
-        # send info to logger
-        self.sendLogMessage(tmpLog)
         # return
         tmpLog.debug('done')
-        return self.SC_SUCCEEDED,inputChunk
+        return self.SC_SUCCEEDED, inputChunk

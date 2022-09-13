@@ -764,14 +764,10 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
 # check SW with json
 class JsonSoftwareCheck:
     # constructor
-    def __init__(self, site_mapper, json_name=None):
-        if json_name is None:
-            json_name = '/cvmfs/atlas.cern.ch/repo/sw/local/etc/cric_pandaqueue_tags.json'
+    def __init__(self, site_mapper, sw_map):
+
         self.siteMapper = site_mapper
-        try:
-            self.swDict = json.load(open(json_name))
-        except Exception:
-            self.swDict = dict()
+        self.sw_map = sw_map
 
     # get lists
     def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only,
@@ -781,13 +777,13 @@ class JsonSoftwareCheck:
         noAutoSite = []
         for tmpSiteName in site_list:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.swDict:
+            if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.sw_map:
                 try:
                     go_ahead = False
                     # convert to a dict
                     architecture_map = {}
-                    if 'architectures' in self.swDict[tmpSiteName]:
-                        for arch_spec in self.swDict[tmpSiteName]['architectures']:
+                    if 'architectures' in self.sw_map[tmpSiteName]:
+                        for arch_spec in self.sw_map[tmpSiteName]['architectures']:
                             if 'type' in arch_spec:
                                 architecture_map[arch_spec['type']] = arch_spec
                     # check if need CPU
@@ -883,27 +879,27 @@ class JsonSoftwareCheck:
                 # check for fat container
                 if container_name:
                     # check for container
-                    if not only_tags_fc and ('any' in self.swDict[tmpSiteName]["containers"] or
-                            '/cvmfs' in self.swDict[tmpSiteName]["containers"]):
+                    if not only_tags_fc and ('any' in self.sw_map[tmpSiteName]["containers"] or
+                            '/cvmfs' in self.sw_map[tmpSiteName]["containers"]):
                         # any in containers
                         okSite.append(tmpSiteName)
-                    elif container_name in set([t['container_name'] for t in self.swDict[tmpSiteName]['tags']
+                    elif container_name in set([t['container_name'] for t in self.sw_map[tmpSiteName]['tags']
                                                 if t['container_name']]):
                         # logical name in tags or any in containers
                         okSite.append(tmpSiteName)
-                    elif container_name in set([s for t in self.swDict[tmpSiteName]['tags'] for s in t['sources']
+                    elif container_name in set([s for t in self.sw_map[tmpSiteName]['tags'] for s in t['sources']
                                                if t['sources']]):
                         # full path in sources
                         okSite.append(tmpSiteName)
                     elif not only_tags_fc:
                         # get sources in all tag list
-                        if 'ALL' in self.swDict:
-                            source_list_in_all_tag = [s for t in self.swDict['ALL']['tags']
+                        if 'ALL' in self.sw_map:
+                            source_list_in_all_tag = [s for t in self.sw_map['ALL']['tags']
                                                       for s in t['sources'] if t['container_name']==container_name]
                         else:
                             source_list_in_all_tag = []
                         # prefix with full path
-                        for tmp_prefix in self.swDict[tmpSiteName]["containers"]:
+                        for tmp_prefix in self.sw_map[tmpSiteName]["containers"]:
                             if container_name.startswith(tmp_prefix):
                                 okSite.append(tmpSiteName)
                                 break
@@ -918,22 +914,22 @@ class JsonSoftwareCheck:
                     continue
                 # only cmt config check
                 if cmt_config_only:
-                    if not cmt_config or cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
+                    if not cmt_config or cmt_config in self.sw_map[tmpSiteName]['cmtconfigs']:
                         okSite.append(tmpSiteName)
                     continue
                 # check if CVMFS is available
-                if 'any' in self.swDict[tmpSiteName]["cvmfs"] or cvmfs_tag in self.swDict[tmpSiteName]["cvmfs"]:
+                if 'any' in self.sw_map[tmpSiteName]["cvmfs"] or cvmfs_tag in self.sw_map[tmpSiteName]["cvmfs"]:
                     # check if container is available
-                    if 'any' in self.swDict[tmpSiteName]["containers"] or \
-                            '/cvmfs' in self.swDict[tmpSiteName]["containers"]:
+                    if 'any' in self.sw_map[tmpSiteName]["containers"] or \
+                            '/cvmfs' in self.sw_map[tmpSiteName]["containers"]:
                         okSite.append(tmpSiteName)
                     # check cmt config
-                    elif not need_container and cmt_config in self.swDict[tmpSiteName]['cmtconfigs']:
+                    elif not need_container and cmt_config in self.sw_map[tmpSiteName]['cmtconfigs']:
                         okSite.append(tmpSiteName)
                 elif not need_cvmfs:
-                    if not need_container or 'any' in self.swDict[tmpSiteName]["containers"]:
+                    if not need_container or 'any' in self.sw_map[tmpSiteName]["containers"]:
                         # check tags
-                        for tag in self.swDict[tmpSiteName]["tags"]:
+                        for tag in self.sw_map[tmpSiteName]["tags"]:
                             if tag['cmtconfig'] == cmt_config and tag['project'] == sw_project \
                                and tag['release'] == sw_version:
                                 okSite.append(tmpSiteName)
