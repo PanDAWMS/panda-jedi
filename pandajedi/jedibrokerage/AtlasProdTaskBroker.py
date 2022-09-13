@@ -259,12 +259,6 @@ class AtlasProdTaskBrokerThread (WorkerThread):
         self.workQueue    = workQueue
         self.summaryList = None
 
-    # wrapper for return
-    def sendLogMessage(self,tmpLog):
-        # send info to logger
-        #tmpLog.bulkSendMsg('taskbrokerage',loggerName='bamboo')
-        tmpLog.debug('sent')
-
     # init summary list
     def init_summary_list(self, header, comment, initial_list):
         self.summaryList = []
@@ -377,7 +371,6 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
                                                           oldStatus=['assigning'], updateDEFT=False,
                                                           setFrozenTime=False)
-                        self.sendLogMessage(tmpLog)
                         continue
                     # RW
                     taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)
@@ -518,7 +511,6 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
                                                               oldStatus=['assigning'], updateDEFT=False,
                                                               setFrozenTime=False)
-                            self.sendLogMessage(tmpLog)
                             continue
                         okNuclei = set()
                         for tmpSite in tmpRet:
@@ -739,7 +731,6 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     retMap = {taskSpec.jediTaskID: AtlasBrokerUtils.getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs)}
                     tmpRet = self.taskBufferIF.setCloudToTasks_JEDI(retMap)
                     tmpLog.info('  set nucleus={0} with {1} criteria=+set'.format(candidateNucleus,tmpRet))
-                    self.sendLogMessage(tmpLog)
                     if tmpRet:
                         tmpMsg = 'set task_status=ready'
                         tmpLog.sendMsg(tmpMsg,self.msgType)

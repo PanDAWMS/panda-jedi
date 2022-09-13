@@ -803,3 +803,10 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames):
         with self.proxyPool.get() as proxy:
             return proxy.setMissingFilesAboutIdds_JEDI(jeditaskid, filenames)
+
+    # set missing files according to iDDS messages
+    def load_sw_map(self):
+        with self.proxyPool.get() as proxy:
+            return proxy.load_sw_map()
+
+
