@@ -679,11 +679,6 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.getTaskWithJumbo_JEDI(vo, prodSourceLabel)
 
-    # get tasks to enabme jumbo jobs
-    def getTaskToEnableJumbo_JEDI(self, vo, prodSourceLabel, maxPrio, nEventsToEnable):
-        with self.proxyPool.get() as proxy:
-            return proxy.getTaskToEnableJumbo_JEDI(vo, prodSourceLabel, maxPrio, nEventsToEnable)
-
     # kick pending tasks with jumbo jobs
     def kickPendingTasksWithJumbo_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
