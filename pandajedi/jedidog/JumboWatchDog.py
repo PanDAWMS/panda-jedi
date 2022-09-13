@@ -129,8 +129,6 @@ class JumboWatchDog:
             self.log.info('component={0} total_events={1} n_events_to_process={2} n_tasks={3} available for jumbo'.format(self.component, totEvents,
                                                                                                                           totEvents - doneEvents, nTasks))
             if True:
-                # get list of releases and caches available at jumbo job enabled PQs
-                jumboRels, jumboCaches = self.taskBufferIF.getRelCacheForJumbo_JEDI()
                 # look for tasks to enable jumbo
                 if self.dryRun:
                     self.log.info('component={0} look for tasks to enable jumbo in dry run mode'.format(self.component))
@@ -172,22 +170,7 @@ class JumboWatchDog:
                     else:
                         self.log.info('component={0} skip to enable jumbo for jediTaskID={1} since not good for in-file positional event numbers'.format(self.component, jediTaskID))
                         continue
-                    # check software
-                    transHome = taskData['transHome']
-                    cmtConfig = taskData['architecture']
-                    if re.search('^\d+\.\d+\.\d+$', transHome.split('-')[-1]) is not None:
-                        transHome = transHome.split('-')[-1]
-                        swDict = jumboRels
-                    else:
-                        swDict = jumboCaches
-                    key = (transHome, cmtConfig)
-                    if key not in swDict:
-                        self.log.info('component={0} skip to enable jumbo for jediTaskID={1} since {2}:{3} is unavailable at jumbo job enabled PQs'.format(
-                                self.component,
-                                jediTaskID,
-                                transHome,
-                                cmtConfig))
-                        continue
+
                     if not self.dryRun and nTasks < maxTasks and (totEvents - doneEvents) < maxEvents:
                         self.log.info('component={0} enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
                                                                                                                          taskData['nEvents'] - taskData['nEventsDone']))

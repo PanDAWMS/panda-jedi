@@ -13270,62 +13270,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             return dict()
 
 
-
-    # get release and cache at jumbo job enabled sites
-    def getRelCacheForJumbo_JEDI(self):
-        comment = ' /* JediDBProxy.getRelCacheForJumbo_JEDI */'
-        methodName = self.getMethodName(comment)
-        tmpLog = MsgWrapper(logger,methodName)
-        tmpLog.debug('start')
-        try:
-            # sql to get releases
-            sqlAV = "SELECT /* use_json_type */ release, cmtconfig, COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
-            sqlAV += "WHERE siteid IN (SELECT panda_queue FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
-            sqlAV += "WHERE scj.data.catchall LIKE :patt AND scj.data.status=:status) AND cache=:cache "
-            sqlAV += "GROUP BY release, cmtconfig "
-
-            # sql to get caches
-            sqlAC = "SELECT /* use_json_type */ cache, cmtconfig, COUNT(*) FROM {0}.installedSW ".format(jedi_config.db.schemaMETA)
-            sqlAC += "WHERE siteid IN (SELECT panda_queue FROM {0}.schedconfig_json scj ".format(jedi_config.db.schemaJEDI)
-            sqlAC += "WHERE scj.data.catchall LIKE :patt AND scj.data.status=:status) "
-            sqlAC += "GROUP BY cache, cmtconfig "
-
-            self.conn.begin()
-            # get tasks
-            varMap = dict()
-            varMap[':patt'] = '%useJumboJobs%'
-            varMap[':status'] = 'online'
-            varMap[':cache'] = 'None'
-            self.cur.execute(sqlAV+comment, varMap)
-            resAV = self.cur.fetchall()
-            releses = dict()
-            for release, cmtconfig, n in resAV:
-                key = (release, cmtconfig)
-                releses[key] = n
-            varMap = dict()
-            varMap[':patt'] = '%useJumboJobs%'
-            varMap[':status'] = 'online'
-            self.cur.execute(sqlAC+comment, varMap)
-            resAC = self.cur.fetchall()
-            caches = dict()
-            for cache, cmtconfig, n in resAC:
-                key = (cache, cmtconfig)
-                caches[key] = n
-            # commit
-            if not self._commit():
-                raise RuntimeError('Commit error')
-            # return
-            tmpLog.debug("done")
-            return (releses, caches)
-        except Exception:
-            # roll back
-            self._rollback()
-            # error
-            self.dumpErrorMessage(tmpLog)
-            return ({}, {})
-
-
-
     # kick pending tasks with jumbo jobs
     def kickPendingTasksWithJumbo_JEDI(self, jediTaskID):
         comment = ' /* JediDBProxy.kickPendingTasksWithJumbo_JEDI */'
