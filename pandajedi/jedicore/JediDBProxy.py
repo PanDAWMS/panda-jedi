@@ -10503,7 +10503,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         retTasks = []
         try:
             # sql to get output datasets of parent task
-            sqlPD  = "SELECT datasetName FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
+            sqlPD  = "SELECT datasetName,containerName FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlPD += "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) "
             # sql to get child tasks
             sqlGT  = "SELECT jediTaskID,status FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
@@ -10538,9 +10538,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':type2'] = 'log'
             self.cur.execute(sqlPD+comment,varMap)
             resList = self.cur.fetchall()
-            parentDatasets = []
-            for tmpDS, in resList:
-                parentDatasets.append(tmpDS)
+            parentDatasets = set()
+            for tmpDS, tmpDC in resList:
+                parentDatasets.add(tmpDS)
+                parentDatasets.add(tmpDC)
             # get child tasks
             varMap = {}
             varMap[':jediTaskID'] = jediTaskID
