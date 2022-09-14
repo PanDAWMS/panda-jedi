@@ -992,12 +992,17 @@ class AtlasProdJobBroker(JobBrokerBase):
                     tmpMsg += 'criteria=-shortwalltime'
                     tmpLog.info(tmpMsg)
                     continue
-                # sending scouts or merge or wallime-undefined jobs to only sites where walltime is more than 1 day
+                # sending scouts or merge or walltime-undefined jobs to only sites where walltime is more than 1 day
                 if (not sitePreAssigned and inputChunk.useScout()) or inputChunk.isMerging or \
                         (not taskSpec.walltime and not taskSpec.walltimeUnit and not taskSpec.cpuTimeUnit):
                     minTimeForZeroWalltime = 24
                     str_minTimeForZeroWalltime = "{}hr*10HS06s".format(minTimeForZeroWalltime)
-                    minTimeForZeroWalltime *= 60*60*10
+                    minTimeForZeroWalltime *= 60 * 60 * 10
+
+                    if tmpSiteSpec.coreCount not in [None, 0]:
+                        minTimeForZeroWalltime *= tmpSiteSpec.coreCount
+                        str_minTimeForZeroWalltime += "*{}cores".format(tmpSiteSpec.coreCount)
+
                     if siteMaxTime != 0 and siteMaxTime < minTimeForZeroWalltime:
                         tmpMsg = '  skip site={0} due to site walltime {1} (site upper limit) insufficient '.\
                             format(tmpSiteName, tmpSiteStr)

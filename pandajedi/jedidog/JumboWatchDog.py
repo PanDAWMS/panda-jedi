@@ -1,15 +1,11 @@
-import re
 import os
 import sys
 import socket
-import operator
 import traceback
 
 from six import iteritems
 
 from pandajedi.jedicore.JediTaskSpec import JediTaskSpec
-from pandajedi.jedirefine import RefinerUtils
-
 
 # watchdog to take actions for jumbo jobs
 class JumboWatchDog:
@@ -128,83 +124,7 @@ class JumboWatchDog:
                         self.log.debug('component={0} tried to reset inputs to regenerate co-jumbo with {1} for jediTaskID={2}'.format(self.component, nReset, jediTaskID))
             self.log.info('component={0} total_events={1} n_events_to_process={2} n_tasks={3} available for jumbo'.format(self.component, totEvents,
                                                                                                                           totEvents - doneEvents, nTasks))
-            if True:
-                # get list of releases and caches available at jumbo job enabled PQs
-                jumboRels, jumboCaches = self.taskBufferIF.getRelCacheForJumbo_JEDI()
-                # look for tasks to enable jumbo
-                if self.dryRun:
-                    self.log.info('component={0} look for tasks to enable jumbo in dry run mode'.format(self.component))
-                else:
-                    self.log.info('component={0} look for tasks to enable jumbo due to lack of tasks and events to meet max_tasks={1} max_events={2}'.format(self.component,
-                                                                                                                                                             maxTasks,
-                                                                                                                                                             maxEvents))
-                tasksToEnableJumbo = self.taskBufferIF.getTaskToEnableJumbo_JEDI(self.vo, self.prodSourceLabel, maxPrio, nEventsToEnable)
-                nGoodTasks = 0
-                self.log.debug('component={0} got {1} tasks to check'.format(self.component, len(tasksToEnableJumbo)))
-                # sort by nevents
-                nEventsMap = dict()
-                for jediTaskID, taskData in iteritems(tasksToEnableJumbo):
-                    nEventsMap[jediTaskID] = taskData['nEvents']
-                sortedList = sorted(list(nEventsMap.items()), key=operator.itemgetter(1))
-                sortedList.reverse()
-                for jediTaskID, nEvents in sortedList:
-                    taskData = tasksToEnableJumbo[jediTaskID]
-                    # get task parameters
-                    try:
-                        taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
-                        taskParamMap = RefinerUtils.decodeJSON(taskParam)
-                    except Exception:
-                        self.log.error('component={0} failed to get task params for jediTaskID={1}'.format(self.component, jediTaskID))
-                        continue
-                    taskSpec = JediTaskSpec()
-                    taskSpec.splitRule = taskData['splitRule']
-                    # check if good for jumbo
-                    if 'esConvertible' not in taskParamMap or taskParamMap['esConvertible'] is False:
-                        self.log.info('component={0} skip to enable jumbo for jediTaskID={1} since not ES-convertible'.format(self.component, jediTaskID))
-                        continue
-                    if taskSpec.inFilePosEvtNum():
-                        pass
-                    elif taskSpec.getNumFilesPerJob() == 1:
-                        pass
-                    elif taskSpec.getNumEventsPerJob() is not None and 'nEventsPerInputFile' in taskParamMap \
-                            and taskSpec.getNumEventsPerJob() <= taskParamMap['nEventsPerInputFile']:
-                        pass
-                    else:
-                        self.log.info('component={0} skip to enable jumbo for jediTaskID={1} since not good for in-file positional event numbers'.format(self.component, jediTaskID))
-                        continue
-                    # check software
-                    transHome = taskData['transHome']
-                    cmtConfig = taskData['architecture']
-                    if re.search('^\d+\.\d+\.\d+$', transHome.split('-')[-1]) is not None:
-                        transHome = transHome.split('-')[-1]
-                        swDict = jumboRels
-                    else:
-                        swDict = jumboCaches
-                    key = (transHome, cmtConfig)
-                    if key not in swDict:
-                        self.log.info('component={0} skip to enable jumbo for jediTaskID={1} since {2}:{3} is unavailable at jumbo job enabled PQs'.format(
-                                self.component,
-                                jediTaskID,
-                                transHome,
-                                cmtConfig))
-                        continue
-                    if not self.dryRun and nTasks < maxTasks and (totEvents - doneEvents) < maxEvents:
-                        self.log.info('component={0} enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
-                                                                                                                         taskData['nEvents'] - taskData['nEventsDone']))
-                        if taskData['eventService'] == 0:
-                            tmpS, tmpO = self.taskBufferIF.enableEventService(taskData['jediTaskID'])
-                            if tmpS != 0:
-                                self.log.error('component={0} failed to enable ES in jediTaskID={1} with {2}'.format(self.component, jediTaskID, tmpO))
-                                continue
-                        self.taskBufferIF.enableJumboJobs(taskData['jediTaskID'], nJumboPerTask, nJumboPerSite)
-                        nTasks += 1
-                        totEvents += taskData['nEvents']
-                        doneEvents += taskData['nEventsDone']
-                    else:
-                        nGoodTasks += 1
-                        self.log.info('component={0} good to enable jumbo in jediTaskID={1} with n_events_to_process={2}'.format(self.component, jediTaskID,
-                                                                                                                                 taskData['nEvents'] - taskData['nEventsDone']))
-                self.log.info('component={0} there are n_good_tasks={1} tasks good for jumbo'.format(self.component, nGoodTasks))
+
             self.log.debug('component={0} done'.format(self.component))
         except Exception:
             # error

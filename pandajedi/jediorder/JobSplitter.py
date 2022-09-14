@@ -52,8 +52,8 @@ class JobSplitter:
             useBoundary = taskSpec.useGroupWithBoundaryID()
             # fsize intercepts per input size
             sizeGradientsPerInSize = None
-            # max primay output size
-            maxOutSize = None
+            # set max primay output size to avoid producing huge unmerged files
+            maxOutSize = 10 * 1024 * 1024 * 1024
             # max size per job
             maxSizePerJob = taskSpec.getMaxSizePerJob()
             if maxSizePerJob is not None:
