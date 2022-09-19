@@ -779,9 +779,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('task is locked by {0}'.format(taskLockedBy))
                 elif not (taskStatus in JediTaskSpec.statusToUpdateContents() or
                           (taskStatus in ['running', 'ready', 'scouting', 'assigning', 'pending'] and
+                          taskSpec.oldStatus not in ['defined'] and
                           (datasetState == 'mutable' or datasetSpec.state == 'mutable' or datasetSpec.isSeqNumber()))):
                     # task status is irrelevant
-                    tmpLog.debug('task.status={0} is not for contents update'.format(taskStatus))
+                    tmpLog.debug('task.status={} taskSpec.oldStatus={} is not for contents update'.format(
+                        taskStatus, taskSpec.oldStatus))
                 else:
                     tmpLog.debug('task.status={} task.oldStatus={}'.format(taskStatus, taskSpec.oldStatus))
                     # running task
