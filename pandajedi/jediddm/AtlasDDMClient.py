@@ -148,7 +148,7 @@ class AtlasDDMClient(DDMClientBase):
         return errCode,'{0} : {1}'.format(methodName, errMsg)
 
     # list dataset replicas
-    def listDatasetReplicas(self, datasetName, use_vp=False, detailed=False):
+    def listDatasetReplicas(self, datasetName, use_vp=False, detailed=False, skip_incomplete_element=False):
         methodName = 'listDatasetReplicas'
         methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
@@ -181,7 +181,8 @@ class AtlasDDMClient(DDMClientBase):
                             totalFiles = 0
                     except Exception:
                         totalFiles = 0
-                    tmpRet = self.convertOutListDatasetReplicas(tmpName, use_vp=use_vp)
+                    tmpRet = self.convertOutListDatasetReplicas(tmpName, use_vp=use_vp,
+                                                                skip_incomplete_element=skip_incomplete_element)
                     detailedRetMap[tmpName] = tmpRet
                     # loop over all sites
                     for tmpSite,tmpValMap in iteritems(tmpRet):
@@ -1240,7 +1241,8 @@ class AtlasDDMClient(DDMClientBase):
             return errCode, '{0} : {1}'.format(methodName, errMsg)
 
     # convert output of listDatasetReplicas
-    def convertOutListDatasetReplicas(self, datasetName, usefileLookup=False, use_vp=False):
+    def convertOutListDatasetReplicas(self, datasetName, usefileLookup=False, use_vp=False,
+                                      skip_incomplete_element=False):
         retMap = {}
         # get rucio API
         client = RucioClient()
@@ -1279,6 +1281,8 @@ class AtlasDDMClient(DDMClientBase):
                     items.append(item)
         for item in items:
             rse = item["rse"]
+            if skip_incomplete_element and (not item["available_length"] or item["length"] != item["available_length"]):
+                continue
             retMap[rse] = [{'total':item["length"],
                             'found':item["available_length"],
                             'tsize':item["bytes"],

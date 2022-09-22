@@ -228,7 +228,7 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
     # get replicas
     try:
         replicaMap= {}
-        replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName, use_vp=True)
+        replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName, use_vp=True, skip_incomplete_element=True)
     except Exception:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.listDatasetReplicas failed with %s' % errvalue
