@@ -1745,7 +1745,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     if len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localdisk']) or \
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['cache']) or \
                             len(tmpDatasetSpec.Files) <= len(availableFiles[tmpSiteName]['localtape']) or \
-                            (tmpDatasetSpec.isDistributed() and len(availableFiles[tmpSiteName]['all']) > 0) or \
+                            tmpDatasetSpec.isDistributed() or \
                             ((checkDataLocality is False or useUnionLocality) and not tmpSiteSpec.use_only_local_data()):
                         siteCandidateSpec.add_local_disk_files(availableFiles[tmpSiteName]['localdisk'])
                         # add cached files to local list since cached files go to pending when reassigned
