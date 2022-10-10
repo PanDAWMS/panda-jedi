@@ -554,3 +554,49 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             errtype, errvalue = sys.exc_info()[:2]
             tmpLog.error('failed to redo stalled jobs with {0} {1} {2}'.format(errtype, errvalue, traceback.format_exc()))
 
+
+    # task share and priority boost
+    def doForTaskBoost(self):
+        tmpLog = MsgWrapper(logger, ' #ATM #KV doForTaskBoost label=user')
+        tmpLog.debug('start')
+        # lock
+        got_lock = self.taskBufferIF.lockProcess_JEDI(  vo=self.vo, prodSourceLabel=self.prodSourceLabel,
+                                                        cloud=None, workqueue_id=None, resource_name=None,
+                                                        component='AtlasAnalWatchDog.doForTaskBoost',
+                                                        pid=self.pid, timeLimit=5)
+        if not got_lock:
+            tmpLog.debug('locked by another process. Skipped')
+            return
+        try:
+            # get active tasks in S-class
+            sql_get_tasks = (
+                    """SELECT tev.value_json.task_id, tev.value_json."user" """
+                    """FROM ATLAS_PANDA.Task_Evaluation tev """
+                    """WHERE tev.metric='analy_task_eval' """
+                        """AND tev.value_json.class=:s_class """
+                        """AND tev.value_json.gshare=:gshare """
+                )
+            # varMap
+            varMap = {
+                    ':s_class': 2,
+                    ':gshare': 'User Analysis',
+                }
+            # result
+            res = self.taskBufferIF.querySQL(sql_get_tasks, varMap)
+            #  Assign to Express Analysis
+            new_share = 'Express Analysis'
+            for taskID, user in res:
+                if True:
+                    # dry-run
+                    tmpLog.debug('action=gshare_reassignment jediTaskID={} user={} from gshare_old={} to gshare_new={} label=user'.
+                                 format(taskID, user, varMap[':gshare'], new_share))
+                else:
+                    tmpLog.info(' >>> action=gshare_reassignment jediTaskID={0} from gshare_old={1} to gshare_new={2} #ATM #KV label=user'.
+                                 format(taskID, varMap[':gshare'], new_share))
+                    self.taskBufferIF.reassignShare([jediTaskID], new_share, True)
+                    tmpLog.info('>>> done jediTaskID={0}'.format(taskID))
+            # done
+            tmpLog.debug('done')
+        except Exception:
+            errtype, errvalue = sys.exc_info()[:2]
+            tmpLog.error('failed with {0} {1} {2}'.format(errtype, errvalue, traceback.format_exc()))
