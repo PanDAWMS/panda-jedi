@@ -414,6 +414,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         scanSiteList = list(scanSiteListUnion)
                     scanSiteWoVP = list(scanSiteWoVpUnion)
                     useUnionLocality = True
+                    # disable VP since union locality triggers transfers to VP
+                    avoidVP = True
                 scanSiteList = self.get_pseudo_sites(scanSiteList, oldScanSiteList)
                 # dump
                 for tmpSiteName in oldScanSiteList:
@@ -1725,8 +1727,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 isAvailable = True
             else:
                 isAvailable = False
+            isAvailableBase = isAvailable
             for tmpDatasetName,availableFiles in iteritems(availableFileMap):
                 tmpDatasetSpec = inputChunk.getDatasetWithName(tmpDatasetName)
+                isAvailable = isAvailableBase
                 # check remote files
                 if tmpSiteName in remoteSourceList and tmpDatasetName in remoteSourceList[tmpSiteName] \
                         and not tmpSiteSpec.use_only_local_data():
