@@ -791,9 +791,9 @@ def getGShareUsage(tbIF, gshare, fresher_than_minutes_ago=15):
                     ':min_timestamp': now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
                 }
             # result
-            res = self.taskBufferIF.querySQL(sql_get_gshare, varMap)
-            if res is not None:
-                value_json = res[0]
+            res = tbIF.querySQL(sql_get_gshare, varMap)
+            if res:
+                value_json = res[0][0]
                 # json of data
                 ret_map = json.loads(value_json)
                 # make True return
@@ -840,9 +840,9 @@ def getUserTaskEval(tbIF, taskID, fresher_than_minutes_ago=15):
                     ':min_timestamp': now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
                 }
             # result
-            res = self.taskBufferIF.querySQL(sql_get_task_eval, varMap)
-            if res is not None:
-                value_json = res[0]
+            res = tbIF.querySQL(sql_get_task_eval, varMap)
+            if res:
+                value_json = res[0][0]
                 # json of data
                 ret_map = json.loads(value_json)
                 # make True return
