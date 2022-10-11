@@ -36,7 +36,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         # load the SW availability map
         try:
             self.sw_map = taskBufferIF.load_sw_map()
-        except:
+        except Exception:
             logger.error('Failed to load the SW tags map!!!')
             self.sw_map = {}
 
@@ -193,6 +193,47 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             gdp_token_cores))
                     taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                     return retTmpError
+
+        # get gshare usage
+        ret_val, gshare_usage_dict = AtlasBrokerUtils.getGShareUsage(tbIF=self.taskBufferIF, gshare=taskSpec.gshare)
+        if not ret_val:
+            tmpLog.warning('failed to get gshare usage of {}'.format(taskSpec.gshare))
+        elif not gshare_usage_dict:
+            tmpLog.warning('got empty user gshare usage of {}'.format(taskSpec.gshare))
+
+        # task evaluation
+        ret_val, task_eval_dict = AtlasBrokerUtils.getUserTaskEval(tbIF=self.taskBufferIF, taskID=taskSpec.jediTaskID)
+        if not ret_val:
+            tmpLog.warning('failed to get user task evaluation')
+        elif not task_eval_dict:
+            tmpLog.warning('got empty user task evaluation')
+
+        # throttle User Analysis tasks when close to gshare target
+        user_analyis_to_throttle_threshold_perc_C = 90
+        user_analyis_to_throttle_threshold_perc_B = 95
+        if taskSpec.gshare in ['User Analysis'] \
+                and gshare_usage_dict and task_eval_dict:
+            try:
+                usage_perc = gshare_usage_dict['usage_perc']
+                task_class_value = task_eval_dict['class']
+                if task_class_value == -1 and usage_perc > user_analyis_to_throttle_threshold_perc_C:
+                    # C-tasks to throttle
+                    tmpLog.error(
+                        'throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class C'.format(
+                            gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_C))
+                    # dry run
+                    # taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    # return retTmpError
+                elif task_class_value == 0 and usage_perc > user_analyis_to_throttle_threshold_perc_B:
+                    # B-tasks to throttle
+                    tmpLog.error(
+                        'throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class B'.format(
+                            gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_C))
+                    # dry run
+                    # taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    # return retTmpError
+            except Exception as e:
+                tmpLog.error('got error when checking low-ranked tasks to throttle; skipped : {}'.format(e))
 
         # check global disk quota
         if taskSpec.workingGroup:
@@ -1358,7 +1399,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         # view as problematic site in order to throttle
                         problematic_sites_dict.setdefault(tmpSiteName, set())
                         problematic_sites_dict[tmpSiteName].add(tmpMsg)
-                    # task rank according to usage of user
+                    #
 
             ############
             # loop end

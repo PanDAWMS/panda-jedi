@@ -761,6 +761,104 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
     return ret_val, ret_map
 
 
+# get gshare usage
+def getGShareUsage(tbIF, gshare, fresher_than_minutes_ago=15):
+    # initialize
+    ret_val = False
+    ret_map = {}
+    # timestamps
+    current_time = datetime.datetime.utcnow()
+    # try some times
+    for _ in range(99):
+        now_time = datetime.datetime.utcnow()
+        # skip if too long after original current time
+        if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago/3)):
+            # break trying
+            break
+        try:
+            # query from PanDA DB directly
+            sql_get_gshare = (
+                    """SELECT m.value_json """
+                    """FROM ATLAS_PANDA.Metrics m """
+                    """WHERE m.metric=:metric """
+                        """AND m.gshare=:gshare """
+                        """AND m.timestamp>=:min_timestamp """
+                )
+            # varMap
+            varMap = {
+                    ':metric': 'gshare_preference',
+                    ':gshare': gshare,
+                    ':min_timestamp': now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
+                }
+            # result
+            res = self.taskBufferIF.querySQL(sql_get_gshare, varMap)
+            if res is not None:
+                value_json = res[0]
+                # json of data
+                ret_map = json.loads(value_json)
+                # make True return
+                ret_val = True
+            # break trying
+            break
+        except Exception as e:
+            # dump error message
+            err_str = 'AtlasBrokerUtils.getGShareUsage got {0}: {1} \n'.format(e.__class__.__name__, e)
+            sys.stderr.write(err_str)
+            # break trying
+            break
+    # return
+    return ret_val, ret_map
+
+
+# get user task evaluation
+def getUserTaskEval(tbIF, taskID, fresher_than_minutes_ago=15):
+    # initialize
+    ret_val = False
+    ret_map = {}
+    # timestamps
+    current_time = datetime.datetime.utcnow()
+    # try some times
+    for _ in range(99):
+        now_time = datetime.datetime.utcnow()
+        # skip if too long after original current time
+        if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago/3)):
+            # break trying
+            break
+        try:
+            # query from PanDA DB directly
+            sql_get_task_eval = (
+                    """SELECT tev.value_json """
+                    """FROM ATLAS_PANDA.Task_Evaluation tev """
+                    """WHERE tev.metric=:metric """
+                        """AND tev.jediTaskID=:taskID """
+                        """AND tev.timestamp>=:min_timestamp """
+                )
+            # varMap
+            varMap = {
+                    ':metric': 'analy_task_eval',
+                    ':taskID': taskID,
+                    ':min_timestamp': now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
+                }
+            # result
+            res = self.taskBufferIF.querySQL(sql_get_task_eval, varMap)
+            if res is not None:
+                value_json = res[0]
+                # json of data
+                ret_map = json.loads(value_json)
+                # make True return
+                ret_val = True
+            # break trying
+            break
+        except Exception as e:
+            # dump error message
+            err_str = 'AtlasBrokerUtils.getUserTaskEval got {0}: {1} \n'.format(e.__class__.__name__, e)
+            sys.stderr.write(err_str)
+            # break trying
+            break
+    # return
+    return ret_val, ret_map
+
+
 # check SW with json
 class JsonSoftwareCheck:
     # constructor

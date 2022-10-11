@@ -588,7 +588,7 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             for taskID, user in res:
                 if True:
                     # dry-run
-                    tmpLog.debug('action=gshare_reassignment jediTaskID={} user={} from gshare_old={} to gshare_new={} label=user'.
+                    tmpLog.debug('(dry-run) action=gshare_reassignment jediTaskID={} user={} from gshare_old={} to gshare_new={} label=user'.
                                  format(taskID, user, varMap[':gshare'], new_share))
                 else:
                     tmpLog.info(' >>> action=gshare_reassignment jediTaskID={0} from gshare_old={1} to gshare_new={2} #ATM #KV label=user'.
