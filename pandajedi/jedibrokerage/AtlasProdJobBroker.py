@@ -1246,23 +1246,30 @@ class AtlasProdJobBroker(JobBrokerBase):
         # selection for full chain
         if nucleusSpec:
             full_chain = taskSpec.check_full_chain_with_nucleus(nucleusSpec)
-            if full_chain:
-                oldScanSiteList = copy.copy(scanSiteList)
-                newScanSiteList = []
-                for tmpSiteName in scanSiteList:
+            oldScanSiteList = copy.copy(scanSiteList)
+            newScanSiteList = []
+            for tmpSiteName in scanSiteList:
+                if full_chain:
+                    # skip PQs not in the nucleus
                     if tmpSiteName not in t1Sites:
                         tmpLog.info('  skip site={0} not in nucleus for full chain criteria=-full_chain'.format(tmpSiteName))
                         continue
-                    newScanSiteList.append(tmpSiteName)
-                scanSiteList = newScanSiteList
-                tmpLog.info('{0} candidates passed full chain check'.format(len(scanSiteList)))
-                self.add_summary_message(oldScanSiteList, scanSiteList, 'full chain check')
-                if not scanSiteList:
-                    self.dump_summary(tmpLog)
-                    tmpLog.error('no candidates')
-                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    self.sendLogMessage(tmpLog)
-                    return retTmpError
+                else:
+                    # skip PQs only for full-chain
+                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                    if tmpSiteSpec.bare_nucleus_mode() == 'only':
+                        tmpLog.info('  skip site={0} only for full chain criteria=-not_full_chain'.format(tmpSiteName))
+                        continue
+                newScanSiteList.append(tmpSiteName)
+            scanSiteList = newScanSiteList
+            tmpLog.info('{0} candidates passed full chain check'.format(len(scanSiteList)))
+            self.add_summary_message(oldScanSiteList, scanSiteList, 'full chain check')
+            if not scanSiteList:
+                self.dump_summary(tmpLog)
+                tmpLog.error('no candidates')
+                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                self.sendLogMessage(tmpLog)
+                return retTmpError
         ######################################
         # selection for nPilot
         nPilotMap = {}
