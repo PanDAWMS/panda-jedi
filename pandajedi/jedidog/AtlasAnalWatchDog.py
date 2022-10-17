@@ -586,14 +586,14 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             #  Assign to Express Analysis
             new_share = 'Express Analysis'
             for taskID, user in res:
-                if True:
+                if False:
                     # dry-run
                     tmpLog.debug('(dry-run) action=gshare_reassignment jediTaskID={} user={} from gshare_old={} to gshare_new={} label=user'.
                                  format(taskID, user, varMap[':gshare'], new_share))
                 else:
                     tmpLog.info(' >>> action=gshare_reassignment jediTaskID={0} from gshare_old={1} to gshare_new={2} #ATM #KV label=user'.
                                  format(taskID, varMap[':gshare'], new_share))
-                    self.taskBufferIF.reassignShare([jediTaskID], new_share, True)
+                    self.taskBufferIF.reassignShare([taskID], new_share, True)
                     tmpLog.info('>>> done jediTaskID={0}'.format(taskID))
             # done
             tmpLog.debug('done')
