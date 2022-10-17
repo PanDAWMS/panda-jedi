@@ -224,6 +224,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             '(dry-run) throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class C'.format(
                                 gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_C))
                     else:
+                        tmpLog.error(
                         'throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class C'.format(
                             gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_C))
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -236,7 +237,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             '(dry-run) throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class B'.format(
                                 gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_B))
                     else:
-                        'throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class B'.format(
+                        tmpLog.error(
+                            'throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class B'.format(
                             gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_B))
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         return retTmpError
