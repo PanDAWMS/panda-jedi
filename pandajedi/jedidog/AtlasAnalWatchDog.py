@@ -38,6 +38,8 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             self.doForPriorityMassage()
             # redo stalled analysis jobs
             self.doForRedoStalledJobs()
+            # task share and priority boost
+            self.doForTaskBoost()
         except Exception:
             errtype,errvalue = sys.exc_info()[:2]
             origTmpLog.error('failed with {0} {1}'.format(errtype,errvalue))
@@ -571,10 +573,12 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
             # get active tasks in S-class
             sql_get_tasks = (
                     """SELECT tev.value_json.task_id, tev.value_json."user" """
-                    """FROM ATLAS_PANDA.Task_Evaluation tev """
-                    """WHERE tev.metric='analy_task_eval' """
+                    """FROM ATLAS_PANDA.Task_Evaluation tev, ATLAS_PANDA.JEDI_Tasks t """
+                    """WHERE tev.value_json.task_id=t.jediTaskID """
+                        """AND tev.metric='analy_task_eval' """
                         """AND tev.value_json.class=:s_class """
                         """AND tev.value_json.gshare=:gshare """
+                        """AND t.gshare=:gshare """
                 )
             # varMap
             varMap = {
