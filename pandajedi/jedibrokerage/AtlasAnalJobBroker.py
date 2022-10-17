@@ -218,20 +218,28 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 task_class_value = task_eval_dict['class']
                 if task_class_value == -1 and usage_perc*100 > user_analyis_to_throttle_threshold_perc_C:
                     # C-tasks to throttle
-                    tmpLog.error(
-                        '(dry-run) throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class C'.format(
+                    if False:
+                        # dry run
+                        tmpLog.error(
+                            '(dry-run) throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class C'.format(
+                                gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_C))
+                    else:
+                        'throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class C'.format(
                             gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_C))
-                    # dry run
-                    # taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    # return retTmpError
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        return retTmpError
                 elif task_class_value == 0 and usage_perc*100 > user_analyis_to_throttle_threshold_perc_B:
                     # B-tasks to throttle
-                    tmpLog.error(
-                        '(dry-run) throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class B'.format(
+                    if False:
+                        # dry run
+                        tmpLog.error(
+                            '(dry-run) throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class B'.format(
+                                gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_B))
+                    else:
+                        'throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class B'.format(
                             gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_B))
-                    # dry run
-                    # taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                    # return retTmpError
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        return retTmpError
             except Exception as e:
                 tmpLog.error('got error when checking low-ranked tasks to throttle; skipped : {}'.format(e))
 
