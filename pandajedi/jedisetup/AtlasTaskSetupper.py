@@ -64,6 +64,13 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     # DDM backend
                     ddmBackEnd = taskSpec.getDdmBackEnd()
                     tmpLog.info('checking {0}'.format(datasetSpec.datasetName))
+                    # secondary nucleus
+                    nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)
+                    secNucleusSpecBase = None
+                    if nucleusSpec:
+                        secondaryNucleus = nucleusSpec.get_secondary_nucleus()
+                        if secondaryNucleus:
+                            secNucleusSpecBase = siteMapper.getNucleus(secondaryNucleus)
                     # check if dataset and container are available in DDM
                     for targetName in [datasetSpec.datasetName,datasetSpec.containerName]:
                         if targetName is None:
@@ -113,6 +120,12 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                         metaData['transient'] = datasetSpec.getTransient()
                                 else:
                                     metaData = None
+                                # use secondary nucleus only for production output
+                                if secNucleusSpecBase and taskSpec.prodSourceLabel in ['managed', 'test'] and \
+                                        targetName == datasetSpec.datasetName and datasetSpec.type == 'output':
+                                    secNucleusSpec = secNucleusSpecBase
+                                else:
+                                    secNucleusSpec = None
                                 # register dataset/container
                                 tmpLog.info('registering {0} with location={1} backend={2} lifetime={3} meta={4}'.format(targetName,
                                                                                                                          location,
@@ -125,7 +138,8 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                     tmpLog.error('failed to register {0}'.format(targetName))
                                     return retFatal
                                 # procedures for user
-                                if userSetup or DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
+                                if userSetup or DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) \
+                                        is not None or secNucleusSpec:
                                     # register location
                                     tmpToRegister = False
                                     if userSetup and targetName == datasetSpec.datasetName and datasetSpec.site not in ['',None]:
@@ -139,6 +153,15 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                         userName = None
                                         grouping = 'NONE'
                                         tmpToRegister = True
+                                    elif secNucleusSpec:
+                                        userName = None
+                                        grouping = None
+                                        tmpToRegister = True
+                                        locForRule = siteMapper.getDdmEndpoint(secNucleusSpec.getOnePandaSite(),
+                                                                               datasetSpec.storageToken,
+                                                                               taskSpec.prodSourceLabel,
+                                                                               JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType))
+
                                     if tmpToRegister:
                                         activity = DataServiceUtils.getActivityForOut(taskSpec.prodSourceLabel)
                                         tmpLog.info('registering location={} lifetime={} days activity={} grouping={} '
