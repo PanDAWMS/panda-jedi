@@ -375,7 +375,12 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     # RW
                     taskRW = self.taskBufferIF.calculateTaskWorldRW_JEDI(taskSpec.jediTaskID)
                     # get nuclei
-                    nucleusList = siteMapper.nuclei
+                    nucleusList = copy.copy(siteMapper.nuclei)
+                    if taskSpec.get_full_chain():
+                        # use satellites with bareNucleus as nuclei for full chain
+                        for tmpNucleus, tmpNucleusSpec in iteritems(siteMapper.satellites):
+                            if tmpNucleusSpec.get_bare_nucleus_mode():
+                                nucleusList[tmpNucleus] = tmpNucleusSpec
                     # init summary list
                     self.init_summary_list('Task brokerage summary',
                                            None,
