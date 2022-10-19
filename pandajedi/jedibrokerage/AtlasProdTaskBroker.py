@@ -297,7 +297,6 @@ class AtlasProdTaskBrokerThread (WorkerThread):
         self.taskBufferIF.updateTask_JEDI(task_spec, {'jediTaskID': task_spec.jediTaskID},
                                           oldStatus=['assigning'], updateDEFT=False,
                                           setFrozenTime=False)
-        self.sendLogMessage(tmp_log)
 
 
     # main function

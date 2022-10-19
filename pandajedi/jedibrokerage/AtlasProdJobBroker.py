@@ -1268,7 +1268,6 @@ class AtlasProdJobBroker(JobBrokerBase):
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                self.sendLogMessage(tmpLog)
                 return retTmpError
         ######################################
         # selection for nPilot
