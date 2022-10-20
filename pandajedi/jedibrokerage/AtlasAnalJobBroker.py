@@ -201,6 +201,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
         elif not gshare_usage_dict:
             tmpLog.error('got empty user gshare usage of {}'.format(taskSpec.gshare))
 
+        # get user usage
+        ret_val, user_eval_dict = AtlasBrokerUtils.getUserEval(tbIF=self.taskBufferIF, user=taskSpec.origUserName)
+        if not ret_val:
+            tmpLog.error('failed to get user evaluation of {}'.format(taskSpec.origUserName))
+        elif not user_eval_dict:
+            tmpLog.error('got empty user evaluation of {}'.format(taskSpec.origUserName))
+
         # task evaluation
         ret_val, task_eval_dict = AtlasBrokerUtils.getUserTaskEval(tbIF=self.taskBufferIF, taskID=taskSpec.jediTaskID)
         if not ret_val:
@@ -208,14 +215,29 @@ class AtlasAnalJobBroker(JobBrokerBase):
         elif not task_eval_dict:
             tmpLog.error('got empty user task evaluation')
 
+        # parameters
+        threshold_A = self.taskBufferIF.getConfigValue('analy_eval', 'USER_USAGE_THRESHOLD_A', 'pandaserver', taskSpec.vo)
+        if threshold_A is None:
+            threshold_A = 1000
+        threshold_B = self.taskBufferIF.getConfigValue('analy_eval', 'USER_USAGE_THRESHOLD_B', 'pandaserver', taskSpec.vo)
+        if threshold_B is None:
+            threshold_B = 10000
+        user_analyis_to_throttle_threshold_perc_A = 100
+        user_analyis_to_throttle_threshold_perc_B = min(95, user_analyis_to_throttle_threshold_perc_A)
+        user_analyis_to_throttle_threshold_perc_C = min(90, user_analyis_to_throttle_threshold_perc_B)
+        user_analyis_throttle_intensity_A = 1.
+
         # throttle User Analysis tasks when close to gshare target
-        user_analyis_to_throttle_threshold_perc_C = 90
-        user_analyis_to_throttle_threshold_perc_B = 95
         if taskSpec.gshare in ['User Analysis'] \
                 and gshare_usage_dict and task_eval_dict:
             try:
                 usage_perc = gshare_usage_dict['usage_perc']
                 task_class_value = task_eval_dict['class']
+                usage_slot_ratio_A = 0.5
+                usage_slot_ratio_B = 0.5
+                if user_eval_dict:
+                    usage_slot_ratio_A = 1. - user_eval_dict['rem_slots_A']/threshold_A
+                    usage_slot_ratio_B = 1. - user_eval_dict['rem_slots_B']/threshold_B
                 if task_class_value == -1 and usage_perc*100 > user_analyis_to_throttle_threshold_perc_C:
                     # C-tasks to throttle
                     if False:
@@ -240,6 +262,20 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         tmpLog.error(
                             'throttle to generate jobs due to gshare {gshare} > {threshold}% of target and task in class B'.format(
                             gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_B))
+                        taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                        return retTmpError
+                elif task_class_value == 1 \
+                    and usage_perc*100*usage_slot_ratio_A*user_analyis_throttle_intensity_A > user_analyis_to_throttle_threshold_perc_A:
+                    # A-tasks to throttle
+                    if False:
+                        # dry run
+                        tmpLog.error(
+                            '(dry-run) throttle to generate jobs due to gshare {gshare} > {threshold:.3%} of target and task in class A'.format(
+                                gshare=taskSpec.gshare, threshold=user_analyis_throttle_intensity_A/(usage_slot_ratio_A+2**-20)))
+                    else:
+                        tmpLog.error(
+                            'throttle to generate jobs due to gshare {gshare} > {threshold:.3%} of target and task in class A'.format(
+                            gshare=taskSpec.gshare, threshold=user_analyis_throttle_intensity_A/(usage_slot_ratio_A+2**-20)))
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         return retTmpError
             except Exception as e:
