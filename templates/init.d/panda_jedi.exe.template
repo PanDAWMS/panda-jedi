@@ -20,7 +20,7 @@ ARGV="$@"
 PROGNAME='python -u @@install_purelib@@/pandajedi/jediorder/JediMaster.py'
 
 # the path to the script application
-SCRIPTNAME='python -u @@install_purelib@@/pandaserver/test/SchemaChecker.py'
+SCRIPTNAME='python -u @@install_purelib@@/pandajedi/jeditest/SchemaChecker.py'
 
 
 # virtual env activation
