@@ -1,6 +1,5 @@
 """
 checking DB schema version for PanDA JEDI
-
 """
 
 from pandajedi.jediconfig import jedi_config
@@ -10,7 +9,7 @@ from pandajedi.jedicore import JediDBSchemaInfo
 
 #panda_config.dbhost = 'panda-postgres'
 proxyS = DBProxy()
-proxyS.connect(panda_config.dbhost, panda_config.dbpasswd, panda_config.dbuser, panda_config.dbname)
+proxyS.connect(jedi_config.db.dbhost, jedi_config.db.dbpasswd, jedi_config.db.dbuser, jedi_config.db.dbname)
 
 sql = "select major || '.' || minor || '.' || patch from ATLAS_PANDA.pandadb_version where component = 'SCHEMA'"
 
@@ -33,4 +32,3 @@ if dbVersionIntegers[0] == serverDBVersionIntegers[0] and dbVersionIntegers[1] =
         print ("True")
 else:
     print ("False")
-
