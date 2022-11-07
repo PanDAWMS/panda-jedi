@@ -435,14 +435,21 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         oldNucleusList = copy.copy(nucleusList)
                         tmpStat,tmpDatasetSpecList = self.taskBufferIF.getDatasetsWithJediTaskID_JEDI(taskSpec.jediTaskID,
                                                                                                       ['output','log'])
-                        for tmpNucleus,tmpNucleusSpec in iteritems(nucleusList):
+                        for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
                             toSkip = False
+                            origNucleusSpec = tmpNucleusSpec
                             for tmpDatasetSpec in tmpDatasetSpecList:
+                                tmpNucleusSpec = origNucleusSpec
                                 # ignore distributed datasets
                                 if DataServiceUtils.getDistributedDestination(tmpDatasetSpec.storageToken) is not None:
                                     continue
                                 # get endpoint with the pattern
                                 tmpEP = tmpNucleusSpec.getAssociatedEndpoint(tmpDatasetSpec.storageToken)
+                                if not tmpEP and tmpNucleusSpec.get_bare_nucleus_mode() and \
+                                        taskSpec.get_full_chain() and tmpNucleusSpec.get_secondary_nucleus():
+                                    # use secondary nucleus when relevant endpoint is unavaliable
+                                    tmpNucleusSpec = siteMapper.getNucleus(tmpNucleusSpec.get_secondary_nucleus())
+                                    tmpEP = tmpNucleusSpec.getAssociatedEndpoint(tmpDatasetSpec.storageToken)
                                 if tmpEP is None:
                                     tmpLog.info('  skip nucleus={0} since no endpoint with {1} criteria=-match'.format(tmpNucleus,
                                                                                                                         tmpDatasetSpec.storageToken))
@@ -487,7 +494,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     fractionFreeSpace[tmpNucleus] = {'total':tmpEP['space_total'],
                                                                      'free':tmpSpaceSize-tmpSpaceToUse}
                             if not toSkip:
-                                newNucleusList[tmpNucleus] = tmpNucleusSpec
+                                newNucleusList[tmpNucleus] = origNucleusSpec
                         nucleusList = newNucleusList
                         tmpLog.info('{0} candidates passed endpoint check {1} TB'.format(len(nucleusList),diskThreshold/1024))
                         self.add_summary_message(oldNucleusList, nucleusList, 'storage endpoint check')

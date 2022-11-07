@@ -149,18 +149,17 @@ def getSitesWithData(siteMapper, ddmIF, datasetName, prodsourcelabel, job_label,
 
 
 # get nuclei where data is available
-def getNucleiWithData(siteMapper,ddmIF,datasetName,candidateNuclei=[],deepScan=False):
+def getNucleiWithData(siteMapper, ddmIF, datasetName, candidateNuclei, deepScan=False):
     # get replicas
     try:
-        replicaMap = ddmIF.listReplicasPerDataset(datasetName,deepScan)
+        replicaMap = ddmIF.listReplicasPerDataset(datasetName, deepScan)
     except Exception:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.listReplicasPerDataset failed with %s' % errvalue
     # loop over all clouds
     retMap = {}
-    for tmpNucleus,tmpNucleusSpec in iteritems(siteMapper.nuclei):
-        if candidateNuclei != [] and tmpNucleus not in candidateNuclei:
-            continue
+    for tmpNucleus in candidateNuclei:
+        tmpNucleusSpec = siteMapper.getNucleus(tmpNucleus)
         # loop over all datasets
         totalNum = 0
         totalSize = 0

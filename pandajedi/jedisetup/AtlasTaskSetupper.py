@@ -1,4 +1,5 @@
 import sys
+import traceback
 
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
 from .TaskSetupperBase import TaskSetupperBase
@@ -276,8 +277,9 @@ class AtlasTaskSetupper (TaskSetupperBase):
             # return
             tmpLog.info('done')
             return retOK
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('doSetup failed with {0}:{1}'.format(errtype.__name__,errvalue))
+        except Exception as e:
+            tmpLog.error('doSetup failed with {}'.format(str(e)))
+            tb = traceback.format_exc()
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+            tmpLog.error(tb)
             return retFatal
