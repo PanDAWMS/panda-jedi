@@ -441,16 +441,14 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             origNucleusSpec = tmpNucleusSpec
                             for tmpDatasetSpec in tmpDatasetSpecList:
                                 tmpNucleusSpec = origNucleusSpec
+                                # use secondary nucleus for full-chain if defined
+                                if taskSpec.get_full_chain() and tmpNucleusSpec.get_secondary_nucleus():
+                                    tmpNucleusSpec = siteMapper.getNucleus(tmpNucleusSpec.get_secondary_nucleus())
                                 # ignore distributed datasets
                                 if DataServiceUtils.getDistributedDestination(tmpDatasetSpec.storageToken) is not None:
                                     continue
                                 # get endpoint with the pattern
                                 tmpEP = tmpNucleusSpec.getAssociatedEndpoint(tmpDatasetSpec.storageToken)
-                                if not tmpEP and tmpNucleusSpec.get_bare_nucleus_mode() and \
-                                        taskSpec.get_full_chain() and tmpNucleusSpec.get_secondary_nucleus():
-                                    # use secondary nucleus when relevant endpoint is unavaliable
-                                    tmpNucleusSpec = siteMapper.getNucleus(tmpNucleusSpec.get_secondary_nucleus())
-                                    tmpEP = tmpNucleusSpec.getAssociatedEndpoint(tmpDatasetSpec.storageToken)
                                 if tmpEP is None:
                                     tmpLog.info('  skip nucleus={0} since no endpoint with {1} criteria=-match'.format(tmpNucleus,
                                                                                                                         tmpDatasetSpec.storageToken))
@@ -756,6 +754,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         if prio > taskSpec.currentPriority:
                             continue
                         if candidateNucleus in rwMap:
+                            if not rwMap[candidateNucleus]:
+                                rwMap[candidateNucleus] = 0
                             rwMap[candidateNucleus] += taskRW
                         else:
                             rwMap[candidateNucleus] = taskRW
