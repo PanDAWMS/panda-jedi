@@ -355,10 +355,11 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                     # make logger
                     tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),monToken='jediTaskID={0}'.format(taskSpec.jediTaskID))
                     tmpLog.debug('start')
-                    tmpLog.info('thrInputSize:{0} thrInputNum:{1} thrInputSizeFrac:{2} thrInputNumFrac;{3}'.format(thrInputSize,
-                                                                                                                    thrInputNum,
-                                                                                                                    thrInputSizeFrac,
-                                                                                                                    thrInputNumFrac))
+                    tmpLog.info('thrInputSize:{} thrInputNum:{} thrInputSizeFrac:{} thrInputNumFrac:{}'.format(thrInputSize,
+                                                                                                               thrInputNum,
+                                                                                                               thrInputSizeFrac,
+                                                                                                               thrInputNumFrac))
+                    tmpLog.info('full-chain:{}'.format(taskSpec.get_full_chain()))
                     # read task parameters
                     try:
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
@@ -465,7 +466,11 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                     break
                                 """
                                 # check space
-                                tmpSpaceSize = tmpEP['space_free'] + tmpEP['space_expired']
+                                tmpSpaceSize = 0
+                                if tmpEP['space_free']:
+                                    tmpSpaceSize += tmpEP['space_free']
+                                if tmpEP['space_expired']:
+                                    tmpSpaceSize += tmpEP['space_expired']
                                 tmpSpaceToUse = 0
                                 if tmpNucleus in self.fullRW:
                                     # 0.25GB per cpuTime/corePower/day
@@ -691,7 +696,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                 nucleusRW[tmpNucleus] = 0
                             wStr = '1'
                             # with RW
-                            if tmpNucleus in nucleusRW and nucleusRW[tmpNucleus] >= cutOffRW:
+                            if tmpNucleus in nucleusRW and nucleusRW[tmpNucleus] and nucleusRW[tmpNucleus] >= cutOffRW:
                                 weight = 1 / float(nucleusRW[tmpNucleus])
                                 wStr += '/( RW={0} )'.format(nucleusRW[tmpNucleus])
                             else:
