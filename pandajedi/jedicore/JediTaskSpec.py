@@ -1,3 +1,4 @@
+import math
 import re
 import enum
 
@@ -111,6 +112,8 @@ class JediTaskSpec(object):
         'releasePerLB'       : 'RP',
         'respectSplitRule'   : 'RR',
         'randomSeed'         : 'RS',
+        'retryRamOffset'     : 'RX',
+        'retryRamStep'       : 'RY',
         'resurrectConsumers' : 'SC',
         'switchEStoNormal'   : 'SE',
         'stayOutputOnSite'   : 'SO',
@@ -1570,7 +1573,30 @@ class JediTaskSpec(object):
             return True
         return False
 
+    # get RAM for retry
+    def get_ram_for_retry(self, current_ram):
+        if not self.splitRule:
+            return None
+        tmpMatch = re.search(self.splitRuleToken['retryRamOffset'] + r'=(\d+)', self.splitRule)
+        if not tmpMatch:
+            return None
+        offset = int(tmpMatch.group(1))
+        tmpMatch = re.search(self.splitRuleToken['retryRamStep'] + r'=(\d+)', self.splitRule)
+        if tmpMatch:
+            step = int(tmpMatch.group(1))
+        else:
+            step = 0
+        if not current_ram:
+            return current_ram
+        if current_ram < offset:
+            return offset
+        if not step:
+            return current_ram
+        return offset + math.ceil((current_ram - offset) / step) * step
+
+
 # utils
+
 
 # check if push status changes without class instance
 def push_status_changes(split_rule):

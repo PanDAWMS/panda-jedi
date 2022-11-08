@@ -1409,6 +1409,10 @@ class JobGeneratorThread(WorkerThread):
                                 jobSpec.maxWalltime += taskSpec.baseWalltime
                         if jobSpec.minRamCount != [None, 'NULL']:
                             jobSpec.minRamCount = 0
+                    # set retry RAM count
+                    retry_ram = taskSpec.get_ram_for_retry(jobSpec.minRamCount)
+                    if retry_ram:
+                        jobSpec.set_ram_for_retry(retry_ram)
                     try:
                         jobSpec.resource_type = self.taskBufferIF.get_resource_type_job(jobSpec)
                         # tmpLog.debug('set resource_type to {0}'.format(jobSpec.resource_type))

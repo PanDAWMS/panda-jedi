@@ -264,6 +264,8 @@ class TaskRefinerBase (object):
         self.setSplitRule(taskParamMap, 'maxNumJobs', JediTaskSpec.splitRuleToken['maxNumJobs'])
         self.setSplitRule(taskParamMap, 'totNumJobs', JediTaskSpec.splitRuleToken['totNumJobs'])
         self.setSplitRule(taskParamMap, 'nChunksToWait', JediTaskSpec.splitRuleToken['nChunksToWait'])
+        self.setSplitRule(taskParamMap, 'retryRamOffset', JediTaskSpec.splitRuleToken['retryRamOffset'])
+        self.setSplitRule(taskParamMap, 'retryRamStep', JediTaskSpec.splitRuleToken['retryRamStep'])
         if 'forceStaged' in taskParamMap:
             taskParamMap['useLocalIO'] = taskParamMap['forceStaged']
         if 'useLocalIO' in taskParamMap:
