@@ -487,8 +487,11 @@ def getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs):
         # skip distributed datasets
         if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
             continue
-        # get token
+        # get endpoint relevant to token
         endPoint = nucleusSpec.getAssociatedEndpoint(datasetSpec.storageToken)
+        if endPoint is None and not nucleusSpec.is_nucleus() and nucleusSpec.get_default_endpoint_out():
+            # use default endpoint for satellite that doesn't have relevant endpoint
+            endPoint = nucleusSpec.get_default_endpoint_out()
         if endPoint is None:
             continue
         token = endPoint['ddm_endpoint_name']

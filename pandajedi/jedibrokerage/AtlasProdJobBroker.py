@@ -1262,7 +1262,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                         continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
-            tmpLog.info('{0} candidates passed full chain check'.format(len(scanSiteList)))
+            tmpLog.info('{} candidates passed full chain ({}) check'.format(len(scanSiteList), full_chain))
             self.add_summary_message(oldScanSiteList, scanSiteList, 'full chain check')
             if not scanSiteList:
                 self.dump_summary(tmpLog)
