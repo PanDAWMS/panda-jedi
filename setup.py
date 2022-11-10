@@ -236,6 +236,7 @@ setup(
         'numpy',
         'pyyaml',
         'requests',
+        'packaging'
     ],
     extras_require={
         'oracle': ['cx_Oracle'],
