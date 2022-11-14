@@ -2,7 +2,7 @@ FROM docker.io/centos:7
 
 RUN yum update -y
 RUN yum install -y epel-release
-RUN yum install -y python3 python3-devel httpd httpd-devel gcc gridsite less git wget
+RUN yum install -y python3 python3-devel httpd httpd-devel gcc gridsite less git wget logrotate
 RUN yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 RUN yum install -y postgresql14
 RUN python3 -m venv /opt/panda
@@ -48,6 +48,7 @@ RUN chmod -R 777 /var/lock
 RUN chmod -R 777 /data/panda
 RUN mkdir -p /etc/grid-security/certificates
 RUN chmod -R 777 /etc/grid-security/certificates
+RUN chmod -R 777 /var/lib/logrotate
 
 ENV PANDA_LOCK_DIR /var/run/panda
 RUN mkdir -p ${PANDA_LOCK_DIR} && chmod 777 ${PANDA_LOCK_DIR}
