@@ -12,7 +12,7 @@ class GenPostProcessor (PostProcessorBase):
     # constructor
     def __init__(self,taskBufferIF,ddmIF):
         PostProcessorBase.__init__(self,taskBufferIF,ddmIF)
-
+        self.failOnZeroOkFile = True
 
     # main
     def doPostProcess(self,taskSpec,tmpLog):

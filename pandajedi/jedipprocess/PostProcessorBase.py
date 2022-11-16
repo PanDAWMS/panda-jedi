@@ -48,6 +48,7 @@ class PostProcessorBase (object):
         self.ddmIF = ddmIF
         self.taskBufferIF = taskBufferIF
         self.msgType = 'postprocessor'
+        self.failOnZeroOkFile = False
         self.refresh()
 
 
@@ -196,6 +197,8 @@ class PostProcessorBase (object):
             status = 'aborted'
         elif taskSpec.status == 'paused':
             status = 'paused'
+        elif self.failOnZeroOkFile and nFiles == nFilesFinished == 0:
+            status = 'failed'
         elif nFiles == nFilesFinished:
             # check parent status
             if checkParent and taskSpec.parent_tid not in [None,taskSpec.jediTaskID]:
