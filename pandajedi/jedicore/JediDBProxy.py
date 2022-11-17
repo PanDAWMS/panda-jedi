@@ -1083,6 +1083,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         if maxSizePerJob is not None:
                                             maxSizePerJob += InputChunk.defaultOutputSize
                                             maxSizePerJob += taskSpec.getWorkDiskSize()
+                                        else:
+                                            if useScout:
+                                                maxSizePerJob = InputChunk.maxInputSizeScouts * 1024 * 1024
+                                            else:
+                                                maxSizePerJob = InputChunk.maxInputSizeAvalanche * 1024 * 1024
                                         tmp_nChunksLB = 0
                                     # get a chunk
                                     tmpInputChunk.getSubChunk(None, maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
