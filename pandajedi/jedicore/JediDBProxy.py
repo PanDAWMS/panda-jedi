@@ -2986,11 +2986,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             varMap[':diff'] = nFileLoop
                             varMapsForSN.append(varMap)
             # bulk increment
-            if len(varMapsForSN) > 0:
+            if len(varMapsForSN) > 0 and not simul:
                 tmpLog.debug('bulk increment {0} SNs'.format(len(varMapsForSN)))
                 self.cur.executemany(sqlU+comment,varMapsForSN)
             # bulk insert
-            if len(varMapsForInsert) > 0:
+            if len(varMapsForInsert) > 0 and not simul:
                 tmpLog.debug('bulk insert {0} files'.format(len(varMapsForInsert)))
                 self.cur.executemany(sqlII+comment,varMapsForInsert)
             # set masterID to concrete datasets

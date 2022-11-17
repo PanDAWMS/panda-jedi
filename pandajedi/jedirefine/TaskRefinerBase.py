@@ -237,10 +237,16 @@ class TaskRefinerBase (object):
             taskSpec.container_name = taskParamMap['container_name']
         self.taskSpec = taskSpec
         # set split rule
-        if 'tgtNumEventsPerJob' in taskParamMap:
-            # set nEventsPerJob not respect file boundaries when nFilesPerJob is not used
-            if 'nFilesPerJob' not in taskParamMap:
-                self.setSplitRule(None,taskParamMap['tgtNumEventsPerJob'],JediTaskSpec.splitRuleToken['nEventsPerJob'])
+        if 'nFilesPerJob' not in taskParamMap:
+            if 'tgtNumEventsPerJob' in taskParamMap:
+                # set nEventsPerJob not to respect file boundaries when nFilesPerJob is not used
+                self.setSplitRule(None, taskParamMap['tgtNumEventsPerJob'],
+                                  JediTaskSpec.splitRuleToken['nEventsPerJob'])
+            elif 'nEventsPerInputFile' in taskParamMap and 'nEventsPerJob' in taskParamMap and \
+                    taskParamMap['nEventsPerJob'] >= taskParamMap['nEventsPerInputFile']:
+                # set nFilesPerJob if nEventsPerJob and nEventsPerInputFile are set
+                nEventsPerJob = taskParamMap['nEventsPerJob'] // taskParamMap['nEventsPerInputFile']
+                self.setSplitRule(None, nEventsPerJob, JediTaskSpec.splitRuleToken['nEventsPerJob'])
         self.setSplitRule(taskParamMap,'nFilesPerJob',     JediTaskSpec.splitRuleToken['nFilesPerJob'])
         self.setSplitRule(taskParamMap,'nEventsPerJob',    JediTaskSpec.splitRuleToken['nEventsPerJob'])
         self.setSplitRule(taskParamMap,'nGBPerJob',        JediTaskSpec.splitRuleToken['nGBPerJob'])
