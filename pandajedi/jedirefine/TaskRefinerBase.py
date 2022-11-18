@@ -245,8 +245,8 @@ class TaskRefinerBase (object):
             elif 'nEventsPerInputFile' in taskParamMap and 'nEventsPerJob' in taskParamMap and \
                     taskParamMap['nEventsPerJob'] >= taskParamMap['nEventsPerInputFile']:
                 # set nFilesPerJob if nEventsPerJob and nEventsPerInputFile are set
-                nEventsPerJob = taskParamMap['nEventsPerJob'] // taskParamMap['nEventsPerInputFile']
-                self.setSplitRule(None, nEventsPerJob, JediTaskSpec.splitRuleToken['nEventsPerJob'])
+                nFilesPerJob = taskParamMap['nEventsPerJob'] // taskParamMap['nEventsPerInputFile']
+                self.setSplitRule(None, nFilesPerJob, JediTaskSpec.splitRuleToken['nFilesPerJob'])
         self.setSplitRule(taskParamMap,'nFilesPerJob',     JediTaskSpec.splitRuleToken['nFilesPerJob'])
         self.setSplitRule(taskParamMap,'nEventsPerJob',    JediTaskSpec.splitRuleToken['nEventsPerJob'])
         self.setSplitRule(taskParamMap,'nGBPerJob',        JediTaskSpec.splitRuleToken['nGBPerJob'])
