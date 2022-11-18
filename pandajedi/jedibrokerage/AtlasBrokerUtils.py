@@ -844,7 +844,7 @@ def getUserEval(tbIF, user, fresher_than_minutes_ago=20):
             if res:
                 value_json = res[0][0]
                 # json of data
-                ret_map = json.loads(value_json)
+                ret_map = json.loads(value_json) if value_json else None
                 # make True return
                 ret_val = True
             # break trying
@@ -893,7 +893,7 @@ def getUserTaskEval(tbIF, taskID, fresher_than_minutes_ago=15):
             if res:
                 value_json = res[0][0]
                 # json of data
-                ret_map = json.loads(value_json)
+                ret_map = json.loads(value_json) if value_json else None
                 # make True return
                 ret_val = True
             # break trying
@@ -901,6 +901,52 @@ def getUserTaskEval(tbIF, taskID, fresher_than_minutes_ago=15):
         except Exception as e:
             # dump error message
             err_str = 'AtlasBrokerUtils.getUserTaskEval got {0}: {1} \n'.format(e.__class__.__name__, e)
+            sys.stderr.write(err_str)
+            # break trying
+            break
+    # return
+    return ret_val, ret_map
+
+
+# get analysis sites class
+def getAnalySitesClass(tbIF, fresher_than_minutes_ago=60):
+    # initialize
+    ret_val = False
+    ret_map = {}
+    # timestamps
+    current_time = datetime.datetime.utcnow()
+    # try some times
+    for _ in range(99):
+        now_time = datetime.datetime.utcnow()
+        # skip if too long after original current time
+        if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago/3)):
+            # break trying
+            break
+        try:
+            # query from PanDA DB directly
+            sql_get_task_eval = (
+                    """SELECT m.computingSite, m.value_json.class """
+                    """FROM ATLAS_PANDA.Metrics m """
+                    """WHERE m.metric=:metric """
+                        """AND m.timestamp>=:min_timestamp """
+                )
+            # varMap
+            varMap = {
+                    ':metric': 'analy_site_eval',
+                    ':min_timestamp': now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
+                }
+            # result
+            res = tbIF.querySQL(sql_get_task_eval, varMap)
+            if res:
+                for site, class_value in res:
+                    ret_map[site] = int(class_value)
+                    # make True return
+                ret_val = True
+            # break trying
+            break
+        except Exception as e:
+            # dump error message
+            err_str = 'AtlasBrokerUtils.getAnalySitesEval got {0}: {1} \n'.format(e.__class__.__name__, e)
             sys.stderr.write(err_str)
             # break trying
             break

@@ -3,6 +3,8 @@ import sys
 import copy
 import random
 import datetime
+import math
+import traceback
 
 from six import iteritems
 
@@ -60,6 +62,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
         scanSiteList = []
         # problematic sites
         problematic_sites_dict = {}
+        # used and max queue length of each site for the user
+        user_q_len_dict = {}
+        max_q_len_dict = {}
         # get list of site access
         siteAccessList = self.taskBufferIF.listSiteAccess(None, taskSpec.userName)
         siteAccessMap = {}
@@ -199,7 +204,15 @@ class AtlasAnalJobBroker(JobBrokerBase):
         if not ret_val:
             tmpLog.error('failed to get gshare usage of {}'.format(taskSpec.gshare))
         elif not gshare_usage_dict:
-            tmpLog.error('got empty user gshare usage of {}'.format(taskSpec.gshare))
+            tmpLog.error('got empty gshare usage of {}'.format(taskSpec.gshare))
+
+        # get analy sites classification
+        ret_val, analy_sites_class_dict = AtlasBrokerUtils.getAnalySitesClass(tbIF=self.taskBufferIF)
+        if not ret_val:
+            tmpLog.error('failed to get analy sites classification')
+        elif not analy_sites_class_dict:
+            analy_sites_class_dict = {}
+            tmpLog.error('got empty analy sites classification')
 
         # get user usage
         ret_val, user_eval_dict = AtlasBrokerUtils.getUserEval(tbIF=self.taskBufferIF, user=taskSpec.origUserName)
@@ -215,7 +228,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         elif not task_eval_dict:
             tmpLog.error('got empty user task evaluation')
 
-        # parameters
+        # parameters about User Analysis threshold
         threshold_A = self.taskBufferIF.getConfigValue('analy_eval', 'USER_USAGE_THRESHOLD_A', 'pandaserver', taskSpec.vo)
         if threshold_A is None:
             threshold_A = 1000
@@ -226,6 +239,32 @@ class AtlasAnalJobBroker(JobBrokerBase):
         user_analyis_to_throttle_threshold_perc_B = min(95, user_analyis_to_throttle_threshold_perc_A)
         user_analyis_to_throttle_threshold_perc_C = min(90, user_analyis_to_throttle_threshold_perc_B)
         user_analyis_throttle_intensity_A = 1.
+
+        # parameters about Analysis Stabilizer
+        base_queue_length_per_pq = self.taskBufferIF.getConfigValue(
+                                                'anal_jobbroker', 'BASE_QUEUE_LENGTH_PER_PQ', 'jedi', taskSpec.vo)
+        if base_queue_length_per_pq is None:
+            base_queue_length_per_pq = 100
+        base_expected_wait_hour_on_pq = self.taskBufferIF.getConfigValue(
+                                                'anal_jobbroker', 'BASE_EXPECTED_WAIT_HOUR_ON_PQ', 'jedi', taskSpec.vo)
+        if base_expected_wait_hour_on_pq is None:
+            base_expected_wait_hour_on_pq = 8
+        base_default_queue_length_per_pq_user = self.taskBufferIF.getConfigValue(
+                                                'anal_jobbroker', 'BASE_DEFAULT_QUEUE_LENGTH_PER_PQ_USER', 'jedi', taskSpec.vo)
+        if base_default_queue_length_per_pq_user is None:
+            base_default_queue_length_per_pq_user = 5
+        base_queue_ratio_on_pq = self.taskBufferIF.getConfigValue(
+                                                'anal_jobbroker', 'BASE_QUEUE_RATIO_ON_PQ', 'jedi', taskSpec.vo)
+        if base_queue_ratio_on_pq is None:
+            base_queue_ratio_on_pq = 0.05
+        static_max_queue_running_ratio = self.taskBufferIF.getConfigValue(
+                                                'anal_jobbroker', 'STATIC_MAX_QUEUE_RUNNING_RATIO', 'jedi', taskSpec.vo)
+        if static_max_queue_running_ratio is None:
+            static_max_queue_running_ratio = 2.0
+        max_expected_wait_hour = self.taskBufferIF.getConfigValue(
+                                                'anal_jobbroker', 'MAX_EXPECTED_WAIT_HOUR', 'jedi', taskSpec.vo)
+        if max_expected_wait_hour is None:
+            max_expected_wait_hour = 12.0
 
         # throttle User Analysis tasks when close to gshare target
         if taskSpec.gshare in ['User Analysis'] \
@@ -1310,31 +1349,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 # send info to logger
                 return retTmpError
             elif not inputChunk.isMerging:
-                # parameters
-                base_queue_length_per_pq = self.taskBufferIF.getConfigValue(
-                                                        'anal_jobbroker', 'BASE_QUEUE_LENGTH_PER_PQ', 'jedi', taskSpec.vo)
-                if base_queue_length_per_pq is None:
-                    base_queue_length_per_pq = 100
-                base_expected_wait_hour_on_pq = self.taskBufferIF.getConfigValue(
-                                                        'anal_jobbroker', 'BASE_EXPECTED_WAIT_HOUR_ON_PQ', 'jedi', taskSpec.vo)
-                if base_expected_wait_hour_on_pq is None:
-                    base_expected_wait_hour_on_pq = 8
-                base_default_queue_length_per_pq_user = self.taskBufferIF.getConfigValue(
-                                                        'anal_jobbroker', 'BASE_DEFAULT_QUEUE_LENGTH_PER_PQ_USER', 'jedi', taskSpec.vo)
-                if base_default_queue_length_per_pq_user is None:
-                    base_default_queue_length_per_pq_user = 5
-                base_queue_ratio_on_pq = self.taskBufferIF.getConfigValue(
-                                                        'anal_jobbroker', 'BASE_QUEUE_RATIO_ON_PQ', 'jedi', taskSpec.vo)
-                if base_queue_ratio_on_pq is None:
-                    base_queue_ratio_on_pq = 0.05
-                static_max_queue_running_ratio = self.taskBufferIF.getConfigValue(
-                                                        'anal_jobbroker', 'STATIC_MAX_QUEUE_RUNNING_RATIO', 'jedi', taskSpec.vo)
-                if static_max_queue_running_ratio is None:
-                    static_max_queue_running_ratio = 2.0
-                max_expected_wait_hour = self.taskBufferIF.getConfigValue(
-                                                        'anal_jobbroker', 'MAX_EXPECTED_WAIT_HOUR', 'jedi', taskSpec.vo)
-                if max_expected_wait_hour is None:
-                    max_expected_wait_hour = 12.0
                 # loop over sites
                 for tmpPseudoSiteName in scanSiteList:
                     tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
@@ -1440,14 +1454,13 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                 key=k, max_nQ_pq=max_nQ_pq, max_user_fraction=max_user_fraction)
                                 description_of_max_nQ_pq_user += ' , where {0} , and {1}'.format(description_of_max_nQ_pq, description_of_max_user_fraction)
                             break
-                    # skip sites where the user queues too much (Analysis Stabilizer)
+                    # # Analysis Stabilizer: skip sites where the user queues too much
                     if nQ_pq_user > max_nQ_pq_user:
                         tmpMsg = ' consider {0} unsuitable for the user due to long queue of the user: '.format(tmpSiteName)
                         tmpMsg += 'nQ_pq_user({0}) > {1} '.format(nQ_pq_user, description_of_max_nQ_pq_user)
                         # view as problematic site in order to throttle
                         problematic_sites_dict.setdefault(tmpSiteName, set())
                         problematic_sites_dict[tmpSiteName].add(tmpMsg)
-                    #
 
             ############
             # loop end
@@ -1593,9 +1606,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             if not inputChunk.isMerging and (nFailed + nClosed) > max(2*nFinished, minBadJobsToSkipPQ):
                 problematic_sites_dict.setdefault(tmpSiteName, set())
                 problematic_sites_dict[tmpSiteName].add('too many failed or closed jobs for last 6h')
-            # calculate weight
-            orig_basic_weight = float(nRunning + 1) / float(nActivated + nAssigned + nDefined + nStarting + 1)
-            weight = orig_basic_weight
+            # to-running rate
             try:
                 site_to_running_rate = siteToRunRateMap[tmpSiteName]
                 if isinstance(site_to_running_rate, dict):
@@ -1607,6 +1618,12 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 site_n_running = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'running')
                 to_running_rate = nRunning*site_to_running_rate/site_n_running if site_n_running > 0 else 0
                 to_running_rate_str = '{0:.3f}'.format(to_running_rate)
+            # site class value; by default mid-class (= 0) if unclassified
+            site_class_value = analy_sites_class_dict.get(tmpSiteName, 0)
+            site_class_value = 0 if site_class_value is None else site_class_value
+            # calculate weight
+            orig_basic_weight = float(nRunning + 1) / float(nActivated + nAssigned + nDefined + nStarting + 1)
+            weight = orig_basic_weight
             nThrottled = 0
             if tmpSiteName in remoteSourceList:
                 nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'throttled', workQueue_tag=taskSpec.gshare)
@@ -1643,6 +1660,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             basic_weight_comparison_map[tmpSiteName]['trr'] = to_running_rate
             basic_weight_comparison_map[tmpSiteName]['nq'] = (nActivated + nAssigned + nDefined + nStarting)
             basic_weight_comparison_map[tmpSiteName]['nr'] = nRunning
+            basic_weight_comparison_map[tmpSiteName]['class'] = site_class_value
             # set weight
             siteCandidateSpec.weight = weight
             tmpStr  = 'weight={0:.3f} nRunning={1} nDefined={2} nActivated={3} nStarting={4} nAssigned={5} '.format(weight,
@@ -1665,43 +1683,160 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 if weight not in weightMap:
                     weightMap[weight] = []
                 weightMap[weight].append(siteCandidateSpec)
-        ## compute new basic weight
+        ## compute new basic weight; only for User Analysis
         try:
-            weight_comparison_avail_sites = set(basic_weight_comparison_map.keys())
-            trr_sum = 0
-            nq_sum = 0
             n_avail_sites = len(basic_weight_comparison_map)
-            for vv in basic_weight_comparison_map.values():
-                trr_sum += vv['trr']
-                nq_sum += vv['nq']
             if n_avail_sites == 0:
                 tmpLog.debug('WEIGHT-COMPAR: zero available sites, skip')
-            elif trr_sum == 0:
-                tmpLog.debug('WEIGHT-COMPAR: zero sum of to-running-rate, skip')
             else:
-                _found_weights = False
-                while not _found_weights:
-                    trr_sum_avail = 0
-                    nq_sum_avail = 0
-                    n_avail_sites = len(weight_comparison_avail_sites)
-                    if n_avail_sites == 0:
-                        break
-                    for site in weight_comparison_avail_sites:
-                        vv = basic_weight_comparison_map[site]
-                        trr_sum_avail += vv['trr']
-                        nq_sum_avail += vv['nq']
-                    if trr_sum_avail == 0:
-                        break
-                    _found_weights = True
-                    for site in list(weight_comparison_avail_sites):
-                        vv = basic_weight_comparison_map[site]
-                        new_basic_weight = (vv['trr']/trr_sum_avail)*(25 + nq_sum_avail - n_avail_sites/2.0) - vv['nq'] + 1/2.0
-                        if new_basic_weight < 0:
-                            vv['new'] = 0
-                            weight_comparison_avail_sites.discard(site)
-                            _found_weights = False
-                        else:
-                            vv['new'] = new_basic_weight
+                # task class value
+                task_class_value = task_eval_dict.get('class', 1) if task_eval_dict is not None else 1
+                # get nFilesPerJob
+                if not inputChunk.isMerging:
+                    nFilesPerJob = taskSpec.getNumFilesPerJob()
+                else:
+                    nFilesPerJob = taskSpec.getNumFilesPerMergeJob()
+                if nFilesPerJob is None or nFilesPerJob < 1:
+                    nFilesPerJob = 1
+                # total unused input files, including psuedo inputs
+                indexVal = inputChunk.datasetMap[inputChunk.masterIndexName]
+                n_total_input_files = max(len(indexVal['datasetSpec'].Files) - indexVal['used'], 0)
+                # n_total_input_files = 0
+                # for datasetSpec in inputChunk.getDatasets(includePseudo=True):
+                #     n_total_input_files += len(datasetSpec.Files)
+                # estimate number of jobs to submit
+                n_jobs_to_submit = math.ceil(n_total_input_files/nFilesPerJob)
+                if (inputChunk.useScout() and not inputChunk.isMerging) or taskSpec.is_hpo_workflow():
+                    n_jobs_to_submit = min(n_jobs_to_submit, 2)
+                # parameters for small additional weight
+                weight_epsilon_hi_mid = 0.05
+                weight_epsilon_hi_lo = 0.001
+                weight_epsilon_mid_lo = 0.1
+                # initialize
+                tmpSt, siteToRunRateMap = AtlasBrokerUtils.getSiteToRunRateStats(tbIF=self.taskBufferIF, vo=taskSpec.vo)
+                weight_comparison_avail_sites = set(basic_weight_comparison_map.keys())
+                site_class_n_site_dict = {1: 0, 0: 0, -1: 0}
+                site_class_rem_q_len_dict = {1: 0, 0: 0, -1: 0}
+                total_rem_q_len = 0
+                # loop over sites for metrics
+                for site, vv in basic_weight_comparison_map.items():
+                    # site class count
+                    site_class_n_site_dict[vv['class']] += 1
+                    # get info about site
+                    nRunning_pq_total = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, site, 'running')
+                    nRunning_pq_in_gshare = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, site, 'running', workQueue_tag=taskSpec.gshare)
+                    nQueue_pq_in_gshare = 0
+                    for jobStatus in ['defined', 'assigned', 'activated', 'starting']:
+                        nQueue_pq_in_gshare += AtlasBrokerUtils.getNumJobs(jobStatPrioMap, site, jobStatus, workQueue_tag=taskSpec.gshare)
+                    # get to-running-rate
+                    try:
+                        site_to_running_rate = siteToRunRateMap[site]
+                        if isinstance(site_to_running_rate, dict):
+                            site_to_running_rate = sum(site_to_running_rate.values())
+                    except Exception:
+                        site_to_running_rate = 0
+                    finally:
+                        to_running_rate = nRunning_pq_in_gshare*site_to_running_rate/nRunning_pq_total if nRunning_pq_total > 0 else 0
+                    # get user jobs stats under the gshare
+                    try:
+                        user_jobs_stats_map = jobsStatsPerUser[site][taskSpec.gshare][user_name]
+                    except KeyError:
+                        nQ_pq_user = 0
+                        nR_pq_user = 0
+                    else:
+                        nQ_pq_user = user_jobs_stats_map['nQueue']
+                        nR_pq_user = user_jobs_stats_map['nRunning']
+                    try:
+                        nUsers_pq = len(jobsStatsPerUser[site][taskSpec.gshare])
+                    except KeyError:
+                        nUsers_pq = 1
+                    try:
+                        nR_pq = jobsStatsPerUser[site][taskSpec.gshare]['_total']['nRunning']
+                    except KeyError:
+                        nR_pq = nRunning_pq_in_gshare
+                    # evaluate max nQueue per PQ
+                    nQ_pq_limit_map = {
+                            'base_limit': base_queue_length_per_pq,
+                            'static_limit': static_max_queue_running_ratio*nR_pq,
+                            'dynamic_limit': max_expected_wait_hour*to_running_rate,
+                        }
+                    max_nQ_pq = max(nQ_pq_limit_map.values())
+                    # evaluate fraction per user
+                    user_fraction_map = {
+                            'equal_distr': 1/(nUsers_pq),
+                            'prop_to_nR': nR_pq_user/nR_pq if nR_pq > 0 else 0,
+                        }
+                    max_user_fraction = max(user_fraction_map.values())
+                    # evaluate max nQueue per PQ per user
+                    nQ_pq_user_limit_map = {
+                            'constant_base_user_limit': base_default_queue_length_per_pq_user,
+                            'ratio_base_user_limit': base_queue_ratio_on_pq*nR_pq,
+                            'dynamic_user_limit': max_nQ_pq*max_user_fraction,
+                        }
+                    max_nQ_pq_user = max(nQ_pq_user_limit_map.values())
+                    # fill in metrics for the site
+                    vv['user_q_len'] = nQ_pq_user
+                    vv['max_q_len'] = max_nQ_pq_user
+                    vv['rem_q_len'] = max(vv['max_q_len'] - vv['user_q_len'], 0)
+                    site_class_rem_q_len_dict[vv['class']] += vv['rem_q_len']
+                    total_rem_q_len += vv['rem_q_len']
+                # main weight, for User Analysis, determined by number of jobs to submit to each site class
+                main_weight_site_class_dict = {1: 0, 0: 0, -1: 0}
+                if taskSpec.gshare in ['User Analysis', 'Express Analysis']:
+                    n_jobs_to_submit_rem = min(n_jobs_to_submit, total_rem_q_len)
+                    if task_class_value == -1:
+                        # C-task
+                        main_weight_site_class_dict[-1] = n_jobs_to_submit_rem
+                    elif task_class_value == 0:
+                        # B-task
+                        main_weight_site_class_dict[0] = min(n_jobs_to_submit_rem, site_class_rem_q_len_dict[0])
+                        n_jobs_to_submit_rem -= main_weight_site_class_dict[0]
+                        main_weight_site_class_dict[-1] = n_jobs_to_submit_rem
+                        if main_weight_site_class_dict[0] > 0:
+                            main_weight_site_class_dict[0] -= weight_epsilon_mid_lo
+                            main_weight_site_class_dict[-1] += weight_epsilon_mid_lo
+                    else:
+                        # S-task or A-task or unclassified task
+                        main_weight_site_class_dict[1] = min(n_jobs_to_submit_rem, site_class_rem_q_len_dict[1])
+                        n_jobs_to_submit_rem -= main_weight_site_class_dict[1]
+                        main_weight_site_class_dict[0] = min(n_jobs_to_submit_rem, site_class_rem_q_len_dict[0])
+                        n_jobs_to_submit_rem -= main_weight_site_class_dict[0]
+                        main_weight_site_class_dict[-1] = n_jobs_to_submit_rem
+                        if main_weight_site_class_dict[1] > 0:
+                            main_weight_site_class_dict[1] -= weight_epsilon_hi_mid + weight_epsilon_hi_lo
+                            main_weight_site_class_dict[0] += weight_epsilon_hi_mid
+                            main_weight_site_class_dict[-1] += weight_epsilon_hi_lo
+                # find the weights
+                for site in weight_comparison_avail_sites:
+                    vv = basic_weight_comparison_map[site]
+                    # main weight by site & task class for User Analysis, and constant for group shares
+                    nbw_main = n_jobs_to_submit
+                    if taskSpec.gshare in ['User Analysis', 'Express Analysis']:
+                        nbw_main = main_weight_site_class_dict[vv['class']]
+                    # secondary weight proportional to remaing queue length
+                    nbw_sec = 1
+                    if taskSpec.gshare in ['User Analysis', 'Express Analysis']:
+                        _nbw_numer = max(vv['rem_q_len'] - nbw_main/site_class_n_site_dict[vv['class']], nbw_main*0.001)
+                        reduced_site_class_rem_q_len = site_class_rem_q_len_dict[vv['class']] - nbw_main
+                        if reduced_site_class_rem_q_len > 0 and not inputChunk.isMerging:
+                            nbw_sec = _nbw_numer/reduced_site_class_rem_q_len
+                        elif site_class_rem_q_len_dict[vv['class']] > 0:
+                            nbw_sec = vv['rem_q_len']/site_class_rem_q_len_dict[vv['class']]
+                        elif site_class_n_site_dict[vv['class']] > 0:
+                            nbw_sec = 1/site_class_n_site_dict[vv['class']]
+                    else:
+                        reduced_total_rem_q_len = total_rem_q_len - nbw_main
+                        _nbw_numer = max(vv['rem_q_len'] - nbw_main/n_avail_sites, nbw_main*0.001)
+                        if reduced_total_rem_q_len > 0 and not inputChunk.isMerging:
+                            nbw_sec = _nbw_numer/reduced_total_rem_q_len
+                        elif total_rem_q_len > 0:
+                            nbw_sec = vv['rem_q_len']/total_rem_q_len
+                        elif site_class_n_site_dict[vv['class']] > 0:
+                            nbw_sec = 1/n_avail_sites
+                    # new basic weight
+                    new_basic_weight = nbw_main*nbw_sec
+                    vv['new'] = new_basic_weight
+                # log message to compare weights
                 orig_sum = 0
                 new_sum = 0
                 for vv in basic_weight_comparison_map.values():
@@ -1727,30 +1862,39 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 prt_str_list = []
                 prt_str_temp = ('    '
                                 ' {site:>24} |'
+                                ' {class:>2} |'
                                 ' {nq:>6} |'
                                 ' {nr:>6} |'
                                 ' {trr:9.3f} |'
-                                ' {trr_over_r} |'
+                                ' {user_q_len:>6} |'
+                                ' {max_q_len:9.3f} |'
+                                ' {rem_q_len:9.3f} |'
                                 ' {orig:9.3f} |'
                                 ' {new:9.3f} |'
                                 ' {normalized_orig:6.1%} |'
                                 ' {normalized_new:6.1%} |')
                 prt_str_title = (   '    '
                                     ' {site:>24} |'
+                                    ' {cl:>2} |'
                                     ' {nq:>6} |'
                                     ' {nr:>6} |'
                                     ' {trr:>9} |'
-                                    ' {trr_over_r:>6} |'
+                                    ' {user_q_len:>6} |'
+                                    ' {max_q_len:>9} |'
+                                    ' {rem_q_len:>9} |'
                                     ' {orig:>9} |'
                                     ' {new:>9} |'
                                     ' {normalized_orig:>6} |'
                                     ' {normalized_new:>6} |'
                                     ).format(
                                         site='Site',
+                                        cl='Cl',
                                         nq='Q',
                                         nr='R',
                                         trr='TRR',
-                                        trr_over_r='TRR/R',
+                                        user_q_len='UserQ',
+                                        max_q_len='UserQ_max',
+                                        rem_q_len='UserQ_rem',
                                         orig='Wb_orig',
                                         new='Wb_new',
                                         normalized_orig='orig_%',
@@ -1758,11 +1902,12 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 prt_str_list.append(prt_str_title)
                 for site in sorted(basic_weight_comparison_map):
                     vv = basic_weight_comparison_map[site]
-                    prt_str = prt_str_temp.format(site=site, **vv)
+                    prt_str = prt_str_temp.format(site=site, **{ k: (x if x is not None else math.nan) for k, x in vv.items() })
                     prt_str_list.append(prt_str)
-                tmpLog.debug('WEIGHT-COMPAR: for gshare={0} got \n{1}'.format(taskSpec.gshare, '\n'.join(prt_str_list)))
+                tmpLog.debug('WEIGHT-COMPAR: for gshare={},{} cl={}, nJobsEst={} got \n{}'.format(
+                                taskSpec.gshare, (' merging,' if inputChunk.isMerging else ''), task_class_value, n_jobs_to_submit, '\n'.join(prt_str_list)))
         except Exception as e:
-            tmpLog.error('{0} {1}'.format(e.__class__.__name__, e))
+            tmpLog.error('{0}'.format(traceback.format_exc()))
         ##
         oldScanSiteList = copy.copy(scanSiteList)
         # sort candidates by weights
