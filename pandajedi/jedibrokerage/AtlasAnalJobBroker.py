@@ -1698,16 +1698,37 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     nFilesPerJob = taskSpec.getNumFilesPerMergeJob()
                 if nFilesPerJob is None or nFilesPerJob < 1:
                     nFilesPerJob = 1
-                # total unused input files, including psuedo inputs
-                indexVal = inputChunk.datasetMap[inputChunk.masterIndexName]
-                n_total_input_files = max(len(indexVal['datasetSpec'].Files) - indexVal['used'], 0)
-                # n_total_input_files = 0
-                # for datasetSpec in inputChunk.getDatasets(includePseudo=True):
-                #     n_total_input_files += len(datasetSpec.Files)
-                # estimate number of jobs to submit
-                n_jobs_to_submit = math.ceil(n_total_input_files/nFilesPerJob)
-                if (inputChunk.useScout() and not inputChunk.isMerging) or taskSpec.is_hpo_workflow():
-                    n_jobs_to_submit = min(n_jobs_to_submit, 2)
+                #
+                _maxSizePerJob = taskSpec.getMaxSizePerJob()
+                if _maxSizePerJob is not None:
+                    _maxSizePerJob += inputChunk.defaultOutputSize
+                    _maxSizePerJob += taskSpec.getWorkDiskSize()
+                else:
+                    if taskSpec.useScout():
+                        _maxSizePerJob = inputChunk.maxInputSizeScouts * 1024 * 1024
+                    else:
+                        _maxSizePerJob = inputChunk.maxInputSizeAvalanche * 1024 * 1024
+                ## count subchunks
+                n_subchunks = 0
+                while True:
+                    subchunk = inputChunk.getSubChunk(None,
+                                                        maxNumFiles=taskSpec.getMaxNumFilesPerJob(),
+                                                        nFilesPerJob=taskSpec.getNumFilesPerJob(),
+                                                        walltimeGradient=(taskSpec.getCpuTime() if taskSpec.useHS06() else None),
+                                                        maxWalltime=(taskSpec.getMaxWalltime() if taskSpec.getMaxWalltime() is not None else 345600),
+                                                        sizeGradients=taskSpec.getOutDiskSize(),
+                                                        sizeIntercepts=taskSpec.getWorkDiskSize(),
+                                                        maxSize=_maxSizePerJob,
+                                                        nEventsPerJob=taskSpec.getNumEventsPerJob(),
+                                                        coreCount=taskSpec.coreCount,
+                                                        corePower=10,
+                                                        respectLB=taskSpec.respectLumiblock())
+                    if subchunk is None:
+                        break
+                    else:
+                        n_subchunks += 1
+                inputChunk.resetUsedCounters()
+                n_jobs_to_submit = n_subchunks
                 # parameters for small additional weight
                 weight_epsilon_hi_mid = 0.05
                 weight_epsilon_hi_lo = 0.001
