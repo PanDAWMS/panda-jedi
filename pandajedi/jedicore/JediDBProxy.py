@@ -9801,7 +9801,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':status']      = newTaskStatus
                 varMap[':errorDialog'] = newErrorDialog
                 if newTaskStatus != taskOldStatus:
-                    tmpLog.debug('set taskStatus={0} for command={1}'.format(newTaskStatus,commStr))
+                    tmpLog.debug('set taskStatus={} from {} for command={}'.format(newTaskStatus, taskStatus, commStr))
                     # set old update time to trigger subsequent process
                     varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     self.cur.execute(sqlUTN+comment,varMap)
@@ -9822,7 +9822,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':updateTime'] = datetime.datetime.utcnow()
                     self.cur.execute(sqlUTB+comment,varMap)
                 # update output/lib/log
-                if newTaskStatus != taskOldStatus:
+                if newTaskStatus != taskOldStatus and taskStatus != 'exhausted':
                     varMap = {}
                     varMap[':jediTaskID'] = jediTaskID
                     varMap[':type1']      = 'output'
