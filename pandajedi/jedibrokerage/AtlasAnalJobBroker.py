@@ -1546,7 +1546,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         weightStr = {}
         candidateSpecList = []
         preSiteCandidateSpec = None
-        basic_weight_comparison_map = {}
+        basic_weight_compar_map = {}
         workerStat = self.taskBufferIF.ups_load_worker_stats()
         minBadJobsToSkipPQ = self.taskBufferIF.getConfigValue('anal_jobbroker', 'MIN_BAD_JOBS_TO_SKIP_PQ',
                                                               'jedi', taskSpec.vo)
@@ -1621,71 +1621,25 @@ class AtlasAnalJobBroker(JobBrokerBase):
             # site class value; by default mid-class (= 0) if unclassified
             site_class_value = analy_sites_class_dict.get(tmpSiteName, 0)
             site_class_value = 0 if site_class_value is None else site_class_value
-            # calculate weight
+            # calculate original basic weight
             orig_basic_weight = float(nRunning + 1) / float(nActivated + nAssigned + nDefined + nStarting + 1)
-            weight = orig_basic_weight
-            nThrottled = 0
-            if tmpSiteName in remoteSourceList:
-                nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'throttled', workQueue_tag=taskSpec.gshare)
-                weight /= float(nThrottled + 1)
-            # normalize weights by taking data availability into account
-            diskNorm = 10
-            tapeNorm = 1000
-            localSize = totalSize
-            if checkDataLocality and not useUnionLocality:
-                tmpDataWeight = 1
-                if tmpSiteName in dataWeight:
-                    weight *= dataWeight[tmpSiteName]
-                    tmpDataWeight = dataWeight[tmpSiteName]
-            else:
-                tmpDataWeight = 1
-                if totalSize > 0:
-                    if tmpSiteName in totalDiskSizeMap:
-                        tmpDataWeight += (totalDiskSizeMap[tmpSiteName] / diskNorm)
-                        localSize = totalDiskSizeMap[tmpSiteName]
-                    elif tmpSiteName in totalTapeSizeMap:
-                        tmpDataWeight += (totalTapeSizeMap[tmpSiteName] / tapeNorm)
-                        localSize = totalTapeSizeMap[tmpSiteName]
-                weight *= tmpDataWeight
-            # make candidate
-            siteCandidateSpec = SiteCandidate(tmpPseudoSiteName, tmpSiteName)
-            # preassigned
-            if sitePreAssigned and tmpSiteName == preassignedSite:
-                preSiteCandidateSpec = siteCandidateSpec
-            # override attributes
-            siteCandidateSpec.override_attribute('maxwdir', newMaxwdir.get(tmpSiteName))
             # available site, take in account of new basic weight
-            basic_weight_comparison_map[tmpSiteName] = {}
-            basic_weight_comparison_map[tmpSiteName]['orig'] = orig_basic_weight
-            basic_weight_comparison_map[tmpSiteName]['trr'] = to_running_rate
-            basic_weight_comparison_map[tmpSiteName]['nq'] = (nActivated + nAssigned + nDefined + nStarting)
-            basic_weight_comparison_map[tmpSiteName]['nr'] = nRunning
-            basic_weight_comparison_map[tmpSiteName]['class'] = site_class_value
-            # set weight
-            siteCandidateSpec.weight = weight
-            tmpStr  = 'weight={0:.3f} nRunning={1} nDefined={2} nActivated={3} nStarting={4} nAssigned={5} '.format(weight,
-                                                                                                                nRunning,
-                                                                                                                nDefined,
-                                                                                                                nActivated,
-                                                                                                                nStarting,
-                                                                                                                nAssigned)
-            tmpStr += 'nFailed={0} nClosed={1} nFinished={2} dataW={3} '.format(nFailed,
-                                                                                nClosed,
-                                                                                nFinished,
-                                                                                tmpDataWeight)
-            tmpStr += 'totalInGB={0} localInGB={1} nFiles={2} '.format(totalSize, localSize, totalNumFiles)
-            tmpStr += 'toRunningRate={0} '.format(to_running_rate_str)
-            weightStr[tmpPseudoSiteName] = tmpStr
-            # append
-            if tmpSiteName in sitesUsedByTask:
-                candidateSpecList.append(siteCandidateSpec)
-            else:
-                if weight not in weightMap:
-                    weightMap[weight] = []
-                weightMap[weight].append(siteCandidateSpec)
-        ## compute new basic weight; only for User Analysis
+            basic_weight_compar_map[tmpSiteName] = {}
+            basic_weight_compar_map[tmpSiteName]['orig'] = orig_basic_weight
+            basic_weight_compar_map[tmpSiteName]['trr'] = to_running_rate
+            basic_weight_compar_map[tmpSiteName]['nq'] = (nActivated + nAssigned + nDefined + nStarting)
+            basic_weight_compar_map[tmpSiteName]['nr'] = nRunning
+            basic_weight_compar_map[tmpSiteName]['class'] = site_class_value
+            basic_weight_compar_map[tmpSiteName]['nDefined'] = nDefined
+            basic_weight_compar_map[tmpSiteName]['nActivated'] = nActivated
+            basic_weight_compar_map[tmpSiteName]['nStarting'] = nStarting
+            basic_weight_compar_map[tmpSiteName]['nAssigned'] = nAssigned
+            basic_weight_compar_map[tmpSiteName]['nFailed'] = nFailed
+            basic_weight_compar_map[tmpSiteName]['nClosed'] = nClosed
+            basic_weight_compar_map[tmpSiteName]['nFinished'] = nFinished
+        # compute new basic weight
         try:
-            n_avail_sites = len(basic_weight_comparison_map)
+            n_avail_sites = len(basic_weight_compar_map)
             if n_avail_sites == 0:
                 tmpLog.debug('WEIGHT-COMPAR: zero available sites, skip')
             else:
@@ -1735,14 +1689,14 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 weight_epsilon_mid_lo = 0.1
                 # initialize
                 tmpSt, siteToRunRateMap = AtlasBrokerUtils.getSiteToRunRateStats(tbIF=self.taskBufferIF, vo=taskSpec.vo)
-                weight_comparison_avail_sites = set(basic_weight_comparison_map.keys())
+                weight_comparison_avail_sites = set(basic_weight_compar_map.keys())
                 site_class_n_site_dict = {1: 0, 0: 0, -1: 0}
                 site_class_rem_q_len_dict = {1: 0, 0: 0, -1: 0}
                 total_rem_q_len = 0
                 # loop over sites for metrics
-                for site, vv in basic_weight_comparison_map.items():
+                for site, bw_map in basic_weight_compar_map.items():
                     # site class count
-                    site_class_n_site_dict[vv['class']] += 1
+                    site_class_n_site_dict[bw_map['class']] += 1
                     # get info about site
                     nRunning_pq_total = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, site, 'running')
                     nRunning_pq_in_gshare = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, site, 'running', workQueue_tag=taskSpec.gshare)
@@ -1796,11 +1750,11 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         }
                     max_nQ_pq_user = max(nQ_pq_user_limit_map.values())
                     # fill in metrics for the site
-                    vv['user_q_len'] = nQ_pq_user
-                    vv['max_q_len'] = max_nQ_pq_user
-                    vv['rem_q_len'] = max(vv['max_q_len'] - vv['user_q_len'], 0)
-                    site_class_rem_q_len_dict[vv['class']] += vv['rem_q_len']
-                    total_rem_q_len += vv['rem_q_len']
+                    bw_map['user_q_len'] = nQ_pq_user
+                    bw_map['max_q_len'] = max_nQ_pq_user
+                    bw_map['rem_q_len'] = max(bw_map['max_q_len'] - bw_map['user_q_len'], 0)
+                    site_class_rem_q_len_dict[bw_map['class']] += bw_map['rem_q_len']
+                    total_rem_q_len += bw_map['rem_q_len']
                 # main weight, for User Analysis, determined by number of jobs to submit to each site class
                 main_weight_site_class_dict = {1: 0, 0: 0, -1: 0}
                 if taskSpec.gshare in ['User Analysis', 'Express Analysis']:
@@ -1829,57 +1783,57 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             main_weight_site_class_dict[-1] += weight_epsilon_hi_lo
                 # find the weights
                 for site in weight_comparison_avail_sites:
-                    vv = basic_weight_comparison_map[site]
+                    bw_map = basic_weight_compar_map[site]
                     # main weight by site & task class for User Analysis, and constant for group shares
                     nbw_main = n_jobs_to_submit
                     if taskSpec.gshare in ['User Analysis', 'Express Analysis']:
-                        nbw_main = main_weight_site_class_dict[vv['class']]
+                        nbw_main = main_weight_site_class_dict[bw_map['class']]
                     # secondary weight proportional to remaing queue length
                     nbw_sec = 1
                     if taskSpec.gshare in ['User Analysis', 'Express Analysis']:
-                        _nbw_numer = max(vv['rem_q_len'] - nbw_main/site_class_n_site_dict[vv['class']], nbw_main*0.001)
-                        reduced_site_class_rem_q_len = site_class_rem_q_len_dict[vv['class']] - nbw_main
+                        _nbw_numer = max(bw_map['rem_q_len'] - nbw_main/site_class_n_site_dict[bw_map['class']], nbw_main*0.001)
+                        reduced_site_class_rem_q_len = site_class_rem_q_len_dict[bw_map['class']] - nbw_main
                         if reduced_site_class_rem_q_len > 0 and not inputChunk.isMerging:
                             nbw_sec = _nbw_numer/reduced_site_class_rem_q_len
-                        elif site_class_rem_q_len_dict[vv['class']] > 0:
-                            nbw_sec = vv['rem_q_len']/site_class_rem_q_len_dict[vv['class']]
-                        elif site_class_n_site_dict[vv['class']] > 0:
-                            nbw_sec = 1/site_class_n_site_dict[vv['class']]
+                        elif site_class_rem_q_len_dict[bw_map['class']] > 0:
+                            nbw_sec = bw_map['rem_q_len']/site_class_rem_q_len_dict[bw_map['class']]
+                        elif site_class_n_site_dict[bw_map['class']] > 0:
+                            nbw_sec = 1/site_class_n_site_dict[bw_map['class']]
                     else:
                         reduced_total_rem_q_len = total_rem_q_len - nbw_main
-                        _nbw_numer = max(vv['rem_q_len'] - nbw_main/n_avail_sites, nbw_main*0.001)
+                        _nbw_numer = max(bw_map['rem_q_len'] - nbw_main/n_avail_sites, nbw_main*0.001)
                         if reduced_total_rem_q_len > 0 and not inputChunk.isMerging:
                             nbw_sec = _nbw_numer/reduced_total_rem_q_len
                         elif total_rem_q_len > 0:
-                            nbw_sec = vv['rem_q_len']/total_rem_q_len
-                        elif site_class_n_site_dict[vv['class']] > 0:
+                            nbw_sec = bw_map['rem_q_len']/total_rem_q_len
+                        elif site_class_n_site_dict[bw_map['class']] > 0:
                             nbw_sec = 1/n_avail_sites
                     # new basic weight
                     new_basic_weight = nbw_main*nbw_sec
-                    vv['new'] = new_basic_weight
+                    bw_map['new'] = new_basic_weight
                 # log message to compare weights
                 orig_sum = 0
                 new_sum = 0
-                for vv in basic_weight_comparison_map.values():
-                    orig_sum += vv['orig']
-                    new_sum += vv['new']
-                for site in basic_weight_comparison_map:
-                    vv = basic_weight_comparison_map[site]
-                    if vv['nr'] == 0:
+                for bw_map in basic_weight_compar_map.values():
+                    orig_sum += bw_map['orig']
+                    new_sum += bw_map['new']
+                for site in basic_weight_compar_map:
+                    bw_map = basic_weight_compar_map[site]
+                    if bw_map['nr'] == 0:
                         trr_over_r = None
                     else:
-                        trr_over_r = vv['trr']/vv['nr']
-                    vv['trr_over_r'] = '{:6.3f}'.format(trr_over_r) if trr_over_r is not None else 'None'
+                        trr_over_r = bw_map['trr']/bw_map['nr']
+                    bw_map['trr_over_r'] = '{:6.3f}'.format(trr_over_r) if trr_over_r is not None else 'None'
                     if orig_sum == 0:
                         normalized_orig = 0
                     else:
-                        normalized_orig = vv['orig']/orig_sum
-                    vv['normalized_orig'] = normalized_orig
+                        normalized_orig = bw_map['orig']/orig_sum
+                    bw_map['normalized_orig'] = normalized_orig
                     if new_sum == 0:
                         normalized_new = 0
                     else:
-                        normalized_new = vv['new']/new_sum
-                    vv['normalized_new'] = normalized_new
+                        normalized_new = bw_map['new']/new_sum
+                    bw_map['normalized_new'] = normalized_new
                 prt_str_list = []
                 prt_str_temp = ('    '
                                 ' {site:>24} |'
@@ -1921,15 +1875,71 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                         normalized_orig='orig_%',
                                         normalized_new='new_%')
                 prt_str_list.append(prt_str_title)
-                for site in sorted(basic_weight_comparison_map):
-                    vv = basic_weight_comparison_map[site]
-                    prt_str = prt_str_temp.format(site=site, **{ k: (x if x is not None else math.nan) for k, x in vv.items() })
+                for site in sorted(basic_weight_compar_map):
+                    bw_map = basic_weight_compar_map[site]
+                    prt_str = prt_str_temp.format(site=site, **{ k: (x if x is not None else math.nan) for k, x in bw_map.items() })
                     prt_str_list.append(prt_str)
                 tmpLog.debug('WEIGHT-COMPAR: for gshare={},{} cl={}, nJobsEst={} got \n{}'.format(
                                 taskSpec.gshare, (' merging,' if inputChunk.isMerging else ''), task_class_value, n_jobs_to_submit, '\n'.join(prt_str_list)))
         except Exception as e:
             tmpLog.error('{0}'.format(traceback.format_exc()))
-        ##
+        # finish computing weight
+        for tmpSiteName, bw_map in basic_weight_compar_map.items():
+            # fill basic weight
+            weight = bw_map['orig']
+            # penalty according to throttled jobs
+            nThrottled = 0
+            if tmpSiteName in remoteSourceList:
+                nThrottled = AtlasBrokerUtils.getNumJobs(jobStatPrioMap, tmpSiteName, 'throttled', workQueue_tag=taskSpec.gshare)
+                weight /= float(nThrottled + 1)
+            # normalize weights by taking data availability into account
+            diskNorm = 10
+            tapeNorm = 1000
+            localSize = totalSize
+            if checkDataLocality and not useUnionLocality:
+                tmpDataWeight = 1
+                if tmpSiteName in dataWeight:
+                    weight *= dataWeight[tmpSiteName]
+                    tmpDataWeight = dataWeight[tmpSiteName]
+            else:
+                tmpDataWeight = 1
+                if totalSize > 0:
+                    if tmpSiteName in totalDiskSizeMap:
+                        tmpDataWeight += (totalDiskSizeMap[tmpSiteName] / diskNorm)
+                        localSize = totalDiskSizeMap[tmpSiteName]
+                    elif tmpSiteName in totalTapeSizeMap:
+                        tmpDataWeight += (totalTapeSizeMap[tmpSiteName] / tapeNorm)
+                        localSize = totalTapeSizeMap[tmpSiteName]
+                weight *= tmpDataWeight
+            # make candidate
+            siteCandidateSpec = SiteCandidate(tmpPseudoSiteName, tmpSiteName)
+            # preassigned
+            if sitePreAssigned and tmpSiteName == preassignedSite:
+                preSiteCandidateSpec = siteCandidateSpec
+            # override attributes
+            siteCandidateSpec.override_attribute('maxwdir', newMaxwdir.get(tmpSiteName))
+            # set weight
+            siteCandidateSpec.weight = weight
+            tmpStr  = 'weight={0:.3f} nRunning={1} nDefined={2} nActivated={3} nStarting={4} nAssigned={5} '.format(weight,
+                                                                                                                bw_map['nr'],
+                                                                                                                bw_map['nDefined'],
+                                                                                                                bw_map['nActivated'],
+                                                                                                                bw_map['nStarting'],
+                                                                                                                bw_map['nAssigned'])
+            tmpStr += 'nFailed={0} nClosed={1} nFinished={2} dataW={3} '.format(bw_map['nFailed'],
+                                                                                bw_map['nClosed'],
+                                                                                bw_map['nFinished'],
+                                                                                tmpDataWeight)
+            tmpStr += 'totalInGB={0} localInGB={1} nFiles={2} '.format(totalSize, localSize, totalNumFiles)
+            weightStr[tmpPseudoSiteName] = tmpStr
+            # append
+            if tmpSiteName in sitesUsedByTask:
+                candidateSpecList.append(siteCandidateSpec)
+            else:
+                if weight not in weightMap:
+                    weightMap[weight] = []
+                weightMap[weight].append(siteCandidateSpec)
+        # copy to oldScanSiteList
         oldScanSiteList = copy.copy(scanSiteList)
         # sort candidates by weights
         weightList = list(weightMap.keys())
