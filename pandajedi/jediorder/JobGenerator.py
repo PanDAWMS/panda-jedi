@@ -1513,7 +1513,7 @@ class JobGeneratorThread(WorkerThread):
                                 tmpOutFileSpec.destinationDBlockToken = 'ddd:{0}'.format(
                                     dddMap[tmpDddKey]['ddm_endpoint_name'])
                             else:
-                                tmpOutFileSpec.destinationDBlockToken = None
+                                tmpOutFileSpec.destinationDBlockToken = 'ddd:'
                         jobSpec.addFile(tmpOutFileSpec)
                         # use the first dataset as destinationDBlock
                         if destinationDBlock is None:
