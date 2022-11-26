@@ -324,11 +324,11 @@ class ContentsFeederThread (WorkerThread):
                                                 nPFN = datasetSpec.getNumRecords()
                                             elif origNumFiles is not None:
                                                 nPFN = origNumFiles
-                                                if 'nEventsPerJob' in taskParamMap and 'nEventsPerFile' in taskParamMap \
+                                                if 'nEventsPerFile' in taskParamMap and taskSpec.get_min_granularity():
+                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] // taskSpec.get_min_granularity()
+                                                elif 'nEventsPerJob' in taskParamMap and 'nEventsPerFile' in taskParamMap \
                                                         and taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
                                                     nPFN = nPFN * math.ceil(taskParamMap['nEventsPerFile'] / taskParamMap['nEventsPerJob'])
-                                                elif 'nEventsPerFile' in taskParamMap and 'nEventsPerRange' in taskParamMap:
-                                                    nPFN = nPFN * taskParamMap['nEventsPerFile'] // taskParamMap['nEventsPerRange']
                                             elif 'nEvents' in taskParamMap and 'nEventsPerJob' in taskParamMap:
                                                 nPFN = math.ceil(taskParamMap['nEvents'] / taskParamMap['nEventsPerJob'])
                                             elif 'nEvents' in taskParamMap and 'nEventsPerFile' in taskParamMap \
@@ -421,10 +421,10 @@ class ContentsFeederThread (WorkerThread):
                                         elif datasetSpec.isMaster() and datasetSpec.isPseudo() and 'nEvents' in taskParamMap:
                                             # use nEvents as nEventsPerFile for pseudo input
                                             nEventsPerFile = taskParamMap['nEvents']
-                                        if 'nEventsPerJob' in taskParamMap:
+                                        if taskSpec.get_min_granularity():
+                                            nEventsPerRange = taskSpec.get_min_granularity()
+                                        elif 'nEventsPerJob' in taskParamMap:
                                             nEventsPerJob = taskParamMap['nEventsPerJob']
-                                        elif 'nEventsPerRange' in taskParamMap:
-                                            nEventsPerRange = taskParamMap['nEventsPerRange']
                                         if 'tgtNumEventsPerJob' in taskParamMap:
                                             tgtNumEventsPerJob = taskParamMap['tgtNumEventsPerJob']
                                             # reset nEventsPerJob
@@ -472,13 +472,13 @@ class ContentsFeederThread (WorkerThread):
                                             # multiplied by the number of jobs per file for event-level splitting
                                             if nMaxFiles is not None:
                                                 if 'nEventsPerFile' in taskParamMap:
-                                                    if 'nEventsPerJob' in taskParamMap:
+                                                    if taskSpec.get_min_granularity():
+                                                        if taskParamMap['nEventsPerFile'] > taskSpec.get_min_granularity():
+                                                            nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskSpec.get_min_granularity())
+                                                            nMaxFiles = int(math.ceil(nMaxFiles))
+                                                    elif 'nEventsPerJob' in taskParamMap:
                                                         if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerJob']:
                                                             nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerJob'])
-                                                            nMaxFiles = int(math.ceil(nMaxFiles))
-                                                    elif 'nEventsPerRange' in taskParamMap:
-                                                        if taskParamMap['nEventsPerFile'] > taskParamMap['nEventsPerRange']:
-                                                            nMaxFiles *= float(taskParamMap['nEventsPerFile'])/float(taskParamMap['nEventsPerRange'])
                                                             nMaxFiles = int(math.ceil(nMaxFiles))
                                                 elif 'useRealNumEvents' in taskParamMap:
                                                     # reset nMaxFiles since it is unknown

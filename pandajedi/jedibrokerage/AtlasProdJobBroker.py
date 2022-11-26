@@ -931,6 +931,8 @@ class AtlasProdJobBroker(JobBrokerBase):
         else:
             nEsConsumers = 1
             maxAttemptEsJob = 1
+        maxWalltime = None
+        strMaxWalltime = None
         if not taskSpec.useHS06():
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(effectiveSize=True)
             if taskSpec.walltime is not None:
@@ -949,6 +951,11 @@ class AtlasProdJobBroker(JobBrokerBase):
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
             if taskSpec.getCpuTime() is not None:
                 minWalltime = taskSpec.getCpuTime() * tmpMaxAtomSize
+                if taskSpec.dynamicNumEvents():
+                    eventJump, totalEvents = inputChunk.check_event_jump_and_sum()
+                    if not eventJump:
+                        maxWalltime = taskSpec.getCpuTime() * totalEvents
+                        strMaxWalltime = 'cpuTime*maxEventsPerJob={}*{}'.format(taskSpec.getCpuTime(), totalEvents)
             else:
                 minWalltime = None
             # take # of consumers into account
@@ -1033,10 +1040,13 @@ class AtlasProdJobBroker(JobBrokerBase):
                 siteMinTime *= float(taskSpec.cpuEfficiency) / 100.0
                 siteMinTime = long(siteMinTime)
                 tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
-            if origSiteMinTime != 0 and (minWalltime is None or minWalltime < siteMinTime):
+            if origSiteMinTime != 0 and ((minWalltime is None or minWalltime < siteMinTime) and
+                                         (maxWalltime is None or maxWalltime < siteMinTime)):
                 tmpMsg = '  skip site {0} due to short job walltime {1} (site lower limit) greater than {2} '.format(tmpSiteName,
                                                                                                                      tmpSiteStr,
                                                                                                                      strMinWalltime)
+                if maxWalltime:
+                    tmpMsg += 'and {} '.format(strMaxWalltime)
                 tmpMsg += 'criteria=-longwalltime'
                 tmpLog.info(tmpMsg)
                 continue
@@ -1137,38 +1147,6 @@ class AtlasProdJobBroker(JobBrokerBase):
             scanSiteList = newScanSiteList
             tmpLog.info('{0} candidates passed EventService check'.format(len(scanSiteList)))
             self.add_summary_message(oldScanSiteList, scanSiteList, 'EventService check')
-            if not scanSiteList:
-                self.dump_summary(tmpLog)
-                tmpLog.error('no candidates')
-                taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
-                return retTmpError
-
-        ######################################
-        # selection for dynamic number of events
-        if not sitePreAssigned and taskSpec.dynamicNumEvents():
-            newScanSiteList = []
-            oldScanSiteList = copy.copy(scanSiteList)
-            minGranularity = taskSpec.get_min_granularity()
-            for tmpSiteName in scanSiteList:
-                tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-                nSimEvents = tmpSiteSpec.get_n_sim_events()
-                # check nSimEvents
-                if nSimEvents is None:
-                    tmpMsg = '  skip site={0} since not allowed to run jobs with dynamic number of events '.format(tmpSiteName)
-                    tmpMsg += 'criteria=-dyn'
-                    tmpLog.info(tmpMsg)
-                    continue
-                elif nSimEvents < minGranularity:
-                    tmpMsg = '  skip site={0} since num of simulated events {1} is less than min granuality {2} '.format(tmpSiteName,
-                                                                                                                         nSimEvents,
-                                                                                                                         minGranularity)
-                    tmpMsg += 'criteria=-dyn'
-                    tmpLog.info(tmpMsg)
-                    continue
-                newScanSiteList.append(tmpSiteName)
-            scanSiteList = newScanSiteList
-            tmpLog.info('{0} candidates passed DynNumEvents check'.format(len(scanSiteList)))
-            self.add_summary_message(oldScanSiteList, scanSiteList, 'dynamic number of events check')
             if not scanSiteList:
                 self.dump_summary(tmpLog)
                 tmpLog.error('no candidates')
