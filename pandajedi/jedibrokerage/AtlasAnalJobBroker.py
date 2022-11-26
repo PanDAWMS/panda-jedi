@@ -1684,8 +1684,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 inputChunk.resetUsedCounters()
                 n_jobs_to_submit = n_subchunks
                 # parameters for small additional weight
+                weight_epsilon_init = 0.001
                 weight_epsilon_hi_mid = 0.05
-                weight_epsilon_hi_lo = 0.001
+                weight_epsilon_hi_lo = 0.002
                 weight_epsilon_mid_lo = 0.1
                 # initialize
                 tmpSt, siteToRunRateMap = AtlasBrokerUtils.getSiteToRunRateStats(tbIF=self.taskBufferIF, vo=taskSpec.vo)
@@ -1756,7 +1757,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     site_class_rem_q_len_dict[bw_map['class']] += bw_map['rem_q_len']
                     total_rem_q_len += bw_map['rem_q_len']
                 # main weight, for User Analysis, determined by number of jobs to submit to each site class
-                main_weight_site_class_dict = {1: 0, 0: 0, -1: 0}
+                main_weight_site_class_dict = {1: weight_epsilon_init, 0: weight_epsilon_init, -1: weight_epsilon_init}
                 if taskSpec.gshare in ['User Analysis', 'Express Analysis']:
                     n_jobs_to_submit_rem = min(n_jobs_to_submit, total_rem_q_len)
                     if task_class_value == -1:
@@ -1835,30 +1836,30 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         normalized_new = bw_map['new']/new_sum
                     bw_map['normalized_new'] = normalized_new
                 prt_str_list = []
-                prt_str_temp = ('    '
-                                ' {site:>24} |'
+                prt_str_temp = (''
+                                ' {site:>30} |'
                                 ' {class:>2} |'
                                 ' {nq:>6} |'
                                 ' {nr:>6} |'
-                                ' {trr:9.3f} |'
-                                ' {user_q_len:>6} |'
-                                ' {max_q_len:9.3f} |'
-                                ' {rem_q_len:9.3f} |'
-                                ' {orig:9.3f} |'
-                                ' {new:9.3f} |'
+                                ' {trr:7.2f} |'
+                                ' {user_q_len:>5} |'
+                                ' {max_q_len:9.2f} |'
+                                ' {rem_q_len:9.2f} |'
+                                ' {orig:7.2f} |'
+                                ' {new:7.3f} |'
                                 ' {normalized_orig:6.1%} |'
                                 ' {normalized_new:6.1%} |')
-                prt_str_title = (   '    '
-                                    ' {site:>24} |'
+                prt_str_title = (   ''
+                                    ' {site:>30} |'
                                     ' {cl:>2} |'
                                     ' {nq:>6} |'
                                     ' {nr:>6} |'
-                                    ' {trr:>9} |'
-                                    ' {user_q_len:>6} |'
+                                    ' {trr:>7} |'
+                                    ' {user_q_len:>5} |'
                                     ' {max_q_len:>9} |'
                                     ' {rem_q_len:>9} |'
-                                    ' {orig:>9} |'
-                                    ' {new:>9} |'
+                                    ' {orig:>7} |'
+                                    ' {new:>7} |'
                                     ' {normalized_orig:>6} |'
                                     ' {normalized_new:>6} |'
                                     ).format(
@@ -1884,7 +1885,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
         except Exception as e:
             tmpLog.error('{0}'.format(traceback.format_exc()))
         # finish computing weight
-        for tmpSiteName, bw_map in basic_weight_compar_map.items():
+        for tmpPseudoSiteName in scanSiteList:
+            tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
+            tmpSiteName = tmpSiteSpec.get_unified_name()
+            bw_map = basic_weight_compar_map[tmpSiteName]
             # fill basic weight
             weight = bw_map['orig']
             # penalty according to throttled jobs
