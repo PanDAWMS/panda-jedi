@@ -1884,13 +1884,15 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                 taskSpec.gshare, (' merging,' if inputChunk.isMerging else ''), task_class_value, n_jobs_to_submit, '\n'.join(prt_str_list)))
         except Exception as e:
             tmpLog.error('{0}'.format(traceback.format_exc()))
+        # choose basic weight
+        _basic_weight_version = 'orig'
         # finish computing weight
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
             tmpSiteName = tmpSiteSpec.get_unified_name()
             bw_map = basic_weight_compar_map[tmpSiteName]
             # fill basic weight
-            weight = bw_map['orig']
+            weight = bw_map[_basic_weight_version]
             # penalty according to throttled jobs
             nThrottled = 0
             if tmpSiteName in remoteSourceList:
@@ -1924,12 +1926,12 @@ class AtlasAnalJobBroker(JobBrokerBase):
             siteCandidateSpec.override_attribute('maxwdir', newMaxwdir.get(tmpSiteName))
             # set weight
             siteCandidateSpec.weight = weight
-            tmpStr  = 'weight={0:.3f} nRunning={1} nDefined={2} nActivated={3} nStarting={4} nAssigned={5} '.format(weight,
-                                                                                                                bw_map['nr'],
-                                                                                                                bw_map['nDefined'],
-                                                                                                                bw_map['nActivated'],
-                                                                                                                bw_map['nStarting'],
-                                                                                                                bw_map['nAssigned'])
+            tmpStr = 'weight={0:.3f} ver={1} '.format(weight, _basic_weight_version)
+            tmpStr += 'nRunning={0} nDefined={1} nActivated={2} nStarting={3} nAssigned={4} '.format(   bw_map['nr'],
+                                                                                                        bw_map['nDefined'],
+                                                                                                        bw_map['nActivated'],
+                                                                                                        bw_map['nStarting'],
+                                                                                                        bw_map['nAssigned'])
             tmpStr += 'nFailed={0} nClosed={1} nFinished={2} dataW={3} '.format(bw_map['nFailed'],
                                                                                 bw_map['nClosed'],
                                                                                 bw_map['nFinished'],
