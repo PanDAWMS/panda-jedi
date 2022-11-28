@@ -142,7 +142,10 @@ class InputChunk:
     # rollback file usage
     def rollback_file_usage(self):
         for tmpKey, tmpVal in iteritems(self.datasetMap):
-            tmpVal['used'] = self.file_checkpoints[tmpKey]
+            if tmpKey in self.file_checkpoints:
+                tmpVal['used'] = self.file_checkpoints[tmpKey]
+            else:
+                tmpVal['used'] = 0
 
     # add site candidates
     def addSiteCandidate(self,siteCandidateSpec):
@@ -445,28 +448,25 @@ class InputChunk:
                     respectLB=False,
                     corePower=None,
                     dynNumEvents=False,
-                    maxNumEventRanges=None,
                     multiplicity=None,
                     splitByFields=None,
                     tmpLog=None,
                     useDirectIO=False,
                     maxDiskSize=None,
                     enableLog=False,
-                    no_split=False):
+                    no_split=False,
+                    min_walltime=None):
         # check if there are unused files/events
         if not self.checkUnused():
             return None
         # protection against unreasonable values
-        if nFilesPerJob == 0:
+        if nFilesPerJob == 0 or dynNumEvents:
             nFilesPerJob = None
-        if nEventsPerJob == 0:
+        if nEventsPerJob == 0 or dynNumEvents:
             nEventsPerJob = None
         # set default max number of files
         if maxNumFiles is None:
             maxNumFiles = 200
-        # set default max number of event ranges
-        if maxNumEventRanges is None:
-            maxNumEventRanges = 20
         # set default max size
         if maxSize is None and nFilesPerJob is None and nEventsPerJob is None:
             # 20 GB at most by default
@@ -480,10 +480,10 @@ class InputChunk:
             walltimeGradient = 0
         # overwrite parameters when nFiles/EventsPerJob is used
         if nFilesPerJob is not None and not dynNumEvents:
-            maxNumFiles  = nFilesPerJob
+            maxNumFiles = nFilesPerJob
             if not respectLB:
                 multiplicand = nFilesPerJob
-        if nEventsPerJob is not None:
+        if nEventsPerJob is not None and not dynNumEvents:
             maxNumEvents = nEventsPerJob
         # split with boundayID
         splitWithBoundaryID = False
@@ -527,7 +527,7 @@ class InputChunk:
         dumpStr = ''
         while no_split or (
                 (maxNumFiles is None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or \
-                   (dynNumEvents and len(inputFileSet) <= maxNumFiles and inputNumFiles <= maxNumEventRanges)) \
+                   (dynNumEvents and len(inputFileSet) <= maxNumFiles)) \
                 and (maxSize is None or (maxSize is not None and fileSize <= maxSize)) \
                 and (maxWalltime is None or maxWalltime <= 0 or expWalltime <= maxWalltime) \
                 and (maxNumEvents is None or (maxNumEvents is not None and inputNumEvents <= maxNumEvents)) \
@@ -918,7 +918,7 @@ class InputChunk:
             # check
             newOutSize = self.getOutSize(newOutSizeMap)
             if (maxNumFiles is not None and ((not dynNumEvents and newInputNumFiles > maxNumFiles) \
-                                             or (dynNumEvents and (len(newInputFileSet) > maxNumFiles or newInputNumFiles > maxNumEventRanges)))) \
+                                             or (dynNumEvents and (len(newInputFileSet) > maxNumFiles)))) \
                     or (maxSize is not None and newFileSize > maxSize) \
                     or (maxSize is not None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize) \
                     or (maxWalltime is not None and 0 < maxWalltime < newExpWalltime) \
@@ -956,6 +956,13 @@ class InputChunk:
             if tmpDatasetSpec.isRepeated():
                 if len(tmpDatasetSpec.Files) > 0:
                     datasetUsage['used'] %= len(tmpDatasetSpec.Files)
+        # check min walltime
+        if dynNumEvents and min_walltime and min_walltime > expWalltime:
+            if enableLog and tmpLog:
+                tmpLog.debug('expected walltime {} does not satisfy min walltime {} at {}'.format(expWalltime,
+                                                                                                  min_walltime,
+                                                                                                  siteName))
+                return []
         # make copy to return
         returnList = []
         for tmpDatasetID,inputFileList in iteritems(inputFileMap):
@@ -1056,3 +1063,21 @@ class InputChunk:
                     siteCandidate.nQueuedJobs += n
                     sites.append(siteCandidate.siteName)
         return ','.join(sites)
+
+    # check event continuity
+    def check_event_jump_and_sum(self):
+        nextStartEvent = None
+        eventJump = False
+        totalEvents = 0
+        datasetUsage = self.datasetMap[self.masterDataset.datasetID]
+        for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:]:
+            if tmpFileSpec.startEvent is not None:
+                if nextStartEvent is not None and nextStartEvent != tmpFileSpec.startEvent:
+                    eventJump = True
+                nextStartEvent = tmpFileSpec.endEvent + 1
+                if nextStartEvent == tmpFileSpec.nEvents:
+                    nextStartEvent = 0
+                totalEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
+            elif tmpFileSpec.endEvent:
+                totalEvents += tmpFileSpec.endEvent
+        return eventJump, totalEvents

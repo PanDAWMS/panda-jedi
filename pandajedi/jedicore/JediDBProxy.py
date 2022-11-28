@@ -1014,7 +1014,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             sqlFR  = "SELECT {0} ".format(JediFileSpec.columnNames())
                             sqlFR += "FROM {0}.JEDI_Dataset_Contents WHERE ".format(jedi_config.db.schemaJEDI)
                             sqlFR += "jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status "
-                            sqlFR += "ORDER BY lfn "
+                            sqlFR += "ORDER BY lfn, startEvent "
                             varMap = {}
                             varMap[':datasetID']  = datasetSpec.datasetID
                             varMap[':jediTaskID'] = datasetSpec.jediTaskID
