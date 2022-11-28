@@ -57,6 +57,7 @@ class JediTaskSpec(object):
         'disableAutoRetry'   : 'DR',
         'dynamicNumEvents'   : 'DY',
         'nEsConsumers'       : 'EC',
+        'nEventsPerInput'    : 'EI',
         'encJobParams'       : 'EJ',
         'nEventsPerWorker'   : 'ES',
         'firstContentsFeed'  : 'FC',
@@ -445,7 +446,13 @@ class JediTaskSpec(object):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['nFilesPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
-                return int(tmpMatch.group(1))
+                n = int(tmpMatch.group(1))
+                if self.dynamicNumEvents():
+                    inn = self.get_num_events_per_input()
+                    dyn = self.get_min_granularity()
+                    if inn and dyn and inn > dyn:
+                        n *= (inn // dyn)
+                return n
         return None
 
     # remove nFilesPerJob
@@ -1212,8 +1219,6 @@ class JediTaskSpec(object):
 
     # dynamic number of events
     def dynamicNumEvents(self):
-        if self.getNumEventsPerJob() is not None:
-            return False
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['dynamicNumEvents']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
@@ -1594,6 +1599,13 @@ class JediTaskSpec(object):
             return current_ram
         return offset + math.ceil((current_ram - offset) / step) * step
 
+    # get number of events per input
+    def get_num_events_per_input(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['nEventsPerInput']+'=(\d+)',self.splitRule)
+            if tmpMatch is not None:
+                return int(tmpMatch.group(1))
+        return None
 
 # utils
 

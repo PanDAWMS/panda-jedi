@@ -41,10 +41,7 @@ class JobSplitter:
             # number of events per job if defined
             nEventsPerJob = taskSpec.getNumEventsPerJob()
             # number of files per job if defined
-            if not taskSpec.dynamicNumEvents():
-                nFilesPerJob = taskSpec.getNumFilesPerJob()
-            else:
-                nFilesPerJob = None
+            nFilesPerJob = taskSpec.getNumFilesPerJob()
             if nFilesPerJob is None and nEventsPerJob is None and inputChunk.useScout() \
                     and not taskSpec.useLoadXML() and not taskSpec.respectSplitRule():
                 nFilesPerJob = 1
@@ -58,10 +55,6 @@ class JobSplitter:
             maxSizePerJob = taskSpec.getMaxSizePerJob()
             if maxSizePerJob is not None:
                 maxSizePerJob += InputChunk.defaultOutputSize
-            # dynamic number of events
-            dynNumEvents = taskSpec.dynamicNumEvents()
-            # max number of event ranges
-            maxNumEventRanges = None
             # multiplicity of jobs
             if taskSpec.useJobCloning():
                 multiplicity = 1
@@ -81,8 +74,6 @@ class JobSplitter:
             nEventsPerJob = taskSpec.getNumEventsPerMergeJob()
             maxSizePerJob = None
             useBoundary = {'inSplit':3}
-            dynNumEvents = False
-            maxNumEventRanges = None
             multiplicity = None
             # gradients per input size is 1 + margin
             sizeGradientsPerInSize = self.sizeGradientsPerInSizeForMerge
@@ -117,10 +108,9 @@ class JobSplitter:
                                                                                         nFilesPerJob,
                                                                                         nEventsPerJob))
         tmpLog.debug('useScout={} isMerging={}'.format(inputChunk.useScout(), inputChunk.isMerging))
-        tmpLog.debug('sizeGradientsPerInSize={0} maxOutSize={1} respectLB={2} dynNumEvents={3}'.format(sizeGradientsPerInSize,
-                                                                                                       maxOutSize,
-                                                                                                       respectLB,
-                                                                                                       dynNumEvents))
+        tmpLog.debug('sizeGradientsPerInSize={0} maxOutSize={1} respectLB={2}'.format(sizeGradientsPerInSize,
+                                                                                      maxOutSize,
+                                                                                      respectLB))
         tmpLog.debug(f'multiplicity={multiplicity} splitByFields={str(splitByFields)} '
                      f'nFiles={inputChunk.getNumFilesInMaster()} no_split={no_split}')
         # split
@@ -228,19 +218,17 @@ class JobSplitter:
                     coreCount = 1
                 # core power
                 corePower = siteSpec.corepower
-                # max num of event ranges for dynNumEvents
-                if dynNumEvents:
-                    maxNumEventRanges = int(siteSpec.get_n_sim_events() // taskSpec.get_min_granularity())
-                    if maxNumEventRanges == 0:
-                        maxNumEventRanges = 1
+                if taskSpec.dynamicNumEvents() and siteSpec.mintime:
+                    dynNumEvents = True
+                else:
+                    dynNumEvents = False
                 tmpLog.debug('chosen {0} : {1} : nQueue={2} nRunCap={3}'.format(siteName, getCandidateMsg,
                                                                                 siteCandidate.nQueuedJobs,
                                                                                 siteCandidate.nRunningJobsCap))
                 tmpLog.debug('new weight {0}'.format(siteCandidate.weight))
-                tmpLog.debug('maxSize={0} maxWalltime={1} coreCount={2} corePower={3} maxNumEventRanges={4} maxDisk={5}'.format(maxSize,maxWalltime,
-                                                                                                                                coreCount,corePower,
-                                                                                                                                maxNumEventRanges,
-                                                                                                                                maxDiskSize))
+                tmpLog.debug('maxSize={} maxWalltime={} coreCount={} corePower={} '
+                             'maxDisk={} dynNumEvents={}'.format(
+                    maxSize, maxWalltime, coreCount, corePower, maxDiskSize, dynNumEvents))
                 tmpLog.debug('useDirectIO={0} label={1}'.format(useDirectIO, taskSpec.prodSourceLabel))
             # get sub chunk
             subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
@@ -258,19 +246,22 @@ class JobSplitter:
                                               respectLB=respectLB,
                                               corePower=corePower,
                                               dynNumEvents=dynNumEvents,
-                                              maxNumEventRanges=maxNumEventRanges,
                                               multiplicity=multiplicity,
                                               splitByFields=splitByFields,
                                               tmpLog=tmpLog,
                                               useDirectIO=useDirectIO,
                                               maxDiskSize=maxDiskSize,
                                               enableLog=True,
-                                              no_split=no_split)
+                                              no_split=no_split,
+                                              min_walltime=siteSpec.mintime)
             if subChunk is None:
                 break
             if subChunk != []:
                 # append
                 subChunks.append(subChunk)
+            else:
+                ngList.append(siteName)
+                inputChunk.rollback_file_usage()
             iSubChunks += 1
         # append to return map if remain
         isSkipped = False
