@@ -1885,7 +1885,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         except Exception as e:
             tmpLog.error('{0}'.format(traceback.format_exc()))
         # choose basic weight
-        _basic_weight_version = 'orig'
+        _basic_weight_version = 'new'
         # finish computing weight
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
