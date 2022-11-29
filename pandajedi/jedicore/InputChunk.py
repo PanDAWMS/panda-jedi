@@ -525,6 +525,7 @@ class InputChunk:
         fieldStr       = None
         diskSize       = 0
         dumpStr = ''
+        currentLFN = None
         while no_split or (
                 (maxNumFiles is None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or \
                    (dynNumEvents and len(inputFileSet) <= maxNumFiles)) \
@@ -543,6 +544,10 @@ class InputChunk:
                 # check start event to keep continuity
                 if (maxNumEvents is not None or dynNumEvents) and tmpFileSpec.startEvent is not None:
                     if nextStartEvent is not None and nextStartEvent != tmpFileSpec.startEvent:
+                        eventJump = True
+                        break
+                    elif nextStartEvent and nextStartEvent == tmpFileSpec.startEvent and currentLFN and \
+                            currentLFN != tmpFileSpec.lfn:
                         eventJump = True
                         break
                 # check boundaryID
@@ -628,13 +633,15 @@ class InputChunk:
                         tmpExpWalltime /= float(multiplicity)
                     expWalltime += long(tmpExpWalltime)
                 # the number of events
-                if (maxNumEvents is not None or useEventRatio) and tmpFileSpec.startEvent is not None and tmpFileSpec.endEvent is not None:
+                if (maxNumEvents is not None or useEventRatio or dynNumEvents) and tmpFileSpec.startEvent is not None \
+                        and tmpFileSpec.endEvent is not None:
                     primaryHasEvents = True
                     inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
                     # set next start event
                     nextStartEvent = tmpFileSpec.endEvent + 1
                     if nextStartEvent == tmpFileSpec.nEvents:
                         nextStartEvent = 0
+                    currentLFN = tmpFileSpec.lfn
                 # boundaryID
                 if splitWithBoundaryID:
                     boundaryID = tmpFileSpec.boundaryID
@@ -959,9 +966,9 @@ class InputChunk:
         # check min walltime
         if dynNumEvents and min_walltime and min_walltime > expWalltime:
             if enableLog and tmpLog:
-                tmpLog.debug('expected walltime {} does not satisfy min walltime {} at {}'.format(expWalltime,
-                                                                                                  min_walltime,
-                                                                                                  siteName))
+                tmpLog.debug('expected walltime {} less than min walltime {} at {}'.format(expWalltime,
+                                                                                           min_walltime,
+                                                                                           siteName))
                 return []
         # make copy to return
         returnList = []
@@ -1069,15 +1076,25 @@ class InputChunk:
         nextStartEvent = None
         eventJump = False
         totalEvents = 0
+        currentLFN = None
+        maxChunk = 0
         datasetUsage = self.datasetMap[self.masterDataset.datasetID]
         for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:]:
             if tmpFileSpec.startEvent is not None:
                 if nextStartEvent is not None and nextStartEvent != tmpFileSpec.startEvent:
+                    maxChunk = max(maxChunk, totalEvents)
                     eventJump = True
+                    totalEvents = 0
+                elif nextStartEvent and currentLFN != tmpFileSpec.lfn:
+                    maxChunk = max(maxChunk, totalEvents)
+                    eventJump = True
+                    totalEvents = 0
                 nextStartEvent = tmpFileSpec.endEvent + 1
                 if nextStartEvent == tmpFileSpec.nEvents:
                     nextStartEvent = 0
                 totalEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
             elif tmpFileSpec.endEvent:
                 totalEvents += tmpFileSpec.endEvent
-        return eventJump, totalEvents
+            currentLFN = tmpFileSpec.lfn
+        maxChunk = max(maxChunk, totalEvents)
+        return eventJump, maxChunk

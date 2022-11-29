@@ -953,9 +953,8 @@ class AtlasProdJobBroker(JobBrokerBase):
                 minWalltime = taskSpec.getCpuTime() * tmpMaxAtomSize
                 if taskSpec.dynamicNumEvents():
                     eventJump, totalEvents = inputChunk.check_event_jump_and_sum()
-                    if not eventJump:
-                        maxWalltime = taskSpec.getCpuTime() * totalEvents
-                        strMaxWalltime = 'cpuTime*maxEventsPerJob={}*{}'.format(taskSpec.getCpuTime(), totalEvents)
+                    maxWalltime = taskSpec.getCpuTime() * totalEvents
+                    strMaxWalltime = 'cpuTime*maxEventsPerJob={}*{}'.format(taskSpec.getCpuTime(), totalEvents)
             else:
                 minWalltime = None
             # take # of consumers into account
@@ -1055,7 +1054,12 @@ class AtlasProdJobBroker(JobBrokerBase):
         if not taskSpec.useHS06():
             tmpLog.info('{0} candidates passed walltime check {1}({2})'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
         else:
-            tmpLog.info('{0} candidates passed walltime check {1}({2}*nEventsPerJob)'.format(len(scanSiteList),strMinWalltime,taskSpec.cpuTimeUnit))
+            tmpStr = '{0} candidates passed walltime check {1}({2})'.format(len(scanSiteList),
+                                                                                          strMinWalltime,
+                                                                                          taskSpec.cpuTimeUnit)
+            if maxWalltime:
+                tmpStr += ' and {}'.format(strMaxWalltime)
+            tmpLog.info(tmpStr)
         self.add_summary_message(oldScanSiteList, scanSiteList, 'walltime check')
         if not scanSiteList:
             self.dump_summary(tmpLog)
