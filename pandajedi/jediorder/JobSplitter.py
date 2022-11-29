@@ -1,3 +1,5 @@
+import copy
+
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore.InputChunk import InputChunk
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -126,6 +128,7 @@ class JobSplitter:
         subChunk   = None
         nSubChunks = default_nSubChunks
         strict_chunkSize = False
+        tmp_ng_list = []
         while True:
             # change site
             if iSubChunks % nSubChunks == 0 or subChunk == []:
@@ -150,7 +153,7 @@ class JobSplitter:
                     # reset
                     subChunks = []
                 # skip PQs with chunk size limit
-                ngList = []
+                ngList = copy.copy(tmp_ng_list)
                 if not allow_chunk_size_limit:
                     for siteName in inputChunk.get_candidate_names():
                         siteSpec = siteMapper.getSite(siteName)
@@ -162,6 +165,7 @@ class JobSplitter:
                 if siteCandidate is None:
                     tmpLog.debug('no candidate: {0}'.format(getCandidateMsg))
                     break
+                tmp_ng_list = []
                 siteName = siteCandidate.siteName
                 siteSpec = siteMapper.getSite(siteName)
                 # set chunk size
@@ -260,7 +264,7 @@ class JobSplitter:
                 # append
                 subChunks.append(subChunk)
             else:
-                ngList.append(siteName)
+                tmp_ng_list.append(siteName)
                 inputChunk.rollback_file_usage()
             iSubChunks += 1
         # append to return map if remain
