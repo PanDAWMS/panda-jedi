@@ -87,6 +87,7 @@ class JediTaskSpec(object):
         'mergeOutput'        : 'MO',
         'multiStepExec'      : 'MS',
         'maxWalltime'        : 'MW',
+        'maxEventsPerJob'    : 'MX',
         'noExecStrCnv'       : 'NC',
         'notDiscardEvents'   : 'ND',
         'nEventsPerJob'      : 'NE',
@@ -1603,6 +1604,13 @@ class JediTaskSpec(object):
     def get_num_events_per_input(self):
         if self.splitRule is not None:
             tmpMatch = re.search(self.splitRuleToken['nEventsPerInput']+'=(\d+)',self.splitRule)
+            if tmpMatch is not None:
+                return int(tmpMatch.group(1))
+        return None
+
+    def get_max_events_per_job(self):
+        if self.splitRule is not None:
+            tmpMatch = re.search(self.splitRuleToken['maxEventsPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
