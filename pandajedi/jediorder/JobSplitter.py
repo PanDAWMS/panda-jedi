@@ -27,7 +27,7 @@ class JobSplitter:
         retTmpError = self.SC_FAILED,[]
         # make logger
         tmpLog = MsgWrapper(logger,'< jediTaskID={0} datasetID={1} >'.format(taskSpec.jediTaskID,inputChunk.masterIndexName))
-        tmpLog.debug('start chunk_size_limit={}'.format(allow_chunk_size_limit))
+        tmpLog.debug('--- start chunk_size_limit={}'.format(allow_chunk_size_limit))
         if not inputChunk.isMerging:
             # set maxNumFiles using taskSpec if specified
             maxNumFiles = taskSpec.getMaxNumFilesPerJob()
@@ -114,7 +114,9 @@ class JobSplitter:
                                                                                       maxOutSize,
                                                                                       respectLB))
         tmpLog.debug(f'multiplicity={multiplicity} splitByFields={str(splitByFields)} '
-                     f'nFiles={inputChunk.getNumFilesInMaster()} no_split={no_split}')
+                     f'nFiles={inputChunk.getNumFilesInMaster()} no_split={no_split} '
+                     f'maxEventsPerJob={taskSpec.get_max_events_per_job()}')
+        tmpLog.debug('--- main loop')
         # split
         returnList = []
         subChunks  = []
@@ -257,7 +259,8 @@ class JobSplitter:
                                               maxDiskSize=maxDiskSize,
                                               enableLog=True,
                                               no_split=no_split,
-                                              min_walltime=siteSpec.mintime)
+                                              min_walltime=siteSpec.mintime,
+                                              max_events=taskSpec.get_max_events_per_job())
             if subChunk is None:
                 break
             if subChunk != []:
@@ -292,7 +295,7 @@ class JobSplitter:
                 tmpLog.info('split to nJobs=%s at site=%s gshare=%s' % (len(subChunks), siteName,
                                                                                    gshare))
         # return
-        tmpLog.debug('done')
+        tmpLog.debug('--- done')
         return self.SC_SUCCEEDED, returnList, isSkipped
 
 

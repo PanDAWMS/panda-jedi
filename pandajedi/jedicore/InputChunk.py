@@ -455,7 +455,8 @@ class InputChunk:
                     maxDiskSize=None,
                     enableLog=False,
                     no_split=False,
-                    min_walltime=None):
+                    min_walltime=None,
+                    max_events=None):
         # check if there are unused files/events
         if not self.checkUnused():
             return None
@@ -485,6 +486,8 @@ class InputChunk:
                 multiplicand = nFilesPerJob
         if nEventsPerJob is not None and not dynNumEvents:
             maxNumEvents = nEventsPerJob
+        elif max_events and dynNumEvents:
+            maxNumEvents = max_events
         # split with boundayID
         splitWithBoundaryID = False
         if useBoundary is not None:
