@@ -1588,3 +1588,48 @@ class AtlasDDMClient(DDMClientBase):
             retVal = False, errMsg
         tmpLog.debug('done {} {}'.format(*retVal))
         return self.SC_SUCCEEDED, retVal
+
+    # make staging rule
+    def make_staging_rule(self, dataset_name, expression, activity, lifetime=None):
+        methodName = 'make_staging_rule'
+        methodName += ' pid={0}'.format(self.pid)
+        methodName = '{} datasetName={} expression={} activity={} lifetime={}'.format(methodName, dataset_name,
+                                                                                      expression, activity,
+                                                                                      lifetime)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        isOK = True
+        ruleID = None
+        try:
+            if lifetime is not None:
+                lifetime = lifetime*24*60*60
+            # get rucio API
+            client = RucioClient()
+            # get scope and name
+            scope, dsn = self.extract_scope(dataset_name)
+            # check if a replication rule already exists
+            if ruleID is None:
+                dids = [{'scope': scope, 'name': dsn}]
+                for rule in client.list_did_rules(scope=scope, name=dsn):
+                    if rule['rse_expression'] == expression and rule['account'] == client.account \
+                            and rule['activity'] == activity:
+                        ruleID = rule['id']
+                        tmpLog.debug('rule already exists: ID={}'.format(ruleID))
+                        break
+            # make new rule
+            if ruleID is None:
+                rule = client.add_replication_rule(dids=dids, copies=1, rse_expression=expression, weight=None,
+                                                   lifetime=lifetime, grouping='DATASET', account=client.account,
+                                                   locked=False, notify='N', ignore_availability=True,
+                                                   activity=activity, asynchronous=False)
+                ruleID = rule['id']
+                tmpLog.debug('made new rule : ID={}'.format(ruleID))
+        except Exception as e:
+            isOK = False
+            errType = e
+        if not isOK:
+            errCode, errMsg = self.checkError(errType)
+            tmpLog.error(errMsg)
+            return errCode, '{0} : {1}'.format(methodName, errMsg)
+        tmpLog.debug('done')
+        return self.SC_SUCCEEDED, ruleID
