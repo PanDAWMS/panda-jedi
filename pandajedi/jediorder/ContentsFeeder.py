@@ -665,15 +665,25 @@ class ContentsFeederThread (WorkerThread):
                     tmp_name = re.sub('/$', '', tmp_name)
                 except Exception:
                     continue
-                if 'prestagingRuleID' in task_params_map:
-                    if tmp_name not in task_params_map['prestagingRuleID']:
-                        continue
-                    rule_id = task_params_map['prestagingRuleID'][tmp_name]
-                else:
-                    rule_id = self.ddmIF.getInterface(task_spec.vo, task_spec.cloud).getActiveStagingRule(
-                        tmp_scope + ':' + tmp_name)
-                    if rule_id is None:
-                        continue
+                try:
+                    if 'prestagingRuleID' in task_params_map:
+                        if tmp_name not in task_params_map['prestagingRuleID']:
+                            continue
+                        rule_id = task_params_map['prestagingRuleID'][tmp_name]
+                    elif 'selfPrestagingRule' in task_params_map:
+                        if not datasetSpec.isMaster() or datasetSpec.isPseudo():
+                            continue
+                        rule_id = self.ddmIF.getInterface(task_spec.vo, task_spec.cloud).make_staging_rule(
+                            tmp_scope + ':' + tmp_name, task_params_map['selfPrestagingRule'])
+                        if not rule_id:
+                            continue
+                    else:
+                        rule_id = self.ddmIF.getInterface(task_spec.vo, task_spec.cloud).getActiveStagingRule(
+                            tmp_scope + ':' + tmp_name)
+                        if rule_id is None:
+                            continue
+                except Exception as e:
+                    return False, 'DDM error : {}'.format(str(e))
                 # request
                 tmp_log.debug('sending request to iDDS for {0}'.format(datasetSpec.datasetName))
                 req = {

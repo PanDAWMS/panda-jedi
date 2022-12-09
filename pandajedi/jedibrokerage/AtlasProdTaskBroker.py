@@ -645,7 +645,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                         # check for full chain
                         newNucleusList = {}
                         oldNucleusList = copy.copy(nucleusList)
-                        parentTaskSpec = None
+                        parent_full_chain = False
                         if taskSpec.get_full_chain() and taskSpec.jediTaskID != taskSpec.parent_tid:
                             tmpStat, parentTaskSpec = self.taskBufferIF.getTaskWithID_JEDI(taskSpec.parent_tid, False)
 
@@ -655,6 +655,8 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                                             'jediTaskID={0}'.format(taskSpec.parent_tid),
                                                             False)
                                 continue
+                            parent_full_chain = parentTaskSpec.check_full_chain_with_nucleus(
+                                siteMapper.getNucleus(parentTaskSpec.nucleus))
                         for tmpNucleus, tmpNucleusSpec in iteritems(nucleusList):
                             # nucleus to run only full-chain tasks
                             if tmpNucleusSpec.get_bare_nucleus_mode() == 'only' and taskSpec.get_full_chain() is None:
@@ -669,7 +671,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                             'criteria=-full_chain'.format(tmpNucleus))
                                 continue
                             # check parent task
-                            if taskSpec.get_full_chain() and parentTaskSpec:
+                            if taskSpec.get_full_chain() and parent_full_chain:
                                 if tmpNucleus != parentTaskSpec.nucleus:
                                     tmpLog.info('  skip nucleus={} since the parent of the full-chain ran elsewhere '
                                                 'criteria=-full_chain'.format(tmpNucleus))
