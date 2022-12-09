@@ -496,7 +496,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 aligned = []
                 unaligned = dict()
                 for tmpLFN, (tmpGUID, tmpFileVar) in iteritems(filelValMap):
-                    print(tmpLFN, tmpFileVar['events'], int(tmpFileVar['events']) % nEventsPerJob)
                     if 'events' in tmpFileVar and int(tmpFileVar['events']) % nEventsPerJob == 0:
                         aligned.append(tmpLFN)
                     else:
