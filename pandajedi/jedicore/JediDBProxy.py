@@ -522,7 +522,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         listBoundaryID.append(tmpBoundaryID)
                     # increment boundaryID
                     tmpBoundaryID += 1
-            # truncate if nessesary
+            # truncate if necessary
             if datasetSpec.isSeqNumber():
                 offsetVal = 0
             else:
