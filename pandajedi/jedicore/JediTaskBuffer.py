@@ -63,18 +63,19 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,
                                    excludePatt,xmlConfig,noWaitParent,parent_tid,pid,maxFailure,
                                    useRealNumEvents,respectLB,tgtNumEventsPerJob,skipFilesUsedBy,
-                                   ramCount,taskSpec,skipShortInput, inputPreStaging):
+                                   ramCount,taskSpec,skipShortInput, inputPreStaging, order_by):
         with self.proxyPool.get() as proxy:
             return proxy.insertFilesForDataset_JEDI(datasetSpec,fileMap,datasetState,stateUpdateTime,
-                                                  nEventsPerFile,nEventsPerJob,maxAttempt,
-                                                  firstEventNumber,nMaxFiles,nMaxEvents,
-                                                  useScout,fileList,useFilesWithNewAttemptNr,
-                                                  nFilesPerJob,nEventsPerRange,nChunksForScout,
-                                                  includePatt,excludePatt,xmlConfig,
-                                                  noWaitParent,parent_tid,pid,maxFailure,
-                                                  useRealNumEvents,respectLB,
-                                                  tgtNumEventsPerJob,skipFilesUsedBy,
-                                                  ramCount,taskSpec,skipShortInput, inputPreStaging)
+                                                    nEventsPerFile,nEventsPerJob,maxAttempt,
+                                                    firstEventNumber,nMaxFiles,nMaxEvents,
+                                                    useScout,fileList,useFilesWithNewAttemptNr,
+                                                    nFilesPerJob,nEventsPerRange,nChunksForScout,
+                                                    includePatt,excludePatt,xmlConfig,
+                                                    noWaitParent,parent_tid,pid,maxFailure,
+                                                    useRealNumEvents,respectLB,
+                                                    tgtNumEventsPerJob,skipFilesUsedBy,
+                                                    ramCount,taskSpec,skipShortInput, inputPreStaging,
+                                                    order_by)
 
     # get files from the JEDI contents table with jediTaskID and/or datasetID
     def getFilesInDatasetWithID_JEDI(self,jediTaskID=None,datasetID=None,nFiles=None,status=None):

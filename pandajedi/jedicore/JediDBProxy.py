@@ -329,7 +329,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
                                    xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents,
                                    respectLB,tgtNumEventsPerJob,skipFilesUsedBy,ramCount,taskSpec,
-                                   skipShortInput, inputPreStaging):
+                                   skipShortInput, inputPreStaging, order_by):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -352,7 +352,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('datasetState={0} dataset.state={1}'.format(datasetState,datasetSpec.state))
         tmpLog.debug('respectLB={0} tgtNumEventsPerJob={1} skipFilesUsedBy={2} ramCount={3}'.format(respectLB,tgtNumEventsPerJob,
                                                                                        skipFilesUsedBy, ramCount))
-        tmpLog.debug('skipShortInput={0} inputPreStaging={1}'.format(skipShortInput, inputPreStaging))
+        tmpLog.debug('skipShortInput={} inputPreStaging={} order_by={}'.format(skipShortInput, inputPreStaging,
+                                                                               order_by))
         # return value for failure
         diagMap = {'errMsg':'',
                    'nChunksForScout':nChunksForScout,
@@ -491,7 +492,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 filelValMap[fileVal['lfn']] = (guid,fileVal)
             # make LFN list
             listBoundaryID = []
-            if xmlConfig is None:
+            if order_by == 'eventsAlignment' and nEventsPerJob:
+                aligned = []
+                unaligned = dict()
+                for tmpLFN, (tmpGUID, tmpFileVar) in iteritems(filelValMap):
+                    if 'events' in tmpFileVar and int(tmpFileVar['events']) % nEventsPerJob == 0:
+                        aligned.append(tmpLFN)
+                    else:
+                        unaligned[tmpLFN] = int(tmpFileVar['events'])
+                aligned.sort()
+                unaligned = sorted(unaligned, key=lambda i: unaligned[i], reverse=True)
+                lfnList = aligned + unaligned
+            elif xmlConfig is None:
                 # sort by LFN
                 lfnList = list(filelValMap.keys())
                 lfnList.sort()
@@ -510,7 +522,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         listBoundaryID.append(tmpBoundaryID)
                     # increment boundaryID
                     tmpBoundaryID += 1
-            # truncate if nessesary
+            # truncate if necessary
             if datasetSpec.isSeqNumber():
                 offsetVal = 0
             else:

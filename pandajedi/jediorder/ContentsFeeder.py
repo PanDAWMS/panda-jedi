@@ -501,6 +501,12 @@ class ContentsFeederThread (WorkerThread):
                                         skipShortInput = True
                                     else:
                                         skipShortInput = False
+                                    # order by
+                                    if 'orderInputBy' in taskParamMap and datasetSpec.isMaster() \
+                                            and not datasetSpec.isPseudo():
+                                        orderBy = taskParamMap['orderInputBy']
+                                    else:
+                                        orderBy = None
                                     # feed files to the contents table
                                     tmpLog.debug('update contents')
                                     retDB,missingFileList,nFilesUnique,diagMap = \
@@ -533,7 +539,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                      ramCount,
                                                                                      taskSpec,
                                                                                      skipShortInput,
-                                                                                     inputPreStaging)
+                                                                                     inputPreStaging,
+                                                                                     orderBy)
                                     if retDB is False:
                                         taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                          diagMap['errMsg']))
