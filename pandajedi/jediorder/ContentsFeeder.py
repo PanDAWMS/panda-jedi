@@ -502,9 +502,9 @@ class ContentsFeederThread (WorkerThread):
                                     else:
                                         skipShortInput = False
                                     # order by
-                                    if 'orderInputBy' in taskParamMap and datasetSpec.isMaster() \
+                                    if taskSpec.order_input_by() and datasetSpec.isMaster() \
                                             and not datasetSpec.isPseudo():
-                                        orderBy = taskParamMap['orderInputBy']
+                                        orderBy = taskSpec.order_input_by()
                                     else:
                                         orderBy = None
                                     # feed files to the contents table

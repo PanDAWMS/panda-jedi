@@ -1935,7 +1935,8 @@ class JobGeneratorThread(WorkerThread):
             if isMerging:
                 # sort by descending size not to process empty files first
                 tmpLFNs.sort(key=lambda kkk: size_map[kkk], reverse=True)
-            else:
+            elif not taskSpec.order_input_by():
+                # sort by LFN unless the order is specified
                 tmpLFNs.sort()
             # change stream name and LFNs for PFN list
             if taskSpec.useListPFN() and tmpDatasetSpec.isMaster() and tmpDatasetSpec.isPseudo():

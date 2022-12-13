@@ -400,6 +400,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['onSiteMerging'])
         if 'fullChain' in taskParamMap:
             self.taskSpec.set_full_chain(taskParamMap['fullChain'])
+        if 'orderInputBy' in taskParamMap:
+            self.taskSpec.set_order_input_by(taskParamMap['orderInputBy'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
