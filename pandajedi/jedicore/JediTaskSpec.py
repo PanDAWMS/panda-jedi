@@ -98,6 +98,7 @@ class JediTaskSpec(object):
         'nSitesPerJob'       : 'NS',
         'nChunksToWait'      : 'NT',
         'noWaitParent'       : 'NW',
+        'orderInputBy'       : 'OI',
         'orderByLB'          : 'OL',
         'onSiteMerging'      : 'OM',
         'osMatching'         : 'OS',
@@ -197,6 +198,10 @@ class JediTaskSpec(object):
         Only = '1'
         Require = '2'
         Capable = '3'
+
+    # enum for order input by
+    class OrderInputBy(str, enum.Enum):
+        eventsAlignment = '1'
 
     # constructor
     def __init__(self):
@@ -1613,6 +1618,23 @@ class JediTaskSpec(object):
             tmpMatch = re.search(self.splitRuleToken['maxEventsPerJob']+'=(\d+)',self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
+        return None
+
+    # set order input by
+    def set_order_input_by(self, mode):
+        var = None
+        if mode == 'eventsAlignment':
+            var = self.OrderInputBy.eventsAlignment
+        if var:
+            self.setSplitRule('orderInputBy', var)
+
+    # get full chain flag
+    def order_input_by(self):
+        if self.splitRule:
+            tmpMatch = re.search(self.splitRuleToken['orderInputBy']+r'=(\d+)', self.splitRule)
+            if tmpMatch:
+                if tmpMatch.group(1) == self.OrderInputBy.eventsAlignment:
+                    return 'eventsAlignment'
         return None
 
 # utils
