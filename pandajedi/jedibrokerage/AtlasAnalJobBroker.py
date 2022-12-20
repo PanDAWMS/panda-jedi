@@ -991,6 +991,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
                 # check endpoint
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 scope_input, scope_output = select_scope(tmpSiteSpec, JobUtils.ANALY_PS, JobUtils.ANALY_PS)
+                if scope_output not in tmpSiteSpec.ddm_endpoints_output:
+                    tmpLog.info('  skip site={} since {} output endpoint undefined criteria=-disk'.format(
+                        tmpSiteName, scope_output))
+                    continue
                 tmpEndPoint = tmpSiteSpec.ddm_endpoints_output[scope_output].getEndPoint(tmpSiteSpec.ddm_output[scope_output])
                 if tmpEndPoint is not None:
                     # free space must be >= 200GB
