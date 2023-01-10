@@ -5895,7 +5895,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlCSSR += '{0},'.format(mapKey)
         sqlCSSR = sqlCSSR[:-1]
         sqlCSSR += ") AND tabD.masterID IS NULL "
-        sqlCSSR += ") "
+        sqlCSSR += ") tmp_sub "
 
         # sql to get normal scout job data from Panda
         sqlSCDN = "SELECT eventService, jobsetID, PandaID, jobStatus, outputFileBytes, jobMetrics, cpuConsumptionTime, "
