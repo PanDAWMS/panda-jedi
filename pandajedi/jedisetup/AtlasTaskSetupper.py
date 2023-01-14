@@ -68,7 +68,7 @@ class AtlasTaskSetupper (TaskSetupperBase):
                     # secondary nucleus
                     nucleusSpec = siteMapper.getNucleus(taskSpec.nucleus)
                     secNucleusSpecBase = None
-                    if nucleusSpec:
+                    if nucleusSpec and not taskSpec.is_intermediate_task():
                         secondaryNucleus = nucleusSpec.get_secondary_nucleus()
                         if secondaryNucleus:
                             secNucleusSpecBase = siteMapper.getNucleus(secondaryNucleus)
