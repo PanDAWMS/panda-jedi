@@ -1709,10 +1709,12 @@ class AtlasProdJobBroker(JobBrokerBase):
             nPilot *= corrNumPilot
             cutOffFactor = 2
             if tmpSiteSpec.capability == 'ucore':
-                siteCandidateSpec.nRunningJobsCap = max(cutOffValue, cutOffFactor * tmpRTrunning)
+                if not inputChunk.isExpress():
+                    siteCandidateSpec.nRunningJobsCap = max(cutOffValue, cutOffFactor * tmpRTrunning)
                 siteCandidateSpec.nQueuedJobs = tmpRTqueue
             else:
-                siteCandidateSpec.nRunningCap = max(cutOffValue, cutOffFactor * nRunning)
+                if not inputChunk.isExpress():
+                    siteCandidateSpec.nRunningJobsCap = max(cutOffValue, cutOffFactor * nRunning)
                 if useAssigned:
                     siteCandidateSpec.nQueuedJobs = nActivated + nAssigned + nStarting
                 else:
@@ -1726,7 +1728,8 @@ class AtlasProdJobBroker(JobBrokerBase):
                 okMsg = '  use site={0} with weight={1} {2} criteria=+use'.format(tmpPseudoSiteName,weight,weightStr)
                 okAsPrimay = False
             else:
-                okMsg = '  use site={0} for jumbo jobs with weight={1} {2} criteria=+usejumbo'.format(tmpPseudoSiteName,weight,weightStr)
+                okMsg = '  use site={0} for jumbo jobs with weight={1} {2} criteria=+usejumbo'.format(
+                    tmpPseudoSiteName,weight,weightStr)
                 okAsPrimay = True
             # checks
             if lockedByBrokerage:
@@ -1735,7 +1738,8 @@ class AtlasProdJobBroker(JobBrokerBase):
             elif skipRemoteData:
                 ngMsg = '  skip site={0} due to non-local data '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-non_local'
-            elif tmpSiteSpec.capability != 'ucore' and siteCandidateSpec.nQueuedJobs > siteCandidateSpec.nRunningCap:
+            elif tmpSiteSpec.capability != 'ucore' and\
+                    siteCandidateSpec.nQueuedJobs > siteCandidateSpec.nRunningJobsCap and not inputChunk.isExpress():
                 if not useAssigned:
                     ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nStarting={2} '.format(
                         tmpPseudoSiteName, weight,
