@@ -1738,8 +1738,8 @@ class AtlasProdJobBroker(JobBrokerBase):
             elif skipRemoteData:
                 ngMsg = '  skip site={0} due to non-local data '.format(tmpPseudoSiteName)
                 ngMsg += 'criteria=-non_local'
-            elif tmpSiteSpec.capability != 'ucore' and\
-                    siteCandidateSpec.nQueuedJobs > siteCandidateSpec.nRunningJobsCap and not inputChunk.isExpress():
+            elif not inputChunk.isExpress() and tmpSiteSpec.capability != 'ucore' and \
+                    siteCandidateSpec.nQueuedJobs > siteCandidateSpec.nRunningJobsCap:
                 if not useAssigned:
                     ngMsg = '  skip site={0} weight={1} due to nDefined+nActivated+nStarting={2} '.format(
                         tmpPseudoSiteName, weight,
