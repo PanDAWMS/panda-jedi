@@ -71,6 +71,7 @@ class JediTaskSpec(object):
         'ipStack'            : 'IK',
         'allowInputLAN'      : 'IL',
         'ignoreMissingInDS'  : 'IM',
+        'intermediateTask'   : 'IN',
         'ipConnectivity'     : 'IP',
         'inputPreStaging'    : 'IS',
         'instantiateTmpl'    : 'IT',
@@ -1636,6 +1637,10 @@ class JediTaskSpec(object):
                 if tmpMatch.group(1) == self.OrderInputBy.eventsAlignment:
                     return 'eventsAlignment'
         return None
+
+    # check if intermediate task
+    def is_intermediate_task(self):
+        return self.check_split_rule('intermediateTask')
 
 # utils
 

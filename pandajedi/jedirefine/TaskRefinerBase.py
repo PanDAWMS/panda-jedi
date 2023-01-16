@@ -402,6 +402,8 @@ class TaskRefinerBase (object):
             self.taskSpec.set_full_chain(taskParamMap['fullChain'])
         if 'orderInputBy' in taskParamMap:
             self.taskSpec.set_order_input_by(taskParamMap['orderInputBy'])
+        if 'intermediateTask' in taskParamMap:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['intermediateTask'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
