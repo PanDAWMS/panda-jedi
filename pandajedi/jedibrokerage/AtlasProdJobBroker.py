@@ -1754,7 +1754,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                     .format(tmpPseudoSiteName, weightNw, self.nw_threshold)
                 ngMsg += '{0} '.format(weightStr)
                 ngMsg += 'criteria=-lowNetworkWeight'
-            elif useCapRT and tmpRTqueue > max(cutOffValue, tmpRTrunning * RT_Cap):
+            elif useCapRT and tmpRTqueue > max(cutOffValue, tmpRTrunning * RT_Cap) and not inputChunk.isExpress():
                 ngMsg = '  skip site={0} since '.format(tmpSiteName)
                 if useAssigned:
                     ngMsg += 'nDefined_rt+nActivated_rt+nAssigned_rt+nStarting_rt={0} '.format(tmpRTqueue)
@@ -1765,7 +1765,8 @@ class AtlasProdJobBroker(JobBrokerBase):
                 ngMsg += 'max({0},{1}*nRun_rt={1}*{2}) '.format(cutOffValue, RT_Cap, tmpRTrunning)
                 ngMsg += 'criteria=-cap_rt'
             elif nRunning + nActivated + nAssigned + nStarting + nDefined == 0 and \
-                taskSpec.currentPriority <= self.max_prio_for_bootstrap and not inputChunk.isMerging:
+                taskSpec.currentPriority <= self.max_prio_for_bootstrap and not inputChunk.isMerging and \
+                    not inputChunk.isExpress():
                 okMsg = '  use site={0} to bootstrap (no running or queued jobs) criteria=+use'.format(tmpPseudoSiteName)
                 ngMsg = '  skip site={0} due to low weight '.format(tmpPseudoSiteName)
                 ngMsg += 'weight={0} {1} '.format(weight, weightStr)
