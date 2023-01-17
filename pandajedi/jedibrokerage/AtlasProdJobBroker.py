@@ -1196,6 +1196,10 @@ class AtlasProdJobBroker(JobBrokerBase):
 
         ######################################
         # selection for T1 weight
+        if taskSpec.getT1Weight() < 0 and not inputChunk.isMerging:
+            useT1Weight = True
+        else:
+            useT1Weight = False
         t1Weight = taskSpec.getT1Weight()
         if t1Weight == 0:
             tmpLog.info('IO intensity {0}'.format(taskSpec.ioIntensity))
@@ -1266,7 +1270,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 if tmpSiteName in nWNmap:
                     nPilot = nWNmap[tmpSiteName]['getJob'] + nWNmap[tmpSiteName]['updateJob']
                 # skip no pilot sites unless the task and the site use jumbo jobs or the site is standby
-                if nPilot == 0 and 'test' not in taskSpec.prodSourceLabel and \
+                if nPilot == 0 and ('test' not in taskSpec.prodSourceLabel or inputChunk.isExpress()) and \
                         (taskSpec.getNumJumboJobs() is None or not tmpSiteSpec.useJumboJobs()) and \
                         tmpSiteSpec.getNumStandby(wq_tag, taskSpec.resource_type) is None:
                     tmpStr = '  skip site=%s due to no pilot criteria=-nopilot' % tmpSiteName
@@ -1495,6 +1499,7 @@ class AtlasProdJobBroker(JobBrokerBase):
         weightMapPrimary = {}
         weightMapSecondary = {}
         weightMapJumbo = {}
+        largestNumRun = None
         newScanSiteList = []
         for tmpPseudoSiteName in scanSiteList:
             tmpSiteSpec = self.siteMapper.getSite(tmpPseudoSiteName)
@@ -1506,6 +1511,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                 tmp_wq_tag = wq_tag
                 tmp_jobStatPrioMap = jobStatPrioMap
             nRunning   = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'running', None, tmp_wq_tag)
+            nRunningAll = AtlasBrokerUtils.getNumJobs(tmp_jobStatPrioMap, tmpSiteName, 'running', None, None)
             corrNumPilotStr = ''
             if not workQueue.is_global_share:
                 # correction factor for nPilot
@@ -1616,7 +1622,8 @@ class AtlasProdJobBroker(JobBrokerBase):
             if tmpSiteName in t1Sites+sitesShareSeT1:
                 weight *= t1Weight
                 weightStr += 't1W={0} '.format(t1Weight)
-
+            if useT1Weight:
+                weightStr += 'nRunningAll={} '.format(nRunningAll)
             # apply network metrics to weight
             if taskSpec.useWorldCloud() and nucleus:
 
@@ -1780,10 +1787,23 @@ class AtlasProdJobBroker(JobBrokerBase):
                 weight = 0
                 siteCandidateSpec.weight = weight
             else:
-                ngMsg = '  skip site={0} due to low weight '.format(tmpPseudoSiteName)
-                ngMsg += 'weight={0} {1} '.format(weight, weightStr)
-                ngMsg += 'criteria=-loweigh'
-                okAsPrimay = True
+                if useT1Weight:
+                    ngMsg = '  skip site={0} due to low total '.format(tmpPseudoSiteName)
+                    ngMsg += 'nRunningAll={} for negative T1 weight '.format(nRunningAll)
+                    ngMsg += 'criteria=-t1weight'
+                    if not largestNumRun or largestNumRun[-1] < nRunningAll:
+                        largestNumRun = (tmpPseudoSiteName, nRunningAll)
+                        okAsPrimay = True
+                        # copy primaries to secondary map
+                        for tmpWeight, tmpCandidates in iteritems(weightMapPrimary):
+                            weightMapSecondary.setdefault(tmpWeight, [])
+                            weightMapSecondary[tmpWeight] += tmpCandidates
+                        weightMapPrimary = {}
+                else:
+                    ngMsg = '  skip site={0} due to low weight '.format(tmpPseudoSiteName)
+                    ngMsg += 'weight={} {} '.format(weight, weightStr)
+                    ngMsg += 'criteria=-loweigh'
+                    okAsPrimay = True
             # add to jumbo or primary or secondary
             if forJumbo:
                 # only OK sites for jumbo
@@ -1797,7 +1817,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             # add weight
             if weight not in weightMap:
                 weightMap[weight] = []
-            weightMap[weight].append((siteCandidateSpec,okMsg,ngMsg))
+            weightMap[weight].append((siteCandidateSpec, okMsg, ngMsg))
         # use only primary candidates
         weightMap = weightMapPrimary
         # use all weights
