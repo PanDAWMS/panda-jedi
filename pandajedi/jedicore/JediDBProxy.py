@@ -7964,6 +7964,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlLock += "FOR UPDATE "
                 toSkip = False
                 changeStatusOnly = False
+                resetFrozenTime = False
                 try:
                     tmpLog.debug(sqlLock+comment+str(varMap))
                     self.cur.execute(sqlLock+comment,varMap)
@@ -8032,6 +8033,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     # change task status only since retryTask increments attemptNrs for existing jobs
                                     newTaskStatus = 'running'
                                     changeStatusOnly = True
+                                    resetFrozenTime = True
                                 elif commandStr in ['avalanche']:
                                     newTaskStatus = 'scouting'
                                     changeStatusOnly = True
@@ -8070,6 +8072,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             # set dummy wallTimeUnit to trigger avalanche
                             sqlTU += "wallTimeUnit=:wallTimeUnit,"
                             varMap[':wallTimeUnit'] = 'ava'
+                        if resetFrozenTime:
+                            sqlTU += "frozenTime=NULL,"
                         sqlTU += "modificationTime=CURRENT_DATE,errorDialog=:errDiag,stateChangeTime=CURRENT_DATE "
                         sqlTU += "WHERE jediTaskID=:jediTaskID AND status=:taskStatus "
                         if isOK:
