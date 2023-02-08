@@ -193,12 +193,12 @@ class AtlasTaskSetupper (TaskSetupperBase):
                                                     second_copy = True
 
                                                 if second_copy:
-                                                    locForDouble = '(type=SCRATCHDISK)\\notforextracopy=True'
+                                                    locForDouble = '(type=SCRATCHDISK)\\notforextracopy=True\\{}'.format(locForRule)
                                                     tmpMsg  = 'registering double copy '
                                                     tmpMsg += 'location="{0}" lifetime={1}days activity={2} for dataset={3}'.format(locForDouble,lifetime,
                                                                                                                                     activity,targetName)
                                                     tmpLog.info(tmpMsg)
-                                                    tmpStat = ddmIF.registerDatasetLocation(targetName,locForDouble,copies=2,owner=userName,
+                                                    tmpStat = ddmIF.registerDatasetLocation(targetName,locForDouble,copies=1,owner=userName,
                                                                                             lifetime=lifetime,activity=activity,
                                                                                             grouping='NONE',weight='freespace',
                                                                                             ignore_availability=False)
