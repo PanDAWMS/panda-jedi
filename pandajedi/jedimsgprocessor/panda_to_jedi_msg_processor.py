@@ -24,7 +24,7 @@ class PandaToJediMsgProcPlugin(BaseMsgProcPlugin):
 
     def process(self, msg_obj, decoded_data=None):
         # logger
-        tmp_log = logger_utils.make_logger(base_logger, method_name='process')
+        tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name='process')
         # start
         tmp_log.info('start')
         # parse

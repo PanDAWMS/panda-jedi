@@ -33,7 +33,7 @@ class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
 
     def process(self, msg_obj):
         # logger
-        tmp_log = logger_utils.make_logger(base_logger, method_name='process')
+        tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name='process')
         # start
         tmp_log.info('start')
         tmp_log.debug('sub_id={0} ; msg_id={1}'.format(msg_obj.sub_id, msg_obj.msg_id))
