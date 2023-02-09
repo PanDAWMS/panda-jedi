@@ -13452,14 +13452,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlUF = sqlUF[:-1]
                 sqlUF += ') '
                 # loop over filenames
+                varMaps = []
                 for filename in filenames:
+                    tmp_varMap = varMap.copy()
                     if scope != 'pseudo_dataset':
-                        varMap[':lfn'] = filename
+                        tmp_varMap[':lfn'] = filename
                     else:
-                        varMap[':lfn'] = '%' + filename
-                    tmpLog.debug('running sql: {0} {1}'.format(sqlUF, varMap))
-                    self.cur.execute(sqlUF+comment, varMap)
-                    retVal += self.cur.rowcount
+                        tmp_varMap[':lfn'] = '%' + filename
+                    varMaps.append(tmp_varMap)
+                    tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                tmpLog.debug('running sql executemany: {0}'.format(sqlUF))
+                self.cur.executemany(sqlUF+comment, varMaps)
+                retVal = self.cur.rowcount
             # update associated files
             if primaryID is not None:
                 self.fix_associated_files_in_staging(jeditaskid, primary_id=primaryID)
