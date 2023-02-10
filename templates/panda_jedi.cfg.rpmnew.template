@@ -161,19 +161,22 @@ modConfig = wlcg:any:pandajedi.jedithrottle.GenJobThrottler:GenJobThrottler
 # process config
 #procConfig = atlas:managed|test|ptest:2:CA,CERN,DE,ES,FR,IT,ND,NL,RU,TW,UK,US;atlas:user:1:;vo_example:any:1:
 #procConfig = atlas:managed|test|ptest:2:CA,CERN,DE,ES,FR,IT,ND,NL,RU,TW,UK,US;atlas:user:1:
-procConfig = wlcg:any:2:
+procConfig = wlcg:any:4:
 
 # number of tasks per cycle
 nTasks = 50
 
 # number of files per task
-nFiles = 100
+nFiles = 5000
 
 # number of workers
 nWorkers = 5
 
 # loop interval in seconds
 loopCycle = 10
+
+# lock interval to avoid duplication
+lockInterval = 5
 
 # typical number of files per job type
 typicalNumFile = :::logmerge:1000000
