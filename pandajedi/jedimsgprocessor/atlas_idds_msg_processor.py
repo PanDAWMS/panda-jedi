@@ -33,7 +33,7 @@ class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
 
     def process(self, msg_obj):
         # logger
-        tmp_log = logger_utils.make_logger(base_logger, method_name='process')
+        tmp_log = logger_utils.make_logger(base_logger, token=self.get_pid(), method_name='process')
         # start
         tmp_log.info('start')
         tmp_log.debug('sub_id={0} ; msg_id={1}'.format(msg_obj.sub_id, msg_obj.msg_id))
@@ -55,10 +55,13 @@ class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
         try:
             if msg_type in ('file_stagein', 'collection_stagein', 'work_stagein'):
                 self.plugin_TapeCarousel.process(msg_obj, decoded_data=msg_dict)
+                tmp_log.debug('to tape_carousel')
             elif msg_type in ('file_hyperparameteropt', 'collection_hyperparameteropt', 'work_hyperparameteropt'):
                 self.plugin_HPO.process(msg_obj, decoded_data=msg_dict)
+                tmp_log.debug('to hpo')
             elif msg_type in ('file_processing', 'collection_processing', 'work_processing'):
                 self.plugin_Processing.process(msg_obj, decoded_data=msg_dict)
+                tmp_log.debug('to processing')
             else:
                 # Asked by iDDS and message broker guys, JEDI needs to consume unknown types of messages and do nothing...
                 warn_str = 'unknown msg_type : {0}'.format(msg_type)
