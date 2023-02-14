@@ -13463,6 +13463,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # update associated files
             if primaryID is not None:
                 self.fix_associated_files_in_staging(jeditaskid, primary_id=primaryID)
+            # update task to trigger CF immediately
+            if retVal:
+                sqlUT = ('UPDATE {}.JEDI_Tasks '
+                         'SET lockedTime=NULL WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL '
+                         ).format(jedi_config.db.schemaJEDI)
+                varMap = dict()
+                varMap[':jediTaskID'] = jeditaskid
+                self.cur.execute(sqlUT + comment, varMap)
+                tmpLog.debug('unlocked task with {}'.format(self.cur.rowcount))
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -13607,6 +13616,15 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 self.cur.execute(sqlUD+comment, varMap)
                 retVal += self.cur.rowcount
             self.fix_associated_files_in_staging(jeditaskid)
+            # update task to trigger CF immediately
+            if retVal:
+                sqlUT = ('UPDATE {}.JEDI_Tasks '
+                         'SET lockedTime=NULL WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL '
+                         ).format(jedi_config.db.schemaJEDI)
+                varMap = dict()
+                varMap[':jediTaskID'] = jeditaskid
+                self.cur.execute(sqlUT + comment, varMap)
+                tmpLog.debug('unlocked task with {}'.format(self.cur.rowcount))
             # commit
             if use_commit:
                 if not self._commit():
