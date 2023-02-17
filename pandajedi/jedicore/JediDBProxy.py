@@ -13470,7 +13470,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # update task to trigger CF immediately
             if retVal:
                 sqlUT = ('UPDATE {}.JEDI_Tasks '
-                         'SET lockedTime=NULL WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL '
+                         'SET modificationTime=CURRENT_DATE-1 WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL '
                          ).format(jedi_config.db.schemaJEDI)
                 varMap = dict()
                 varMap[':jediTaskID'] = jeditaskid
@@ -13623,7 +13623,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # update task to trigger CF immediately
             if retVal:
                 sqlUT = ('UPDATE {}.JEDI_Tasks '
-                         'SET lockedTime=NULL WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL '
+                         'SET modificationTime=CURRENT_DATE-1 WHERE jediTaskID=:jediTaskID AND lockedBy IS NULL '
                          ).format(jedi_config.db.schemaJEDI)
                 varMap = dict()
                 varMap[':jediTaskID'] = jeditaskid
