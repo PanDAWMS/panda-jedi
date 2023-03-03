@@ -1,9 +1,4 @@
-import re
-import sys
-
-from pandajedi.jedicore import Interaction
 from .PostProcessorBase import PostProcessorBase
-
 
 
 # post processor for general purpose
@@ -15,13 +10,28 @@ class GenPostProcessor (PostProcessorBase):
         self.failOnZeroOkFile = True
 
     # main
-    def doPostProcess(self,taskSpec,tmpLog):
+    def doPostProcess(self, taskSpec, tmpLog):
         try:
-            self.doBasicPostProcess(taskSpec,tmpLog)
-        except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('doBasicPostProcess failed with {0}:{1}'.format(errtype.__name__,errvalue))
+            # get DDM I/F
+            ddmIF = self.ddmIF.getInterface(taskSpec.vo, taskSpec.cloud)
+            # skip if DDM I/F is inactive
+            if not ddmIF:
+                tmpLog.info('skip due to inactive DDM I/F')
+            else:
+                # loop over all datasets
+                for datasetSpec in taskSpec.datasetSpecList:
+                    # only output and log datasets
+                    if datasetSpec.type not in ['log', 'output']:
+                        continue
+                    tmpLog.info(
+                            'freezing datasetID={}:Name={}'.format(datasetSpec.datasetID, datasetSpec.datasetName))
+                    ddmIF.freezeDataset(datasetSpec.datasetName, ignoreUnknown=True)
+        except Exception as e:
+            tmpLog.warning('failed to freeze datasets with {}'.format(str(e)))
+            return self.SC_FAILED
+        try:
+            self.doBasicPostProcess(taskSpec, tmpLog)
+        except Exception as e:
+            tmpLog.error('doBasicPostProcess failed with {}'.format(str(e)))
             return self.SC_FATAL
         return self.SC_SUCCEEDED
-            
-    
