@@ -1,17 +1,21 @@
-FROM docker.io/centos:7
+FROM docker.io/almalinux:9
 
 RUN yum update -y
 RUN yum install -y epel-release
 RUN yum install -y python3 python3-devel httpd httpd-devel gcc gridsite less git wget logrotate
-RUN yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-RUN yum install -y postgresql14
+RUN yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+# temp until offifical PGP key is fixed
+RUN sed -i 's/repo_gpgcheck = 1/repo_gpgcheck = 0/g' /etc/yum.repos.d/pgdg-redhat-all.repo
+RUN yum install -y postgresql15
+RUN yum clean all && rm -rf /var/cache/yum
+
 RUN python3 -m venv /opt/panda
 RUN /opt/panda/bin/pip install -U pip
 RUN /opt/panda/bin/pip install -U setuptools
 RUN adduser atlpan
 RUN groupadd zp
 RUN usermod -a -G zp atlpan
-RUN /opt/panda/bin/pip install "git+https://github.com/PanDAWMS/panda-server.git#egg=panda-server[postgres]"
+RUN /opt/panda/bin/pip install "panda-server[postgres] @ git+https://github.com/PanDAWMS/panda-server.git"
 RUN mkdir /tmp/src
 WORKDIR /tmp/src
 COPY . .
