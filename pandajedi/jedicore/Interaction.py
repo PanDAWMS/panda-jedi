@@ -320,6 +320,11 @@ class CommandSendInterface(object):
         child_process.start()
         # keep process in queue
         processObj = ProcessClass(child_process.pid,parent_conn)
+        # sync to wait until object in the child process is instantiated
+        pipe = processObj.connection()
+        pipe.recv()
+        processObj.reduceConnection(pipe)
+        # ready
         self.connectionQueue.put(processObj)
 
 
@@ -355,6 +360,9 @@ class CommandReceiveInterface(object):
 
     # main loop
     def start(self):
+        # sync
+        self.con.send('ready')
+        # main loop
         while True:
             # send ACK
             self.con.send('ack')
