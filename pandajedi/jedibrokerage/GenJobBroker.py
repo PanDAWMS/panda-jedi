@@ -260,7 +260,8 @@ class GenJobBroker (JobBrokerBase):
                                                             self.siteMapper,
                                                             check_completeness=checkCompleteness,
                                                             file_scan_in_container=False,
-                                                            complete_only=useCompleteOnly)
+                                                            complete_only=useCompleteOnly,
+                                                            use_deep=True)
                 if tmpAvFileMap is None:
                     raise Interaction.JEDITemporaryError('ddmIF.getAvailableFiles failed')
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap

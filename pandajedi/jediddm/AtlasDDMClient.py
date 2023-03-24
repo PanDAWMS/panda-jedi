@@ -148,7 +148,8 @@ class AtlasDDMClient(DDMClientBase):
         return errCode,'{0} : {1}'.format(methodName, errMsg)
 
     # list dataset replicas
-    def listDatasetReplicas(self, datasetName, use_vp=False, detailed=False, skip_incomplete_element=False):
+    def listDatasetReplicas(self, datasetName, use_vp=False, detailed=False, skip_incomplete_element=False,
+                            use_deep=False):
         methodName = 'listDatasetReplicas'
         methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
@@ -157,7 +158,8 @@ class AtlasDDMClient(DDMClientBase):
         try:
             if not datasetName.endswith('/'):
                 # get file list
-                tmpRet = self.convertOutListDatasetReplicas(datasetName, use_vp=use_vp)
+                tmpRet = self.convertOutListDatasetReplicas(datasetName, usefileLookup=use_deep,
+                                                            use_vp=use_vp)
                 tmpLog.debug('got new '+str(tmpRet))
                 if detailed:
                     return self.SC_SUCCEEDED, tmpRet, {datasetName: tmpRet}
@@ -181,7 +183,8 @@ class AtlasDDMClient(DDMClientBase):
                             totalFiles = 0
                     except Exception:
                         totalFiles = 0
-                    tmpRet = self.convertOutListDatasetReplicas(tmpName, use_vp=use_vp,
+                    tmpRet = self.convertOutListDatasetReplicas(tmpName, usefileLookup=use_deep,
+                                                                use_vp=use_vp,
                                                                 skip_incomplete_element=skip_incomplete_element)
                     detailedRetMap[tmpName] = tmpRet
                     # loop over all sites
@@ -326,7 +329,7 @@ class AtlasDDMClient(DDMClientBase):
 
     def getAvailableFiles(self, dataset_spec, site_endpoint_map, site_mapper, check_LFC=False,
                           check_completeness=True, storage_token=None, complete_only=False,
-                          use_vp=True, file_scan_in_container=True):
+                          use_vp=True, file_scan_in_container=True, use_deep=False):
         """
         :param dataset_spec: dataset spec object
         :param site_endpoint_map: panda sites to ddm endpoints map. The list of panda sites includes the ones to scan
@@ -337,6 +340,7 @@ class AtlasDDMClient(DDMClientBase):
         :param complete_only: check only for complete replicas
         :param use_vp: use virtual placement
         :param file_scan_in_container: enable file lookup for container
+        :param use_deep: use deep option for replica lookup
 
         TODO: do we need NG, do we need alternate names
         TODO: the storage_token is not used anymore
@@ -376,7 +380,8 @@ class AtlasDDMClient(DDMClientBase):
             # get the dataset replica map
             tmp_status, tmp_output, detailed_replica_map = self.listDatasetReplicas(dataset_spec.datasetName,
                                                                                     use_vp=use_vp,
-                                                                                    detailed=True)
+                                                                                    detailed=True,
+                                                                                    use_deep=use_deep)
             if tmp_status != self.SC_SUCCEEDED:
                 regTime = datetime.datetime.utcnow() - loopStart
                 tmp_log.error('failed in {} sec to get dataset replicas with {}'.format(regTime.seconds, tmp_output))
