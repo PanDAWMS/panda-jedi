@@ -92,7 +92,30 @@ def reduceOffsetFromWalltime(oldWalltime):
             oldWalltime = 0
     return oldWalltime
 
+# convert config parameters
+def convert_config_params(itemStr):
+    items = itemStr.split(':')
+    newItems = []
+    for item in items:
+        if item == '':
+            newItems.append(None)
+        elif ',' in item:
+            newItems.append(item.split(','))
+        else:
+            try:
+                newItems.append(int(item))
+            except Exception:
+                newItems.append(item)
+    return newItems
 
+# parse init params
+def parse_init_params(par):
+    if isinstance(par, list):
+        return par
+    try:
+        return par.split('|')
+    except Exception:
+        return [par]
 
 # get config param for vo and prodSourceLabel
 def getConfigParam(configStr,vo,sourceLabel):

@@ -199,10 +199,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get the list of datasets to feed contents to DB
-    def getDatasetsToFeedContents_JEDI(self,vo,prodSourceLabel):
+    def getDatasetsToFeedContents_JEDI(self, vo, prodSourceLabel, task_id=None):
         comment = ' /* JediDBProxy.getDatasetsToFeedContents_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        if task_id is not None:
+            methodName += ' <vo={0} label={1} taskid={2}>'.format(vo, prodSourceLabel, task_id)
+        else:
+            methodName += ' <vo={0} label={1}>'.format(vo, prodSourceLabel)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -226,6 +229,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             if prodSourceLabel not in [None,'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sql += "AND tabT.prodSourceLabel=:prodSourceLabel "
+            if task_id is not None:
+                varMap[':task_id'] = task_id
+                sql += "AND tabT.jediTaskID=:task_id "
             sql += 'AND tabT.jediTaskID=tabD.jediTaskID '
             sql += 'AND type IN ('
             for tmpType in JediDatasetSpec.getInputTypes():

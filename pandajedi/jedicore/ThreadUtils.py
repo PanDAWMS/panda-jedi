@@ -175,7 +175,8 @@ class WorkerThread (threading.Thread):
         threading.Thread.__init__(self)
         self.workerSemaphore = workerSemaphore
         self.threadPool = threadPool
-        self.threadPool.add(self)
+        if self.threadPool is not None:
+            self.threadPool.add(self)
         self.logger = logger
 
     # main loop
@@ -191,7 +192,8 @@ class WorkerThread (threading.Thread):
             self.logger.error("%s crashed in WorkerThread.run() with %s:%s" % \
                               (self.__class__.__name__,errtype.__name__,errvalue))
         # remove self from thread pool
-        self.threadPool.remove(self)
+        if self.threadPool is not None:
+            self.threadPool.remove(self)
         # release slot
         if self.workerSemaphore is not None:
             self.workerSemaphore.release()
