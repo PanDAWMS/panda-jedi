@@ -308,22 +308,34 @@ def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
 def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True, use_incomplete=False):
     siteList = []
     siteWithIncomp = []
-    for tmpSiteName,tmpSeValMap in iteritems(dataSiteMap):
-        for tmpSE,tmpValMap in iteritems(tmpSeValMap):
+    siteListNonVP = set()
+    siteListVP = set()
+    for tmpSiteName, tmpSeValMap in iteritems(dataSiteMap):
+        for tmpSE, tmpValMap in iteritems(tmpSeValMap):
             # VP
-            if not use_vp and 'vp' in tmpValMap and tmpValMap['vp'] is True:
-                continue
+            if tmpValMap['vp']:
+                siteListVP.add(tmpSiteName)
+                if not use_vp:
+                    continue
             # on disk or tape
             if includeTape or not tmpValMap['tape']:
                 if tmpValMap['state'] == 'complete':
                     # complete replica at disk
                     if tmpSiteName not in siteList:
                         siteList.append(tmpSiteName)
-                    break
+                    if not tmpValMap['tape'] and not tmpValMap['vp']:
+                        siteListNonVP.add(tmpSiteName)
                 else:
                     # incomplete replica at disk
                     if tmpSiteName not in siteWithIncomp:
                         siteWithIncomp.append(tmpSiteName)
+    # remove VP if complete disk replica is unavailable
+    if not siteListNonVP:
+        for tmpSiteNameVP in siteListVP:
+            if tmpSiteNameVP in siteList:
+                siteList.remove(tmpSiteNameVP)
+            if tmpSiteNameVP in siteWithIncomp:
+                siteWithIncomp.remove(tmpSiteNameVP)
     # return sites with complete
     if siteList != [] or not use_incomplete:
         return siteList
