@@ -45,7 +45,11 @@ class AtlasAnalJobBroker(JobBrokerBase):
     # main
     def doBrokerage(self, taskSpec, cloudName, inputChunk, taskParamMap):
         # make logger
-        tmpLog = MsgWrapper(logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID),
+        if inputChunk.masterDataset:
+            msg_tag = '<jediTaskID={} datasetID={}>'.format(taskSpec.jediTaskID, inputChunk.masterDataset.datasetID)
+        else:
+            msg_tag = '<jediTaskID={}>'.format(taskSpec.jediTaskID)
+        tmpLog = MsgWrapper(logger, msg_tag,
                             monToken='<jediTaskID={0} {1}>'.format(taskSpec.jediTaskID,
                                                                    datetime.datetime.utcnow().isoformat('/')))
         tmpLog.debug('start')
@@ -474,7 +478,6 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     tmpNonVpSiteList = AtlasBrokerUtils.getAnalSitesWithDataDisk(tmpDataSite, includeTape=True,
                                                                                  use_vp=False,
                                                                                  use_incomplete=useIncomplete)
-
                     # make weight map for local
                     for tmpSiteName in tmpSiteList:
                         if tmpSiteName not in dataWeight:
