@@ -6741,7 +6741,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 scaled_max_walltime *= InputChunk.maxInputSizeAvalanche / InputChunk.maxInputSizeScouts
                                 scaled_max_walltime = int(scaled_max_walltime / 60)
                                 if scaled_max_walltime > extraInfo['shortExecTime']:
-                                    tmpLog.debug('not to set exahusted since scaled execution time ({}) is longer '\
+                                    tmpLog.debug('not to set exhausted since scaled execution time ({}) is longer '\
                                                  'than {} min'.format(scaled_max_walltime,
                                                                       extraInfo['shortExecTime']))
                                     toExhausted = False
@@ -6749,6 +6749,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     scMsg = ' and scaled execution time ({} = walltime * {}/{}) less than {} min'.\
                                         format(scaled_max_walltime, InputChunk.maxInputSizeAvalanche,
                                                InputChunk.maxInputSizeScouts, extraInfo['shortExecTime'])
+                            # check expected number of jobs
+                            if toExhausted and shortJobCutoff:
+                                if extraInfo['expectedNumJobs'] < shortJobCutoff:
+                                    tmpLog.debug('not to set exhausted since expect num of jobs '
+                                                 '({}) is less than {}'.format(extraInfo['expectedNumJobs'],
+                                                                               shortJobCutoff))
+                                    toExhausted = False
                             if toExhausted:
                                 errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
                                 errMsg += '{}/{} jobs (greater than {}/10, excluding {} jobs that the site '\
