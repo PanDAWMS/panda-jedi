@@ -313,7 +313,7 @@ def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True, use_in
     for tmpSiteName, tmpSeValMap in iteritems(dataSiteMap):
         for tmpSE, tmpValMap in iteritems(tmpSeValMap):
             # VP
-            if tmpValMap['vp']:
+            if tmpValMap.get('vp'):
                 siteListVP.add(tmpSiteName)
                 if not use_vp:
                     continue
@@ -323,7 +323,7 @@ def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True, use_in
                     # complete replica at disk
                     if tmpSiteName not in siteList:
                         siteList.append(tmpSiteName)
-                    if not tmpValMap['tape'] and not tmpValMap['vp']:
+                    if not tmpValMap['tape'] and not tmpValMap.get('vp'):
                         siteListNonVP.add(tmpSiteName)
                 else:
                     # incomplete replica at disk
