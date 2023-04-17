@@ -224,7 +224,8 @@ class AtlasProdJobBroker(JobBrokerBase):
         # sites sharing SE with T1
         if len(t1Sites) > 0:
             sitesShareSeT1 = DataServiceUtils.getSitesShareDDM(self.siteMapper, t1Sites[0],
-                                                               JobUtils.PROD_PS, JobUtils.PROD_PS)
+                                                               JobUtils.PROD_PS, JobUtils.PROD_PS,
+                                                               True)
         else:
             sitesShareSeT1 = []
 
