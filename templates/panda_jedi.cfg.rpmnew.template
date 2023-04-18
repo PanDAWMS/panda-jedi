@@ -94,7 +94,8 @@ nWorkers = 5
 # loop interval in seconds
 loopCycle = 10
 
-
+# check interval for mutable datasets in minutes
+checkInterval = 5
 
 
 ##########################
