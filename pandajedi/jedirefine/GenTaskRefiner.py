@@ -30,6 +30,11 @@ class GenTaskRefiner (TaskRefinerBase):
         # push status changes
         if 'pushStatusChanges' not in taskParamMap:
             taskParamMap['pushStatusChanges'] = True
+        # fine-grained
+        if 'fineGrainedProc' in taskParamMap:
+            taskParamMap['notDiscardEvents'] = True
+            taskParamMap['maxAttemptEsJob'] = 0
+            taskParamMap['maxAttemptES'] = 1
         # use cloud as VO
         taskParamMap['cloudAsVO'] = True
         # update task parameters

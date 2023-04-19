@@ -380,11 +380,18 @@ class ContentsFeederThread (WorkerThread):
                                                 nPFN = 1
                                             tmpRet = {}
                                             for iPFN in range(nPFN):
-                                                tmpRet[str(uuid.uuid4())] = {'lfn':'{0:06d}:{1}'.format(iPFN,taskParamMap['pfnList'][iPFN].split('/')[-1]),
-                                                                             'scope':None,
-                                                                             'filesize':0,
-                                                                             'checksum':None,
-                                                                             }
+                                                base_name = taskParamMap['pfnList'][iPFN].split('/')[-1]
+                                                n_events = None
+                                                if '^' in base_name:
+                                                    base_name, n_events = base_name.split('^')
+
+                                                tmpRet[str(uuid.uuid4())] = {
+                                                    'lfn': '{0:06d}:{1}'.format(iPFN, base_name),
+                                                    'scope': None,
+                                                    'filesize': 0,
+                                                    'checksum': None,
+                                                    'events': n_events
+                                                    }
                                 except Exception:
                                     errtype,errvalue = sys.exc_info()[:2]
                                     tmpLog.error('failed to get files due to {0}:{1} {2}'.format(self.__class__.__name__,
