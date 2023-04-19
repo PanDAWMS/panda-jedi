@@ -62,6 +62,7 @@ class JediTaskSpec(object):
         'nEventsPerWorker'   : 'ES',
         'firstContentsFeed'  : 'FC',
         'failGoalUnreached'  : 'FG',
+        'fineGrainedProc'    : 'FP',
         'firstEvent'         : 'FT',
         'fullChain'          : 'FU',
         'groupBoundaryID'    : 'GB',
@@ -1540,6 +1541,10 @@ class JediTaskSpec(object):
     # push job
     def push_job(self):
         return self.check_split_rule('pushJob')
+
+    # fine-grained process
+    def is_fine_grained_process(self):
+        return self.check_split_rule('fineGrainedProc')
 
     # on site merging
     def on_site_merging(self):
