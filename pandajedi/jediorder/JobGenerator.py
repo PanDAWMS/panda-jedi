@@ -1081,7 +1081,8 @@ class JobGeneratorThread(WorkerThread):
                         else:
                             specialHandling += ',ddm:{0},'.format(tmpDdmBackEnd)
                     # set specialHandling for Event Service
-                    if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
+                    if (taskSpec.useEventService(siteSpec) or taskSpec.is_fine_grained_process()) \
+                            and not inputChunk.isMerging:
                         specialHandling += EventServiceUtils.getHeaderForES(esIndex)
                         if taskSpec.useJumbo is None:
                             # normal ES job
@@ -1150,13 +1151,16 @@ class JobGeneratorThread(WorkerThread):
                                 subOldPandaIDs += subOldMergePandaIDs
                                 """
                             # set specialHandling for normal Event Service
-                            if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging \
-                                    and tmpDatasetSpec.isMaster() and not tmpDatasetSpec.isPseudo():
+                            if (taskSpec.useEventService(siteSpec) or taskSpec.is_fine_grained_process()) \
+                                    and not inputChunk.isMerging \
+                                    and tmpDatasetSpec.isMaster():
                                 if not taskSpec.useJobCloning() or not setSpecialHandlingForJC:
                                     if taskSpec.useJobCloning():
                                         # single event range for job cloning
                                         nEventsPerWorker = tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1
                                         setSpecialHandlingForJC = True
+                                    elif taskSpec.is_fine_grained_process():
+                                        nEventsPerWorker = 1
                                     else:
                                         nEventsPerWorker = taskSpec.getNumEventsPerWorker()
                                     # set start and end events
@@ -1303,6 +1307,9 @@ class JobGeneratorThread(WorkerThread):
                     # push job
                     if taskSpec.push_job():
                         jobSpec.set_push_job()
+                    # fine-grained process
+                    if taskSpec.is_fine_grained_process():
+                        EventServiceUtils.set_fine_grained(jobSpec)
                     # on-site merging
                     if taskSpec.on_site_merging():
                         jobSpec.set_on_site_merging()
@@ -1571,8 +1578,9 @@ class JobGeneratorThread(WorkerThread):
                     # add
                     tmpJobSpecList.append(jobSpec)
                     oldPandaIDs.append(subOldPandaIDs)
-                    # incremet index of event service job
-                    if taskSpec.useEventService(siteSpec) and not inputChunk.isMerging:
+                    # increment index of event service job
+                    if (taskSpec.useEventService(siteSpec) or taskSpec.is_fine_grained_process()) \
+                            and not inputChunk.isMerging:
                         esIndex += 1
                     # lock task
                     if not simul and len(jobSpecList + tmpJobSpecList) % 50 == 0:

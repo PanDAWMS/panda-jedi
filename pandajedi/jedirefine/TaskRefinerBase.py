@@ -206,6 +206,8 @@ class TaskRefinerBase (object):
             taskSpec.eventService = 2
         elif 'nEventsPerWorker' in taskParamMap:
             taskSpec.eventService = 1
+        elif 'fineGrainedProc' in taskParamMap:
+            taskSpec.eventService = 3
         else:
             taskSpec.eventService = 0
         # OS
@@ -396,6 +398,8 @@ class TaskRefinerBase (object):
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['cloudAsVO'])
         if 'pushJob' in taskParamMap and taskParamMap['pushJob']:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['pushJob'])
+        if 'fineGrainedProc' in taskParamMap and taskParamMap['fineGrainedProc']:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['fineGrainedProc'])
         if 'onSiteMerging' in  taskParamMap and taskParamMap['onSiteMerging']:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['onSiteMerging'])
         if 'fullChain' in taskParamMap:
