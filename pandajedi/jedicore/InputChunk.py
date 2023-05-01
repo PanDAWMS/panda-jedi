@@ -24,6 +24,8 @@ class InputChunk:
     maxInputSizeScouts = 50000
     # max input size for jobs after avalanche in MB
     maxInputSizeAvalanche = 500000
+    # max number of input files
+    maxTotalNumFiles = 1000
 
     def __str__(self):
         sb = []
@@ -527,16 +529,18 @@ class InputChunk:
         inputFileSet   = set()
         fieldStr       = None
         diskSize       = 0
+        totalNumFiles  = 0
         dumpStr = ''
         currentLFN = None
         while no_split or (
-                (maxNumFiles is None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or \
-                   (dynNumEvents and len(inputFileSet) <= maxNumFiles)) \
-                and (maxSize is None or (maxSize is not None and fileSize <= maxSize)) \
-                and (maxWalltime is None or maxWalltime <= 0 or expWalltime <= maxWalltime) \
-                and (maxNumEvents is None or (maxNumEvents is not None and inputNumEvents <= maxNumEvents)) \
-                and (maxOutSize is None or self.getOutSize(outSizeMap) <= maxOutSize) \
-                and (maxDiskSize is None or diskSize <= maxDiskSize)):
+                (maxNumFiles is None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or
+                 (dynNumEvents and len(inputFileSet) <= maxNumFiles))
+                and (maxSize is None or (maxSize is not None and fileSize <= maxSize))
+                and (maxWalltime is None or maxWalltime <= 0 or expWalltime <= maxWalltime)
+                and (maxNumEvents is None or (maxNumEvents is not None and inputNumEvents <= maxNumEvents))
+                and (maxOutSize is None or self.getOutSize(outSizeMap) <= maxOutSize)
+                and (maxDiskSize is None or diskSize <= maxDiskSize)
+                and totalNumFiles <= self.maxTotalNumFiles):
             # get one file (or one file group for MP) from master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             if self.masterDataset.datasetID not in outSizeMap:
@@ -588,6 +592,7 @@ class InputChunk:
                 effectiveNumEvents = tmpFileSpec.getEffectiveNumEvents()
                 # sum
                 inputNumFiles += 1
+                totalNumFiles += 1
                 if self.taskSpec.outputScaleWithEvents():
                     tmpOutSize = long(sizeGradients * effectiveNumEvents)
                     fileSize += tmpOutSize
@@ -677,6 +682,7 @@ class InputChunk:
                                 diskSize += tmpOutSize
                                 outSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                             datasetUsage['used'] += 1
+                            totalNumFiles += 1
                 else:
                     if datasetSpec.datasetID not in nSecFilesMap:
                         nSecFilesMap[datasetSpec.datasetID] = 0
@@ -724,6 +730,7 @@ class InputChunk:
                             outSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
                         datasetUsage['used'] += 1
                         nSecFilesMap[datasetSpec.datasetID] += 1
+                        totalNumFiles += 1
                         # the number of events
                         if firstSecondary and maxNumEvents is not None and not primaryHasEvents:
                             if tmpFileSpec.startEvent is not None and tmpFileSpec.endEvent is not None:
@@ -775,6 +782,7 @@ class InputChunk:
             newInputFileSet   = copy.copy(inputFileSet)
             newDiskSize       = diskSize
             new_nSecEventsMap = copy.copy(nSecEventsMap)
+            newTotalNumFiles  = totalNumFiles
             if self.masterDataset.datasetID not in newOutSizeMap:
                 newOutSizeMap[self.masterDataset.datasetID] = 0
             for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
@@ -828,6 +836,7 @@ class InputChunk:
                 effectiveNumEvents = tmpFileSpec.getEffectiveNumEvents()
                 newInputNumFiles += 1
                 newNumMaster += 1
+                newTotalNumFiles += 1
                 newInputFileSet.add(tmpFileSpec.lfn)
                 if self.taskSpec.outputScaleWithEvents():
                     tmpOutSize = long(sizeGradients * effectiveNumEvents)
@@ -902,6 +911,7 @@ class InputChunk:
                         newFileSize += tmpFileSpec.fsize
                         newSecMap[datasetSpec.datasetID]['in_size'] += tmpFileSpec.fsize
                         newSecMap[datasetSpec.datasetID]['nSecReal'] += 1
+                        newTotalNumFiles += 1
                         if not useDirectIO:
                             newDiskSize += tmpFileSpec.fsize
                         if sizeGradientsPerInSize is not None:
@@ -927,14 +937,15 @@ class InputChunk:
                 break
             # check
             newOutSize = self.getOutSize(newOutSizeMap)
-            if (maxNumFiles is not None and ((not dynNumEvents and newInputNumFiles > maxNumFiles) \
+            if (maxNumFiles is not None and ((not dynNumEvents and newInputNumFiles > maxNumFiles)
                                              or (dynNumEvents and (len(newInputFileSet) > maxNumFiles)))) \
                     or (maxSize is not None and newFileSize > maxSize) \
                     or (maxSize is not None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize) \
                     or (maxWalltime is not None and 0 < maxWalltime < newExpWalltime) \
                     or (maxNumEvents is not None and newInputNumEvents > maxNumEvents) \
                     or (maxOutSize is not None and self.getOutSize(newOutSizeMap) > maxOutSize) \
-                    or (maxDiskSize is not None and newDiskSize > maxDiskSize):
+                    or (maxDiskSize is not None and newDiskSize > maxDiskSize)\
+                    or newTotalNumFiles > self.maxTotalNumFiles:
                 dumpStr = 'check for the next loop. '
                 if maxNumFiles is not None and (not dynNumEvents and newInputNumFiles > maxNumFiles):
                     dumpStr += 'maxNumFiles exceeds maxNumFiles={} inputNumFiles={} newInputNumFiles={}. '.format(
@@ -959,6 +970,8 @@ class InputChunk:
                 if maxDiskSize is not None and newDiskSize > maxDiskSize:
                     dumpStr += 'maxDiskSize exceeds maxDiskSize={} diskSize={} newDiskSize={}. '.format(
                         self.get_value_str(maxDiskSize), self.get_value_str(diskSize), self.get_value_str(newDiskSize))
+                if newTotalNumFiles > self.maxTotalNumFiles:
+                    dumpStr += 'total num of input files exceeds {}. '.format(self.maxTotalNumFiles)
                 break
         # reset nUsed for repeated datasets
         for tmpDatasetID,datasetUsage in iteritems(self.datasetMap):
