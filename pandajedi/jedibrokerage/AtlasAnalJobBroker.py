@@ -274,14 +274,14 @@ class AtlasAnalJobBroker(JobBrokerBase):
         if taskSpec.gshare in ['User Analysis'] \
                 and gshare_usage_dict and task_eval_dict:
             try:
-                usage_perc = gshare_usage_dict['usage_perc']
+                usage_percent = min(gshare_usage_dict['usage_perc'], gshare_usage_dict.get('eqiv_usage_perc', gshare_usage_dict['usage_perc']))*100
                 task_class_value = task_eval_dict['class']
                 usage_slot_ratio_A = 0.5
                 usage_slot_ratio_B = 0.5
                 if user_eval_dict:
                     usage_slot_ratio_A = 1. - user_eval_dict['rem_slots_A']/threshold_A
                     usage_slot_ratio_B = 1. - user_eval_dict['rem_slots_B']/threshold_B
-                if task_class_value == -1 and usage_perc*100 > user_analyis_to_throttle_threshold_perc_C:
+                if task_class_value == -1 and usage_percent > user_analyis_to_throttle_threshold_perc_C:
                     # C-tasks to throttle
                     if False:
                         # dry run
@@ -294,7 +294,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_C))
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         return retTmpError
-                elif task_class_value == 0 and usage_perc*100 > user_analyis_to_throttle_threshold_perc_B:
+                elif task_class_value == 0 and usage_percent > user_analyis_to_throttle_threshold_perc_B:
                     # B-tasks to throttle
                     if False:
                         # dry run
@@ -308,7 +308,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         return retTmpError
                 elif task_class_value == 1 \
-                    and usage_perc*100*usage_slot_ratio_A*user_analyis_throttle_intensity_A > user_analyis_to_throttle_threshold_perc_A:
+                    and usage_percent*usage_slot_ratio_A*user_analyis_throttle_intensity_A > user_analyis_to_throttle_threshold_perc_A:
                     # A-tasks to throttle
                     if False:
                         # dry run
