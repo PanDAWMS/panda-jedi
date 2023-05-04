@@ -209,6 +209,16 @@ class AtlasAnalJobBroker(JobBrokerBase):
             tmpLog.error('failed to get gshare usage of {}'.format(taskSpec.gshare))
         elif not gshare_usage_dict:
             tmpLog.error('got empty gshare usage of {}'.format(taskSpec.gshare))
+        
+        # get L1 share usage
+        l1_share_usage_dict = None
+        if taskSpec.gshare == 'User Analysis':
+            l1_share_name = 'L1 User Analysis'
+            ret_val, l1_share_usage_dict = AtlasBrokerUtils.getGShareUsage(tbIF=self.taskBufferIF, gshare=l1_share_name)
+            if not ret_val:
+                tmpLog.error('failed to get gshare usage of {}'.format(l1_share_name))
+            elif not l1_share_usage_dict:
+                tmpLog.error('got empty gshare usage of {}'.format(l1_share_name))
 
         # get analy sites classification
         ret_val, analy_sites_class_dict = AtlasBrokerUtils.getAnalySitesClass(tbIF=self.taskBufferIF)
@@ -274,7 +284,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
         if taskSpec.gshare in ['User Analysis'] \
                 and gshare_usage_dict and task_eval_dict:
             try:
-                usage_percent = min(gshare_usage_dict['usage_perc'], gshare_usage_dict.get('eqiv_usage_perc', gshare_usage_dict['usage_perc']))*100
+                usage_percent = gshare_usage_dict['usage_perc']*100
+                if l1_share_usage_dict and l1_share_usage_dict.get('eqiv_usage_perc') is not None:
+                    usage_percent = min(usage_percent, l1_share_usage_dict['eqiv_usage_perc']*100)
                 task_class_value = task_eval_dict['class']
                 usage_slot_ratio_A = 0.5
                 usage_slot_ratio_B = 0.5
