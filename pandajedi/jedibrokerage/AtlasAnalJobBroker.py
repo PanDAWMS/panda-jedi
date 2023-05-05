@@ -1829,7 +1829,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         elif site_class_n_site_dict[bw_map['class']] > 0:
                             nbw_sec = 1/n_avail_sites
                     # new basic weight
-                    new_basic_weight = nbw_main*nbw_sec
+                    new_basic_weight = nbw_main*nbw_sec + 2**-20
                     bw_map['new'] = new_basic_weight
                 # log message to compare weights
                 orig_sum = 0
@@ -1945,7 +1945,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             siteCandidateSpec.override_attribute('maxwdir', newMaxwdir.get(tmpSiteName))
             # set weight
             siteCandidateSpec.weight = weight
-            tmpStr = 'weight={0:.3f} ver={1} '.format(weight, _basic_weight_version)
+            tmpStr = 'weight={0:.7f} ver={1} '.format(weight, _basic_weight_version)
             tmpStr += 'nRunning={0} nDefined={1} nActivated={2} nStarting={3} nAssigned={4} '.format(   bw_map['nr'],
                                                                                                         bw_map['nDefined'],
                                                                                                         bw_map['nActivated'],
