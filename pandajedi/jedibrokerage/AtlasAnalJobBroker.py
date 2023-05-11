@@ -209,6 +209,16 @@ class AtlasAnalJobBroker(JobBrokerBase):
             tmpLog.error('failed to get gshare usage of {}'.format(taskSpec.gshare))
         elif not gshare_usage_dict:
             tmpLog.error('got empty gshare usage of {}'.format(taskSpec.gshare))
+        
+        # get L1 share usage
+        l1_share_usage_dict = None
+        if taskSpec.gshare == 'User Analysis':
+            l1_share_name = 'L1 User Analysis'
+            ret_val, l1_share_usage_dict = AtlasBrokerUtils.getGShareUsage(tbIF=self.taskBufferIF, gshare=l1_share_name)
+            if not ret_val:
+                tmpLog.error('failed to get gshare usage of {}'.format(l1_share_name))
+            elif not l1_share_usage_dict:
+                tmpLog.error('got empty gshare usage of {}'.format(l1_share_name))
 
         # get analy sites classification
         ret_val, analy_sites_class_dict = AtlasBrokerUtils.getAnalySitesClass(tbIF=self.taskBufferIF)
@@ -274,14 +284,16 @@ class AtlasAnalJobBroker(JobBrokerBase):
         if taskSpec.gshare in ['User Analysis'] \
                 and gshare_usage_dict and task_eval_dict:
             try:
-                usage_perc = gshare_usage_dict['usage_perc']
+                usage_percent = gshare_usage_dict['usage_perc']*100
+                if l1_share_usage_dict and l1_share_usage_dict.get('eqiv_usage_perc') is not None:
+                    usage_percent = min(usage_percent, l1_share_usage_dict['eqiv_usage_perc']*100)
                 task_class_value = task_eval_dict['class']
                 usage_slot_ratio_A = 0.5
                 usage_slot_ratio_B = 0.5
                 if user_eval_dict:
                     usage_slot_ratio_A = 1. - user_eval_dict['rem_slots_A']/threshold_A
                     usage_slot_ratio_B = 1. - user_eval_dict['rem_slots_B']/threshold_B
-                if task_class_value == -1 and usage_perc*100 > user_analyis_to_throttle_threshold_perc_C:
+                if task_class_value == -1 and usage_percent > user_analyis_to_throttle_threshold_perc_C:
                     # C-tasks to throttle
                     if False:
                         # dry run
@@ -294,7 +306,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                             gshare=taskSpec.gshare, threshold=user_analyis_to_throttle_threshold_perc_C))
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         return retTmpError
-                elif task_class_value == 0 and usage_perc*100 > user_analyis_to_throttle_threshold_perc_B:
+                elif task_class_value == 0 and usage_percent > user_analyis_to_throttle_threshold_perc_B:
                     # B-tasks to throttle
                     if False:
                         # dry run
@@ -308,7 +320,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                         return retTmpError
                 elif task_class_value == 1 \
-                    and usage_perc*100*usage_slot_ratio_A*user_analyis_throttle_intensity_A > user_analyis_to_throttle_threshold_perc_A:
+                    and usage_percent*usage_slot_ratio_A*user_analyis_throttle_intensity_A > user_analyis_to_throttle_threshold_perc_A:
                     # A-tasks to throttle
                     if False:
                         # dry run
@@ -1817,7 +1829,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         elif site_class_n_site_dict[bw_map['class']] > 0:
                             nbw_sec = 1/n_avail_sites
                     # new basic weight
-                    new_basic_weight = nbw_main*nbw_sec
+                    new_basic_weight = nbw_main*nbw_sec + 2**-20
                     bw_map['new'] = new_basic_weight
                 # log message to compare weights
                 orig_sum = 0
@@ -1933,7 +1945,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
             siteCandidateSpec.override_attribute('maxwdir', newMaxwdir.get(tmpSiteName))
             # set weight
             siteCandidateSpec.weight = weight
-            tmpStr = 'weight={0:.3f} ver={1} '.format(weight, _basic_weight_version)
+            tmpStr = 'weight={0:.7f} ver={1} '.format(weight, _basic_weight_version)
             tmpStr += 'nRunning={0} nDefined={1} nActivated={2} nStarting={3} nAssigned={4} '.format(   bw_map['nr'],
                                                                                                         bw_map['nDefined'],
                                                                                                         bw_map['nActivated'],
