@@ -6694,27 +6694,29 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel),
                                                      'jedi')
                 if maxShortJobs and shortJobCutoff:
-                    # jobs inclusing copy-to-scratch
-                    nJobsAll = extraInfo['nTotalForShort'] + extraInfo['nShortJobsWithCtoS']
-                    nShortJobsAll = extraInfo['nShortJobs'] + extraInfo['nShortJobsWithCtoS']
-                    # many short jobs including copy-to-scratch
-                    manyShortJobsAll = nJobsAll > 0 and nShortJobsAll / nJobsAll >= maxShortJobs / 10
                     # many short jobs w/o copy-to-scratch
                     manyShortJobs = extraInfo['nTotalForShort'] > 0 and \
                                     extraInfo['nShortJobs'] / extraInfo['nTotalForShort'] >= maxShortJobs / 10
-                    # remove wrong rules
-                    if manyShortJobsAll or manyShortJobs:
+                    if manyShortJobs:
                         toExhausted = True
-                        if self.getConfigValue('dbproxy', 'SCOUT_CHANGE_SR_{0}'.format(taskSpec.prodSourceLabel),
-                                               'jedi'):
+                        # check expected number of jobs
+                        if shortJobCutoff and extraInfo['expectedNumJobs'] < shortJobCutoff:
+                            tmpLog.debug('not to set exhausted or change split rule since expect num of jobs '
+                                         '({}) is less than {}'.format(extraInfo['expectedNumJobs'],
+                                         shortJobCutoff))
+                            toExhausted = False
+                        # remove wrong rules
+                        if toExhausted and self.getConfigValue('dbproxy',
+                                                               'SCOUT_CHANGE_SR_{0}'.format(taskSpec.prodSourceLabel),
+                                                               'jedi'):
                             updateSL = []
                             removeSL = []
                             if taskSpec.getNumFilesPerJob() is not None:
                                 taskSpec.removeNumFilesPerJob()
-                                removeSL.append('NF')
+                                removeSL.append('nFilesPerJob')
                             if taskSpec.getMaxSizePerJob() is not None:
                                 taskSpec.removeMaxSizePerJob()
-                                removeSL.append('NG')
+                                removeSL.append('nGBPerJob')
                             MAX_NUM_FILES = 200
                             if taskSpec.getMaxNumFilesPerJob() is not None and \
                                     taskSpec.getMaxNumFilesPerJob() < MAX_NUM_FILES:
@@ -6737,8 +6739,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 tmpLog.debug(sqlTSL + comment + str(varMap))
                                 self.cur.execute(sqlTSL + comment, varMap)
                                 toExhausted = False
-                        if toExhausted and manyShortJobs:
-                            # check scaled walltime
+                        # check scaled walltime
+                        if toExhausted:
                             scMsg = ''
                             if taskSpec.useScout():
                                 scaled_max_walltime = extraInfo['longestShortExecTime']
@@ -6753,31 +6755,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     scMsg = ' and scaled execution time ({} = walltime * {}/{}) less than {} min'.\
                                         format(scaled_max_walltime, InputChunk.maxInputSizeAvalanche,
                                                InputChunk.maxInputSizeScouts, extraInfo['shortExecTime'])
-                            # check expected number of jobs
-                            if toExhausted and shortJobCutoff:
-                                if extraInfo['expectedNumJobs'] < shortJobCutoff:
-                                    tmpLog.debug('not to set exhausted since expect num of jobs '
-                                                 '({}) is less than {}'.format(extraInfo['expectedNumJobs'],
-                                                                               shortJobCutoff))
-                                    toExhausted = False
-                            if toExhausted:
-                                errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
-                                errMsg += '{}/{} jobs (greater than {}/10, excluding {} jobs that the site '\
-                                          'config enforced '\
-                                          'to run with copy-to-scratch) had shorter execution time than {} min '\
-                                          'and the expected num of jobs ({}) is larger than {} {}'.format(
-                                    extraInfo['nShortJobs'],
-                                    extraInfo['nTotalForShort'],
-                                    maxShortJobs,
-                                    extraInfo['nShortJobsWithCtoS'],
-                                    extraInfo['shortExecTime'],
-                                    extraInfo['expectedNumJobs'],
-                                    shortJobCutoff,
-                                    scMsg
-                                )
-                                tmpLog.info(errMsg)
-                                taskSpec.setErrDiag(errMsg)
-                                taskSpec.status = 'exhausted'
+                        # go to exhausted
+                        if toExhausted:
+                            errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
+                            errMsg += '{}/{} jobs (greater than {}/10, excluding {} jobs that the site '\
+                                      'config enforced '\
+                                      'to run with copy-to-scratch) had shorter execution time than {} min '\
+                                      'and the expected num of jobs ({}) is larger than {} {}'.format(
+                                extraInfo['nShortJobs'],
+                                extraInfo['nTotalForShort'],
+                                maxShortJobs,
+                                extraInfo['nShortJobsWithCtoS'],
+                                extraInfo['shortExecTime'],
+                                extraInfo['expectedNumJobs'],
+                                shortJobCutoff,
+                                scMsg)
+                            tmpLog.info(errMsg)
+                            taskSpec.setErrDiag(errMsg)
+                            taskSpec.status = 'exhausted'
 
             # CPU efficiency
             if taskSpec.status != 'exhausted' and not sl_changed:
