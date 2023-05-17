@@ -23,12 +23,8 @@ class AtlasIddsMsgProcPlugin(BaseMsgProcPlugin):
         # for each plugin
         for _plugin in [self.plugin_TapeCarousel, self.plugin_HPO, self.plugin_Processing]:
             # initialize each
-            _plugin.initialize()
+            _plugin.initialize(in_collective=True)
             # use the same taskBuffer interface
-            try:
-                del _plugin.tbIF
-            except Exception:
-                pass
             _plugin.tbIF = self.tbIF
 
     def process(self, msg_obj):
