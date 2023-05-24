@@ -3155,7 +3155,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "AND tabT.vo=:vo "
                 if workQueue.is_global_share:
                     sql += "AND gshare=:wq_name "
-                    sql += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
+                    sql += "AND workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaJEDI)
                     varMap[':wq_name'] =workQueue.queue_name
                 else:
                     sql += "AND workQueue_ID=:wq_id "
