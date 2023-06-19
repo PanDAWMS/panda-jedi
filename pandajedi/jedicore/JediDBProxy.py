@@ -8035,9 +8035,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 isOK = False
                             if isOK:
                                 # set new task status
-                                if commandStr == 'retry' and taskStatus == 'exhausted' and taskOldStatus in ['running','scouting']:
+                                if commandStr == 'retry' and taskStatus == 'exhausted' and \
+                                        taskOldStatus in ['running', 'scouting']:
                                     # change task status only since retryTask increments attemptNrs for existing jobs
-                                    newTaskStatus = 'running'
+                                    newTaskStatus = taskOldStatus
                                     changeStatusOnly = True
                                     resetFrozenTime = True
                                 elif commandStr in ['avalanche']:
