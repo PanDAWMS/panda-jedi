@@ -242,14 +242,18 @@ if __name__ == "__main__":
         # record PID
         go_ahead = True
         try:
-            pidFile = open(options.pid, 'x')
+            if options.pid:  # pid files are no longer necessary in systemd
+                pidFile = open(options.pid, 'x')
         except FileExistsError:
             print("{} JediMaster: ERROR    terminated since pid file {} already exists".format(str(timeNow),
                                                                                                options.pid))
             go_ahead = False
         if go_ahead:
-            pidFile.write('{0}'.format(os.getpid()))
-            pidFile.close()
+
+            if options.pid:  # pid files are no longer necessary in systemd
+                pidFile.write('{0}'.format(os.getpid()))
+                pidFile.close()
+
             # master
             master = JediMaster()
 
