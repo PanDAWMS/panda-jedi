@@ -1033,6 +1033,8 @@ class JobGeneratorThread(WorkerThread):
                     else:
                         if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:
                             jobSpec.coreCount = 1
+                        elif siteSpec.coreCount == -1:
+                            jobSpec.coreCount = taskSpec.coreCount
                         else:
                             jobSpec.coreCount = siteSpec.coreCount
                     jobSpec.minRamCount, jobSpec.minRamUnit = JediCoreUtils.getJobMinRamCount(taskSpec, inputChunk,
