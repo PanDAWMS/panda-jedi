@@ -183,7 +183,9 @@ class GenJobBroker (JobBrokerBase):
                             is_ok = True
                     else:
                         # mcore
-                        if tmpSiteSpec.coreCount and tmpSiteSpec.coreCount >= taskSpec.coreCount:
+                        if tmpSiteSpec.coreCount in [0, -1]:
+                            is_ok = True
+                        elif tmpSiteSpec.coreCount and tmpSiteSpec.coreCount >= taskSpec.coreCount:
                             is_ok = True
                     if is_ok:
                         newScanSiteList.append(tmpSiteName)
