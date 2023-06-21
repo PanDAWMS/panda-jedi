@@ -136,7 +136,7 @@ class GenJobBroker (JobBrokerBase):
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
         tmpLog.debug('{0} candidates passed SE space check'.format(len(scanSiteList)))
-        if scanSiteList == []:
+        if not scanSiteList:
             tmpLog.error('no candidates')
             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
             return retTmpError
@@ -161,10 +161,42 @@ class GenJobBroker (JobBrokerBase):
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             tmpLog.debug('{0} candidates passed walltime check ={1}{2}'.format(len(scanSiteList),minWalltime,taskSpec.walltimeUnit))
-            if scanSiteList == []:
+            if not scanSiteList:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
+        ######################################
+        # selection for MP
+        if taskSpec.coreCount is not None and taskSpec.coreCount >= 0:
+            if not site_preassigned:
+                newScanSiteList = []
+                for tmpSiteName in scanSiteList:
+                    tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
+                    # check at the site
+                    is_ok = False
+                    if taskSpec.coreCount == 0:
+                        # any
+                        is_ok = True
+                    elif taskSpec.coreCount == 1:
+                        # score
+                        if tmpSiteSpec.coreCount in [0, 1, -1, None]:
+                            is_ok = True
+                    else:
+                        # mcore
+                        if tmpSiteSpec.coreCount and tmpSiteSpec.coreCount >= taskSpec.coreCount:
+                            is_ok = True
+                    if is_ok:
+                        newScanSiteList.append(tmpSiteName)
+                    else:
+                        tmpLog.info('  skip site=%s due to core mismatch site:%s <> task:%s criteria=-cpucore' % \
+                                     (tmpSiteName, tmpSiteSpec.coreCount, taskSpec.coreCount))
+                scanSiteList = newScanSiteList
+                tmpLog.info('{0} candidates passed for core count check'.format(len(scanSiteList)))
+                if not scanSiteList:
+                    self.dump_summary(tmpLog)
+                    tmpLog.error('no candidates')
+                    taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
+                    return retTmpError
         ######################################
         # selection for memory
         origMinRamCount = inputChunk.getMaxRamCount()
@@ -174,7 +206,10 @@ class GenJobBroker (JobBrokerBase):
                 tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
                 # job memory requirement
                 if taskSpec.ramPerCore():
-                    minRamCount = origMinRamCount * (tmpSiteSpec.coreCount if tmpSiteSpec.coreCount else 1)
+                    if tmpSiteSpec.coreCount and tmpSiteSpec.coreCount > 0:
+                        minRamCount = origMinRamCount * tmpSiteSpec.coreCount
+                    else:
+                        minRamCount = origMinRamCount * (taskSpec.coreCount if taskSpec.coreCount else 1)
                     minRamCount += (taskSpec.baseRamCount if taskSpec.baseRamCount else 0)
                 else:
                     minRamCount = origMinRamCount
@@ -182,23 +217,21 @@ class GenJobBroker (JobBrokerBase):
                 site_maxmemory = tmpSiteSpec.maxrss if tmpSiteSpec.maxrss else 0
                 # check at the site
                 if site_maxmemory and minRamCount and minRamCount > site_maxmemory:
-                    tmpMsg = '  skip site={0} due to site RAM shortage {1}(site upper limit) less than {2} '.format(tmpSiteName,
-                                                                                                                    site_maxmemory,
-                                                                                                                    minRamCount)
+                    tmpMsg = '  skip site={0} due to site RAM shortage. {1} (site upper limit) less than {2} '.\
+                        format(tmpSiteName, site_maxmemory, minRamCount)
                     tmpLog.debug(tmpMsg)
                     continue
                 # site min memory requirement
                 site_minmemory = tmpSiteSpec.minrss if tmpSiteSpec.minrss else 0
                 if site_minmemory and minRamCount and minRamCount < site_minmemory:
-                    tmpMsg = '  skip site={0} due to job RAM shortage {1}(site lower limit) greater than {2} '.format(tmpSiteName,
-                                                                                                                      site_minmemory,
-                                                                                                                      minRamCount)
+                    tmpMsg = '  skip site={0} due to job RAM shortage. {1} (site lower limit) greater than {2} '.\
+                        format(tmpSiteName, site_minmemory, minRamCount)
                     tmpLog.info(tmpMsg)
                     continue
                 newScanSiteList.append(tmpSiteName)
             scanSiteList = newScanSiteList
             tmpLog.debug('{0} candidates passed memory check'.format(len(scanSiteList)))
-            if scanSiteList == []:
+            if not scanSiteList:
                 tmpLog.error('no candidates')
                 taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
                 return retTmpError
