@@ -11519,7 +11519,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRT += "AND rownum<{0} ".format(nTasks)
             sqlLK  = "UPDATE {0}.JEDI_Tasks SET assessmentTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlLK += "WHERE jediTaskID=:jediTaskID AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) AND status=:status "
-            sqlDS  = "SELECT datasetID,type,nEvents "
+            sqlDS  = "SELECT datasetID,type,nEvents,status "
             sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDS += "WHERE jediTaskID=:jediTaskID AND ((type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
@@ -11595,7 +11595,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     firstOutput = True
                     # loop over all datasets
                     taskToFinish = True
-                    for datasetID,datasetType,nEvents in resDS:
+                    for datasetID, datasetType, nEvents, dsStatus in resDS:
+                        # to update contents
+                        if dsStatus in JediDatasetSpec.statusToUpdateContents():
+                            tmpLog.debug('skip jediTaskID={0} datasetID={1} is in {2}'.format(jediTaskID,
+                                                                                              datasetID,
+                                                                                              dsStatus))
+                            taskToFinish = False
+                            break
                         # counts events
                         if datasetType in JediDatasetSpec.getInputTypes():
                             # input
