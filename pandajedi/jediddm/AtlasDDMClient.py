@@ -149,7 +149,7 @@ class AtlasDDMClient(DDMClientBase):
 
     # list dataset replicas
     def listDatasetReplicas(self, datasetName, use_vp=False, detailed=False, skip_incomplete_element=False,
-                            use_deep=False):
+                            use_deep=False, element_list=None):
         methodName = 'listDatasetReplicas'
         methodName += ' pid={0}'.format(self.pid)
         methodName += ' <datasetName={0}>'.format(datasetName)
@@ -169,8 +169,10 @@ class AtlasDDMClient(DDMClientBase):
                 retMap = {}
                 detailedRetMap = {}
                 # get constituent datasets
-                tmpS,dsList = self.listDatasetsInContainer(datasetName)
-                totalFiles = 0
+                if element_list:
+                    dsList = ['{}:{}'.format(*self.extract_scope(n)) for n in element_list]
+                else:
+                    tmpS, dsList = self.listDatasetsInContainer(datasetName)
                 grandTotal = 0
                 for tmpName in dsList:
                     tmpLog.debug(tmpName)
@@ -329,7 +331,8 @@ class AtlasDDMClient(DDMClientBase):
 
     def getAvailableFiles(self, dataset_spec, site_endpoint_map, site_mapper, check_LFC=False,
                           check_completeness=True, storage_token=None, complete_only=False,
-                          use_vp=True, file_scan_in_container=True, use_deep=False):
+                          use_vp=True, file_scan_in_container=True, use_deep=False,
+                          element_list=None):
         """
         :param dataset_spec: dataset spec object
         :param site_endpoint_map: panda sites to ddm endpoints map. The list of panda sites includes the ones to scan
@@ -341,6 +344,7 @@ class AtlasDDMClient(DDMClientBase):
         :param use_vp: use virtual placement
         :param file_scan_in_container: enable file lookup for container
         :param use_deep: use deep option for replica lookup
+        :param element_list: interesting elements in dataset container
 
         TODO: do we need NG, do we need alternate names
         TODO: the storage_token is not used anymore
@@ -381,7 +385,8 @@ class AtlasDDMClient(DDMClientBase):
             tmp_status, tmp_output, detailed_replica_map = self.listDatasetReplicas(dataset_spec.datasetName,
                                                                                     use_vp=use_vp,
                                                                                     detailed=True,
-                                                                                    use_deep=use_deep)
+                                                                                    use_deep=use_deep,
+                                                                                    element_list=element_list)
             if tmp_status != self.SC_SUCCEEDED:
                 regTime = datetime.datetime.utcnow() - loopStart
                 tmp_log.error('failed in {} sec to get dataset replicas with {}'.format(regTime.seconds, tmp_output))

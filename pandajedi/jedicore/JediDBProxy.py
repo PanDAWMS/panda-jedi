@@ -14822,3 +14822,61 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self._rollback()
             self.dumpErrorMessage(tmp_log)
             return None
+
+    # get origin datasets
+    def get_origin_datasets(self, jedi_task_id, dataset_name, lfns):
+        comment = ' /* JediDBProxy.get_origin_datasets */'
+        method_name = self.getMethodName(comment)
+        method_name += ' < jediTaskID={} {} n_files={} >'.format(jedi_task_id, dataset_name, len(lfns))
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug('start')
+        try:
+            dataset_names = []
+            known_lfns = set()
+            # sql to get dataset
+            sql_d = "SELECT tabD.jediTaskID, tabD.datasetID, tabD.datasetName "\
+                    "FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC "\
+                    "WHERE tabC.lfn=:lfn AND tabC.type=:type AND tabD.datasetID=tabC.datasetID ".\
+                format(jedi_config.db.schemaJEDI)
+            sql_c = "SELECT lfn "\
+                    "FROM {0}.JEDI_Dataset_Contents "\
+                    "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status ".\
+                format(jedi_config.db.schemaJEDI)
+            to_break = False
+            for lfn in lfns:
+                if lfn in known_lfns:
+                    continue
+                # start transaction
+                self.conn.begin()
+                # get dataset
+                var_map = {':lfn': lfn, ':type': 'output'}
+                self.cur.execute(sql_d+comment, var_map)
+                res = self.cur.fetchone()
+                if res:
+                    task_id, dataset_id, dataset_name = res
+                    dataset_names.append(dataset_name)
+                    # get files
+                    var_map = {':jediTaskID': task_id, ':datasetID': dataset_id, ':status': 'finished'}
+                    self.cur.execute(sql_c+comment, var_map)
+                    res = self.cur.fetchall()
+                    for tmp_lfn, in res:
+                        known_lfns.add(tmp_lfn)
+                else:
+                    tmp_log.debug('no dataset for {}'.format(lfn))
+                    # return nothing if any dataset is not found
+                    dataset_names = None
+                    to_break = True
+                # commit
+                if not self._commit():
+                    raise RuntimeError('Commit error')
+                if to_break:
+                    break
+            # return
+            tmp_log.debug('found {}'.format(str(dataset_names)))
+            return dataset_names
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None

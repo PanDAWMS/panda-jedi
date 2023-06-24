@@ -800,4 +800,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.load_sw_map()
 
-
+    # get origin datasets
+    def get_origin_datasets(self, jedi_task_id, dataset_name, lfns):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_origin_datasets(jedi_task_id, dataset_name, lfns)
