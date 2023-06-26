@@ -131,9 +131,11 @@ class JobSplitter:
         nSubChunks = default_nSubChunks
         strict_chunkSize = False
         tmp_ng_list = []
+        change_site_for_dist_dataset = False
         while True:
             # change site
-            if iSubChunks % nSubChunks == 0 or subChunk == []:
+            if iSubChunks % nSubChunks == 0 or subChunk == [] or change_site_for_dist_dataset:
+                change_site_for_dist_dataset = False
                 # append to return map
                 if subChunks != []:
                     # get site names for parallel execution
@@ -266,6 +268,15 @@ class JobSplitter:
             if subChunk != []:
                 # append
                 subChunks.append(subChunk)
+                # check if the last file in master dist dataset is locally available
+                for tmp_dataset, tmp_files in subChunk:
+                    if tmp_dataset.isMaster():
+                        if tmp_dataset.isDistributed() and not siteCandidate.isAvailableFile(tmp_files[-1]) \
+                                and siteCandidate.isAvailableFile(tmp_files[0]):
+                            change_site_for_dist_dataset = True
+                            tmpLog.debug('change site since the last file in distributed sub-dataset '
+                                         'was unavailable at {} while the first file was available'.format(siteName))
+                        break
             else:
                 tmp_ng_list.append(siteName)
                 inputChunk.rollback_file_usage()
@@ -284,9 +295,9 @@ class JobSplitter:
                 if taskSpec.getNumSitesPerJob() > 1 and not inputChunk.isMerging:
                     siteName = inputChunk.getParallelSites(taskSpec.getNumSitesPerJob(),
                                                            nSubChunks,[siteName])
-                returnList.append({'siteName':siteName,
-                                   'subChunks':subChunks,
-                                   'siteCandidate':siteCandidate,
+                returnList.append({'siteName': siteName,
+                                   'subChunks': subChunks,
+                                   'siteCandidate': siteCandidate,
                                    })
                 try:
                     gshare = taskSpec.gshare.replace(' ', '_')

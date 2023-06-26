@@ -175,28 +175,39 @@ class InputChunk:
         if ngSites is None:
             ngSites = []
         ngSites = copy.copy(ngSites)
-        # skip sites for distributed datasets
-        """
-        for tmpDatasetSpec in self.getDatasets():
-            if tmpDatasetSpec.isDistributed():
-                datasetUsage = self.datasetMap[tmpDatasetSpec.datasetID]
-                if len(tmpDatasetSpec.Files) > datasetUsage['used']:
-                    tmpFileSpec = tmpDatasetSpec.Files[datasetUsage['used']]
-                    for siteCandidate in self.siteCandidates.values():
-                        # skip if the first file is unavailable at the site
-                        if not siteCandidate.isAvailableFile(tmpFileSpec):
-                            ngSites.append(siteCandidate.siteName)
-        """
+
+        # skip sites for distributed master dataset
+        dist_str = ''
+        if self.masterDataset.isDistributed():
+            dist_str = '(distributed'
+            datasetUsage = self.datasetMap[self.masterDataset.datasetID]
+            ng_for_dist = []
+            ok_for_dist = False
+            if len(self.masterDataset.Files) > datasetUsage['used']:
+                tmpFileSpec = self.masterDataset.Files[datasetUsage['used']]
+                for siteCandidate in self.siteCandidates.values():
+                    # skip if the first file is unavailable at the site
+                    if not siteCandidate.isAvailableFile(tmpFileSpec):
+                        ng_for_dist.append(siteCandidate.siteName)
+                    else:
+                        ok_for_dist = True
+                if ok_for_dist:
+                    ngSites += ng_for_dist
+                else:
+                    dist_str += ': disabled locality constraint since the first file is unnavigable anywhere'
+            dist_str += ')'
+
         # check if to be bootstrapped
         siteCandidateList = list(self.siteCandidates.values())
         newSiteCandidateList = []
         for siteCandidate in siteCandidateList:
-            if siteCandidate.weight == 0 and siteCandidate.siteName not in self.bootstrapped:
+            if siteCandidate.weight == 0 and siteCandidate.siteName not in self.bootstrapped \
+                    and siteCandidate.siteName not in ngSites:
                 newSiteCandidateList.append(siteCandidate)
         if newSiteCandidateList:
             retSiteCandidate = random.choice(newSiteCandidateList)
             self.bootstrapped.add(retSiteCandidate.siteName)
-            retMsg = 'toBootstrapped={}'.format(len(newSiteCandidateList))
+            retMsg = 'to bootstrap: {}'.format(retSiteCandidate.siteName)
         else:
             # get total weight
             totalWeight = 0
@@ -227,8 +238,10 @@ class InputChunk:
             siteCandidateList = newSiteCandidateList
             if fullStr:
                 fullStr = " (skipped {})".format(fullStr[:-1])
-            retMsg = 'OK={} NG={} bootstrapped={} Full={}{}'.format(nOK, nNG, nBoosted, nFull,
-                                                                    fullStr)
+            retMsg = 'OK={} NG={} {} n_bootstrapped={} n_occupied={}{}'.format(
+                nOK, ','.join(ngSites) if ngSites else None, dist_str,
+                len(self.bootstrapped),
+                nFull, fullStr)
             # empty
             if not siteCandidateList:
                 if get_msg:
