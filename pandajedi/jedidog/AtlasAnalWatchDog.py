@@ -134,7 +134,7 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                                                ('transfer', maxTransfer)]:
                     if transferType not in userDict:
                         continue
-                    userTotal = userDict[transferType]['size'] / 1024
+                    userTotal = int(userDict[transferType]['size'] / 1024)
                     tmpLog.debug('user={0} {1} total={2} GB'.format(userName, transferType, userTotal))
                     # too large
                     if userTotal > maxSize:
@@ -146,8 +146,9 @@ class AtlasAnalWatchDog(TypicalWatchDogBase):
                                     or taskID not in thrUserTasks[userName][transferType]:
                                 tmpLog.debug('action=throttle_{0} jediTaskID={1} for user={2}'.format(transferType,
                                                                                                       taskID, userName))
-                                errDiag = 'throttled for {0} min due to large data motion type={1}'.format(thrInterval,
-                                                                                                           transferType)
+                                errDiag = 'throttled since transferring large data volume in '\
+                                          'total={}GB > limit={}GB type={}'.\
+                                          format(userTotal, maxSize, transferType)
                                 self.taskBufferIF.throttleTask_JEDI(taskID,thrInterval,errDiag)
                         # remove the user from the list
                         if userName in thrUserTasks and transferType in thrUserTasks[userName]:

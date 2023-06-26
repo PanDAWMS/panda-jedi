@@ -363,6 +363,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                  'jedi', taskSpec.vo)
         # two loops with/without data locality check
         scanSiteLists = [(copy.copy(scanSiteList), True)]
+        element_map = dict()
         if len(inputChunk.getDatasets()) > 0:
             nRealDS = 0
             for datasetSpec in inputChunk.getDatasets():
@@ -395,6 +396,15 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     scanSiteLists = [(copy.copy(scanSiteList), False)]
             elif taskSpec.taskPriority > 1000 or nRealDS > 1:
                 scanSiteLists.append((copy.copy(scanSiteList), False))
+            # element map
+            for datasetSpec in inputChunk.getDatasets():
+                if datasetSpec.datasetName.endswith('/'):
+                    file_list = [f.lfn for f in datasetSpec.Files]
+                    element_map[datasetSpec.datasetName] = self.taskBufferIF.get_origin_datasets(
+                        taskSpec.jediTaskID,
+                        datasetSpec.datasetName,
+                        file_list)
+
         retVal = None
         checkDataLocality = False
         scanSiteWoVP = []
@@ -425,9 +435,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     if datasetName not in self.dataSiteMap:
                         # get the list of sites where data is available
                         tmpLog.debug('getting the list of sites where {0} is available'.format(datasetName))
-                        tmpSt,tmpRet = AtlasBrokerUtils.getAnalSitesWithData(self.get_unified_sites(scanSiteList),
-                                                                             self.siteMapper,
-                                                                             self.ddmIF,datasetName)
+                        tmpSt, tmpRet = AtlasBrokerUtils.getAnalSitesWithData(self.get_unified_sites(scanSiteList),
+                                                                              self.siteMapper,
+                                                                              self.ddmIF, datasetName,
+                                                                              element_map.get(datasetSpec.datasetName))
                         if tmpSt in [Interaction.JEDITemporaryError,Interaction.JEDITimeoutError]:
                             tmpLog.error('temporary failed to get the list of sites where data is available, since %s' % tmpRet)
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -1526,7 +1537,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                             check_completeness=checkCompleteness,
                                                             use_vp=useVP,
                                                             file_scan_in_container=False,
-                                                            complete_only=useCompleteOnly)
+                                                            complete_only=useCompleteOnly,
+                                                            element_list=element_map.get(datasetSpec.datasetName))
                 if tmpAvFileMap is None:
                     raise Interaction.JEDITemporaryError('ddmIF.getAvailableFiles failed')
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
