@@ -11,7 +11,7 @@ import multiprocessing
 
 from pandajedi.jediddm.DDMInterface import DDMInterface
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
-from pandajedi.jedicore.ThreadUtils import ZombiCleaner
+from pandajedi.jedicore.ThreadUtils import ZombieCleaner
 from pandajedi.jedicore.ProcessUtils import ProcessWrapper
 
 from pandajedi.jediconfig import jedi_config
@@ -57,7 +57,7 @@ class JediMaster:
     # main loop
     def start(self):
         # start zombi cleaner
-        ZombiCleaner().start()
+        ZombieCleaner().start()
         # setup DDM I/F
         ddmIF = DDMInterface()
         ddmIF.setupInterface()
@@ -242,14 +242,18 @@ if __name__ == "__main__":
         # record PID
         go_ahead = True
         try:
-            pidFile = open(options.pid, 'x')
+            if options.pid:  # pid files are no longer necessary in systemd
+                pidFile = open(options.pid, 'x')
         except FileExistsError:
             print("{} JediMaster: ERROR    terminated since pid file {} already exists".format(str(timeNow),
                                                                                                options.pid))
             go_ahead = False
         if go_ahead:
-            pidFile.write('{0}'.format(os.getpid()))
-            pidFile.close()
+
+            if options.pid:  # pid files are no longer necessary in systemd
+                pidFile.write('{0}'.format(os.getpid()))
+                pidFile.close()
+
             # master
             master = JediMaster()
 

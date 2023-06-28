@@ -790,6 +790,7 @@ class JobGeneratorThread(WorkerThread):
                                         if pandaID == 'NULL':
                                             continue
                                         pandaIDsForExec.append(pandaID)
+                                    tmpLog.info('PATH: {0}'.format(os.environ['PATH']))
                                     statExe, retExe = PandaClient.reassignJobs(pandaIDsForExec, forPending=True,
                                                                                firstSubmission=firstSubmission)
                                     tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDsForExec), retExe))
