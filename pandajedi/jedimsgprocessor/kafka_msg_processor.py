@@ -8,7 +8,10 @@ base_logger = logger_utils.setup_logger(__name__.split('.')[-1])
 
 # Kafka message processing plugin
 class KafkaMsgProcPlugin(BaseMsgProcPlugin):
-    def __init__(self):
+    def initialize(self):
+        """
+        initialize plugin instance, run once before loop in thread
+        """
         self.publisher = KafkaPublisher()
 
     def process(self, msg_obj, decoded_data=None):
