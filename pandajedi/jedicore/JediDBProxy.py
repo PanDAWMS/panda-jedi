@@ -14798,7 +14798,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             self.conn.begin()
             nFileRow = 0
             # update contents
-            for filename, (datasetid, fileid) in filenames_dict:
+            for filename, (datasetid, fileid) in filenames_dict.items():
                 varMap = {}
                 varMap[':jediTaskID'] = jeditaskid
                 varMap[':lfn'] = '%' + filename
