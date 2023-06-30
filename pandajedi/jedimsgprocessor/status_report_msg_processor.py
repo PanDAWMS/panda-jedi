@@ -70,7 +70,10 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
                 tmp_log.debug('task_status')
                 # forwarding
                 for plugin_inst in self.forwarding_plugins:
-                    plugin_inst.process(msg_obj, decoded_data=msg_dict)
+                    try:
+                        plugin_inst.process(msg_obj, decoded_data=msg_dict)
+                    except Exception as exc:
+                        tmp_log.error(f'{exc.__class__.__name__}: {exc}')
                 # only return certain statuses
                 if msg_dict.get('status') in to_return_task_status_list:
                     to_return_message = True
@@ -78,7 +81,10 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
                 tmp_log.debug('job_status')
                 # forwarding
                 for plugin_inst in self.forwarding_plugins:
-                    plugin_inst.process(msg_obj, decoded_data=msg_dict)
+                    try:
+                        plugin_inst.process(msg_obj, decoded_data=msg_dict)
+                    except Exception as exc:
+                        tmp_log.error(f'{exc.__class__.__name__}: {exc}')
             else:
                 warn_str = 'unknown msg_type : {0}'.format(msg_type)
                 tmp_log.warning(warn_str)
