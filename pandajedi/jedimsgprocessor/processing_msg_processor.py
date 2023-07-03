@@ -60,7 +60,7 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
             if to_proceed:
                 # initialize
                 scope_name_dict_map = {}
-                missing_files_list = []
+                missing_files_dict = {}
                 # loop over targets
                 for target in target_list:
                     name = target['name']
@@ -73,7 +73,7 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
                         scope_name_dict_map[scope][name] = (datasetid, fileid)
                     elif (msg_type == 'file_processing' and target['status'] in ['Missing']):
                         # missing files
-                        missing_files_list.append(name)
+                        missing_files_dict[name] = (datasetid, fileid)
                     else:
                         # got target in bad attributes, do nothing
                         tmp_log.debug('jeditaskid={jeditaskid}, scope={scope}, msg_type={msg_type}, status={status}, did nothing for bad target'.format(
@@ -111,9 +111,9 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
                         tmp_log.warning('jeditaskid={0}, scope={1}, something unwanted happened...'.format(
                                                                                 jeditaskid, scope))
                 # handle missing files
-                n_missing = len(missing_files_list)
+                n_missing = len(missing_files_dict)
                 if n_missing > 0:
-                    res = self.tbIF.setMissingFilesAboutIdds_JEDI(jeditaskid=jeditaskid, filenames=missing_files_list)
+                    res = self.tbIF.setMissingFilesAboutIdds_JEDI(jeditaskid=jeditaskid, filenames_dict=missing_files_dict)
                     if res == n_missing:
                         tmp_log.debug('jeditaskid={0}, marked all {1} files missing'.format(jeditaskid, n_missing))
                     elif res < n_missing:
