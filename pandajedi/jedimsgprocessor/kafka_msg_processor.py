@@ -35,8 +35,7 @@ class KafkaMsgProcPlugin(BaseMsgProcPlugin):
             message_content = decoded_data
 
         # Publish the message to Kafka
-        topic = 'my_topic'  # Replace with the desired topic
-        self.publisher.publish_message(topic, message_content)
+        self.publisher.publish_message(message_content)
         tmp_log.info('done')
 
     def terminate(self):
