@@ -1,4 +1,6 @@
 import json
+import copy
+import traceback
 
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 
@@ -51,15 +53,15 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
         # parse json
         try:
             msg_dict = json.loads(msg_obj.data)
-        except Exception as e:
-            err_str = 'failed to parse message json {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_obj.data)
+        except Exception as exc:
+            err_str = f'failed to parse message json {msg_obj.data} , skipped. {exc.__class__.__name__} : {exc} ; {traceback.format_exc()}'
             tmp_log.error(err_str)
             raise
         # sanity check
         try:
             msg_type = msg_dict['msg_type']
         except Exception as e:
-            err_str = 'failed to parse message object dict {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_dict)
+            err_str = f'failed to parse message object dict {msg_dict} , skipped. {exc.__class__.__name__} : {exc} ; {traceback.format_exc()}'
             tmp_log.error(err_str)
             raise
         # whether to return the message
@@ -71,9 +73,10 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
                 # forwarding
                 for plugin_inst in self.forwarding_plugins:
                     try:
-                        plugin_inst.process(msg_obj, decoded_data=msg_dict)
+                        tmp_msg_dict = copy.deepcopy(msg_dict)
+                        plugin_inst.process(msg_obj, decoded_data=tmp_msg_dict)
                     except Exception as exc:
-                        tmp_log.error(f'{exc.__class__.__name__}: {exc}')
+                        tmp_log.error(f'failed to process message object dict {tmp_msg_dict}; {exc.__class__.__name__} : {exc} ; {traceback.format_exc()}')
                 # only return certain statuses
                 if msg_dict.get('status') in to_return_task_status_list:
                     to_return_message = True
@@ -82,9 +85,10 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
                 # forwarding
                 for plugin_inst in self.forwarding_plugins:
                     try:
-                        plugin_inst.process(msg_obj, decoded_data=msg_dict)
+                        tmp_msg_dict = copy.deepcopy(msg_dict)
+                        plugin_inst.process(msg_obj, decoded_data=tmp_msg_dict)
                     except Exception as exc:
-                        tmp_log.error(f'{exc.__class__.__name__}: {exc}')
+                        tmp_log.error(f'failed to process message object dict {tmp_msg_dict}; {exc.__class__.__name__} : {exc} ; {traceback.format_exc()}')
             else:
                 warn_str = 'unknown msg_type : {0}'.format(msg_type)
                 tmp_log.warning(warn_str)
@@ -95,4 +99,3 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
         # return
         if to_return_message:
             return msg_obj.data
-
