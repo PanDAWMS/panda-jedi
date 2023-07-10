@@ -23,12 +23,12 @@ dbVersion = res[0][0]
 serverDBVersion = JediDBSchemaInfo.JediDBSchemaInfo().method()
 
 if version.parse(dbVersion) >= version.parse(serverDBVersion):
-    print ("True")
+    print("DB schema check: OK")
 else:
-    print ("False")
+    msgBody = 'There is an issue with ' + panda_config.pserveralias + '. PanDA DB schema installed is ' + dbVersion + \
+              ' while PanDA JEDI requires version ' + serverDBVersion + \
+              ' to be installed. Please check the official docs for instructions on how to upgrade the schema.'
+    print(msgBody)
     if 'pandaEmailNotification' in panda_config.__dict__:
-        msgBody = 'There is an issue with ' + panda_config.pserveralias + '. PanDA DB schema installed is ' + dbVersion + \
-                  ' while PanDA JEDI requires version ' + serverDBVersion + \
-                  ' to be installed. Please check the official docs for instructions on how to upgrade the schema.'
         MailUtils().send(panda_config.pandaEmailNotification,
                          'PanDA DB Version installed is not correct for JEDI running on ' + panda_config.pserveralias, msgBody)
