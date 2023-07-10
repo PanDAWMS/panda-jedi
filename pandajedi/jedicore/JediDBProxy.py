@@ -13490,47 +13490,50 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # without datasetID from message
                         filenames_dict_without_ID[filename] = (datasetid, fileid)
                 # loop over files with fileID
-                varMaps = []
-                for filename, (datasetid, fileid) in filenames_dict_with_fileID.items():
-                    tmp_varMap = varMap.copy()
-                    if scope != 'pseudo_dataset':
-                        tmp_varMap[':lfn'] = filename
-                    else:
-                        tmp_varMap[':lfn'] = '%' + filename
-                    tmp_varMap[':fileID'] = fileid
-                    varMaps.append(tmp_varMap)
-                    tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
-                tmpLog.debug('running sql executemany: {0}'.format(sqlUF_with_fileID))
-                self.cur.executemany(sqlUF_with_fileID+comment, varMaps)
-                retVal += self.cur.rowcount
+                if filenames_dict_with_fileID:
+                    varMaps = []
+                    for filename, (datasetid, fileid) in filenames_dict_with_fileID.items():
+                        tmp_varMap = varMap.copy()
+                        if scope != 'pseudo_dataset':
+                            tmp_varMap[':lfn'] = filename
+                        else:
+                            tmp_varMap[':lfn'] = '%' + filename
+                        tmp_varMap[':fileID'] = fileid
+                        varMaps.append(tmp_varMap)
+                        tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                    tmpLog.debug('running sql executemany: {0}'.format(sqlUF_with_fileID))
+                    self.cur.executemany(sqlUF_with_fileID+comment, varMaps)
+                    retVal += self.cur.rowcount
                 # loop over files with datasetID
-                varMaps = []
-                for filename, (datasetid, fileid) in filenames_dict_with_datasetID.items():
-                    tmp_varMap = varMap.copy()
-                    if scope != 'pseudo_dataset':
-                        tmp_varMap[':lfn'] = filename
-                    else:
-                        tmp_varMap[':lfn'] = '%' + filename
-                    tmp_varMap[':datasetID'] = datasetid
-                    varMaps.append(tmp_varMap)
-                    tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
-                tmpLog.debug('running sql executemany: {0}'.format(sqlUF_with_datasetID))
-                self.cur.executemany(sqlUF_with_datasetID+comment, varMaps)
-                retVal += self.cur.rowcount
+                if filenames_dict_with_datasetID:
+                    varMaps = []
+                    for filename, (datasetid, fileid) in filenames_dict_with_datasetID.items():
+                        tmp_varMap = varMap.copy()
+                        if scope != 'pseudo_dataset':
+                            tmp_varMap[':lfn'] = filename
+                        else:
+                            tmp_varMap[':lfn'] = '%' + filename
+                        tmp_varMap[':datasetID'] = datasetid
+                        varMaps.append(tmp_varMap)
+                        tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                    tmpLog.debug('running sql executemany: {0}'.format(sqlUF_with_datasetID))
+                    self.cur.executemany(sqlUF_with_datasetID+comment, varMaps)
+                    retVal += self.cur.rowcount
                 # loop over files without ID
-                varMaps = []
-                for filename, (datasetid, fileid) in filenames_dict_without_ID.items():
-                    tmp_varMap = varMap.copy()
-                    if scope != 'pseudo_dataset':
-                        tmp_varMap[':lfn'] = filename
-                    else:
-                        tmp_varMap[':lfn'] = '%' + filename
-                    tmp_varMap.update(var_map_datasetids)
-                    varMaps.append(tmp_varMap)
-                    tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
-                tmpLog.debug('running sql executemany: {0}'.format(sqlUF_without_ID))
-                self.cur.executemany(sqlUF_without_ID+comment, varMaps)
-                retVal += self.cur.rowcount
+                if filenames_dict_without_ID:
+                    varMaps = []
+                    for filename, (datasetid, fileid) in filenames_dict_without_ID.items():
+                        tmp_varMap = varMap.copy()
+                        if scope != 'pseudo_dataset':
+                            tmp_varMap[':lfn'] = filename
+                        else:
+                            tmp_varMap[':lfn'] = '%' + filename
+                        tmp_varMap.update(var_map_datasetids)
+                        varMaps.append(tmp_varMap)
+                        tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                    tmpLog.debug('running sql executemany: {0}'.format(sqlUF_without_ID))
+                    self.cur.executemany(sqlUF_without_ID+comment, varMaps)
+                    retVal += self.cur.rowcount
             # update associated files
             if primaryID is not None:
                 self.fix_associated_files_in_staging(jeditaskid, primary_id=primaryID)
