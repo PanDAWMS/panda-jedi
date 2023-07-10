@@ -13467,35 +13467,70 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     var_map_datasetids[key] = tmp_datasetID
             else:
                 to_update_files = False
+            # set sqls to update file status
+            params_key_str = ','.join(params_key_list)
+            datesetid_list_str = f'AND datasetID IN ({params_key_str}) '
+            sqlUF_without_ID = sqlUF + datesetid_list_str
+            sqlUF_with_fileID = sqlUF + 'AND fileID=:fileID '
+            sqlUF_with_datasetID = sqlUF + 'AND datasetID=:datasetID '
             # update files
             if to_update_files:
-                # loop over filenames
-                varMaps = []
+                # split into groups according to whether with ids
+                filenames_dict_with_fileID = {}
+                filenames_dict_with_datasetID = {}
+                filenames_dict_without_ID = {}
                 for filename, (datasetid, fileid) in filenames_dict.items():
+                    if fileid is not None:
+                        # with fileID from message
+                        filenames_dict_with_fileID[filename] = (datasetid, fileid)
+                    elif datasetid is not None:
+                        # with datasetID from message
+                        filenames_dict_with_datasetID[filename] = (datasetid, fileid)
+                    else:
+                        # without datasetID from message
+                        filenames_dict_without_ID[filename] = (datasetid, fileid)
+                # loop over files with fileID
+                varMaps = []
+                for filename, (datasetid, fileid) in filenames_dict_with_fileID.items():
                     tmp_varMap = varMap.copy()
                     if scope != 'pseudo_dataset':
                         tmp_varMap[':lfn'] = filename
                     else:
                         tmp_varMap[':lfn'] = '%' + filename
-                    if datasetid is not None:
-                        # with datasetID from message
-                        sqlUF += 'AND datasetID=:datasetID '
-                        tmp_varMap[':datasetID'] = datasetid
-                    else:
-                        # without datasetID from message
-                        params_key_str = ','.join(params_key_list)
-                        datesetid_list_str = f'AND datasetID IN ({params_key_str}) '
-                        sqlUF += datesetid_list_str
-                        tmp_varMap.update(var_map_datasetids)
-                    if fileid is not None:
-                        # with fileID from message
-                        sqlUF += 'AND fileID=:fileID '
-                        tmp_varMap[':fileID'] = fileid
+                    tmp_varMap[':fileID'] = fileid
                     varMaps.append(tmp_varMap)
                     tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
-                tmpLog.debug('running sql executemany: {0}'.format(sqlUF))
-                self.cur.executemany(sqlUF+comment, varMaps)
-                retVal = self.cur.rowcount
+                tmpLog.debug('running sql executemany: {0}'.format(sqlUF_with_fileID))
+                self.cur.executemany(sqlUF_with_fileID+comment, varMaps)
+                retVal += self.cur.rowcount
+                # loop over files with datasetID
+                varMaps = []
+                for filename, (datasetid, fileid) in filenames_dict_with_datasetID.items():
+                    tmp_varMap = varMap.copy()
+                    if scope != 'pseudo_dataset':
+                        tmp_varMap[':lfn'] = filename
+                    else:
+                        tmp_varMap[':lfn'] = '%' + filename
+                    tmp_varMap[':datasetID'] = datasetid
+                    varMaps.append(tmp_varMap)
+                    tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                tmpLog.debug('running sql executemany: {0}'.format(sqlUF_with_datasetID))
+                self.cur.executemany(sqlUF_with_datasetID+comment, varMaps)
+                retVal += self.cur.rowcount
+                # loop over files without ID
+                varMaps = []
+                for filename, (datasetid, fileid) in filenames_dict_without_ID.items():
+                    tmp_varMap = varMap.copy()
+                    if scope != 'pseudo_dataset':
+                        tmp_varMap[':lfn'] = filename
+                    else:
+                        tmp_varMap[':lfn'] = '%' + filename
+                    tmp_varMap.update(var_map_datasetids)
+                    varMaps.append(tmp_varMap)
+                    tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                tmpLog.debug('running sql executemany: {0}'.format(sqlUF_without_ID))
+                self.cur.executemany(sqlUF_without_ID+comment, varMaps)
+                retVal += self.cur.rowcount
             # update associated files
             if primaryID is not None:
                 self.fix_associated_files_in_staging(jeditaskid, primary_id=primaryID)
@@ -14799,19 +14834,20 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             nFileRow = 0
             # update contents
             for filename, (datasetid, fileid) in filenames_dict.items():
+                tmp_sqlF = sqlF
                 varMap = {}
                 varMap[':jediTaskID'] = jeditaskid
                 varMap[':lfn'] = '%' + filename
                 varMap[':nStatus'] = 'missing'
                 if datasetid is not None:
                     # with datasetID from message
-                    sqlF += 'AND datasetID=:datasetID '
+                    tmp_sqlF += 'AND datasetID=:datasetID '
                     varMap[':datasetID'] = datasetid
                 if fileid is not None:
                     # with fileID from message
-                    sqlF += 'AND fileID=:fileID '
+                    tmp_sqlF += 'AND fileID=:fileID '
                     varMap[':fileID'] = fileid
-                self.cur.execute(sqlF+comment, varMap)
+                self.cur.execute(tmp_sqlF+comment, varMap)
                 nRow = self.cur.rowcount
                 nFileRow += nRow
             # commit
