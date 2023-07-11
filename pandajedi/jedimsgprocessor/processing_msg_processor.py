@@ -59,30 +59,32 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
             # whether to proceed the targets
             if to_proceed:
                 # initialize
-                scope_name_list_map = {}
-                missing_files_list = []
+                scope_name_dict_map = {}
+                missing_files_dict = {}
                 # loop over targets
                 for target in target_list:
                     name = target['name']
                     scope = target['scope']
+                    datasetid = target.get('external_coll_id', None)
+                    fileid = target.get('external_content_id', None)
                     if (msg_type == 'file_processing' and target['status'] in ['Available']) \
                             or (msg_type == 'collection_processing' and target['status'] in ['Closed']):
-                        scope_name_list_map.setdefault(scope, [])
-                        scope_name_list_map[scope].append(name)
+                        scope_name_dict_map.setdefault(scope, {})
+                        scope_name_dict_map[scope][name] = (datasetid, fileid)
                     elif (msg_type == 'file_processing' and target['status'] in ['Missing']):
                         # missing files
-                        missing_files_list.append(name)
+                        missing_files_dict[name] = (datasetid, fileid)
                     else:
                         # got target in bad attributes, do nothing
                         tmp_log.debug('jeditaskid={jeditaskid}, scope={scope}, msg_type={msg_type}, status={status}, did nothing for bad target'.format(
                                         jeditaskid=jeditaskid, scope=scope, msg_type=msg_type, status=target['status']))
                         pass
                 # run by each scope
-                for scope, name_list in scope_name_list_map.items():
+                for scope, name_dict in scope_name_dict_map.items():
                     # about files or datasets in good status
                     if msg_type == 'file_processing':
                         tmp_log.debug('jeditaskid={0}, scope={1}, update about files...'.format(jeditaskid, scope))
-                        res = self.tbIF.updateInputFilesStagedAboutIdds_JEDI(jeditaskid, scope, name_list)
+                        res = self.tbIF.updateInputFilesStagedAboutIdds_JEDI(jeditaskid, scope, name_dict)
                         if res is None:
                             # got error and rollback in dbproxy
                             err_str = 'jeditaskid={0}, scope={1}, failed to update files'.format(jeditaskid, scope)
@@ -90,7 +92,7 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
                         tmp_log.info('jeditaskid={0}, scope={1}, updated {2} files'.format(jeditaskid, scope, res))
                     elif msg_type == 'collection_processing':
                         tmp_log.debug('jeditaskid={0}, scope={1}, update about datasets...'.format(jeditaskid, scope))
-                        res = self.tbIF.updateInputDatasetsStagedAboutIdds_JEDI(jeditaskid, scope, name_list)
+                        res = self.tbIF.updateInputDatasetsStagedAboutIdds_JEDI(jeditaskid, scope, name_dict)
                         if res is None:
                             # got error and rollback in dbproxy
                             err_str = 'jeditaskid={0}, scope={1}, failed to update datasets'.format(jeditaskid, scope)
@@ -109,9 +111,9 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
                         tmp_log.warning('jeditaskid={0}, scope={1}, something unwanted happened...'.format(
                                                                                 jeditaskid, scope))
                 # handle missing files
-                n_missing = len(missing_files_list)
+                n_missing = len(missing_files_dict)
                 if n_missing > 0:
-                    res = self.tbIF.setMissingFilesAboutIdds_JEDI(jeditaskid=jeditaskid, filenames=missing_files_list)
+                    res = self.tbIF.setMissingFilesAboutIdds_JEDI(jeditaskid=jeditaskid, filenames_dict=missing_files_dict)
                     if res == n_missing:
                         tmp_log.debug('jeditaskid={0}, marked all {1} files missing'.format(jeditaskid, n_missing))
                     elif res < n_missing:

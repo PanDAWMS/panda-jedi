@@ -1,7 +1,7 @@
 import json
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 from pandacommon.pandalogger import logger_utils
-from pandacommon.kafkapublisher import KafkaPublisher
+from pandacommon.kafkapublisher.KafkaPublisher import KafkaPublisher
 
 # Logger
 base_logger = logger_utils.setup_logger(__name__.split('.')[-1])
@@ -38,5 +38,5 @@ class KafkaMsgProcPlugin(BaseMsgProcPlugin):
         self.publisher.publish_message(message_content)
         tmp_log.info('done')
 
-    def __del__(self):
-        self.publisher.close()  # Close the Kafka publisher when the instance is destroyed
+    def terminate(self):
+        self.publisher.close()
