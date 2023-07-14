@@ -1,7 +1,9 @@
 import json
+import re
 import copy
 import traceback
 
+from pandajedi.jediconfig import jedi_config
 from pandajedi.jedimsgprocessor.base_msg_processor import BaseMsgProcPlugin
 
 from pandacommon.pandalogger import logger_utils
@@ -21,6 +23,16 @@ to_return_task_status_list = [
     'prepared', 
     'done', 'finished', 'failed',
     'broken', 'aborted',
+]
+
+to_return_job_status_list = [
+    'pending', 'defined', 'assigned',
+    'activated', 
+    'starting', 
+    'running', 
+    'throttled', 
+    'finished', 'failed',
+    'cancelled', 'closed',
 ]
 
 
@@ -68,12 +80,16 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
         to_return_message = False
         # run different plugins according to message type
         try:
+            # DB source name from DB schema
+            db_source_name = re.sub('_PANDA', '', jedi_config.db.schemaJEDI).lower()
+            # process according to msg_type
             if msg_type == 'task_status':
                 tmp_log.debug('task_status')
                 # forwarding
                 for plugin_inst in self.forwarding_plugins:
                     try:
                         tmp_msg_dict = copy.deepcopy(msg_dict)
+                        tmp_msg_dict['db_source'] = db_source_name
                         plugin_inst.process(msg_obj, decoded_data=tmp_msg_dict)
                     except Exception as exc:
                         tmp_log.error(f'failed to process message object dict {tmp_msg_dict}; {exc.__class__.__name__} : {exc} ; {traceback.format_exc()}')
@@ -86,16 +102,20 @@ class StatusReportMsgProcPlugin(BaseMsgProcPlugin):
                 for plugin_inst in self.forwarding_plugins:
                     try:
                         tmp_msg_dict = copy.deepcopy(msg_dict)
+                        tmp_msg_dict['db_source'] = db_source_name
                         plugin_inst.process(msg_obj, decoded_data=tmp_msg_dict)
                     except Exception as exc:
                         tmp_log.error(f'failed to process message object dict {tmp_msg_dict}; {exc.__class__.__name__} : {exc} ; {traceback.format_exc()}')
+                # only return certain statuses
+                if msg_dict.get('status') in to_return_job_status_list:
+                    to_return_message = True
             else:
                 warn_str = 'unknown msg_type : {0}'.format(msg_type)
                 tmp_log.warning(warn_str)
         except Exception:
             raise
         # done
+        tmp_log.debug(f'{msg_dict}; to_return={to_return_message}')
         tmp_log.info('done')
-        # return
         if to_return_message:
             return msg_obj.data

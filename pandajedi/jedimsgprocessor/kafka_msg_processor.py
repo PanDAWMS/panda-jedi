@@ -36,6 +36,7 @@ class KafkaMsgProcPlugin(BaseMsgProcPlugin):
 
         # Publish the message to Kafka
         self.publisher.publish_message(message_content)
+        tmp_log.debug(f'sent {message_content}')
         tmp_log.info('done')
 
     def terminate(self):
