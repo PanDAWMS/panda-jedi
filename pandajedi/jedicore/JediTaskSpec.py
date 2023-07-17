@@ -882,6 +882,13 @@ class JediTaskSpec(object):
 
     # set error dialog
     def setErrDiag(self,diag,append=False,prepend=False):
+        # check if message can be encoded with UTF-8
+        if diag:
+            try:
+                diag.encode()
+            except UnicodeEncodeError:
+                # remove non-ascii chars
+                diag = re.sub(r'[^\x00-\x7F]+', '<non-ASCII char>', diag)
         # set error dialog
         if append is True and self.errorDialog is not None:
             if not prepend:

@@ -696,14 +696,14 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getAvgDiskIO_JEDI()
 
     # update input files stage-in done according to message from idds
-    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames):
+    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames_dict):
         with self.proxyPool.get() as proxy:
-            return proxy.updateInputFilesStagedAboutIdds_JEDI(jeditaskid, scope, filenames)
+            return proxy.updateInputFilesStagedAboutIdds_JEDI(jeditaskid, scope, filenames_dict)
 
     # update input datasets stage-in done according to message from idds
-    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames):
+    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames_dict):
         with self.proxyPool.get() as proxy:
-            return proxy.updateInputDatasetsStagedAboutIdds_JEDI(jeditaskid, scope, dsnames)
+            return proxy.updateInputDatasetsStagedAboutIdds_JEDI(jeditaskid, scope, dsnames_dict)
 
    # get number of staging files
     def getNumStagingFiles_JEDI(self, jeditaskid):
@@ -791,9 +791,9 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.undoPreassignedTasks_JEDI(jedi_taskids, task_orig_attr_map, params_map, force)
 
     # set missing files according to iDDS messages
-    def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames):
+    def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames_dict):
         with self.proxyPool.get() as proxy:
-            return proxy.setMissingFilesAboutIdds_JEDI(jeditaskid, filenames)
+            return proxy.setMissingFilesAboutIdds_JEDI(jeditaskid, filenames_dict)
 
     # set missing files according to iDDS messages
     def load_sw_map(self):

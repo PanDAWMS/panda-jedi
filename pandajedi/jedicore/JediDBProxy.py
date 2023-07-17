@@ -13428,13 +13428,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update input files stage-in done according to message from idds
-    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames):
+    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames_dict):
         comment = ' /* JediDBProxy.updateInputFilesStagedAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' < jediTaskID={0} >'.format(jeditaskid)
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
         try:
+            to_update_files = True
             retVal = 0
             # varMap
             varMap = dict()
@@ -13442,8 +13443,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':type1'] = 'input'
             varMap[':type2'] = 'pseudo_input'
             # sql to get datasetIDs
-            sqlGD = ('SELECT datasetID,masterID FROM {0}.JEDI_Datasets'
-                     ' WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) '
+            sqlGD = ('SELECT datasetID,masterID FROM {0}.JEDI_Datasets '
+                     'WHERE jediTaskID=:jediTaskID '
+                     'AND type IN (:type1,:type2) '
                      ).format(jedi_config.db.schemaJEDI)
             # sql to update file status
             if scope != 'pseudo_dataset':
@@ -13452,8 +13454,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                          'WHERE jediTaskID=:jediTaskID '
                          'AND status=:old_status '
                          'AND scope=:scope '
-                         "AND lfn=:lfn "
-                         'AND datasetID IN ('
+                         'AND lfn=:lfn '
                         ).format(jedi_config.db.schemaJEDI)
             else:
                 sqlUF = ('UPDATE {0}.JEDI_Dataset_Contents '
@@ -13461,12 +13462,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                          'WHERE jediTaskID=:jediTaskID '
                          'AND status=:old_status '
                          'AND scope IS NULL '
-                         "AND lfn like :lfn "
-                         'AND datasetID IN ('
+                         'AND lfn like :lfn '
                         ).format(jedi_config.db.schemaJEDI)
             # begin transaction
             self.conn.begin()
-            # get datasetIDs
+            # get datasetIDs from DB if no fileID nor datasetID provided by the message
             tmpLog.debug('running sql: {0} {1}'.format(sqlGD, varMap))
             self.cur.execute(sqlGD+comment, varMap)
             varMap = dict()
@@ -13477,28 +13477,84 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':new_status'] = 'pending'
             resGD = self.cur.fetchall()
             primaryID = None
+            params_key_list = []
+            var_map_datasetids = {}
             if len(resGD) > 0:
-                for idx, (id, masterID) in enumerate(resGD):
-                    key = ':datasetID_{0}'.format(idx)
-                    sqlUF += '{0},'.format(key)
-                    varMap[key] = id
+                for idx, (tmp_datasetID, masterID) in enumerate(resGD):
                     if masterID is None:
-                        primaryID = id
-                sqlUF = sqlUF[:-1]
-                sqlUF += ') '
-                # loop over filenames
-                varMaps = []
-                for filename in filenames:
-                    tmp_varMap = varMap.copy()
-                    if scope != 'pseudo_dataset':
-                        tmp_varMap[':lfn'] = filename
+                        primaryID = tmp_datasetID
+                    key = ':datasetID_{0}'.format(idx)
+                    params_key_list.append(key)
+                    var_map_datasetids[key] = tmp_datasetID
+            else:
+                to_update_files = False
+            # set sqls to update file status
+            params_key_str = ','.join(params_key_list)
+            datesetid_list_str = f'AND datasetID IN ({params_key_str}) '
+            sqlUF_without_ID = sqlUF + datesetid_list_str
+            sqlUF_with_fileID = sqlUF + 'AND fileID=:fileID '
+            sqlUF_with_datasetID = sqlUF + 'AND datasetID=:datasetID '
+            # update files
+            if to_update_files:
+                # split into groups according to whether with ids
+                filenames_dict_with_fileID = {}
+                filenames_dict_with_datasetID = {}
+                filenames_dict_without_ID = {}
+                for filename, (datasetid, fileid) in filenames_dict.items():
+                    if fileid is not None:
+                        # with fileID from message
+                        filenames_dict_with_fileID[filename] = (datasetid, fileid)
+                    elif datasetid is not None:
+                        # with datasetID from message
+                        filenames_dict_with_datasetID[filename] = (datasetid, fileid)
                     else:
-                        tmp_varMap[':lfn'] = '%' + filename
-                    varMaps.append(tmp_varMap)
-                    tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
-                tmpLog.debug('running sql executemany: {0}'.format(sqlUF))
-                self.cur.executemany(sqlUF+comment, varMaps)
-                retVal = self.cur.rowcount
+                        # without datasetID from message
+                        filenames_dict_without_ID[filename] = (datasetid, fileid)
+                # loop over files with fileID
+                if filenames_dict_with_fileID:
+                    varMaps = []
+                    for filename, (datasetid, fileid) in filenames_dict_with_fileID.items():
+                        tmp_varMap = varMap.copy()
+                        if scope != 'pseudo_dataset':
+                            tmp_varMap[':lfn'] = filename
+                        else:
+                            tmp_varMap[':lfn'] = '%' + filename
+                        tmp_varMap[':fileID'] = fileid
+                        varMaps.append(tmp_varMap)
+                        tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                    tmpLog.debug('running sql executemany: {0}'.format(sqlUF_with_fileID))
+                    self.cur.executemany(sqlUF_with_fileID+comment, varMaps)
+                    retVal += self.cur.rowcount
+                # loop over files with datasetID
+                if filenames_dict_with_datasetID:
+                    varMaps = []
+                    for filename, (datasetid, fileid) in filenames_dict_with_datasetID.items():
+                        tmp_varMap = varMap.copy()
+                        if scope != 'pseudo_dataset':
+                            tmp_varMap[':lfn'] = filename
+                        else:
+                            tmp_varMap[':lfn'] = '%' + filename
+                        tmp_varMap[':datasetID'] = datasetid
+                        varMaps.append(tmp_varMap)
+                        tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                    tmpLog.debug('running sql executemany: {0}'.format(sqlUF_with_datasetID))
+                    self.cur.executemany(sqlUF_with_datasetID+comment, varMaps)
+                    retVal += self.cur.rowcount
+                # loop over files without ID
+                if filenames_dict_without_ID:
+                    varMaps = []
+                    for filename, (datasetid, fileid) in filenames_dict_without_ID.items():
+                        tmp_varMap = varMap.copy()
+                        if scope != 'pseudo_dataset':
+                            tmp_varMap[':lfn'] = filename
+                        else:
+                            tmp_varMap[':lfn'] = '%' + filename
+                        tmp_varMap.update(var_map_datasetids)
+                        varMaps.append(tmp_varMap)
+                        tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                    tmpLog.debug('running sql executemany: {0}'.format(sqlUF_without_ID))
+                    self.cur.executemany(sqlUF_without_ID+comment, varMaps)
+                    retVal += self.cur.rowcount
             # update associated files
             if primaryID is not None:
                 self.fix_associated_files_in_staging(jeditaskid, primary_id=primaryID)
@@ -13622,7 +13678,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update input datasets stage-in done according to message from idds
-    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames, use_commit=True):
+    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames_dict, use_commit=True):
         comment = ' /* JediDBProxy.updateInputDatasetsStagedAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' < jediTaskID={0} >'.format(jeditaskid)
@@ -13649,7 +13705,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             if use_commit:
                 self.conn.begin()
-            for dsname in dsnames:
+            for dsname in dsnames_dict:
                 varMap[':datasetName'] = '{0}:{1}'.format(scope, dsname)
                 tmpLog.debug('running sql: {0} {1}'.format(sqlUD, varMap))
                 self.cur.execute(sqlUD+comment, varMap)
@@ -14786,29 +14842,39 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # set missing files according to iDDS messages
-    def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames):
+    def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames_dict):
         comment = ' /* JediDBProxy.setMissingFilesAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' <jediTaskID={0} nfiles={1}>'.format(jeditaskid, len(filenames))
+        methodName += ' <jediTaskID={0} nfiles={1}>'.format(jeditaskid, len(filenames_dict))
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
             # sql to set missing files
             sqlF = (
-                "UPDATE {0}.JEDI_Dataset_Contents "
-                "SET status=:nStatus "
-                "WHERE jediTaskID=:jediTaskID AND lfn LIKE :lfn AND status!=:nStatus "
+                'UPDATE {0}.JEDI_Dataset_Contents '
+                'SET status=:nStatus '
+                'WHERE jediTaskID=:jediTaskID '
+                'AND lfn LIKE :lfn AND status!=:nStatus '
                 ).format(jedi_config.db.schemaJEDI)
             # begin transaction
             self.conn.begin()
             nFileRow = 0
             # update contents
-            for filename in filenames:
+            for filename, (datasetid, fileid) in filenames_dict.items():
+                tmp_sqlF = sqlF
                 varMap = {}
                 varMap[':jediTaskID'] = jeditaskid
                 varMap[':lfn'] = '%' + filename
                 varMap[':nStatus'] = 'missing'
-                self.cur.execute(sqlF+comment, varMap)
+                if datasetid is not None:
+                    # with datasetID from message
+                    tmp_sqlF += 'AND datasetID=:datasetID '
+                    varMap[':datasetID'] = datasetid
+                if fileid is not None:
+                    # with fileID from message
+                    tmp_sqlF += 'AND fileID=:fileID '
+                    varMap[':fileID'] = fileid
+                self.cur.execute(tmp_sqlF+comment, varMap)
                 nRow = self.cur.rowcount
                 nFileRow += nRow
             # commit
