@@ -4400,6 +4400,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
+
             tmpLog.debug('done new jediTaskID={0}'.format(jediTaskID))
             return True,jediTaskID
         except Exception:
@@ -8105,6 +8106,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     deftStatus = newTaskStatus
                                 self.setDeftStatus_JEDI(jediTaskID, deftStatus)
                                 self.setSuperStatus_JEDI(jediTaskID,deftStatus)
+                                # add missing record_task_status_change and push_task_status_message updates
+                                self.record_task_status_change(jediTaskID)
+                                self.push_task_status_message(None, jediTaskID, newTaskStatus)
                     # update command table
                     if not toSkip:
                         varMap = {}
@@ -8893,6 +8897,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                      nRow))
                 if nRow > 0:
                     nTasks += 1
+                    # add missing record_task_status_change and push_task_status_message updates
+                    self.record_task_status_change(jediTaskID)
+                    self.push_task_status_message(taskSpec, jediTaskID, varMap[':newStatus'], splitRule)
+
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -9992,6 +10000,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     tmpLog.debug('set taskStatus={0}'.format(varMap[':status']))
                     self.cur.execute(sqlUT+comment,varMap)
+                    # add missing record_task_status_change and push_task_status_message updates
+                    self.record_task_status_change(jediTaskID)
+                    self.push_task_status_message(None, jediTaskID, varMap[':status'])
+
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -10436,6 +10448,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':errorDialog'] = 'parent task is {0}'.format(taskStatus)
                 self.cur.execute(sqlCT+comment,varMap)
                 tmpLog.debug('set {0} to jediTaskID={1}'.format(cTaskStatus,cJediTaskID))
+                # add missing record_task_status_change and push_task_status_message updates
+                self.record_task_status_change(cJediTaskID)
+                self.push_task_status_message(None, cJediTaskID, cTaskStatus)
                 # kill child
                 tmpStat = self.killChildTasks_JEDI(cJediTaskID,cTaskStatus,useCommit=False)
                 if not tmpStat:
@@ -10498,6 +10513,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':timeLimit'] = timeLimitT
                 self.cur.execute(sqlCT+comment,varMap)
                 nRow = self.cur.rowcount
+                # add missing record_task_status_change and push_task_status_message updates
+                self.record_task_status_change(cJediTaskID)
+                self.push_task_status_message(None, cJediTaskID, varMap[':status'])
                 tmpLog.debug('kicked jediTaskID={0} with {1}'.format(cJediTaskID,nRow))
                 # change state check time for mutable datasets
                 if cTaskStatus not in ['pending']:
@@ -10607,6 +10625,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':jediTaskID'] = cJediTaskID
                     varMap[':status'] = 'registered'
                     self.cur.execute(sqlCT+comment,varMap)
+                    # add missing record_task_status_change and push_task_status_message updates
+                    self.record_task_status_change(cJediTaskID)
+                    self.push_task_status_message(None, cJediTaskID, varMap[':status'])
                     tmpLog.debug('set status of child jediTaskID={0} to {1}'.format(cJediTaskID,
                                                                                     varMap[':status']))
                 elif cTaskStatus not in ['ready','running','scouting','scouted']:
@@ -14413,6 +14434,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status'] = 'pending'
             self.cur.execute(sqlPDG+comment, varMap)
             nRows = self.cur.rowcount
+            # add missing record_task_status_change and push_task_status_message updates
+            self.record_task_status_change(jedi_taskid)
+            self.push_task_status_message(None, jedi_taskid, varMap[':status'])
             if not self._commit():
                 raise RuntimeError('Commit error')
             tmpLog.debug('done with {0} rows'.format(nRows))
