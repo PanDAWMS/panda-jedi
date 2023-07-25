@@ -70,7 +70,7 @@ class JediPostProcessorMsgProcPlugin(BaseMsgProcPlugin):
             raise 
         # run
         try:
-            task_id = msg_dict['task_id']
+            task_id = msg_dict['taskid']
             vo = msg_dict['task_vo']
             prodsourcelabel = msg_dict['task_prodsourcelabel']
             ret = self.tbIF.prepareTasksToBeFinished_JEDI(vo, 

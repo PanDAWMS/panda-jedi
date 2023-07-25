@@ -54,7 +54,7 @@ class JediContentsFeederMsgProcPlugin(BaseMsgProcPlugin):
             raise 
         # run
         try:
-            task_id = msg_dict['task_id']
+            task_id = msg_dict['taskid']
             task_ds_list = self.tbIF.getDatasetsToFeedContents_JEDI(vo=None, prodSourceLabel=None, task_id=task_id)
             if task_ds_list:
                 self.contents_feeder_thread_obj.feed_contents_to_tasks(task_ds_list)
