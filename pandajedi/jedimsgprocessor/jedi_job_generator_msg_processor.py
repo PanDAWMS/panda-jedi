@@ -33,6 +33,7 @@ class JediJobGeneratorMsgProcPlugin(BaseMsgProcPlugin):
         # get TaskSetupper
         # taskSetupper = TaskSetupper(self.vos, self.prodSourceLabels)
         # taskSetupper.initializeMods(self.tbIF, self.ddmIF)
+        self.pid = self.get_pid()
 
     def process(self, msg_obj):
         # logger
