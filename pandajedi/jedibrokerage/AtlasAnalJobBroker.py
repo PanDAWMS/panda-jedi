@@ -363,6 +363,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                                  'jedi', taskSpec.vo)
         # two loops with/without data locality check
         scanSiteLists = [(copy.copy(scanSiteList), True)]
+        element_map = dict()
         if len(inputChunk.getDatasets()) > 0:
             nRealDS = 0
             for datasetSpec in inputChunk.getDatasets():
@@ -395,6 +396,15 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     scanSiteLists = [(copy.copy(scanSiteList), False)]
             elif taskSpec.taskPriority > 1000 or nRealDS > 1:
                 scanSiteLists.append((copy.copy(scanSiteList), False))
+            # element map
+            for datasetSpec in inputChunk.getDatasets():
+                if datasetSpec.datasetName.endswith('/'):
+                    file_list = [f.lfn for f in datasetSpec.Files]
+                    element_map[datasetSpec.datasetName] = self.taskBufferIF.get_origin_datasets(
+                        taskSpec.jediTaskID,
+                        datasetSpec.datasetName,
+                        file_list)
+
         retVal = None
         checkDataLocality = False
         scanSiteWoVP = []
@@ -425,9 +435,10 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     if datasetName not in self.dataSiteMap:
                         # get the list of sites where data is available
                         tmpLog.debug('getting the list of sites where {0} is available'.format(datasetName))
-                        tmpSt,tmpRet = AtlasBrokerUtils.getAnalSitesWithData(self.get_unified_sites(scanSiteList),
-                                                                             self.siteMapper,
-                                                                             self.ddmIF,datasetName)
+                        tmpSt, tmpRet = AtlasBrokerUtils.getAnalSitesWithData(self.get_unified_sites(scanSiteList),
+                                                                              self.siteMapper,
+                                                                              self.ddmIF, datasetName,
+                                                                              element_map.get(datasetSpec.datasetName))
                         if tmpSt in [Interaction.JEDITemporaryError,Interaction.JEDITimeoutError]:
                             tmpLog.error('temporary failed to get the list of sites where data is available, since %s' % tmpRet)
                             taskSpec.setErrDiag(tmpLog.uploadLog(taskSpec.jediTaskID))
@@ -1526,7 +1537,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
                                                             check_completeness=checkCompleteness,
                                                             use_vp=useVP,
                                                             file_scan_in_container=False,
-                                                            complete_only=useCompleteOnly)
+                                                            complete_only=useCompleteOnly,
+                                                            element_list=element_map.get(datasetSpec.datasetName))
                 if tmpAvFileMap is None:
                     raise Interaction.JEDITemporaryError('ddmIF.getAvailableFiles failed')
                 availableFileMap[datasetSpec.datasetName] = tmpAvFileMap
@@ -1899,6 +1911,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     bw_map = basic_weight_compar_map[site]
                     prt_str = prt_str_temp.format(site=site, **{ k: (x if x is not None else math.nan) for k, x in bw_map.items() })
                     prt_str_list.append(prt_str)
+                tmpLog.info('gshare: {} ,{} task_class: {}'.format(taskSpec.gshare, (' merging,' if inputChunk.isMerging else ''), task_class_value))
                 tmpLog.debug('WEIGHT-COMPAR: for gshare={},{} cl={}, nJobsEst={} got \n{}'.format(
                                 taskSpec.gshare, (' merging,' if inputChunk.isMerging else ''), task_class_value, n_jobs_to_submit, '\n'.join(prt_str_list)))
         except Exception as e:
@@ -1945,7 +1958,9 @@ class AtlasAnalJobBroker(JobBrokerBase):
             siteCandidateSpec.override_attribute('maxwdir', newMaxwdir.get(tmpSiteName))
             # set weight
             siteCandidateSpec.weight = weight
-            tmpStr = 'weight={0:.7f} ver={1} '.format(weight, _basic_weight_version)
+            tmpStr = 'weight={0:.7f} '.format(weight)
+            tmpStr += 'class={0} trr={1:.3f} '.format(bw_map['class'], bw_map['trr'])
+            tmpStr += 'userQ={0} userQRem={1:.3f} '.format(bw_map['user_q_len'], bw_map['rem_q_len'])
             tmpStr += 'nRunning={0} nDefined={1} nActivated={2} nStarting={3} nAssigned={4} '.format(   bw_map['nr'],
                                                                                                         bw_map['nDefined'],
                                                                                                         bw_map['nActivated'],

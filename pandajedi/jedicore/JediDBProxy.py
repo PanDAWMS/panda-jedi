@@ -3161,7 +3161,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sql += "AND tabT.vo=:vo "
                 if workQueue.is_global_share:
                     sql += "AND gshare=:wq_name "
-                    sql += "AND workqueue_id NOT IN (SELECT queue_id FROM atlas_panda.jedi_work_queue WHERE queue_function = 'Resource') "
+                    sql += "AND workqueue_id NOT IN (SELECT queue_id FROM {0}.jedi_work_queue WHERE queue_function = 'Resource') ".format(jedi_config.db.schemaJEDI)
                     varMap[':wq_name'] =workQueue.queue_name
                 else:
                     sql += "AND workQueue_ID=:wq_id "
@@ -4406,6 +4406,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
+
             tmpLog.debug('done new jediTaskID={0}'.format(jediTaskID))
             return True,jediTaskID
         except Exception:
@@ -6700,27 +6701,29 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 shortJobCutoff = self.getConfigValue('dbproxy','SCOUT_THR_SHORT_{0}'.format(taskSpec.prodSourceLabel),
                                                      'jedi')
                 if maxShortJobs and shortJobCutoff:
-                    # jobs inclusing copy-to-scratch
-                    nJobsAll = extraInfo['nTotalForShort'] + extraInfo['nShortJobsWithCtoS']
-                    nShortJobsAll = extraInfo['nShortJobs'] + extraInfo['nShortJobsWithCtoS']
-                    # many short jobs including copy-to-scratch
-                    manyShortJobsAll = nJobsAll > 0 and nShortJobsAll / nJobsAll >= maxShortJobs / 10
                     # many short jobs w/o copy-to-scratch
                     manyShortJobs = extraInfo['nTotalForShort'] > 0 and \
                                     extraInfo['nShortJobs'] / extraInfo['nTotalForShort'] >= maxShortJobs / 10
-                    # remove wrong rules
-                    if manyShortJobsAll or manyShortJobs:
+                    if manyShortJobs:
                         toExhausted = True
-                        if self.getConfigValue('dbproxy', 'SCOUT_CHANGE_SR_{0}'.format(taskSpec.prodSourceLabel),
-                                               'jedi'):
+                        # check expected number of jobs
+                        if shortJobCutoff and extraInfo['expectedNumJobs'] < shortJobCutoff:
+                            tmpLog.debug('not to set exhausted or change split rule since expect num of jobs '
+                                         '({}) is less than {}'.format(extraInfo['expectedNumJobs'],
+                                         shortJobCutoff))
+                            toExhausted = False
+                        # remove wrong rules
+                        if toExhausted and self.getConfigValue('dbproxy',
+                                                               'SCOUT_CHANGE_SR_{0}'.format(taskSpec.prodSourceLabel),
+                                                               'jedi'):
                             updateSL = []
                             removeSL = []
                             if taskSpec.getNumFilesPerJob() is not None:
                                 taskSpec.removeNumFilesPerJob()
-                                removeSL.append('NF')
+                                removeSL.append('nFilesPerJob')
                             if taskSpec.getMaxSizePerJob() is not None:
                                 taskSpec.removeMaxSizePerJob()
-                                removeSL.append('NG')
+                                removeSL.append('nGBPerJob')
                             MAX_NUM_FILES = 200
                             if taskSpec.getMaxNumFilesPerJob() is not None and \
                                     taskSpec.getMaxNumFilesPerJob() < MAX_NUM_FILES:
@@ -6743,8 +6746,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 tmpLog.debug(sqlTSL + comment + str(varMap))
                                 self.cur.execute(sqlTSL + comment, varMap)
                                 toExhausted = False
-                        if toExhausted and manyShortJobs:
-                            # check scaled walltime
+                        # check scaled walltime
+                        if toExhausted:
                             scMsg = ''
                             if taskSpec.useScout():
                                 scaled_max_walltime = extraInfo['longestShortExecTime']
@@ -6759,31 +6762,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     scMsg = ' and scaled execution time ({} = walltime * {}/{}) less than {} min'.\
                                         format(scaled_max_walltime, InputChunk.maxInputSizeAvalanche,
                                                InputChunk.maxInputSizeScouts, extraInfo['shortExecTime'])
-                            # check expected number of jobs
-                            if toExhausted and shortJobCutoff:
-                                if extraInfo['expectedNumJobs'] < shortJobCutoff:
-                                    tmpLog.debug('not to set exhausted since expect num of jobs '
-                                                 '({}) is less than {}'.format(extraInfo['expectedNumJobs'],
-                                                                               shortJobCutoff))
-                                    toExhausted = False
-                            if toExhausted:
-                                errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
-                                errMsg += '{}/{} jobs (greater than {}/10, excluding {} jobs that the site '\
-                                          'config enforced '\
-                                          'to run with copy-to-scratch) had shorter execution time than {} min '\
-                                          'and the expected num of jobs ({}) is larger than {} {}'.format(
-                                    extraInfo['nShortJobs'],
-                                    extraInfo['nTotalForShort'],
-                                    maxShortJobs,
-                                    extraInfo['nShortJobsWithCtoS'],
-                                    extraInfo['shortExecTime'],
-                                    extraInfo['expectedNumJobs'],
-                                    shortJobCutoff,
-                                    scMsg
-                                )
-                                tmpLog.info(errMsg)
-                                taskSpec.setErrDiag(errMsg)
-                                taskSpec.status = 'exhausted'
+                        # go to exhausted
+                        if toExhausted:
+                            errMsg = '#ATM #KV action=set_exhausted since reason=many_shorter_jobs '
+                            errMsg += '{}/{} jobs (greater than {}/10, excluding {} jobs that the site '\
+                                      'config enforced '\
+                                      'to run with copy-to-scratch) had shorter execution time than {} min '\
+                                      'and the expected num of jobs ({}) is larger than {} {}'.format(
+                                extraInfo['nShortJobs'],
+                                extraInfo['nTotalForShort'],
+                                maxShortJobs,
+                                extraInfo['nShortJobsWithCtoS'],
+                                extraInfo['shortExecTime'],
+                                extraInfo['expectedNumJobs'],
+                                shortJobCutoff,
+                                scMsg)
+                            tmpLog.info(errMsg)
+                            taskSpec.setErrDiag(errMsg)
+                            taskSpec.status = 'exhausted'
 
             # CPU efficiency
             if taskSpec.status != 'exhausted' and not sl_changed:
@@ -8046,9 +8042,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 isOK = False
                             if isOK:
                                 # set new task status
-                                if commandStr == 'retry' and taskStatus == 'exhausted' and taskOldStatus in ['running','scouting']:
+                                if commandStr == 'retry' and taskStatus == 'exhausted' and \
+                                        taskOldStatus in ['running', 'scouting']:
                                     # change task status only since retryTask increments attemptNrs for existing jobs
-                                    newTaskStatus = 'running'
+                                    newTaskStatus = taskOldStatus
                                     changeStatusOnly = True
                                     resetFrozenTime = True
                                 elif commandStr in ['avalanche']:
@@ -8115,6 +8112,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                     deftStatus = newTaskStatus
                                 self.setDeftStatus_JEDI(jediTaskID, deftStatus)
                                 self.setSuperStatus_JEDI(jediTaskID,deftStatus)
+                                # add missing record_task_status_change and push_task_status_message updates
+                                self.record_task_status_change(jediTaskID)
+                                self.push_task_status_message(None, jediTaskID, newTaskStatus)
                     # update command table
                     if not toSkip:
                         varMap = {}
@@ -8903,6 +8903,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                                                      nRow))
                 if nRow > 0:
                     nTasks += 1
+                    # add missing record_task_status_change and push_task_status_message updates
+                    self.record_task_status_change(jediTaskID)
+                    self.push_task_status_message(taskSpec, jediTaskID, varMap[':newStatus'], splitRule)
+
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -10002,6 +10006,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':updateTime'] = datetime.datetime.utcnow() - datetime.timedelta(hours=6)
                     tmpLog.debug('set taskStatus={0}'.format(varMap[':status']))
                     self.cur.execute(sqlUT+comment,varMap)
+                    # add missing record_task_status_change and push_task_status_message updates
+                    self.record_task_status_change(jediTaskID)
+                    self.push_task_status_message(None, jediTaskID, varMap[':status'])
+
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
@@ -10446,6 +10454,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':errorDialog'] = 'parent task is {0}'.format(taskStatus)
                 self.cur.execute(sqlCT+comment,varMap)
                 tmpLog.debug('set {0} to jediTaskID={1}'.format(cTaskStatus,cJediTaskID))
+                # add missing record_task_status_change and push_task_status_message updates
+                self.record_task_status_change(cJediTaskID)
+                self.push_task_status_message(None, cJediTaskID, cTaskStatus)
                 # kill child
                 tmpStat = self.killChildTasks_JEDI(cJediTaskID,cTaskStatus,useCommit=False)
                 if not tmpStat:
@@ -10508,6 +10519,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 varMap[':timeLimit'] = timeLimitT
                 self.cur.execute(sqlCT+comment,varMap)
                 nRow = self.cur.rowcount
+                # add missing record_task_status_change and push_task_status_message updates
+                self.record_task_status_change(cJediTaskID)
+                self.push_task_status_message(None, cJediTaskID, varMap[':status'])
                 tmpLog.debug('kicked jediTaskID={0} with {1}'.format(cJediTaskID,nRow))
                 # change state check time for mutable datasets
                 if cTaskStatus not in ['pending']:
@@ -10617,6 +10631,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':jediTaskID'] = cJediTaskID
                     varMap[':status'] = 'registered'
                     self.cur.execute(sqlCT+comment,varMap)
+                    # add missing record_task_status_change and push_task_status_message updates
+                    self.record_task_status_change(cJediTaskID)
+                    self.push_task_status_message(None, cJediTaskID, varMap[':status'])
                     tmpLog.debug('set status of child jediTaskID={0} to {1}'.format(cJediTaskID,
                                                                                     varMap[':status']))
                 elif cTaskStatus not in ['ready','running','scouting','scouted']:
@@ -11529,7 +11546,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sqlRT += "AND rownum<{0} ".format(nTasks)
             sqlLK  = "UPDATE {0}.JEDI_Tasks SET assessmentTime=CURRENT_DATE ".format(jedi_config.db.schemaJEDI)
             sqlLK += "WHERE jediTaskID=:jediTaskID AND (assessmentTime IS NULL OR assessmentTime<:timeLimit) AND status=:status "
-            sqlDS  = "SELECT datasetID,type,nEvents "
+            sqlDS  = "SELECT datasetID,type,nEvents,status "
             sqlDS += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
             sqlDS += "WHERE jediTaskID=:jediTaskID AND ((type IN ("
             for tmpType in JediDatasetSpec.getInputTypes():
@@ -11605,7 +11622,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     firstOutput = True
                     # loop over all datasets
                     taskToFinish = True
-                    for datasetID,datasetType,nEvents in resDS:
+                    for datasetID, datasetType, nEvents, dsStatus in resDS:
+                        # to update contents
+                        if dsStatus in JediDatasetSpec.statusToUpdateContents():
+                            tmpLog.debug('skip jediTaskID={0} datasetID={1} is in {2}'.format(jediTaskID,
+                                                                                              datasetID,
+                                                                                              dsStatus))
+                            taskToFinish = False
+                            break
                         # counts events
                         if datasetType in JediDatasetSpec.getInputTypes():
                             # input
@@ -13410,13 +13434,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update input files stage-in done according to message from idds
-    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames):
+    def updateInputFilesStagedAboutIdds_JEDI(self, jeditaskid, scope, filenames_dict):
         comment = ' /* JediDBProxy.updateInputFilesStagedAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' < jediTaskID={0} >'.format(jeditaskid)
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug('start')
         try:
+            to_update_files = True
             retVal = 0
             # varMap
             varMap = dict()
@@ -13424,8 +13449,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':type1'] = 'input'
             varMap[':type2'] = 'pseudo_input'
             # sql to get datasetIDs
-            sqlGD = ('SELECT datasetID,masterID FROM {0}.JEDI_Datasets'
-                     ' WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) '
+            sqlGD = ('SELECT datasetID,masterID FROM {0}.JEDI_Datasets '
+                     'WHERE jediTaskID=:jediTaskID '
+                     'AND type IN (:type1,:type2) '
                      ).format(jedi_config.db.schemaJEDI)
             # sql to update file status
             if scope != 'pseudo_dataset':
@@ -13434,8 +13460,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                          'WHERE jediTaskID=:jediTaskID '
                          'AND status=:old_status '
                          'AND scope=:scope '
-                         "AND lfn=:lfn "
-                         'AND datasetID IN ('
+                         'AND lfn=:lfn '
                         ).format(jedi_config.db.schemaJEDI)
             else:
                 sqlUF = ('UPDATE {0}.JEDI_Dataset_Contents '
@@ -13443,12 +13468,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                          'WHERE jediTaskID=:jediTaskID '
                          'AND status=:old_status '
                          'AND scope IS NULL '
-                         "AND lfn like :lfn "
-                         'AND datasetID IN ('
+                         'AND lfn like :lfn '
                         ).format(jedi_config.db.schemaJEDI)
             # begin transaction
             self.conn.begin()
-            # get datasetIDs
+            # get datasetIDs from DB if no fileID nor datasetID provided by the message
             tmpLog.debug('running sql: {0} {1}'.format(sqlGD, varMap))
             self.cur.execute(sqlGD+comment, varMap)
             varMap = dict()
@@ -13459,28 +13483,84 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':new_status'] = 'pending'
             resGD = self.cur.fetchall()
             primaryID = None
+            params_key_list = []
+            var_map_datasetids = {}
             if len(resGD) > 0:
-                for idx, (id, masterID) in enumerate(resGD):
-                    key = ':datasetID_{0}'.format(idx)
-                    sqlUF += '{0},'.format(key)
-                    varMap[key] = id
+                for idx, (tmp_datasetID, masterID) in enumerate(resGD):
                     if masterID is None:
-                        primaryID = id
-                sqlUF = sqlUF[:-1]
-                sqlUF += ') '
-                # loop over filenames
-                varMaps = []
-                for filename in filenames:
-                    tmp_varMap = varMap.copy()
-                    if scope != 'pseudo_dataset':
-                        tmp_varMap[':lfn'] = filename
+                        primaryID = tmp_datasetID
+                    key = ':datasetID_{0}'.format(idx)
+                    params_key_list.append(key)
+                    var_map_datasetids[key] = tmp_datasetID
+            else:
+                to_update_files = False
+            # set sqls to update file status
+            params_key_str = ','.join(params_key_list)
+            datesetid_list_str = f'AND datasetID IN ({params_key_str}) '
+            sqlUF_without_ID = sqlUF + datesetid_list_str
+            sqlUF_with_fileID = sqlUF + 'AND fileID=:fileID '
+            sqlUF_with_datasetID = sqlUF + 'AND datasetID=:datasetID '
+            # update files
+            if to_update_files:
+                # split into groups according to whether with ids
+                filenames_dict_with_fileID = {}
+                filenames_dict_with_datasetID = {}
+                filenames_dict_without_ID = {}
+                for filename, (datasetid, fileid) in filenames_dict.items():
+                    if fileid is not None:
+                        # with fileID from message
+                        filenames_dict_with_fileID[filename] = (datasetid, fileid)
+                    elif datasetid is not None:
+                        # with datasetID from message
+                        filenames_dict_with_datasetID[filename] = (datasetid, fileid)
                     else:
-                        tmp_varMap[':lfn'] = '%' + filename
-                    varMaps.append(tmp_varMap)
-                    tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
-                tmpLog.debug('running sql executemany: {0}'.format(sqlUF))
-                self.cur.executemany(sqlUF+comment, varMaps)
-                retVal = self.cur.rowcount
+                        # without datasetID from message
+                        filenames_dict_without_ID[filename] = (datasetid, fileid)
+                # loop over files with fileID
+                if filenames_dict_with_fileID:
+                    varMaps = []
+                    for filename, (datasetid, fileid) in filenames_dict_with_fileID.items():
+                        tmp_varMap = varMap.copy()
+                        if scope != 'pseudo_dataset':
+                            tmp_varMap[':lfn'] = filename
+                        else:
+                            tmp_varMap[':lfn'] = '%' + filename
+                        tmp_varMap[':fileID'] = fileid
+                        varMaps.append(tmp_varMap)
+                        tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                    tmpLog.debug('running sql executemany: {0}'.format(sqlUF_with_fileID))
+                    self.cur.executemany(sqlUF_with_fileID+comment, varMaps)
+                    retVal += self.cur.rowcount
+                # loop over files with datasetID
+                if filenames_dict_with_datasetID:
+                    varMaps = []
+                    for filename, (datasetid, fileid) in filenames_dict_with_datasetID.items():
+                        tmp_varMap = varMap.copy()
+                        if scope != 'pseudo_dataset':
+                            tmp_varMap[':lfn'] = filename
+                        else:
+                            tmp_varMap[':lfn'] = '%' + filename
+                        tmp_varMap[':datasetID'] = datasetid
+                        varMaps.append(tmp_varMap)
+                        tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                    tmpLog.debug('running sql executemany: {0}'.format(sqlUF_with_datasetID))
+                    self.cur.executemany(sqlUF_with_datasetID+comment, varMaps)
+                    retVal += self.cur.rowcount
+                # loop over files without ID
+                if filenames_dict_without_ID:
+                    varMaps = []
+                    for filename, (datasetid, fileid) in filenames_dict_without_ID.items():
+                        tmp_varMap = varMap.copy()
+                        if scope != 'pseudo_dataset':
+                            tmp_varMap[':lfn'] = filename
+                        else:
+                            tmp_varMap[':lfn'] = '%' + filename
+                        tmp_varMap.update(var_map_datasetids)
+                        varMaps.append(tmp_varMap)
+                        tmpLog.debug('tmp_varMap: {0}'.format(tmp_varMap))
+                    tmpLog.debug('running sql executemany: {0}'.format(sqlUF_without_ID))
+                    self.cur.executemany(sqlUF_without_ID+comment, varMaps)
+                    retVal += self.cur.rowcount
             # update associated files
             if primaryID is not None:
                 self.fix_associated_files_in_staging(jeditaskid, primary_id=primaryID)
@@ -13604,7 +13684,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # update input datasets stage-in done according to message from idds
-    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames, use_commit=True):
+    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames_dict, use_commit=True):
         comment = ' /* JediDBProxy.updateInputDatasetsStagedAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' < jediTaskID={0} >'.format(jeditaskid)
@@ -13631,7 +13711,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # begin transaction
             if use_commit:
                 self.conn.begin()
-            for dsname in dsnames:
+            for dsname in dsnames_dict:
                 varMap[':datasetName'] = '{0}:{1}'.format(scope, dsname)
                 tmpLog.debug('running sql: {0} {1}'.format(sqlUD, varMap))
                 self.cur.execute(sqlUD+comment, varMap)
@@ -14360,6 +14440,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status'] = 'pending'
             self.cur.execute(sqlPDG+comment, varMap)
             nRows = self.cur.rowcount
+            # add missing record_task_status_change and push_task_status_message updates
+            self.record_task_status_change(jedi_taskid)
+            self.push_task_status_message(None, jedi_taskid, varMap[':status'])
             if not self._commit():
                 raise RuntimeError('Commit error')
             tmpLog.debug('done with {0} rows'.format(nRows))
@@ -14765,29 +14848,39 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # set missing files according to iDDS messages
-    def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames):
+    def setMissingFilesAboutIdds_JEDI(self, jeditaskid, filenames_dict):
         comment = ' /* JediDBProxy.setMissingFilesAboutIdds_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' <jediTaskID={0} nfiles={1}>'.format(jeditaskid, len(filenames))
+        methodName += ' <jediTaskID={0} nfiles={1}>'.format(jeditaskid, len(filenames_dict))
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
             # sql to set missing files
             sqlF = (
-                "UPDATE {0}.JEDI_Dataset_Contents "
-                "SET status=:nStatus "
-                "WHERE jediTaskID=:jediTaskID AND lfn LIKE :lfn AND status!=:nStatus "
+                'UPDATE {0}.JEDI_Dataset_Contents '
+                'SET status=:nStatus '
+                'WHERE jediTaskID=:jediTaskID '
+                'AND lfn LIKE :lfn AND status!=:nStatus '
                 ).format(jedi_config.db.schemaJEDI)
             # begin transaction
             self.conn.begin()
             nFileRow = 0
             # update contents
-            for filename in filenames:
+            for filename, (datasetid, fileid) in filenames_dict.items():
+                tmp_sqlF = sqlF
                 varMap = {}
                 varMap[':jediTaskID'] = jeditaskid
                 varMap[':lfn'] = '%' + filename
                 varMap[':nStatus'] = 'missing'
-                self.cur.execute(sqlF+comment, varMap)
+                if datasetid is not None:
+                    # with datasetID from message
+                    tmp_sqlF += 'AND datasetID=:datasetID '
+                    varMap[':datasetID'] = datasetid
+                if fileid is not None:
+                    # with fileID from message
+                    tmp_sqlF += 'AND fileID=:fileID '
+                    varMap[':fileID'] = fileid
+                self.cur.execute(tmp_sqlF+comment, varMap)
                 nRow = self.cur.rowcount
                 nFileRow += nRow
             # commit
@@ -14823,5 +14916,63 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
         except Exception:
             self._rollback()
+            self.dumpErrorMessage(tmp_log)
+            return None
+
+    # get origin datasets
+    def get_origin_datasets(self, jedi_task_id, dataset_name, lfns):
+        comment = ' /* JediDBProxy.get_origin_datasets */'
+        method_name = self.getMethodName(comment)
+        method_name += ' < jediTaskID={} {} n_files={} >'.format(jedi_task_id, dataset_name, len(lfns))
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug('start')
+        try:
+            dataset_names = []
+            known_lfns = set()
+            # sql to get dataset
+            sql_d = "SELECT tabD.jediTaskID, tabD.datasetID, tabD.datasetName "\
+                    "FROM {0}.JEDI_Datasets tabD,{0}.JEDI_Dataset_Contents tabC "\
+                    "WHERE tabC.lfn=:lfn AND tabC.type=:type AND tabD.datasetID=tabC.datasetID ".\
+                format(jedi_config.db.schemaJEDI)
+            sql_c = "SELECT lfn "\
+                    "FROM {0}.JEDI_Dataset_Contents "\
+                    "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID AND status=:status ".\
+                format(jedi_config.db.schemaJEDI)
+            to_break = False
+            for lfn in lfns:
+                if lfn in known_lfns:
+                    continue
+                # start transaction
+                self.conn.begin()
+                # get dataset
+                var_map = {':lfn': lfn, ':type': 'output'}
+                self.cur.execute(sql_d+comment, var_map)
+                res = self.cur.fetchone()
+                if res:
+                    task_id, dataset_id, dataset_name = res
+                    dataset_names.append(dataset_name)
+                    # get files
+                    var_map = {':jediTaskID': task_id, ':datasetID': dataset_id, ':status': 'finished'}
+                    self.cur.execute(sql_c+comment, var_map)
+                    res = self.cur.fetchall()
+                    for tmp_lfn, in res:
+                        known_lfns.add(tmp_lfn)
+                else:
+                    tmp_log.debug('no dataset for {}'.format(lfn))
+                    # return nothing if any dataset is not found
+                    dataset_names = None
+                    to_break = True
+                # commit
+                if not self._commit():
+                    raise RuntimeError('Commit error')
+                if to_break:
+                    break
+            # return
+            tmp_log.debug('found {}'.format(str(dataset_names)))
+            return dataset_names
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
             self.dumpErrorMessage(tmp_log)
             return None

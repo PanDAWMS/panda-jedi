@@ -223,11 +223,12 @@ def getNucleiWithData(siteMapper, ddmIF, datasetName, candidateNuclei, deepScan=
 
 
 # get analysis sites where data is available
-def getAnalSitesWithData(siteList,siteMapper,ddmIF,datasetName):
+def getAnalSitesWithData(siteList, siteMapper, ddmIF, datasetName, element_list):
     # get replicas
     try:
         replicaMap= {}
-        replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName, use_vp=True, skip_incomplete_element=True)
+        replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName, use_vp=True, skip_incomplete_element=True,
+                                                            element_list=element_list)
     except Exception:
         errtype,errvalue = sys.exc_info()[:2]
         return errtype,'ddmIF.listDatasetReplicas failed with %s' % errvalue

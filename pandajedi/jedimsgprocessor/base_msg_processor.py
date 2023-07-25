@@ -6,11 +6,21 @@ from pandajedi.jedicore.JediTaskBuffer import JediTaskBuffer
 # Base simple message processing plugin
 class BaseMsgProcPlugin(SimpleMsgProcPluginBase):
 
-    def initialize(self):
+    def initialize(self, in_collective=False):
         """
         initialize plugin instance, run once before loop in thread
         """
-        # set up JEDI TaskBuffer interface
+        if in_collective:
+            # run in collective msg_proc plugin
+            pass
+        else:
+            # run as individual msg_proc plugin
+            self.set_tbIF()
+
+    def set_tbIF(self):
+        """
+        set up JEDI TaskBuffer interface
+        """
         self.tbIF= JediTaskBuffer(None)
 
     def process(self, msg_obj):

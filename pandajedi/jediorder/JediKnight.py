@@ -3,7 +3,7 @@ import time
 import random
 
 from pandajedi.jedicore import Interaction
-from pandajedi.jedicore.ThreadUtils import ZombiCleaner
+from pandajedi.jedicore.ThreadUtils import ZombieCleaner
 
 
 class JediKnight(Interaction.CommandReceiveInterface):
@@ -16,7 +16,7 @@ class JediKnight(Interaction.CommandReceiveInterface):
         # intra-node message broker proxies
         self.mb_proxy_dict = kwargs.get('mb_proxy_dict')
         # start zombie cleaner
-        ZombiCleaner().start()
+        ZombieCleaner().start()
 
     # start communication channel in a thread
     def start(self):

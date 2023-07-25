@@ -790,6 +790,7 @@ class JobGeneratorThread(WorkerThread):
                                         if pandaID == 'NULL':
                                             continue
                                         pandaIDsForExec.append(pandaID)
+                                    tmpLog.info('PATH: {0}'.format(os.environ['PATH']))
                                     statExe, retExe = PandaClient.reassignJobs(pandaIDsForExec, forPending=True,
                                                                                firstSubmission=firstSubmission)
                                     tmpLog.info('exec {0} jobs with status={1}'.format(len(pandaIDsForExec), retExe))
@@ -1033,6 +1034,8 @@ class JobGeneratorThread(WorkerThread):
                     else:
                         if taskSpec.coreCount == 1 or siteSpec.coreCount in [None, 0]:
                             jobSpec.coreCount = 1
+                        elif siteSpec.coreCount == -1:
+                            jobSpec.coreCount = taskSpec.coreCount
                         else:
                             jobSpec.coreCount = siteSpec.coreCount
                     jobSpec.minRamCount, jobSpec.minRamUnit = JediCoreUtils.getJobMinRamCount(taskSpec, inputChunk,
