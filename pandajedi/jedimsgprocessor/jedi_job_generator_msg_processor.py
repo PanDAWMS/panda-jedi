@@ -55,7 +55,7 @@ class JediJobGeneratorMsgProcPlugin(BaseMsgProcPlugin):
             err_str = 'failed to parse message object dict {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_dict)
             tmp_log.error(err_str)
             raise
-        if msg_type != 'task_job_generator':
+        if msg_type != 'jedi_job_generator':
             # FIXME
             err_str = 'got unknown msg_type {0} , skipped '.format(msg_type)
             tmp_log.error(err_str)
@@ -87,6 +87,7 @@ class JediJobGeneratorMsgProcPlugin(BaseMsgProcPlugin):
                                                 None, None, None, False)
                     gen_thr.start()
                     gen_thr.join()
+                tmp_log.debug('generated jobs for task {}'.format(task_id))
         except Exception as e:
             err_str = 'failed to run, skipped. {0} : {1}'.format(e.__class__.__name__, e)
             tmp_log.error(err_str)

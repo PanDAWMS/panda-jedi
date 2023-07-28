@@ -604,7 +604,7 @@ class ContentsFeederThread (WorkerThread):
                                 setFrozenTime = False
                                 break
                     tmpLog.debug('end loop')
-            # no mater input
+            # no master input
             if not taskOnHold and not taskBroken and allUpdated and nFilesMaster == 0 and checkedMaster:
                 tmpErrStr = 'no master input files. input dataset is empty'
                 tmpLog.error(tmpErrStr)
@@ -658,8 +658,9 @@ class ContentsFeederThread (WorkerThread):
                 retUnlock = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID,self.pid)
                 tmpLog.debug('unlock task with {0}'.format(retUnlock))
             # send message to job generator if new inputs are ready
-            if allUpdated and nFilesMaster > 0 and checkedMaster:
+            if not taskOnHold and not taskBroken and allUpdated:
                 self.taskBufferIF.push_task_trigger_message('jedi_job_generator', jediTaskID)
+                tmpLog.debug('pushed trigger message to jedi_job_generator')
             tmpLog.debug('done')
 
     # update dataset
