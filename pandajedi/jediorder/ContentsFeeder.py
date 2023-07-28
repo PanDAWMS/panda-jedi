@@ -657,6 +657,9 @@ class ContentsFeederThread (WorkerThread):
                 # just unlock
                 retUnlock = self.taskBufferIF.unlockSingleTask_JEDI(jediTaskID,self.pid)
                 tmpLog.debug('unlock task with {0}'.format(retUnlock))
+            # send message to job generator if new inputs are ready
+            if allUpdated and nFilesMaster > 0 and checkedMaster:
+                self.taskBufferIF.push_task_trigger_message('jedi_job_generator', jediTaskID)
             tmpLog.debug('done')
 
     # update dataset

@@ -804,3 +804,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def get_origin_datasets(self, jedi_task_id, dataset_name, lfns):
         with self.proxyPool.get() as proxy:
             return proxy.get_origin_datasets(jedi_task_id, dataset_name, lfns)
+    
+    # push message to message processors which triggers functions of agents
+    def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None):
+        with self.proxyPool.get() as proxy:
+            return proxy.push_task_trigger_message(msg_type, jedi_task_id, data_dict)

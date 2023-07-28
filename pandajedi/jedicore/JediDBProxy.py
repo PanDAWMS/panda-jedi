@@ -73,10 +73,9 @@ def get_mb_proxy_dict():
         # delay import to open logger file inside python daemon
         from pandajedi.jediorder.JediMsgProcessor import MsgProcAgent
         in_q_list = []
-        out_q_list = ['jedi_taskstatus']
+        out_q_list = ['jedi_jobtaskstatus', 'jedi_contents_feeder', 'jedi_job_generator']
         mq_agent = MsgProcAgent(config_file=jedi_config.mq.configFile)
-        mb_proxy_dict = mq_agent.start_passive_mode(
-                            in_q_list=in_q_list, out_q_list=out_q_list, prefetch_size=999)
+        mb_proxy_dict = mq_agent.start_passive_mode(in_q_list=in_q_list, out_q_list=out_q_list)
         return mb_proxy_dict
 
 
@@ -13833,7 +13832,42 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('Failed to get mb_proxy of internal MQs. Skipped ')
                     return
             try:
-                mb_proxy = self.jedi_mb_proxy_dict['out']['jedi_taskstatus']
+                mb_proxy = self.jedi_mb_proxy_dict['out']['jedi_jobtaskstatus']
+            except KeyError as e:
+                tmpLog.warning('Skipped due to {0} ; jedi_mb_proxy_dict is {1}'.format(e, self.jedi_mb_proxy_dict))
+                return
+            if mb_proxy.got_disconnected:
+                mb_proxy.restart()
+            mb_proxy.send(msg)
+        except Exception:
+            self.dumpErrorMessage(tmpLog)
+        tmpLog.debug('done')
+    
+    # push message to message processors which triggers functions of agents
+    def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None):
+        comment = ' /* JediDBProxy.push_task_trigger_message */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < msg_type={0} jediTaskID={1} >'.format(msg_type, jedi_task_id)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        # send task status messages to mq
+        try:
+            now_time = datetime.datetime.utcnow()
+            now_ts = int(now_time.timestamp())
+            msg_dict = {
+                    'msg_type': msg_type,
+                    'taskid': jedi_task_id,
+                    'timestamp': now_ts,
+                }
+            msg = json.dumps(msg_dict)
+            if self.jedi_mb_proxy_dict is None:
+                self.jedi_mb_proxy_dict = get_mb_proxy_dict()
+                if self.jedi_mb_proxy_dict is None:
+                    tmpLog.debug('Failed to get mb_proxy of internal MQs. Skipped ')
+                    return
+            try:
+                mq_name = msg_type
+                mb_proxy = self.jedi_mb_proxy_dict['out'][mq_name]
             except KeyError as e:
                 tmpLog.warning('Skipped due to {0} ; jedi_mb_proxy_dict is {1}'.format(e, self.jedi_mb_proxy_dict))
                 return
