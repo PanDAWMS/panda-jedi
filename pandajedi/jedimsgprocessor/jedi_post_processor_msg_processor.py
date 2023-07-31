@@ -63,7 +63,7 @@ class JediPostProcessorMsgProcPlugin(BaseMsgProcPlugin):
             err_str = 'failed to parse message object dict {2} , skipped. {0} : {1}'.format(e.__class__.__name__, e, msg_dict)
             tmp_log.error(err_str)
             raise
-        if msg_type != 'task_post_processor':
+        if msg_type != 'jedi_post_processor':
             # FIXME
             err_str = 'got unknown msg_type {0} , skipped '.format(msg_type)
             tmp_log.error(err_str)

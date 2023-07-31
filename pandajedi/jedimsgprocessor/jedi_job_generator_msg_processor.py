@@ -87,7 +87,9 @@ class JediJobGeneratorMsgProcPlugin(BaseMsgProcPlugin):
                                                 None, None, None, False)
                     gen_thr.start()
                     gen_thr.join()
-                tmp_log.debug('generated jobs for task {}'.format(task_id))
+                    tmp_log.info('generated jobs for task {}'.format(task_id))
+                else:
+                    tmp_log.debug('task {} is not considered to be processed; skipped '.format(task_id))
         except Exception as e:
             err_str = 'failed to run, skipped. {0} : {1}'.format(e.__class__.__name__, e)
             tmp_log.error(err_str)

@@ -60,7 +60,7 @@ class JediContentsFeederMsgProcPlugin(BaseMsgProcPlugin):
                 self.contents_feeder_thread_obj.feed_contents_to_tasks(task_ds_list)
                 tmp_log.info('fed datasets to task {0}'.format(task_id))
             else:
-                tmp_log.warning('got empty list of datasets to feed to task {0}; do nothing '.format(task_id))
+                tmp_log.debug('got empty list of datasets to feed to task {0}; skipped '.format(task_id))
         except Exception as e:
             err_str = 'failed to run, skipped. {0} : {1}'.format(e.__class__.__name__, e)
             tmp_log.error(err_str)
