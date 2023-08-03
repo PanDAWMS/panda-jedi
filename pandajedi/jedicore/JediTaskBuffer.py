@@ -168,9 +168,9 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getTaskIDsWithCriteria_JEDI(criteria,nTasks)
 
     # get JEDI tasks to be finished
-    def getTasksToBeFinished_JEDI(self,vo,prodSourceLabel,pid,nTasks=50):
+    def getTasksToBeFinished_JEDI(self, vo, prodSourceLabel, pid, nTasks=50, target_tasks=None):
         with self.proxyPool.get() as proxy:
-            return proxy.getTasksToBeFinished_JEDI(vo,prodSourceLabel,pid,nTasks)
+            return proxy.getTasksToBeFinished_JEDI(vo, prodSourceLabel, pid, nTasks, target_tasks)
 
     # get tasks to be processed
     def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,

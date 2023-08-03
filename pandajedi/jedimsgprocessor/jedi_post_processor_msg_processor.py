@@ -73,20 +73,21 @@ class JediPostProcessorMsgProcPlugin(BaseMsgProcPlugin):
             task_id = msg_dict['taskid']
             vo = msg_dict['task_vo']
             prodsourcelabel = msg_dict['task_prodsourcelabel']
-            ret = self.tbIF.prepareTasksToBeFinished_JEDI(vo, 
+            ret_list = self.tbIF.prepareTasksToBeFinished_JEDI(vo, 
                                                             prodSourceLabel, 
                                                             jedi_config.postprocessor.nTasks, 
                                                             self.get_pid())
             task_list = self.tbIF.getTasksToBeFinished_JEDI(vo,
                                                             prodSourceLabel,
                                                             self.get_pid(),
-                                                            jedi_config.postprocessor.nTasks)
-            if task_list:
+                                                            jedi_config.postprocessor.nTasks,
+                                                            target_tasks=ret_list)
+            if task_list and task_id in [ task_spec.jediTaskID for task_spec in task_list ]:
                 tmp_post_processor_thread_obj = self.post_processor_thread_dict[(vo, prodsourcelabel)]
                 tmp_post_processor_thread_obj.post_process_tasks(task_list)
-                tmp_log.info('post processed task {0}'.format(task_id))
+                tmp_log.info('post processed tasks {0} including {1}'.format(task_list, task_id))
             else:
-                tmp_log.warning('got empty list of task {0}; do nothing '.format(task_id))
+                tmp_log.debug('did not get task {0}; skip '.format(task_id))
         except Exception as e:
             err_str = 'failed to run, skipped. {0} : {1}'.format(e.__class__.__name__, e)
             tmp_log.error(err_str)

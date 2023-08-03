@@ -49,16 +49,17 @@ class PostProcessor (JediKnight,FactoryBase):
                     for prodSourceLabel in self.prodSourceLabels:
                         # prepare tasks to be finished
                         tmpLog.info('preparing tasks to be finished for vo={0} label={1}'.format(vo,prodSourceLabel))
-                        tmpRet = self.taskBufferIF.prepareTasksToBeFinished_JEDI(vo,prodSourceLabel,
+                        tmp_ret_list = self.taskBufferIF.prepareTasksToBeFinished_JEDI(vo, prodSourceLabel,
                                                                                  jedi_config.postprocessor.nTasks,
                                                                                  pid=self.pid)
-                        if tmpRet is None:
+                        if tmp_ret_list is None:
                             # failed
                             tmpLog.error('failed to prepare tasks')
                         # get tasks to be finished
                         tmpLog.info('getting tasks to be finished') 
-                        tmpList = self.taskBufferIF.getTasksToBeFinished_JEDI(vo,prodSourceLabel,self.pid,
-                                                                              jedi_config.postprocessor.nTasks)
+                        tmpList = self.taskBufferIF.getTasksToBeFinished_JEDI(vo, prodSourceLabel, self.pid,
+                                                                              jedi_config.postprocessor.nTasks,
+                                                                              target_tasks=tmp_ret_list)
                         if tmpList is None: 
                             # failed
                             tmpLog.error('failed to get tasks to be finished')

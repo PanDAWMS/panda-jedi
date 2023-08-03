@@ -2360,10 +2360,12 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get JEDI tasks to be finished
-    def getTasksToBeFinished_JEDI(self,vo,prodSourceLabel,pid,nTasks=50):
+    def getTasksToBeFinished_JEDI(self, vo, prodSourceLabel, pid, nTasks=50, target_tasks=None):
         comment = ' /* JediDBProxy.getTasksToBeFinished_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <vo={0} label={1} pid={2}>'.format(vo,prodSourceLabel,pid)
+        if target_tasks:
+            methodName += ' <jediTasks>'
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         # return value for failure
@@ -2378,12 +2380,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status5'] = 'passed'
             sqlRT  = "SELECT tabT.jediTaskID,tabT.status,tabT.eventService,tabT.site,tabT.useJumbo,tabT.splitRule "
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
-            sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlRT += "WHERE tabT.status=tabA.status "
+            or_taskids_sql = ''
+            if target_tasks:
+                taskids_params_key_list = []
+                for tmpTaskIdx, tmpTaskID in enumerate(target_tasks):
+                    tmpKey = f':jediTaskID{tmpTaskIdx}'
+                    taskids_params_key_list.append(tmpKey)
+                    varMap[tmpKey] = tmpTaskID
+                taskids_params_key_str = ','.join(taskids_params_key_list)
+                or_taskids_sql = f'OR tabT.jediTaskID IN ({taskids_params_key_str})'
+            sqlRT += "AND (tabT.jediTaskID>=tabA.min_jediTaskID {0}) ".format(or_taskids_sql)
             sqlRT += "AND tabT.status IN (:status1,:status2,:status3,:status4,:status5) "
-            if vo not in [None,'any']:
+            if vo not in [None, 'any']:
                 varMap[':vo'] = vo
                 sqlRT += "AND tabT.vo=:vo "
-            if prodSourceLabel not in [None,'any']:
+            if prodSourceLabel not in [None, 'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
             sqlRT += "AND (lockedBy IS NULL OR lockedTime<:timeLimit) "
@@ -7400,6 +7412,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         toSkip = True
                         tmpLog.debug('skip jediTaskID={0} due to status={1}'.format(jediTaskID,taskSpec.status))
+                    # return list of taskids
+                    ret_list = []
                     # update tasks
                     if not toSkip:
                         varMap = {}
@@ -7417,6 +7431,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.setSuperStatus_JEDI(jediTaskID,newTaskStatus)
                         self.record_task_status_change(jediTaskID)
                         self.push_task_status_message(taskSpec, jediTaskID, newTaskStatus)
+                        ret_list.append(jediTaskID)
                     else:
                         # unlock
                         varMap = {}
@@ -7430,7 +7445,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not self._commit():
                     raise RuntimeError('Commit error')
             tmpLog.debug('done')
-            return True
+            return ret_list
         except Exception:
             # roll back
             self._rollback()
