@@ -21,12 +21,12 @@ TaskBuffer.DBProxyPool = JediDBProxyPool.DBProxyPool
 class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
     # constructor
-    def __init__(self,conn):
-        CommandReceiveInterface.__init__(self,conn)
+    def __init__(self, conn, nDBConnection=1):
+        CommandReceiveInterface.__init__(self, conn)
         TaskBuffer.TaskBuffer.__init__(self)
         TaskBuffer.TaskBuffer.init(self, jedi_config.db.dbhost,
                                    jedi_config.db.dbpasswd,
-                                   nDBConnection=1)
+                                   nDBConnection=nDBConnection)
         # site mapper
         self.siteMapper = SiteMapper(self)
         # update time for site mapper
