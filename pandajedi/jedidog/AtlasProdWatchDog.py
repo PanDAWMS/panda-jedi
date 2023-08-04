@@ -133,7 +133,9 @@ class AtlasProdWatchDog(TypicalWatchDogBase):
 
                             # skip express or non global share
                             newShare = 'Express'
-                            if gshare != newShare and workQueue.is_global_share:
+                            newShareType = 'managed'
+                            if gshare != newShare and workQueue.is_global_share and \
+                                    workQueue.queue_type == newShareType:
                                 gTmpLog.info(' >>> action=gshare_reassignment jediTaskID={0} from gshare_old={2} to gshare_new={1} #ATM #KV label=managed'.
                                              format(jediTaskID, newShare, gshare))
                                 self.taskBufferIF.reassignShare([jediTaskID], newShare, True)
