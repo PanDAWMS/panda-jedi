@@ -6,7 +6,7 @@ ARG PYTHON_VERSION
 
 RUN yum update -y
 RUN yum install -y epel-release
-RUN yum install -y gcc less git wget logrotate \
+RUN yum install -y gcc make less git wget logrotate \
     openssl11 openssl11-devel bzip2-devel libffi-devel zlib-devel
 
 # install python
