@@ -13857,7 +13857,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('done')
     
     # push message to message processors which triggers functions of agents
-    def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None):
+    def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None, priority=None):
         comment = ' /* JediDBProxy.push_task_trigger_message */'
         methodName = self.getMethodName(comment)
         methodName += ' < msg_type={0} jediTaskID={1} >'.format(msg_type, jedi_task_id)
@@ -13867,11 +13867,14 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         try:
             now_time = datetime.datetime.utcnow()
             now_ts = int(now_time.timestamp())
-            msg_dict = {
+            msg_dict = {}
+            if data_dict:
+                msg_dict.update(data_dict)
+            msg_dict.update({
                     'msg_type': msg_type,
                     'taskid': jedi_task_id,
                     'timestamp': now_ts,
-                }
+                })
             msg = json.dumps(msg_dict)
             if self.jedi_mb_proxy_dict is None:
                 self.jedi_mb_proxy_dict = get_mb_proxy_dict()
@@ -13886,7 +13889,10 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 return
             if mb_proxy.got_disconnected:
                 mb_proxy.restart()
-            mb_proxy.send(msg)
+            if priority:
+                mb_proxy.send(msg, priority=priority)
+            else:
+                mb_proxy.send(msg)
         except Exception:
             self.dumpErrorMessage(tmpLog)
         tmpLog.debug('done')
