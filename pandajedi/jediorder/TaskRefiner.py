@@ -344,6 +344,7 @@ class TaskRefinerThread (WorkerThread):
                                 # send message to contents feeder if the task is registered
                                 if tmpStat:
                                     self.taskBufferIF.push_task_trigger_message('jedi_contents_feeder', jediTaskID)
+                                    tmpLog.debug('pushed trigger message to jedi_contents_feeder')
                             else:
                                 # disable scouts if previous attempt didn't use it
                                 if not impl.taskSpec.useScout(splitRule):

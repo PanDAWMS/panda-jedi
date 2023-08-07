@@ -2364,8 +2364,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         comment = ' /* JediDBProxy.getTasksToBeFinished_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <vo={0} label={1} pid={2}>'.format(vo,prodSourceLabel,pid)
-        if target_tasks:
-            methodName += ' <jediTasks>'
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         # return value for failure
@@ -6970,6 +6968,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         # return value for failure
         failedRet = None
+        # return list of taskids
+        ret_list = []
         try:
             # sql to get tasks/datasets
             if simTasks is None:
@@ -7412,8 +7412,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         toSkip = True
                         tmpLog.debug('skip jediTaskID={0} due to status={1}'.format(jediTaskID,taskSpec.status))
-                    # return list of taskids
-                    ret_list = []
                     # update tasks
                     if not toSkip:
                         varMap = {}
