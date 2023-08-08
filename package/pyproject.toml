@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "panda-jedi"
 dynamic = ["version"]
 description = "PanDA JEDI Package"
-readme = {"text" = "PanDA JEDI Package", "content-type" = "text/markdown"}
+readme = "README.txt"
 license = "Apache-2.0"
 authors = [
     { name = "PanDA Team", email = "atlas-adc-panda@cern.ch" },
