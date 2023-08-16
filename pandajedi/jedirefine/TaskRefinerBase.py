@@ -408,6 +408,8 @@ class TaskRefinerBase (object):
             self.taskSpec.set_order_input_by(taskParamMap['orderInputBy'])
         if 'intermediateTask' in taskParamMap:
             self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['intermediateTask'])
+        if 'allowEmptyInput' in taskParamMap:
+            self.setSplitRule(None, 1, JediTaskSpec.splitRuleToken['allowEmptyInput'])
         # work queue
         workQueue = None
         if 'workQueueName' in taskParamMap:
