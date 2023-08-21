@@ -11,6 +11,7 @@ import traceback
 import socket
 import uuid
 import json
+import atexit
 
 from six import iteritems
 
@@ -76,6 +77,9 @@ def get_mb_proxy_dict():
         out_q_list = ['jedi_jobtaskstatus', 'jedi_contents_feeder', 'jedi_job_generator']
         mq_agent = MsgProcAgent(config_file=jedi_config.mq.configFile)
         mb_proxy_dict = mq_agent.start_passive_mode(in_q_list=in_q_list, out_q_list=out_q_list)
+        # stop with atexit
+        atexit.register(mq_agent.stop_passive_mode)
+        # return
         return mb_proxy_dict
 
 
