@@ -261,7 +261,7 @@ setup(
                                    ]
                  ),
                 # exec
-                ('usr/bin', ['templates/panda_jedi-reniceJEDI.exe.template',
+                ('usr/bin', ['templates/bin/panda_jedi-reniceJEDI.exe.template',
                              ]
                  ),
                 ],

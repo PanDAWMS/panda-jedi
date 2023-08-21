@@ -109,7 +109,7 @@ class WorkQueueMapper:
             dump_str += '  VO=%s\n' % VO
             for type in self.work_queue_map[VO]:
                 dump_str += '    type=%s\n' % type
-                for workQueue in self.work_queue_map[VO]:
+                for workQueue in self.work_queue_map[VO][type]:
                     dump_str += '    %s\n' % workQueue.dump()
         # return
         return dump_str

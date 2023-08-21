@@ -120,6 +120,7 @@ class ContentsFeederThread (WorkerThread):
                     taskBroken = False
                     taskOnHold = False
                     runningTask = False
+                    taskToFinish = False
                     missingMap = {}
                     datasetsIdxConsistency = []
 
@@ -601,17 +602,23 @@ class ContentsFeederThread (WorkerThread):
                         tmpErrStr = 'no master input files. input dataset is empty'
                         tmpLog.error(tmpErrStr)
                         taskSpec.setErrDiag(tmpErrStr,None)
-                        if taskSpec.allowEmptyInput() or noWaitParent:
+                        if noWaitParent:
                             taskOnHold = True
                         else:
-                            taskBroken = True
+                            if not taskSpec.allowEmptyInput():
+                                taskBroken = True
+                            else:
+                                taskToFinish = True
                     # index consistency
                     if not taskOnHold and not taskBroken and len(datasetsIdxConsistency) > 0:
                         self.taskBufferIF.removeFilesIndexInconsistent_JEDI(jediTaskID,datasetsIdxConsistency)
                     # update task status
-                    if taskBroken:
-                        # task is broken
-                        taskSpec.status = 'tobroken'
+                    if taskBroken or taskToFinish:
+                        if taskBroken:
+                            # task is broken
+                            taskSpec.status = 'tobroken'
+                        else:
+                            taskSpec.status = 'finishing'
                         tmpMsg = 'set task_status={0}'.format(taskSpec.status)
                         tmpLog.info(tmpMsg)
                         tmpLog.sendMsg(tmpMsg,self.msgType)
@@ -629,7 +636,7 @@ class ContentsFeederThread (WorkerThread):
                                 taskOnHold = True
                         if taskOnHold:
                             # go to pending state
-                            if taskSpec.status not in ['broken','tobroken']:
+                            if taskSpec.status not in ['broken', 'tobroken', 'finishing']:
                                 taskSpec.setOnHold()
                             tmpMsg = 'set task_status={0}'.format(taskSpec.status)
                             tmpLog.info(tmpMsg)

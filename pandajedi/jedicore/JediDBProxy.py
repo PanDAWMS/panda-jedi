@@ -12931,11 +12931,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     varMap[':nDiff'] = nDiff
                     tmpLog.debug(sqlUO+comment+str(varMap))
                     self.cur.execute(sqlUO+comment, varMap)
-            # relase task
+            # release task
             varMap = dict()
             varMap[':jediTaskID'] = jediTaskID
             varMap[':lockedBy'] = lockedBy
-            self.cur.execute(sqlLK+comment, varMap)
+            self.cur.execute(sqlRT+comment, varMap)
             # commit
             if not self._commit():
                 raise RuntimeError('Commit error')
