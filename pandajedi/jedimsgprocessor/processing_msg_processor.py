@@ -98,10 +98,10 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
                             err_str = 'jeditaskid={0}, scope={1}, failed to update datasets'.format(jeditaskid, scope)
                             raise RuntimeError(err_str)
                         tmp_log.info('jeditaskid={0}, scope={1}, updated {2} datasets'.format(jeditaskid, scope, res))
-                    # send message to job generator if new files are ready
+                    # send message to contents feeder if new files are staged
                     if res > 0:
-                        self.tbIF.push_task_trigger_message('jedi_job_generator', jeditaskid)
-                        tmp_log.debug('pushed trigger message to jedi_job_generator for jeditaskid={0}'.format(jeditaskid))
+                        self.tbIF.push_task_trigger_message('jedi_contents_feeder', jeditaskid)
+                        tmp_log.debug('pushed trigger message to jedi_contents_feeder for jeditaskid={0}'.format(jeditaskid))
                     # check if all ok
                     if res == len(target_list):
                         tmp_log.debug('jeditaskid={0}, scope={1}, all OK'.format(jeditaskid, scope))
