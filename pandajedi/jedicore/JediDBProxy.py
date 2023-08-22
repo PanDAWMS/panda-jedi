@@ -230,7 +230,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             sql += 'FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA '.format(jedi_config.db.schemaJEDI)
             sql += 'WHERE (tabT.lockedTime IS NULL OR tabT.lockedTime<:lockTimeLimit) '
             if task_id is None:
-                sql += 'tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID '
+                sql += 'AND tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID '
             if vo not in [None,'any']:
                 varMap[':vo'] = vo
                 sql += "AND tabT.vo=:vo "
