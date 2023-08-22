@@ -228,10 +228,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':lockTimeLimit']  = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
             sql  = "SELECT {0} ".format(JediDatasetSpec.columnNames('tabD'))
             sql += 'FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA '.format(jedi_config.db.schemaJEDI)
-            sql += 'WHERE tabT.status=tabA.status '
+            sql += 'WHERE (tabT.lockedTime IS NULL OR tabT.lockedTime<:lockTimeLimit) '
             if task_id is None:
-                sql += 'AND tabT.jediTaskID>=tabA.min_jediTaskID '
-            sql += 'AND (tabT.lockedTime IS NULL OR tabT.lockedTime<:lockTimeLimit) '
+                sql += 'tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID '
             if vo not in [None,'any']:
                 varMap[':vo'] = vo
                 sql += "AND tabT.vo=:vo "
