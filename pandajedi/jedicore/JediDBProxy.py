@@ -2383,22 +2383,18 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status4'] = 'toabort'
             varMap[':status5'] = 'passed'
             sqlRT  = "SELECT tabT.jediTaskID,tabT.status,tabT.eventService,tabT.site,tabT.useJumbo,tabT.splitRule "
-            if target_tasks is None:
-                sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
-                sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
-            elif target_tasks:
-                tmpLog.debug("target_tasks={0}".format(target_tasks))
-                sqlRT += "FROM {0}.JEDI_Tasks tabT ".format(jedi_config.db.schemaJEDI)
+            sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
+            sqlRT += "WHERE tabT.status=tabA.status "
+            or_taskids_sql = ''
+            if target_tasks:
                 taskids_params_key_list = []
                 for tmpTaskIdx, tmpTaskID in enumerate(target_tasks):
                     tmpKey = f':jediTaskID{tmpTaskIdx}'
                     taskids_params_key_list.append(tmpKey)
                     varMap[tmpKey] = tmpTaskID
                 taskids_params_key_str = ','.join(taskids_params_key_list)
-                sqlRT += f'WHERE tabT.jediTaskID IN ({taskids_params_key_str}) '
-            else:
-                tmpLog.debug("target_tasks is empty; return []")
-                return []
+                or_taskids_sql = f'OR tabT.jediTaskID IN ({taskids_params_key_str})'
+            sqlRT += "AND (tabT.jediTaskID>=tabA.min_jediTaskID {0}) ".format(or_taskids_sql)
             sqlRT += "AND tabT.status IN (:status1,:status2,:status3,:status4,:status5) "
             if vo not in [None, 'any']:
                 varMap[':vo'] = vo
