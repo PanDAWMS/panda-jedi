@@ -256,13 +256,20 @@ class TaskRefinerThread (WorkerThread):
                         except Exception:
                             errtype,errvalue = sys.exc_info()[:2]
                             # wait unknown input if noWaitParent or waitInput
+                            toFinish = False
                             if ((impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput()) \
                                     and errtype == JediException.UnknownDatasetError) or parentState == 'running' \
                                     or errtype == Interaction.JEDITemporaryError:
                                 if impl.taskSpec.noWaitParent() and errtype == JediException.UnknownDatasetError \
-                                    and parentState != 'running':
-                                    tmpErrStr = 'pending due to missing input while parent is {}'.format(parentState)
-                                    setFrozenTime = True
+                                        and parentState != 'running':
+                                    if impl.taskSpec.allowEmptyInput():
+                                        tmpErrStr = 'finishing due to missing input while parent is {}'.format(
+                                            parentState)
+                                        toFinish = True
+                                        setFrozenTime = False
+                                    else:
+                                        tmpErrStr = 'pending due to missing input while parent is {}'.format(parentState)
+                                        setFrozenTime = True
                                 elif impl.taskSpec.noWaitParent() or parentState == 'running':
                                     tmpErrStr = 'pending until parent produces input. parent is {}'.format(parentState)
                                     setFrozenTime=False
@@ -272,8 +279,11 @@ class TaskRefinerThread (WorkerThread):
                                 else:
                                     tmpErrStr = 'pending until input is staged'
                                     setFrozenTime=True
-                                impl.taskSpec.status = taskStatus
-                                impl.taskSpec.setOnHold()
+                                if toFinish:
+                                    impl.taskSpec.status = 'finishing'
+                                else:
+                                    impl.taskSpec.status = taskStatus
+                                    impl.taskSpec.setOnHold()
                                 impl.taskSpec.setErrDiag(tmpErrStr)
                                 # not to update some task attributes
                                 impl.taskSpec.resetRefinedAttrs()

@@ -85,7 +85,7 @@ class AtlasProdPostProcessor (PostProcessorBase):
         if self.getFinalTaskStatus(taskSpec) in ['finished','done'] and taskSpec.gshare != 'Test':
             nDup = self.taskBufferIF.checkDuplication_JEDI(taskSpec.jediTaskID)
             tmpLog.debug('checked duplication with {0}'.format(nDup))
-            if nDup > 0:
+            if nDup is not None and nDup > 0:
                 errStr = 'paused since {0} duplication found'.format(nDup)
                 taskSpec.oldStatus = self.getFinalTaskStatus(taskSpec)
                 taskSpec.status = 'paused'
