@@ -21,7 +21,9 @@ class BaseMsgProcPlugin(SimpleMsgProcPluginBase):
         """
         set up JEDI TaskBuffer interface
         """
-        self.tbIF= JediTaskBuffer(None)
+        # set nDBConnection = n_threads to avoid DBProxy blocking amongs threads
+        n_db_conns = getattr(self, 'n_threads', 1)
+        self.tbIF= JediTaskBuffer(None, nDBConnection=n_db_conns)
 
     def process(self, msg_obj):
         """

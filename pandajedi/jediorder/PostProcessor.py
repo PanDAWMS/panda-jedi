@@ -49,16 +49,17 @@ class PostProcessor (JediKnight,FactoryBase):
                     for prodSourceLabel in self.prodSourceLabels:
                         # prepare tasks to be finished
                         tmpLog.info('preparing tasks to be finished for vo={0} label={1}'.format(vo,prodSourceLabel))
-                        tmpRet = self.taskBufferIF.prepareTasksToBeFinished_JEDI(vo,prodSourceLabel,
+                        tmp_ret_list = self.taskBufferIF.prepareTasksToBeFinished_JEDI(vo, prodSourceLabel,
                                                                                  jedi_config.postprocessor.nTasks,
                                                                                  pid=self.pid)
-                        if tmpRet is None:
+                        if tmp_ret_list is None:
                             # failed
                             tmpLog.error('failed to prepare tasks')
                         # get tasks to be finished
                         tmpLog.info('getting tasks to be finished') 
-                        tmpList = self.taskBufferIF.getTasksToBeFinished_JEDI(vo,prodSourceLabel,self.pid,
-                                                                              jedi_config.postprocessor.nTasks)
+                        tmpList = self.taskBufferIF.getTasksToBeFinished_JEDI(vo, prodSourceLabel, self.pid,
+                                                                              jedi_config.postprocessor.nTasks,
+                                                                              target_tasks=tmp_ret_list)
                         if tmpList is None: 
                             # failed
                             tmpLog.error('failed to get tasks to be finished')
@@ -104,6 +105,54 @@ class PostProcessorThread (WorkerThread):
         self.ddmIF = ddmIF
         self.implFactory = implFactory
 
+    # post process tasks
+    def post_process_tasks(self, task_list):
+        for taskSpec in task_list:
+            # make logger
+            tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID))
+            tmpLog.info('start')
+            tmpStat = Interaction.SC_SUCCEEDED
+            # get impl
+            impl = self.implFactory.instantiateImpl(taskSpec.vo,taskSpec.prodSourceLabel,None,
+                                                    self.taskBufferIF,self.ddmIF)
+            if impl is None:
+                # post processor is undefined
+                tmpLog.error('post-processor is undefined for vo={0} sourceLabel={1}'.format(taskSpec.vo,taskSpec.prodSourceLabel))
+                tmpStat = Interaction.SC_FATAL
+            # execute    
+            if tmpStat == Interaction.SC_SUCCEEDED:
+                tmpLog.info('post-process with {0}'.format(impl.__class__.__name__))
+                try:
+                    impl.doPostProcess(taskSpec,tmpLog)
+                except Exception:
+                    errtype,errvalue = sys.exc_info()[:2]
+                    tmpLog.error('doPostProcess failed with {0}:{1}'.format(errtype.__name__,errvalue))
+                    tmpStat = Interaction.SC_FATAL
+            # done
+            if tmpStat == Interaction.SC_FATAL:
+                # task is broken
+                tmpErrStr = 'post-process failed'
+                tmpLog.error(tmpErrStr)
+                taskSpec.status = 'broken'
+                taskSpec.setErrDiag(tmpErrStr)
+                taskSpec.lockedBy = None
+                self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})    
+            elif tmpStat == Interaction.SC_FAILED:
+                tmpErrStr = 'post processing failed'
+                taskSpec.setOnHold()
+                taskSpec.setErrDiag(tmpErrStr,True)
+                taskSpec.lockedBy = None
+                self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
+                tmpLog.info('set task_status={0} since {1}'.format(taskSpec.status,taskSpec.errorDialog))
+                continue
+            # final procedure
+            try:
+                impl.doFinalProcedure(taskSpec,tmpLog)
+            except Exception:
+                errtype,errvalue = sys.exc_info()[:2]
+                tmpLog.error('doFinalProcedure failed with {0}:{1}'.format(errtype.__name__,errvalue))
+            # done
+            tmpLog.info('done')
 
     # main
     def runImpl(self):
@@ -116,53 +165,8 @@ class PostProcessorThread (WorkerThread):
                 if len(taskList) == 0:
                     self.logger.debug('{0} terminating since no more items'.format(self.__class__.__name__))
                     return
-                # loop over all tasks
-                for taskSpec in taskList:
-                    # make logger
-                    tmpLog = MsgWrapper(self.logger,'<jediTaskID={0}>'.format(taskSpec.jediTaskID))
-                    tmpLog.info('start')
-                    tmpStat = Interaction.SC_SUCCEEDED
-                    # get impl
-                    impl = self.implFactory.instantiateImpl(taskSpec.vo,taskSpec.prodSourceLabel,None,
-                                                            self.taskBufferIF,self.ddmIF)
-                    if impl is None:
-                        # post processor is undefined
-                        tmpLog.error('post-processor is undefined for vo={0} sourceLabel={1}'.format(taskSpec.vo,taskSpec.prodSourceLabel))
-                        tmpStat = Interaction.SC_FATAL
-                    # execute    
-                    if tmpStat == Interaction.SC_SUCCEEDED:
-                        tmpLog.info('post-process with {0}'.format(impl.__class__.__name__))
-                        try:
-                            impl.doPostProcess(taskSpec,tmpLog)
-                        except Exception:
-                            errtype,errvalue = sys.exc_info()[:2]
-                            tmpLog.error('doPostProcess failed with {0}:{1}'.format(errtype.__name__,errvalue))
-                            tmpStat = Interaction.SC_FATAL
-                    # done
-                    if tmpStat == Interaction.SC_FATAL:
-                        # task is broken
-                        tmpErrStr = 'post-process failed'
-                        tmpLog.error(tmpErrStr)
-                        taskSpec.status = 'broken'
-                        taskSpec.setErrDiag(tmpErrStr)
-                        taskSpec.lockedBy = None
-                        self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})    
-                    elif tmpStat == Interaction.SC_FAILED:
-                        tmpErrStr = 'post processing failed'
-                        taskSpec.setOnHold()
-                        taskSpec.setErrDiag(tmpErrStr,True)
-                        taskSpec.lockedBy = None
-                        self.taskBufferIF.updateTask_JEDI(taskSpec,{'jediTaskID':taskSpec.jediTaskID})
-                        tmpLog.info('set task_status={0} since {1}'.format(taskSpec.status,taskSpec.errorDialog))
-                        continue
-                    # final procedure
-                    try:
-                        impl.doFinalProcedure(taskSpec,tmpLog)
-                    except Exception:
-                        errtype,errvalue = sys.exc_info()[:2]
-                        tmpLog.error('doFinalProcedure failed with {0}:{1}'.format(errtype.__name__,errvalue))
-                    # done
-                    tmpLog.info('done')
+                # post process tasks
+                self.post_process_tasks(taskList)
             except Exception:
                 errtype,errvalue = sys.exc_info()[:2]
                 logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))

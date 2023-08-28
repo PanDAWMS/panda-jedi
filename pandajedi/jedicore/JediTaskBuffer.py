@@ -21,12 +21,12 @@ TaskBuffer.DBProxyPool = JediDBProxyPool.DBProxyPool
 class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
 
     # constructor
-    def __init__(self,conn):
-        CommandReceiveInterface.__init__(self,conn)
+    def __init__(self, conn, nDBConnection=1):
+        CommandReceiveInterface.__init__(self, conn)
         TaskBuffer.TaskBuffer.__init__(self)
         TaskBuffer.TaskBuffer.init(self, jedi_config.db.dbhost,
                                    jedi_config.db.dbpasswd,
-                                   nDBConnection=1)
+                                   nDBConnection=nDBConnection)
         # site mapper
         self.siteMapper = SiteMapper(self)
         # update time for site mapper
@@ -52,9 +52,9 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getWorkQueueMap()
 
     # get the list of datasets to feed contents to DB
-    def getDatasetsToFeedContents_JEDI(self,vo=None,prodSourceLabel=None):
+    def getDatasetsToFeedContents_JEDI(self, vo=None, prodSourceLabel=None, task_id=None):
         with self.proxyPool.get() as proxy:
-            return proxy.getDatasetsToFeedContents_JEDI(vo,prodSourceLabel)
+            return proxy.getDatasetsToFeedContents_JEDI(vo, prodSourceLabel, task_id)
 
     # feed files to the JEDI contents table
     def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
@@ -168,9 +168,9 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getTaskIDsWithCriteria_JEDI(criteria,nTasks)
 
     # get JEDI tasks to be finished
-    def getTasksToBeFinished_JEDI(self,vo,prodSourceLabel,pid,nTasks=50):
+    def getTasksToBeFinished_JEDI(self, vo, prodSourceLabel, pid, nTasks=50, target_tasks=None):
         with self.proxyPool.get() as proxy:
-            return proxy.getTasksToBeFinished_JEDI(vo,prodSourceLabel,pid,nTasks)
+            return proxy.getTasksToBeFinished_JEDI(vo, prodSourceLabel, pid, nTasks, target_tasks)
 
     # get tasks to be processed
     def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,
@@ -804,3 +804,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def get_origin_datasets(self, jedi_task_id, dataset_name, lfns):
         with self.proxyPool.get() as proxy:
             return proxy.get_origin_datasets(jedi_task_id, dataset_name, lfns)
+    
+    # push message to message processors which triggers functions of agents
+    def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None, priority=None):
+        with self.proxyPool.get() as proxy:
+            return proxy.push_task_trigger_message(msg_type, jedi_task_id, data_dict, priority)

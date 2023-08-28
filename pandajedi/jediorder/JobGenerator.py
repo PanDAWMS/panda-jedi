@@ -1194,7 +1194,7 @@ class JobGeneratorThread(WorkerThread):
                                                                                         tmpFirstEventOffset,
                                                                                         tmpFirstEvent
                                                                                         )
-                            # calcurate total master size
+                            # calculate total master size
                             if tmpDatasetSpec.isMaster():
                                 totalMasterSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,
                                                                                       tmpFileSpec.startEvent,

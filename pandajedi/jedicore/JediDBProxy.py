@@ -11,6 +11,7 @@ import traceback
 import socket
 import uuid
 import json
+import atexit
 
 from six import iteritems
 
@@ -73,10 +74,12 @@ def get_mb_proxy_dict():
         # delay import to open logger file inside python daemon
         from pandajedi.jediorder.JediMsgProcessor import MsgProcAgent
         in_q_list = []
-        out_q_list = ['jedi_taskstatus']
+        out_q_list = ['jedi_jobtaskstatus', 'jedi_contents_feeder', 'jedi_job_generator']
         mq_agent = MsgProcAgent(config_file=jedi_config.mq.configFile)
-        mb_proxy_dict = mq_agent.start_passive_mode(
-                            in_q_list=in_q_list, out_q_list=out_q_list, prefetch_size=999)
+        mb_proxy_dict = mq_agent.start_passive_mode(in_q_list=in_q_list, out_q_list=out_q_list)
+        # stop with atexit
+        atexit.register(mq_agent.stop_passive_mode)
+        # return
         return mb_proxy_dict
 
 
@@ -199,10 +202,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get the list of datasets to feed contents to DB
-    def getDatasetsToFeedContents_JEDI(self,vo,prodSourceLabel):
+    def getDatasetsToFeedContents_JEDI(self, vo, prodSourceLabel, task_id=None):
         comment = ' /* JediDBProxy.getDatasetsToFeedContents_JEDI */'
         methodName = self.getMethodName(comment)
-        methodName += ' <vo={0} label={1}>'.format(vo,prodSourceLabel)
+        if task_id is not None:
+            methodName += ' <vo={0} label={1} taskid={2}>'.format(vo, prodSourceLabel, task_id)
+        else:
+            methodName += ' <vo={0} label={1}>'.format(vo, prodSourceLabel)
         tmpLog = MsgWrapper(logger,methodName)
         tmpLog.debug('start')
         try:
@@ -221,8 +227,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':checkTimeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=checkInterval)
             varMap[':lockTimeLimit']  = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
             sql  = "SELECT {0} ".format(JediDatasetSpec.columnNames('tabD'))
-            sql += 'FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA '.format(jedi_config.db.schemaJEDI)
-            sql += 'WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID '
+            if task_id is None:
+                sql += 'FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA '.format(jedi_config.db.schemaJEDI)
+                sql += 'WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID '
+            else:
+                varMap[':task_id'] = task_id
+                sql += 'FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD '.format(jedi_config.db.schemaJEDI)
+                sql += "WHERE tabT.jediTaskID=:task_id "
             sql += 'AND (tabT.lockedTime IS NULL OR tabT.lockedTime<:lockTimeLimit) '
             if vo not in [None,'any']:
                 varMap[':vo'] = vo
@@ -2355,7 +2366,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
 
     # get JEDI tasks to be finished
-    def getTasksToBeFinished_JEDI(self,vo,prodSourceLabel,pid,nTasks=50):
+    def getTasksToBeFinished_JEDI(self, vo, prodSourceLabel, pid, nTasks=50, target_tasks=None):
         comment = ' /* JediDBProxy.getTasksToBeFinished_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <vo={0} label={1} pid={2}>'.format(vo,prodSourceLabel,pid)
@@ -2373,12 +2384,22 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':status5'] = 'passed'
             sqlRT  = "SELECT tabT.jediTaskID,tabT.status,tabT.eventService,tabT.site,tabT.useJumbo,tabT.splitRule "
             sqlRT += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
-            sqlRT += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
+            sqlRT += "WHERE tabT.status=tabA.status "
+            or_taskids_sql = ''
+            if target_tasks:
+                taskids_params_key_list = []
+                for tmpTaskIdx, tmpTaskID in enumerate(target_tasks):
+                    tmpKey = f':jediTaskID{tmpTaskIdx}'
+                    taskids_params_key_list.append(tmpKey)
+                    varMap[tmpKey] = tmpTaskID
+                taskids_params_key_str = ','.join(taskids_params_key_list)
+                or_taskids_sql = f'OR tabT.jediTaskID IN ({taskids_params_key_str})'
+            sqlRT += "AND (tabT.jediTaskID>=tabA.min_jediTaskID {0}) ".format(or_taskids_sql)
             sqlRT += "AND tabT.status IN (:status1,:status2,:status3,:status4,:status5) "
-            if vo not in [None,'any']:
+            if vo not in [None, 'any']:
                 varMap[':vo'] = vo
                 sqlRT += "AND tabT.vo=:vo "
-            if prodSourceLabel not in [None,'any']:
+            if prodSourceLabel not in [None, 'any']:
                 varMap[':prodSourceLabel'] = prodSourceLabel
                 sqlRT += "AND tabT.prodSourceLabel=:prodSourceLabel "
             sqlRT += "AND (lockedBy IS NULL OR lockedTime<:timeLimit) "
@@ -6953,6 +6974,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         tmpLog.debug('start')
         # return value for failure
         failedRet = None
+        # return list of taskids
+        ret_list = []
         try:
             # sql to get tasks/datasets
             if simTasks is None:
@@ -7412,6 +7435,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             self.setSuperStatus_JEDI(jediTaskID,newTaskStatus)
                         self.record_task_status_change(jediTaskID)
                         self.push_task_status_message(taskSpec, jediTaskID, newTaskStatus)
+                        ret_list.append(jediTaskID)
                     else:
                         # unlock
                         varMap = {}
@@ -7425,7 +7449,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if not self._commit():
                     raise RuntimeError('Commit error')
             tmpLog.debug('done')
-            return True
+            return ret_list
         except Exception:
             # roll back
             self._rollback()
@@ -13827,13 +13851,54 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     tmpLog.debug('Failed to get mb_proxy of internal MQs. Skipped ')
                     return
             try:
-                mb_proxy = self.jedi_mb_proxy_dict['out']['jedi_taskstatus']
+                mb_proxy = self.jedi_mb_proxy_dict['out']['jedi_jobtaskstatus']
             except KeyError as e:
                 tmpLog.warning('Skipped due to {0} ; jedi_mb_proxy_dict is {1}'.format(e, self.jedi_mb_proxy_dict))
                 return
             if mb_proxy.got_disconnected:
                 mb_proxy.restart()
             mb_proxy.send(msg)
+        except Exception:
+            self.dumpErrorMessage(tmpLog)
+        tmpLog.debug('done')
+    
+    # push message to message processors which triggers functions of agents
+    def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None, priority=None):
+        comment = ' /* JediDBProxy.push_task_trigger_message */'
+        methodName = self.getMethodName(comment)
+        methodName += ' < msg_type={0} jediTaskID={1} >'.format(msg_type, jedi_task_id)
+        tmpLog = MsgWrapper(logger, methodName)
+        tmpLog.debug('start')
+        # send task status messages to mq
+        try:
+            now_time = datetime.datetime.utcnow()
+            now_ts = int(now_time.timestamp())
+            msg_dict = {}
+            if data_dict:
+                msg_dict.update(data_dict)
+            msg_dict.update({
+                    'msg_type': msg_type,
+                    'taskid': jedi_task_id,
+                    'timestamp': now_ts,
+                })
+            msg = json.dumps(msg_dict)
+            if self.jedi_mb_proxy_dict is None:
+                self.jedi_mb_proxy_dict = get_mb_proxy_dict()
+                if self.jedi_mb_proxy_dict is None:
+                    tmpLog.debug('Failed to get mb_proxy of internal MQs. Skipped ')
+                    return
+            try:
+                mq_name = msg_type
+                mb_proxy = self.jedi_mb_proxy_dict['out'][mq_name]
+            except KeyError as e:
+                tmpLog.warning('Skipped due to {0} ; jedi_mb_proxy_dict is {1}'.format(e, self.jedi_mb_proxy_dict))
+                return
+            if mb_proxy.got_disconnected:
+                mb_proxy.restart()
+            if priority:
+                mb_proxy.send(msg, priority=priority)
+            else:
+                mb_proxy.send(msg)
         except Exception:
             self.dumpErrorMessage(tmpLog)
         tmpLog.debug('done')
