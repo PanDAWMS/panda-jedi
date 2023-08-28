@@ -7355,7 +7355,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 self.cur.execute(sqlMTC+comment,varMap)
                                 resMTC = self.cur.fetchone()
                                 numMutable, = resMTC
-                                tmpLog.debug('jediTaskID={0} has {1} mutable datasetes'.format(jediTaskID,numMutable))
+                                tmpLog.debug('jediTaskID={0} has {1} mutable datasets'.format(jediTaskID,numMutable))
                                 if numMutable > 0:
                                     mutableFlag = True
                             if mutableFlag:
@@ -7368,7 +7368,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 varMap[':status'] = 'toupdate'
                                 self.cur.execute(sqlMUT+comment,varMap)
                                 nRow = self.cur.rowcount
-                                tmpLog.debug('jediTaskID={0} updated {1} mutable datasetes'.format(jediTaskID,nRow))
+                                tmpLog.debug('jediTaskID={0} updated {1} mutable datasets'.format(jediTaskID,nRow))
                             else:
                                 # update input datasets
                                 for varMap in varMapList:
