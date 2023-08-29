@@ -705,10 +705,14 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                             # with data
                             if availableData != {}:
                                 if availableData[tmpNucleus]['tot_size'] > 0:
-                                    weight *= float(availableData[tmpNucleus]['ava_size_any'])
-                                    weight /= float(availableData[tmpNucleus]['tot_size'])
-                                    wStr += '* ( available_input_size_DISKTAPE={0} )'.format(availableData[tmpNucleus]['ava_size_any'])
-                                    wStr += '/ ( total_input_size={0} )'.format(availableData[tmpNucleus]['tot_size'])
+                                    # use input size only when high IO intensity
+                                    if taskSpec.ioIntensity is None or taskSpec.ioIntensity > minIoIntensityWithLD:
+                                        weight *= float(availableData[tmpNucleus]['ava_size_any'])
+                                        weight /= float(availableData[tmpNucleus]['tot_size'])
+                                        wStr += '* ( available_input_size_DISKTAPE={0} )'.format(
+                                            availableData[tmpNucleus]['ava_size_any'])
+                                        wStr += '/ ( total_input_size={0} )'.format(
+                                            availableData[tmpNucleus]['tot_size'])
                                     # negative weight for tape
                                     if availableData[tmpNucleus]['ava_size_any'] > availableData[tmpNucleus]['ava_size_disk']:
                                         weight *= negWeightTape
