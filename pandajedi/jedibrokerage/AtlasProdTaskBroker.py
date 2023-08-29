@@ -359,7 +359,7 @@ class AtlasProdTaskBrokerThread (WorkerThread):
                                                                                                                thrInputNum,
                                                                                                                thrInputSizeFrac,
                                                                                                                thrInputNumFrac))
-                    tmpLog.info('full-chain:{}'.format(taskSpec.get_full_chain()))
+                    tmpLog.info(f'full-chain:{taskSpec.get_full_chain()} ioIntensity={taskSpec.ioIntensity}')
                     # read task parameters
                     try:
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
