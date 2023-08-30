@@ -310,7 +310,7 @@ PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(
 
         if carbon_footprint:
             message += \
-        """
+"""
                     
             
 Estimated carbon footprint for the task 
@@ -320,21 +320,22 @@ Estimated carbon footprint for the task
      _________________
      Total       : {3}
 (More details on estimation: https://panda-wms.readthedocs.io/en/latest/advanced/carbon_footprint.html)        
-        """.format(carbon_footprint["finished"], carbon_footprint["failed"], carbon_footprint["cancelled"], carbon_footprint["total"])
+""".format(carbon_footprint["finished"], carbon_footprint["failed"],
+           carbon_footprint["cancelled"], carbon_footprint["total"])
 
         # tailer
         message += \
-            """
-            
-            
-            Report Panda problems of any sort to
-            
-              the eGroup for help request
-                hn-atlas-dist-analysis-help@cern.ch
-            
-              the JIRA portal for software bug
-                https://its.cern.ch/jira/browse/ATLASPANDA
-            """
+"""
+
+
+Report Panda problems of any sort to
+
+  the eGroup for help request
+    hn-atlas-dist-analysis-help@cern.ch
+
+  the JIRA portal for software bug
+    https://its.cern.ch/jira/browse/ATLASPANDA
+"""
         # return
         return message
 
