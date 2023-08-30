@@ -304,7 +304,7 @@ Report Panda problems of any sort to
         # get email from MetaDB
         mailAddrInDB,dn,dbUptime = self.taskBufferIF.getEmailAddr(userName,withDN=True)
         tmpLog.debug("email from MetaDB : {0}".format(mailAddrInDB))
-        # email mortification is suppressed
+        # email notification is suppressed
         notSendMail = False
         if mailAddrInDB is not None and mailAddrInDB.startswith('notsend'):
             notSendMail = True
