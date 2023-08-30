@@ -20,11 +20,11 @@ def format_weight(weight):
     power = 1000
     n = 0
     power_labels = {0: 'gCO2', 1: 'kgCO2', 2: 'tCO2', 3: 'MtCO2', 4: 'GtCO2'}
-    while size > power:
-        size /= power
+    while weight > power:
+        weight /= power
         n += 1
 
-    weight_str = "{0:.2f} {1}".format(size, power_labels[n])
+    weight_str = "{0:.2f} {1}".format(weight, power_labels[n])
     return weight_str
 
 
