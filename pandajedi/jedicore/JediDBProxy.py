@@ -15057,7 +15057,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                   "  GROUP BY jobstatus "\
                   "  UNION "\
                   "  SELECT jobstatus, SUM({gco2_column}) sum_gco2 FROM {archive_schema}.jobsarchived "\
-                  "  where jeditaskid =:jeditaskid "\
+                  "  WHERE jeditaskid =:jeditaskid "\
                   "  GROUP BY jobstatus)"\
                   "GROUP BY jobstatus".\
                       format(gco2_column = gco2_column, active_schema = jedi_config.db.schemaJEDI,
