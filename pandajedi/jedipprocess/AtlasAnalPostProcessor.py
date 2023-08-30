@@ -311,14 +311,15 @@ PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(
         if carbon_footprint:
             message += \
         """
-        Estimated carbon footprint for the task 
-             Succeeded   : {0}
-             Failed      : {1}
-             Cancelled   : {2}
-             _________________
-             Total       : {3}
-        (More details on estimation: https://panda-wms.readthedocs.io/en/latest/advanced/carbon_footprint.html)
-        
+                    
+            
+Estimated carbon footprint for the task 
+     Succeeded   : {0}
+     Failed      : {1}
+     Cancelled   : {2}
+     _________________
+     Total       : {3}
+(More details on estimation: https://panda-wms.readthedocs.io/en/latest/advanced/carbon_footprint.html)        
         """.format(carbon_footprint["finished"], carbon_footprint["failed"], carbon_footprint["cancelled"], carbon_footprint["total"])
 
         # tailer
