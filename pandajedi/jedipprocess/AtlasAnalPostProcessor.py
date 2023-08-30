@@ -159,7 +159,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
             zero = "0 gCO2"
             for job_status in ["finished", "failed", "cancelled", "total"]:
                 if job_status in carbon_footprint:
-                    carbon_footprint_redacted[job_status] = format_weight(carbon_footprint_redacted[job_status])
+                    carbon_footprint_redacted[job_status] = format_weight(carbon_footprint[job_status])
                 else:
                     carbon_footprint_redacted[job_status] = zero
         except Exception:
