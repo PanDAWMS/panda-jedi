@@ -74,8 +74,8 @@ class AtlasAnalJobBroker(JobBrokerBase):
         siteAccessMap = {}
         for tmpSiteName,tmpAccess in siteAccessList:
             siteAccessMap[tmpSiteName] = tmpAccess
-        # disable VP for merging and forceStaged
-        if inputChunk.isMerging or taskSpec.avoid_vp():
+        # disable VP for merging, scouts, and forceStaged
+        if inputChunk.isMerging or taskSpec.avoid_vp() or taskSpec.useScout():
             useVP = False
         else:
             useVP = True
