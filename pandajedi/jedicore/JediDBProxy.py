@@ -15060,8 +15060,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                   "  WHERE jeditaskid =:jeditaskid "\
                   "  GROUP BY jobstatus)"\
                   "GROUP BY jobstatus".\
-                      format(gco2_column = gco2_column, active_schema = jedi_config.db.schemaJEDI,
-                             archive_schema = jedi_config.db.schemaPANDAARCH)
+                      format(gco2_column=gco2_column, active_schema=jedi_config.db.schemaJEDI,
+                             archive_schema=jedi_config.db.schemaPANDAARCH)
             var_map = {":jeditaskid": jedi_task_id}
 
             # start transaction
