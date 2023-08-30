@@ -809,3 +809,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None, priority=None):
         with self.proxyPool.get() as proxy:
             return proxy.push_task_trigger_message(msg_type, jedi_task_id, data_dict, priority)
+
+    # aggregate carbon footprint of a task
+    def get_task_carbon_footprint(self, jedi_task_id, level='global'):
+        with self.proxyPool.get() as proxy:
+            return proxy.get_task_carbon_footprint(jedi_task_id, level)

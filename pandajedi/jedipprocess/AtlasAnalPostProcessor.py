@@ -16,17 +16,28 @@ from pandajedi.jedirefine import RefinerUtils
 from pandaserver.taskbuffer import EventServiceUtils
 
 
+def format_weight(weight):
+    power = 1000
+    n = 0
+    power_labels = {0: 'gCO2', 1: 'kgCO2', 2: 'tCO2', 3: 'MtCO2', 4: 'GtCO2'}
+    while size > power:
+        size /= power
+        n += 1
+
+    weight_str = "{0:.2f} {1}".format(size, power_labels[n])
+    return weight_str
+
+
 # post processor for ATLAS production
-class AtlasAnalPostProcessor (PostProcessorBase):
+class AtlasAnalPostProcessor(PostProcessorBase):
 
     # constructor
-    def __init__(self,taskBufferIF,ddmIF):
-        PostProcessorBase.__init__(self,taskBufferIF,ddmIF)
+    def __init__(self, taskBufferIF, ddmIF):
+        PostProcessorBase.__init__(self, taskBufferIF, ddmIF)
         self.taskParamMap = None
 
-
     # main
-    def doPostProcess(self,taskSpec,tmpLog):
+    def doPostProcess(self, taskSpec, tmpLog):
         # freeze datasets
         try:
             # get DDM I/F
@@ -50,41 +61,46 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                         and not datasetSpec.datasetName.startswith('group'):
                     continue
                 # check if already closed
-                datasetAttrs = self.taskBufferIF.getDatasetAttributes_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID,['state'])
+                datasetAttrs = self.taskBufferIF.getDatasetAttributes_JEDI(datasetSpec.jediTaskID,
+                                                                           datasetSpec.datasetID, ['state'])
                 if 'state' in datasetAttrs and datasetAttrs['state'] == 'closed':
-                    tmpLog.info('skip freezing closed datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
+                    tmpLog.info('skip freezing closed datasetID={0}:Name={1}'.format(datasetSpec.datasetID,
+                                                                                     datasetSpec.datasetName))
                     closedFlag = True
                 else:
                     closedFlag = False
                 # remove wrong files
                 if not closedFlag and datasetSpec.type in ['output']:
                     # get successful files
-                    okFiles = self.taskBufferIF.getSuccessfulFiles_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID)
+                    okFiles = self.taskBufferIF.getSuccessfulFiles_JEDI(datasetSpec.jediTaskID, datasetSpec.datasetID)
                     if okFiles is None:
                         tmpLog.warning('failed to get successful files for {0}'.format(datasetSpec.datasetName))
                         return self.SC_FAILED
                     # get files in dataset
-                    ddmFiles = ddmIF.getFilesInDataset(datasetSpec.datasetName,skipDuplicate=False)
-                    tmpLog.debug('datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM'.format(datasetSpec.datasetID,
-                                                                                                      datasetSpec.datasetName,
-                                                                                                      len(okFiles),len(ddmFiles)))
+                    ddmFiles = ddmIF.getFilesInDataset(datasetSpec.datasetName, skipDuplicate=False)
+                    tmpLog.debug(
+                        'datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM'.format(datasetSpec.datasetID,
+                                                                                              datasetSpec.datasetName,
+                                                                                              len(okFiles),
+                                                                                              len(ddmFiles)))
                     # check all files
                     toDelete = []
-                    for tmpGUID,attMap in iteritems(ddmFiles):
+                    for tmpGUID, attMap in iteritems(ddmFiles):
                         if attMap['lfn'] not in okFiles:
-                            did = {'scope':attMap['scope'], 'name':attMap['lfn']}
+                            did = {'scope': attMap['scope'], 'name': attMap['lfn']}
                             toDelete.append(did)
-                            tmpLog.debug('delete {0} from {1}'.format(attMap['lfn'],datasetSpec.datasetName))
+                            tmpLog.debug('delete {0} from {1}'.format(attMap['lfn'], datasetSpec.datasetName))
                     # delete
                     if toDelete != []:
-                        ddmIF.deleteFilesFromDataset(datasetSpec.datasetName,toDelete)
+                        ddmIF.deleteFilesFromDataset(datasetSpec.datasetName, toDelete)
                 # freeze datasets
                 if not closedFlag and not (datasetSpec.type.startswith('trn_') and datasetSpec.type not in ['trn_log']):
-                    tmpLog.debug('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
-                    ddmIF.freezeDataset(datasetSpec.datasetName,ignoreUnknown=True)
+                    tmpLog.debug('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID, datasetSpec.datasetName))
+                    ddmIF.freezeDataset(datasetSpec.datasetName, ignoreUnknown=True)
                 else:
                     if datasetSpec.type.startswith('trn_') and datasetSpec.type not in ['trn_log']:
-                        tmpLog.debug('skip freezing transient datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
+                        tmpLog.debug('skip freezing transient datasetID={0}:Name={1}'.format(datasetSpec.datasetID,
+                                                                                             datasetSpec.datasetName))
                 # update dataset
                 datasetSpec.state = 'closed'
                 datasetSpec.stateCheckTime = datetime.datetime.utcnow()
@@ -98,64 +114,79 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                     emptyOnly = True
                     if datasetSpec.type.startswith('trn_') and datasetSpec.type not in ['trn_log']:
                         emptyOnly = False
-                    retStr = ddmIF.deleteDataset(datasetSpec.datasetName,emptyOnly,ignoreUnknown=True)
+                    retStr = ddmIF.deleteDataset(datasetSpec.datasetName, emptyOnly, ignoreUnknown=True)
                     tmpLog.debug(retStr)
                 # extend lifetime
                 if datasetSpec.type in ['output'] and datasetSpec.datasetName.startswith('user'):
-                    tmpLog.debug('extend lifetime datasetID={0}:Name={1}'.format(datasetSpec.datasetID,datasetSpec.datasetName))
-                    ddmIF.updateReplicationRules(datasetSpec.datasetName,{'type=.+':{'lifetime':14*24*60*60},
-                                                                          '(SCRATCH|USER)DISK':{'lifetime':14*24*60*60}})
+                    tmpLog.debug(
+                        'extend lifetime datasetID={0}:Name={1}'.format(datasetSpec.datasetID, datasetSpec.datasetName))
+                    ddmIF.updateReplicationRules(datasetSpec.datasetName, {'type=.+': {'lifetime': 14 * 24 * 60 * 60},
+                                                                           '(SCRATCH|USER)DISK': {
+                                                                               'lifetime': 14 * 24 * 60 * 60}})
                 # update dataset in DB
-                self.taskBufferIF.updateDatasetAttributes_JEDI(datasetSpec.jediTaskID,datasetSpec.datasetID,
-                                                               {'state':datasetSpec.state,
-                                                                'stateCheckTime':datasetSpec.stateCheckTime})
+                self.taskBufferIF.updateDatasetAttributes_JEDI(datasetSpec.jediTaskID, datasetSpec.datasetID,
+                                                               {'state': datasetSpec.state,
+                                                                'stateCheckTime': datasetSpec.stateCheckTime})
                 # update task lock
-                if datetime.datetime.utcnow()-lockUpdateTime > datetime.timedelta(minutes=5):
+                if datetime.datetime.utcnow() - lockUpdateTime > datetime.timedelta(minutes=5):
                     lockUpdateTime = datetime.datetime.utcnow()
                     # update lock
                     self.taskBufferIF.updateTaskLock_JEDI(taskSpec.jediTaskID)
             # dialog
             if useLib and nOkLib == 0:
-                taskSpec.setErrDiag('No build jobs succeeded',True)
+                taskSpec.setErrDiag('No build jobs succeeded', True)
         except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.warning('failed to freeze datasets with {0}:{1}'.format(errtype.__name__,errvalue))
+            err_type, err_value = sys.exc_info()[:2]
+            tmpLog.warning('failed to freeze datasets with {0}:{1}'.format(err_type.__name__, err_value))
         retVal = self.SC_SUCCEEDED
         try:
-            self.doBasicPostProcess(taskSpec,tmpLog)
+            self.doBasicPostProcess(taskSpec, tmpLog)
         except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('doBasicPostProcess failed with {0}:{1}'.format(errtype.__name__,errvalue))
+            err_type, err_value = sys.exc_info()[:2]
+            tmpLog.error('doBasicPostProcess failed with {0}:{1}'.format(err_type.__name__, err_value))
             retVal = self.SC_FATAL
         return retVal
 
-
-
     # final procedure
-    def doFinalProcedure(self,taskSpec,tmpLog):
+    def doFinalProcedure(self, taskSpec, tmpLog):
         # check email address
-        toAdd = self.getEmail(taskSpec.userName,taskSpec.vo,tmpLog)
+        toAdd = self.getEmail(taskSpec.userName, taskSpec.vo, tmpLog)
+
+        # calculate carbon footprint for the task
+        try:
+            carbon_footprint = self.taskBufferIF.get_task_carbon_footprint(taskSpec.jediTaskID, level='global')
+            carbon_footprint_redacted = {}
+            zero = "0 gCO2"
+            for job_status in ["finished", "failed", "cancelled", "total"]:
+                if job_status in carbon_footprint:
+                    carbon_footprint_redacted[job_status] = format_weight(carbon_footprint_redacted[job_status])
+                else:
+                    carbon_footprint_redacted[job_status] = zero
+        except Exception:
+            carbon_footprint_redacted = {}
+            err_type, err_value = sys.exc_info()[:2]
+            tmpLog.error('failed to calculate task carbon footprint {0}:{1}'.format(err_type.__name__, err_value))
+
         # read task parameters
         try:
             taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(taskSpec.jediTaskID)
             self.taskParamMap = RefinerUtils.decodeJSON(taskParam)
         except Exception:
-            errtype,errvalue = sys.exc_info()[:2]
-            tmpLog.error('task param conversion from json failed with {0}:{1}'.format(errtype.__name__,errvalue))
+            err_type, err_value = sys.exc_info()[:2]
+            tmpLog.error('task param conversion from json failed with {0}:{1}'.format(err_type.__name__, err_value))
         if toAdd is None or \
-                (self.taskParamMap is not None and 'noEmail' in self.taskParamMap and self.taskParamMap['noEmail'] is True):
+                (self.taskParamMap is not None and 'noEmail' in self.taskParamMap and self.taskParamMap[
+                    'noEmail'] is True):
             tmpLog.debug('email notification is suppressed')
         else:
             # send email notification
             fromAdd = self.senderAddress()
-            msgBody = self.composeMessage(taskSpec,fromAdd,toAdd)
-            self.sendMail(taskSpec.jediTaskID,fromAdd,toAdd,msgBody,3,False,tmpLog)
+            msgBody = self.composeMessage(taskSpec, fromAdd, toAdd, carbon_footprint_redacted)
+            self.sendMail(taskSpec.jediTaskID, fromAdd, toAdd, msgBody, 3, False, tmpLog)
         return self.SC_SUCCEEDED
 
-
-
     # compose mail message
-    def composeMessage(self,taskSpec,fromAdd,toAdd):
+    def composeMessage(self, taskSpec, fromAdd, toAdd, carbon_footprint):
         # get full task parameters
         urlData = {}
         urlData['job'] = '*'
@@ -192,8 +223,8 @@ class AtlasAnalPostProcessor (PostProcessorBase):
                 if datasetSpec.isMasterInput():
                     try:
                         numTotal += datasetSpec.nFiles
-                        numOK    += datasetSpec.nFilesFinished
-                        numNG    += datasetSpec.nFilesFailed
+                        numOK += datasetSpec.nFilesFinished
+                        numNG += datasetSpec.nFilesFailed
                     except Exception:
                         pass
         else:
@@ -255,68 +286,79 @@ Parameters : {params}
 
 
 PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(
-            jediTaskID=taskSpec.jediTaskID,
-            JobsetID=taskSpec.reqID,
-            fromAdd=fromAdd,
-            toAdd=toAdd,
-            creationDate=taskSpec.creationDate,
-            endTime=taskSpec.endTime,
-            status=taskSpec.status,
-            errorDialog=self.removeTags(taskSpec.errorDialog),
-            params=cliParams,
-            taskName=taskSpec.taskName,
-            oldPandaMon=urlencode(urlData),
-            newPandaMon=urlencode(newUrlData),
-            numTotal=numTotal,
-            numOK=numOK,
-            numNG=numNG,
-            numCancel=numCancel,
-            dsSummary=dsSummary,
-            msgSucceeded=msgSucceeded,
-            strInput=inputStr,
-            strCancelled=cancelledStr,
+                jediTaskID=taskSpec.jediTaskID,
+                JobsetID=taskSpec.reqID,
+                fromAdd=fromAdd,
+                toAdd=toAdd,
+                creationDate=taskSpec.creationDate,
+                endTime=taskSpec.endTime,
+                status=taskSpec.status,
+                errorDialog=self.removeTags(taskSpec.errorDialog),
+                params=cliParams,
+                taskName=taskSpec.taskName,
+                oldPandaMon=urlencode(urlData),
+                newPandaMon=urlencode(newUrlData),
+                numTotal=numTotal,
+                numOK=numOK,
+                numNG=numNG,
+                numCancel=numCancel,
+                dsSummary=dsSummary,
+                msgSucceeded=msgSucceeded,
+                strInput=inputStr,
+                strCancelled=cancelledStr,
             )
+
+        if carbon_footprint:
+            message += \
+        """
+        Estimated carbon footprint for the task 
+             Succeeded   : {0}
+             Failed      : {1}
+             Cancelled   : {2}
+             _________________
+             Total       : {3}
+        (More details on estimation: https://panda-wms.readthedocs.io/en/latest/advanced/carbon_footprint.html)
+        
+        """.format(carbon_footprint["finished"], carbon_footprint["failed"], carbon_footprint["cancelled"], carbon_footprint["total"])
 
         # tailer
         message += \
-"""
-
-
-Report Panda problems of any sort to
-
-  the eGroup for help request
-    hn-atlas-dist-analysis-help@cern.ch
-
-  the JIRA portal for software bug
-    https://its.cern.ch/jira/browse/ATLASPANDA
-"""
+            """
+            
+            
+            Report Panda problems of any sort to
+            
+              the eGroup for help request
+                hn-atlas-dist-analysis-help@cern.ch
+            
+              the JIRA portal for software bug
+                https://its.cern.ch/jira/browse/ATLASPANDA
+            """
         # return
         return message
 
-
-
     # get email
-    def getEmail(self,userName,vo,tmpLog):
+    def getEmail(self, userName, vo, tmpLog):
         # return to suppress mail
         retSupp = None
         # get DN
         tmpLog.debug("getting email for {0}".format(userName))
         # get email from MetaDB
-        mailAddrInDB,dn,dbUptime = self.taskBufferIF.getEmailAddr(userName,withDN=True)
+        mailAddrInDB, dn, dbUptime = self.taskBufferIF.getEmailAddr(userName, withDN=True)
         tmpLog.debug("email from MetaDB : {0}".format(mailAddrInDB))
         # email notification is suppressed
         notSendMail = False
         if mailAddrInDB is not None and mailAddrInDB.startswith('notsend'):
             notSendMail = True
         # DN is unavilable
-        if dn in ['',None]:
+        if dn in ['', None]:
             tmpLog.debug("DN is empty")
             notSendMail = True
         else:
             # avoid too frequently lookup
-            if dbUptime is not None and datetime.datetime.utcnow()-dbUptime < datetime.timedelta(hours=1):
+            if dbUptime is not None and datetime.datetime.utcnow() - dbUptime < datetime.timedelta(hours=1):
                 tmpLog.debug("no lookup")
-                if notSendMail or mailAddrInDB in [None,'']:
+                if notSendMail or mailAddrInDB in [None, '']:
                     return retSupp
                 else:
                     return mailAddrInDB.split(':')[-1]
@@ -338,29 +380,27 @@ Report Panda problems of any sort to
                         mailAddrToDB += mailAddr
                         # update database
                         tmpLog.debug("update email to {0}".format(mailAddrToDB))
-                        self.taskBufferIF.setEmailAddr(userName,mailAddrToDB)
+                        self.taskBufferIF.setEmailAddr(userName, mailAddrToDB)
                         # return
                         if notSendMail or mailAddr == '':
                             return retSupp
                         return mailAddr
                     except Exception:
-                        if iDDMTry+1 < nTry:
-                            tmpLog.debug("sleep for retry {0}/{1}".format(iDDMTry,nTry))
+                        if iDDMTry + 1 < nTry:
+                            tmpLog.debug("sleep for retry {0}/{1}".format(iDDMTry, nTry))
                             time.sleep(10)
                         else:
-                            errType,errValue = sys.exc_info()[:2]
-                            tmpLog.error("{0}:{1}".format(errType,errValue))
+                            err_type, err_value = sys.exc_info()[:2]
+                            tmpLog.error("{0}:{1}".format(err_type, err_value))
         # not send email
         return retSupp
 
-
-
     # remove tags
-    def removeTags(self,tmpStr):
+    def removeTags(self, tmpStr):
         try:
             if tmpStr is not None:
-                tmpStr = re.sub('>[^<]+<','><',tmpStr)
-                tmpStr = re.sub('<[^<]+>','',tmpStr)
+                tmpStr = re.sub('>[^<]+<', '><', tmpStr)
+                tmpStr = re.sub('<[^<]+>', '', tmpStr)
         except Exception:
             pass
         return tmpStr
