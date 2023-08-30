@@ -15066,7 +15066,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
 
             # start transaction
             self.conn.begin()
-            self.cur.execute(sql_d+comment, var_map)
+            self.cur.execute(sql+comment, var_map)
             results = self.cur.fetchall()
             
             footprint = {'total': 0}
