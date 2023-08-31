@@ -15039,3 +15039,67 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # error
             self.dumpErrorMessage(tmp_log)
             return None
+
+
+    # get carbon footprint for a task, the level has to be 'regional' or 'global'. If misspelled, it defaults to 'global'
+    def get_task_carbon_footprint(self, jedi_task_id, level):
+        comment = ' /* JediDBProxy.get_task_carbon_footprint */'
+        method_name = self.getMethodName(comment)
+        method_name += ' < jediTaskID={} n_files={} >'.format(jedi_task_id, level)
+        tmp_log = MsgWrapper(logger, method_name)
+        tmp_log.debug('start')
+
+        if level == 'regional':
+            gco2_column = 'GCO2_REGIONAL'
+        else:
+            gco2_column = 'GCO2_GLOBAL'
+
+        try:
+            sql = "SELECT jobstatus, SUM(sum_gco2) FROM ( "\
+                  "  SELECT jobstatus, SUM({gco2_column}) sum_gco2 FROM {active_schema}.jobsarchived4 "\
+                  "  WHERE jeditaskid =:jeditaskid "\
+                  "  GROUP BY jobstatus "\
+                  "  UNION "\
+                  "  SELECT jobstatus, SUM({gco2_column}) sum_gco2 FROM {archive_schema}.jobsarchived "\
+                  "  WHERE jeditaskid =:jeditaskid "\
+                  "  GROUP BY jobstatus)"\
+                  "GROUP BY jobstatus".\
+                      format(gco2_column=gco2_column, active_schema=jedi_config.db.schemaJEDI,
+                             archive_schema=jedi_config.db.schemaPANDAARCH)
+            var_map = {":jeditaskid": jedi_task_id}
+
+            # start transaction
+            self.conn.begin()
+            self.cur.execute(sql+comment, var_map)
+            results = self.cur.fetchall()
+            
+            footprint = {'total': 0}
+            data = False
+            for job_status, g_co2 in results:
+                if not g_co2:
+                    g_co2 = 0
+                else:
+                    data = True
+                footprint[job_status] = g_co2
+                footprint['total'] += g_co2
+
+            # commit
+            if not self._commit():
+                raise RuntimeError('Commit error')
+
+            tmp_log.debug('done: {0}'.format(footprint))
+
+            if not data:
+                return None
+
+            return footprint
+        except Exception:
+            # roll back
+            self._rollback()
+            # error
+            self.dumpErrorMessage(tmp_log)
+            return None
+
+
+
+
