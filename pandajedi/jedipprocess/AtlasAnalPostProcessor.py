@@ -157,8 +157,9 @@ class AtlasAnalPostProcessor(PostProcessorBase):
             carbon_footprint = self.taskBufferIF.get_task_carbon_footprint(taskSpec.jediTaskID, level='global')
             carbon_footprint_redacted = {}
             zero = "0 gCO2"
+
             for job_status in ["finished", "failed", "cancelled", "total"]:
-                if job_status in carbon_footprint:
+                if carbon_footprint and job_status in carbon_footprint:
                     carbon_footprint_redacted[job_status] = format_weight(carbon_footprint[job_status])
                 else:
                     carbon_footprint_redacted[job_status] = zero
