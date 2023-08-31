@@ -8014,7 +8014,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # check task status
                         varMap = {}
                         varMap[':jediTaskID'] = jediTaskID
-                        sqlTC =  "SELECT status,oldStatus FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
+                        sqlTC =  "SELECT status,oldStatus,wallTimeUnit FROM {0}.JEDI_Tasks ".format(jedi_config.db.schemaJEDI)
                         sqlTC += "WHERE jediTaskID=:jediTaskID FOR UPDATE "
                         self.cur.execute(sqlTC+comment,varMap)
                         resTC = self.cur.fetchone()
@@ -8022,8 +8022,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             tmpLog.error("jediTaskID={0} is not found in JEDI_Tasks".format(jediTaskID))
                             isOK = False
                         else:
-                            taskStatus,taskOldStatus = resTC
-                            tmpLog.debug("jediTaskID={0} in status:{1} oldStatud:{2}".format(jediTaskID,taskStatus,taskOldStatus))
+                            taskStatus, taskOldStatus, wallTimeUnit = resTC
+                            tmpLog.debug(f"jediTaskID={jediTaskID} in status:{taskStatus} oldStatus:{taskOldStatus}")
                             if commandStr == 'retry':
                                 if taskStatus not in JediTaskSpec.statusToRetry():
                                     # task is in a status which rejects retry
@@ -8063,7 +8063,11 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 if commandStr == 'retry' and taskStatus == 'exhausted' and \
                                         taskOldStatus in ['running', 'scouting']:
                                     # change task status only since retryTask increments attemptNrs for existing jobs
-                                    newTaskStatus = taskOldStatus
+                                    if taskOldStatus == 'scouting' and wallTimeUnit:
+                                        # go to running since scouting passed, to avoid being prepared again
+                                        newTaskStatus = 'running'
+                                    else:
+                                        newTaskStatus = taskOldStatus
                                     changeStatusOnly = True
                                     resetFrozenTime = True
                                 elif commandStr in ['avalanche']:
