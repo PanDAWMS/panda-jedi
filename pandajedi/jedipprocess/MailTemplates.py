@@ -167,7 +167,7 @@ jedi_task_html_body = """
             <td><strong>{carbon_total}</strong></td>
         </tr>
     </table>
-    <p>(More details on estimation: <a href="https://panda-wms.readthedocs.io/en/latest/advanced/carbon_footprint.html">https://panda-wms.readthedocs.io/en/latest/advanced/carbon_footprint.html</a>)</p>
+    <p>More details on estimation: <a href="https://panda-wms.readthedocs.io/en/latest/advanced/carbon_footprint.html">https://panda-wms.readthedocs.io/en/latest/advanced/carbon_footprint.html</a></p>
 
     <h3>Panda Problem Reporting</h3>
     <ul>
