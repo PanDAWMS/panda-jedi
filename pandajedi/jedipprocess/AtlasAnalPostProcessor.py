@@ -197,7 +197,8 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                 # Record the MIME types of both parts - text/plain and text/html.
                 part1 = MIMEText(plain_text, 'plain')
                 part2 = MIMEText(html_text, 'html')
-
+                tmpLog.debug(plain_text)
+                tmpLog.debug(html_text)
                 # Attach parts into message container.
                 # According to RFC 2046, the last part of a multipart message, in this case
                 # the HTML message, is best and preferred.
@@ -323,8 +324,8 @@ class AtlasAnalPostProcessor(PostProcessorBase):
             notSendMail = True
         # DN is unavilable
         if dn in ['', None]:
+            # there will be no email
             tmpLog.debug("DN is empty")
-            notSendMail = True
         else:
             # avoid too frequently lookup
             if dbUptime is not None and datetime.datetime.utcnow() - dbUptime < datetime.timedelta(hours=1):
