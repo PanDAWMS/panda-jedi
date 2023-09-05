@@ -197,8 +197,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                 # Record the MIME types of both parts - text/plain and text/html.
                 part1 = MIMEText(plain_text, 'plain')
                 part2 = MIMEText(html_text, 'html')
-                tmpLog.debug(plain_text)
-                tmpLog.debug(html_text)
+
                 # Attach parts into message container.
                 # According to RFC 2046, the last part of a multipart message, in this case
                 # the HTML message, is best and preferred.
@@ -274,25 +273,20 @@ class AtlasAnalPostProcessor(PostProcessorBase):
         else:
             cliParams = None
 
-        monitoring_url = ""
-
         # make message
-        message_html = html_head + jedi_task_html_body.format(jedi_task_id=taskSpec.jediTaskID,
-                                                              creation_time=taskSpec.creationDate,
-                                                              end_time=taskSpec.endTime,
-                                                              task_status=taskSpec.status,
-                                                              error_dialog=self.removeTags(taskSpec.errorDialog),
-                                                              command=cliParams,
-                                                              n_total=numTotal,
-                                                              n_succeeded=numOK, n_failed=numNG, n_cancelled=numCancel,
-                                                              carbon_succeeded=carbon_footprint["finished"],
-                                                              carbon_failed=carbon_footprint["failed"],
-                                                              carbon_cancelled=carbon_footprint["cancelled"],
-                                                              carbon_total=carbon_footprint["total"],
-                                                              datasets_in=listInDS, datasets_out=listOutDS,
-                                                              datasets_log=listLogDS,
-                                                              msg_succeeded=msgSucceeded,
-                                                              input_str=inputStr, cancelled_str=cancelledStr)
+        head = html_head.format(title="Task summary notification")
+        body = jedi_task_html_body.format(jedi_task_id=taskSpec.jediTaskID, creation_time=taskSpec.creationDate,
+                                          end_time=taskSpec.endTime, task_status=taskSpec.status,
+                                          error_dialog=self.removeTags(taskSpec.errorDialog), command=cliParams,
+                                          n_total=numTotal,n_succeeded=numOK, n_failed=numNG, n_cancelled=numCancel,
+                                          carbon_succeeded=carbon_footprint["finished"],
+                                          carbon_failed=carbon_footprint["failed"],
+                                          carbon_cancelled=carbon_footprint["cancelled"],
+                                          carbon_total=carbon_footprint["total"],
+                                          datasets_in=listInDS, datasets_out=listOutDS,
+                                          datasets_log=listLogDS, msg_succeeded=msgSucceeded,
+                                          input_str=inputStr, cancelled_str=cancelledStr)
+        message_html = head + body
 
         message_plain = jedi_task_plain.format(jedi_task_id=taskSpec.jediTaskID,
                                                creation_time=taskSpec.creationDate,
