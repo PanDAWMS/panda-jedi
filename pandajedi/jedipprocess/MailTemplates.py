@@ -123,15 +123,15 @@ jedi_task_html_body = """
     <h3>Datasets</h3>
     <table>
         <tr>
-            <td><strong>In:</strong></td>
+            <td><strong>In</strong></td>
             <td>{datasets_in}</td>
         </tr>
         <tr>
-            <td><strong>Out:</strong></td>
+            <td><strong>Out</strong></td>
             <td>{datasets_out}</td>
         </tr>
         <tr>
-            <td><strong>Log:</strong></td>
+            <td><strong>Log</strong></td>
             <td>{datasets_log}</td>
         </tr>
     </table>
@@ -139,7 +139,7 @@ jedi_task_html_body = """
     <h3>Parameters</h3>
     <table>
         <tr>
-            <td><strong>Command:</strong></td>
+            <td><strong>Command</strong></td>
             <td>{command}</td>
         </tr>
     </table>
