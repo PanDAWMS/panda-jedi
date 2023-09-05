@@ -3,6 +3,7 @@ import sys
 import time
 import datetime
 import random
+import traceback
 
 from six import iteritems
 
@@ -11,7 +12,11 @@ try:
 except ImportError:
     from urllib import urlencode
 
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 from .PostProcessorBase import PostProcessorBase
+from .MailTemplates import html_head, jedi_task_html_body, jedi_task_plain
 from pandajedi.jedirefine import RefinerUtils
 from pandaserver.taskbuffer import EventServiceUtils
 
@@ -180,24 +185,31 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                     'noEmail'] is True):
             tmpLog.debug('email notification is suppressed')
         else:
-            # send email notification
-            fromAdd = self.senderAddress()
-            msgBody = self.composeMessage(taskSpec, fromAdd, toAdd, carbon_footprint_redacted)
-            self.sendMail(taskSpec.jediTaskID, fromAdd, toAdd, msgBody, 3, False, tmpLog)
+            try:
+                # send email notification
+                fromAdd = self.senderAddress()
+                html_text, plain_text = self.composeMessage(taskSpec, carbon_footprint_redacted)
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = "Task summary for PanDA task {0}".format(taskSpec.jediTaskID)
+                msg['From'] = fromAdd
+                msg['To'] = toAdd
+
+                # Record the MIME types of both parts - text/plain and text/html.
+                part1 = MIMEText(plain_text, 'plain')
+                part2 = MIMEText(html_text, 'html')
+
+                # Attach parts into message container.
+                # According to RFC 2046, the last part of a multipart message, in this case
+                # the HTML message, is best and preferred.
+                msg.attach(part1)
+                msg.attach(part2)
+                self.sendMail(taskSpec.jediTaskID, fromAdd, toAdd, msg.as_string(), 3, False, tmpLog)
+            except Exception:
+                tmpLog.error(traceback.format_exc())
         return self.SC_SUCCEEDED
 
     # compose mail message
-    def composeMessage(self, taskSpec, fromAdd, toAdd, carbon_footprint):
-        # get full task parameters
-        urlData = {}
-        urlData['job'] = '*'
-        urlData['jobsetID'] = taskSpec.reqID
-        urlData['user'] = taskSpec.userName
-        newUrlData = {}
-        newUrlData['jobtype'] = 'analysis'
-        newUrlData['jobsetID'] = taskSpec.reqID
-        newUrlData['prodUserName'] = taskSpec.userName
-        newUrlData['hours'] = 71
+    def composeMessage(self, taskSpec, carbon_footprint):
         # summary
         listInDS = []
         listOutDS = []
@@ -260,85 +272,41 @@ class AtlasAnalPostProcessor(PostProcessorBase):
             cliParams = self.taskParamMap['cliParams']
         else:
             cliParams = None
+
         # make message
-        message = \
-            """Subject: JEDI notification for TaskID:{jediTaskID} ({numOK}/{numTotal} {msgSucceeded})
-From: {fromAdd}
-To: {toAdd}
+        message_html = html_head + jedi_task_html_body.format(jedi_task_id=taskSpec.jediTaskID,
+                                                              creation_time=taskSpec.creationDate,
+                                                              end_time=taskSpec.endTime,
+                                                              task_status=taskSpec.status,
+                                                              error_dialog=self.removeTags(taskSpec.errorDialog),
+                                                              command=cliParams,
+                                                              n_total=numTotal,
+                                                              n_succeeded=numOK, n_failed=numNG, n_cancelled=numCancel,
+                                                              carbon_finished=carbon_footprint["finished"],
+                                                              carbon_failed=carbon_footprint["failed"],
+                                                              carbon_cancelled=carbon_footprint["cancelled"],
+                                                              carbon_total=carbon_footprint["total"],
+                                                              datasets_in=listInDS, datasets_out=listOutDS,
+                                                              datasets_log=listLogDS,
+                                                              msg_succeeded=msgSucceeded,
+                                                              input_str=inputStr, cancelled_str=cancelledStr)
 
-Summary of TaskID:{jediTaskID}
-
-Created : {creationDate} (UTC)
-Ended   : {endTime} (UTC)
-
-Final Status : {status}
-
-Total Number of {strInput}   : {numTotal}
-             Succeeded   : {numOK}
-             Failed      : {numNG}
-             {strCancelled} : {numCancel}
-
-
-Error Dialog : {errorDialog}
-
-{dsSummary}
-
-Parameters : {params}
-
-
-PandaMonURL : http://bigpanda.cern.ch/task/{jediTaskID}/""".format(
-                jediTaskID=taskSpec.jediTaskID,
-                JobsetID=taskSpec.reqID,
-                fromAdd=fromAdd,
-                toAdd=toAdd,
-                creationDate=taskSpec.creationDate,
-                endTime=taskSpec.endTime,
-                status=taskSpec.status,
-                errorDialog=self.removeTags(taskSpec.errorDialog),
-                params=cliParams,
-                taskName=taskSpec.taskName,
-                oldPandaMon=urlencode(urlData),
-                newPandaMon=urlencode(newUrlData),
-                numTotal=numTotal,
-                numOK=numOK,
-                numNG=numNG,
-                numCancel=numCancel,
-                dsSummary=dsSummary,
-                msgSucceeded=msgSucceeded,
-                strInput=inputStr,
-                strCancelled=cancelledStr,
-            )
-
-        if carbon_footprint:
-            message += \
-"""
-                    
-            
-Estimated carbon footprint for the task 
-     Succeeded   : {0}
-     Failed      : {1}
-     Cancelled   : {2}
-     _________________
-     Total       : {3}
-(More details on estimation: https://panda-wms.readthedocs.io/en/latest/advanced/carbon_footprint.html)        
-""".format(carbon_footprint["finished"], carbon_footprint["failed"],
-           carbon_footprint["cancelled"], carbon_footprint["total"])
-
-        # tailer
-        message += \
-"""
-
-
-Report Panda problems of any sort to
-
-  the eGroup for help request
-    hn-atlas-dist-analysis-help@cern.ch
-
-  the JIRA portal for software bug
-    https://its.cern.ch/jira/browse/ATLASPANDA
-"""
+        message_plain = jedi_task_plain.format(jedi_task_id=taskSpec.jediTaskID,
+                                               creation_time=taskSpec.creationDate,
+                                               end_time=taskSpec.endTime,
+                                               task_status=taskSpec.status,
+                                               error_dialog=self.removeTags(taskSpec.errorDialog),
+                                               command=cliParams,
+                                               n_total=numTotal,
+                                               n_succeeded=numOK, n_failed=numNG, n_cancelled=numCancel,
+                                               carbon_finished=carbon_footprint["finished"],
+                                               carbon_failed=carbon_footprint["failed"],
+                                               carbon_cancelled=carbon_footprint["cancelled"],
+                                               carbon_total=carbon_footprint["total"],
+                                               dataset_summary=dsSummary, msg_succeeded=msgSucceeded,
+                                               input_str=inputStr, cancelled_str=cancelledStr)
         # return
-        return message
+        return message_html, message_plain
 
     # get email
     def getEmail(self, userName, vo, tmpLog):
