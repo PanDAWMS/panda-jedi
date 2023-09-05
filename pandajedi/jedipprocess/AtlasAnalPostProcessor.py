@@ -274,6 +274,8 @@ class AtlasAnalPostProcessor(PostProcessorBase):
         else:
             cliParams = None
 
+        monitoring_url = ""
+
         # make message
         message_html = html_head + jedi_task_html_body.format(jedi_task_id=taskSpec.jediTaskID,
                                                               creation_time=taskSpec.creationDate,
@@ -283,7 +285,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                                                               command=cliParams,
                                                               n_total=numTotal,
                                                               n_succeeded=numOK, n_failed=numNG, n_cancelled=numCancel,
-                                                              carbon_finished=carbon_footprint["finished"],
+                                                              carbon_succeeded=carbon_footprint["finished"],
                                                               carbon_failed=carbon_footprint["failed"],
                                                               carbon_cancelled=carbon_footprint["cancelled"],
                                                               carbon_total=carbon_footprint["total"],
@@ -300,7 +302,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                                                command=cliParams,
                                                n_total=numTotal,
                                                n_succeeded=numOK, n_failed=numNG, n_cancelled=numCancel,
-                                               carbon_finished=carbon_footprint["finished"],
+                                               carbon_succeeded=carbon_footprint["finished"],
                                                carbon_failed=carbon_footprint["failed"],
                                                carbon_cancelled=carbon_footprint["cancelled"],
                                                carbon_total=carbon_footprint["total"],

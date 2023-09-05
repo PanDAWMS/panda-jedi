@@ -21,7 +21,7 @@ Error Dialog : {error_dialog}
 Parameters : {command}
 
 
-PandaMonURL : {monitoring_url}/task/{jedi_task_id}/
+PandaMonURL : https://bigpanda.cern.ch/task/{jedi_task_id}/
 
 
 Estimated carbon footprint for the task 
@@ -47,25 +47,25 @@ html_head = """
 <html>
 <head>
     <style>
-        body {
+        body {{
             font-family: Arial, sans-serif;
-        }
-        table {
+        }}
+        table {{
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
-        }
-        th, td {
+        }}
+        th, td {{
             border: 1px solid #dddddd;
             text-align: left;
             padding: 8px;
-        }
-        th {
+        }}
+        th {{
             background-color: #f2f2f2;
-        }
-        .logo {
+        }}
+        .logo {{
             width: 100px; /* Adjust the size as needed */
-        }
+        }}
     </style>
     <title> {title} </title>
 </head>
@@ -74,7 +74,7 @@ html_head = """
 jedi_task_html_body = """
 <body>
     <img class="logo" src="https://panda-wms.readthedocs.io/en/latest/_static/PanDA-rev-logo-small-200px.jpg" alt="PanDA Logo">
-    <h2>Summary of TaskID: <a href="{monitoring_url}/task/{jira_tracker}">{jedi_task_id}</a> </h2>
+    <h2>Summary of TaskID: <a href="https://bigpanda.cern.ch/task/{jira_tracker}">{jedi_task_id}</a> </h2>
     <table>
         <tr>
             <th>Detail</th>
@@ -171,12 +171,10 @@ jedi_task_html_body = """
 
     <h3>Panda Problem Reporting</h3>
     <ul>
-        <li>The eGroup for help request: <a href="mailto:{analysis_support_email}">{analysis_support_email}</a></li>
-        <li>The JIRA portal for software bug: <a href="{jira_tracker}">{jira_tracker}</a></li>
+        <li>The eGroup for help request: <a href="mailto:hn-atlas-dist-analysis-help@cern.ch">hn-atlas-dist-analysis-help@cern.ch</a></li>
+        <li>The JIRA portal for software bug: <a href="https://its.cern.ch/jira/browse/ATLASPANDA">https://its.cern.ch/jira/browse/ATLASPANDA</a></li>
     </ul>
 </body>
 </html>
 """
-
-
 
