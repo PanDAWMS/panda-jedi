@@ -293,6 +293,20 @@ class TaskRefinerThread (WorkerThread):
                                                                   insertUnknown=impl.unknownDatasetList,
                                                                   setFrozenTime=setFrozenTime)
                                 continue
+                            elif not (impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput()) \
+                                    and errtype == JediException.UnknownDatasetError \
+                                    and impl.taskSpec.allowEmptyInput():
+                                impl.taskSpec.status = 'finishing'
+                                tmpErrStr = f'finishing due to missing input after parent is {parentState}'
+                                impl.taskSpec.setErrDiag(tmpErrStr)
+                                # not to update some task attributes
+                                impl.taskSpec.resetRefinedAttrs()
+                                tmpLog.info(tmpErrStr)
+                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,
+                                                                  {'jediTaskID':impl.taskSpec.jediTaskID},
+                                                                  oldStatus=[taskStatus],
+                                                                  insertUnknown=impl.unknownDatasetList)
+                                continue
                             else:
                                 errStr  = 'failed to refine task with {0}:{1}'.format(errtype.__name__,errvalue)
                                 tmpLog.error(errStr)
