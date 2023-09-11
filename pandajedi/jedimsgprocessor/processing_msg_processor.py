@@ -99,7 +99,7 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
                             raise RuntimeError(err_str)
                         tmp_log.info('jeditaskid={0}, scope={1}, updated {2} datasets'.format(jeditaskid, scope, res))
                     # send message to contents feeder if new files are staged
-                    if res > 0:
+                    if res > 0 or msg_type == 'collection_processing':
                         self.tbIF.push_task_trigger_message('jedi_contents_feeder', jeditaskid)
                         tmp_log.debug('pushed trigger message to jedi_contents_feeder for jeditaskid={0}'.format(jeditaskid))
                     # check if all ok
