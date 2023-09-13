@@ -82,6 +82,7 @@ class JediTaskSpec(object):
         'limitedSites'       : 'LS',
         'loadXML'            : 'LX',
         'minCpuEfficiency'   : 'MC',
+        'messageDriven'      : 'MD',
         'mergeEsOnOS'        : 'ME',
         'nMaxFilesPerJob'    : 'MF',
         'maxJumboPerSite'    : 'MJ',
@@ -1653,6 +1654,10 @@ class JediTaskSpec(object):
     # check if intermediate task
     def is_intermediate_task(self):
         return self.check_split_rule('intermediateTask')
+
+    # check if message driven
+    def is_msg_driven(self):
+        return self.check_split_rule('messageDriven')
 
 # utils
 

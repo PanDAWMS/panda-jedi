@@ -100,8 +100,10 @@ class ProcessingMsgProcPlugin(BaseMsgProcPlugin):
                         tmp_log.info('jeditaskid={0}, scope={1}, updated {2} datasets'.format(jeditaskid, scope, res))
                     # send message to contents feeder if new files are staged
                     if res > 0 or msg_type == 'collection_processing':
-                        self.tbIF.push_task_trigger_message('jedi_contents_feeder', jeditaskid)
-                        tmp_log.debug('pushed trigger message to jedi_contents_feeder for jeditaskid={0}'.format(jeditaskid))
+                        tmp_s, task_spec = self.tbIF.getTaskWithID_JEDI(jeditaskid)
+                        if tmp_s and task_spec.is_msg_driven():
+                            self.tbIF.push_task_trigger_message('jedi_contents_feeder', jeditaskid)
+                            tmp_log.debug('pushed trigger message to jedi_contents_feeder for jeditaskid={0}'.format(jeditaskid))
                     # check if all ok
                     if res == len(target_list):
                         tmp_log.debug('jeditaskid={0}, scope={1}, all OK'.format(jeditaskid, scope))
