@@ -934,6 +934,7 @@ class AtlasProdJobBroker(JobBrokerBase):
             maxAttemptEsJob = 1
         maxWalltime = None
         strMaxWalltime = None
+        strMinWalltime = None
         if not taskSpec.useHS06():
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(effectiveSize=True)
             if taskSpec.walltime is not None:
@@ -951,22 +952,25 @@ class AtlasProdJobBroker(JobBrokerBase):
         else:
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
             if taskSpec.getCpuTime() is not None:
-                minWalltime = taskSpec.getCpuTime() * tmpMaxAtomSize
                 if taskSpec.dynamicNumEvents():
+                    tmpMaxAtomSize = taskSpec.get_min_granularity()
                     eventJump, totalEvents = inputChunk.check_event_jump_and_sum()
                     maxWalltime = taskSpec.getCpuTime() * totalEvents
                     strMaxWalltime = 'cpuTime*maxEventsPerJob={}*{}'.format(taskSpec.getCpuTime(), totalEvents)
+                    strMinWalltime = f'cpuTime*minGranularity={taskSpec.getCpuTime()}*{tmpMaxAtomSize}'
+                minWalltime = taskSpec.getCpuTime() * tmpMaxAtomSize
             else:
                 minWalltime = None
             # take # of consumers into account
-            if not taskSpec.useEventService() or taskSpec.useJobCloning():
-                strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.getCpuTime(), tmpMaxAtomSize)
-            else:
-                strMinWalltime = 'cpuTime*nEventsPerJob/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}'.format(
-                    taskSpec.getCpuTime(),
-                    tmpMaxAtomSize,
-                    nEsConsumers,
-                    maxAttemptEsJob)
+            if not strMinWalltime:
+                if not taskSpec.useEventService() or taskSpec.useJobCloning():
+                    strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.getCpuTime(), tmpMaxAtomSize)
+                else:
+                    strMinWalltime = 'cpuTime*nEventsPerJob/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}'.format(
+                        taskSpec.getCpuTime(),
+                        tmpMaxAtomSize,
+                        nEsConsumers,
+                        maxAttemptEsJob)
         if minWalltime is not None:
             minWalltime /= (nEsConsumers * maxAttemptEsJob)
 

@@ -366,7 +366,7 @@ class TaskRefinerThread (WorkerThread):
                                 tmpLog.info(tmpMsg)
                                 tmpLog.sendMsg(tmpMsg,self.msgType)
                                 # send message to contents feeder if the task is registered
-                                if tmpStat:
+                                if tmpStat and impl.taskSpec.is_msg_driven():
                                     self.taskBufferIF.push_task_trigger_message('jedi_contents_feeder', jediTaskID)
                                     tmpLog.debug('pushed trigger message to jedi_contents_feeder')
                             else:
@@ -378,7 +378,7 @@ class TaskRefinerThread (WorkerThread):
                                 # update task with new params
                                 self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
                                                                   oldStatus=[taskStatus])
-                                # appending for incremetnal execution
+                                # appending for incremental execution
                                 tmpStat = self.taskBufferIF.appendDatasets_JEDI(jediTaskID,impl.inMasterDatasetSpec,
                                                                                 impl.inSecDatasetSpecList)
                                 if not tmpStat:

@@ -35,6 +35,9 @@ class GenTaskRefiner (TaskRefinerBase):
             taskParamMap['notDiscardEvents'] = True
             taskParamMap['maxAttemptEsJob'] = 0
             taskParamMap['maxAttemptES'] = 1
+        # message driven
+        if 'messageDriven' not in taskParamMap:
+            taskParamMap['messageDriven'] = True
         # use cloud as VO
         taskParamMap['cloudAsVO'] = True
         # update task parameters
