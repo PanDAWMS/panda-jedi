@@ -933,8 +933,13 @@ class AtlasProdJobBroker(JobBrokerBase):
             nEsConsumers = 1
             maxAttemptEsJob = 1
         maxWalltime = None
+        maxWalltime_dyn = None
+        minWalltime_dyn = None
+        minWalltime = None
         strMaxWalltime = None
         strMinWalltime = None
+        strMaxWalltime_dyn = None
+        strMinWalltime_dyn = None
         if not taskSpec.useHS06():
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(effectiveSize=True)
             if taskSpec.walltime is not None:
@@ -952,28 +957,31 @@ class AtlasProdJobBroker(JobBrokerBase):
         else:
             tmpMaxAtomSize = inputChunk.getMaxAtomSize(getNumEvents=True)
             if taskSpec.getCpuTime() is not None:
-                if taskSpec.dynamicNumEvents():
-                    tmpMaxAtomSize = taskSpec.get_min_granularity()
-                    eventJump, totalEvents = inputChunk.check_event_jump_and_sum()
-                    maxWalltime = taskSpec.getCpuTime() * totalEvents
-                    strMaxWalltime = 'cpuTime*maxEventsPerJob={}*{}'.format(taskSpec.getCpuTime(), totalEvents)
-                    strMinWalltime = f'cpuTime*minGranularity={taskSpec.getCpuTime()}*{tmpMaxAtomSize}'
                 minWalltime = taskSpec.getCpuTime() * tmpMaxAtomSize
-            else:
-                minWalltime = None
+                if taskSpec.dynamicNumEvents():
+                    # use minGranularity as the smallest chunk
+                    minGranularity = taskSpec.get_min_granularity()
+                    minWalltime_dyn = taskSpec.getCpuTime() * minGranularity
+                    strMinWalltime_dyn = f'cpuTime*minGranularity={taskSpec.getCpuTime()}*{minGranularity}'
+                    # use most consecutive events as the largest chunk
+                    eventJump, totalEvents = inputChunk.check_event_jump_and_sum()
+                    # use maxEventsPerJob if smaller
+                    maxEventsPerJob = taskSpec.get_max_events_per_job()
+                    if maxEventsPerJob:
+                        totalEvents = min(totalEvents, maxEventsPerJob)
+                    maxWalltime_dyn = taskSpec.getCpuTime() * totalEvents
+                    strMaxWalltime_dyn = f'cpuTime*maxEventsPerJob={taskSpec.getCpuTime()}*{totalEvents}'
             # take # of consumers into account
-            if not strMinWalltime:
-                if not taskSpec.useEventService() or taskSpec.useJobCloning():
-                    strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.getCpuTime(), tmpMaxAtomSize)
-                else:
-                    strMinWalltime = 'cpuTime*nEventsPerJob/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}'.format(
-                        taskSpec.getCpuTime(),
-                        tmpMaxAtomSize,
-                        nEsConsumers,
-                        maxAttemptEsJob)
-        if minWalltime is not None:
+            if not taskSpec.useEventService() or taskSpec.useJobCloning():
+                strMinWalltime = 'cpuTime*nEventsPerJob={0}*{1}'.format(taskSpec.getCpuTime(), tmpMaxAtomSize)
+            else:
+                strMinWalltime = 'cpuTime*nEventsPerJob/nEsConsumers/maxAttemptEsJob={0}*{1}/{2}/{3}'.format(
+                    taskSpec.getCpuTime(),
+                    tmpMaxAtomSize,
+                    nEsConsumers,
+                    maxAttemptEsJob)
+        if minWalltime:
             minWalltime /= (nEsConsumers * maxAttemptEsJob)
-
         newScanSiteList = []
         oldScanSiteList = copy.copy(scanSiteList)
         for tmpSiteName in scanSiteList:
@@ -996,13 +1004,22 @@ class AtlasProdJobBroker(JobBrokerBase):
                 siteMaxTime *= float(taskSpec.cpuEfficiency) / 100.0
                 siteMaxTime = long(siteMaxTime)
                 tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
-            if origSiteMaxTime != 0 and minWalltime and minWalltime > siteMaxTime:
-                tmpMsg = '  skip site={0} due to short site walltime {1} (site upper limit) less than {2} '.format(tmpSiteName,
-                                                                                                                   tmpSiteStr,
-                                                                                                                   strMinWalltime)
-                tmpMsg += 'criteria=-shortwalltime'
-                tmpLog.info(tmpMsg)
-                continue
+            if origSiteMaxTime != 0:
+                toSkip = False
+                if minWalltime_dyn and tmpSiteSpec.mintime and tmpSiteSpec.mintime > 0:
+                    if minWalltime_dyn > siteMaxTime:
+                        tmpMsg = f'  skip site={tmpSiteName} due to short site walltime {tmpSiteStr} '\
+                                 f'(site upper limit) less than {strMinWalltime_dyn} '
+                        toSkip = True
+                else:
+                    if minWalltime and minWalltime > siteMaxTime:
+                        tmpMsg = f'  skip site={tmpSiteName} due to short site walltime {tmpSiteStr} '\
+                                 f'(site upper limit) less than {strMinWalltime} '
+                        toSkip = True
+                if toSkip:
+                    tmpMsg += 'criteria=-shortwalltime'
+                    tmpLog.info(tmpMsg)
+                    continue
             # sending scouts or merge or walltime-undefined jobs to only sites where walltime is more than 1 day
             if (not sitePreAssigned and inputChunk.useScout()) or inputChunk.isMerging or \
                     (not taskSpec.walltime and not taskSpec.walltimeUnit and not taskSpec.cpuTimeUnit) or \
@@ -1044,16 +1061,28 @@ class AtlasProdJobBroker(JobBrokerBase):
                 siteMinTime *= float(taskSpec.cpuEfficiency) / 100.0
                 siteMinTime = long(siteMinTime)
                 tmpSiteStr += '*{0}%'.format(taskSpec.cpuEfficiency)
-            if origSiteMinTime != 0 and ((minWalltime is None or minWalltime < siteMinTime) and
-                                         (maxWalltime is None or maxWalltime < siteMinTime)):
-                tmpMsg = '  skip site {0} due to short job walltime {1} (site lower limit) greater than {2} '.format(tmpSiteName,
-                                                                                                                     tmpSiteStr,
-                                                                                                                     strMinWalltime)
-                if maxWalltime:
-                    tmpMsg += 'and {} '.format(strMaxWalltime)
-                tmpMsg += 'criteria=-longwalltime'
-                tmpLog.info(tmpMsg)
-                continue
+            if origSiteMinTime != 0:
+                toSkip = False
+                if minWalltime_dyn and tmpSiteSpec.mintime and tmpSiteSpec.mintime > 0:
+                    if minWalltime_dyn < siteMinTime and \
+                            (maxWalltime_dyn is None or maxWalltime_dyn < siteMinTime):
+                        tmpMsg = f'  skip site {tmpSiteName} due to short job walltime {tmpSiteStr} '\
+                                 f'(site lower limit) greater than {strMinWalltime_dyn} '
+                        if maxWalltime_dyn:
+                            tmpMsg += f'and {strMinWalltime_dyn} '
+                        toSkip = True
+                else:
+                    if (minWalltime is None or minWalltime < siteMinTime) and \
+                            (maxWalltime is None or maxWalltime < siteMinTime):
+                        tmpMsg = f'  skip site {tmpSiteName} due to short job walltime {tmpSiteStr} '\
+                                 f'(site lower limit) greater than {strMinWalltime} '
+                        if maxWalltime:
+                            tmpMsg += 'and {} '.format(strMaxWalltime)
+                        toSkip = True
+                if toSkip:
+                    tmpMsg += 'criteria=-longwalltime'
+                    tmpLog.info(tmpMsg)
+                    continue
             newScanSiteList.append(tmpSiteName)
         scanSiteList = newScanSiteList
         if not taskSpec.useHS06():
@@ -1064,6 +1093,11 @@ class AtlasProdJobBroker(JobBrokerBase):
                                                                                           taskSpec.cpuTimeUnit)
             if maxWalltime:
                 tmpStr += ' and {}'.format(strMaxWalltime)
+            if minWalltime_dyn:
+                tmpStr += f' for normal PQs, {strMinWalltime_dyn}'
+                if maxWalltime_dyn:
+                    tmpStr += f' and {strMaxWalltime_dyn}'
+                tmpStr += ' for PQs with non-zero mintime'
             tmpLog.info(tmpStr)
         self.add_summary_message(oldScanSiteList, scanSiteList, 'walltime check')
         if not scanSiteList:
