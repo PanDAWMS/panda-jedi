@@ -344,7 +344,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,excludePatt,
                                    xmlConfig,noWaitParent,parent_tid,pid,maxFailure,useRealNumEvents,
                                    respectLB,tgtNumEventsPerJob,skipFilesUsedBy,ramCount,taskSpec,
-                                   skipShortInput, inputPreStaging, order_by):
+                                   skipShortInput, inputPreStaging, order_by, maxFileRecords):
         comment = ' /* JediDBProxy.insertFilesForDataset_JEDI */'
         methodName = self.getMethodName(comment)
         methodName += ' <jediTaskID={0} datasetID={1}>'.format(datasetSpec.jediTaskID,
@@ -377,8 +377,6 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         failedRet = False,0,None,diagMap
         harmlessRet = None,0,None,diagMap
         regStart = datetime.datetime.utcnow()
-        # max number of file records per dataset
-        maxFileRecords = 200000
         # mutable
         if (noWaitParent or inputPreStaging) and datasetState == 'mutable':
             isMutableDataset = True

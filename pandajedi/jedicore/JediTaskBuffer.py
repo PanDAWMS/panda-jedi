@@ -63,7 +63,8 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
                                    nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,
                                    excludePatt,xmlConfig,noWaitParent,parent_tid,pid,maxFailure,
                                    useRealNumEvents,respectLB,tgtNumEventsPerJob,skipFilesUsedBy,
-                                   ramCount,taskSpec,skipShortInput, inputPreStaging, order_by):
+                                   ramCount,taskSpec,skipShortInput, inputPreStaging, order_by,
+                                   maxFileRecords):
         with self.proxyPool.get() as proxy:
             return proxy.insertFilesForDataset_JEDI(datasetSpec,fileMap,datasetState,stateUpdateTime,
                                                     nEventsPerFile,nEventsPerJob,maxAttempt,
@@ -75,7 +76,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
                                                     useRealNumEvents,respectLB,
                                                     tgtNumEventsPerJob,skipFilesUsedBy,
                                                     ramCount,taskSpec,skipShortInput, inputPreStaging,
-                                                    order_by)
+                                                    order_by, maxFileRecords)
 
     # get files from the JEDI contents table with jediTaskID and/or datasetID
     def getFilesInDatasetWithID_JEDI(self,jediTaskID=None,datasetID=None,nFiles=None,status=None):
