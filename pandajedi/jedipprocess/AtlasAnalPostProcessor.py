@@ -195,6 +195,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
 
                 # msg['Subject'] = "Task summary for PanDA task {0}".format(taskSpec.jediTaskID)
                 msg['Subject'] = subject
+                tmp_logger.debug("subject is {0}".format(subject))
                 msg['From'] = from_add
                 msg['To'] = to_add
 
