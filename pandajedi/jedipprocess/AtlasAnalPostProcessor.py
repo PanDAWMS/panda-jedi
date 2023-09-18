@@ -193,9 +193,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                 html_text, plain_text, subject = self.compose_message(taskSpec, carbon_footprint_redacted)
                 msg = MIMEMultipart('alternative')
 
-                # msg['Subject'] = "Task summary for PanDA task {0}".format(taskSpec.jediTaskID)
                 msg['Subject'] = subject
-                tmp_logger.debug("subject is {0}".format(subject))
                 msg['From'] = from_add
                 msg['To'] = to_add
 
