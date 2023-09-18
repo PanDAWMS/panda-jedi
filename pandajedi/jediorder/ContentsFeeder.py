@@ -122,6 +122,8 @@ class ContentsFeederThread (WorkerThread):
 
     # feed contents to tasks
     def feed_contents_to_tasks(self, task_ds_list):
+        # max number of file records per dataset
+        maxFileRecords = 200000
         # loop over all tasks
         for jediTaskID,dsList in task_ds_list:
             allUpdated = True
@@ -363,6 +365,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                                                     ['nFiles'])
                                                 if 'nFiles' in tmpParentAtt and tmpParentAtt['nFiles']:
                                                     nPFN += tmpParentAtt['nFiles']
+                                    if nPFN > maxFileRecords:
+                                        raise Interaction.JEDIFatalError(f"Too many file records for seq_number >{maxFileRecords}")
                                     tmpRet = {}
                                     # get offset
                                     tmpOffset = datasetSpec.getOffset()
@@ -403,8 +407,10 @@ class ContentsFeederThread (WorkerThread):
                                             }
                         except Exception:
                             errtype,errvalue = sys.exc_info()[:2]
-                            tmpLog.error('failed to get files due to {0}:{1} {2}'.format(self.__class__.__name__,
-                                                                                            errtype.__name__,errvalue))
+                            reason = str(errvalue)
+                            tmpLog.error('failed to get files in {0}:{1} due to {2}'.format(self.__class__.__name__,
+                                                                                            errtype.__name__,
+                                                                                            reason))
                             if errtype == Interaction.JEDIFatalError:
                                 # fatal error
                                 datasetStatus = 'broken'
@@ -414,7 +420,7 @@ class ContentsFeederThread (WorkerThread):
                             else:
                                 # temporary error
                                 taskOnHold = True
-                            taskSpec.setErrDiag('failed to get files for {0}'.format(datasetSpec.datasetName))
+                            taskSpec.setErrDiag(f'failed to get files for {datasetSpec.datasetName} due to {reason}')
                             allUpdated = False
                         else:
                             # parameters for master input
@@ -556,7 +562,8 @@ class ContentsFeederThread (WorkerThread):
                                                                                 taskSpec,
                                                                                 skipShortInput,
                                                                                 inputPreStaging,
-                                                                                orderBy)
+                                                                                orderBy,
+                                                                                maxFileRecords)
                             if retDB is False:
                                 taskSpec.setErrDiag('failed to insert files for {0}. {1}'.format(datasetSpec.datasetName,
                                                                                                     diagMap['errMsg']))
