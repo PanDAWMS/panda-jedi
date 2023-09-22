@@ -220,10 +220,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[':ts_defined'] = 'defined'
             varMap[':dsStatus_pending'] = 'pending'
             varMap[':dsState_mutable']  = 'mutable'
-            try:
-                checkInterval = jedi_config.confeeder.checkInterval
-            except Exception:
-                checkInterval = 60
+            if task_id is None:
+                try:
+                    checkInterval = jedi_config.confeeder.checkInterval
+                except Exception:
+                    checkInterval = 60
+            else:
+                checkInterval = 0
             varMap[':checkTimeLimit'] = datetime.datetime.utcnow() - datetime.timedelta(minutes=checkInterval)
             varMap[':lockTimeLimit']  = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
             sql  = "SELECT {0} ".format(JediDatasetSpec.columnNames('tabD'))
