@@ -10,7 +10,7 @@ from pandajedi.jediddm.DDMInterface import DDMInterface
 
 import sys
 
-logger = PandaLogger().getLogger('TaskRefiner')
+logger = PandaLogger().getLogger("TaskRefiner")
 tmpLog = MsgWrapper(logger)
 
 tbIF = JediTaskBufferInterface()
@@ -22,11 +22,9 @@ ddmIF = DDMInterface()
 ddmIF.setupInterface()
 
 
-
-
 jediTaskID = int(sys.argv[1])
 
-s,taskSpec = tbIF.getTaskWithID_JEDI(jediTaskID)
+s, taskSpec = tbIF.getTaskWithID_JEDI(jediTaskID)
 refiner = TaskRefiner(None, tbIF, ddmIF, taskSpec.vo, taskSpec.prodSourceLabel)
 refiner.initializeMods(tbIF, ddmIF)
 
@@ -34,9 +32,9 @@ refiner.initializeMods(tbIF, ddmIF)
 taskParam = tbIF.getTaskParamsWithID_JEDI(jediTaskID)
 taskParamMap = RefinerUtils.decodeJSON(taskParam)
 
-vo = taskParamMap['vo']
-prodSourceLabel = taskParamMap['prodSourceLabel']
-taskType = taskParamMap['taskType']
+vo = taskParamMap["vo"]
+prodSourceLabel = taskParamMap["prodSourceLabel"]
+taskType = taskParamMap["taskType"]
 
 cloudName = taskSpec.cloud
 vo = taskSpec.vo
@@ -44,11 +42,10 @@ prodSourceLabel = taskSpec.prodSourceLabel
 queueID = taskSpec.workQueue_ID
 gshare_name = taskSpec.gshare
 
-impl = refiner.instantiateImpl(vo, prodSourceLabel, taskType,
-                               tbIF, ddmIF)
+impl = refiner.instantiateImpl(vo, prodSourceLabel, taskType, tbIF, ddmIF)
 
 workQueueMapper = tbIF.getWorkQueueMap()
 
 impl.initializeRefiner(tmpLog)
 impl.extractCommon(jediTaskID, taskParamMap, workQueueMapper, taskSpec.splitRule)
-impl.doRefine(jediTaskID,taskParamMap)
+impl.doRefine(jediTaskID, taskParamMap)

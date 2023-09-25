@@ -10,30 +10,39 @@ from six import iteritems
 
 from pandaserver.taskbuffer.GlobalShares import Share
 
-RESOURCE = 'Resource'
+RESOURCE = "Resource"
 ACTIVE_FUNCTIONS = [RESOURCE]
 
 
 class WorkQueue(object):
     # attributes
-    _attributes = ('queue_id', 'queue_name', 'queue_type', 'VO', 'queue_share', 'queue_order',
-                   'criteria', 'variables', 'partitionID', 'stretchable', 'status', 'queue_function')
+    _attributes = (
+        "queue_id",
+        "queue_name",
+        "queue_type",
+        "VO",
+        "queue_share",
+        "queue_order",
+        "criteria",
+        "variables",
+        "partitionID",
+        "stretchable",
+        "status",
+        "queue_function",
+    )
 
     # parameters for selection criteria
-    _paramsForSelection = ('prodSourceLabel', 'workingGroup', 'processingType', 'coreCount',
-                           'site', 'eventService', 'splitRule', 'campaign')
+    _paramsForSelection = ("prodSourceLabel", "workingGroup", "processingType", "coreCount", "site", "eventService", "splitRule", "campaign")
 
     # correspondence with Global Shares attributes and parameters
-    _attributes_gs_conversion_dic = {'name': 'queue_name',
-                                     'value': 'queue_share',
-                                     'prodsourcelabel': 'queue_type',
-                                     'queue_id': 'queue_id',
-                                     'vo': 'VO'}
+    _attributes_gs_conversion_dic = {"name": "queue_name", "value": "queue_share", "prodsourcelabel": "queue_type", "queue_id": "queue_id", "vo": "VO"}
 
-    _params_gs_conversion_dic = {'prodsourcelabel': 'prodSourceLabel',
-                                 'workinggroup': 'workingGroup',
-                                 'campaign': 'campaign',
-                                 'processingtype': 'processingType'}
+    _params_gs_conversion_dic = {
+        "prodsourcelabel": "prodSourceLabel",
+        "workinggroup": "workingGroup",
+        "campaign": "campaign",
+        "processingtype": "processingType",
+    }
 
     def __init__(self):
         """
@@ -60,14 +69,13 @@ class WorkQueue(object):
         Creates a human-friendly string with the work queue information
         :return: string representation of the work queue
         """
-        dump_str = 'id:{0} order:{1} name:{2} share:{3} '.format(self.queue_id, self.queue_order,
-                                                                 self.queue_name, self.queue_share)
+        dump_str = "id:{0} order:{1} name:{2} share:{3} ".format(self.queue_id, self.queue_order, self.queue_name, self.queue_share)
 
         # normal queue
         if self.is_global_share:
-            dump_str += 'gs_name:{0} (global share)'.format(self.queue_name)
+            dump_str += "gs_name:{0} (global share)".format(self.queue_name)
         else:
-            dump_str += 'criteria:{0} var:{1} eval:{2}'.format(self.criteria, str(self.variables), self.evalString)
+            dump_str += "criteria:{0} var:{1} eval:{2}".format(self.criteria, str(self.variables), self.evalString)
 
         return dump_str
 
@@ -95,47 +103,45 @@ class WorkQueue(object):
         # convert variables string to a map of bind-variables
         tmp_map = {}
         try:
-            for item in self.variables.split(','):
+            for item in self.variables.split(","):
                 # look for key: value
                 item = item.strip()
-                items = item.split(':')
+                items = item.split(":")
                 if len(items) != 2:
                     continue
                 # add
-                tmp_map[':%s' % items[0]] = items[1]
+                tmp_map[":%s" % items[0]] = items[1]
         except Exception:
             pass
         # assign map
         self.variables = tmp_map
         # make a python statement for eval
-        if self.criteria in ['', None]:
+        if self.criteria in ["", None]:
             # catch all
-            self.evalString = 'True'
+            self.evalString = "True"
         else:
             tmp_eval_str = self.criteria
             # replace IN/OR/AND to in/or/and
-            tmp_eval_str = re.sub(' IN ', ' in ', tmp_eval_str, re.I)
-            tmp_eval_str = re.sub(' OR ', ' or ', tmp_eval_str, re.I)
-            tmp_eval_str = re.sub(' AND ', ' and ', tmp_eval_str, re.I)
+            tmp_eval_str = re.sub(" IN ", " in ", tmp_eval_str, re.I)
+            tmp_eval_str = re.sub(" OR ", " or ", tmp_eval_str, re.I)
+            tmp_eval_str = re.sub(" AND ", " and ", tmp_eval_str, re.I)
             # replace = to ==
-            tmp_eval_str = tmp_eval_str.replace('=', '==')
+            tmp_eval_str = tmp_eval_str.replace("=", "==")
             # replace LIKE
-            tmp_eval_str = re.sub('(?P<var>[^ \(]+)\s+LIKE\s+(?P<pat>[^ \(]+)',
-                                  "re.search(\g<pat>,\g<var>,re.I) is not None",
-                                  tmp_eval_str, re.I)
+            tmp_eval_str = re.sub("(?P<var>[^ \(]+)\s+LIKE\s+(?P<pat>[^ \(]+)", "re.search(\g<pat>,\g<var>,re.I) is not None", tmp_eval_str, re.I)
             # NULL
-            tmp_eval_str = re.sub(' IS NULL', '==None', tmp_eval_str)
-            tmp_eval_str = re.sub(' IS NOT NULL', "!=None", tmp_eval_str)
+            tmp_eval_str = re.sub(" IS NULL", "==None", tmp_eval_str)
+            tmp_eval_str = re.sub(" IS NOT NULL", "!=None", tmp_eval_str)
             # replace NOT to not
-            tmp_eval_str = re.sub(' NOT ', ' not ', tmp_eval_str, re.I)
+            tmp_eval_str = re.sub(" NOT ", " not ", tmp_eval_str, re.I)
             # fomat cases
             for tmp_param in self._paramsForSelection:
                 tmp_eval_str = re.sub(tmp_param, tmp_param, tmp_eval_str, re.I)
             # replace bind-variables
             for tmp_key, tmp_val in iteritems(self.variables):
-                if '%' in tmp_val:
+                if "%" in tmp_val:
                     # wildcard
-                    tmp_val = tmp_val.replace('%', '.*')
+                    tmp_val = tmp_val.replace("%", ".*")
                     tmp_val = "'^%s$'" % tmp_val
                 else:
                     # normal variable
@@ -167,10 +173,10 @@ class WorkQueue(object):
                 if attr in self._params_gs_conversion_dic:
                     param_wq = self._params_gs_conversion_dic[attr]
                     val = getattr(gshare, attr)
-                    tmp_map[':{0}'.format(param_wq)] = val
+                    tmp_map[":{0}".format(param_wq)] = val
 
                 # 3. Special case for throttled. This is defined additionally, since it's not present in WQs
-                if attr == 'throttled' and gshare.throttled == 'N':
+                if attr == "throttled" and gshare.throttled == "N":
                     self.throttled = False
 
             self.variables = tmp_map
@@ -188,11 +194,11 @@ class WorkQueue(object):
                     # add quotes for string
                     exec('{0}="{1}"'.format(tmp_param_key, tmp_param_val), globals())
                 else:
-                    exec('{0}={1}'.format(tmp_param_key, tmp_param_val), globals())
+                    exec("{0}={1}".format(tmp_param_key, tmp_param_val), globals())
             # add default parameters if missing
             for tmp_param in self._paramsForSelection:
                 if tmp_param not in param_map:
-                    exec('{0}=None'.format(tmp_param), globals())
+                    exec("{0}=None".format(tmp_param), globals())
             # evaluate
             exec("ret_var = {0}".format(self.evalString), globals())
             return self, ret_var
@@ -202,7 +208,7 @@ class WorkQueue(object):
 
     # check if active
     def isActive(self):
-        if self.status != 'inactive':  # and self.queue_function in ACTIVE_FUNCTIONS:
+        if self.status != "inactive":  # and self.queue_function in ACTIVE_FUNCTIONS:
             return True
         return False
 
@@ -229,7 +235,8 @@ class WorkQueue(object):
         ret = ""
         for attr in cls._attributes:
             if ret != "":
-                ret += ','
+                ret += ","
             ret += attr
         return ret
+
     column_names = classmethod(column_names)

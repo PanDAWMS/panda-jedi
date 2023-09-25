@@ -177,4 +177,3 @@ jedi_task_html_body = """
 </body>
 </html>
 """
-

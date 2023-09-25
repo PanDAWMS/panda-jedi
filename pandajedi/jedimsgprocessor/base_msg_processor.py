@@ -1,11 +1,10 @@
-
 from pandacommon.pandamsgbkr.msg_processor import SimpleMsgProcPluginBase
 
 from pandajedi.jedicore.JediTaskBuffer import JediTaskBuffer
 
+
 # Base simple message processing plugin
 class BaseMsgProcPlugin(SimpleMsgProcPluginBase):
-
     def initialize(self, in_collective=False):
         """
         initialize plugin instance, run once before loop in thread
@@ -22,8 +21,8 @@ class BaseMsgProcPlugin(SimpleMsgProcPluginBase):
         set up JEDI TaskBuffer interface
         """
         # set nDBConnection = n_threads to avoid DBProxy blocking amongs threads
-        n_db_conns = getattr(self, 'n_threads', 1)
-        self.tbIF= JediTaskBuffer(None, nDBConnection=n_db_conns)
+        n_db_conns = getattr(self, "n_threads", 1)
+        self.tbIF = JediTaskBuffer(None, nDBConnection=n_db_conns)
 
     def process(self, msg_obj):
         """

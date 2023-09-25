@@ -1,13 +1,14 @@
 import sys
+
 try:
     testTaskType = sys.argv[1]
 except Exception:
-    testTaskType = 'test'
+    testTaskType = "test"
 
 try:
     vo = sys.argv[2]
 except Exception:
-    vo = 'atlas'
+    vo = "atlas"
 
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 
@@ -26,7 +27,5 @@ ddmIF.setupInterface()
 
 parent_conn, child_conn = multiprocessing.Pipe()
 
-taskRefiner = multiprocessing.Process(target=TaskRefiner.launcher,
-                                      args=(child_conn,tbIF,ddmIF,
-                                            vo,testTaskType))
+taskRefiner = multiprocessing.Process(target=TaskRefiner.launcher, args=(child_conn, tbIF, ddmIF, vo, testTaskType))
 taskRefiner.start()

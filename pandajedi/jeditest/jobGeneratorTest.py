@@ -19,28 +19,26 @@ parent_conn, child_conn = multiprocessing.Pipe()
 try:
     testVO = sys.argv[1]
 except Exception:
-    testVO = 'atlas'
+    testVO = "atlas"
 
 try:
     testTaskType = sys.argv[2]
 except Exception:
-    testTaskType = 'test'
+    testTaskType = "test"
 
 try:
     execJob = False
-    if sys.argv[3] == 'y':
+    if sys.argv[3] == "y":
         execJob = True
 except Exception:
     pass
 
 try:
-    testClouds = sys.argv[4].split(',')
+    testClouds = sys.argv[4].split(",")
 except Exception:
     testClouds = [None]
 
-print('{0} {1} {2}'.format(testVO, testTaskType, testClouds))
+print("{0} {1} {2}".format(testVO, testTaskType, testClouds))
 
-gen = multiprocessing.Process(target=JobGenerator.launcher,
-                              args=(child_conn,tbIF,ddmIF,testVO,testTaskType,testClouds,
-                                    False,execJob))
+gen = multiprocessing.Process(target=JobGenerator.launcher, args=(child_conn, tbIF, ddmIF, testVO, testTaskType, testClouds, False, execJob))
 gen.start()

@@ -44,7 +44,7 @@ class ListWithLock:
 
     def get(self, num):
         self.lock.acquire()
-        retList = self.dataList[self.dataIndex:self.dataIndex + num]
+        retList = self.dataList[self.dataIndex : self.dataIndex + num]
         self.dataIndex += len(retList)
         self.lock.release()
         return retList
@@ -65,9 +65,9 @@ class ListWithLock:
     def dump(self):
         self.lock.acquire()
         if len(self.dataList) > self.dataIndex:
-            ret = ','.join(map(str, self.dataList[self.dataIndex:]))
+            ret = ",".join(map(str, self.dataList[self.dataIndex :]))
         else:
-            ret = 'None'
+            ret = "None"
         self.lock.release()
         return ret
 
@@ -160,12 +160,11 @@ class ThreadPool:
         for thr in thrlist:
             if thr.is_alive():
                 nActv += 1
-        return 'nActive={0}'.format(nActv)
+        return "nActive={0}".format(nActv)
 
 
 # thread class working with semaphore and thread pool
 class WorkerThread(threading.Thread):
-
     # constructor
     def __init__(self, workerSemaphore, threadPool, logger):
         threading.Thread.__init__(self)
@@ -185,8 +184,7 @@ class WorkerThread(threading.Thread):
             self.runImpl()
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            self.logger.error("%s crashed in WorkerThread.run() with %s:%s" % \
-                              (self.__class__.__name__, errtype.__name__, errvalue))
+            self.logger.error("%s crashed in WorkerThread.run() with %s:%s" % (self.__class__.__name__, errtype.__name__, errvalue))
         # remove self from thread pool
         if self.threadPool is not None:
             self.threadPool.remove(self)
@@ -197,7 +195,6 @@ class WorkerThread(threading.Thread):
 
 # thread class to cleanup zombi processes
 class ZombieCleaner(threading.Thread):
-
     # constructor
     def __init__(self, interval=20):
         threading.Thread.__init__(self)

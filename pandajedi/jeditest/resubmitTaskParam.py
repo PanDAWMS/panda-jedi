@@ -19,11 +19,11 @@ jediTaskID = sys.argv[1]
 initializer.init()
 
 
-taskBuffer= JediTaskBuffer.JediTaskBuffer(None)
+taskBuffer = JediTaskBuffer.JediTaskBuffer(None)
 proxy = taskBuffer.proxyPool.getProxy()
 
-s,o = proxy.getClobObj('select task_param from atlas_deft.deft_task where task_id=:task_id',{':task_id':jediTaskID})
+s, o = proxy.getClobObj("select task_param from atlas_deft.deft_task where task_id=:task_id", {":task_id": jediTaskID})
 
 taskParamStr = o[0][0]
 
-proxy.insertTaskParams_JEDI(None,taskParamStr)
+proxy.insertTaskParams_JEDI(None, taskParamStr)

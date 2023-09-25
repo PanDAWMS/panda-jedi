@@ -13,11 +13,12 @@ from .JediTaskSpec import JediTaskSpec
 from . import JediCoreUtils
 
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-logger = PandaLogger().getLogger(__name__.split('.')[-1])
+
+logger = PandaLogger().getLogger(__name__.split(".")[-1])
+
 
 # class for input
 class InputChunk:
-
     # default output size 2G + 500MB (safety merging)
     defaultOutputSize = 2500 * 1024 * 1024
     # max input size for scouts in MB
@@ -32,13 +33,13 @@ class InputChunk:
         for key in self.__dict__:
             sb.append("{key}='{value}'".format(key=key, value=self.__dict__[key]))
 
-        return ', '.join(sb)
+        return ", ".join(sb)
 
     def __repr__(self):
         return self.__str__()
 
     # constructor
-    def __init__(self,taskSpec,masterDataset=None,secondaryDatasetList=[], ramCount=0):
+    def __init__(self, taskSpec, masterDataset=None, secondaryDatasetList=[], ramCount=0):
         # task spec
         self.taskSpec = taskSpec
         # the list of secondary datasets
@@ -78,27 +79,21 @@ class InputChunk:
         # list of bootstrapped sites
         self.bootstrapped = set()
 
-
-
     # add master dataset
-    def addMasterDS(self,masterDataset):
+    def addMasterDS(self, masterDataset):
         if masterDataset is not None:
             self.masterDataset = masterDataset
             self.masterIndexName = self.masterDataset.datasetID
-            self.datasetMap[self.masterDataset.datasetID] = {'used':0,'datasetSpec':masterDataset}
-
-
+            self.datasetMap[self.masterDataset.datasetID] = {"used": 0, "datasetSpec": masterDataset}
 
     # add secondary dataset
-    def addSecondaryDS(self,secondaryDataset):
+    def addSecondaryDS(self, secondaryDataset):
         if secondaryDataset not in self.secondaryDatasetList:
             self.secondaryDatasetList.append(secondaryDataset)
-            self.datasetMap[secondaryDataset.datasetID] = {'used':0,'datasetSpec':secondaryDataset}
-
-
+            self.datasetMap[secondaryDataset.datasetID] = {"used": 0, "datasetSpec": secondaryDataset}
 
     # return list of datasets
-    def getDatasets(self,includePseudo=False):
+    def getDatasets(self, includePseudo=False):
         dataList = []
         if self.masterDataset is not None:
             dataList.append(self.masterDataset)
@@ -112,62 +107,50 @@ class InputChunk:
             dataList = newDataList
         return dataList
 
-
-
     # return dataset with datasetID
-    def getDatasetWithID(self,datasetID):
+    def getDatasetWithID(self, datasetID):
         if datasetID in self.datasetMap:
-            return self.datasetMap[datasetID]['datasetSpec']
+            return self.datasetMap[datasetID]["datasetSpec"]
         return None
-
-
 
     # return dataset with datasetName
-    def getDatasetWithName(self,datasetName):
-        for tmpDatasetID,tmpDatasetVal in iteritems(self.datasetMap):
-            if tmpDatasetVal['datasetSpec'].datasetName == datasetName:
-                return tmpDatasetVal['datasetSpec']
+    def getDatasetWithName(self, datasetName):
+        for tmpDatasetID, tmpDatasetVal in iteritems(self.datasetMap):
+            if tmpDatasetVal["datasetSpec"].datasetName == datasetName:
+                return tmpDatasetVal["datasetSpec"]
         return None
-
-
 
     # reset used counters
     def resetUsedCounters(self):
-        for tmpKey,tmpVal in iteritems(self.datasetMap):
-            tmpVal['used'] = 0
+        for tmpKey, tmpVal in iteritems(self.datasetMap):
+            tmpVal["used"] = 0
 
     # checkpoint file usage
     def checkpoint_file_usage(self):
         for tmpKey, tmpVal in iteritems(self.datasetMap):
-            self.file_checkpoints[tmpKey] = tmpVal['used']
+            self.file_checkpoints[tmpKey] = tmpVal["used"]
 
     # rollback file usage
     def rollback_file_usage(self):
         for tmpKey, tmpVal in iteritems(self.datasetMap):
             if tmpKey in self.file_checkpoints:
-                tmpVal['used'] = self.file_checkpoints[tmpKey]
+                tmpVal["used"] = self.file_checkpoints[tmpKey]
             else:
-                tmpVal['used'] = 0
+                tmpVal["used"] = 0
 
     # add site candidates
-    def addSiteCandidate(self,siteCandidateSpec):
+    def addSiteCandidate(self, siteCandidateSpec):
         self.siteCandidates[siteCandidateSpec.siteName] = siteCandidateSpec
         return
 
-
-
     # add site candidates
-    def addSiteCandidateForJumbo(self,siteCandidateSpec):
+    def addSiteCandidateForJumbo(self, siteCandidateSpec):
         self.siteCandidatesJumbo[siteCandidateSpec.siteName] = siteCandidateSpec
         return
-
-
 
     # has candidate for jumbo jobs
     def hasCandidatesForJumbo(self):
         return len(self.siteCandidatesJumbo) > 0
-
-
 
     # get one site candidate randomly
     def getOneSiteCandidate(self, nSubChunks=0, ngSites=None, get_msg=False):
@@ -177,14 +160,14 @@ class InputChunk:
         ngSites = copy.copy(ngSites)
 
         # skip sites for distributed master dataset
-        dist_str = ''
+        dist_str = ""
         if self.masterDataset.isDistributed():
-            dist_str = '(distributed'
+            dist_str = "(distributed"
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             ng_for_dist = []
             ok_for_dist = False
-            if len(self.masterDataset.Files) > datasetUsage['used']:
-                tmpFileSpec = self.masterDataset.Files[datasetUsage['used']]
+            if len(self.masterDataset.Files) > datasetUsage["used"]:
+                tmpFileSpec = self.masterDataset.Files[datasetUsage["used"]]
                 for siteCandidate in self.siteCandidates.values():
                     # skip if the first file is unavailable at the site
                     if not siteCandidate.isAvailableFile(tmpFileSpec):
@@ -194,20 +177,19 @@ class InputChunk:
                 if ok_for_dist:
                     ngSites += ng_for_dist
                 else:
-                    dist_str += ': disabled locality constraint since the first file is unnavigable anywhere'
-            dist_str += ')'
+                    dist_str += ": disabled locality constraint since the first file is unnavigable anywhere"
+            dist_str += ")"
 
         # check if to be bootstrapped
         siteCandidateList = list(self.siteCandidates.values())
         newSiteCandidateList = []
         for siteCandidate in siteCandidateList:
-            if siteCandidate.weight == 0 and siteCandidate.siteName not in self.bootstrapped \
-                    and siteCandidate.siteName not in ngSites:
+            if siteCandidate.weight == 0 and siteCandidate.siteName not in self.bootstrapped and siteCandidate.siteName not in ngSites:
                 newSiteCandidateList.append(siteCandidate)
         if newSiteCandidateList:
             retSiteCandidate = random.choice(newSiteCandidateList)
             self.bootstrapped.add(retSiteCandidate.siteName)
-            retMsg = 'to bootstrap: {}'.format(retSiteCandidate.siteName)
+            retMsg = "to bootstrap: {}".format(retSiteCandidate.siteName)
         else:
             # get total weight
             totalWeight = 0
@@ -215,7 +197,7 @@ class InputChunk:
             nOK = 0
             nBoosted = 0
             nFull = 0
-            fullStr = ''
+            fullStr = ""
             for siteCandidate in siteCandidateList:
                 # remove NG sites
                 if siteCandidate.siteName in ngSites:
@@ -228,9 +210,7 @@ class InputChunk:
                 # skip incapable
                 if not siteCandidate.can_accept_jobs():
                     nFull += 1
-                    fullStr += '{}:{}/{} '.format(siteCandidate.siteName,
-                                                 siteCandidate.nQueuedJobs,
-                                                 siteCandidate.nRunningJobsCap)
+                    fullStr += "{}:{}/{} ".format(siteCandidate.siteName, siteCandidate.nQueuedJobs, siteCandidate.nRunningJobsCap)
                     continue
                 totalWeight += siteCandidate.weight
                 newSiteCandidateList.append(siteCandidate)
@@ -238,10 +218,9 @@ class InputChunk:
             siteCandidateList = newSiteCandidateList
             if fullStr:
                 fullStr = " (skipped {})".format(fullStr[:-1])
-            retMsg = 'OK={} NG={} {} n_bootstrapped={} n_occupied={}{}'.format(
-                nOK, ','.join(ngSites) if ngSites else None, dist_str,
-                len(self.bootstrapped),
-                nFull, fullStr)
+            retMsg = "OK={} NG={} {} n_bootstrapped={} n_occupied={}{}".format(
+                nOK, ",".join(ngSites) if ngSites else None, dist_str, len(self.bootstrapped), nFull, fullStr
+            )
             # empty
             if not siteCandidateList:
                 if get_msg:
@@ -264,31 +243,27 @@ class InputChunk:
                     retSiteCandidate.nQueuedJobs += nSubChunks
                     newNumQueued = retSiteCandidate.nQueuedJobs
                     retSiteCandidate.nAssignedJobs += nSubChunks
-                    siteCandidate.weight = siteCandidate.weight * float(oldNumQueued+1) / float(newNumQueued+1)
+                    siteCandidate.weight = siteCandidate.weight * float(oldNumQueued + 1) / float(newNumQueued + 1)
             except Exception:
                 pass
         if get_msg:
             return retSiteCandidate, retMsg
         return retSiteCandidate
 
-
-
     # get sites for parallel execution
-    def getParallelSites(self,nSites,nSubChunks,usedSites):
-        newSiteCandidate = self.getOneSiteCandidate(nSubChunks,usedSites)
+    def getParallelSites(self, nSites, nSubChunks, usedSites):
+        newSiteCandidate = self.getOneSiteCandidate(nSubChunks, usedSites)
         if newSiteCandidate is not None:
             usedSites.append(newSiteCandidate.siteName)
             if nSites > len(usedSites):
-                return self.getParallelSites(nSites,nSubChunks,usedSites)
-        return ','.join(usedSites)
-
-
+                return self.getParallelSites(nSites, nSubChunks, usedSites)
+        return ",".join(usedSites)
 
     # get one site for jumbo jobs
-    def getOneSiteCandidateForJumbo(self,ngSites):
+    def getOneSiteCandidateForJumbo(self, ngSites):
         # get total weight
         totalWeight = 0
-        weightList  = []
+        weightList = []
         siteCandidateList = list(self.siteCandidatesJumbo.values())
         newSiteCandidateList = []
         for siteCandidate in siteCandidateList:
@@ -313,17 +288,13 @@ class InputChunk:
             retSiteCandidate = random.choice(siteCandidateList)
         return retSiteCandidate
 
-
-
     # check if unused files/events remain
     def checkUnused(self):
         # master is undefined
         if self.masterIndexName is None:
             return False
         indexVal = self.datasetMap[self.masterIndexName]
-        return indexVal['used'] < len(indexVal['datasetSpec'].Files)
-
-
+        return indexVal["used"] < len(indexVal["datasetSpec"].Files)
 
     # get master used index
     def getMasterUsedIndex(self):
@@ -331,9 +302,7 @@ class InputChunk:
         if self.masterIndexName is None:
             return 0
         indexVal = self.datasetMap[self.masterIndexName]
-        return indexVal['used']
-
-
+        return indexVal["used"]
 
     # get num of files in master
     def getNumFilesInMaster(self):
@@ -341,9 +310,7 @@ class InputChunk:
         if self.masterIndexName is None:
             return 0
         indexVal = self.datasetMap[self.masterIndexName]
-        return len(indexVal['datasetSpec'].Files)
-
-
+        return len(indexVal["datasetSpec"].Files)
 
     # check if secondary datasets use event ratios
     def useEventRatioForSec(self):
@@ -352,10 +319,8 @@ class InputChunk:
                 return True
         return False
 
-
-
     # get maximum size of atomic subchunk
-    def getMaxAtomSize(self,effectiveSize=False,getNumEvents=False):
+    def getMaxAtomSize(self, effectiveSize=False, getNumEvents=False):
         # number of files per job if defined
         if not self.isMerging:
             nFilesPerJob = self.taskSpec.getNumFilesPerJob()
@@ -381,22 +346,19 @@ class InputChunk:
             else:
                 maxNumFiles = self.taskSpec.getMaxNumFilesPerMergeJob()
             # get one subchunk
-            subChunk = self.getSubChunk(None,nFilesPerJob=nFilesPerJob,
-                                        nEventsPerJob=nEventsPerJob,
-                                        useBoundary=useBoundary,
-                                        respectLB=respectLB,
-                                        maxNumFiles=maxNumFiles)
+            subChunk = self.getSubChunk(
+                None, nFilesPerJob=nFilesPerJob, nEventsPerJob=nEventsPerJob, useBoundary=useBoundary, respectLB=respectLB, maxNumFiles=maxNumFiles
+            )
             if subChunk is None:
                 break
             # get size
             tmpAtomSize = 0
-            for tmpDatasetSpec,tmpFileSpecList in subChunk:
+            for tmpDatasetSpec, tmpFileSpecList in subChunk:
                 if (effectiveSize or getNumEvents) and not tmpDatasetSpec.isMaster():
                     continue
                 for tmpFileSpec in tmpFileSpecList:
                     if effectiveSize:
-                        tmpAtomSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
-                                                                          tmpFileSpec.endEvent,tmpFileSpec.nEvents)
+                        tmpAtomSize += JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize, tmpFileSpec.startEvent, tmpFileSpec.endEvent, tmpFileSpec.nEvents)
                     elif getNumEvents:
                         tmpAtomSize += tmpFileSpec.getEffectiveNumEvents()
                     else:
@@ -408,24 +370,17 @@ class InputChunk:
         # return
         return maxAtomSize
 
-
-
     # use scout
     def useScout(self):
         if self.masterDataset is not None and self.useScoutFlag is not None:
             return self.useScoutFlag
-        if self.masterDataset is not None and \
-                self.masterDataset.nFiles > self.masterDataset.nFilesToBeUsed:
+        if self.masterDataset is not None and self.masterDataset.nFiles > self.masterDataset.nFilesToBeUsed:
             return True
         return False
 
-
-
     # set use scout
-    def setUseScout(self,useScoutFlag):
+    def setUseScout(self, useScoutFlag):
         self.useScoutFlag = useScoutFlag
-
-
 
     # get preassigned site
     def getPreassignedSite(self):
@@ -433,10 +388,8 @@ class InputChunk:
             return self.masterDataset.site
         return None
 
-
-
     # get max output size
-    def getOutSize(self,outSizeMap):
+    def getOutSize(self, outSizeMap):
         values = list(outSizeMap.values())
         values.sort()
         try:
@@ -447,31 +400,40 @@ class InputChunk:
     # get value with unit
     def get_value_str(self, value):
         try:
-            return '{}MB'.format(int(math.ceil(value/1024/1024)))
+            return "{}MB".format(int(math.ceil(value / 1024 / 1024)))
         except Exception:
             return None
 
     # get subchunk with a selection criteria
-    def getSubChunk(self,siteName,maxNumFiles=None,maxSize=None,
-                    sizeGradients=0,sizeIntercepts=0,
-                    nFilesPerJob=None,multiplicand=1,
-                    walltimeGradient=0,maxWalltime=0,
-                    nEventsPerJob=None,useBoundary=None,
-                    sizeGradientsPerInSize=None,
-                    maxOutSize=None,
-                    coreCount=1,
-                    respectLB=False,
-                    corePower=None,
-                    dynNumEvents=False,
-                    multiplicity=None,
-                    splitByFields=None,
-                    tmpLog=None,
-                    useDirectIO=False,
-                    maxDiskSize=None,
-                    enableLog=False,
-                    no_split=False,
-                    min_walltime=None,
-                    max_events=None):
+    def getSubChunk(
+        self,
+        siteName,
+        maxNumFiles=None,
+        maxSize=None,
+        sizeGradients=0,
+        sizeIntercepts=0,
+        nFilesPerJob=None,
+        multiplicand=1,
+        walltimeGradient=0,
+        maxWalltime=0,
+        nEventsPerJob=None,
+        useBoundary=None,
+        sizeGradientsPerInSize=None,
+        maxOutSize=None,
+        coreCount=1,
+        respectLB=False,
+        corePower=None,
+        dynNumEvents=False,
+        multiplicity=None,
+        splitByFields=None,
+        tmpLog=None,
+        useDirectIO=False,
+        maxDiskSize=None,
+        enableLog=False,
+        no_split=False,
+        min_walltime=None,
+        max_events=None,
+    ):
         # check if there are unused files/events
         if not self.checkUnused():
             return None
@@ -507,7 +469,7 @@ class InputChunk:
         splitWithBoundaryID = False
         if useBoundary is not None:
             splitWithBoundaryID = True
-            if useBoundary['inSplit'] == 2:
+            if useBoundary["inSplit"] == 2:
                 # unset max values to split only with boundaryID
                 maxNumFiles = None
                 maxSize = None
@@ -520,59 +482,57 @@ class InputChunk:
         # use event ratios
         useEventRatio = self.useEventRatioForSec()
         # start splitting
-        inputNumFiles  = 0
+        inputNumFiles = 0
         inputNumEvents = 0
-        fileSize       = 0
-        firstLoop      = True
-        firstMaster    = True
-        inputFileMap   = {}
-        expWalltime    = 0
+        fileSize = 0
+        firstLoop = True
+        firstMaster = True
+        inputFileMap = {}
+        expWalltime = 0
         nextStartEvent = None
-        boundaryID     = None
-        newBoundaryID  = False
-        eventJump      = False
-        nSecFilesMap   = {}
-        nSecEventsMap  = {}
-        numMaster      = 0
-        masterSize     = 0
-        outSizeMap     = {}
-        lumiBlockNr    = None
+        boundaryID = None
+        newBoundaryID = False
+        eventJump = False
+        nSecFilesMap = {}
+        nSecEventsMap = {}
+        numMaster = 0
+        masterSize = 0
+        outSizeMap = {}
+        lumiBlockNr = None
         newLumiBlockNr = False
-        siteAvailable  = True
-        inputFileSet   = set()
-        fieldStr       = None
-        diskSize       = 0
-        totalNumFiles  = 0
-        dumpStr = ''
+        siteAvailable = True
+        inputFileSet = set()
+        fieldStr = None
+        diskSize = 0
+        totalNumFiles = 0
+        dumpStr = ""
         currentLFN = None
         while no_split or (
-                (maxNumFiles is None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or
-                 (dynNumEvents and len(inputFileSet) <= maxNumFiles))
-                and (maxSize is None or (maxSize is not None and fileSize <= maxSize))
-                and (maxWalltime is None or maxWalltime <= 0 or expWalltime <= maxWalltime)
-                and (maxNumEvents is None or (maxNumEvents is not None and inputNumEvents <= maxNumEvents))
-                and (maxOutSize is None or self.getOutSize(outSizeMap) <= maxOutSize)
-                and (maxDiskSize is None or diskSize <= maxDiskSize)
-                and totalNumFiles <= self.maxTotalNumFiles):
+            (maxNumFiles is None or (not dynNumEvents and inputNumFiles <= maxNumFiles) or (dynNumEvents and len(inputFileSet) <= maxNumFiles))
+            and (maxSize is None or (maxSize is not None and fileSize <= maxSize))
+            and (maxWalltime is None or maxWalltime <= 0 or expWalltime <= maxWalltime)
+            and (maxNumEvents is None or (maxNumEvents is not None and inputNumEvents <= maxNumEvents))
+            and (maxOutSize is None or self.getOutSize(outSizeMap) <= maxOutSize)
+            and (maxDiskSize is None or diskSize <= maxDiskSize)
+            and totalNumFiles <= self.maxTotalNumFiles
+        ):
             # get one file (or one file group for MP) from master
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
             if self.masterDataset.datasetID not in outSizeMap:
                 outSizeMap[self.masterDataset.datasetID] = 0
             boundaryIDs = set()
             primaryHasEvents = False
-            for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
+            for tmpFileSpec in self.masterDataset.Files[datasetUsage["used"] : datasetUsage["used"] + multiplicand]:
                 # check start event to keep continuity
                 if (maxNumEvents is not None or dynNumEvents) and tmpFileSpec.startEvent is not None:
                     if nextStartEvent is not None and nextStartEvent != tmpFileSpec.startEvent:
                         eventJump = True
                         break
-                    elif nextStartEvent and nextStartEvent == tmpFileSpec.startEvent and currentLFN and \
-                            currentLFN != tmpFileSpec.lfn:
+                    elif nextStartEvent and nextStartEvent == tmpFileSpec.startEvent and currentLFN and currentLFN != tmpFileSpec.lfn:
                         eventJump = True
                         break
                 # check boundaryID
-                if splitWithBoundaryID and boundaryID is not None and boundaryID != tmpFileSpec.boundaryID \
-                        and useBoundary['inSplit'] != 3:
+                if splitWithBoundaryID and boundaryID is not None and boundaryID != tmpFileSpec.boundaryID and useBoundary["inSplit"] != 3:
                     newBoundaryID = True
                     break
                 # check LB
@@ -588,7 +548,7 @@ class InputChunk:
                         newBoundaryID = True
                         break
                 # check for distributed datasets
-                #if self.masterDataset.isDistributed() and siteName is not None and \
+                # if self.masterDataset.isDistributed() and siteName is not None and \
                 #        not siteCandidate.isAvailableFile(tmpFileSpec):
                 #    siteAvailable = False
                 #    break
@@ -596,11 +556,10 @@ class InputChunk:
                     inputFileMap[self.masterDataset.datasetID] = []
                 inputFileMap[self.masterDataset.datasetID].append(tmpFileSpec)
                 inputFileSet.add(tmpFileSpec.lfn)
-                datasetUsage['used'] += 1
+                datasetUsage["used"] += 1
                 numMaster += 1
                 # get effective file size
-                effectiveFsize = JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
-                                                                    tmpFileSpec.endEvent,tmpFileSpec.nEvents)
+                effectiveFsize = JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize, tmpFileSpec.startEvent, tmpFileSpec.endEvent, tmpFileSpec.nEvents)
                 # get num of events
                 effectiveNumEvents = tmpFileSpec.getEffectiveNumEvents()
                 # sum
@@ -639,12 +598,12 @@ class InputChunk:
                     if firstMaster:
                         expWalltime += self.taskSpec.baseWalltime
                     tmpExpWalltime = walltimeGradient * effectiveNumEvents / float(coreCount)
-                    if corePower not in [None,0]:
+                    if corePower not in [None, 0]:
                         tmpExpWalltime /= corePower
                     if self.taskSpec.cpuEfficiency == 0:
                         tmpExpWalltime = 0
                     else:
-                        tmpExpWalltime /= float(self.taskSpec.cpuEfficiency)/100.0
+                        tmpExpWalltime /= float(self.taskSpec.cpuEfficiency) / 100.0
                     if multiplicity is not None:
                         tmpExpWalltime /= float(multiplicity)
                     expWalltime += long(tmpExpWalltime)
@@ -654,10 +613,9 @@ class InputChunk:
                         tmpExpWalltime /= float(multiplicity)
                     expWalltime += long(tmpExpWalltime)
                 # the number of events
-                if (maxNumEvents is not None or useEventRatio or dynNumEvents) and tmpFileSpec.startEvent is not None \
-                        and tmpFileSpec.endEvent is not None:
+                if (maxNumEvents is not None or useEventRatio or dynNumEvents) and tmpFileSpec.startEvent is not None and tmpFileSpec.endEvent is not None:
                     primaryHasEvents = True
-                    inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
+                    inputNumEvents += tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1
                     # set next start event
                     nextStartEvent = tmpFileSpec.endEvent + 1
                     if nextStartEvent == tmpFileSpec.nEvents:
@@ -690,11 +648,11 @@ class InputChunk:
                             if not useDirectIO:
                                 diskSize += tmpFileSpec.fsize
                             if sizeGradientsPerInSize is not None:
-                                tmpOutSize = (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                                tmpOutSize = tmpFileSpec.fsize * sizeGradientsPerInSize
                                 fileSize += tmpOutSize
                                 diskSize += tmpOutSize
-                                outSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
-                            datasetUsage['used'] += 1
+                                outSizeMap[datasetSpec.datasetID] += tmpFileSpec.fsize * sizeGradientsPerInSize
+                            datasetUsage["used"] += 1
                             totalNumFiles += 1
                 else:
                     if datasetSpec.datasetID not in nSecFilesMap:
@@ -706,21 +664,23 @@ class InputChunk:
                         continue
                     if nSecondary is None:
                         nSecondary = datasetSpec.getNumMultByRatio(numMaster) - nSecFilesMap[datasetSpec.datasetID]
-                        if (datasetSpec.getEventRatio() is not None and inputNumEvents > 0) or (splitWithBoundaryID and useBoundary['inSplit'] != 3):
+                        if (datasetSpec.getEventRatio() is not None and inputNumEvents > 0) or (splitWithBoundaryID and useBoundary["inSplit"] != 3):
                             # set large number to get all associated secondary files
                             nSecondary = 10000
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
                     # reset nUsed
-                    if datasetSpec.isReusable() and datasetUsage['used']+nSecondary > len(datasetSpec.Files):
-                        datasetUsage['used'] = 0
-                    for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+nSecondary]:
+                    if datasetSpec.isReusable() and datasetUsage["used"] + nSecondary > len(datasetSpec.Files):
+                        datasetUsage["used"] = 0
+                    for tmpFileSpec in datasetSpec.Files[datasetUsage["used"] : datasetUsage["used"] + nSecondary]:
                         # check boundaryID
-                        if (splitWithBoundaryID or (useBoundary is not None and useBoundary['inSplit'] == 3 and datasetSpec.getRatioToMaster() > 1)) \
-                                and boundaryID is not None and \
-                                not (boundaryID == tmpFileSpec.boundaryID or tmpFileSpec.boundaryID in boundaryIDs):
+                        if (
+                            (splitWithBoundaryID or (useBoundary is not None and useBoundary["inSplit"] == 3 and datasetSpec.getRatioToMaster() > 1))
+                            and boundaryID is not None
+                            and not (boundaryID == tmpFileSpec.boundaryID or tmpFileSpec.boundaryID in boundaryIDs)
+                        ):
                             break
                         # check for distributed datasets
-                        #if datasetSpec.isDistributed() and siteName is not None and \
+                        # if datasetSpec.isDistributed() and siteName is not None and \
                         #        not siteCandidate.isAvailableFile(tmpFileSpec):
                         #    break
                         # check ratio
@@ -737,17 +697,17 @@ class InputChunk:
                         if not useDirectIO:
                             diskSize += tmpFileSpec.fsize
                         if sizeGradientsPerInSize is not None:
-                            tmpOutSize = (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                            tmpOutSize = tmpFileSpec.fsize * sizeGradientsPerInSize
                             fileSize += tmpOutSize
                             diskSize += tmpOutSize
-                            outSizeMap[datasetSpec.datasetID] += (tmpFileSpec.fsize * sizeGradientsPerInSize)
-                        datasetUsage['used'] += 1
+                            outSizeMap[datasetSpec.datasetID] += tmpFileSpec.fsize * sizeGradientsPerInSize
+                        datasetUsage["used"] += 1
                         nSecFilesMap[datasetSpec.datasetID] += 1
                         totalNumFiles += 1
                         # the number of events
                         if firstSecondary and maxNumEvents is not None and not primaryHasEvents:
                             if tmpFileSpec.startEvent is not None and tmpFileSpec.endEvent is not None:
-                                inputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
+                                inputNumEvents += tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1
                             elif tmpFileSpec.nEvents is not None:
                                 inputNumEvents += tmpFileSpec.nEvents
                         if tmpFileSpec.nEvents is not None:
@@ -758,72 +718,71 @@ class InputChunk:
             firstLoop = False
             # check if there are unused files/evets
             if not self.checkUnused():
-                dumpStr = 'no more files'
+                dumpStr = "no more files"
                 break
             # break if nFilesPerJob is used as multiplicand
             if nFilesPerJob is not None and not respectLB:
-                dumpStr = 'nFilesPerJob specified'
+                dumpStr = "nFilesPerJob specified"
                 break
             # boundaryID is changed
             if newBoundaryID:
-                dumpStr = 'new BoundaryID'
+                dumpStr = "new BoundaryID"
                 break
             # LB is changed
             if newLumiBlockNr:
-                dumpStr = 'new LB'
+                dumpStr = "new LB"
                 break
             # event jump
             if eventJump:
-                dumpStr = 'event jump'
+                dumpStr = "event jump"
                 break
             # distributed files are unavailable
             if not siteAvailable:
-                dumpStr = 'distributed files are unavailable'
+                dumpStr = "distributed files are unavailable"
                 break
             primaryHasEvents = False
             # check master in the next loop
             datasetUsage = self.datasetMap[self.masterDataset.datasetID]
-            newInputNumFiles  = inputNumFiles
+            newInputNumFiles = inputNumFiles
             newInputNumEvents = inputNumEvents
-            newFileSize       = fileSize
-            newExpWalltime    = expWalltime
+            newFileSize = fileSize
+            newExpWalltime = expWalltime
             newNextStartEvent = nextStartEvent
-            newNumMaster      = numMaster
-            terminateFlag     = False
-            newOutSizeMap     = copy.copy(outSizeMap)
-            newBoundaryIDs    = set()
-            newInputFileSet   = copy.copy(inputFileSet)
-            newDiskSize       = diskSize
+            newNumMaster = numMaster
+            terminateFlag = False
+            newOutSizeMap = copy.copy(outSizeMap)
+            newBoundaryIDs = set()
+            newInputFileSet = copy.copy(inputFileSet)
+            newDiskSize = diskSize
             new_nSecEventsMap = copy.copy(nSecEventsMap)
-            newTotalNumFiles  = totalNumFiles
+            newTotalNumFiles = totalNumFiles
             if self.masterDataset.datasetID not in newOutSizeMap:
                 newOutSizeMap[self.masterDataset.datasetID] = 0
-            for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:datasetUsage['used']+multiplicand]:
+            for tmpFileSpec in self.masterDataset.Files[datasetUsage["used"] : datasetUsage["used"] + multiplicand]:
                 # check continuity of event
                 if maxNumEvents is not None and tmpFileSpec.startEvent is not None and tmpFileSpec.endEvent is not None:
                     primaryHasEvents = True
-                    newInputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
+                    newInputNumEvents += tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1
                     # continuity of event is broken
                     if newNextStartEvent is not None and newNextStartEvent != tmpFileSpec.startEvent:
                         # no files in the next loop
                         if newInputNumFiles == 0:
-                            dumpStr = 'no files with continuous events in the next loop'
+                            dumpStr = "no files with continuous events in the next loop"
                             terminateFlag = True
                         break
                     newNextStartEvent = tmpFileSpec.endEvent + 1
                 # check boundary
-                if splitWithBoundaryID and boundaryID is not None and boundaryID != tmpFileSpec.boundaryID \
-                        and useBoundary['inSplit'] != 3:
+                if splitWithBoundaryID and boundaryID is not None and boundaryID != tmpFileSpec.boundaryID and useBoundary["inSplit"] != 3:
                     # no files in the next loop
                     if newInputNumFiles == 0:
-                        dumpStr = 'no files with the same BoundaryID in the next loop'
+                        dumpStr = "no files with the same BoundaryID in the next loop"
                         terminateFlag = True
                     break
                 # check LB
                 if respectLB and lumiBlockNr is not None and lumiBlockNr != tmpFileSpec.lumiBlockNr:
                     # no files in the next loop
                     if newInputNumFiles == 0:
-                        dumpStr = 'no files with the same LB in the next loop'
+                        dumpStr = "no files with the same LB in the next loop"
                         terminateFlag = True
                     break
                 # check field
@@ -832,19 +791,18 @@ class InputChunk:
                     if tmpFieldStr != fieldStr:
                         # no files in the next loop
                         if newInputNumFiles == 0:
-                            dumpStr = 'no files with the same LFN field in the next loop'
+                            dumpStr = "no files with the same LFN field in the next loop"
                             terminateFlag = True
                         break
                 # check for distributed datasets
-                #if self.masterDataset.isDistributed() and siteName is not None and \
+                # if self.masterDataset.isDistributed() and siteName is not None and \
                 #        not siteCandidate.isAvailableFile(tmpFileSpec):
                 #    # no files in the next loop
                 #    if newInputNumFiles == 0:
                 #        terminateFlag = True
                 #    break
                 # get effective file size
-                effectiveFsize = JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize,tmpFileSpec.startEvent,
-                                                                    tmpFileSpec.endEvent,tmpFileSpec.nEvents)
+                effectiveFsize = JediCoreUtils.getEffectiveFileSize(tmpFileSpec.fsize, tmpFileSpec.startEvent, tmpFileSpec.endEvent, tmpFileSpec.nEvents)
                 # get num of events
                 effectiveNumEvents = tmpFileSpec.getEffectiveNumEvents()
                 newInputNumFiles += 1
@@ -876,12 +834,12 @@ class InputChunk:
                     newOutSizeMap[self.masterDataset.datasetID] += long(effectiveFsize * sizeGradientsPerInSize)
                 if self.taskSpec.useHS06():
                     tmpExpWalltime = walltimeGradient * effectiveNumEvents / float(coreCount)
-                    if corePower not in [None,0]:
+                    if corePower not in [None, 0]:
                         tmpExpWalltime /= corePower
                     if self.taskSpec.cpuEfficiency == 0:
                         tmpExpWalltime = 0
                     else:
-                        tmpExpWalltime /= float(self.taskSpec.cpuEfficiency)/100.0
+                        tmpExpWalltime /= float(self.taskSpec.cpuEfficiency) / 100.0
                     if multiplicity is not None:
                         tmpExpWalltime /= float(multiplicity)
                     newExpWalltime += long(tmpExpWalltime)
@@ -901,42 +859,45 @@ class InputChunk:
                     newOutSizeMap[datasetSpec.datasetID] = 0
                 if not datasetSpec.isNoSplit() and datasetSpec.getNumFilesPerJob() is None:
                     # check boundaryID
-                    if splitWithBoundaryID and boundaryID is not None and boundaryID != tmpFileSpec.boundaryID \
-                            and useBoundary['inSplit'] != 3:
+                    if splitWithBoundaryID and boundaryID is not None and boundaryID != tmpFileSpec.boundaryID and useBoundary["inSplit"] != 3:
                         break
-                    newSecMap.setdefault(datasetSpec.datasetID, {'in_size': 0, 'out_size': 0})
+                    newSecMap.setdefault(datasetSpec.datasetID, {"in_size": 0, "out_size": 0})
                     newNumSecondary = datasetSpec.getNumMultByRatio(newNumMaster) - nSecFilesMap[datasetSpec.datasetID]
                     if newNumSecondary < 0:
                         newNumSecondary = 0
-                    newSecMap[datasetSpec.datasetID]['nSec'] = newNumSecondary
-                    newSecMap[datasetSpec.datasetID]['nSecReal'] = 0
+                    newSecMap[datasetSpec.datasetID]["nSec"] = newNumSecondary
+                    newSecMap[datasetSpec.datasetID]["nSecReal"] = 0
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
-                    for tmpFileSpec in datasetSpec.Files[datasetUsage['used']:datasetUsage['used']+newNumSecondary]:
+                    for tmpFileSpec in datasetSpec.Files[datasetUsage["used"] : datasetUsage["used"] + newNumSecondary]:
                         # check boundaryID
-                        if splitWithBoundaryID and boundaryID is not None and boundaryID != tmpFileSpec.boundaryID \
-                                and tmpFileSpec.boundaryID not in boundaryIDs and tmpFileSpec.boundaryID not in newBoundaryIDs:
+                        if (
+                            splitWithBoundaryID
+                            and boundaryID is not None
+                            and boundaryID != tmpFileSpec.boundaryID
+                            and tmpFileSpec.boundaryID not in boundaryIDs
+                            and tmpFileSpec.boundaryID not in newBoundaryIDs
+                        ):
                             break
                         # check ratio
                         if datasetSpec.getEventRatio() is not None and newInputNumEvents > 0:
-                            if float(new_nSecEventsMap[datasetSpec.datasetID]) / float(newInputNumEvents) \
-                                    >= datasetSpec.getEventRatio():
+                            if float(new_nSecEventsMap[datasetSpec.datasetID]) / float(newInputNumEvents) >= datasetSpec.getEventRatio():
                                 break
                         newFileSize += tmpFileSpec.fsize
-                        newSecMap[datasetSpec.datasetID]['in_size'] += tmpFileSpec.fsize
-                        newSecMap[datasetSpec.datasetID]['nSecReal'] += 1
+                        newSecMap[datasetSpec.datasetID]["in_size"] += tmpFileSpec.fsize
+                        newSecMap[datasetSpec.datasetID]["nSecReal"] += 1
                         newTotalNumFiles += 1
                         if not useDirectIO:
                             newDiskSize += tmpFileSpec.fsize
                         if sizeGradientsPerInSize is not None:
-                            tmpOutSize = (tmpFileSpec.fsize * sizeGradientsPerInSize)
+                            tmpOutSize = tmpFileSpec.fsize * sizeGradientsPerInSize
                             newFileSize += tmpOutSize
                             newDiskSize += tmpOutSize
                             newOutSizeMap[datasetSpec.datasetID] += tmpOutSize
-                            newSecMap[datasetSpec.datasetID]['out_size'] += tmpOutSize
+                            newSecMap[datasetSpec.datasetID]["out_size"] += tmpOutSize
                         # the number of events
                         if firstSecondary and maxNumEvents is not None and not primaryHasEvents:
                             if tmpFileSpec.startEvent is not None and tmpFileSpec.endEvent is not None:
-                                newInputNumEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
+                                newInputNumEvents += tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1
                             elif tmpFileSpec.nEvents is not None:
                                 newInputNumEvents += tmpFileSpec.nEvents
                         if tmpFileSpec.nEvents is not None:
@@ -950,58 +911,66 @@ class InputChunk:
                 break
             # check
             newOutSize = self.getOutSize(newOutSizeMap)
-            if (maxNumFiles is not None and ((not dynNumEvents and newInputNumFiles > maxNumFiles)
-                                             or (dynNumEvents and (len(newInputFileSet) > maxNumFiles)))) \
-                    or (maxSize is not None and newFileSize > maxSize) \
-                    or (maxSize is not None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize) \
-                    or (maxWalltime is not None and 0 < maxWalltime < newExpWalltime) \
-                    or (maxNumEvents is not None and newInputNumEvents > maxNumEvents) \
-                    or (maxOutSize is not None and self.getOutSize(newOutSizeMap) > maxOutSize) \
-                    or (maxDiskSize is not None and newDiskSize > maxDiskSize)\
-                    or newTotalNumFiles > self.maxTotalNumFiles:
-                dumpStr = 'check for the next loop. '
+            if (
+                (maxNumFiles is not None and ((not dynNumEvents and newInputNumFiles > maxNumFiles) or (dynNumEvents and (len(newInputFileSet) > maxNumFiles))))
+                or (maxSize is not None and newFileSize > maxSize)
+                or (maxSize is not None and newOutSize < minOutSize and maxSize - minOutSize < newFileSize - newOutSize)
+                or (maxWalltime is not None and 0 < maxWalltime < newExpWalltime)
+                or (maxNumEvents is not None and newInputNumEvents > maxNumEvents)
+                or (maxOutSize is not None and self.getOutSize(newOutSizeMap) > maxOutSize)
+                or (maxDiskSize is not None and newDiskSize > maxDiskSize)
+                or newTotalNumFiles > self.maxTotalNumFiles
+            ):
+                dumpStr = "check for the next loop. "
                 if maxNumFiles is not None and (not dynNumEvents and newInputNumFiles > maxNumFiles):
-                    dumpStr += 'maxNumFiles exceeds maxNumFiles={} inputNumFiles={} newInputNumFiles={}. '.format(
-                        maxNumFiles, inputNumFiles, newInputNumFiles)
+                    dumpStr += "maxNumFiles exceeds maxNumFiles={} inputNumFiles={} newInputNumFiles={}. ".format(maxNumFiles, inputNumFiles, newInputNumFiles)
                 if maxSize is not None and newFileSize > maxSize:
-                    dumpStr += 'maxSize exceeds maxSize={} fileSize={} masterSize={} newFileSize={} newSecMap={}. '.format(
-                        self.get_value_str(maxSize), self.get_value_str(fileSize), self.get_value_str(masterSize),
-                        self.get_value_str(newFileSize), str(newSecMap))
-                if maxSize is not None and newOutSize < minOutSize and maxSize-minOutSize < newFileSize-newOutSize:
-                    dumpStr += 'maxSize exceeds with outSize maxSize={} minOutSize={} fileSize={} newFileSize={} newOutSize={}. '.\
-                        format(self.get_value_str(maxSize), self.get_value_str(minOutSize), self.get_value_str(fileSize),
-                               self.get_value_str(newFileSize), self.get_value_str(newOutSize))
+                    dumpStr += "maxSize exceeds maxSize={} fileSize={} masterSize={} newFileSize={} newSecMap={}. ".format(
+                        self.get_value_str(maxSize),
+                        self.get_value_str(fileSize),
+                        self.get_value_str(masterSize),
+                        self.get_value_str(newFileSize),
+                        str(newSecMap),
+                    )
+                if maxSize is not None and newOutSize < minOutSize and maxSize - minOutSize < newFileSize - newOutSize:
+                    dumpStr += "maxSize exceeds with outSize maxSize={} minOutSize={} fileSize={} newFileSize={} newOutSize={}. ".format(
+                        self.get_value_str(maxSize),
+                        self.get_value_str(minOutSize),
+                        self.get_value_str(fileSize),
+                        self.get_value_str(newFileSize),
+                        self.get_value_str(newOutSize),
+                    )
                 if maxWalltime is not None and 0 < maxWalltime < newExpWalltime:
-                    dumpStr += 'maxWalltime exceeds maxWalltime={} expWalltime={} newExpWalltime={}. '.format(
-                        maxWalltime, expWalltime, newExpWalltime)
+                    dumpStr += "maxWalltime exceeds maxWalltime={} expWalltime={} newExpWalltime={}. ".format(maxWalltime, expWalltime, newExpWalltime)
                 if maxNumEvents is not None and newInputNumEvents > maxNumEvents:
-                    dumpStr += 'maxNumEvents exceeds maxNumEvents={} inputNumEvents={} newInputNumEvents={}. '.format(
-                        maxNumEvents, inputNumEvents, newInputNumEvents)
+                    dumpStr += "maxNumEvents exceeds maxNumEvents={} inputNumEvents={} newInputNumEvents={}. ".format(
+                        maxNumEvents, inputNumEvents, newInputNumEvents
+                    )
                 if maxOutSize is not None and self.getOutSize(newOutSizeMap) > maxOutSize:
-                    dumpStr += 'maxOutSize exceeds maxOutSize={} getOutSize(newOutSizeMap)={}. '.format(
-                        self.get_value_str(maxOutSize), self.get_value_str(self.getOutSize(newOutSizeMap)))
+                    dumpStr += "maxOutSize exceeds maxOutSize={} getOutSize(newOutSizeMap)={}. ".format(
+                        self.get_value_str(maxOutSize), self.get_value_str(self.getOutSize(newOutSizeMap))
+                    )
                 if maxDiskSize is not None and newDiskSize > maxDiskSize:
-                    dumpStr += 'maxDiskSize exceeds maxDiskSize={} diskSize={} newDiskSize={}. '.format(
-                        self.get_value_str(maxDiskSize), self.get_value_str(diskSize), self.get_value_str(newDiskSize))
+                    dumpStr += "maxDiskSize exceeds maxDiskSize={} diskSize={} newDiskSize={}. ".format(
+                        self.get_value_str(maxDiskSize), self.get_value_str(diskSize), self.get_value_str(newDiskSize)
+                    )
                 if newTotalNumFiles > self.maxTotalNumFiles:
-                    dumpStr += 'total num of input files exceeds {}. '.format(self.maxTotalNumFiles)
+                    dumpStr += "total num of input files exceeds {}. ".format(self.maxTotalNumFiles)
                 break
         # reset nUsed for repeated datasets
-        for tmpDatasetID,datasetUsage in iteritems(self.datasetMap):
-            tmpDatasetSpec = datasetUsage['datasetSpec']
+        for tmpDatasetID, datasetUsage in iteritems(self.datasetMap):
+            tmpDatasetSpec = datasetUsage["datasetSpec"]
             if tmpDatasetSpec.isRepeated():
                 if len(tmpDatasetSpec.Files) > 0:
-                    datasetUsage['used'] %= len(tmpDatasetSpec.Files)
+                    datasetUsage["used"] %= len(tmpDatasetSpec.Files)
         # check min walltime
         if dynNumEvents and min_walltime and min_walltime > expWalltime:
             if enableLog and tmpLog:
-                tmpLog.debug('expected walltime {} less than min walltime {} at {}'.format(expWalltime,
-                                                                                           min_walltime,
-                                                                                           siteName))
+                tmpLog.debug("expected walltime {} less than min walltime {} at {}".format(expWalltime, min_walltime, siteName))
                 return []
         # make copy to return
         returnList = []
-        for tmpDatasetID,inputFileList in iteritems(inputFileMap):
+        for tmpDatasetID, inputFileList in iteritems(inputFileMap):
             tmpRetList = []
             for tmpFileSpec in inputFileList:
                 # split par site or get atomic subchunk
@@ -1010,7 +979,7 @@ class InputChunk:
                     newFileSpec = copy.copy(tmpFileSpec)
                     # set locality
                     newFileSpec.locality = siteCandidate.getFileLocality(tmpFileSpec)
-                    if newFileSpec.locality == 'remote':
+                    if newFileSpec.locality == "remote":
                         newFileSpec.sourceName = siteCandidate.remoteSource
                     # append
                     tmpRetList.append(newFileSpec)
@@ -1019,34 +988,26 @@ class InputChunk:
                     tmpRetList.append(tmpFileSpec)
             # add to return map
             tmpDatasetSpec = self.getDatasetWithID(tmpDatasetID)
-            returnList.append((tmpDatasetSpec,tmpRetList))
+            returnList.append((tmpDatasetSpec, tmpRetList))
         # dump only problematic splitting
         if enableLog and tmpLog and returnList:
             if maxNumEvents is not None and inputNumEvents < maxNumEvents:
-                tmpLog.debug('not enough events {}>{} at {}: numMaster={}. {}'.format(maxNumEvents, inputNumEvents,
-                                                                                      siteName, numMaster, dumpStr))
+                tmpLog.debug("not enough events {}>{} at {}: numMaster={}. {}".format(maxNumEvents, inputNumEvents, siteName, numMaster, dumpStr))
         # return
         return returnList
 
-
-
     # check if master is mutable
     def isMutableMaster(self):
-        if self.masterDataset is not None and self.masterDataset.state == 'mutable':
+        if self.masterDataset is not None and self.masterDataset.state == "mutable":
             return True
         return False
-
-
 
     # figure out if output will go through express stream
     def isExpress(self):
-        if self.taskSpec.processingType == 'urgent' or self.taskSpec.currentPriority > 1000:
+        if self.taskSpec.processingType == "urgent" or self.taskSpec.currentPriority > 1000:
             return True
 
         return False
-
-
-
 
     # skip unavailable files in distributed datasets
     def skipUnavailableFiles(self):
@@ -1055,8 +1016,8 @@ class InputChunk:
         for tmpDatasetSpec in self.getDatasets():
             if tmpDatasetSpec.isDistributed():
                 datasetUsage = self.datasetMap[tmpDatasetSpec.datasetID]
-                while len(tmpDatasetSpec.Files) > datasetUsage['used']:
-                    tmpFileSpec = tmpDatasetSpec.Files[datasetUsage['used']]
+                while len(tmpDatasetSpec.Files) > datasetUsage["used"]:
+                    tmpFileSpec = tmpDatasetSpec.Files[datasetUsage["used"]]
                     isOK = False
                     for siteCandidate in self.siteCandidates.values():
                         if siteCandidate.isAvailableFile(tmpFileSpec):
@@ -1065,11 +1026,9 @@ class InputChunk:
                     if isOK:
                         break
                     # skip and check the next
-                    datasetUsage['used'] += 1
+                    datasetUsage["used"] += 1
                     nSkip += 1
         return nSkip
-
-
 
     # get max ramCount
     def getMaxRamCount(self):
@@ -1077,7 +1036,6 @@ class InputChunk:
             return max(self.taskSpec.mergeRamCount, self.ramCount) if self.taskSpec.mergeRamCount else self.ramCount
         else:
             return max(self.taskSpec.ramCount, self.ramCount) if self.taskSpec.ramCount else self.ramCount
-
 
     # get site candidate
     def getSiteCandidate(self, name):
@@ -1098,7 +1056,7 @@ class InputChunk:
                 if n > 0:
                     siteCandidate.nQueuedJobs += n
                     sites.append(siteCandidate.siteName)
-        return ','.join(sites)
+        return ",".join(sites)
 
     # check event continuity
     def check_event_jump_and_sum(self):
@@ -1108,7 +1066,7 @@ class InputChunk:
         currentLFN = None
         maxChunk = 0
         datasetUsage = self.datasetMap[self.masterDataset.datasetID]
-        for tmpFileSpec in self.masterDataset.Files[datasetUsage['used']:]:
+        for tmpFileSpec in self.masterDataset.Files[datasetUsage["used"] :]:
             if tmpFileSpec.startEvent is not None:
                 if nextStartEvent is not None and nextStartEvent != tmpFileSpec.startEvent:
                     maxChunk = max(maxChunk, totalEvents)
@@ -1121,7 +1079,7 @@ class InputChunk:
                 nextStartEvent = tmpFileSpec.endEvent + 1
                 if nextStartEvent == tmpFileSpec.nEvents:
                     nextStartEvent = 0
-                totalEvents += (tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1)
+                totalEvents += tmpFileSpec.endEvent - tmpFileSpec.startEvent + 1
             elif tmpFileSpec.endEvent:
                 totalEvents += tmpFileSpec.endEvent
             currentLFN = tmpFileSpec.lfn

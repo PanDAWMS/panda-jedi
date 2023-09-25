@@ -11,14 +11,14 @@ except Exception:
 
 
 # get effective file size
-def getEffectiveFileSize(fsize,startEvent,endEvent,nEvents):
+def getEffectiveFileSize(fsize, startEvent, endEvent, nEvents):
     inMB = 1024 * 1024
-    if fsize in [None,0]:
+    if fsize in [None, 0]:
         # use dummy size for pseudo input
         effectiveFsize = inMB
     elif nEvents is not None and startEvent is not None and endEvent is not None:
         # take event range into account
-        effectiveFsize = long(float(fsize)*float(endEvent-startEvent+1)/float(nEvents))
+        effectiveFsize = long(float(fsize) * float(endEvent - startEvent + 1) / float(nEvents))
     else:
         effectiveFsize = fsize
     # use dummy size if input is too small
@@ -30,11 +30,10 @@ def getEffectiveFileSize(fsize,startEvent,endEvent,nEvents):
     return effectiveFsize
 
 
-
 # get effective number of events
-def getEffectiveNumEvents(startEvent,endEvent,nEvents):
+def getEffectiveNumEvents(startEvent, endEvent, nEvents):
     if endEvent is not None and startEvent is not None:
-        evtCounts = endEvent-startEvent+1
+        evtCounts = endEvent - startEvent + 1
         if evtCounts > 0:
             return evtCounts
         return 1
@@ -43,21 +42,20 @@ def getEffectiveNumEvents(startEvent,endEvent,nEvents):
     return 1
 
 
-
 # get memory usage
 def getMemoryUsage():
     try:
-        t = open('/proc/{0}/status'.format(os.getpid()))
+        t = open("/proc/{0}/status".format(os.getpid()))
         v = t.read()
         t.close()
         value = 0
-        for line in v.split('\n'):
-            if line.startswith('VmRSS'):
+        for line in v.split("\n"):
+            if line.startswith("VmRSS"):
                 items = line.split()
                 value = int(items[1])
-                if items[2] in ['kB','KB']:
+                if items[2] in ["kB", "KB"]:
                     value /= 1024
-                elif items[2] in ['mB','MB']:
+                elif items[2] in ["mB", "MB"]:
                     pass
                 break
         return value
@@ -65,15 +63,14 @@ def getMemoryUsage():
         return None
 
 
-
 # check process
 def checkProcess(pid):
-    return os.path.exists('/proc/{0}/status'.format(pid))
-
+    return os.path.exists("/proc/{0}/status".format(pid))
 
 
 # offset for walltime
-wallTimeOffset = 10*60
+wallTimeOffset = 10 * 60
+
 
 # add offset to walltime
 def addOffsetToWalltime(oldWalltime):
@@ -92,15 +89,16 @@ def reduceOffsetFromWalltime(oldWalltime):
             oldWalltime = 0
     return oldWalltime
 
+
 # convert config parameters
 def convert_config_params(itemStr):
-    items = itemStr.split(':')
+    items = itemStr.split(":")
     newItems = []
     for item in items:
-        if item == '':
+        if item == "":
             newItems.append(None)
-        elif ',' in item:
-            newItems.append(item.split(','))
+        elif "," in item:
+            newItems.append(item.split(","))
         else:
             try:
                 newItems.append(int(item))
@@ -108,75 +106,74 @@ def convert_config_params(itemStr):
                 newItems.append(item)
     return newItems
 
+
 # parse init params
 def parse_init_params(par):
     if isinstance(par, list):
         return par
     try:
-        return par.split('|')
+        return par.split("|")
     except Exception:
         return [par]
 
+
 # get config param for vo and prodSourceLabel
-def getConfigParam(configStr,vo,sourceLabel):
+def getConfigParam(configStr, vo, sourceLabel):
     try:
-        for tmpConfigStr in configStr.split(','):
-            items = configStr.split(':')
-            vos          = items[0].split('|')
-            sourceLabels = items[1].split('|')
-            if vo not in ['','any'] and \
-                    vo not in vos and \
-                    None not in vos and \
-                    'any' not in vos and \
-                    '' not in vos:
+        for tmpConfigStr in configStr.split(","):
+            items = configStr.split(":")
+            vos = items[0].split("|")
+            sourceLabels = items[1].split("|")
+            if vo not in ["", "any"] and vo not in vos and None not in vos and "any" not in vos and "" not in vos:
                 continue
-            if sourceLabel not in ['','any'] and \
-                    sourceLabel not in sourceLabels and \
-                    None not in sourceLabels and \
-                    'any' not in sourceLabels and \
-                    '' not in sourceLabels:
+            if (
+                sourceLabel not in ["", "any"]
+                and sourceLabel not in sourceLabels
+                and None not in sourceLabels
+                and "any" not in sourceLabels
+                and "" not in sourceLabels
+            ):
                 continue
-            return ','.join(items[2:])
+            return ",".join(items[2:])
     except Exception:
         pass
     return None
 
 
 # get percentile until numpy 1.5.X becomes available
-def percentile(inList,percent,idMap):
+def percentile(inList, percent, idMap):
     inList = copy.copy(inList)
     inList.sort()
-    k = (len(inList)-1) * float(percent)/100
+    k = (len(inList) - 1) * float(percent) / 100
     f = math.floor(k)
     c = math.ceil(k)
     if f == c:
         retVal = inList[int(f)]
-        return retVal,[retVal]
+        return retVal, [retVal]
     val0 = inList[int(f)]
     val1 = inList[int(c)]
-    d0 = val0 * (c-k)
-    d1 = val1 * (k-f)
-    retVal = d0+d1
-    return retVal,[val0,val1]
+    d0 = val0 * (c - k)
+    d1 = val1 * (k - f)
+    retVal = d0 + d1
+    return retVal, [val0, val1]
 
 
 # get min ram count for job
 def getJobMinRamCount(taskSpec, inputChunk, siteSpec, coreCount):
     minRamCount = inputChunk.getMaxRamCount()
     if inputChunk.isMerging:
-        minRamUnit = 'MB'
+        minRamUnit = "MB"
     else:
         minRamUnit = taskSpec.ramUnit
-        if minRamUnit in [None,'','NULL']:
-            minRamUnit   = 'MB'
+        if minRamUnit in [None, "", "NULL"]:
+            minRamUnit = "MB"
         if taskSpec.ramPerCore():
             minRamCount *= coreCount
             minRamCount += taskSpec.baseRamCount
-            minRamUnit = re.sub('PerCore.*$', '', minRamUnit)
+            minRamUnit = re.sub("PerCore.*$", "", minRamUnit)
     # round up with chunks
     minRamCount = JobUtils.compensate_ram_count(minRamCount)
     return minRamCount, minRamUnit
-
 
 
 # get max walltime and cpu count
@@ -191,10 +188,10 @@ def getJobMaxWalltime(taskSpec, inputChunk, totalMasterEvents, jobSpec, siteSpec
                 jobSpec.maxWalltime *= totalMasterEvents
                 if siteSpec.coreCount > 0:
                     jobSpec.maxWalltime /= float(siteSpec.coreCount)
-                if siteSpec.corepower not in [0,None]:
+                if siteSpec.corepower not in [0, None]:
                     jobSpec.maxWalltime /= siteSpec.corepower
-            if taskSpec.cpuEfficiency not in [None,0]:
-                jobSpec.maxWalltime /= (float(taskSpec.cpuEfficiency) / 100.0)
+            if taskSpec.cpuEfficiency not in [None, 0]:
+                jobSpec.maxWalltime /= float(taskSpec.cpuEfficiency) / 100.0
             if taskSpec.baseWalltime is not None:
                 jobSpec.maxWalltime += taskSpec.baseWalltime
             jobSpec.maxWalltime = long(jobSpec.maxWalltime)

@@ -3,7 +3,7 @@ import time
 import datetime
 import traceback
 
-from pandajedi.jedicore.ThreadUtils import ListWithLock,ThreadPool,WorkerThread
+from pandajedi.jedicore.ThreadUtils import ListWithLock, ThreadPool, WorkerThread
 from pandajedi.jedicore import Interaction
 from pandajedi.jedicore import JediException
 from pandajedi.jedicore.MsgWrapper import MsgWrapper
@@ -18,20 +18,18 @@ from pandajedi.jediconfig import jedi_config
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-logger = PandaLogger().getLogger(__name__.split('.')[-1])
+
+logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
 
 # worker class to refine TASK_PARAM to fill JEDI tables
-class TaskRefiner (JediKnight,FactoryBase):
-
+class TaskRefiner(JediKnight, FactoryBase):
     # constructor
     def __init__(self, commuChannel, taskBufferIF, ddmIF, vos, prodSourceLabels):
         self.vos = self.parseInit(vos)
         self.prodSourceLabels = self.parseInit(prodSourceLabels)
-        JediKnight.__init__(self,commuChannel,taskBufferIF,ddmIF,logger)
-        FactoryBase.__init__(self, self.vos, self.prodSourceLabels, logger,
-                             jedi_config.taskrefine.modConfig)
-
+        JediKnight.__init__(self, commuChannel, taskBufferIF, ddmIF, logger)
+        FactoryBase.__init__(self, self.vos, self.prodSourceLabels, logger, jedi_config.taskrefine.modConfig)
 
     # main
     def start(self):
@@ -44,7 +42,7 @@ class TaskRefiner (JediKnight,FactoryBase):
             try:
                 # get logger
                 tmpLog = MsgWrapper(logger)
-                tmpLog.debug('start')
+                tmpLog.debug("start")
                 # loop over all vos
                 for vo in self.vos:
                     # loop over all sourceLabels
@@ -53,9 +51,9 @@ class TaskRefiner (JediKnight,FactoryBase):
                         tmpList = self.taskBufferIF.getTasksToRefine_JEDI(vo, prodSourceLabel)
                         if tmpList is None:
                             # failed
-                            tmpLog.error('failed to get the list of tasks to refine')
+                            tmpLog.error("failed to get the list of tasks to refine")
                         else:
-                            tmpLog.debug('got {0} tasks'.format(len(tmpList)))
+                            tmpLog.debug("got {0} tasks".format(len(tmpList)))
                             # put to a locked list
                             taskList = ListWithLock(tmpList)
                             # make thread pool
@@ -65,18 +63,14 @@ class TaskRefiner (JediKnight,FactoryBase):
                             # make workers
                             nWorker = jedi_config.taskrefine.nWorkers
                             for iWorker in range(nWorker):
-                                thr = TaskRefinerThread(taskList, threadPool,
-                                                        self.taskBufferIF,
-                                                        self.ddmIF,
-                                                        self, workQueueMapper)
+                                thr = TaskRefinerThread(taskList, threadPool, self.taskBufferIF, self.ddmIF, self, workQueueMapper)
                                 thr.start()
                             # join
                             threadPool.join()
             except Exception:
                 errtype, errvalue = sys.exc_info()[:2]
-                tmpLog.error('failed in {0}.start() with {1} {2}'.format(self.__class__.__name__,
-                                                                         errtype.__name__, errvalue))
-                tmpLog.error('Traceback: {0}'.format(traceback.format_exc()))
+                tmpLog.error("failed in {0}.start() with {1} {2}".format(self.__class__.__name__, errtype.__name__, errvalue))
+                tmpLog.error("Traceback: {0}".format(traceback.format_exc()))
             # sleep if needed
             loopCycle = jedi_config.taskrefine.loopCycle
             timeDelta = datetime.datetime.utcnow() - startTime
@@ -87,23 +81,19 @@ class TaskRefiner (JediKnight,FactoryBase):
             self.randomSleep(max_val=loopCycle)
 
 
-
 # thread for real worker
-class TaskRefinerThread (WorkerThread):
-
+class TaskRefinerThread(WorkerThread):
     # constructor
     def __init__(self, taskList, threadPool, taskbufferIF, ddmIF, implFactory, workQueueMapper):
         # initialize woker with no semaphore
-        WorkerThread.__init__(self,None,threadPool,logger)
+        WorkerThread.__init__(self, None, threadPool, logger)
         # attributres
         self.taskList = taskList
         self.taskBufferIF = taskbufferIF
         self.ddmIF = ddmIF
         self.implFactory = implFactory
         self.workQueueMapper = workQueueMapper
-        self.msgType = 'taskrefiner'
-
-
+        self.msgType = "taskrefiner"
 
     # main
     def runImpl(self):
@@ -114,52 +104,51 @@ class TaskRefinerThread (WorkerThread):
                 taskList = self.taskList.get(nTasks)
                 # no more datasets
                 if len(taskList) == 0:
-                    self.logger.info('{0} terminating since no more items'.format(self.__class__.__name__))
+                    self.logger.info("{0} terminating since no more items".format(self.__class__.__name__))
                     return
                 # loop over all tasks
-                for jediTaskID,splitRule,taskStatus,parent_tid in taskList:
+                for jediTaskID, splitRule, taskStatus, parent_tid in taskList:
                     # make logger
-                    tmpLog = MsgWrapper(self.logger,'< jediTaskID={0} >'.format(jediTaskID))
-                    tmpLog.debug('start')
+                    tmpLog = MsgWrapper(self.logger, "< jediTaskID={0} >".format(jediTaskID))
+                    tmpLog.debug("start")
                     tmpStat = Interaction.SC_SUCCEEDED
-                    errStr = ''
+                    errStr = ""
                     # read task parameters
                     try:
                         taskParam = None
                         taskParam = self.taskBufferIF.getTaskParamsWithID_JEDI(jediTaskID)
                         taskParamMap = RefinerUtils.decodeJSON(taskParam)
                     except Exception:
-                        errtype,errvalue = sys.exc_info()[:2]
-                        errStr = 'conversion to map from json failed with {0}:{1}'.format(errtype.__name__,errvalue)
+                        errtype, errvalue = sys.exc_info()[:2]
+                        errStr = "conversion to map from json failed with {0}:{1}".format(errtype.__name__, errvalue)
                         tmpLog.debug(taskParam)
                         tmpLog.error(errStr)
                         continue
                         tmpStat = Interaction.SC_FAILED
                     # get impl
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        tmpLog.info('getting Impl')
+                        tmpLog.info("getting Impl")
                         try:
                             # get VO and sourceLabel
-                            vo = taskParamMap['vo']
-                            prodSourceLabel = taskParamMap['prodSourceLabel']
-                            taskType = taskParamMap['taskType']
-                            tmpLog.info('vo={0} sourceLabel={1} taskType={2}'.format(vo,prodSourceLabel,taskType))
+                            vo = taskParamMap["vo"]
+                            prodSourceLabel = taskParamMap["prodSourceLabel"]
+                            taskType = taskParamMap["taskType"]
+                            tmpLog.info("vo={0} sourceLabel={1} taskType={2}".format(vo, prodSourceLabel, taskType))
                             # get impl
-                            impl = self.implFactory.instantiateImpl(vo, prodSourceLabel, taskType,
-                                                                    self.taskBufferIF, self.ddmIF)
+                            impl = self.implFactory.instantiateImpl(vo, prodSourceLabel, taskType, self.taskBufferIF, self.ddmIF)
                             if impl is None:
                                 # task refiner is undefined
-                                errStr = 'task refiner is undefined for vo={0} sourceLabel={1}'.format(vo,prodSourceLabel)
+                                errStr = "task refiner is undefined for vo={0} sourceLabel={1}".format(vo, prodSourceLabel)
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
                         except Exception:
-                            errtype,errvalue = sys.exc_info()[:2]
-                            errStr = 'failed to get task refiner with {0}:{1}'.format(errtype.__name__,errvalue)
+                            errtype, errvalue = sys.exc_info()[:2]
+                            errStr = "failed to get task refiner with {0}:{1}".format(errtype.__name__, errvalue)
                             tmpLog.error(errStr)
                             tmpStat = Interaction.SC_FAILED
                     # extract common parameters
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        tmpLog.info('extracting common')
+                        tmpLog.info("extracting common")
                         try:
                             # initalize impl
                             impl.initializeRefiner(tmpLog)
@@ -167,13 +156,13 @@ class TaskRefinerThread (WorkerThread):
                             # extract common parameters
                             impl.extractCommon(jediTaskID, taskParamMap, self.workQueueMapper, splitRule)
                             # set parent tid
-                            if parent_tid not in [None,jediTaskID]:
+                            if parent_tid not in [None, jediTaskID]:
                                 impl.taskSpec.parent_tid = parent_tid
                         except Exception:
                             errtype, errvalue = sys.exc_info()[:2]
                             # on hold in case of external error
                             if errtype == JediException.ExternalTempError:
-                                tmpErrStr = 'pending due to external problem. {0}'.format(errvalue)
+                                tmpErrStr = "pending due to external problem. {0}".format(errvalue)
                                 setFrozenTime = True
                                 impl.taskSpec.status = taskStatus
                                 impl.taskSpec.setOnHold()
@@ -181,58 +170,62 @@ class TaskRefinerThread (WorkerThread):
                                 # not to update some task attributes
                                 impl.taskSpec.resetRefinedAttrs()
                                 tmpLog.info(tmpErrStr)
-                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
-                                                                  oldStatus=[taskStatus],
-                                                                  insertUnknown=impl.unknownDatasetList,
-                                                                  setFrozenTime=setFrozenTime)
+                                self.taskBufferIF.updateTask_JEDI(
+                                    impl.taskSpec,
+                                    {"jediTaskID": impl.taskSpec.jediTaskID},
+                                    oldStatus=[taskStatus],
+                                    insertUnknown=impl.unknownDatasetList,
+                                    setFrozenTime=setFrozenTime,
+                                )
                                 continue
-                            errStr = 'failed to extract common parameters with {0}:{1} {2}'.format(errtype.__name__,errvalue,
-                                                                                                   traceback.format_exc())
+                            errStr = "failed to extract common parameters with {0}:{1} {2}".format(errtype.__name__, errvalue, traceback.format_exc())
                             tmpLog.error(errStr)
                             tmpStat = Interaction.SC_FAILED
                     # check attribute length
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        tmpLog.info('checking attribute length')
+                        tmpLog.info("checking attribute length")
                         if not impl.taskSpec.checkAttrLength():
                             tmpLog.error(impl.taskSpec.errorDialog)
                             tmpStat = Interaction.SC_FAILED
                     # staging
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        if 'toStaging' in taskParamMap and taskStatus not in ['staged', 'rerefine']:
-                            errStr = 'wait until staging is done'
-                            impl.taskSpec.status = 'staging'
+                        if "toStaging" in taskParamMap and taskStatus not in ["staged", "rerefine"]:
+                            errStr = "wait until staging is done"
+                            impl.taskSpec.status = "staging"
                             impl.taskSpec.oldStatus = taskStatus
                             impl.taskSpec.setErrDiag(errStr)
                             # not to update some task attributes
                             impl.taskSpec.resetRefinedAttrs()
                             tmpLog.info(errStr)
-                            self.taskBufferIF.updateTask_JEDI(impl.taskSpec, {'jediTaskID':impl.taskSpec.jediTaskID},
-                                                              oldStatus=[taskStatus], updateDEFT=False, setFrozenTime=False)
+                            self.taskBufferIF.updateTask_JEDI(
+                                impl.taskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus], updateDEFT=False, setFrozenTime=False
+                            )
                             continue
                     # check parent
                     noWaitParent = False
                     parentState = None
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        if parent_tid not in [None,jediTaskID]:
-                            tmpLog.info('check parent task')
+                        if parent_tid not in [None, jediTaskID]:
+                            tmpLog.info("check parent task")
                             try:
                                 tmpStat = self.taskBufferIF.checkParentTask_JEDI(parent_tid)
                                 parentState = tmpStat
-                                if tmpStat == 'completed':
+                                if tmpStat == "completed":
                                     # parent is done
                                     tmpStat = Interaction.SC_SUCCEEDED
-                                elif tmpStat is None or tmpStat == 'running':
+                                elif tmpStat is None or tmpStat == "running":
                                     if not impl.taskSpec.noWaitParent():
                                         # parent is running
-                                        errStr = 'pending until parent task {0} is done'.format(parent_tid)
+                                        errStr = "pending until parent task {0} is done".format(parent_tid)
                                         impl.taskSpec.status = taskStatus
                                         impl.taskSpec.setOnHold()
                                         impl.taskSpec.setErrDiag(errStr)
                                         # not to update some task attributes
                                         impl.taskSpec.resetRefinedAttrs()
                                         tmpLog.info(errStr)
-                                        self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
-                                                                          oldStatus=[taskStatus],setFrozenTime=False)
+                                        self.taskBufferIF.updateTask_JEDI(
+                                            impl.taskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus], setFrozenTime=False
+                                        )
                                         continue
                                     else:
                                         # not wait for parent
@@ -241,46 +234,46 @@ class TaskRefinerThread (WorkerThread):
                                 else:
                                     # parent is corrupted
                                     tmpStat = Interaction.SC_FAILED
-                                    tmpErrStr = 'parent task {0} failed to complete'.format(parent_tid)
+                                    tmpErrStr = "parent task {0} failed to complete".format(parent_tid)
                                     impl.taskSpec.setErrDiag(tmpErrStr)
                             except Exception:
-                                errtype,errvalue = sys.exc_info()[:2]
-                                errStr = 'failed to check parent task with {0}:{1}'.format(errtype.__name__,errvalue)
+                                errtype, errvalue = sys.exc_info()[:2]
+                                errStr = "failed to check parent task with {0}:{1}".format(errtype.__name__, errvalue)
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
                     # refine
                     if tmpStat == Interaction.SC_SUCCEEDED:
-                        tmpLog.info('refining with {0}'.format(impl.__class__.__name__))
+                        tmpLog.info("refining with {0}".format(impl.__class__.__name__))
                         try:
-                            tmpStat = impl.doRefine(jediTaskID,taskParamMap)
+                            tmpStat = impl.doRefine(jediTaskID, taskParamMap)
                         except Exception:
-                            errtype,errvalue = sys.exc_info()[:2]
+                            errtype, errvalue = sys.exc_info()[:2]
                             # wait unknown input if noWaitParent or waitInput
                             toFinish = False
-                            if ((impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput()) \
-                                    and errtype == JediException.UnknownDatasetError) or parentState == 'running' \
-                                    or errtype == Interaction.JEDITemporaryError:
-                                if impl.taskSpec.noWaitParent() and errtype == JediException.UnknownDatasetError \
-                                        and parentState != 'running':
+                            if (
+                                ((impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput()) and errtype == JediException.UnknownDatasetError)
+                                or parentState == "running"
+                                or errtype == Interaction.JEDITemporaryError
+                            ):
+                                if impl.taskSpec.noWaitParent() and errtype == JediException.UnknownDatasetError and parentState != "running":
                                     if impl.taskSpec.allowEmptyInput():
-                                        tmpErrStr = 'finishing due to missing input while parent is {}'.format(
-                                            parentState)
+                                        tmpErrStr = "finishing due to missing input while parent is {}".format(parentState)
                                         toFinish = True
                                         setFrozenTime = False
                                     else:
-                                        tmpErrStr = 'pending due to missing input while parent is {}'.format(parentState)
+                                        tmpErrStr = "pending due to missing input while parent is {}".format(parentState)
                                         setFrozenTime = True
-                                elif impl.taskSpec.noWaitParent() or parentState == 'running':
-                                    tmpErrStr = 'pending until parent produces input. parent is {}'.format(parentState)
-                                    setFrozenTime=False
+                                elif impl.taskSpec.noWaitParent() or parentState == "running":
+                                    tmpErrStr = "pending until parent produces input. parent is {}".format(parentState)
+                                    setFrozenTime = False
                                 elif errtype == Interaction.JEDITemporaryError:
-                                    tmpErrStr = 'pending due to DDM problem. {0}'.format(errvalue)
-                                    setFrozenTime=True
+                                    tmpErrStr = "pending due to DDM problem. {0}".format(errvalue)
+                                    setFrozenTime = True
                                 else:
-                                    tmpErrStr = 'pending until input is staged'
-                                    setFrozenTime=True
+                                    tmpErrStr = "pending until input is staged"
+                                    setFrozenTime = True
                                 if toFinish:
-                                    impl.taskSpec.status = 'finishing'
+                                    impl.taskSpec.status = "finishing"
                                 else:
                                     impl.taskSpec.status = taskStatus
                                     impl.taskSpec.setOnHold()
@@ -288,87 +281,91 @@ class TaskRefinerThread (WorkerThread):
                                 # not to update some task attributes
                                 impl.taskSpec.resetRefinedAttrs()
                                 tmpLog.info(tmpErrStr)
-                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
-                                                                  oldStatus=[taskStatus],
-                                                                  insertUnknown=impl.unknownDatasetList,
-                                                                  setFrozenTime=setFrozenTime)
+                                self.taskBufferIF.updateTask_JEDI(
+                                    impl.taskSpec,
+                                    {"jediTaskID": impl.taskSpec.jediTaskID},
+                                    oldStatus=[taskStatus],
+                                    insertUnknown=impl.unknownDatasetList,
+                                    setFrozenTime=setFrozenTime,
+                                )
                                 continue
-                            elif not (impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput()) \
-                                    and errtype == JediException.UnknownDatasetError \
-                                    and impl.taskSpec.allowEmptyInput():
-                                impl.taskSpec.status = 'finishing'
-                                tmpErrStr = f'finishing due to missing input after parent is {parentState}'
+                            elif (
+                                not (impl.taskSpec.noWaitParent() or impl.taskSpec.waitInput())
+                                and errtype == JediException.UnknownDatasetError
+                                and impl.taskSpec.allowEmptyInput()
+                            ):
+                                impl.taskSpec.status = "finishing"
+                                tmpErrStr = f"finishing due to missing input after parent is {parentState}"
                                 impl.taskSpec.setErrDiag(tmpErrStr)
                                 # not to update some task attributes
                                 impl.taskSpec.resetRefinedAttrs()
                                 tmpLog.info(tmpErrStr)
-                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,
-                                                                  {'jediTaskID':impl.taskSpec.jediTaskID},
-                                                                  oldStatus=[taskStatus],
-                                                                  insertUnknown=impl.unknownDatasetList)
+                                self.taskBufferIF.updateTask_JEDI(
+                                    impl.taskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus], insertUnknown=impl.unknownDatasetList
+                                )
                                 continue
                             else:
-                                errStr  = 'failed to refine task with {0}:{1}'.format(errtype.__name__,errvalue)
+                                errStr = "failed to refine task with {0}:{1}".format(errtype.__name__, errvalue)
                                 tmpLog.error(errStr)
                                 tmpStat = Interaction.SC_FAILED
                     # register
                     if tmpStat != Interaction.SC_SUCCEEDED:
-                        tmpLog.error('failed to refine the task')
+                        tmpLog.error("failed to refine the task")
                         if impl is None or impl.taskSpec is None:
                             tmpTaskSpec = JediTaskSpec()
                             tmpTaskSpec.jediTaskID = jediTaskID
                         else:
                             tmpTaskSpec = impl.taskSpec
-                        tmpTaskSpec.status = 'tobroken'
-                        if errStr != '':
-                            tmpTaskSpec.setErrDiag(errStr,True)
-                        self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,{'jediTaskID':tmpTaskSpec.jediTaskID},oldStatus=[taskStatus])
+                        tmpTaskSpec.status = "tobroken"
+                        if errStr != "":
+                            tmpTaskSpec.setErrDiag(errStr, True)
+                        self.taskBufferIF.updateTask_JEDI(tmpTaskSpec, {"jediTaskID": tmpTaskSpec.jediTaskID}, oldStatus=[taskStatus])
                     else:
-                        tmpLog.info('registering')
+                        tmpLog.info("registering")
                         # fill JEDI tables
                         try:
                             # enable protection against task duplication
-                            if 'uniqueTaskName' in taskParamMap and taskParamMap['uniqueTaskName'] and \
-                                    not impl.taskSpec.checkPreProcessed():
+                            if "uniqueTaskName" in taskParamMap and taskParamMap["uniqueTaskName"] and not impl.taskSpec.checkPreProcessed():
                                 uniqueTaskName = True
                             else:
                                 uniqueTaskName = False
                             strTaskParams = None
                             if impl.updatedTaskParams is not None:
                                 strTaskParams = RefinerUtils.encodeJSON(impl.updatedTaskParams)
-                            if taskStatus in ['registered', 'staged']:
+                            if taskStatus in ["registered", "staged"]:
                                 # unset pre-process flag
                                 if impl.taskSpec.checkPreProcessed():
                                     impl.taskSpec.setPostPreProcess()
                                 # full registration
-                                tmpStat,newTaskStatus = self.taskBufferIF.registerTaskInOneShot_JEDI(jediTaskID,impl.taskSpec,
-                                                                                                     impl.inMasterDatasetSpec,
-                                                                                                     impl.inSecDatasetSpecList,
-                                                                                                     impl.outDatasetSpecList,
-                                                                                                     impl.outputTemplateMap,
-                                                                                                     impl.jobParamsTemplate,
-                                                                                                     strTaskParams,
-                                                                                                     impl.unmergeMasterDatasetSpec,
-                                                                                                     impl.unmergeDatasetSpecMap,
-                                                                                                     uniqueTaskName,
-                                                                                                     taskStatus)
+                                tmpStat, newTaskStatus = self.taskBufferIF.registerTaskInOneShot_JEDI(
+                                    jediTaskID,
+                                    impl.taskSpec,
+                                    impl.inMasterDatasetSpec,
+                                    impl.inSecDatasetSpecList,
+                                    impl.outDatasetSpecList,
+                                    impl.outputTemplateMap,
+                                    impl.jobParamsTemplate,
+                                    strTaskParams,
+                                    impl.unmergeMasterDatasetSpec,
+                                    impl.unmergeDatasetSpecMap,
+                                    uniqueTaskName,
+                                    taskStatus,
+                                )
                                 if not tmpStat:
-                                    tmpErrStr = 'failed to register the task to JEDI in a single shot'
+                                    tmpErrStr = "failed to register the task to JEDI in a single shot"
                                     tmpLog.error(tmpErrStr)
                                     tmpTaskSpec = JediTaskSpec()
                                     tmpTaskSpec.status = newTaskStatus
                                     tmpTaskSpec.errorDialog = impl.taskSpec.errorDialog
                                     tmpTaskSpec.setErrDiag(tmpErrStr, True)
-                                    self.taskBufferIF.updateTask_JEDI(tmpTaskSpec,
-                                                                      {'jediTaskID': impl.taskSpec.jediTaskID},
-                                                                      oldStatus=[taskStatus])
-                                tmpMsg = 'set task_status={0}'.format(newTaskStatus)
+                                    self.taskBufferIF.updateTask_JEDI(tmpTaskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus])
+                                tmpMsg = "set task_status={0}".format(newTaskStatus)
                                 tmpLog.info(tmpMsg)
-                                tmpLog.sendMsg(tmpMsg,self.msgType)
+                                tmpLog.sendMsg(tmpMsg, self.msgType)
                                 # send message to contents feeder if the task is registered
                                 if tmpStat and impl.taskSpec.is_msg_driven():
-                                    self.taskBufferIF.push_task_trigger_message('jedi_contents_feeder', jediTaskID)
-                                    tmpLog.debug('pushed trigger message to jedi_contents_feeder')
+                                    self.taskBufferIF.push_task_trigger_message("jedi_contents_feeder", jediTaskID)
+                                    tmpLog.debug("pushed trigger message to jedi_contents_feeder")
                             else:
                                 # disable scouts if previous attempt didn't use it
                                 if not impl.taskSpec.useScout(splitRule):
@@ -376,27 +373,25 @@ class TaskRefinerThread (WorkerThread):
                                 # disallow to reset some attributes
                                 impl.taskSpec.reserve_old_attributes()
                                 # update task with new params
-                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec,{'jediTaskID':impl.taskSpec.jediTaskID},
-                                                                  oldStatus=[taskStatus])
+                                self.taskBufferIF.updateTask_JEDI(impl.taskSpec, {"jediTaskID": impl.taskSpec.jediTaskID}, oldStatus=[taskStatus])
                                 # appending for incremental execution
-                                tmpStat = self.taskBufferIF.appendDatasets_JEDI(jediTaskID,impl.inMasterDatasetSpec,
-                                                                                impl.inSecDatasetSpecList)
+                                tmpStat = self.taskBufferIF.appendDatasets_JEDI(jediTaskID, impl.inMasterDatasetSpec, impl.inSecDatasetSpecList)
                                 if not tmpStat:
-                                    tmpLog.error('failed to append datasets for incexec')
+                                    tmpLog.error("failed to append datasets for incexec")
                         except Exception:
-                            errtype,errvalue = sys.exc_info()[:2]
-                            tmpErrStr = 'failed to register the task to JEDI with {0}:{1}'.format(errtype.__name__,errvalue)
+                            errtype, errvalue = sys.exc_info()[:2]
+                            tmpErrStr = "failed to register the task to JEDI with {0}:{1}".format(errtype.__name__, errvalue)
                             tmpLog.error(tmpErrStr)
                         else:
-                            tmpLog.info('done')
+                            tmpLog.info("done")
             except Exception:
-                errtype,errvalue = sys.exc_info()[:2]
-                logger.error('{0} failed in runImpl() with {1}:{2}'.format(self.__class__.__name__,errtype.__name__,errvalue))
-
+                errtype, errvalue = sys.exc_info()[:2]
+                logger.error("{0} failed in runImpl() with {1}:{2}".format(self.__class__.__name__, errtype.__name__, errvalue))
 
 
 ########## lauch
 
-def launcher(commuChannel,taskBufferIF,ddmIF,vos=None,prodSourceLabels=None):
-    p = TaskRefiner(commuChannel,taskBufferIF,ddmIF,vos,prodSourceLabels)
+
+def launcher(commuChannel, taskBufferIF, ddmIF, vos=None, prodSourceLabels=None):
+    p = TaskRefiner(commuChannel, taskBufferIF, ddmIF, vos, prodSourceLabels)
     p.start()

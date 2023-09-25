@@ -1,8 +1,9 @@
 import sys
+
 try:
     testTaskType = sys.argv[1]
 except Exception:
-    testTaskType = 'test'
+    testTaskType = "test"
 
 from pandajedi.jedicore.JediTaskBufferInterface import JediTaskBufferInterface
 from pandajedi.jediddm.DDMInterface import DDMInterface
@@ -21,7 +22,5 @@ ddmIF.setupInterface()
 
 parent_conn, child_conn = multiprocessing.Pipe()
 
-watchDog = multiprocessing.Process(target=WatchDog.launcher,
-                                   args=(child_conn,tbIF,ddmIF,
-                                         'atlas',testTaskType))
+watchDog = multiprocessing.Process(target=WatchDog.launcher, args=(child_conn, tbIF, ddmIF, "atlas", testTaskType))
 watchDog.start()
