@@ -496,8 +496,7 @@ class AtlasDDMClient(DDMClientBase):
                             checked_dst.add(site_name)
 
             # loop over all available LFNs
-            available_lfns = list(rucio_lfn_to_rse_map.keys())
-            available_lfns.sort()
+            available_lfns = sorted(rucio_lfn_to_rse_map.keys())
             for tmp_lfn in available_lfns:
                 tmp_filespec_list = lfn_filespec_map[tmp_lfn]
                 tmp_filespec = lfn_filespec_map[tmp_lfn][0]

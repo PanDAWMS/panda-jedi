@@ -72,7 +72,7 @@ class WatchDog(JediKnight, FactoryBase):
             self.randomSleep(max_val=loopCycle)
 
 
-########## launch
+# launch
 
 
 def launcher(commuChannel, taskBufferIF, ddmIF, vos=None, prodSourceLabels=None, subStr=None, period=None):

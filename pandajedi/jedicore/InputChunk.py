@@ -390,8 +390,7 @@ class InputChunk:
 
     # get max output size
     def getOutSize(self, outSizeMap):
-        values = list(outSizeMap.values())
-        values.sort()
+        values = sorted(outSizeMap.values())
         try:
             return values[-1]
         except Exception:
@@ -522,7 +521,7 @@ class InputChunk:
                 outSizeMap[self.masterDataset.datasetID] = 0
             boundaryIDs = set()
             primaryHasEvents = False
-            for tmpFileSpec in self.masterDataset.Files[datasetUsage["used"] : datasetUsage["used"] + multiplicand]:
+            for tmpFileSpec in self.masterDataset.Files[datasetUsage["used"]: datasetUsage["used"] + multiplicand]:
                 # check start event to keep continuity
                 if (maxNumEvents is not None or dynNumEvents) and tmpFileSpec.startEvent is not None:
                     if nextStartEvent is not None and nextStartEvent != tmpFileSpec.startEvent:
@@ -671,7 +670,7 @@ class InputChunk:
                     # reset nUsed
                     if datasetSpec.isReusable() and datasetUsage["used"] + nSecondary > len(datasetSpec.Files):
                         datasetUsage["used"] = 0
-                    for tmpFileSpec in datasetSpec.Files[datasetUsage["used"] : datasetUsage["used"] + nSecondary]:
+                    for tmpFileSpec in datasetSpec.Files[datasetUsage["used"]: datasetUsage["used"] + nSecondary]:
                         # check boundaryID
                         if (
                             (splitWithBoundaryID or (useBoundary is not None and useBoundary["inSplit"] == 3 and datasetSpec.getRatioToMaster() > 1))
@@ -758,7 +757,7 @@ class InputChunk:
             newTotalNumFiles = totalNumFiles
             if self.masterDataset.datasetID not in newOutSizeMap:
                 newOutSizeMap[self.masterDataset.datasetID] = 0
-            for tmpFileSpec in self.masterDataset.Files[datasetUsage["used"] : datasetUsage["used"] + multiplicand]:
+            for tmpFileSpec in self.masterDataset.Files[datasetUsage["used"]: datasetUsage["used"] + multiplicand]:
                 # check continuity of event
                 if maxNumEvents is not None and tmpFileSpec.startEvent is not None and tmpFileSpec.endEvent is not None:
                     primaryHasEvents = True
@@ -868,7 +867,7 @@ class InputChunk:
                     newSecMap[datasetSpec.datasetID]["nSec"] = newNumSecondary
                     newSecMap[datasetSpec.datasetID]["nSecReal"] = 0
                     datasetUsage = self.datasetMap[datasetSpec.datasetID]
-                    for tmpFileSpec in datasetSpec.Files[datasetUsage["used"] : datasetUsage["used"] + newNumSecondary]:
+                    for tmpFileSpec in datasetSpec.Files[datasetUsage["used"]: datasetUsage["used"] + newNumSecondary]:
                         # check boundaryID
                         if (
                             splitWithBoundaryID
@@ -1066,7 +1065,7 @@ class InputChunk:
         currentLFN = None
         maxChunk = 0
         datasetUsage = self.datasetMap[self.masterDataset.datasetID]
-        for tmpFileSpec in self.masterDataset.Files[datasetUsage["used"] :]:
+        for tmpFileSpec in self.masterDataset.Files[datasetUsage["used"]:]:
             if tmpFileSpec.startEvent is not None:
                 if nextStartEvent is not None and nextStartEvent != tmpFileSpec.startEvent:
                     maxChunk = max(maxChunk, totalEvents)

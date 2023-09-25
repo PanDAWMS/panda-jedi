@@ -286,8 +286,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 if datasetSpec.jediTaskID not in taskDatasetMap:
                     taskDatasetMap[datasetSpec.jediTaskID] = []
                 taskDatasetMap[datasetSpec.jediTaskID].append(datasetSpec.datasetID)
-            jediTaskIDs = list(returnMap.keys())
-            jediTaskIDs.sort()
+            jediTaskIDs = sorted(returnMap.keys())
             # get seq_number
             sqlSEQ = "SELECT {0} ".format(JediDatasetSpec.columnNames())
             sqlSEQ += "FROM {0}.JEDI_Datasets ".format(jedi_config.db.schemaJEDI)
@@ -527,8 +526,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 lfnList = aligned + unaligned
             elif xmlConfig is None:
                 # sort by LFN
-                lfnList = list(filelValMap.keys())
-                lfnList.sort()
+                lfnList = sorted(filelValMap.keys())
             else:
                 # sort as described in XML
                 tmpBoundaryID = 0
@@ -3363,8 +3361,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             userTaskMap = {}
             for groupByAttr in taskUserPrioMap.keys():
                 # use high priority tasks first
-                priorityList = list(taskUserPrioMap[groupByAttr].keys())
-                priorityList.sort()
+                priorityList = sorted(taskUserPrioMap[groupByAttr].keys())
                 priorityList.reverse()
                 tmpMergeTasks = []
                 for currentPriority in priorityList:
@@ -6584,8 +6581,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         # filtered dump
         if scoutSucceeded and not mergeScout and len(returnMap) > 0:
             tmpMsg = "scouts got for jediTaskID={0} ".format(jediTaskID)
-            tmpKeys = list(returnMap.keys())
-            tmpKeys.sort()
+            tmpKeys = sorted(returnMap.keys())
             for tmpKey in tmpKeys:
                 tmpMsg += "{0}={1} ".format(tmpKey, returnMap[tmpKey])
             for tmpPandaID, tmpTags in iteritems(jobTagMap):

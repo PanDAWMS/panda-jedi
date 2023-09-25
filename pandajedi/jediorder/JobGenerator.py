@@ -757,11 +757,11 @@ class JobGeneratorThread(WorkerThread):
                             unprocessedMap = dict()
                             while iJobs < len(pandaJobs):
                                 tmpResSubmit, esJobsetMap, unprocessedMap = self.taskBufferIF.storeJobs(
-                                    pandaJobs[iJobs : iJobs + nJobsInBunch],
+                                    pandaJobs[iJobs: iJobs + nJobsInBunch],
                                     taskSpec.userName,
                                     fqans=fqans,
                                     toPending=True,
-                                    oldPandaIDs=oldPandaIDs[iJobs : iJobs + nJobsInBunch],
+                                    oldPandaIDs=oldPandaIDs[iJobs: iJobs + nJobsInBunch],
                                     relationType=relationType,
                                     esJobsetMap=esJobsetMap,
                                     getEsJobsetMap=True,
@@ -1335,7 +1335,7 @@ class JobGeneratorThread(WorkerThread):
                             for tmpDatasetSpec, tmpFileSpecList in inSubChunk:
                                 if not tmpDatasetSpec.isMaster():
                                     try:
-                                        middleName = "." + ".".join(tmpFileSpecList[0].lfn.split(".")[4 : 4 + len(taskSpec.getFieldNumToLFN())])
+                                        middleName = "." + ".".join(tmpFileSpecList[0].lfn.split(".")[4: 4 + len(taskSpec.getFieldNumToLFN())])
                                     except Exception:
                                         pass
                                     break
@@ -1598,7 +1598,7 @@ class JobGeneratorThread(WorkerThread):
                             taskSpec.getNumSitesPerJob(),
                             parallelOutMap,
                             outDsMap,
-                            oldPandaIDs[len(jobSpecList) :],
+                            oldPandaIDs[len(jobSpecList):],
                             taskSpec,
                             inputChunk,
                             tmpMasterEventsList,
@@ -1631,10 +1631,9 @@ class JobGeneratorThread(WorkerThread):
         try:
             datasetToRegister = []
             # get sites which share DDM endpoint
-            associatedSites = DataServiceUtils.getSitesShareDDM(
+            associatedSites = sorted(DataServiceUtils.getSitesShareDDM(
                 self.siteMapper, siteName, taskSpec.prodSourceLabel, JobUtils.translate_tasktype_to_jobtype(taskSpec.taskType), True
-            )
-            associatedSites.sort()
+            ))
             # key for map of buildSpec
             secondKey = [siteName] + associatedSites
             secondKey.sort()
@@ -2456,7 +2455,7 @@ class JobGeneratorThread(WorkerThread):
         return Interaction.SC_SUCCEEDED, None, taskParamMap
 
 
-########## launch
+# launch
 
 
 def launcher(commuChannel, taskBufferIF, ddmIF, vos, prodSourceLabels, cloudList, withThrottle=True, execJobs=True, loopCycle_cust=None):

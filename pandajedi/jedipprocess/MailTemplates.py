@@ -24,7 +24,7 @@ Parameters : {command}
 PandaMonURL : https://bigpanda.cern.ch/task/{jedi_task_id}/
 
 
-Estimated carbon footprint for the task 
+Estimated carbon footprint for the task
      Succeeded   : {carbon_succeeded}
      Failed      : {carbon_failed}
      Cancelled   : {carbon_cancelled}

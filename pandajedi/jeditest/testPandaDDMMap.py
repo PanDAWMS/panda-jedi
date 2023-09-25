@@ -42,8 +42,7 @@ panda_sites = [
 
 from pandaserver.dataservice import DataServiceUtils  # noqa: E402
 
-sites = site_mapper.getCloud("WORLD")["sites"]
-sites.sort()
+sites = sorted(site_mapper.getCloud("WORLD")["sites"])
 for tmp_site_name in sites:
     print("tmp_site_name: {0}".format(tmp_site_name))
 

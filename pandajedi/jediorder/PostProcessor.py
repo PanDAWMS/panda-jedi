@@ -160,7 +160,7 @@ class PostProcessorThread(WorkerThread):
                 logger.error("{0} failed in runImpl() with {1}:{2}".format(self.__class__.__name__, errtype.__name__, errvalue))
 
 
-########## launch
+# launch
 
 
 def launcher(commuChannel, taskBufferIF, ddmIF, vos=None, prodSourceLabels=None):

@@ -171,7 +171,7 @@ class dom_parser:
         spl = v.split("|")
         res = []
         for i in range(0, len(spl), N):
-            piece = "|".join(spl[i : i + N])
+            piece = "|".join(spl[i: i + N])
             assert len(piece) < _REGEXLIM, "Input dataset contains very long filenames. You must reduce parameter N in break_regex()"
             res.append(piece)
         return ",".join(res)

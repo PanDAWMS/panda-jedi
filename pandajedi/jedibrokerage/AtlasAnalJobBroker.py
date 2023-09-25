@@ -1687,7 +1687,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                         _maxSizePerJob = inputChunk.maxInputSizeScouts * 1024 * 1024
                     else:
                         _maxSizePerJob = inputChunk.maxInputSizeAvalanche * 1024 * 1024
-                ## count subchunks
+                # count subchunks
                 n_subchunks = 0
                 while True:
                     subchunk = inputChunk.getSubChunk(
@@ -1980,8 +1980,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
         # copy to oldScanSiteList
         oldScanSiteList = copy.copy(scanSiteList)
         # sort candidates by weights
-        weightList = list(weightMap.keys())
-        weightList.sort()
+        weightList = sorted(weightMap.keys())
         weightList.reverse()
         for weightVal in weightList:
             sitesWithWeight = weightMap[weightVal]

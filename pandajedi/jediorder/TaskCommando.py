@@ -288,7 +288,7 @@ class TaskCommandoThread(WorkerThread):
                 logger.error(errStr)
 
 
-########## launch
+# launch
 
 
 def launcher(commuChannel, taskBufferIF, ddmIF, vos=None, prodSourceLabels=None):

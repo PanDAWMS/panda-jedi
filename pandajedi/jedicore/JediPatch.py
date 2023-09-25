@@ -16,7 +16,7 @@ def SocketClient(address):
     s.settimeout(30)
     t = MP._init_timeout()
 
-    while 1:
+    while True:
         try:
             s.connect(address)
         except socket.error as e:

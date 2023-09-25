@@ -185,7 +185,7 @@ class AtlasProdTaskBroker(TaskBrokerBase):
             nBunchTask = 0
             while nBunchTask < len(jobSpecList):
                 # get a bunch
-                jobsBunch = jobSpecList[nBunchTask : nBunchTask + maxBunchTask]
+                jobsBunch = jobSpecList[nBunchTask: nBunchTask + maxBunchTask]
                 strIDs = "jediTaskID="
                 for tmpJobSpec in jobsBunch:
                     strIDs += "{0},".format(tmpJobSpec.taskID)

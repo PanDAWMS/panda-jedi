@@ -333,8 +333,7 @@ class GenJobBroker(JobBrokerBase):
                 weightMap[weight].append(siteCandidateSpec)
         # limit the number of sites
         maxNumSites = 5
-        weightList = list(weightMap.keys())
-        weightList.sort()
+        weightList = sorted(weightMap.keys())
         weightList.reverse()
         for weightVal in weightList:
             if len(candidateSpecList) >= maxNumSites:

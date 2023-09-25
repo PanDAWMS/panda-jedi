@@ -91,7 +91,7 @@ class AtlasProdJobBroker(JobBrokerBase):
         # load the SW availability map
         try:
             self.sw_map = taskBufferIF.load_sw_map()
-        except:
+        except BaseException:
             logger.error("Failed to load the SW tags map!!!")
             self.sw_map = {}
 
@@ -463,7 +463,7 @@ class AtlasProdJobBroker(JobBrokerBase):
                     # get the list of sites where data is available
                     tmpLog.info('getting the list of sites where {0} is available'.format(datasetName))
                     tmpSt,tmpRet = AtlasBrokerUtils.getSitesWithData(self.siteMapper,
-                                                                     self.ddmIF,datasetName, 
+                                                                     self.ddmIF,datasetName,
                                                                      JobUtils.PROD_PS, JobUtils.PROD_PS,
                                                                      datasetSpec.storageToken)
                     if tmpSt == self.SC_FAILED:
@@ -1888,8 +1888,7 @@ class AtlasProdJobBroker(JobBrokerBase):
         else:
             maxSiteCandidates = None
         newScanSiteList = []
-        weightList = list(weightMap.keys())
-        weightList.sort()
+        weightList = sorted(weightMap.keys())
         weightList.reverse()
         # put 0 at the head of the list to give priorities bootstrap PQs
         if 0 in weightList:

@@ -142,8 +142,7 @@ def getConfigParam(configStr, vo, sourceLabel):
 
 # get percentile until numpy 1.5.X becomes available
 def percentile(inList, percent, idMap):
-    inList = copy.copy(inList)
-    inList.sort()
+    inList = sorted(copy.copy(inList))
     k = (len(inList) - 1) * float(percent) / 100
     f = math.floor(k)
     c = math.ceil(k)
