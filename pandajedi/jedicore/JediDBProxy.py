@@ -3359,8 +3359,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 priorityList = list(taskUserPrioMap[groupByAttr].keys())
                 priorityList.sort()
                 priorityList.reverse()
-                tmpMergeTasks = []
                 for currentPriority in priorityList:
+                    tmpMergeTasks = []
                     userTaskMap.setdefault(groupByAttr, [])
                     # randomize super high prio tasks to avoid that multiple threads try to get the same tasks
                     if groupByAttr == expressAttr:
@@ -3374,7 +3374,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # make list
             groupByAttrList = list(userTaskMap.keys())
             random.shuffle(groupByAttrList)
-            tmpLog.debug('{0} groupBy values for {1} tasks'.format(len(groupByAttrList), len(taskDatasetMap)))
+            tmpLog.debug(f'{len(groupByAttrList)} groupBy values for {len(taskDatasetMap)} tasks')
             if expressAttr in userTaskMap:
                 useSuperHigh = True
             else:
@@ -3543,6 +3543,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # sql to set frozenTime
             sqlFZT = ("UPDATE {0}.JEDI_Tasks "
                       "SET frozenTime=:frozenTime WHERE jediTaskID=:jediTaskID ").format(jedi_config.db.schemaJEDI)
+            # sql to check files
+            selCKF = f"SELECT nFilesToBeUsed-nFilesUsed FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "\
+                     "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # loop over all tasks
             iTasks = 0
             lockedTasks = []
@@ -3612,6 +3615,26 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                     else:
                         origTaskSpec = JediTaskSpec()
                         origTaskSpec.pack(resRT)
+                    # check nFiles in datasets
+                    if simTasks is None and not ignore_lock and not target_tasks:
+                        toSkip = False
+                        for tmp_item in taskDatasetMap[jediTaskID]:
+                            datasetID, tmpNumFiles = tmp_item[:2]
+                            varMap = {}
+                            varMap[':jediTaskID'] = jediTaskID
+                            varMap[':datasetID'] = datasetID
+                            self.cur.execute(selCKF + comment, varMap)
+                            newNumFiles, = self.cur.fetchone()
+                            tmpLog.debug(f'jediTaskID={jediTaskID} datasetID={datasetID} nFilesToBeUsed-nFilesUsed old:{tmpNumFiles} new:{newNumFiles}')
+                            if tmpNumFiles > newNumFiles:
+                                tmpLog.debug(f'skip jediTaskID={jediTaskID} since nFilesToBeUsed-nFilesUsed decreased')
+                                lockedByAnother.append(jediTaskID)
+                                toSkip = True
+                                break
+                        if toSkip:
+                            if not self._commit():
+                                raise RuntimeError('Commit error')
+                            continue
                     # skip fake co-jumbo for scouting
                     if not containMerging and len(dsWithfakeCoJumbo) > 0 and origTaskSpec.useScout() and not origTaskSpec.isPostScout():
                         toSkip = True
