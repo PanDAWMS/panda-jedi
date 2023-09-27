@@ -7,14 +7,16 @@ from six import iteritems
 cache specification for JEDI
 
 """
+
+
 class JediCacheSpec(object):
     # attributes
     attributes = (
-            'main_key',
-            'sub_key',
-            'data',
-            'last_update',
-        )
+        "main_key",
+        "sub_key",
+        "data",
+        "last_update",
+    )
 
     # constructor
     def __init__(self):
@@ -27,7 +29,7 @@ class JediCacheSpec(object):
         ret = {}
         for attr in self.attributes:
             val = getattr(self, attr)
-            ret[':%s' % attr] = val
+            ret[":%s" % attr] = val
         return ret
 
     # pack tuple into JediCacheSpec
@@ -39,22 +41,22 @@ class JediCacheSpec(object):
     # return column names for INSERT
     @classmethod
     def columnNames(cls, prefix=None):
-        ret = ''
+        ret = ""
         if prefix is None:
-            ret = ','.join(cls.attributes)
+            ret = ",".join(cls.attributes)
         else:
-            ret = ','.join([ '{0}.{1}'.format(prefix, attr) for attr in cls.attributes ])
+            ret = ",".join(["{0}.{1}".format(prefix, attr) for attr in cls.attributes])
         return ret
 
     # return expression of bind variables for INSERT
     @classmethod
     def bindValuesExpression(cls):
-        values_str = ','.join([ ':{0}'.format(attr) for attr in cls.attributes ])
-        ret = 'VALUES({0})'.format(values_str)
+        values_str = ",".join([":{0}".format(attr) for attr in cls.attributes])
+        ret = "VALUES({0})".format(values_str)
         return ret
 
     # return an expression of bind variables for UPDATE
     @classmethod
     def bindUpdateChangesExpression(cls):
-        ret = ','.join([ '{0}=:{0}'.format(attr) for attr in cls.attributes ])
+        ret = ",".join(["{0}=:{0}".format(attr) for attr in cls.attributes])
         return ret

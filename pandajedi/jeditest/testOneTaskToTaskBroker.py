@@ -10,7 +10,7 @@ from pandajedi.jediddm.DDMInterface import DDMInterface
 
 import sys
 
-logger = PandaLogger().getLogger('TaskBroker')
+logger = PandaLogger().getLogger("TaskBroker")
 tmpLog = MsgWrapper(logger)
 
 tbIF = JediTaskBufferInterface()
@@ -30,9 +30,9 @@ body.initializeMods(tbIF, ddmIF)
 taskParam = tbIF.getTaskParamsWithID_JEDI(jediTaskID)
 taskParamMap = RefinerUtils.decodeJSON(taskParam)
 
-vo = taskParamMap['vo']
-prodSourceLabel = taskParamMap['prodSourceLabel']
-taskType = taskParamMap['taskType']
+vo = taskParamMap["vo"]
+prodSourceLabel = taskParamMap["prodSourceLabel"]
+taskType = taskParamMap["taskType"]
 
 workQueueMapper = tbIF.getWorkQueueMap()
 workQueue = workQueueMapper.getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec.gshare)
@@ -40,8 +40,5 @@ workQueue = workQueueMapper.getQueueWithIDGshare(taskSpec.workQueue_ID, taskSpec
 impl = body.getImpl(vo, prodSourceLabel)
 
 
-tmpListItem = tbIF.getTasksToBeProcessed_JEDI(None, None, None, None, None,
-                                              simTasks=[jediTaskID],
-                                              readMinFiles=True)
-impl.doBrokerage(tmpListItem, taskSpec.vo,
-                 taskSpec.prodSourceLabel, workQueue, taskSpec.resource_type)
+tmpListItem = tbIF.getTasksToBeProcessed_JEDI(None, None, None, None, None, simTasks=[jediTaskID], readMinFiles=True)
+impl.doBrokerage(tmpListItem, taskSpec.vo, taskSpec.prodSourceLabel, workQueue, taskSpec.resource_type)

@@ -5,18 +5,16 @@ from .TaskSetupperBase import TaskSetupperBase
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-logger = PandaLogger().getLogger(__name__.split('.')[-1])
+
+logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
 
 # task setup for general purpose
-class GenTaskSetupper (TaskSetupperBase):
-
+class GenTaskSetupper(TaskSetupperBase):
     # constructor
-    def __init__(self,taskBufferIF,ddmIF):
-        TaskSetupperBase.__init__(self,taskBufferIF,ddmIF)
-
+    def __init__(self, taskBufferIF, ddmIF):
+        TaskSetupperBase.__init__(self, taskBufferIF, ddmIF)
 
     # main to setup task
-    def doSetup(self,taskSpec,datasetToRegister,pandaJobs):
+    def doSetup(self, taskSpec, datasetToRegister, pandaJobs):
         return self.SC_SUCCEEDED
-            

@@ -24,7 +24,7 @@ from pandaserver.taskbuffer import EventServiceUtils
 def format_weight(weight):
     power = 1000
     n = 0
-    power_labels = {0: 'gCO2', 1: 'kgCO2', 2: 'tCO2', 3: 'MtCO2', 4: 'GtCO2'}
+    power_labels = {0: "gCO2", 1: "kgCO2", 2: "tCO2", 3: "MtCO2", 4: "GtCO2"}
     while weight > power:
         weight /= power
         n += 1
@@ -35,7 +35,6 @@ def format_weight(weight):
 
 # post processor for ATLAS production
 class AtlasAnalPostProcessor(PostProcessorBase):
-
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
         PostProcessorBase.__init__(self, taskBufferIF, ddmIF)
@@ -55,85 +54,83 @@ class AtlasAnalPostProcessor(PostProcessorBase):
             lock_update_time = datetime.datetime.utcnow()
             for datasetSpec in taskSpec.datasetSpecList:
                 # ignore template
-                if datasetSpec.type.startswith('tmpl_'):
+                if datasetSpec.type.startswith("tmpl_"):
                     continue
                 # only output, log or lib datasets
-                if not datasetSpec.type.endswith('log') and not datasetSpec.type.endswith('output') \
-                        and not datasetSpec.type == 'lib':
+                if not datasetSpec.type.endswith("log") and not datasetSpec.type.endswith("output") and not datasetSpec.type == "lib":
                     continue
                 # only user group, or panda dataset
-                if not datasetSpec.datasetName.startswith('user') and not datasetSpec.datasetName.startswith('panda') \
-                        and not datasetSpec.datasetName.startswith('group'):
+                if (
+                    not datasetSpec.datasetName.startswith("user")
+                    and not datasetSpec.datasetName.startswith("panda")
+                    and not datasetSpec.datasetName.startswith("group")
+                ):
                     continue
                 # check if already closed
-                dataset_attrs = self.taskBufferIF.getDatasetAttributes_JEDI(datasetSpec.jediTaskID,
-                                                                           datasetSpec.datasetID, ['state'])
-                if 'state' in dataset_attrs and dataset_attrs['state'] == 'closed':
-                    tmp_logger.info('skip freezing closed datasetID={0}:Name={1}'.format(datasetSpec.datasetID,
-                                                                                     datasetSpec.datasetName))
+                dataset_attrs = self.taskBufferIF.getDatasetAttributes_JEDI(datasetSpec.jediTaskID, datasetSpec.datasetID, ["state"])
+                if "state" in dataset_attrs and dataset_attrs["state"] == "closed":
+                    tmp_logger.info("skip freezing closed datasetID={0}:Name={1}".format(datasetSpec.datasetID, datasetSpec.datasetName))
                     closed_flag = True
                 else:
                     closed_flag = False
                 # remove wrong files
-                if not closed_flag and datasetSpec.type in ['output']:
+                if not closed_flag and datasetSpec.type in ["output"]:
                     # get successful files
                     ok_files = self.taskBufferIF.getSuccessfulFiles_JEDI(datasetSpec.jediTaskID, datasetSpec.datasetID)
                     if ok_files is None:
-                        tmp_logger.warning('failed to get successful files for {0}'.format(datasetSpec.datasetName))
+                        tmp_logger.warning("failed to get successful files for {0}".format(datasetSpec.datasetName))
                         return self.SC_FAILED
                     # get files in dataset
                     ddm_files = ddmIF.getFilesInDataset(datasetSpec.datasetName, skipDuplicate=False)
                     tmp_logger.debug(
-                        'datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM'.format(datasetSpec.datasetID,
-                                                                                              datasetSpec.datasetName,
-                                                                                              len(ok_files),
-                                                                                              len(ddm_files)))
+                        "datasetID={0}:Name={1} has {2} files in DB, {3} files in DDM".format(
+                            datasetSpec.datasetID, datasetSpec.datasetName, len(ok_files), len(ddm_files)
+                        )
+                    )
                     # check all files
                     to_delete = []
                     for tmpGUID, attMap in iteritems(ddm_files):
-                        if attMap['lfn'] not in ok_files:
-                            did = {'scope': attMap['scope'], 'name': attMap['lfn']}
+                        if attMap["lfn"] not in ok_files:
+                            did = {"scope": attMap["scope"], "name": attMap["lfn"]}
                             to_delete.append(did)
-                            tmp_logger.debug('delete {0} from {1}'.format(attMap['lfn'], datasetSpec.datasetName))
+                            tmp_logger.debug("delete {0} from {1}".format(attMap["lfn"], datasetSpec.datasetName))
                     # delete
                     if to_delete:
                         ddmIF.deleteFilesFromDataset(datasetSpec.datasetName, to_delete)
 
                 # freeze datasets
-                if not closed_flag and not (datasetSpec.type.startswith('trn_') and datasetSpec.type not in ['trn_log']):
-                    tmp_logger.debug('freeze datasetID={0}:Name={1}'.format(datasetSpec.datasetID, datasetSpec.datasetName))
+                if not closed_flag and not (datasetSpec.type.startswith("trn_") and datasetSpec.type not in ["trn_log"]):
+                    tmp_logger.debug("freeze datasetID={0}:Name={1}".format(datasetSpec.datasetID, datasetSpec.datasetName))
                     ddmIF.freezeDataset(datasetSpec.datasetName, ignoreUnknown=True)
                 else:
-                    if datasetSpec.type.startswith('trn_') and datasetSpec.type not in ['trn_log']:
-                        tmp_logger.debug('skip freezing transient datasetID={0}:Name={1}'.format(datasetSpec.datasetID,
-                                                                                             datasetSpec.datasetName))
+                    if datasetSpec.type.startswith("trn_") and datasetSpec.type not in ["trn_log"]:
+                        tmp_logger.debug("skip freezing transient datasetID={0}:Name={1}".format(datasetSpec.datasetID, datasetSpec.datasetName))
                 # update dataset
-                datasetSpec.state = 'closed'
+                datasetSpec.state = "closed"
                 datasetSpec.stateCheckTime = datetime.datetime.utcnow()
 
                 # check if build step was succeeded
-                if datasetSpec.type == 'lib':
+                if datasetSpec.type == "lib":
                     use_lib = True
                 else:
                     n_ok_lib += 1
                 # delete transient or empty datasets
                 if not closed_flag:
                     empty_only = True
-                    if datasetSpec.type.startswith('trn_') and datasetSpec.type not in ['trn_log']:
+                    if datasetSpec.type.startswith("trn_") and datasetSpec.type not in ["trn_log"]:
                         empty_only = False
                     retStr = ddmIF.deleteDataset(datasetSpec.datasetName, empty_only, ignoreUnknown=True)
                     tmp_logger.debug(retStr)
                 # extend lifetime
-                if datasetSpec.type in ['output'] and datasetSpec.datasetName.startswith('user'):
-                    tmp_logger.debug(
-                        'extend lifetime datasetID={0}:Name={1}'.format(datasetSpec.datasetID, datasetSpec.datasetName))
-                    ddmIF.updateReplicationRules(datasetSpec.datasetName, {'type=.+': {'lifetime': 14 * 24 * 60 * 60},
-                                                                           '(SCRATCH|USER)DISK': {
-                                                                               'lifetime': 14 * 24 * 60 * 60}})
+                if datasetSpec.type in ["output"] and datasetSpec.datasetName.startswith("user"):
+                    tmp_logger.debug("extend lifetime datasetID={0}:Name={1}".format(datasetSpec.datasetID, datasetSpec.datasetName))
+                    ddmIF.updateReplicationRules(
+                        datasetSpec.datasetName, {"type=.+": {"lifetime": 14 * 24 * 60 * 60}, "(SCRATCH|USER)DISK": {"lifetime": 14 * 24 * 60 * 60}}
+                    )
                 # update dataset in DB
-                self.taskBufferIF.updateDatasetAttributes_JEDI(datasetSpec.jediTaskID, datasetSpec.datasetID,
-                                                               {'state': datasetSpec.state,
-                                                                'stateCheckTime': datasetSpec.stateCheckTime})
+                self.taskBufferIF.updateDatasetAttributes_JEDI(
+                    datasetSpec.jediTaskID, datasetSpec.datasetID, {"state": datasetSpec.state, "stateCheckTime": datasetSpec.stateCheckTime}
+                )
                 # update task lock
                 if datetime.datetime.utcnow() - lock_update_time > datetime.timedelta(minutes=5):
                     lock_update_time = datetime.datetime.utcnow()
@@ -141,16 +138,16 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                     self.taskBufferIF.updateTaskLock_JEDI(taskSpec.jediTaskID)
             # dialog
             if use_lib and n_ok_lib == 0:
-                taskSpec.setErrDiag('No build jobs succeeded', True)
+                taskSpec.setErrDiag("No build jobs succeeded", True)
         except Exception:
             err_type, err_value = sys.exc_info()[:2]
-            tmp_logger.warning('failed to freeze datasets with {0}:{1}'.format(err_type.__name__, err_value))
+            tmp_logger.warning("failed to freeze datasets with {0}:{1}".format(err_type.__name__, err_value))
         ret_val = self.SC_SUCCEEDED
         try:
             self.doBasicPostProcess(taskSpec, tmp_logger)
         except Exception:
             err_type, err_value = sys.exc_info()[:2]
-            tmp_logger.error('doBasicPostProcess failed with {0}:{1}'.format(err_type.__name__, err_value))
+            tmp_logger.error("doBasicPostProcess failed with {0}:{1}".format(err_type.__name__, err_value))
             ret_val = self.SC_FATAL
         return ret_val
 
@@ -161,7 +158,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
 
         # calculate carbon footprint for the task
         try:
-            carbon_footprint = self.taskBufferIF.get_task_carbon_footprint(taskSpec.jediTaskID, level='global')
+            carbon_footprint = self.taskBufferIF.get_task_carbon_footprint(taskSpec.jediTaskID, level="global")
             carbon_footprint_redacted = {}
             zero = "0 gCO2"
 
@@ -173,7 +170,7 @@ class AtlasAnalPostProcessor(PostProcessorBase):
         except Exception:
             carbon_footprint_redacted = {}
             err_type, err_value = sys.exc_info()[:2]
-            tmp_logger.error('failed to calculate task carbon footprint {0}:{1}'.format(err_type.__name__, err_value))
+            tmp_logger.error("failed to calculate task carbon footprint {0}:{1}".format(err_type.__name__, err_value))
 
         # read task parameters
         try:
@@ -181,25 +178,23 @@ class AtlasAnalPostProcessor(PostProcessorBase):
             self.taskParamMap = RefinerUtils.decodeJSON(task_parameters)
         except Exception:
             err_type, err_value = sys.exc_info()[:2]
-            tmp_logger.error('task param conversion from json failed with {0}:{1}'.format(err_type.__name__, err_value))
-        if to_add is None or \
-                (self.taskParamMap is not None and 'noEmail' in self.taskParamMap and self.taskParamMap[
-                    'noEmail'] is True):
-            tmp_logger.debug('email notification is suppressed')
+            tmp_logger.error("task param conversion from json failed with {0}:{1}".format(err_type.__name__, err_value))
+        if to_add is None or (self.taskParamMap is not None and "noEmail" in self.taskParamMap and self.taskParamMap["noEmail"] is True):
+            tmp_logger.debug("email notification is suppressed")
         else:
             try:
                 # send email notification
                 from_add = self.senderAddress()
                 html_text, plain_text, subject = self.compose_message(taskSpec, carbon_footprint_redacted)
-                msg = MIMEMultipart('alternative')
+                msg = MIMEMultipart("alternative")
 
-                msg['Subject'] = subject
-                msg['From'] = from_add
-                msg['To'] = to_add
+                msg["Subject"] = subject
+                msg["From"] = from_add
+                msg["To"] = to_add
 
                 # Record the MIME types of both parts - text/plain and text/html.
-                part1 = MIMEText(plain_text, 'plain')
-                part2 = MIMEText(html_text, 'html')
+                part1 = MIMEText(plain_text, "plain")
+                part2 = MIMEText(html_text, "html")
 
                 # Attach parts into message container.
                 # According to RFC 2046, the last part of a multipart message, in this case
@@ -221,20 +216,20 @@ class AtlasAnalPostProcessor(PostProcessorBase):
         n_succeeded_jobs = 0
         n_failed_jobs = 0
         n_cancelled_jobs = 0
-        
+
         if not taskSpec.is_hpo_workflow():
-            input_str = 'Inputs'
-            cancelled_str = 'Cancelled  '
-            
+            input_str = "Inputs"
+            cancelled_str = "Cancelled  "
+
             for datasetSpec in taskSpec.datasetSpecList:
                 # dataset summary
-                if datasetSpec.type == 'log':
+                if datasetSpec.type == "log":
                     if datasetSpec.containerName not in log_datasets:
                         log_datasets.append(datasetSpec.containerName)
-                elif datasetSpec.type == 'input':
+                elif datasetSpec.type == "input":
                     if datasetSpec.containerName not in input_datasets:
                         input_datasets.append(datasetSpec.containerName)
-                elif datasetSpec.type == 'output':
+                elif datasetSpec.type == "output":
                     if datasetSpec.containerName not in output_datasets:
                         output_datasets.append(datasetSpec.containerName)
                 # process summary
@@ -246,8 +241,8 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                     except Exception:
                         pass
         else:
-            input_str = 'Points'
-            cancelled_str = 'Unprocessed'
+            input_str = "Points"
+            cancelled_str = "Unprocessed"
             n_total_jobs = taskSpec.get_total_num_jobs()
             event_stat = self.taskBufferIF.get_event_statistics(taskSpec.jediTaskID)
             if event_stat is not None:
@@ -258,63 +253,77 @@ class AtlasAnalPostProcessor(PostProcessorBase):
         except Exception:
             pass
         if n_succeeded_jobs == n_total_jobs:
-            msg_succeeded = 'All Succeeded'
+            msg_succeeded = "All Succeeded"
         else:
-            msg_succeeded = 'Succeeded'
+            msg_succeeded = "Succeeded"
         input_datasets.sort()
         output_datasets.sort()
         log_datasets.sort()
-        dataset_summary = ''
+        dataset_summary = ""
         for tmpDS in input_datasets:
-            dataset_summary += 'In  : {0}\n'.format(tmpDS)
+            dataset_summary += "In  : {0}\n".format(tmpDS)
         for tmpDS in output_datasets:
-            dataset_summary += 'Out : {0}\n'.format(tmpDS)
+            dataset_summary += "Out : {0}\n".format(tmpDS)
         for tmpDS in log_datasets:
-            dataset_summary += 'Log : {0}\n'.format(tmpDS)
+            dataset_summary += "Log : {0}\n".format(tmpDS)
         dataset_summary = dataset_summary[:-1]
 
         # CLI param
-        if 'cliParams' in self.taskParamMap:
-            cli_parameters = self.taskParamMap['cliParams']
+        if "cliParams" in self.taskParamMap:
+            cli_parameters = self.taskParamMap["cliParams"]
         else:
             cli_parameters = None
 
         # make message
         head = html_head.format(title="Task summary notification")
-        body = jedi_task_html_body.format(jedi_task_id=taskSpec.jediTaskID, creation_time=taskSpec.creationDate,
-                                          end_time=taskSpec.endTime, task_status=taskSpec.status,
-                                          error_dialog=self.removeTags(taskSpec.errorDialog), command=cli_parameters,
-                                          n_total=n_total_jobs,n_succeeded=n_succeeded_jobs, n_failed=n_failed_jobs,
-                                          n_cancelled=n_cancelled_jobs,
-                                          carbon_succeeded=carbon_footprint["finished"],
-                                          carbon_failed=carbon_footprint["failed"],
-                                          carbon_cancelled=carbon_footprint["cancelled"],
-                                          carbon_total=carbon_footprint["total"],
-                                          datasets_in=input_datasets, datasets_out=output_datasets,
-                                          datasets_log=log_datasets, msg_succeeded=msg_succeeded,
-                                          input_str=input_str, cancelled_str=cancelled_str)
+        body = jedi_task_html_body.format(
+            jedi_task_id=taskSpec.jediTaskID,
+            creation_time=taskSpec.creationDate,
+            end_time=taskSpec.endTime,
+            task_status=taskSpec.status,
+            error_dialog=self.removeTags(taskSpec.errorDialog),
+            command=cli_parameters,
+            n_total=n_total_jobs,
+            n_succeeded=n_succeeded_jobs,
+            n_failed=n_failed_jobs,
+            n_cancelled=n_cancelled_jobs,
+            carbon_succeeded=carbon_footprint["finished"],
+            carbon_failed=carbon_footprint["failed"],
+            carbon_cancelled=carbon_footprint["cancelled"],
+            carbon_total=carbon_footprint["total"],
+            datasets_in=input_datasets,
+            datasets_out=output_datasets,
+            datasets_log=log_datasets,
+            msg_succeeded=msg_succeeded,
+            input_str=input_str,
+            cancelled_str=cancelled_str,
+        )
         message_html = head + body
 
-        message_plain = jedi_task_plain.format(jedi_task_id=taskSpec.jediTaskID,
-                                               creation_time=taskSpec.creationDate,
-                                               end_time=taskSpec.endTime,
-                                               task_status=taskSpec.status,
-                                               error_dialog=self.removeTags(taskSpec.errorDialog),
-                                               command=cli_parameters,
-                                               n_total=n_total_jobs,
-                                               n_succeeded=n_succeeded_jobs, n_failed=n_failed_jobs,
-                                               n_cancelled=n_cancelled_jobs,
-                                               carbon_succeeded=carbon_footprint["finished"],
-                                               carbon_failed=carbon_footprint["failed"],
-                                               carbon_cancelled=carbon_footprint["cancelled"],
-                                               carbon_total=carbon_footprint["total"],
-                                               dataset_summary=dataset_summary, msg_succeeded=msg_succeeded,
-                                               input_str=input_str, cancelled_str=cancelled_str)
+        message_plain = jedi_task_plain.format(
+            jedi_task_id=taskSpec.jediTaskID,
+            creation_time=taskSpec.creationDate,
+            end_time=taskSpec.endTime,
+            task_status=taskSpec.status,
+            error_dialog=self.removeTags(taskSpec.errorDialog),
+            command=cli_parameters,
+            n_total=n_total_jobs,
+            n_succeeded=n_succeeded_jobs,
+            n_failed=n_failed_jobs,
+            n_cancelled=n_cancelled_jobs,
+            carbon_succeeded=carbon_footprint["finished"],
+            carbon_failed=carbon_footprint["failed"],
+            carbon_cancelled=carbon_footprint["cancelled"],
+            carbon_total=carbon_footprint["total"],
+            dataset_summary=dataset_summary,
+            msg_succeeded=msg_succeeded,
+            input_str=input_str,
+            cancelled_str=cancelled_str,
+        )
 
-        subject = "JEDI notification for TaskID:{jedi_task_id} ({n_succeeded}/{n_total} {msg_succeeded})".format(jedi_task_id=taskSpec.jediTaskID,
-                                                                                                                 n_succeeded=n_succeeded_jobs,
-                                                                                                                 n_total=n_total_jobs,
-                                                                                                                 msg_succeeded=msg_succeeded)
+        subject = "JEDI notification for TaskID:{jedi_task_id} ({n_succeeded}/{n_total} {msg_succeeded})".format(
+            jedi_task_id=taskSpec.jediTaskID, n_succeeded=n_succeeded_jobs, n_total=n_total_jobs, msg_succeeded=msg_succeeded
+        )
 
         # return
         return message_html, message_plain, subject
@@ -325,26 +334,26 @@ class AtlasAnalPostProcessor(PostProcessorBase):
         ret_suppressed = None
         # get DN
         tmp_logger.debug("getting email for {0}".format(user_name))
-        
-        # get email from PANDAMETA DB 
+
+        # get email from PANDAMETA DB
         mail_address_db, dn, db_uptime = self.taskBufferIF.getEmailAddr(user_name, withDN=True)
         tmp_logger.debug("email from MetaDB : {0}".format(mail_address_db))
         # email notification is suppressed
         not_send_mail = False
-        if mail_address_db is not None and mail_address_db.startswith('notsend'):
+        if mail_address_db is not None and mail_address_db.startswith("notsend"):
             not_send_mail = True
         # DN is unavailable
-        if dn in ['', None]:
+        if dn in ["", None]:
             # there will be no email
             tmp_logger.debug("DN is empty")
         else:
             # avoid too frequent lookup
             if db_uptime is not None and datetime.datetime.utcnow() - db_uptime < datetime.timedelta(hours=1):
                 tmp_logger.debug("no lookup")
-                if not_send_mail or mail_address_db in [None, '']:
+                if not_send_mail or mail_address_db in [None, ""]:
                     return ret_suppressed
                 else:
-                    return mail_address_db.split(':')[-1]
+                    return mail_address_db.split(":")[-1]
             else:
                 # get email from DQ2
                 tmp_logger.debug("getting email using dq2Info.finger({0})".format(dn))
@@ -352,20 +361,20 @@ class AtlasAnalPostProcessor(PostProcessorBase):
                 for iDDMTry in range(n_tries):
                     try:
                         user_info = self.ddmIF.getInterface(vo).finger(dn)
-                        mail_address = user_info['email']
+                        mail_address = user_info["email"]
                         tmp_logger.debug("email from DQ2 : {0}".format(mail_address))
                         if mail_address is None:
-                            mail_address = ''
+                            mail_address = ""
                         # make email field to update DB
-                        mail_addr_to_db = ''
+                        mail_addr_to_db = ""
                         if not_send_mail:
-                            mail_addr_to_db += 'notsend:'
+                            mail_addr_to_db += "notsend:"
                         mail_addr_to_db += mail_address
                         # update database
                         tmp_logger.debug("update email to {0}".format(mail_addr_to_db))
                         self.taskBufferIF.setEmailAddr(user_name, mail_addr_to_db)
 
-                        if not_send_mail or mail_address == '':
+                        if not_send_mail or mail_address == "":
                             return ret_suppressed
                         return mail_address
                     except Exception:
@@ -382,8 +391,8 @@ class AtlasAnalPostProcessor(PostProcessorBase):
     def removeTags(self, tmp_str):
         try:
             if tmp_str is not None:
-                tmp_str = re.sub('>[^<]+<', '><', tmp_str)
-                tmp_str = re.sub('<[^<]+>', '', tmp_str)
+                tmp_str = re.sub(">[^<]+<", "><", tmp_str)
+                tmp_str = re.sub("<[^<]+>", "", tmp_str)
         except Exception:
             pass
         return tmp_str

@@ -9,8 +9,7 @@ taskbuffer.DBProxyPool.DBProxy = JediDBProxy
 class DBProxyPool(taskbuffer.DBProxyPool.DBProxyPool):
     # constructor
     def __init__(self, dbhost, dbpasswd, nConnection, useTimeout=False):
-        taskbuffer.DBProxyPool.DBProxyPool.__init__(self, dbhost, dbpasswd,
-                                                    nConnection, useTimeout)
+        taskbuffer.DBProxyPool.DBProxyPool.__init__(self, dbhost, dbpasswd, nConnection, useTimeout)
 
     # get a DBProxyObj containing a proxy
     def get(self):

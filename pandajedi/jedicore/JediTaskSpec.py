@@ -9,258 +9,304 @@ from six import iteritems
 task specification for JEDI
 
 """
+
+
 class JediTaskSpec(object):
     # attributes
     attributes = (
-        'jediTaskID','taskName','status','userName',
-        'creationDate','modificationTime','startTime','endTime',
-        'frozenTime','prodSourceLabel','workingGroup','vo','coreCount',
-        'taskType','processingType','taskPriority','currentPriority',
-        'architecture','transUses','transHome','transPath','lockedBy',
-        'lockedTime','termCondition','splitRule','walltime','walltimeUnit',
-        'outDiskCount','outDiskUnit','workDiskCount','workDiskUnit',
-        'ramCount','ramUnit','ioIntensity','ioIntensityUnit',
-        'workQueue_ID','progress','failureRate','errorDialog',
-        'reqID','oldStatus','cloud','site','countryGroup','parent_tid',
-        'eventService','ticketID','ticketSystemType','stateChangeTime',
-        'superStatus','campaign','mergeRamCount','mergeRamUnit',
-        'mergeWalltime','mergeWalltimeUnit','throttledTime','numThrottled',
-        'mergeCoreCount','goal','assessmentTime','cpuTime','cpuTimeUnit',
-        'cpuEfficiency','baseWalltime','nucleus','baseRamCount',
-        'ttcRequested', 'ttcPredicted', 'ttcPredictionDate','rescueTime',
-        'requestType', 'gshare', 'resource_type', 'useJumbo','diskIO',
-        'diskIOUnit', 'memory_leak_core', 'memory_leak_x2', 'attemptNr',
-        'container_name')
+        "jediTaskID",
+        "taskName",
+        "status",
+        "userName",
+        "creationDate",
+        "modificationTime",
+        "startTime",
+        "endTime",
+        "frozenTime",
+        "prodSourceLabel",
+        "workingGroup",
+        "vo",
+        "coreCount",
+        "taskType",
+        "processingType",
+        "taskPriority",
+        "currentPriority",
+        "architecture",
+        "transUses",
+        "transHome",
+        "transPath",
+        "lockedBy",
+        "lockedTime",
+        "termCondition",
+        "splitRule",
+        "walltime",
+        "walltimeUnit",
+        "outDiskCount",
+        "outDiskUnit",
+        "workDiskCount",
+        "workDiskUnit",
+        "ramCount",
+        "ramUnit",
+        "ioIntensity",
+        "ioIntensityUnit",
+        "workQueue_ID",
+        "progress",
+        "failureRate",
+        "errorDialog",
+        "reqID",
+        "oldStatus",
+        "cloud",
+        "site",
+        "countryGroup",
+        "parent_tid",
+        "eventService",
+        "ticketID",
+        "ticketSystemType",
+        "stateChangeTime",
+        "superStatus",
+        "campaign",
+        "mergeRamCount",
+        "mergeRamUnit",
+        "mergeWalltime",
+        "mergeWalltimeUnit",
+        "throttledTime",
+        "numThrottled",
+        "mergeCoreCount",
+        "goal",
+        "assessmentTime",
+        "cpuTime",
+        "cpuTimeUnit",
+        "cpuEfficiency",
+        "baseWalltime",
+        "nucleus",
+        "baseRamCount",
+        "ttcRequested",
+        "ttcPredicted",
+        "ttcPredictionDate",
+        "rescueTime",
+        "requestType",
+        "gshare",
+        "resource_type",
+        "useJumbo",
+        "diskIO",
+        "diskIOUnit",
+        "memory_leak_core",
+        "memory_leak_x2",
+        "attemptNr",
+        "container_name",
+    )
     # attributes which have 0 by default
     _zeroAttrs = ()
     # attributes to force update
-    _forceUpdateAttrs = ('lockedBy','lockedTime')
+    _forceUpdateAttrs = ("lockedBy", "lockedTime")
     # mapping between sequence and attr
     _seqAttrMap = {}
     # limit length
-    _limitLength = {'errorDialog' : 255}
+    _limitLength = {"errorDialog": 255}
     # attribute length
-    _attrLength = {'workingGroup': 32}
+    _attrLength = {"workingGroup": 32}
     # tokens for split rule
     splitRuleToken = {
-        'allowEmptyInput'    : 'AE',
-        'addNthFieldToLFN'   : 'AN',
-        'allowPartialFinish' : 'AP',
-        'altStageOut'        : 'AT',
-        'avoidVP'            : 'AV',
-        'maxCoreCount'       : 'CC',
-        'cloudAsVO'          : 'CV',
-        'ddmBackEnd'         : 'DE',
-        'disableAutoFinish'  : 'DF',
-        'disableReassign'    : 'DI',
-        'debugMode'          : 'DM',
-        'disableAutoRetry'   : 'DR',
-        'dynamicNumEvents'   : 'DY',
-        'nEsConsumers'       : 'EC',
-        'nEventsPerInput'    : 'EI',
-        'encJobParams'       : 'EJ',
-        'nEventsPerWorker'   : 'ES',
-        'firstContentsFeed'  : 'FC',
-        'failGoalUnreached'  : 'FG',
-        'fineGrainedProc'    : 'FP',
-        'firstEvent'         : 'FT',
-        'fullChain'          : 'FU',
-        'groupBoundaryID'    : 'GB',
-        'hpoWorkflow'        : 'HO',
-        'instantiateTmplSite': 'IA',
-        'inFilePosEvtNum'    : 'IF',
-        'ipStack'            : 'IK',
-        'allowInputLAN'      : 'IL',
-        'ignoreMissingInDS'  : 'IM',
-        'intermediateTask'   : 'IN',
-        'ipConnectivity'     : 'IP',
-        'inputPreStaging'    : 'IS',
-        'instantiateTmpl'    : 'IT',
-        'allowInputWAN'      : 'IW',
-        'noLoopingCheck'     : 'LC',
-        'useLocalIO'         : 'LI',
-        'limitedSites'       : 'LS',
-        'loadXML'            : 'LX',
-        'minCpuEfficiency'   : 'MC',
-        'messageDriven'      : 'MD',
-        'mergeEsOnOS'        : 'ME',
-        'nMaxFilesPerJob'    : 'MF',
-        'maxJumboPerSite'    : 'MJ',
-        'maxNumJobs'         : 'MN',
-        'mergeOutput'        : 'MO',
-        'multiStepExec'      : 'MS',
-        'maxWalltime'        : 'MW',
-        'maxEventsPerJob'    : 'MX',
-        'noExecStrCnv'       : 'NC',
-        'notDiscardEvents'   : 'ND',
-        'nEventsPerJob'      : 'NE',
-        'nFilesPerJob'       : 'NF',
-        'nGBPerJob'          : 'NG',
-        'noInputPooling'     : 'NI',
-        'nJumboJobs'         : 'NJ',
-        'nSitesPerJob'       : 'NS',
-        'nChunksToWait'      : 'NT',
-        'noWaitParent'       : 'NW',
-        'orderInputBy'       : 'OI',
-        'orderByLB'          : 'OL',
-        'onSiteMerging'      : 'OM',
-        'osMatching'         : 'OS',
-        'onlyTagsForFC'      : 'OT',
-        'pushStatusChanges'  : 'PC',
-        'pushJob'            : 'PJ',
-        'pfnList'            : 'PL',
-        'putLogToOS'         : 'PO',
-        'runUntilClosed'     : 'RC',
-        'registerDatasets'   : 'RD',
-        'registerEsFiles'    : 'RE',
-        'respectLB'          : 'RL',
-        'reuseSecOnDemand'   : 'RO',
-        'releasePerLB'       : 'RP',
-        'respectSplitRule'   : 'RR',
-        'randomSeed'         : 'RS',
-        'retryRamOffset'     : 'RX',
-        'retryRamStep'       : 'RY',
-        'resurrectConsumers' : 'SC',
-        'switchEStoNormal'   : 'SE',
-        'stayOutputOnSite'   : 'SO',
-        'scoutSuccessRate'   : 'SS',
-        'useSecrets'         : 'ST',
-        'segmentedWork'      : 'SW',
-        'totNumJobs'         : 'TJ',
-        'tgtMaxOutputForNG'  : 'TN',
-        't1Weight'           : 'TW',
-        'useBuild'           : 'UB',
-        'useJobCloning'      : 'UC',
-        'useRealNumEvents'   : 'UE',
-        'useFileAsSourceLFN' : 'UF',
-        'usePrePro'          : 'UP',
-        'useScout'           : 'US',
-        'usePrefetcher'      : 'UT',
-        'useExhausted'       : 'UX',
-        'useZipToPin'        : 'UZ',
-        'writeInputToFile'   : 'WF',
-        'waitInput'          : 'WI',
-        'maxAttemptES'       : 'XA',
-        'decAttOnFailedES'   : 'XF',
-        'maxAttemptEsJob'    : 'XJ',
-        'nEventsPerMergeJob'   : 'ZE',
-        'nFilesPerMergeJob'    : 'ZF',
-        'nGBPerMergeJob'       : 'ZG',
-        'nMaxFilesPerMergeJob' : 'ZM',
-
-        }
+        "allowEmptyInput": "AE",
+        "addNthFieldToLFN": "AN",
+        "allowPartialFinish": "AP",
+        "altStageOut": "AT",
+        "avoidVP": "AV",
+        "maxCoreCount": "CC",
+        "cloudAsVO": "CV",
+        "ddmBackEnd": "DE",
+        "disableAutoFinish": "DF",
+        "disableReassign": "DI",
+        "debugMode": "DM",
+        "disableAutoRetry": "DR",
+        "dynamicNumEvents": "DY",
+        "nEsConsumers": "EC",
+        "nEventsPerInput": "EI",
+        "encJobParams": "EJ",
+        "nEventsPerWorker": "ES",
+        "firstContentsFeed": "FC",
+        "failGoalUnreached": "FG",
+        "fineGrainedProc": "FP",
+        "firstEvent": "FT",
+        "fullChain": "FU",
+        "groupBoundaryID": "GB",
+        "hpoWorkflow": "HO",
+        "instantiateTmplSite": "IA",
+        "inFilePosEvtNum": "IF",
+        "ipStack": "IK",
+        "allowInputLAN": "IL",
+        "ignoreMissingInDS": "IM",
+        "intermediateTask": "IN",
+        "ipConnectivity": "IP",
+        "inputPreStaging": "IS",
+        "instantiateTmpl": "IT",
+        "allowInputWAN": "IW",
+        "noLoopingCheck": "LC",
+        "useLocalIO": "LI",
+        "limitedSites": "LS",
+        "loadXML": "LX",
+        "minCpuEfficiency": "MC",
+        "messageDriven": "MD",
+        "mergeEsOnOS": "ME",
+        "nMaxFilesPerJob": "MF",
+        "maxJumboPerSite": "MJ",
+        "maxNumJobs": "MN",
+        "mergeOutput": "MO",
+        "multiStepExec": "MS",
+        "maxWalltime": "MW",
+        "maxEventsPerJob": "MX",
+        "noExecStrCnv": "NC",
+        "notDiscardEvents": "ND",
+        "nEventsPerJob": "NE",
+        "nFilesPerJob": "NF",
+        "nGBPerJob": "NG",
+        "noInputPooling": "NI",
+        "nJumboJobs": "NJ",
+        "nSitesPerJob": "NS",
+        "nChunksToWait": "NT",
+        "noWaitParent": "NW",
+        "orderInputBy": "OI",
+        "orderByLB": "OL",
+        "onSiteMerging": "OM",
+        "osMatching": "OS",
+        "onlyTagsForFC": "OT",
+        "pushStatusChanges": "PC",
+        "pushJob": "PJ",
+        "pfnList": "PL",
+        "putLogToOS": "PO",
+        "runUntilClosed": "RC",
+        "registerDatasets": "RD",
+        "registerEsFiles": "RE",
+        "respectLB": "RL",
+        "reuseSecOnDemand": "RO",
+        "releasePerLB": "RP",
+        "respectSplitRule": "RR",
+        "randomSeed": "RS",
+        "retryRamOffset": "RX",
+        "retryRamStep": "RY",
+        "resurrectConsumers": "SC",
+        "switchEStoNormal": "SE",
+        "stayOutputOnSite": "SO",
+        "scoutSuccessRate": "SS",
+        "useSecrets": "ST",
+        "segmentedWork": "SW",
+        "totNumJobs": "TJ",
+        "tgtMaxOutputForNG": "TN",
+        "t1Weight": "TW",
+        "useBuild": "UB",
+        "useJobCloning": "UC",
+        "useRealNumEvents": "UE",
+        "useFileAsSourceLFN": "UF",
+        "usePrePro": "UP",
+        "useScout": "US",
+        "usePrefetcher": "UT",
+        "useExhausted": "UX",
+        "useZipToPin": "UZ",
+        "writeInputToFile": "WF",
+        "waitInput": "WI",
+        "maxAttemptES": "XA",
+        "decAttOnFailedES": "XF",
+        "maxAttemptEsJob": "XJ",
+        "nEventsPerMergeJob": "ZE",
+        "nFilesPerMergeJob": "ZF",
+        "nGBPerMergeJob": "ZG",
+        "nMaxFilesPerMergeJob": "ZM",
+    }
     # enum for preprocessing
-    enum_toPreProcess = '1'
-    enum_preProcessed = '2'
-    enum_postPProcess = '3'
+    enum_toPreProcess = "1"
+    enum_preProcessed = "2"
+    enum_postPProcess = "3"
     # enum for limited sites
-    enum_limitedSites = {'1' : 'inc',
-                         '2' : 'exc',
-                         '3' : 'incexc'}
+    enum_limitedSites = {"1": "inc", "2": "exc", "3": "incexc"}
     # enum for scout
-    enum_noScout   = '1'
-    enum_useScout  = '2'
-    enum_postScout = '3'
+    enum_noScout = "1"
+    enum_useScout = "2"
+    enum_postScout = "3"
     # enum for dataset registration
-    enum_toRegisterDS   = '1'
-    enum_registeredDS   = '2'
+    enum_toRegisterDS = "1"
+    enum_registeredDS = "2"
     # enum for IP connectivity
-    enum_ipConnectivity = {'1' : 'full',
-                           '2' : 'http'}
+    enum_ipConnectivity = {"1": "full", "2": "http"}
     # enum for IP stack
-    enum_ipStack = {'4' : 'IPv4',
-                    '6' : 'IPv6'}
+    enum_ipStack = {"4": "IPv4", "6": "IPv6"}
     # enum for alternative stage-out
-    enum_altStageOut = {'1' : 'on',
-                        '2' : 'off',
-                        '3' : 'force'}
+    enum_altStageOut = {"1": "on", "2": "off", "3": "force"}
     # enum for local direct access
-    enum_inputLAN = {'1' : 'use',
-                     '2' : 'only'}
+    enum_inputLAN = {"1": "use", "2": "only"}
     # world cloud name
-    worldCloudName = 'WORLD'
+    worldCloudName = "WORLD"
 
     # enum for contents feeder
     class FirstContentsFeed(enum.Enum):
-        TRUE = '1'
-        FALSE = '0'
+        TRUE = "1"
+        FALSE = "0"
 
     # enum for useJumbo
-    enum_useJumbo = {'waiting': 'W',
-                     'running': 'R',
-                     'pending': 'P',
-                     'lack': 'L',
-                     'disabled': 'D'}
+    enum_useJumbo = {"waiting": "W", "running": "R", "pending": "P", "lack": "L", "disabled": "D"}
 
     # enum for input prestaging
-    enum_inputPreStaging = {'use': '1',
-                            'notUse': '0'}
+    enum_inputPreStaging = {"use": "1", "notUse": "0"}
 
     # enum for full chain
     class FullChain(str, enum.Enum):
-        Only = '1'
-        Require = '2'
-        Capable = '3'
+        Only = "1"
+        Require = "2"
+        Capable = "3"
 
     # enum for order input by
     class OrderInputBy(str, enum.Enum):
-        eventsAlignment = '1'
+        eventsAlignment = "1"
 
     # constructor
     def __init__(self):
         # install attributes
         for attr in self.attributes:
             if attr in self._zeroAttrs:
-                object.__setattr__(self,attr,0)
+                object.__setattr__(self, attr, 0)
             else:
-                object.__setattr__(self,attr,None)
+                object.__setattr__(self, attr, None)
         # map of changed attributes
-        object.__setattr__(self,'_changedAttrs',{})
+        object.__setattr__(self, "_changedAttrs", {})
         # template to generate job parameters
-        object.__setattr__(self,'jobParamsTemplate','')
+        object.__setattr__(self, "jobParamsTemplate", "")
         # associated datasets
-        object.__setattr__(self,'datasetSpecList',[])
+        object.__setattr__(self, "datasetSpecList", [])
         # original error dialog
-        object.__setattr__(self, 'origErrorDialog', None)
+        object.__setattr__(self, "origErrorDialog", None)
         # original user name
-        object.__setattr__(self, 'origUserName', None)
-
+        object.__setattr__(self, "origUserName", None)
 
     # override __setattr__ to collect the changed attributes
     def __setattr__(self, name, value):
-        oldVal = getattr(self,name)
+        oldVal = getattr(self, name)
         if name in self._limitLength and value is not None:
             # keep original dialog
-            if name == 'errorDialog':
-                object.__setattr__(self, 'origErrorDialog', value)
-            value = value[:self._limitLength[name]]
-        object.__setattr__(self,name,value)
-        newVal = getattr(self,name)
+            if name == "errorDialog":
+                object.__setattr__(self, "origErrorDialog", value)
+            value = value[: self._limitLength[name]]
+        object.__setattr__(self, name, value)
+        newVal = getattr(self, name)
         # collect changed attributes
         if oldVal != newVal or name in self._forceUpdateAttrs:
             self._changedAttrs[name] = value
 
-
     # copy old attributes
-    def copyAttributes(self,oldTaskSpec):
-        for attr in self.attributes + ('jobParamsTemplate',):
-            if 'Time' in attr:
+    def copyAttributes(self, oldTaskSpec):
+        for attr in self.attributes + ("jobParamsTemplate",):
+            if "Time" in attr:
                 continue
-            if 'Date' in attr:
+            if "Date" in attr:
                 continue
-            if attr in ['progress','failureRate','errorDialog',
-                        'status','oldStatus','lockedBy']:
+            if attr in ["progress", "failureRate", "errorDialog", "status", "oldStatus", "lockedBy"]:
                 continue
-            self.__setattr__(attr,getattr(oldTaskSpec,attr))
-
+            self.__setattr__(attr, getattr(oldTaskSpec, attr))
 
     # reset changed attribute list
     def resetChangedList(self):
-        object.__setattr__(self,'_changedAttrs',{})
-
+        object.__setattr__(self, "_changedAttrs", {})
 
     # reset changed attribute
-    def resetChangedAttr(self,name):
+    def resetChangedAttr(self, name):
         try:
             del self._changedAttrs[name]
         except Exception:
@@ -268,18 +314,16 @@ class JediTaskSpec(object):
 
     # reserve old attributes
     def reserve_old_attributes(self):
-        for attName in ['ramCount', 'walltime', 'cpuTime', 'startTime', 'cpuTimeUnit',
-                        'outDiskCount', 'workDiskCount', 'ioIntensity', 'diskIO']:
+        for attName in ["ramCount", "walltime", "cpuTime", "startTime", "cpuTimeUnit", "outDiskCount", "workDiskCount", "ioIntensity", "diskIO"]:
             self.resetChangedAttr(attName)
 
     # force update
-    def forceUpdate(self,name):
+    def forceUpdate(self, name):
         if name in self.attributes:
-            self._changedAttrs[name] = getattr(self,name)
-
+            self._changedAttrs[name] = getattr(self, name)
 
     # return map of values
-    def valuesMap(self,useSeq=False,onlyChanged=False):
+    def valuesMap(self, useSeq=False, onlyChanged=False):
         ret = {}
         for attr in self.attributes:
             # use sequence
@@ -289,7 +333,7 @@ class JediTaskSpec(object):
             if onlyChanged:
                 if attr not in self._changedAttrs:
                     continue
-            val = getattr(self,attr)
+            val = getattr(self, attr)
             if val is None:
                 if attr in self._zeroAttrs:
                     val = 0
@@ -298,33 +342,31 @@ class JediTaskSpec(object):
             # truncate too long values
             if attr in self._limitLength:
                 if val is not None:
-                    val = val[:self._limitLength[attr]]
-            ret[':%s' % attr] = val
+                    val = val[: self._limitLength[attr]]
+            ret[":%s" % attr] = val
         return ret
 
-
     # pack tuple into TaskSpec
-    def pack(self,values):
+    def pack(self, values):
         for i in range(len(self.attributes)):
-            attr= self.attributes[i]
+            attr = self.attributes[i]
             val = values[i]
-            object.__setattr__(self,attr,val)
-
+            object.__setattr__(self, attr, val)
 
     # return column names for INSERT
-    def columnNames(cls,prefix=None):
+    def columnNames(cls, prefix=None):
         ret = ""
         for attr in cls.attributes:
             if prefix is not None:
-                ret += '{0}.'.format(prefix)
-            ret += '{0},'.format(attr)
+                ret += "{0}.".format(prefix)
+            ret += "{0},".format(attr)
         ret = ret[:-1]
         return ret
+
     columnNames = classmethod(columnNames)
 
-
     # return expression of bind variables for INSERT
-    def bindValuesExpression(cls,useSeq=True):
+    def bindValuesExpression(cls, useSeq=True):
         ret = "VALUES("
         for attr in cls.attributes:
             if useSeq and attr in cls._seqAttrMap:
@@ -334,30 +376,30 @@ class JediTaskSpec(object):
         ret = ret[:-1]
         ret += ")"
         return ret
-    bindValuesExpression = classmethod(bindValuesExpression)
 
+    bindValuesExpression = classmethod(bindValuesExpression)
 
     # return an expression of bind variables for UPDATE to update only changed attributes
     def bindUpdateChangesExpression(self):
         ret = ""
         for attr in self.attributes:
             if attr in self._changedAttrs:
-                ret += '%s=:%s,' % (attr,attr)
-        ret  = ret[:-1]
-        ret += ' '
+                ret += "%s=:%s," % (attr, attr)
+        ret = ret[:-1]
+        ret += " "
         return ret
 
     # check split rule
     def check_split_rule(self, key):
         if self.splitRule is not None:
-            if re.search(self.splitRuleToken[key]+r'=(\d+)', self.splitRule):
+            if re.search(self.splitRuleToken[key] + r"=(\d+)", self.splitRule):
                 return True
         return False
 
     # get the max size per job if defined
     def getMaxSizePerJob(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nGBPerJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nGBPerJob"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 nGBPerJob = int(tmpMatch.group(1)) * 1024 * 1024 * 1024
                 return nGBPerJob
@@ -365,153 +407,131 @@ class JediTaskSpec(object):
 
     # remove nGBPerJob
     def removeMaxSizePerJob(self):
-        self.removeSplitRule(self.splitRuleToken['nGBPerJob'])
+        self.removeSplitRule(self.splitRuleToken["nGBPerJob"])
 
     # get the max size per merge job if defined
     def getMaxSizePerMergeJob(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nGBPerMergeJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nGBPerMergeJob"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 nGBPerJob = int(tmpMatch.group(1)) * 1024 * 1024 * 1024
                 return nGBPerJob
         return None
 
-
     # get the maxnumber of files per job if defined
     def getMaxNumFilesPerJob(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nMaxFilesPerJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nMaxFilesPerJob"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
     # set MaxNumFilesPerJob
     def setMaxNumFilesPerJob(self, value):
-        self.setSplitRule('nMaxFilesPerJob', value)
+        self.setSplitRule("nMaxFilesPerJob", value)
 
     # get the maxnumber of files per merge job if defined
     def getMaxNumFilesPerMergeJob(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nMaxFilesPerMergeJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nMaxFilesPerMergeJob"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return 50
 
-
-
     # get the number of events per merge job if defined
     def getNumEventsPerMergeJob(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nEventsPerMergeJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nEventsPerMergeJob"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
-
-
     # check if using jumbo
     def usingJumboJobs(self):
-        if self.useJumbo in self.enum_useJumbo.values() and self.useJumbo != self.enum_useJumbo['disabled']:
+        if self.useJumbo in self.enum_useJumbo.values() and self.useJumbo != self.enum_useJumbo["disabled"]:
             return True
         return False
-
-
 
     # get the number of jumbo jobs if defined
     def getNumJumboJobs(self):
         if self.usingJumboJobs() and self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nJumboJobs']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nJumboJobs"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
-
-
-
     # get the max number of jumbo jobs per site if defined
     def getMaxJumboPerSite(self):
         if self.usingJumboJobs() and self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['maxJumboPerSite']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["maxJumboPerSite"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return 1
-
-
 
     # get the number of sites per job
     def getNumSitesPerJob(self):
         if not self.useEventService():
             return 1
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nSitesPerJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nSitesPerJob"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return 1
 
-
-
     # get the number of files per job if defined
     def getNumFilesPerJob(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nFilesPerJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nFilesPerJob"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 n = int(tmpMatch.group(1))
                 if self.dynamicNumEvents():
                     inn = self.get_num_events_per_input()
                     dyn = self.get_min_granularity()
                     if inn and dyn and inn > dyn:
-                        n *= (inn // dyn)
+                        n *= inn // dyn
                 return n
         return None
 
     # remove nFilesPerJob
     def removeNumFilesPerJob(self):
-        self.removeSplitRule(self.splitRuleToken['nFilesPerJob'])
+        self.removeSplitRule(self.splitRuleToken["nFilesPerJob"])
 
     # get the number of files per merge job if defined
     def getNumFilesPerMergeJob(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nFilesPerMergeJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nFilesPerMergeJob"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
-
-
 
     # get the number of events per job if defined
     def getNumEventsPerJob(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nEventsPerJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nEventsPerJob"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
-
-
     # get offset for random seed
     def getRndmSeedOffset(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['randomSeed']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["randomSeed"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return 0
-
-
 
     # get offset for first event
     def getFirstEventOffset(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['firstEvent']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["firstEvent"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return 0
 
-
-
     # grouping with boundaryID
     def useGroupWithBoundaryID(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['groupBoundaryID']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["groupBoundaryID"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 gbID = int(tmpMatch.group(1))
                 # 1 : input - can split,    output - free
@@ -528,59 +548,60 @@ class JediTaskSpec(object):
                 # 1 : must have same boundayID. cannot split
                 #
                 retMap = {}
-                if gbID in [1,2]:
-                    retMap['inSplit'] = 1
+                if gbID in [1, 2]:
+                    retMap["inSplit"] = 1
                 else:
-                    retMap['inSplit'] = 2
-                if gbID in [1,3]:
-                    retMap['outMap'] = False
+                    retMap["inSplit"] = 2
+                if gbID in [1, 3]:
+                    retMap["outMap"] = False
                 else:
-                    retMap['outMap'] = True
-                retMap['secSplit'] = None
+                    retMap["outMap"] = True
+                retMap["secSplit"] = None
                 return retMap
         return None
 
     # use build
     def useBuild(self):
-        return self.check_split_rule('useBuild')
+        return self.check_split_rule("useBuild")
 
     # use sjob cloning
     def useJobCloning(self):
-        return self.check_split_rule('useJobCloning')
+        return self.check_split_rule("useJobCloning")
 
     # get job cloning type
     def getJobCloningType(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['useJobCloning']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["useJobCloning"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return tmpMatch.group(1)
-        return ''
+        return ""
 
     # reuse secondary on demand
     def reuseSecOnDemand(self):
-        return self.check_split_rule('reuseSecOnDemand')
+        return self.check_split_rule("reuseSecOnDemand")
 
     # not wait for completion of parent
     def noWaitParent(self):
-        return self.check_split_rule('noWaitParent')
+        return self.check_split_rule("noWaitParent")
 
     # check splitRule if not wait for completion of parent
-    def noWaitParentSL(cls,splitRule):
+    def noWaitParentSL(cls, splitRule):
         if splitRule is not None:
-            tmpMatch = re.search(cls.splitRuleToken['noWaitParent']+'=(\d+)',splitRule)
+            tmpMatch = re.search(cls.splitRuleToken["noWaitParent"] + "=(\d+)", splitRule)
             if tmpMatch is not None:
                 return True
         return False
+
     noWaitParentSL = classmethod(noWaitParentSL)
 
     # use only limited sites
     def useLimitedSites(self):
-        return self.check_split_rule('limitedSites')
+        return self.check_split_rule("limitedSites")
 
     # set limited sites
-    def setLimitedSites(self,policy):
+    def setLimitedSites(self, policy):
         tag = None
-        for tmpIdx,tmpPolicy in iteritems(self.enum_limitedSites):
+        for tmpIdx, tmpPolicy in iteritems(self.enum_limitedSites):
             if policy == tmpPolicy:
                 tag = tmpIdx
                 break
@@ -590,160 +611,141 @@ class JediTaskSpec(object):
         # set
         if self.splitRule is None:
             # new
-            self.splitRule = self.splitRuleToken['limitedSites']+'='+tag
+            self.splitRule = self.splitRuleToken["limitedSites"] + "=" + tag
         else:
-            tmpMatch = re.search(self.splitRuleToken['limitedSites']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["limitedSites"] + "=(\d+)", self.splitRule)
             if tmpMatch is None:
                 # append
-                self.splitRule += ','+self.splitRuleToken['limitedSites']+'='+tag
+                self.splitRule += "," + self.splitRuleToken["limitedSites"] + "=" + tag
             else:
                 # replace
-                self.splitRule = re.sub(self.splitRuleToken['limitedSites']+'=(\d+)',
-                                        self.splitRuleToken['limitedSites']+'='+tag,
-                                        self.splitRule)
-
-
+                self.splitRule = re.sub(self.splitRuleToken["limitedSites"] + "=(\d+)", self.splitRuleToken["limitedSites"] + "=" + tag, self.splitRule)
 
     # use local IO
     def useLocalIO(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['useLocalIO']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["useLocalIO"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None and int(tmpMatch.group(1)):
                 return True
         return False
 
-
-
     # use Event Service
-    def useEventService(self,siteSpec=None):
-        if self.eventService in [1,2]:
+    def useEventService(self, siteSpec=None):
+        if self.eventService in [1, 2]:
             # check site if ES is disabled
-            if self.switchEStoNormal() and siteSpec is not None and siteSpec.getJobSeed() in ['all']:
+            if self.switchEStoNormal() and siteSpec is not None and siteSpec.getJobSeed() in ["all"]:
                 return False
             return True
         return False
 
-
-
     # get the number of events per worker for Event Service
     def getNumEventsPerWorker(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nEventsPerWorker']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nEventsPerWorker"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
-
-
-
 
     # get the number of event service consumers
     def getNumEventServiceConsumer(self):
         if not self.useEventService():
             return None
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nEsConsumers']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nEsConsumers"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
     # disable automatic retry
     def disableAutoRetry(self):
-        return self.check_split_rule('disableAutoRetry')
+        return self.check_split_rule("disableAutoRetry")
 
     # disable reassign
     def disableReassign(self):
-        return self.check_split_rule('disableReassign')
+        return self.check_split_rule("disableReassign")
 
     # allow empty input
     def allowEmptyInput(self):
-        return self.check_split_rule('allowEmptyInput')
+        return self.check_split_rule("allowEmptyInput")
 
     # use PFN list
     def useListPFN(self):
-        return self.check_split_rule('pfnList')
+        return self.check_split_rule("pfnList")
 
     # set preprocessing
     def setPrePro(self):
         if self.splitRule is None:
             # new
-            self.splitRule = self.splitRuleToken['usePrePro']+'='+self.enum_toPreProcess
+            self.splitRule = self.splitRuleToken["usePrePro"] + "=" + self.enum_toPreProcess
         else:
             # append
-            self.splitRule += ','+self.splitRuleToken['usePrePro']+'='+self.enum_toPreProcess
-
-
+            self.splitRule += "," + self.splitRuleToken["usePrePro"] + "=" + self.enum_toPreProcess
 
     # use preprocessing
     def usePrePro(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['usePrePro']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["usePrePro"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None and tmpMatch.group(1) == self.enum_toPreProcess:
                 return True
         return False
-
-
 
     # set preprocessed
     def setPreProcessed(self):
         if self.splitRule is None:
             # new
-            self.splitRule = self.splitRuleToken['usePrePro']+'='+self.enum_preProcessed
+            self.splitRule = self.splitRuleToken["usePrePro"] + "=" + self.enum_preProcessed
         else:
-            tmpMatch = re.search(self.splitRuleToken['usePrePro']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["usePrePro"] + "=(\d+)", self.splitRule)
             if tmpMatch is None:
                 # append
-                self.splitRule += ','+self.splitRuleToken['usePrePro']+'='+self.enum_preProcessed
+                self.splitRule += "," + self.splitRuleToken["usePrePro"] + "=" + self.enum_preProcessed
             else:
                 # replace
-                self.splitRule = re.sub(self.splitRuleToken['usePrePro']+'=(\d+)',
-                                        self.splitRuleToken['usePrePro']+'='+self.enum_preProcessed,
-                                        self.splitRule)
+                self.splitRule = re.sub(
+                    self.splitRuleToken["usePrePro"] + "=(\d+)", self.splitRuleToken["usePrePro"] + "=" + self.enum_preProcessed, self.splitRule
+                )
         return
-
-
 
     # check preprocessed
     def checkPreProcessed(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['usePrePro']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["usePrePro"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None and tmpMatch.group(1) == self.enum_preProcessed:
                 return True
         return False
-
-
 
     # set post preprocess
     def setPostPreProcess(self):
         if self.splitRule is None:
             # new
-            self.splitRule = self.splitRuleToken['usePrePro']+'='+self.enum_postPProcess
+            self.splitRule = self.splitRuleToken["usePrePro"] + "=" + self.enum_postPProcess
         else:
-            tmpMatch = re.search(self.splitRuleToken['usePrePro']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["usePrePro"] + "=(\d+)", self.splitRule)
             if tmpMatch is None:
                 # append
-                self.splitRule += ','+self.splitRuleToken['usePrePro']+'='+self.enum_postPProcess
+                self.splitRule += "," + self.splitRuleToken["usePrePro"] + "=" + self.enum_postPProcess
             else:
                 # replace
-                self.splitRule = re.sub(self.splitRuleToken['usePrePro']+'=(\d+)',
-                                        self.splitRuleToken['usePrePro']+'='+self.enum_postPProcess,
-                                        self.splitRule)
+                self.splitRule = re.sub(
+                    self.splitRuleToken["usePrePro"] + "=(\d+)", self.splitRuleToken["usePrePro"] + "=" + self.enum_postPProcess, self.splitRule
+                )
         return
 
     # instantiate template datasets
     def instantiateTmpl(self):
-        return self.check_split_rule('instantiateTmpl')
+        return self.check_split_rule("instantiateTmpl")
 
     # instantiate template datasets at site
     def instantiateTmplSite(self):
-        return self.check_split_rule('instantiateTmplSite')
+        return self.check_split_rule("instantiateTmplSite")
 
     # merge output
     def mergeOutput(self):
-        return self.check_split_rule('mergeOutput')
+        return self.check_split_rule("mergeOutput")
 
     # use random seed
     def useRandomSeed(self):
-        return self.check_split_rule('randomSeed')
+        return self.check_split_rule("randomSeed")
 
     # get the size of workDisk in bytes
     def getWorkDiskSize(self):
@@ -751,16 +753,14 @@ class JediTaskSpec(object):
         tmpSize = self.workDiskCount
         if tmpSize is None:
             return 0
-        if self.workDiskUnit == 'GB':
+        if self.workDiskUnit == "GB":
             tmpSize = tmpSize * 1024 * 1024 * 1024
-        elif self.workDiskUnit == 'MB':
+        elif self.workDiskUnit == "MB":
             tmpSize = tmpSize * 1024 * 1024
-        elif self.workDiskUnit == 'kB':
+        elif self.workDiskUnit == "kB":
             tmpSize = tmpSize * 1024
         tmpSize += safetyMargin
         return tmpSize
-
-
 
     # get the size of outDisk in bytes
     def getOutDiskSize(self):
@@ -768,134 +768,109 @@ class JediTaskSpec(object):
         if tmpSize is None or tmpSize < 0:
             return 0
         if self.outDiskUnit is not None:
-            if self.outDiskUnit.startswith('GB'):
+            if self.outDiskUnit.startswith("GB"):
                 tmpSize = tmpSize * 1024 * 1024 * 1024
-            elif self.outDiskUnit.startswith('MB'):
+            elif self.outDiskUnit.startswith("MB"):
                 tmpSize = tmpSize * 1024 * 1024
-            elif self.outDiskUnit.startswith('kB'):
+            elif self.outDiskUnit.startswith("kB"):
                 tmpSize = tmpSize * 1024
         return tmpSize
 
-
-
     # output scales with the number of events
     def outputScaleWithEvents(self):
-        if self.outDiskUnit is not None and 'PerEvent' in self.outDiskUnit:
+        if self.outDiskUnit is not None and "PerEvent" in self.outDiskUnit:
             return True
         return False
 
-
-
     # return list of status to update contents
     def statusToUpdateContents(cls):
-        return ['defined']
+        return ["defined"]
+
     statusToUpdateContents = classmethod(statusToUpdateContents)
-
-
 
     # set task status on hold
     def setOnHold(self):
         # change status
-        if self.status in ['ready','running','merging','scouting','defined',
-                           'topreprocess','preprocessing','registered',
-                           'prepared','rerefine']:
+        if self.status in ["ready", "running", "merging", "scouting", "defined", "topreprocess", "preprocessing", "registered", "prepared", "rerefine"]:
             self.oldStatus = self.status
-            self.status = 'pending'
-
+            self.status = "pending"
 
     # return list of status to reject external changes
     def statusToRejectExtChange(cls):
-        return ['finished','done','prepared','broken','tobroken','aborted','toabort','aborting','failed',
-                'passed']
+        return ["finished", "done", "prepared", "broken", "tobroken", "aborted", "toabort", "aborting", "failed", "passed"]
+
     statusToRejectExtChange = classmethod(statusToRejectExtChange)
-
-
 
     # return list of status for retry
     def statusToRetry(cls):
-        return ['finished','failed','aborted','exhausted']
+        return ["finished", "failed", "aborted", "exhausted"]
+
     statusToRetry = classmethod(statusToRetry)
-
-
 
     # return list of status for incexec
     def statusToIncexec(cls):
-        return ['done'] + cls.statusToRetry()
+        return ["done"] + cls.statusToRetry()
+
     statusToIncexec = classmethod(statusToIncexec)
-
-
 
     # return list of status for reassign
     def statusToReassign(cls):
-        return ['registered','defined','ready','running','scouting','scouted','pending',
-                'assigning','exhausted']
+        return ["registered", "defined", "ready", "running", "scouting", "scouted", "pending", "assigning", "exhausted"]
+
     statusToReassign = classmethod(statusToReassign)
-
-
 
     # return list of status for Job Generator
     def statusForJobGenerator(cls):
-        return ['ready','running','scouting','topreprocess','preprocessing']
+        return ["ready", "running", "scouting", "topreprocess", "preprocessing"]
+
     statusForJobGenerator = classmethod(statusForJobGenerator)
-
-
 
     # return list of status to not pause
     def statusNotToPause(cls):
-        return ['finished','failed','done','aborted','broken','paused']
+        return ["finished", "failed", "done", "aborted", "broken", "paused"]
+
     statusNotToPause = classmethod(statusNotToPause)
-
-
 
     # return mapping of command and status
     def commandStatusMap(cls):
-        return {'kill' : {'doing': 'aborting',
-                          'done' : 'toabort'},
-                'finish' : {'doing': 'finishing',
-                            'done' : 'passed'},
-                'retry' : {'doing': 'toretry',
-                           'done' : 'ready'},
-                'incexec' : {'doing': 'toincexec',
-                             'done' : 'rerefine'},
-                'reassign' : {'doing': 'toreassign',
-                              'done' : 'reassigning'},
-                'pause' : {'doing': 'paused',
-                           'done' : 'dummy'},
-                'resume' : {'doing': 'dummy',
-                            'done' : 'dummy'},
-                'avalanche' : {'doing': 'dummy',
-                               'done' : 'dummy'},
-                }
+        return {
+            "kill": {"doing": "aborting", "done": "toabort"},
+            "finish": {"doing": "finishing", "done": "passed"},
+            "retry": {"doing": "toretry", "done": "ready"},
+            "incexec": {"doing": "toincexec", "done": "rerefine"},
+            "reassign": {"doing": "toreassign", "done": "reassigning"},
+            "pause": {"doing": "paused", "done": "dummy"},
+            "resume": {"doing": "dummy", "done": "dummy"},
+            "avalanche": {"doing": "dummy", "done": "dummy"},
+        }
+
     commandStatusMap = classmethod(commandStatusMap)
-
-
 
     # set task status to active
     def setInActive(self):
         # change status
-        if self.status == 'pending':
+        if self.status == "pending":
             self.status = self.oldStatus
             self.oldStatus = None
             self.errorDialog = None
         # reset error dialog
         self.setErrDiag(None)
 
-
     # set error dialog
-    def setErrDiag(self,diag,append=False,prepend=False):
+    def setErrDiag(self, diag, append=False, prepend=False):
         # check if message can be encoded with UTF-8
         if diag:
             try:
                 diag.encode()
             except UnicodeEncodeError:
                 # remove non-ascii chars
-                diag = re.sub(r'[^\x00-\x7F]+', '<non-ASCII char>', diag)
+                diag = re.sub(r"[^\x00-\x7F]+", "<non-ASCII char>", diag)
         # set error dialog
         if append is True and self.errorDialog is not None:
             if not prepend:
-                self.errorDialog = "{0} {1}".format(self.errorDialog,diag)
+                self.errorDialog = "{0} {1}".format(self.errorDialog, diag)
             else:
-                self.errorDialog = "{0} {1}".format(diag,self.errorDialog)
+                self.errorDialog = "{0} {1}".format(diag, self.errorDialog)
         elif append is None:
             # keep old log
             if self.errorDialog is None:
@@ -905,153 +880,136 @@ class JediTaskSpec(object):
 
     # use loadXML
     def useLoadXML(self):
-        return self.check_split_rule('loadXML')
+        return self.check_split_rule("loadXML")
 
     # make VOMS FQANs
     def makeFQANs(self):
         # no working group
         if self.workingGroup is not None:
-            fqan = '/{0}/{1}/Role=production'.format(self.vo,self.workingGroup)
+            fqan = "/{0}/{1}/Role=production".format(self.vo, self.workingGroup)
         else:
             if self.vo is not None:
-                fqan = '/{0}/Role=NULL'.format(self.vo)
+                fqan = "/{0}/Role=NULL".format(self.vo)
             else:
                 return []
         # return
         return [fqan]
 
-
-
     # set split rule
-    def setSplitRule(self,ruleName,ruleValue):
+    def setSplitRule(self, ruleName, ruleValue):
         if self.splitRule is None:
             # new
-            self.splitRule = self.splitRuleToken[ruleName]+'='+ruleValue
+            self.splitRule = self.splitRuleToken[ruleName] + "=" + ruleValue
         else:
-            tmpMatch = re.search(self.splitRuleToken[ruleName]+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken[ruleName] + "=(\d+)", self.splitRule)
             if tmpMatch is None:
                 # append
-                self.splitRule += ','+self.splitRuleToken[ruleName]+'='+ruleValue
+                self.splitRule += "," + self.splitRuleToken[ruleName] + "=" + ruleValue
             else:
                 # replace
-                self.splitRule = re.sub(self.splitRuleToken[ruleName]+'=(\d+)',
-                                        self.splitRuleToken[ruleName]+'='+ruleValue,
-                                        self.splitRule)
-
-
+                self.splitRule = re.sub(self.splitRuleToken[ruleName] + "=(\d+)", self.splitRuleToken[ruleName] + "=" + ruleValue, self.splitRule)
 
     # remove split rule
-    def removeSplitRule(self,ruleName):
+    def removeSplitRule(self, ruleName):
         if self.splitRule is not None:
-            items = self.splitRule.split(',')
+            items = self.splitRule.split(",")
             newItems = []
             for item in items:
                 # remove rile
-                tmpRuleName = item.split('=')[0]
+                tmpRuleName = item.split("=")[0]
                 if ruleName == tmpRuleName:
                     continue
                 newItems.append(item)
-            self.splitRule = ','.join(newItems)
-
-
+            self.splitRule = ",".join(newItems)
 
     # set to use scout
-    def setUseScout(self,useFlag):
+    def setUseScout(self, useFlag):
         if useFlag:
-            self.setSplitRule('useScout',self.enum_useScout)
+            self.setSplitRule("useScout", self.enum_useScout)
         else:
-            self.setSplitRule('useScout',self.enum_noScout)
-
-
+            self.setSplitRule("useScout", self.enum_noScout)
 
     # set post scout
     def setPostScout(self):
-        self.setSplitRule('useScout',self.enum_postScout)
+        self.setSplitRule("useScout", self.enum_postScout)
 
     # use scout
-    def useScout(self,splitRule=None):
+    def useScout(self, splitRule=None):
         if splitRule is None:
             splitRule = self.splitRule
         if splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['useScout']+'=(\d+)',splitRule)
+            tmpMatch = re.search(self.splitRuleToken["useScout"] + "=(\d+)", splitRule)
             if tmpMatch is not None and tmpMatch.group(1) == self.enum_useScout:
                 return True
         return False
 
     # use exhausted
     def useExhausted(self):
-        return self.check_split_rule('useExhausted')
+        return self.check_split_rule("useExhausted")
 
     # use real number of events
     def useRealNumEvents(self):
-        return self.check_split_rule('useRealNumEvents')
+        return self.check_split_rule("useRealNumEvents")
 
     # use input LFN as source for output LFN
     def useFileAsSourceLFN(self):
-        return self.check_split_rule('useFileAsSourceLFN')
+        return self.check_split_rule("useFileAsSourceLFN")
 
     # post scout
     def isPostScout(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['useScout']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["useScout"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None and tmpMatch.group(1) == self.enum_postScout:
                 return True
         return False
 
     # wait until input shows up
     def waitInput(self):
-        return self.check_split_rule('waitInput')
+        return self.check_split_rule("waitInput")
 
     # input prestaging
     def inputPreStaging(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['inputPreStaging']+'='+self.enum_inputPreStaging['use'],
-                                 self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["inputPreStaging"] + "=" + self.enum_inputPreStaging["use"], self.splitRule)
             if tmpMatch is not None:
                 return True
         return False
 
     # disable input prestaging
     def disableInputPreStaging(self):
-        self.setSplitRule('inputPreStaging', self.enum_inputPreStaging['notUse'])
+        self.setSplitRule("inputPreStaging", self.enum_inputPreStaging["notUse"])
 
     # set DDM backend
-    def setDdmBackEnd(self,backEnd):
+    def setDdmBackEnd(self, backEnd):
         if self.splitRule is None:
             # new
-            self.splitRule = self.splitRuleToken['ddmBackEnd']+'='+backEnd
+            self.splitRule = self.splitRuleToken["ddmBackEnd"] + "=" + backEnd
         else:
-            tmpMatch = re.search(self.splitRuleToken['ddmBackEnd']+'=([^,$]+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["ddmBackEnd"] + "=([^,$]+)", self.splitRule)
             if tmpMatch is None:
                 # append
-                self.splitRule += ','+self.splitRuleToken['ddmBackEnd']+'='+backEnd
+                self.splitRule += "," + self.splitRuleToken["ddmBackEnd"] + "=" + backEnd
             else:
                 # replace
-                self.splitRule = re.sub(self.splitRuleToken['ddmBackEnd']+'=([^,$]+)',
-                                        self.splitRuleToken['ddmBackEnd']+'='+backEnd,
-                                        self.splitRule)
-
-
+                self.splitRule = re.sub(self.splitRuleToken["ddmBackEnd"] + "=([^,$]+)", self.splitRuleToken["ddmBackEnd"] + "=" + backEnd, self.splitRule)
 
     # get DDM backend
     def getDdmBackEnd(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['ddmBackEnd']+'=([^,$]+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["ddmBackEnd"] + "=([^,$]+)", self.splitRule)
             if tmpMatch is not None:
                 return tmpMatch.group(1)
         return None
-
-
 
     # get field number to add middle name to LFN
     def getFieldNumToLFN(self):
         try:
             if self.splitRule is not None:
-                tmpMatch = re.search(self.splitRuleToken['addNthFieldToLFN']+'=([,\d]+)',self.splitRule)
+                tmpMatch = re.search(self.splitRuleToken["addNthFieldToLFN"] + "=([,\d]+)", self.splitRule)
                 if tmpMatch is not None:
-                    tmpList = tmpMatch.group(1).split(',')
+                    tmpList = tmpMatch.group(1).split(",")
                     try:
-                        tmpList.remove('')
+                        tmpList.remove("")
                     except Exception:
                         pass
                     return list(map(int, tmpList))
@@ -1059,97 +1017,83 @@ class JediTaskSpec(object):
             pass
         return None
 
-
-
     # get required success rate for scout jobs
     def getScoutSuccessRate(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['scoutSuccessRate']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["scoutSuccessRate"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
-
-
     # get T1 weight
     def getT1Weight(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['t1Weight']+'=(-*\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["t1Weight"] + "=(-*\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return 0
 
     # respect Lumiblock boundaries
     def respectLumiblock(self):
-        return self.check_split_rule('respectLB')
+        return self.check_split_rule("respectLB")
 
     # release files per Lumiblock
     def releasePerLumiblock(self):
-        return self.check_split_rule('releasePerLB')
+        return self.check_split_rule("releasePerLB")
 
     # order by Lumiblock numbers
     def orderByLB(self):
-        return self.check_split_rule('orderByLB')
+        return self.check_split_rule("orderByLB")
 
     # respect split rule
     def respectSplitRule(self):
-        return self.check_split_rule('respectSplitRule')
+        return self.check_split_rule("respectSplitRule")
 
     # allow partial finish
     def allowPartialFinish(self):
-        return self.check_split_rule('allowPartialFinish')
+        return self.check_split_rule("allowPartialFinish")
 
     # check if datasets should be registered
     def toRegisterDatasets(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['registerDatasets']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["registerDatasets"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None and tmpMatch.group(1) == self.enum_toRegisterDS:
                 return True
         return False
 
-
-
     # datasets were registered
     def registeredDatasets(self):
-        self.setSplitRule('registerDatasets',self.enum_registeredDS)
-
-
+        self.setSplitRule("registerDatasets", self.enum_registeredDS)
 
     # set datasets to be registered
     def setToRegisterDatasets(self):
-        self.setSplitRule('registerDatasets',self.enum_toRegisterDS)
-
-
+        self.setSplitRule("registerDatasets", self.enum_toRegisterDS)
 
     # get the max number of attempts for ES events
     def getMaxAttemptES(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['maxAttemptES']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["maxAttemptES"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
-
-
     # get the max number of attempts for ES jobs
     def getMaxAttemptEsJob(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['maxAttemptEsJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["maxAttemptEsJob"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return self.getMaxAttemptES()
 
-
-
     # check attribute length
     def checkAttrLength(self):
-        for attrName,attrLength in iteritems(self._attrLength):
-            attrVal = getattr(self,attrName)
+        for attrName, attrLength in iteritems(self._attrLength):
+            attrVal = getattr(self, attrName)
             if attrVal is None:
                 continue
             if len(attrVal) > attrLength:
-                setattr(self,attrName,None)
-                self.errorDialog = "{0} is too long (actual: {1}, maximum: {2})".format(attrName,len(attrVal),attrLength)
+                setattr(self, attrName, None)
+                self.errorDialog = "{0} is too long (actual: {1}, maximum: {2})".format(attrName, len(attrVal), attrLength)
                 return False
         return True
 
@@ -1157,27 +1101,27 @@ class JediTaskSpec(object):
     def setIpConnectivity(self, value):
         if not value:
             return
-        values = value.split('#')
+        values = value.split("#")
         if not values:
             return
         ipConnectivity = values[0]
         if ipConnectivity in self.enum_ipConnectivity.values():
             for tmpKey, tmpVal in iteritems(self.enum_ipConnectivity):
                 if ipConnectivity == tmpVal:
-                    self.setSplitRule('ipConnectivity', tmpKey)
+                    self.setSplitRule("ipConnectivity", tmpKey)
                     break
         if len(values) > 1:
             ipStack = values[1]
             if ipStack in self.enum_ipStack.values():
                 for tmpKey, tmpVal in iteritems(self.enum_ipStack):
                     if ipStack == tmpVal:
-                        self.setSplitRule('ipStack', tmpKey)
+                        self.setSplitRule("ipStack", tmpKey)
                         break
 
     # get IP connectivity
     def getIpConnectivity(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['ipConnectivity']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["ipConnectivity"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return self.enum_ipConnectivity[tmpMatch.group(1)]
         return None
@@ -1185,21 +1129,21 @@ class JediTaskSpec(object):
     # get IP connectivity
     def getIpStack(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['ipStack']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["ipStack"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return self.enum_ipStack[tmpMatch.group(1)]
         return None
 
     # use HS06 for walltime estimation
     def useHS06(self):
-        return self.cpuTimeUnit in ['HS06sPerEvent', 'HS06sPerEventFixed', 'mHS06sPerEvent', 'mHS06sPerEventFixed']
+        return self.cpuTimeUnit in ["HS06sPerEvent", "HS06sPerEventFixed", "mHS06sPerEvent", "mHS06sPerEventFixed"]
 
     # get CPU time in sec
     def getCpuTime(self):
         if not self.useHS06():
             return None
         try:
-            if self.cpuTimeUnit.startswith('m'):
+            if self.cpuTimeUnit.startswith("m"):
                 return float(self.cpuTime) / 1000.0
         except Exception:
             pass
@@ -1207,27 +1151,27 @@ class JediTaskSpec(object):
 
     # RAM scales with nCores
     def ramPerCore(self):
-        return self.ramUnit in ['MBPerCore','MBPerCoreFixed']
+        return self.ramUnit in ["MBPerCore", "MBPerCoreFixed"]
 
     # run until input is closed
     def runUntilClosed(self):
-        return self.check_split_rule('runUntilClosed')
+        return self.check_split_rule("runUntilClosed")
 
     # stay output on site
     def stayOutputOnSite(self):
-        return self.check_split_rule('stayOutputOnSite')
+        return self.check_split_rule("stayOutputOnSite")
 
     # fail when goal unreached
     def failGoalUnreached(self):
-        return self.check_split_rule('failGoalUnreached')
+        return self.check_split_rule("failGoalUnreached")
 
     # unset fail when goal unreached
     def unsetFailGoalUnreached(self):
-        self.removeSplitRule(self.splitRuleToken['failGoalUnreached'])
+        self.removeSplitRule(self.splitRuleToken["failGoalUnreached"])
 
     # switch ES to normal when jobs land at normal sites
     def switchEStoNormal(self):
-        return self.check_split_rule('switchEStoNormal')
+        return self.check_split_rule("switchEStoNormal")
 
     # use world cloud
     def useWorldCloud(self):
@@ -1236,7 +1180,7 @@ class JediTaskSpec(object):
     # dynamic number of events
     def dynamicNumEvents(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['dynamicNumEvents']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["dynamicNumEvents"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return True
         return False
@@ -1244,147 +1188,144 @@ class JediTaskSpec(object):
     # get min granularity for dynamic number of events
     def get_min_granularity(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['dynamicNumEvents']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["dynamicNumEvents"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
     # set alternative stage-out
-    def setAltStageOut(self,value):
+    def setAltStageOut(self, value):
         if value in self.enum_altStageOut.values():
-            for tmpKey,tmpVal in iteritems(self.enum_altStageOut):
+            for tmpKey, tmpVal in iteritems(self.enum_altStageOut):
                 if value == tmpVal:
-                    self.setSplitRule('altStageOut',tmpKey)
+                    self.setSplitRule("altStageOut", tmpKey)
                     break
 
     # get alternative stage-out
     def getAltStageOut(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['altStageOut']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["altStageOut"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return self.enum_altStageOut[tmpMatch.group(1)]
         return None
 
     # allow WAN for input access
     def allowInputWAN(self):
-        return self.check_split_rule('allowInputWAN')
+        return self.check_split_rule("allowInputWAN")
 
     # set mode for input LAN access
-    def setAllowInputLAN(self,value):
+    def setAllowInputLAN(self, value):
         if value in self.enum_inputLAN.values():
-            for tmpKey,tmpVal in iteritems(self.enum_inputLAN):
+            for tmpKey, tmpVal in iteritems(self.enum_inputLAN):
                 if value == tmpVal:
-                    self.setSplitRule('allowInputLAN',tmpKey)
+                    self.setSplitRule("allowInputLAN", tmpKey)
                     break
 
     # check if LAN is used for input access
     def allowInputLAN(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['allowInputLAN']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["allowInputLAN"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return self.enum_inputLAN[tmpMatch.group(1)]
         return None
 
     # put log files to OS
     def putLogToOS(self):
-        return self.check_split_rule('putLogToOS')
+        return self.check_split_rule("putLogToOS")
 
     # merge ES on Object Store
     def mergeEsOnOS(self):
-        return self.check_split_rule('mergeEsOnOS')
+        return self.check_split_rule("mergeEsOnOS")
 
     # write input to file
     def writeInputToFile(self):
-        return self.check_split_rule('writeInputToFile')
+        return self.check_split_rule("writeInputToFile")
 
     # ignore missing input datasets
     def ignoreMissingInDS(self):
-        return self.check_split_rule('ignoreMissingInDS')
+        return self.check_split_rule("ignoreMissingInDS")
 
     # suppress execute string conversion
     def noExecStrCnv(self):
-        return self.check_split_rule('noExecStrCnv')
+        return self.check_split_rule("noExecStrCnv")
 
     # in-file positional event number
     def inFilePosEvtNum(self):
-        return self.check_split_rule('inFilePosEvtNum')
+        return self.check_split_rule("inFilePosEvtNum")
 
     # register event service files
     def registerEsFiles(self):
-        return self.check_split_rule('registerEsFiles')
+        return self.check_split_rule("registerEsFiles")
 
     # disable auto finish
     def disableAutoFinish(self):
-        return self.check_split_rule('disableAutoFinish')
+        return self.check_split_rule("disableAutoFinish")
 
     # reset refined attributes which may confuse they system
     def resetRefinedAttrs(self):
-        self.resetChangedAttr('splitRule')
-        self.resetChangedAttr('eventService')
+        self.resetChangedAttr("splitRule")
+        self.resetChangedAttr("eventService")
         self.reserve_old_attributes()
 
     # resurrect consumers
     def resurrectConsumers(self):
-        return self.check_split_rule('resurrectConsumers')
+        return self.check_split_rule("resurrectConsumers")
 
     # use prefetcher
     def usePrefetcher(self):
-        return self.check_split_rule('usePrefetcher')
+        return self.check_split_rule("usePrefetcher")
 
     # no input pooling
     def noInputPooling(self):
-        return self.check_split_rule('noInputPooling')
+        return self.check_split_rule("noInputPooling")
 
     # get num of input chunks to wait
     def nChunksToWait(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nChunksToWait']+'=(\d+)', self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nChunksToWait"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
-
     # get max walltime
     def getMaxWalltime(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['maxWalltime']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["maxWalltime"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1)) * 60 * 60
         return None
 
-
-
     # get target size of the largest output to reset NG
     def getTgtMaxOutputForNG(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['tgtMaxOutputForNG']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["tgtMaxOutputForNG"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
     # not discard events
     def notDiscardEvents(self):
-        return self.check_split_rule('notDiscardEvents')
+        return self.check_split_rule("notDiscardEvents")
 
     # get min CPU efficiency
     def getMinCpuEfficiency(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['minCpuEfficiency']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["minCpuEfficiency"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
     # decrement attemptNr of events only when failed
     def decAttOnFailedES(self):
-        return self.check_split_rule('decAttOnFailedES')
+        return self.check_split_rule("decAttOnFailedES")
 
     # use zip files to pin input files
     def useZipToPin(self):
-        return self.check_split_rule('useZipToPin')
+        return self.check_split_rule("useZipToPin")
 
     # require OS matching
     def osMatching(self):
-        return self.check_split_rule('osMatching')
+        return self.check_split_rule("osMatching")
 
     # architecture: sw_platform<@base_platform><#host_cpu_spec><&host_gpu_spec>
     # host_cpu_spec: architecture<-vendor<-instruction_set>>
@@ -1393,18 +1334,18 @@ class JediTaskSpec(object):
     # get SW platform
     def get_sw_platform(self):
         if self.architecture is not None:
-            m = re.search('^([^@#&]*)', self.architecture)
+            m = re.search("^([^@#&]*)", self.architecture)
             if m:
                 return m.group(1)
         return self.architecture
 
     # get base platform
     def get_base_platform(self):
-        if self.architecture is None or '@' not in self.architecture:
+        if self.architecture is None or "@" not in self.architecture:
             return None
-        m = re.search('@([^#&]*)', self.architecture)
+        m = re.search("@([^#&]*)", self.architecture)
         img = m.group(1)
-        if img == '':
+        if img == "":
             img = None
         return img
 
@@ -1414,26 +1355,24 @@ class JediTaskSpec(object):
             platform = self.get_sw_platform()
             base = self.get_base_platform()
             if base:
-                platform += '@' + base
-            return  platform
+                platform += "@" + base
+            return platform
         return self.architecture
 
     # get host CPU spec
     def get_host_cpu_spec(self):
         try:
-            if self.architecture is None or '#' not in self.architecture:
+            if self.architecture is None or "#" not in self.architecture:
                 return None
-            m = re.search('#([^@&]*)', self.architecture)
+            m = re.search("#([^@&]*)", self.architecture)
             spec_str = m.group(1)
             if not spec_str:
                 return None
-            spec_str += '-*' * (2 - spec_str.count('-'))
-            if '-' not in spec_str:
-                spec_str += '-*'
-            items = spec_str.split('-')
-            spec = {'arch': items[0],
-                    'vendor': items[1],
-                    'instr': items[2]}
+            spec_str += "-*" * (2 - spec_str.count("-"))
+            if "-" not in spec_str:
+                spec_str += "-*"
+            items = spec_str.split("-")
+            spec = {"arch": items[0], "vendor": items[1], "instr": items[2]}
             return spec
         except Exception:
             return None
@@ -1441,36 +1380,35 @@ class JediTaskSpec(object):
     # get host GPU spec
     def get_host_gpu_spec(self):
         try:
-            if self.architecture is None or '&' not in self.architecture:
+            if self.architecture is None or "&" not in self.architecture:
                 return None
-            m = re.search('&([^@#]*)', self.architecture)
+            m = re.search("&([^@#]*)", self.architecture)
             spec_str = m.group(1)
             if not spec_str:
                 return None
-            spec_str += '-*' * (1 - spec_str.count('-'))
-            items = spec_str.split('-')
-            spec = {'vendor': items[0],
-                    'model': items[1]}
+            spec_str += "-*" * (1 - spec_str.count("-"))
+            items = spec_str.split("-")
+            spec = {"vendor": items[0], "model": items[1]}
             return spec
         except Exception:
             return None
 
     # HPO workflow
     def is_hpo_workflow(self):
-        return self.check_split_rule('hpoWorkflow')
+        return self.check_split_rule("hpoWorkflow")
 
     # debug mode
     def is_debug_mode(self):
-        return self.check_split_rule('debugMode')
+        return self.check_split_rule("debugMode")
 
     # multi-step execution
     def is_multi_step_exec(self):
-        return self.check_split_rule('multiStepExec')
+        return self.check_split_rule("multiStepExec")
 
     # get max number of jobs
     def get_max_num_jobs(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['maxNumJobs']+'=(\d+)', self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["maxNumJobs"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
@@ -1478,62 +1416,62 @@ class JediTaskSpec(object):
     # get total number of jobs
     def get_total_num_jobs(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['totNumJobs']+'=(\d+)', self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["totNumJobs"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
     # use only tags for fat container
     def use_only_tags_fc(self):
-        return self.check_split_rule('onlyTagsForFC')
+        return self.check_split_rule("onlyTagsForFC")
 
     # avoid VP
     def avoid_vp(self):
-        return self.check_split_rule('avoidVP')
+        return self.check_split_rule("avoidVP")
 
     # set first contents feed
     def set_first_contents_feed(self, is_first):
         if is_first:
-            self.setSplitRule('firstContentsFeed', self.FirstContentsFeed.TRUE.value)
+            self.setSplitRule("firstContentsFeed", self.FirstContentsFeed.TRUE.value)
         else:
-            self.setSplitRule('firstContentsFeed', self.FirstContentsFeed.FALSE.value)
+            self.setSplitRule("firstContentsFeed", self.FirstContentsFeed.FALSE.value)
 
     # check if first contents feed
     def is_first_contents_feed(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['firstContentsFeed']+'=(\d+)', self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["firstContentsFeed"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None and tmpMatch.group(1) == self.FirstContentsFeed.TRUE.value:
                 return True
         return False
 
     # check if work is segmented
     def is_work_segmented(self):
-        return self.check_split_rule('segmentedWork')
+        return self.check_split_rule("segmentedWork")
 
     # check if looping check is disabled
     def no_looping_check(self):
-        return self.check_split_rule('noLoopingCheck')
+        return self.check_split_rule("noLoopingCheck")
 
     # encode job parameters
     def encode_job_params(self):
-        return self.check_split_rule('encJobParams')
+        return self.check_split_rule("encJobParams")
 
     # get original error dialog
     def get_original_error_dialog(self):
         if not self.origErrorDialog:
-            return ''
+            return ""
         # remove log URL
-        tmpStr = re.sub('<a href.+</a> : ', '', self.origErrorDialog)
-        return tmpStr.split('. ')[-1]
+        tmpStr = re.sub("<a href.+</a> : ", "", self.origErrorDialog)
+        return tmpStr.split(". ")[-1]
 
     # check if secrets are used
     def use_secrets(self):
-        return self.check_split_rule('useSecrets')
+        return self.check_split_rule("useSecrets")
 
     # get max core count
     def get_max_core_count(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['maxCoreCount']+'=(\d+)', self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["maxCoreCount"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
@@ -1544,36 +1482,36 @@ class JediTaskSpec(object):
 
     # use cloud as VO
     def cloud_as_vo(self):
-        return self.check_split_rule('cloudAsVO')
+        return self.check_split_rule("cloudAsVO")
 
     # push job
     def push_job(self):
-        return self.check_split_rule('pushJob')
+        return self.check_split_rule("pushJob")
 
     # fine-grained process
     def is_fine_grained_process(self):
-        return self.check_split_rule('fineGrainedProc')
+        return self.check_split_rule("fineGrainedProc")
 
     # on site merging
     def on_site_merging(self):
-        return self.check_split_rule('onSiteMerging')
+        return self.check_split_rule("onSiteMerging")
 
     # set full chain flag
     def set_full_chain(self, mode):
         var = None
-        if mode == 'only':
+        if mode == "only":
             var = self.FullChain.Only
-        elif mode == 'require':
+        elif mode == "require":
             var = self.FullChain.Require
-        elif mode == 'capable':
+        elif mode == "capable":
             var = self.FullChain.Capable
         if var:
-            self.setSplitRule('fullChain', var)
+            self.setSplitRule("fullChain", var)
 
     # get full chain flag
     def get_full_chain(self):
         if self.splitRule:
-            tmpMatch = re.search(self.splitRuleToken['fullChain']+r'=(\d+)', self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["fullChain"] + r"=(\d+)", self.splitRule)
             if tmpMatch:
                 return tmpMatch.group(1)
         return None
@@ -1581,13 +1519,13 @@ class JediTaskSpec(object):
     # check full chain with mode
     def check_full_chain_with_mode(self, mode):
         task_flag = self.get_full_chain()
-        if mode == 'only':
+        if mode == "only":
             if task_flag == self.FullChain.Only:
                 return True
-        elif mode == 'require':
+        elif mode == "require":
             if task_flag == self.FullChain.Require:
                 return True
-        elif mode == 'capable':
+        elif mode == "capable":
             if task_flag == self.FullChain.Capable:
                 return True
         return False
@@ -1602,11 +1540,11 @@ class JediTaskSpec(object):
     def get_ram_for_retry(self, current_ram):
         if not self.splitRule:
             return None
-        tmpMatch = re.search(self.splitRuleToken['retryRamOffset'] + r'=(\d+)', self.splitRule)
+        tmpMatch = re.search(self.splitRuleToken["retryRamOffset"] + r"=(\d+)", self.splitRule)
         if not tmpMatch:
             return None
         offset = int(tmpMatch.group(1))
-        tmpMatch = re.search(self.splitRuleToken['retryRamStep'] + r'=(\d+)', self.splitRule)
+        tmpMatch = re.search(self.splitRuleToken["retryRamStep"] + r"=(\d+)", self.splitRule)
         if tmpMatch:
             step = int(tmpMatch.group(1))
         else:
@@ -1622,14 +1560,14 @@ class JediTaskSpec(object):
     # get number of events per input
     def get_num_events_per_input(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['nEventsPerInput']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["nEventsPerInput"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
 
     def get_max_events_per_job(self):
         if self.splitRule is not None:
-            tmpMatch = re.search(self.splitRuleToken['maxEventsPerJob']+'=(\d+)',self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["maxEventsPerJob"] + "=(\d+)", self.splitRule)
             if tmpMatch is not None:
                 return int(tmpMatch.group(1))
         return None
@@ -1637,27 +1575,28 @@ class JediTaskSpec(object):
     # set order input by
     def set_order_input_by(self, mode):
         var = None
-        if mode == 'eventsAlignment':
+        if mode == "eventsAlignment":
             var = self.OrderInputBy.eventsAlignment
         if var:
-            self.setSplitRule('orderInputBy', var)
+            self.setSplitRule("orderInputBy", var)
 
     # get full chain flag
     def order_input_by(self):
         if self.splitRule:
-            tmpMatch = re.search(self.splitRuleToken['orderInputBy']+r'=(\d+)', self.splitRule)
+            tmpMatch = re.search(self.splitRuleToken["orderInputBy"] + r"=(\d+)", self.splitRule)
             if tmpMatch:
                 if tmpMatch.group(1) == self.OrderInputBy.eventsAlignment:
-                    return 'eventsAlignment'
+                    return "eventsAlignment"
         return None
 
     # check if intermediate task
     def is_intermediate_task(self):
-        return self.check_split_rule('intermediateTask')
+        return self.check_split_rule("intermediateTask")
 
     # check if message driven
     def is_msg_driven(self):
-        return self.check_split_rule('messageDriven')
+        return self.check_split_rule("messageDriven")
+
 
 # utils
 
@@ -1666,7 +1605,7 @@ class JediTaskSpec(object):
 def push_status_changes(split_rule):
     if not split_rule:
         return False
-    tmpMatch = re.search(JediTaskSpec.splitRuleToken['pushStatusChanges'] + r'=(\d+)', split_rule)
+    tmpMatch = re.search(JediTaskSpec.splitRuleToken["pushStatusChanges"] + r"=(\d+)", split_rule)
     if not tmpMatch or int(tmpMatch.group(1)) <= 0:
         return False
     return True
