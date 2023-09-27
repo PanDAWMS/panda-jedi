@@ -4,16 +4,17 @@ from .DDMClientBase import DDMClientBase
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-logger = PandaLogger().getLogger(__name__.split('.')[-1])
+
+logger = PandaLogger().getLogger(__name__.split(".")[-1])
+
 
 # class to access to general DDM
 class GenDDMClient(DDMClientBase):
-
     # constructor
-    def __init__(self,con):
+    def __init__(self, con):
         # initialize base class
-        DDMClientBase.__init__(self,con)
+        DDMClientBase.__init__(self, con)
 
     # get dataset metadata
     def getDatasetMetaData(self, datasetName, ignore_missing=False):
-        return self.SC_SUCCEEDED, {'state':'closed'}
+        return self.SC_SUCCEEDED, {"state": "closed"}

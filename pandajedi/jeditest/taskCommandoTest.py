@@ -18,14 +18,12 @@ parent_conn, child_conn = multiprocessing.Pipe()
 try:
     testVO = sys.argv[1]
 except Exception:
-    testVO = 'any'
+    testVO = "any"
 
 try:
     testTaskType = sys.argv[2]
 except Exception:
-    testTaskType = 'any'
+    testTaskType = "any"
 
-taskCommando = multiprocessing.Process(target=TaskCommando.launcher,
-                                       args=(child_conn,tbIF,ddmIF,
-                                             testVO,testTaskType))
+taskCommando = multiprocessing.Process(target=TaskCommando.launcher, args=(child_conn, tbIF, ddmIF, testVO, testTaskType))
 taskCommando.start()

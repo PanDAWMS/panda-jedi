@@ -14,11 +14,12 @@ from pandaserver.dataservice import DataServiceUtils
 from dataservice.DataServiceUtils import select_scope
 from pandaserver.taskbuffer import ProcessGroups, JobUtils
 
+
 # get hospital queues
 def getHospitalQueues(siteMapper, prodSourceLabel, job_label, siteInNucleus=None, cloudForNucleus=None):
     retMap = {}
     # hospital words
-    goodWordList = ['CORE$', 'VL$', 'MEM$', 'MP\d+$', 'LONG$', '_HIMEM', '_\d+$','SHORT$']
+    goodWordList = ["CORE$", "VL$", "MEM$", "MP\d+$", "LONG$", "_HIMEM", "_\d+$", "SHORT$"]
     # loop over all clouds
     if siteInNucleus is None:
         cloudList = siteMapper.getCloudList()
@@ -30,7 +31,7 @@ def getHospitalQueues(siteMapper, prodSourceLabel, job_label, siteInNucleus=None
         tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
         if siteInNucleus is None:
             # get T1
-            tmpT1Name = tmpCloudSpec['source']
+            tmpT1Name = tmpCloudSpec["source"]
         else:
             tmpT1Name = siteInNucleus
         tmpT1Spec = siteMapper.getSite(tmpT1Name)
@@ -39,14 +40,14 @@ def getHospitalQueues(siteMapper, prodSourceLabel, job_label, siteInNucleus=None
         if not tmpT1Spec.ddm_output[scope_t1_output]:
             continue
         # loop over all sites
-        for tmpSiteName in tmpCloudSpec['sites']:
+        for tmpSiteName in tmpCloudSpec["sites"]:
             # skip T1 defined in cloudconfig
             if tmpSiteName == tmpT1Name:
                 continue
             # check hospital words
             checkHospWord = False
             for tmpGoodWord in goodWordList:
-                if re.search(tmpGoodWord,tmpSiteName) is not None:
+                if re.search(tmpGoodWord, tmpSiteName) is not None:
                     checkHospWord = True
                     break
             if not checkHospWord:
@@ -57,7 +58,11 @@ def getHospitalQueues(siteMapper, prodSourceLabel, job_label, siteInNucleus=None
             tmpSiteSpec = siteMapper.getSite(tmpSiteName)
             scope_tmpSite_input, scope_tmpSite_output = select_scope(tmpSiteSpec, prodSourceLabel, job_label)
             # check DDM
-            if scope_t1_output in tmpT1Spec.ddm_output and scope_tmpSite_output in tmpSiteSpec.ddm_output and tmpT1Spec.ddm_output[scope_t1_output] == tmpSiteSpec.ddm_output[scope_tmpSite_output]:
+            if (
+                scope_t1_output in tmpT1Spec.ddm_output
+                and scope_tmpSite_output in tmpSiteSpec.ddm_output
+                and tmpT1Spec.ddm_output[scope_t1_output] == tmpSiteSpec.ddm_output[scope_tmpSite_output]
+            ):
                 # append
                 if tmpCloudName not in retMap:
                     retMap[tmpCloudName] = []
@@ -67,49 +72,48 @@ def getHospitalQueues(siteMapper, prodSourceLabel, job_label, siteInNucleus=None
     return retMap
 
 
-
 # get sites where data is available
 def getSitesWithData(siteMapper, ddmIF, datasetName, prodsourcelabel, job_label, storageToken=None):
     # get num of files
     try:
-        if not datasetName.endswith('/'):
+        if not datasetName.endswith("/"):
             totalNumDatasets = 1
         else:
             tmpDsMap = ddmIF.listDatasetsInContainer(datasetName)
             totalNumDatasets = len(tmpDsMap)
     except Exception:
-        errtype,errvalue = sys.exc_info()[:2]
-        return errtype,'ddmIF.listDatasetsInContainer failed with %s' % errvalue
+        errtype, errvalue = sys.exc_info()[:2]
+        return errtype, "ddmIF.listDatasetsInContainer failed with %s" % errvalue
     # get replicas
     try:
-        replicaMap= {}
+        replicaMap = {}
         replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName)
     except Exception:
-        errtype,errvalue = sys.exc_info()[:2]
-        return errtype,'ddmIF.listDatasetReplicas failed with %s' % errvalue
+        errtype, errvalue = sys.exc_info()[:2]
+        return errtype, "ddmIF.listDatasetReplicas failed with %s" % errvalue
     # loop over all clouds
     retMap = {}
     for tmpCloudName in siteMapper.cloudSpec.keys():
-        retMap[tmpCloudName] = {'t1':{},'t2':[]}
+        retMap[tmpCloudName] = {"t1": {}, "t2": []}
         # get T1 DDM endpoints
         tmpCloudSpec = siteMapper.getCloud(tmpCloudName)
         # FIXME until CERN-PROD_TZERO is added to cloudconfig.tier1SE
-        if tmpCloudName == 'CERN':
-            if 'CERN-PROD_TZERO' not in tmpCloudSpec['tier1SE']:
-                tmpCloudSpec['tier1SE'].append('CERN-PROD_TZERO')
-        for tmpSePat in tmpCloudSpec['tier1SE']:
-            if '*' in tmpSePat:
-                tmpSePat = tmpSePat.replace('*','.*')
-            tmpSePat = '^' + tmpSePat +'$'
+        if tmpCloudName == "CERN":
+            if "CERN-PROD_TZERO" not in tmpCloudSpec["tier1SE"]:
+                tmpCloudSpec["tier1SE"].append("CERN-PROD_TZERO")
+        for tmpSePat in tmpCloudSpec["tier1SE"]:
+            if "*" in tmpSePat:
+                tmpSePat = tmpSePat.replace("*", ".*")
+            tmpSePat = "^" + tmpSePat + "$"
             for tmpSE in replicaMap[datasetName].keys():
                 # check name with regexp pattern
-                if re.search(tmpSePat,tmpSE) is None:
+                if re.search(tmpSePat, tmpSE) is None:
                     continue
                 # check space token
-                if storageToken not in ['',None,'NULL']:
-                    seStr = ddmIF.getSiteProperty(tmpSE,'se')
+                if storageToken not in ["", None, "NULL"]:
+                    seStr = ddmIF.getSiteProperty(tmpSE, "se")
                     try:
-                        if seStr.split(':')[1] != storageToken:
+                        if seStr.split(":")[1] != storageToken:
                             continue
                     except Exception:
                         pass
@@ -118,34 +122,33 @@ def getSitesWithData(siteMapper, ddmIF, datasetName, prodsourcelabel, job_label,
                 pass
                 # check tape attribute
                 try:
-                    tmpOnTape = ddmIF.getSiteProperty(tmpSE,'is_tape')
+                    tmpOnTape = ddmIF.getSiteProperty(tmpSE, "is_tape")
                 except Exception:
                     continue
                     # errtype,errvalue = sys.exc_info()[:2]
                     # return errtype,'ddmIF.getSiteProperty for %s:tape failed with %s' % (tmpSE,errvalue)
                 # check completeness
                 tmpStatistics = replicaMap[datasetName][tmpSE][-1]
-                if tmpStatistics['found'] is None:
-                    tmpDatasetStatus = 'unknown'
+                if tmpStatistics["found"] is None:
+                    tmpDatasetStatus = "unknown"
                     pass
-                elif tmpStatistics['total'] == tmpStatistics['found'] and tmpStatistics['total'] >= totalNumDatasets:
-                    tmpDatasetStatus = 'complete'
+                elif tmpStatistics["total"] == tmpStatistics["found"] and tmpStatistics["total"] >= totalNumDatasets:
+                    tmpDatasetStatus = "complete"
                 else:
-                    tmpDatasetStatus = 'incomplete'
+                    tmpDatasetStatus = "incomplete"
                 # append
-                retMap[tmpCloudName]['t1'][tmpSE] = {'tape':tmpOnTape,'state':tmpDatasetStatus}
+                retMap[tmpCloudName]["t1"][tmpSE] = {"tape": tmpOnTape, "state": tmpDatasetStatus}
         # get T2 list
-        tmpSiteList = DataServiceUtils.getSitesWithDataset(datasetName, siteMapper, replicaMap,
-                                                           tmpCloudName, prodsourcelabel, job_label,
-                                                           useHomeCloud=True, useOnlineSite=True, includeT1=False)
+        tmpSiteList = DataServiceUtils.getSitesWithDataset(
+            datasetName, siteMapper, replicaMap, tmpCloudName, prodsourcelabel, job_label, useHomeCloud=True, useOnlineSite=True, includeT1=False
+        )
         # append
-        retMap[tmpCloudName]['t2'] = tmpSiteList
+        retMap[tmpCloudName]["t2"] = tmpSiteList
         # remove if empty
-        if len(retMap[tmpCloudName]['t1']) == 0 and len(retMap[tmpCloudName]['t2']) == 0:
+        if len(retMap[tmpCloudName]["t1"]) == 0 and len(retMap[tmpCloudName]["t2"]) == 0:
             del retMap[tmpCloudName]
     # return
-    return Interaction.SC_SUCCEEDED,retMap
-
+    return Interaction.SC_SUCCEEDED, retMap
 
 
 # get nuclei where data is available
@@ -154,8 +157,8 @@ def getNucleiWithData(siteMapper, ddmIF, datasetName, candidateNuclei, deepScan=
     try:
         replicaMap = ddmIF.listReplicasPerDataset(datasetName, deepScan)
     except Exception:
-        errtype,errvalue = sys.exc_info()[:2]
-        return errtype,'ddmIF.listReplicasPerDataset failed with %s' % errvalue
+        errtype, errvalue = sys.exc_info()[:2]
+        return errtype, "ddmIF.listReplicasPerDataset failed with %s" % errvalue
     # loop over all clouds
     retMap = {}
     for tmpNucleus in candidateNuclei:
@@ -167,7 +170,7 @@ def getNucleiWithData(siteMapper, ddmIF, datasetName, candidateNuclei, deepScan=
         avaNumAny = 0
         avaSizeDisk = 0
         avaSizeAny = 0
-        for tmpDataset,tmpRepMap in iteritems(replicaMap):
+        for tmpDataset, tmpRepMap in iteritems(replicaMap):
             tmpTotalNum = 0
             tmpTotalSize = 0
             tmpAvaNumDisk = 0
@@ -175,63 +178,62 @@ def getNucleiWithData(siteMapper, ddmIF, datasetName, candidateNuclei, deepScan=
             tmpAvaSizeDisk = 0
             tmpAvaSizeAny = 0
             # loop over all endpoints
-            for tmpLoc,locData in iteritems(tmpRepMap):
+            for tmpLoc, locData in iteritems(tmpRepMap):
                 # get total
                 if tmpTotalNum == 0:
-                    tmpTotalNum = locData[0]['total']
-                    tmpTotalSize = locData[0]['tsize']
+                    tmpTotalNum = locData[0]["total"]
+                    tmpTotalSize = locData[0]["tsize"]
                 # check if the endpoint is associated
                 if tmpNucleusSpec.is_associated_for_input(tmpLoc):
                     tmpEndpoint = tmpNucleusSpec.getEndpoint(tmpLoc)
-                    tmpAvaNum   = locData[0]['found']
-                    tmpAvaSize  = locData[0]['asize']
+                    tmpAvaNum = locData[0]["found"]
+                    tmpAvaSize = locData[0]["asize"]
                     # disk
-                    if tmpEndpoint['is_tape'] != 'Y':
+                    if tmpEndpoint["is_tape"] != "Y":
                         # complete replica is available at DISK
                         if tmpTotalNum == tmpAvaNum and tmpTotalNum > 0:
-                            tmpAvaNumDisk  = tmpAvaNum
-                            tmpAvaNumAny   = tmpAvaNum
+                            tmpAvaNumDisk = tmpAvaNum
+                            tmpAvaNumAny = tmpAvaNum
                             tmpAvaSizeDisk = tmpAvaSize
-                            tmpAvaSizeAny  = tmpAvaSize
+                            tmpAvaSizeAny = tmpAvaSize
                             break
                         if tmpAvaNum > tmpAvaNumDisk:
-                            tmpAvaNumDisk  = tmpAvaNum
+                            tmpAvaNumDisk = tmpAvaNum
                             tmpAvaSizeDisk = tmpAvaSize
                     # tape
                     if tmpAvaNumAny < tmpAvaNum:
-                        tmpAvaNumAny  = tmpAvaNum
+                        tmpAvaNumAny = tmpAvaNum
                         tmpAvaSizeAny = tmpAvaSize
             # total
-            totalNum     = tmpTotalNum
-            totalSize    = tmpTotalSize
-            avaNumDisk  += tmpAvaNumDisk
-            avaNumAny   += tmpAvaNumAny
+            totalNum = tmpTotalNum
+            totalSize = tmpTotalSize
+            avaNumDisk += tmpAvaNumDisk
+            avaNumAny += tmpAvaNumAny
             avaSizeDisk += tmpAvaSizeDisk
-            avaSizeAny  += tmpAvaSizeAny
+            avaSizeAny += tmpAvaSizeAny
         # append
         if tmpNucleus in candidateNuclei or avaNumAny > 0:
-            retMap[tmpNucleus] = {'tot_num'       : totalNum,
-                                  'tot_size'      : totalSize,
-                                  'ava_num_disk'  : avaNumDisk,
-                                  'ava_num_any'   : avaNumAny,
-                                  'ava_size_disk' : avaSizeDisk,
-                                  'ava_size_any'  : avaSizeAny,
-                                  }
+            retMap[tmpNucleus] = {
+                "tot_num": totalNum,
+                "tot_size": totalSize,
+                "ava_num_disk": avaNumDisk,
+                "ava_num_any": avaNumAny,
+                "ava_size_disk": avaSizeDisk,
+                "ava_size_any": avaSizeAny,
+            }
     # return
-    return Interaction.SC_SUCCEEDED,retMap
-
+    return Interaction.SC_SUCCEEDED, retMap
 
 
 # get analysis sites where data is available
 def getAnalSitesWithData(siteList, siteMapper, ddmIF, datasetName, element_list):
     # get replicas
     try:
-        replicaMap= {}
-        replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName, use_vp=True, skip_incomplete_element=True,
-                                                            element_list=element_list)
+        replicaMap = {}
+        replicaMap[datasetName] = ddmIF.listDatasetReplicas(datasetName, use_vp=True, skip_incomplete_element=True, element_list=element_list)
     except Exception:
-        errtype,errvalue = sys.exc_info()[:2]
-        return errtype,'ddmIF.listDatasetReplicas failed with %s' % errvalue
+        errtype, errvalue = sys.exc_info()[:2]
+        return errtype, "ddmIF.listDatasetReplicas failed with %s" % errvalue
     # loop over all clouds
     retMap = {}
     for tmpSiteName in siteList:
@@ -248,7 +250,7 @@ def getAnalSitesWithData(siteList, siteMapper, ddmIF, datasetName, element_list)
             input_endpoints = {}
         for tmpDDM in input_endpoints:
             # skip empty
-            if tmpDDM == '':
+            if tmpDDM == "":
                 continue
             # get prefix
             # tmpPrefix = re.sub('_[^_]+$','_',tmpDDM)
@@ -258,51 +260,50 @@ def getAnalSitesWithData(siteList, siteMapper, ddmIF, datasetName, element_list)
             if tmpPrefix in checkedEndPoints:
                 continue
             # DBR
-            if DataServiceUtils.isCachedFile(datasetName,tmpSiteSpec):
+            if DataServiceUtils.isCachedFile(datasetName, tmpSiteSpec):
                 # no replica check since it is cached
                 if tmpSiteName not in retMap:
                     retMap[tmpSiteName] = {}
-                retMap[tmpSiteName][tmpDDM] = {'tape': False, 'state': 'complete'}
+                retMap[tmpSiteName][tmpDDM] = {"tape": False, "state": "complete"}
                 checkedEndPoints.append(tmpPrefix)
                 continue
             checkedEndPoints.append(tmpPrefix)
-            tmpSePat = '^' + tmpPrefix
+            tmpSePat = "^" + tmpPrefix
             for tmpSE in replicaMap[datasetName].keys():
                 # check name with regexp pattern
-                if re.search(tmpSePat,tmpSE) is None:
+                if re.search(tmpSePat, tmpSE) is None:
                     continue
                 # skip staging
-                if re.search('STAGING$',tmpSE) is not None:
+                if re.search("STAGING$", tmpSE) is not None:
                     continue
                 # check archived metadata
                 # FIXME
                 pass
                 # check tape attribute
                 try:
-                    tmpOnTape = ddmIF.getSiteProperty(tmpSE,'is_tape')
+                    tmpOnTape = ddmIF.getSiteProperty(tmpSE, "is_tape")
                 except Exception:
                     continue
                     # errtype,errvalue = sys.exc_info()[:2]
                     # return errtype,'ddmIF.getSiteProperty for %s:tape failed with %s' % (tmpSE,errvalue)
                 # check completeness
                 tmpStatistics = replicaMap[datasetName][tmpSE][-1]
-                if tmpStatistics['found'] is None:
-                    tmpDatasetStatus = 'unknown'
+                if tmpStatistics["found"] is None:
+                    tmpDatasetStatus = "unknown"
                     # refresh request
                     pass
-                elif tmpStatistics['total'] == tmpStatistics['found']:
-                    tmpDatasetStatus = 'complete'
+                elif tmpStatistics["total"] == tmpStatistics["found"]:
+                    tmpDatasetStatus = "complete"
                 else:
-                    tmpDatasetStatus = 'incomplete'
+                    tmpDatasetStatus = "incomplete"
                 # append
                 if tmpSiteName not in retMap:
                     retMap[tmpSiteName] = {}
-                retMap[tmpSiteName][tmpSE] = {'tape':tmpOnTape,'state':tmpDatasetStatus}
-                if 'vp' in tmpStatistics:
-                    retMap[tmpSiteName][tmpSE]['vp'] = tmpStatistics['vp']
+                retMap[tmpSiteName][tmpSE] = {"tape": tmpOnTape, "state": tmpDatasetStatus}
+                if "vp" in tmpStatistics:
+                    retMap[tmpSiteName][tmpSE]["vp"] = tmpStatistics["vp"]
     # return
-    return Interaction.SC_SUCCEEDED,retMap
-
+    return Interaction.SC_SUCCEEDED, retMap
 
 
 # get analysis sites where data is available at disk
@@ -314,17 +315,17 @@ def getAnalSitesWithDataDisk(dataSiteMap, includeTape=False, use_vp=True, use_in
     for tmpSiteName, tmpSeValMap in iteritems(dataSiteMap):
         for tmpSE, tmpValMap in iteritems(tmpSeValMap):
             # VP
-            if tmpValMap.get('vp'):
+            if tmpValMap.get("vp"):
                 siteListVP.add(tmpSiteName)
                 if not use_vp:
                     continue
             # on disk or tape
-            if includeTape or not tmpValMap['tape']:
-                if tmpValMap['state'] == 'complete':
+            if includeTape or not tmpValMap["tape"]:
+                if tmpValMap["state"] == "complete":
                     # complete replica at disk
                     if tmpSiteName not in siteList:
                         siteList.append(tmpSiteName)
-                    if not tmpValMap['tape'] and not tmpValMap.get('vp'):
+                    if not tmpValMap["tape"] and not tmpValMap.get("vp"):
                         siteListNonVP.add(tmpSiteName)
                 else:
                     # incomplete replica at disk
@@ -374,11 +375,11 @@ def get_total_nq_nr_ratio(job_stat_map, work_queue_tag=None):
                 continue
             tmpWorkQueueVal = siteVal[tmpWorkQueue]
             # loop over all job status
-            for tmpJobStatus in ['defined', 'assigned', 'activated', 'starting']:
+            for tmpJobStatus in ["defined", "assigned", "activated", "starting"]:
                 if tmpJobStatus in tmpWorkQueueVal:
                     nQueue += tmpWorkQueueVal[tmpJobStatus]
-            if 'running' in tmpWorkQueueVal:
-                nRunning += tmpWorkQueueVal['running']
+            if "running" in tmpWorkQueueVal:
+                nRunning += tmpWorkQueueVal["running"]
     try:
         ratio = float(nQueue) / float(nRunning)
     except Exception:
@@ -386,102 +387,102 @@ def get_total_nq_nr_ratio(job_stat_map, work_queue_tag=None):
     # return
     return ratio
 
+
 # check if the queue is suppressed
 def hasZeroShare(siteSpec, taskSpec, ignorePrio, tmpLog):
     # per-site share is undefined
-    if siteSpec.fairsharePolicy in ['',None]:
+    if siteSpec.fairsharePolicy in ["", None]:
         return False
     try:
         # get process group
         tmpProGroup = ProcessGroups.getProcessGroup(taskSpec.processingType)
         # no suppress for test queues
-        if tmpProGroup in ['test']:
+        if tmpProGroup in ["test"]:
             return False
         # loop over all policies
-        for tmpItem in siteSpec.fairsharePolicy.split(','):
-            if re.search('(^|,|:)id=',tmpItem) is not None:
+        for tmpItem in siteSpec.fairsharePolicy.split(","):
+            if re.search("(^|,|:)id=", tmpItem) is not None:
                 # new format
-                tmpMatch = re.search('(^|,|:)id={0}:'.format(taskSpec.workQueue_ID),tmpItem)
+                tmpMatch = re.search("(^|,|:)id={0}:".format(taskSpec.workQueue_ID), tmpItem)
                 if tmpMatch is not None:
                     # check priority if any
                     tmpPrio = None
-                    for tmpStr in tmpItem.split(':'):
-                        if tmpStr.startswith('priority'):
-                            tmpPrio = re.sub('priority','',tmpStr)
+                    for tmpStr in tmpItem.split(":"):
+                        if tmpStr.startswith("priority"):
+                            tmpPrio = re.sub("priority", "", tmpStr)
                             break
                     if tmpPrio is not None:
                         try:
-                            exec("tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio), globals())
+                            exec("tmpStat = {0}{1}".format(taskSpec.currentPriority, tmpPrio), globals())
                             if not tmpStat:
                                 continue
                         except Exception:
                             pass
                     # check share
-                    tmpShare = tmpItem.split(':')[-1]
-                    tmpSahre = tmpShare.replace('%','')
-                    if tmpSahre == '0':
+                    tmpShare = tmpItem.split(":")[-1]
+                    tmpSahre = tmpShare.replace("%", "")
+                    if tmpSahre == "0":
                         return True
                     else:
                         return False
             else:
                 # old format
-                tmpType  = None
+                tmpType = None
                 tmpGroup = None
-                tmpPrio  = None
-                tmpShare = tmpItem.split(':')[-1]
-                for tmpStr in tmpItem.split(':'):
-                    if tmpStr.startswith('type='):
-                        tmpType = tmpStr.split('=')[-1]
-                    elif tmpStr.startswith('group='):
-                        tmpGroup = tmpStr.split('=')[-1]
-                    elif tmpStr.startswith('priority'):
-                        tmpPrio = re.sub('priority','',tmpStr)
+                tmpPrio = None
+                tmpShare = tmpItem.split(":")[-1]
+                for tmpStr in tmpItem.split(":"):
+                    if tmpStr.startswith("type="):
+                        tmpType = tmpStr.split("=")[-1]
+                    elif tmpStr.startswith("group="):
+                        tmpGroup = tmpStr.split("=")[-1]
+                    elif tmpStr.startswith("priority"):
+                        tmpPrio = re.sub("priority", "", tmpStr)
                 # check matching for type
-                if tmpType not in ['any',None]:
-                    if '*' in tmpType:
-                        tmpType = tmpType.replace('*','.*')
+                if tmpType not in ["any", None]:
+                    if "*" in tmpType:
+                        tmpType = tmpType.replace("*", ".*")
                     # type mismatch
-                    if re.search('^'+tmpType+'$',tmpProGroup) is None:
+                    if re.search("^" + tmpType + "$", tmpProGroup) is None:
                         continue
                 # check matching for group
-                if tmpGroup not in ['any',None] and taskSpec.workingGroup is not None:
-                    if '*' in tmpGroup:
-                        tmpGroup = tmpGroup.replace('*','.*')
+                if tmpGroup not in ["any", None] and taskSpec.workingGroup is not None:
+                    if "*" in tmpGroup:
+                        tmpGroup = tmpGroup.replace("*", ".*")
                     # group mismatch
-                    if re.search('^'+tmpGroup+'$',taskSpec.workingGroup) is None:
+                    if re.search("^" + tmpGroup + "$", taskSpec.workingGroup) is None:
                         continue
                 # check priority
                 if tmpPrio is not None and not ignorePrio:
                     try:
-                        exec("tmpStat = {0}{1}".format(taskSpec.currentPriority,tmpPrio), globals())
+                        exec("tmpStat = {0}{1}".format(taskSpec.currentPriority, tmpPrio), globals())
                         if not tmpStat:
                             continue
                     except Exception:
                         pass
                 # check share
-                tmpShare = tmpItem.split(':')[-1]
-                if tmpShare in ['0','0%']:
+                tmpShare = tmpItem.split(":")[-1]
+                if tmpShare in ["0", "0%"]:
                     return True
                 else:
                     return False
     except Exception:
-        errtype,errvalue = sys.exc_info()[:2]
-        tmpLog.error('hasZeroShare failed with {0}:{1}'.format(errtype,errvalue))
+        errtype, errvalue = sys.exc_info()[:2]
+        tmpLog.error("hasZeroShare failed with {0}:{1}".format(errtype, errvalue))
     # return
     return False
 
 
-
 # check if site name is matched with one of list items
-def isMatched(siteName,nameList):
+def isMatched(siteName, nameList):
     for tmpName in nameList:
         # ignore empty
-        if tmpName == '':
+        if tmpName == "":
             continue
         # wild card
-        if '*' in tmpName:
-            tmpName = tmpName.replace('*','.*')
-            if re.search(tmpName,siteName) is not None:
+        if "*" in tmpName:
+            tmpName = tmpName.replace("*", ".*")
+            if re.search(tmpName, siteName) is not None:
                 return True
         else:
             # normal pattern
@@ -491,11 +492,10 @@ def isMatched(siteName,nameList):
     return False
 
 
-
 # get dict to set nucleus
-def getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs):
+def getDictToSetNucleus(nucleusSpec, tmpDatasetSpecs):
     # get destinations
-    retMap = {'datasets':[],'nucleus':nucleusSpec.name}
+    retMap = {"datasets": [], "nucleus": nucleusSpec.name}
     for datasetSpec in tmpDatasetSpecs:
         # skip distributed datasets
         if DataServiceUtils.getDistributedDestination(datasetSpec.storageToken) is not None:
@@ -507,55 +507,51 @@ def getDictToSetNucleus(nucleusSpec,tmpDatasetSpecs):
             endPoint = nucleusSpec.get_default_endpoint_out()
         if endPoint is None:
             continue
-        token = endPoint['ddm_endpoint_name']
+        token = endPoint["ddm_endpoint_name"]
         # add original token
-        if datasetSpec.storageToken not in ['',None]:
-            token += '/{0}'.format(datasetSpec.storageToken.split('/')[-1])
-        retMap['datasets'].append({'datasetID':datasetSpec.datasetID,
-                                   'token':'dst:{0}'.format(token),
-                                   'destination':'nucleus:{0}'.format(nucleusSpec.name)})
+        if datasetSpec.storageToken not in ["", None]:
+            token += "/{0}".format(datasetSpec.storageToken.split("/")[-1])
+        retMap["datasets"].append({"datasetID": datasetSpec.datasetID, "token": "dst:{0}".format(token), "destination": "nucleus:{0}".format(nucleusSpec.name)})
     return retMap
 
 
 # remove problematic sites
-def skipProblematicSites(candidateSpecList,ngSites,sitesUsedByTask,preSetSiteSpec,maxNumSites,timeWindow,tmpLog):
+def skipProblematicSites(candidateSpecList, ngSites, sitesUsedByTask, preSetSiteSpec, maxNumSites, timeWindow, tmpLog):
     skippedSites = set()
     usedSitesGood = []
     newSitesGood = []
     # collect sites already used by the task
     for candidateSpec in candidateSpecList:
         # check if problematic
-        if (candidateSpec.siteName in ngSites or candidateSpec.unifiedName in ngSites) and \
-                (preSetSiteSpec is None or candidateSpec.siteName != preSetSiteSpec.siteName):
+        if (candidateSpec.siteName in ngSites or candidateSpec.unifiedName in ngSites) and (
+            preSetSiteSpec is None or candidateSpec.siteName != preSetSiteSpec.siteName
+        ):
             skippedSites.add(candidateSpec.siteName)
         else:
-            if (candidateSpec.siteName in sitesUsedByTask or candidateSpec.unifiedName in sitesUsedByTask):
+            if candidateSpec.siteName in sitesUsedByTask or candidateSpec.unifiedName in sitesUsedByTask:
                 usedSitesGood.append(candidateSpec)
             else:
                 newSitesGood.append(candidateSpec)
     # set number of sites if undefined
-    if maxNumSites in [0,None]:
+    if maxNumSites in [0, None]:
         maxNumSites = len(candidateSpecList)
     newcandidateSpecList = usedSitesGood + newSitesGood
     newcandidateSpecList = newcandidateSpecList[:maxNumSites]
     # dump
     for skippedSite in skippedSites:
-        tmpLog.debug('getting rid of problematic site {0}'.format(skippedSite))
+        tmpLog.debug("getting rid of problematic site {0}".format(skippedSite))
     return newcandidateSpecList
-
-
 
 
 # get mapping between sites and input storage endpoints
 def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, job_label, ignore_cc=False):
-
     # make a map of the t1 to its respective cloud
     t1_map = {}
     for tmp_cloud_name in site_mapper.getCloudList():
         # get cloud
         tmp_cloud_spec = site_mapper.getCloud(tmp_cloud_name)
         # get T1
-        tmp_t1_name = tmp_cloud_spec['source']
+        tmp_t1_name = tmp_cloud_spec["source"]
         # append
         t1_map[tmp_t1_name] = tmp_cloud_name
 
@@ -576,7 +572,7 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, jo
         if not ignore_cc and site_name in t1_map:
             tmp_cloud_name = t1_map[site_name]
             tmp_cloud_spec = site_mapper.getCloud(tmp_cloud_name)
-            for tmp_endpoint in tmp_cloud_spec['tier1SE']:
+            for tmp_endpoint in tmp_cloud_spec["tier1SE"]:
                 if tmp_endpoint and tmp_endpoint not in ret_map[site_name]:
                     ret_map[site_name].append(tmp_endpoint)
     # return
@@ -586,47 +582,48 @@ def getSiteInputStorageEndpointMap(site_list, site_mapper, prod_source_label, jo
 # get lists of mandatory or inconvertible architectures
 def getOkNgArchList(task_spec):
     if task_spec.termCondition:
-        if '.el6.' in task_spec.termCondition:
-            return (None, ['x86_64-centos7-%'])
-        if '.el7.' in task_spec.termCondition:
-            return (['x86_64-centos7-%'], None)
+        if ".el6." in task_spec.termCondition:
+            return (None, ["x86_64-centos7-%"])
+        if ".el7." in task_spec.termCondition:
+            return (["x86_64-centos7-%"], None)
     return (None, None)
 
 
 # get to-running rate of sites from various resources
 CACHE_SiteToRunRateStats = {}
+
+
 def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetime=600):
     # initialize
     ret_val = False
     ret_map = {}
     # DB cache keys
-    dc_main_key = 'AtlasSites'
-    dc_sub_key = 'SiteToRunRate'
+    dc_main_key = "AtlasSites"
+    dc_sub_key = "SiteToRunRate"
     # arguments for process lock
-    this_prodsourcelabel = 'user'
-    this_pid = '{0}-{1}_{2}-broker'.format(socket.getfqdn().split('.')[0], os.getpid(), os.getpgrp())
-    this_component = 'Cache.SiteToRunRate'
+    this_prodsourcelabel = "user"
+    this_pid = "{0}-{1}_{2}-broker".format(socket.getfqdn().split(".")[0], os.getpid(), os.getpgrp())
+    this_component = "Cache.SiteToRunRate"
     # timestamps
     current_time = datetime.datetime.utcnow()
     starttime_max = current_time - datetime.timedelta(seconds=cutoff)
     starttime_min = current_time - datetime.timedelta(seconds=time_window)
     # rounded with 10 minutes
-    starttime_max_rounded = starttime_max.replace(minute=starttime_max.minute//10*10, second=0, microsecond=0)
-    starttime_min_rounded = starttime_min.replace(minute=starttime_min.minute//10*10, second=0, microsecond=0)
-    real_interval_hours = (starttime_max_rounded - starttime_min_rounded).total_seconds()/3600
+    starttime_max_rounded = starttime_max.replace(minute=starttime_max.minute // 10 * 10, second=0, microsecond=0)
+    starttime_min_rounded = starttime_min.replace(minute=starttime_min.minute // 10 * 10, second=0, microsecond=0)
+    real_interval_hours = (starttime_max_rounded - starttime_min_rounded).total_seconds() / 3600
     # local cache key
     local_cache_key = (starttime_min_rounded, starttime_max_rounded)
     # condition of query
-    if local_cache_key in CACHE_SiteToRunRateStats \
-        and current_time <= CACHE_SiteToRunRateStats[local_cache_key]['exp']:
+    if local_cache_key in CACHE_SiteToRunRateStats and current_time <= CACHE_SiteToRunRateStats[local_cache_key]["exp"]:
         # query from local cache
         ret_val = True
-        ret_map = CACHE_SiteToRunRateStats[local_cache_key]['data']
+        ret_map = CACHE_SiteToRunRateStats[local_cache_key]["data"]
     else:
         # try some times
         for _ in range(99):
             # skip if too long after original current time
-            if datetime.datetime.utcnow() - current_time > datetime.timedelta(seconds=min(10, cache_lifetime/4)):
+            if datetime.datetime.utcnow() - current_time > datetime.timedelta(seconds=min(10, cache_lifetime / 4)):
                 # break trying
                 break
             try:
@@ -639,44 +636,44 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
                         ret_val = True
                         ret_map = json.loads(cache_spec.data)
                         # fill local cache
-                        CACHE_SiteToRunRateStats[local_cache_key] = {   'exp': expired_time,
-                                                                        'data': ret_map}
+                        CACHE_SiteToRunRateStats[local_cache_key] = {"exp": expired_time, "data": ret_map}
                         # break trying
                         break
                 # got process lock
-                got_lock = tbIF.lockProcess_JEDI(   vo=vo, prodSourceLabel=this_prodsourcelabel,
-                                                    cloud=None, workqueue_id=None,
-                                                    resource_name=None,
-                                                    component=this_component,
-                                                    pid=this_pid, timeLimit=5)
+                got_lock = tbIF.lockProcess_JEDI(
+                    vo=vo,
+                    prodSourceLabel=this_prodsourcelabel,
+                    cloud=None,
+                    workqueue_id=None,
+                    resource_name=None,
+                    component=this_component,
+                    pid=this_pid,
+                    timeLimit=5,
+                )
                 if not got_lock:
                     # not getting lock, sleep and query cache again
                     time.sleep(1)
                     continue
                 # query from PanDA DB directly
-                ret_val, ret_map = tbIF.getSiteToRunRateStats(  vo=vo, exclude_rwq=False,
-                                                                starttime_min=starttime_min,
-                                                                starttime_max=starttime_max)
+                ret_val, ret_map = tbIF.getSiteToRunRateStats(vo=vo, exclude_rwq=False, starttime_min=starttime_min, starttime_max=starttime_max)
                 if ret_val:
                     # expired time
                     expired_time = current_time + datetime.timedelta(seconds=cache_lifetime)
                     # fill local cache
-                    CACHE_SiteToRunRateStats[local_cache_key] = {   'exp': expired_time,
-                                                                    'data': ret_map}
+                    CACHE_SiteToRunRateStats[local_cache_key] = {"exp": expired_time, "data": ret_map}
                     # json of data
                     data_json = json.dumps(ret_map)
                     # fill DB cache
                     tbIF.updateCache_JEDI(main_key=dc_main_key, sub_key=dc_sub_key, data=data_json)
                 # unlock process
-                tbIF.unlockProcess_JEDI(vo=vo, prodSourceLabel=this_prodsourcelabel,
-                                        cloud=None, workqueue_id=None,
-                                        resource_name=None,
-                                        component=this_component, pid=this_pid)
+                tbIF.unlockProcess_JEDI(
+                    vo=vo, prodSourceLabel=this_prodsourcelabel, cloud=None, workqueue_id=None, resource_name=None, component=this_component, pid=this_pid
+                )
                 # break trying
                 break
             except Exception as e:
                 # dump error message
-                err_str = 'AtlasBrokerUtils.getSiteToRunRateStats got {0}: {1} \n'.format(e.__class__.__name__, e)
+                err_str = "AtlasBrokerUtils.getSiteToRunRateStats got {0}: {1} \n".format(e.__class__.__name__, e)
                 sys.stderr.write(err_str)
                 # break trying
                 break
@@ -687,7 +684,7 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
                 try:
                     del CACHE_SiteToRunRateStats[lc_key]
                 except Exception as e:
-                    err_str = 'AtlasBrokerUtils.getSiteToRunRateStats when deleting outdated entries got {0}: {1} \n'.format(e.__class__.__name__, e)
+                    err_str = "AtlasBrokerUtils.getSiteToRunRateStats when deleting outdated entries got {0}: {1} \n".format(e.__class__.__name__, e)
                     sys.stderr.write(err_str)
     # return
     return ret_val, ret_map
@@ -695,32 +692,33 @@ def getSiteToRunRateStats(tbIF, vo, time_window=21600, cutoff=300, cache_lifetim
 
 # get users jobs stats from various resources
 CACHE_UsersJobsStats = {}
+
+
 def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
     # initialize
     ret_val = False
     ret_map = {}
     # DB cache keys
-    dc_main_key = 'AtlasSites'
-    dc_sub_key = 'UsersJobsStats'
+    dc_main_key = "AtlasSites"
+    dc_sub_key = "UsersJobsStats"
     # arguments for process lock
     this_prodsourcelabel = prod_source_label
-    this_pid = this_pid = '{0}-{1}_{2}-broker'.format(socket.getfqdn().split('.')[0], os.getpid(), os.getpgrp())
-    this_component = 'Cache.UsersJobsStats'
+    this_pid = this_pid = "{0}-{1}_{2}-broker".format(socket.getfqdn().split(".")[0], os.getpid(), os.getpgrp())
+    this_component = "Cache.UsersJobsStats"
     # local cache key; a must if not using global variable
-    local_cache_key = '_main'
+    local_cache_key = "_main"
     # timestamps
     current_time = datetime.datetime.utcnow()
     # condition of query
-    if local_cache_key in CACHE_UsersJobsStats \
-        and current_time <= CACHE_UsersJobsStats[local_cache_key]['exp']:
+    if local_cache_key in CACHE_UsersJobsStats and current_time <= CACHE_UsersJobsStats[local_cache_key]["exp"]:
         # query from local cache
         ret_val = True
-        ret_map = CACHE_UsersJobsStats[local_cache_key]['data']
+        ret_map = CACHE_UsersJobsStats[local_cache_key]["data"]
     else:
         # try some times
         for _ in range(99):
             # skip if too long after original current time
-            if datetime.datetime.utcnow() - current_time > datetime.timedelta(seconds=min(15, cache_lifetime/4)):
+            if datetime.datetime.utcnow() - current_time > datetime.timedelta(seconds=min(15, cache_lifetime / 4)):
                 # break trying
                 break
             try:
@@ -733,15 +731,20 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
                         ret_val = True
                         ret_map = json.loads(cache_spec.data)
                         # fill local cache
-                        CACHE_UsersJobsStats[local_cache_key] = {'exp': expired_time, 'data': ret_map}
+                        CACHE_UsersJobsStats[local_cache_key] = {"exp": expired_time, "data": ret_map}
                         # break trying
                         break
                 # got process lock
-                got_lock = tbIF.lockProcess_JEDI(   vo=vo, prodSourceLabel=this_prodsourcelabel,
-                                                    cloud=None, workqueue_id=None,
-                                                    resource_name=None,
-                                                    component=this_component,
-                                                    pid=this_pid, timeLimit=(cache_lifetime*0.75/60))
+                got_lock = tbIF.lockProcess_JEDI(
+                    vo=vo,
+                    prodSourceLabel=this_prodsourcelabel,
+                    cloud=None,
+                    workqueue_id=None,
+                    resource_name=None,
+                    component=this_component,
+                    pid=this_pid,
+                    timeLimit=(cache_lifetime * 0.75 / 60),
+                )
                 if not got_lock:
                     # not getting lock, sleep and query cache again
                     time.sleep(1)
@@ -752,7 +755,7 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
                     # expired time
                     expired_time = current_time + datetime.timedelta(seconds=cache_lifetime)
                     # fill local cache
-                    CACHE_UsersJobsStats[local_cache_key] = {'exp': expired_time, 'data': ret_map}
+                    CACHE_UsersJobsStats[local_cache_key] = {"exp": expired_time, "data": ret_map}
                     # json of data
                     data_json = json.dumps(ret_map)
                     # fill DB cache
@@ -760,15 +763,14 @@ def getUsersJobsStats(tbIF, vo, prod_source_label, cache_lifetime=60):
                     # make True return
                     ret_val = True
                 # unlock process
-                tbIF.unlockProcess_JEDI(vo=vo, prodSourceLabel=this_prodsourcelabel,
-                                        cloud=None, workqueue_id=None,
-                                        resource_name=None,
-                                        component=this_component, pid=this_pid)
+                tbIF.unlockProcess_JEDI(
+                    vo=vo, prodSourceLabel=this_prodsourcelabel, cloud=None, workqueue_id=None, resource_name=None, component=this_component, pid=this_pid
+                )
                 # break trying
                 break
             except Exception as e:
                 # dump error message
-                err_str = 'AtlasBrokerUtils.getUsersJobsStats got {0}: {1} \n'.format(e.__class__.__name__, e)
+                err_str = "AtlasBrokerUtils.getUsersJobsStats got {0}: {1} \n".format(e.__class__.__name__, e)
                 sys.stderr.write(err_str)
                 # break trying
                 break
@@ -787,24 +789,24 @@ def getGShareUsage(tbIF, gshare, fresher_than_minutes_ago=15):
     for _ in range(99):
         now_time = datetime.datetime.utcnow()
         # skip if too long after original current time
-        if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago/3)):
+        if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago / 3)):
             # break trying
             break
         try:
             # query from PanDA DB directly
             sql_get_gshare = (
-                    """SELECT m.value_json """
-                    """FROM ATLAS_PANDA.Metrics m """
-                    """WHERE m.metric=:metric """
-                        """AND m.gshare=:gshare """
-                        """AND m.timestamp>=:min_timestamp """
-                )
+                """SELECT m.value_json """
+                """FROM ATLAS_PANDA.Metrics m """
+                """WHERE m.metric=:metric """
+                """AND m.gshare=:gshare """
+                """AND m.timestamp>=:min_timestamp """
+            )
             # varMap
             varMap = {
-                    ':metric': 'gshare_preference',
-                    ':gshare': gshare,
-                    ':min_timestamp': now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
-                }
+                ":metric": "gshare_preference",
+                ":gshare": gshare,
+                ":min_timestamp": now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
+            }
             # result
             res = tbIF.querySQL(sql_get_gshare, varMap)
             if res:
@@ -817,7 +819,7 @@ def getGShareUsage(tbIF, gshare, fresher_than_minutes_ago=15):
             break
         except Exception as e:
             # dump error message
-            err_str = 'AtlasBrokerUtils.getGShareUsage got {0}: {1} \n'.format(e.__class__.__name__, e)
+            err_str = "AtlasBrokerUtils.getGShareUsage got {0}: {1} \n".format(e.__class__.__name__, e)
             sys.stderr.write(err_str)
             # break trying
             break
@@ -836,22 +838,19 @@ def getUserEval(tbIF, user, fresher_than_minutes_ago=20):
     for _ in range(99):
         now_time = datetime.datetime.utcnow()
         # skip if too long after original current time
-        if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago/3)):
+        if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago / 3)):
             # break trying
             break
         try:
             # query from PanDA DB directly
             sql_get_user_eval = (
-                    """SELECT m.value_json."{user}" """
-                    """FROM ATLAS_PANDA.Metrics m """
-                    """WHERE m.metric=:metric """
-                        """AND m.timestamp>=:min_timestamp """
-                ).format(user=user)
+                """SELECT m.value_json."{user}" """ """FROM ATLAS_PANDA.Metrics m """ """WHERE m.metric=:metric """ """AND m.timestamp>=:min_timestamp """
+            ).format(user=user)
             # varMap
             varMap = {
-                    ':metric': 'analy_user_eval',
-                    ':min_timestamp': now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
-                }
+                ":metric": "analy_user_eval",
+                ":min_timestamp": now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
+            }
             # result
             res = tbIF.querySQL(sql_get_user_eval, varMap)
             if res:
@@ -864,7 +863,7 @@ def getUserEval(tbIF, user, fresher_than_minutes_ago=20):
             break
         except Exception as e:
             # dump error message
-            err_str = 'AtlasBrokerUtils.getUserEval got {0}: {1} \n'.format(e.__class__.__name__, e)
+            err_str = "AtlasBrokerUtils.getUserEval got {0}: {1} \n".format(e.__class__.__name__, e)
             sys.stderr.write(err_str)
             # break trying
             break
@@ -883,24 +882,24 @@ def getUserTaskEval(tbIF, taskID, fresher_than_minutes_ago=15):
     for _ in range(99):
         now_time = datetime.datetime.utcnow()
         # skip if too long after original current time
-        if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago/3)):
+        if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago / 3)):
             # break trying
             break
         try:
             # query from PanDA DB directly
             sql_get_task_eval = (
-                    """SELECT tev.value_json """
-                    """FROM ATLAS_PANDA.Task_Evaluation tev """
-                    """WHERE tev.metric=:metric """
-                        """AND tev.jediTaskID=:taskID """
-                        """AND tev.timestamp>=:min_timestamp """
-                )
+                """SELECT tev.value_json """
+                """FROM ATLAS_PANDA.Task_Evaluation tev """
+                """WHERE tev.metric=:metric """
+                """AND tev.jediTaskID=:taskID """
+                """AND tev.timestamp>=:min_timestamp """
+            )
             # varMap
             varMap = {
-                    ':metric': 'analy_task_eval',
-                    ':taskID': taskID,
-                    ':min_timestamp': now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
-                }
+                ":metric": "analy_task_eval",
+                ":taskID": taskID,
+                ":min_timestamp": now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
+            }
             # result
             res = tbIF.querySQL(sql_get_task_eval, varMap)
             if res:
@@ -913,7 +912,7 @@ def getUserTaskEval(tbIF, taskID, fresher_than_minutes_ago=15):
             break
         except Exception as e:
             # dump error message
-            err_str = 'AtlasBrokerUtils.getUserTaskEval got {0}: {1} \n'.format(e.__class__.__name__, e)
+            err_str = "AtlasBrokerUtils.getUserTaskEval got {0}: {1} \n".format(e.__class__.__name__, e)
             sys.stderr.write(err_str)
             # break trying
             break
@@ -932,22 +931,22 @@ def getAnalySitesClass(tbIF, fresher_than_minutes_ago=60):
     for _ in range(99):
         now_time = datetime.datetime.utcnow()
         # skip if too long after original current time
-        if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago/3)):
+        if now_time - current_time > datetime.timedelta(seconds=max(3, fresher_than_minutes_ago / 3)):
             # break trying
             break
         try:
             # query from PanDA DB directly
             sql_get_task_eval = (
-                    """SELECT m.computingSite, m.value_json.class """
-                    """FROM ATLAS_PANDA.Metrics m """
-                    """WHERE m.metric=:metric """
-                        """AND m.timestamp>=:min_timestamp """
-                )
+                """SELECT m.computingSite, m.value_json.class """
+                """FROM ATLAS_PANDA.Metrics m """
+                """WHERE m.metric=:metric """
+                """AND m.timestamp>=:min_timestamp """
+            )
             # varMap
             varMap = {
-                    ':metric': 'analy_site_eval',
-                    ':min_timestamp': now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
-                }
+                ":metric": "analy_site_eval",
+                ":min_timestamp": now_time - datetime.timedelta(minutes=fresher_than_minutes_ago),
+            }
             # result
             res = tbIF.querySQL(sql_get_task_eval, varMap)
             if res:
@@ -959,7 +958,7 @@ def getAnalySitesClass(tbIF, fresher_than_minutes_ago=60):
             break
         except Exception as e:
             # dump error message
-            err_str = 'AtlasBrokerUtils.getAnalySitesEval got {0}: {1} \n'.format(e.__class__.__name__, e)
+            err_str = "AtlasBrokerUtils.getAnalySitesEval got {0}: {1} \n".format(e.__class__.__name__, e)
             sys.stderr.write(err_str)
             # break trying
             break
@@ -971,43 +970,55 @@ def getAnalySitesClass(tbIF, fresher_than_minutes_ago=60):
 class JsonSoftwareCheck:
     # constructor
     def __init__(self, site_mapper, sw_map):
-
         self.siteMapper = site_mapper
         self.sw_map = sw_map
 
     # get lists
-    def check(self, site_list, cvmfs_tag, sw_project, sw_version, cmt_config, need_cvmfs, cmt_config_only,
-              need_container=False, container_name=None, only_tags_fc=False, host_cpu_spec=None,
-              host_gpu_spec=None, log_stream=None):
+    def check(
+        self,
+        site_list,
+        cvmfs_tag,
+        sw_project,
+        sw_version,
+        cmt_config,
+        need_cvmfs,
+        cmt_config_only,
+        need_container=False,
+        container_name=None,
+        only_tags_fc=False,
+        host_cpu_spec=None,
+        host_gpu_spec=None,
+        log_stream=None,
+    ):
         okSite = []
         noAutoSite = []
         for tmpSiteName in site_list:
             tmpSiteSpec = self.siteMapper.getSite(tmpSiteName)
-            if tmpSiteSpec.releases == ['AUTO'] and tmpSiteName in self.sw_map:
+            if tmpSiteSpec.releases == ["AUTO"] and tmpSiteName in self.sw_map:
                 try:
                     go_ahead = False
                     # convert to a dict
                     architecture_map = {}
-                    if 'architectures' in self.sw_map[tmpSiteName]:
-                        for arch_spec in self.sw_map[tmpSiteName]['architectures']:
-                            if 'type' in arch_spec:
-                                architecture_map[arch_spec['type']] = arch_spec
+                    if "architectures" in self.sw_map[tmpSiteName]:
+                        for arch_spec in self.sw_map[tmpSiteName]["architectures"]:
+                            if "type" in arch_spec:
+                                architecture_map[arch_spec["type"]] = arch_spec
                     # check if need CPU
-                    if 'cpu' in architecture_map:
+                    if "cpu" in architecture_map:
                         need_cpu = False
-                        for k in architecture_map['cpu']:
-                            if isinstance(architecture_map['cpu'][k], list):
-                                if 'excl' in architecture_map['cpu'][k]:
+                        for k in architecture_map["cpu"]:
+                            if isinstance(architecture_map["cpu"][k], list):
+                                if "excl" in architecture_map["cpu"][k]:
                                     need_cpu = True
                                     break
                         if need_cpu and host_cpu_spec is None:
                             continue
                     # check if need GPU
-                    if 'gpu' in architecture_map:
+                    if "gpu" in architecture_map:
                         need_gpu = False
-                        for k in architecture_map['gpu']:
-                            if isinstance(architecture_map['gpu'][k], list):
-                                if 'excl' in architecture_map['gpu'][k]:
+                        for k in architecture_map["gpu"]:
+                            if isinstance(architecture_map["gpu"][k], list):
+                                if "excl" in architecture_map["gpu"][k]:
                                     need_gpu = True
                                     break
                         if need_gpu and host_gpu_spec is None:
@@ -1019,89 +1030,78 @@ class JsonSoftwareCheck:
                         # check CPU
                         if host_cpu_spec:
                             # CPU not specified
-                            if 'cpu' not in architecture_map:
+                            if "cpu" not in architecture_map:
                                 continue
                             # check architecture
-                            if host_cpu_spec['arch'] == '*':
-                                if 'excl' in architecture_map['cpu']['arch']:
+                            if host_cpu_spec["arch"] == "*":
+                                if "excl" in architecture_map["cpu"]["arch"]:
                                     continue
                             else:
-                                if 'any' not in architecture_map['cpu']['arch'] and \
-                                        host_cpu_spec['arch'] not in architecture_map['cpu']['arch']:
+                                if "any" not in architecture_map["cpu"]["arch"] and host_cpu_spec["arch"] not in architecture_map["cpu"]["arch"]:
                                     continue
                             # check vendor
-                            if host_cpu_spec['vendor'] == '*':
-                                if 'vendor' in architecture_map['cpu'] and 'excl' in architecture_map['cpu']['vendor']:
+                            if host_cpu_spec["vendor"] == "*":
+                                if "vendor" in architecture_map["cpu"] and "excl" in architecture_map["cpu"]["vendor"]:
                                     continue
                             else:
-                                if 'any' not in architecture_map['cpu']['vendor'] and \
-                                        host_cpu_spec['vendor'] not in architecture_map['cpu']['vendor']:
+                                if "any" not in architecture_map["cpu"]["vendor"] and host_cpu_spec["vendor"] not in architecture_map["cpu"]["vendor"]:
                                     continue
                             # check instruction set
-                            if host_cpu_spec['instr'] == '*':
-                                if 'instr' in architecture_map['cpu'] and 'excl' in architecture_map['cpu']['instr']:
+                            if host_cpu_spec["instr"] == "*":
+                                if "instr" in architecture_map["cpu"] and "excl" in architecture_map["cpu"]["instr"]:
                                     continue
                             else:
-                                if 'instr' not in architecture_map['cpu']:
+                                if "instr" not in architecture_map["cpu"]:
                                     continue
-                                if 'any' not in architecture_map['cpu']['instr'] and \
-                                        host_cpu_spec['instr'] not in architecture_map['cpu']['instr']:
+                                if "any" not in architecture_map["cpu"]["instr"] and host_cpu_spec["instr"] not in architecture_map["cpu"]["instr"]:
                                     continue
                         # check GPU
                         if host_gpu_spec:
                             # GPU not specified
-                            if 'gpu' not in architecture_map:
+                            if "gpu" not in architecture_map:
                                 continue
                             # check vendor
-                            if host_gpu_spec['vendor'] == '*':
-                                if 'excl' in architecture_map['gpu']['vendor']:
+                            if host_gpu_spec["vendor"] == "*":
+                                if "excl" in architecture_map["gpu"]["vendor"]:
                                     continue
                             else:
-                                if 'any' not in architecture_map['gpu']['vendor'] and \
-                                        host_gpu_spec['vendor'] not in architecture_map['gpu']['vendor']:
+                                if "any" not in architecture_map["gpu"]["vendor"] and host_gpu_spec["vendor"] not in architecture_map["gpu"]["vendor"]:
                                     continue
                             # check model
-                            if host_gpu_spec['model'] == '*':
-                                if 'model' in architecture_map['gpu'] and 'excl' in architecture_map['gpu']['model']:
+                            if host_gpu_spec["model"] == "*":
+                                if "model" in architecture_map["gpu"] and "excl" in architecture_map["gpu"]["model"]:
                                     continue
                             else:
-                                if 'model' not in architecture_map['gpu'] or \
-                                        ('any' not in architecture_map['gpu']['model'] and \
-                                         host_gpu_spec['model'] not in architecture_map['gpu']['model']):
+                                if "model" not in architecture_map["gpu"] or (
+                                    "any" not in architecture_map["gpu"]["model"] and host_gpu_spec["model"] not in architecture_map["gpu"]["model"]
+                                ):
                                     continue
                     go_ahead = True
                 except Exception as e:
                     if log_stream:
-                        log_stream.error('json check {} failed for {} {} {} '.format(str(architecture_map),
-                                                                                     tmpSiteName, str(e),
-                                                                                     traceback.format_exc()))
+                        log_stream.error("json check {} failed for {} {} {} ".format(str(architecture_map), tmpSiteName, str(e), traceback.format_exc()))
                 if not go_ahead:
                     continue
                 # only HW check
-                if not (cvmfs_tag or cmt_config or sw_project or sw_version or container_name) and \
-                        (host_cpu_spec or host_gpu_spec):
+                if not (cvmfs_tag or cmt_config or sw_project or sw_version or container_name) and (host_cpu_spec or host_gpu_spec):
                     okSite.append(tmpSiteName)
                     continue
                 # check for fat container
                 if container_name:
                     # check for container
-                    if not only_tags_fc and ('any' in self.sw_map[tmpSiteName]["containers"] or
-                            '/cvmfs' in self.sw_map[tmpSiteName]["containers"]):
+                    if not only_tags_fc and ("any" in self.sw_map[tmpSiteName]["containers"] or "/cvmfs" in self.sw_map[tmpSiteName]["containers"]):
                         # any in containers
                         okSite.append(tmpSiteName)
-                    elif container_name in set([t['container_name'] for t in self.sw_map[tmpSiteName]['tags']
-                                                if t['container_name']]):
+                    elif container_name in set([t["container_name"] for t in self.sw_map[tmpSiteName]["tags"] if t["container_name"]]):
                         # logical name in tags or any in containers
                         okSite.append(tmpSiteName)
-                    elif container_name in set([s for t in self.sw_map[tmpSiteName]['tags'] for s in t['sources']
-                                               if t['sources']]):
+                    elif container_name in set([s for t in self.sw_map[tmpSiteName]["tags"] for s in t["sources"] if t["sources"]]):
                         # full path in sources
                         okSite.append(tmpSiteName)
                     elif not only_tags_fc:
                         # get sources in all tag list
-                        if 'ALL' in self.sw_map:
-                            source_list_in_all_tag = [s for t in self.sw_map['ALL']['tags']
-                                                      for s in t['sources'] if t['container_name']==container_name]
+                        if "ALL" in self.sw_map:
+                            source_list_in_all_tag = [s for t in self.sw_map["ALL"]["tags"] for s in t["sources"] if t["container_name"] == container_name]
                         else:
                             source_list_in_all_tag = []
                         # prefix with full path
@@ -1120,24 +1120,22 @@ class JsonSoftwareCheck:
                     continue
                 # only cmt config check
                 if cmt_config_only:
-                    if not cmt_config or cmt_config in self.sw_map[tmpSiteName]['cmtconfigs']:
+                    if not cmt_config or cmt_config in self.sw_map[tmpSiteName]["cmtconfigs"]:
                         okSite.append(tmpSiteName)
                     continue
                 # check if CVMFS is available
-                if 'any' in self.sw_map[tmpSiteName]["cvmfs"] or cvmfs_tag in self.sw_map[tmpSiteName]["cvmfs"]:
+                if "any" in self.sw_map[tmpSiteName]["cvmfs"] or cvmfs_tag in self.sw_map[tmpSiteName]["cvmfs"]:
                     # check if container is available
-                    if 'any' in self.sw_map[tmpSiteName]["containers"] or \
-                            '/cvmfs' in self.sw_map[tmpSiteName]["containers"]:
+                    if "any" in self.sw_map[tmpSiteName]["containers"] or "/cvmfs" in self.sw_map[tmpSiteName]["containers"]:
                         okSite.append(tmpSiteName)
                     # check cmt config
-                    elif not need_container and cmt_config in self.sw_map[tmpSiteName]['cmtconfigs']:
+                    elif not need_container and cmt_config in self.sw_map[tmpSiteName]["cmtconfigs"]:
                         okSite.append(tmpSiteName)
                 elif not need_cvmfs:
-                    if not need_container or 'any' in self.sw_map[tmpSiteName]["containers"]:
+                    if not need_container or "any" in self.sw_map[tmpSiteName]["containers"]:
                         # check tags
                         for tag in self.sw_map[tmpSiteName]["tags"]:
-                            if tag['cmtconfig'] == cmt_config and tag['project'] == sw_project \
-                               and tag['release'] == sw_version:
+                            if tag["cmtconfig"] == cmt_config and tag["project"] == sw_project and tag["release"] == sw_version:
                                 okSite.append(tmpSiteName)
                                 break
                 # don't pass to subsequent check if AUTO is enabled

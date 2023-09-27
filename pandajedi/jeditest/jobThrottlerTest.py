@@ -4,9 +4,9 @@ from pandajedi.jediorder.JobThrottler import JobThrottler
 tbIF = JediTaskBufferInterface()
 tbIF.setupInterface()
 
-vo = 'atlas'
-prodSourceLabel = 'managed'
-cloud = 'WORLD'
+vo = "atlas"
+prodSourceLabel = "managed"
+cloud = "WORLD"
 
 # get SiteMapper
 siteMapper = tbIF.getSiteMapper()

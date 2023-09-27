@@ -7,32 +7,30 @@ from pandajedi.jedicore import JediCoreUtils
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-logger = PandaLogger().getLogger(__name__.split('.')[-1])
+
+logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
 
 # class to split job
 class JobSplitter:
-
     # constructor
     def __init__(self):
         self.sizeGradientsPerInSizeForMerge = 1.2
         self.interceptsMerginForMerge = 500 * 1024 * 1024
 
-
-
     # split
     def doSplit(self, taskSpec, inputChunk, siteMapper, allow_chunk_size_limit=False):
         # return for failure
-        retFatal    = self.SC_FATAL,[]
-        retTmpError = self.SC_FAILED,[]
+        retFatal = self.SC_FATAL, []
+        retTmpError = self.SC_FAILED, []
         # make logger
-        tmpLog = MsgWrapper(logger,'< jediTaskID={0} datasetID={1} >'.format(taskSpec.jediTaskID,inputChunk.masterIndexName))
-        tmpLog.debug('--- start chunk_size_limit={}'.format(allow_chunk_size_limit))
+        tmpLog = MsgWrapper(logger, "< jediTaskID={0} datasetID={1} >".format(taskSpec.jediTaskID, inputChunk.masterIndexName))
+        tmpLog.debug("--- start chunk_size_limit={}".format(allow_chunk_size_limit))
         if not inputChunk.isMerging:
             # set maxNumFiles using taskSpec if specified
             maxNumFiles = taskSpec.getMaxNumFilesPerJob()
             # set fsize gradients using taskSpec
-            sizeGradients  = taskSpec.getOutDiskSize()
+            sizeGradients = taskSpec.getOutDiskSize()
             # set fsize intercepts using taskSpec
             sizeIntercepts = taskSpec.getWorkDiskSize()
             # walltime
@@ -44,8 +42,7 @@ class JobSplitter:
             nEventsPerJob = taskSpec.getNumEventsPerJob()
             # number of files per job if defined
             nFilesPerJob = taskSpec.getNumFilesPerJob()
-            if nFilesPerJob is None and nEventsPerJob is None and inputChunk.useScout() \
-                    and not taskSpec.useLoadXML() and not taskSpec.respectSplitRule():
+            if nFilesPerJob is None and nEventsPerJob is None and inputChunk.useScout() and not taskSpec.useLoadXML() and not taskSpec.respectSplitRule():
                 nFilesPerJob = 1
             # grouping with boundaryID
             useBoundary = taskSpec.useGroupWithBoundaryID()
@@ -75,7 +72,7 @@ class JobSplitter:
             nFilesPerJob = taskSpec.getNumFilesPerMergeJob()
             nEventsPerJob = taskSpec.getNumEventsPerMergeJob()
             maxSizePerJob = None
-            useBoundary = {'inSplit':3}
+            useBoundary = {"inSplit": 3}
             multiplicity = None
             # gradients per input size is 1 + margin
             sizeGradientsPerInSize = self.sizeGradientsPerInSizeForMerge
@@ -91,7 +88,7 @@ class JobSplitter:
                 maxOutSize = 5 * 1024 * 1024 * 1024
             # split with fields
             if taskSpec.getFieldNumToLFN() is not None and taskSpec.useFileAsSourceLFN():
-                splitByFields = list(range(4+1, 4+1+len(taskSpec.getFieldNumToLFN())))
+                splitByFields = list(range(4 + 1, 4 + 1 + len(taskSpec.getFieldNumToLFN())))
             else:
                 splitByFields = None
         # LB
@@ -102,24 +99,19 @@ class JobSplitter:
         else:
             no_split = False
         # dump
-        tmpLog.debug('maxNumFiles={0} sizeGradients={1} sizeIntercepts={2} useBoundary={3}'.format(maxNumFiles,
-                                                                                                   sizeGradients,
-                                                                                                   sizeIntercepts,
-                                                                                                   useBoundary))
-        tmpLog.debug('walltimeGradient={0} nFilesPerJob={1} nEventsPerJob={2}'.format(walltimeGradient,
-                                                                                        nFilesPerJob,
-                                                                                        nEventsPerJob))
-        tmpLog.debug('useScout={} isMerging={}'.format(inputChunk.useScout(), inputChunk.isMerging))
-        tmpLog.debug('sizeGradientsPerInSize={0} maxOutSize={1} respectLB={2}'.format(sizeGradientsPerInSize,
-                                                                                      maxOutSize,
-                                                                                      respectLB))
-        tmpLog.debug(f'multiplicity={multiplicity} splitByFields={str(splitByFields)} '
-                     f'nFiles={inputChunk.getNumFilesInMaster()} no_split={no_split} '
-                     f'maxEventsPerJob={taskSpec.get_max_events_per_job()}')
-        tmpLog.debug('--- main loop')
+        tmpLog.debug("maxNumFiles={0} sizeGradients={1} sizeIntercepts={2} useBoundary={3}".format(maxNumFiles, sizeGradients, sizeIntercepts, useBoundary))
+        tmpLog.debug("walltimeGradient={0} nFilesPerJob={1} nEventsPerJob={2}".format(walltimeGradient, nFilesPerJob, nEventsPerJob))
+        tmpLog.debug("useScout={} isMerging={}".format(inputChunk.useScout(), inputChunk.isMerging))
+        tmpLog.debug("sizeGradientsPerInSize={0} maxOutSize={1} respectLB={2}".format(sizeGradientsPerInSize, maxOutSize, respectLB))
+        tmpLog.debug(
+            f"multiplicity={multiplicity} splitByFields={str(splitByFields)} "
+            f"nFiles={inputChunk.getNumFilesInMaster()} no_split={no_split} "
+            f"maxEventsPerJob={taskSpec.get_max_events_per_job()}"
+        )
+        tmpLog.debug("--- main loop")
         # split
         returnList = []
-        subChunks  = []
+        subChunks = []
         iSubChunks = 0
         if inputChunk.useScout() and not inputChunk.isMerging:
             default_nSubChunks = 2
@@ -127,7 +119,7 @@ class JobSplitter:
             default_nSubChunks = 2
         else:
             default_nSubChunks = 25
-        subChunk   = None
+        subChunk = None
         nSubChunks = default_nSubChunks
         strict_chunkSize = False
         tmp_ng_list = []
@@ -139,19 +131,20 @@ class JobSplitter:
                 # append to return map
                 if subChunks != []:
                     # get site names for parallel execution
-                    if taskSpec.getNumSitesPerJob() > 1 and not inputChunk.isMerging and inputChunk.useJumbo != 'fake':
-                        siteName = inputChunk.getParallelSites(taskSpec.getNumSitesPerJob(),
-                                                               nSubChunks,[siteName])
-                    returnList.append({'siteName':siteName,
-                                       'subChunks':subChunks,
-                                       'siteCandidate':siteCandidate,
-                                       })
+                    if taskSpec.getNumSitesPerJob() > 1 and not inputChunk.isMerging and inputChunk.useJumbo != "fake":
+                        siteName = inputChunk.getParallelSites(taskSpec.getNumSitesPerJob(), nSubChunks, [siteName])
+                    returnList.append(
+                        {
+                            "siteName": siteName,
+                            "subChunks": subChunks,
+                            "siteCandidate": siteCandidate,
+                        }
+                    )
                     try:
-                        gshare = taskSpec.gshare.replace(' ', '_')
+                        gshare = taskSpec.gshare.replace(" ", "_")
                     except Exception:
                         gshare = None
-                    tmpLog.info('split to nJobs=%s at site=%s gshare=%s' % (len(subChunks), siteName,
-                                                                                       gshare))
+                    tmpLog.info("split to nJobs=%s at site=%s gshare=%s" % (len(subChunks), siteName, gshare))
                     # checkpoint
                     inputChunk.checkpoint_file_usage()
                     # reset
@@ -164,10 +157,9 @@ class JobSplitter:
                         if siteSpec.get_job_chunk_size() is not None:
                             ngList.append(siteName)
                 # new candidate
-                siteCandidate, getCandidateMsg = inputChunk.getOneSiteCandidate(nSubChunks, ngSites=ngList,
-                                                                                get_msg=True)
+                siteCandidate, getCandidateMsg = inputChunk.getOneSiteCandidate(nSubChunks, ngSites=ngList, get_msg=True)
                 if siteCandidate is None:
-                    tmpLog.debug('no candidate: {0}'.format(getCandidateMsg))
+                    tmpLog.debug("no candidate: {0}".format(getCandidateMsg))
                     break
                 tmp_ng_list = []
                 siteName = siteCandidate.siteName
@@ -189,7 +181,7 @@ class JobSplitter:
                 if maxSize is None:
                     # use maxwdir as the default maxSize
                     if not useDirectIO:
-                        maxSize = siteCandidate.get_overridden_attribute('maxwdir')
+                        maxSize = siteCandidate.get_overridden_attribute("maxwdir")
                         if maxSize is None:
                             maxSize = siteSpec.maxwdir
                         if maxSize:
@@ -197,7 +189,7 @@ class JobSplitter:
                     elif nEventsPerJob is not None or nFilesPerJob is not None:
                         maxSize = None
                     else:
-                        maxSize = siteCandidate.get_overridden_attribute('maxwdir')
+                        maxSize = siteCandidate.get_overridden_attribute("maxwdir")
                         if maxSize is None:
                             maxSize = siteSpec.maxwdir
                         if inputChunk.useScout():
@@ -208,7 +200,7 @@ class JobSplitter:
                     # add offset
                     maxSize += sizeIntercepts
                 # max disk size
-                maxDiskSize = siteCandidate.get_overridden_attribute('maxwdir')
+                maxDiskSize = siteCandidate.get_overridden_attribute("maxwdir")
                 if maxDiskSize is None:
                     maxDiskSize = siteSpec.maxwdir
                 if maxDiskSize:
@@ -230,39 +222,43 @@ class JobSplitter:
                     dynNumEvents = True
                 else:
                     dynNumEvents = False
-                tmpLog.debug('chosen {0} : {1} : nQueue={2} nRunCap={3}'.format(siteName, getCandidateMsg,
-                                                                                siteCandidate.nQueuedJobs,
-                                                                                siteCandidate.nRunningJobsCap))
-                tmpLog.debug('new weight {0}'.format(siteCandidate.weight))
-                tmpLog.debug('maxSize={} maxWalltime={} coreCount={} corePower={} '
-                             'maxDisk={} dynNumEvents={}'.format(
-                    maxSize, maxWalltime, coreCount, corePower, maxDiskSize, dynNumEvents))
-                tmpLog.debug('useDirectIO={0} label={1}'.format(useDirectIO, taskSpec.prodSourceLabel))
+                tmpLog.debug(
+                    "chosen {0} : {1} : nQueue={2} nRunCap={3}".format(siteName, getCandidateMsg, siteCandidate.nQueuedJobs, siteCandidate.nRunningJobsCap)
+                )
+                tmpLog.debug("new weight {0}".format(siteCandidate.weight))
+                tmpLog.debug(
+                    "maxSize={} maxWalltime={} coreCount={} corePower={} "
+                    "maxDisk={} dynNumEvents={}".format(maxSize, maxWalltime, coreCount, corePower, maxDiskSize, dynNumEvents)
+                )
+                tmpLog.debug("useDirectIO={0} label={1}".format(useDirectIO, taskSpec.prodSourceLabel))
             # get sub chunk
-            subChunk = inputChunk.getSubChunk(siteName,maxSize=maxSize,
-                                              maxNumFiles=maxNumFiles,
-                                              sizeGradients=sizeGradients,
-                                              sizeIntercepts=sizeIntercepts,
-                                              nFilesPerJob=nFilesPerJob,
-                                              walltimeGradient=walltimeGradient,
-                                              maxWalltime=maxWalltime,
-                                              nEventsPerJob=nEventsPerJob,
-                                              useBoundary=useBoundary,
-                                              sizeGradientsPerInSize=sizeGradientsPerInSize,
-                                              maxOutSize=maxOutSize,
-                                              coreCount=coreCount,
-                                              respectLB=respectLB,
-                                              corePower=corePower,
-                                              dynNumEvents=dynNumEvents,
-                                              multiplicity=multiplicity,
-                                              splitByFields=splitByFields,
-                                              tmpLog=tmpLog,
-                                              useDirectIO=useDirectIO,
-                                              maxDiskSize=maxDiskSize,
-                                              enableLog=True,
-                                              no_split=no_split,
-                                              min_walltime=siteSpec.mintime,
-                                              max_events=taskSpec.get_max_events_per_job())
+            subChunk = inputChunk.getSubChunk(
+                siteName,
+                maxSize=maxSize,
+                maxNumFiles=maxNumFiles,
+                sizeGradients=sizeGradients,
+                sizeIntercepts=sizeIntercepts,
+                nFilesPerJob=nFilesPerJob,
+                walltimeGradient=walltimeGradient,
+                maxWalltime=maxWalltime,
+                nEventsPerJob=nEventsPerJob,
+                useBoundary=useBoundary,
+                sizeGradientsPerInSize=sizeGradientsPerInSize,
+                maxOutSize=maxOutSize,
+                coreCount=coreCount,
+                respectLB=respectLB,
+                corePower=corePower,
+                dynNumEvents=dynNumEvents,
+                multiplicity=multiplicity,
+                splitByFields=splitByFields,
+                tmpLog=tmpLog,
+                useDirectIO=useDirectIO,
+                maxDiskSize=maxDiskSize,
+                enableLog=True,
+                no_split=no_split,
+                min_walltime=siteSpec.mintime,
+                max_events=taskSpec.get_max_events_per_job(),
+            )
             if subChunk is None:
                 break
             if subChunk != []:
@@ -271,11 +267,12 @@ class JobSplitter:
                 # check if the last file in master dist dataset is locally available
                 for tmp_dataset, tmp_files in subChunk:
                     if tmp_dataset.isMaster():
-                        if tmp_dataset.isDistributed() and not siteCandidate.isAvailableFile(tmp_files[-1]) \
-                                and siteCandidate.isAvailableFile(tmp_files[0]):
+                        if tmp_dataset.isDistributed() and not siteCandidate.isAvailableFile(tmp_files[-1]) and siteCandidate.isAvailableFile(tmp_files[0]):
                             change_site_for_dist_dataset = True
-                            tmpLog.debug('change site since the last file in distributed sub-dataset '
-                                         'was unavailable at {} while the first file was available'.format(siteName))
+                            tmpLog.debug(
+                                "change site since the last file in distributed sub-dataset "
+                                "was unavailable at {} while the first file was available".format(siteName)
+                            )
                         break
             else:
                 tmp_ng_list.append(siteName)
@@ -286,29 +283,28 @@ class JobSplitter:
         if subChunks != []:
             # skip if chunk size is not enough
             if allow_chunk_size_limit and strict_chunkSize and len(subChunks) < nSubChunks:
-                tmpLog.debug('skip splitting since chunk size {} is less than chunk size limit {} at {}'.format(
-                    len(subChunks), nSubChunks, siteName))
+                tmpLog.debug("skip splitting since chunk size {} is less than chunk size limit {} at {}".format(len(subChunks), nSubChunks, siteName))
                 inputChunk.rollback_file_usage()
                 isSkipped = True
             else:
                 # get site names for parallel execution
                 if taskSpec.getNumSitesPerJob() > 1 and not inputChunk.isMerging:
-                    siteName = inputChunk.getParallelSites(taskSpec.getNumSitesPerJob(),
-                                                           nSubChunks,[siteName])
-                returnList.append({'siteName': siteName,
-                                   'subChunks': subChunks,
-                                   'siteCandidate': siteCandidate,
-                                   })
+                    siteName = inputChunk.getParallelSites(taskSpec.getNumSitesPerJob(), nSubChunks, [siteName])
+                returnList.append(
+                    {
+                        "siteName": siteName,
+                        "subChunks": subChunks,
+                        "siteCandidate": siteCandidate,
+                    }
+                )
                 try:
-                    gshare = taskSpec.gshare.replace(' ', '_')
+                    gshare = taskSpec.gshare.replace(" ", "_")
                 except Exception:
                     gshare = None
-                tmpLog.info('split to nJobs=%s at site=%s gshare=%s' % (len(subChunks), siteName,
-                                                                                   gshare))
+                tmpLog.info("split to nJobs=%s at site=%s gshare=%s" % (len(subChunks), siteName, gshare))
         # return
-        tmpLog.debug('--- done')
+        tmpLog.debug("--- done")
         return self.SC_SUCCEEDED, returnList, isSkipped
-
 
 
 Interaction.installSC(JobSplitter)

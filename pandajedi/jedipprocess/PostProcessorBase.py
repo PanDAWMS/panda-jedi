@@ -18,37 +18,35 @@ class StderrLogger(object):
 
     def write(self, message):
         message = message.strip()
-        if message != '':
+        if message != "":
             self.tmpLog.debug(message)
 
 
 # wrapper of SMTP to redirect messages
 class MySMTP(smtplib.SMTP):
-
     def set_log(self, tmp_log):
         self.tmpLog = tmp_log
         try:
-            self.org_stderr = getattr(smtplib, 'stderr')
-            setattr(smtplib, 'stderr', tmp_log)
+            self.org_stderr = getattr(smtplib, "stderr")
+            setattr(smtplib, "stderr", tmp_log)
         except Exception:
             self.org_stderr = None
 
     def _print_debug(self, *args):
-        self.tmpLog.write(' '.join(map(str, args)))
+        self.tmpLog.write(" ".join(map(str, args)))
 
     def reset_log(self):
         if self.org_stderr is not None:
-            setattr(smtplib, 'stderr', self.org_stderr)
+            setattr(smtplib, "stderr", self.org_stderr)
 
 
 # base class for post process
 class PostProcessorBase(object):
-
     # constructor
     def __init__(self, taskBufferIF, ddmIF):
         self.ddmIF = ddmIF
         self.taskBufferIF = taskBufferIF
-        self.msgType = 'postprocessor'
+        self.msgType = "postprocessor"
         self.failOnZeroOkFile = False
         self.refresh()
 
@@ -61,47 +59,45 @@ class PostProcessorBase(object):
         # update task status
         taskSpec.lockedBy = None
         taskSpec.status = self.getFinalTaskStatus(taskSpec)
-        if taskSpec.status == 'failed':
+        if taskSpec.status == "failed":
             # set dialog for preprocess
             if taskSpec.usePrePro() and not taskSpec.checkPreProcessed():
-                taskSpec.setErrDiag('Preprocessing step failed', True)
-        tmpMsg = 'set task_status={0}'.format(taskSpec.status)
+                taskSpec.setErrDiag("Preprocessing step failed", True)
+        tmpMsg = "set task_status={0}".format(taskSpec.status)
         tmpLog.info(tmpMsg)
-        tmpLog.sendMsg('set task_status={0}'.format(taskSpec.status), self.msgType)
+        tmpLog.sendMsg("set task_status={0}".format(taskSpec.status), self.msgType)
         # update dataset
         for datasetSpec in taskSpec.datasetSpecList:
-            if taskSpec.status in ['failed', 'broken', 'aborted']:
-                datasetSpec.status = 'failed'
+            if taskSpec.status in ["failed", "broken", "aborted"]:
+                datasetSpec.status = "failed"
             else:
                 # set dataset status
-                if datasetSpec.type in ['output', 'log', 'lib']:
+                if datasetSpec.type in ["output", "log", "lib"]:
                     # normal output datasets
                     if datasetSpec.nFiles and datasetSpec.nFilesFinished and datasetSpec.nFiles > datasetSpec.nFilesFinished:
-                        datasetSpec.status = 'finished'
+                        datasetSpec.status = "finished"
                     else:
-                        datasetSpec.status = 'done'
-                elif datasetSpec.type.startswith('trn_') or datasetSpec.type.startswith('tmpl_'):
+                        datasetSpec.status = "done"
+                elif datasetSpec.type.startswith("trn_") or datasetSpec.type.startswith("tmpl_"):
                     # set done for template or transient datasets
-                    datasetSpec.status = 'done'
+                    datasetSpec.status = "done"
                 else:
                     # not for input
                     continue
             # set nFiles
-            if datasetSpec.type in ['output', 'log', 'lib']:
+            if datasetSpec.type in ["output", "log", "lib"]:
                 datasetSpec.nFiles = datasetSpec.nFilesFinished
-            self.taskBufferIF.updateDataset_JEDI(datasetSpec, {'datasetID': datasetSpec.datasetID,
-                                                               'jediTaskID': datasetSpec.jediTaskID})
+            self.taskBufferIF.updateDataset_JEDI(datasetSpec, {"datasetID": datasetSpec.datasetID, "jediTaskID": datasetSpec.jediTaskID})
         # end time
         taskSpec.endTime = datetime.datetime.utcnow()
         # update task
-        self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
-                                          updateDEFT=True)
+        self.taskBufferIF.updateTask_JEDI(taskSpec, {"jediTaskID": taskSpec.jediTaskID}, updateDEFT=True)
         # kill or kick child tasks
-        if taskSpec.status in ['failed', 'broken', 'aborted']:
+        if taskSpec.status in ["failed", "broken", "aborted"]:
             self.taskBufferIF.killChildTasks_JEDI(taskSpec.jediTaskID, taskSpec.status)
         else:
             self.taskBufferIF.kickChildTasks_JEDI(taskSpec.jediTaskID)
-        tmpLog.debug('doBasicPostProcess done with taskStatus={0}'.format(taskSpec.status))
+        tmpLog.debug("doBasicPostProcess done with taskStatus={0}".format(taskSpec.status))
         return
 
     # final procedure
@@ -133,9 +129,9 @@ class PostProcessorBase(object):
                     tmpLog.error("failed to send notification with {0}".format(str(e)))
                     if fileBackUp:
                         # write to file which is processed in add.py
-                        mailFile = '{0}/jmail_{1}_{2}' % (panda_config.logdir, jediTaskID, uuid.uuid4())
+                        mailFile = "{0}/jmail_{1}_{2}" % (panda_config.logdir, jediTaskID, uuid.uuid4())
                         oMail = open(mailFile, "w")
-                        oMail.write(str(jediTaskID) + '\n' + toAdd + '\n' + msgBody)
+                        oMail.write(str(jediTaskID) + "\n" + toAdd + "\n" + msgBody)
                         oMail.close()
                 break
         try:
@@ -179,54 +175,57 @@ class PostProcessorBase(object):
         # count nFiles and nEvents
         nFiles, nFilesFinished, totalInputEvents, totalOkEvents, taskCompleteness = self.getTaskCompleteness(taskSpec)
         # set new task status
-        if taskSpec.status == 'tobroken':
-            status = 'broken'
-        elif taskSpec.status == 'toabort':
-            status = 'aborted'
-        elif taskSpec.status == 'paused':
-            status = 'paused'
+        if taskSpec.status == "tobroken":
+            status = "broken"
+        elif taskSpec.status == "toabort":
+            status = "aborted"
+        elif taskSpec.status == "paused":
+            status = "paused"
         elif self.failOnZeroOkFile and nFiles == nFilesFinished == 0:
-            status = 'failed'
+            status = "failed"
         elif nFiles == nFilesFinished:
             # check parent status
             if checkParent and taskSpec.parent_tid not in [None, taskSpec.jediTaskID]:
                 parent_status = self.taskBufferIF.getTaskStatus_JEDI(taskSpec.parent_tid)
-                if parent_status in ['failed', 'broken', 'aborted']:
-                    status = 'failed'
-                elif parent_status != 'done':
-                    status = 'finished'
+                if parent_status in ["failed", "broken", "aborted"]:
+                    status = "failed"
+                elif parent_status != "done":
+                    status = "finished"
                 else:
                     # check if input is mutable
                     inputMutable = False
                     for datasetSpec in taskSpec.datasetSpecList:
-                        if datasetSpec.isMasterInput() and datasetSpec.state == 'mutable':
+                        if datasetSpec.isMasterInput() and datasetSpec.state == "mutable":
                             inputMutable = True
                             break
                     if inputMutable:
-                        status = 'finished'
+                        status = "finished"
                     else:
-                        status = 'done'
+                        status = "done"
             else:
-                status = 'done'
+                status = "done"
         elif nFilesFinished == 0:
-            status = 'failed'
+            status = "failed"
         else:
-            status = 'finished'
+            status = "finished"
         # task goal
         if taskSpec.goal is None:
             taskGoal = 1000
         else:
             taskGoal = taskSpec.goal
         # fail if goal is not reached
-        if taskSpec.failGoalUnreached() and status == 'finished' and \
-                (not taskSpec.useExhausted() or (taskSpec.useExhausted() and taskSpec.status in ['passed'])):
+        if (
+            taskSpec.failGoalUnreached()
+            and status == "finished"
+            and (not taskSpec.useExhausted() or (taskSpec.useExhausted() and taskSpec.status in ["passed"]))
+        ):
             if taskCompleteness < taskGoal:
-                status = 'failed'
+                status = "failed"
         # HPO tasks always go to finished
         if taskSpec.is_hpo_workflow():
             event_stat = self.taskBufferIF.get_event_statistics(taskSpec.jediTaskID)
             if event_stat is not None and event_stat.get(EventServiceUtils.ST_finished):
-                status = 'finished'
+                status = "finished"
         # check goal only
         if checkGoal:
             # no goal
@@ -239,20 +238,22 @@ class PostProcessorBase(object):
     # pre-check
     def doPreCheck(self, taskSpec, tmpLog):
         # send task to exhausted
-        if taskSpec.useExhausted() and taskSpec.status not in ['passed'] \
-                and self.getFinalTaskStatus(taskSpec) in ['finished'] \
-                and not self.getFinalTaskStatus(taskSpec, checkGoal=True):
-            taskSpec.status = 'exhausted'
-            if self.getFinalTaskStatus(taskSpec, checkParent=False) == 'done':
+        if (
+            taskSpec.useExhausted()
+            and taskSpec.status not in ["passed"]
+            and self.getFinalTaskStatus(taskSpec) in ["finished"]
+            and not self.getFinalTaskStatus(taskSpec, checkGoal=True)
+        ):
+            taskSpec.status = "exhausted"
+            if self.getFinalTaskStatus(taskSpec, checkParent=False) == "done":
                 taskSpec.errorDialog = "exhausted since the parent task was incomplete"
             else:
                 taskSpec.errorDialog = "exhausted since the task was incomplete"
             taskSpec.lockedBy = None
             taskSpec.lockedTime = None
             # update task
-            tmpLog.info('set task_status={0}'.format(taskSpec.status))
-            self.taskBufferIF.updateTask_JEDI(taskSpec, {'jediTaskID': taskSpec.jediTaskID},
-                                              updateDEFT=True)
+            tmpLog.info("set task_status={0}".format(taskSpec.status))
+            self.taskBufferIF.updateTask_JEDI(taskSpec, {"jediTaskID": taskSpec.jediTaskID}, updateDEFT=True)
             # kick child tasks
             self.taskBufferIF.kickChildTasks_JEDI(taskSpec.jediTaskID)
             return True

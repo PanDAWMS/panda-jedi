@@ -14,7 +14,7 @@ from pandajedi.jediorder.TaskSetupper import TaskSetupper
 
 import sys
 
-logger = PandaLogger().getLogger('JobGenerator')
+logger = PandaLogger().getLogger("JobGenerator")
 tmpLog = MsgWrapper(logger)
 
 tbIF = JediTaskBufferInterface()
@@ -31,7 +31,7 @@ datasetIDs = None
 if len(sys.argv) > 2:
     datasetIDs = [int(sys.argv[2])]
 
-s,taskSpec = tbIF.getTaskWithID_JEDI(jediTaskID)
+s, taskSpec = tbIF.getTaskWithID_JEDI(jediTaskID)
 
 cloudName = taskSpec.cloud
 vo = taskSpec.vo
@@ -44,32 +44,38 @@ workQueue = tbIF.getWorkQueueMap().getQueueWithID(queueID, gshare_name)
 threadPool = ThreadPool()
 
 # get typical number of files
-#typicalNumFilesMap = tbIF.getTypicalNumInput_JEDI(vo,prodSourceLabel,workQueue,
+# typicalNumFilesMap = tbIF.getTypicalNumInput_JEDI(vo,prodSourceLabel,workQueue,
 #                                                  useResultCache=600)
 
 typicalNumFilesMap = {}
 
-tmpListList = tbIF.getTasksToBeProcessed_JEDI(None,vo,workQueue,
-                                              prodSourceLabel,
-                                              cloudName,nFiles=10,simTasks=[jediTaskID],
-                                              fullSimulation=True,
-                                              typicalNumFilesMap=typicalNumFilesMap,
-                                              simDatasets=datasetIDs)
+tmpListList = tbIF.getTasksToBeProcessed_JEDI(
+    None,
+    vo,
+    workQueue,
+    prodSourceLabel,
+    cloudName,
+    nFiles=10,
+    simTasks=[jediTaskID],
+    fullSimulation=True,
+    typicalNumFilesMap=typicalNumFilesMap,
+    simDatasets=datasetIDs,
+)
 
-taskSetupper = TaskSetupper(vo,prodSourceLabel)
-taskSetupper.initializeMods(tbIF,ddmIF)
+taskSetupper = TaskSetupper(vo, prodSourceLabel)
+taskSetupper.initializeMods(tbIF, ddmIF)
 
-for dummyID,tmpList in tmpListList:
-    for taskSpec,cloudName,inputChunk in tmpList:
-        jobBroker = JobBroker(taskSpec.vo,taskSpec.prodSourceLabel)
-        tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo),tbIF)
+for dummyID, tmpList in tmpListList:
+    for taskSpec, cloudName, inputChunk in tmpList:
+        jobBroker = JobBroker(taskSpec.vo, taskSpec.prodSourceLabel)
+        tmpStat = jobBroker.initializeMods(ddmIF.getInterface(vo), tbIF)
         splitter = JobSplitter()
-        gen = JobGeneratorThread(None,threadPool,tbIF,ddmIF,siteMapper,False,taskSetupper,None,None,'dummy',None,None)
+        gen = JobGeneratorThread(None, threadPool, tbIF, ddmIF, siteMapper, False, taskSetupper, None, None, "dummy", None, None)
 
         taskParamMap = None
         if taskSpec.useLimitedSites():
-            tmpStat,taskParamMap = gen.readTaskParams(taskSpec,taskParamMap,tmpLog)
+            tmpStat, taskParamMap = gen.readTaskParams(taskSpec, taskParamMap, tmpLog)
 
-        tmpStat,inputChunk = jobBroker.doBrokerage(taskSpec,cloudName,inputChunk,taskParamMap)
+        tmpStat, inputChunk = jobBroker.doBrokerage(taskSpec, cloudName, inputChunk, taskParamMap)
 
-        #tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)
+        # tmpStat,subChunks = splitter.doSplit(taskSpec,inputChunk,siteMapper)

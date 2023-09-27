@@ -15,6 +15,5 @@ ddmIF.setupInterface()
 
 parent_conn, child_conn = multiprocessing.Pipe()
 
-postProcessor = multiprocessing.Process(target=PostProcessor.launcher,
-                                        args=(child_conn,tbIF,ddmIF))
+postProcessor = multiprocessing.Process(target=PostProcessor.launcher, args=(child_conn, tbIF, ddmIF))
 postProcessor.start()

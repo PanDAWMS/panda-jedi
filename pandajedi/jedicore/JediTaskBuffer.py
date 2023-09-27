@@ -12,26 +12,24 @@ from pandaserver.brokerage.SiteMapper import SiteMapper
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-logger = PandaLogger().getLogger(__name__.split('.')[-1])
+
+logger = PandaLogger().getLogger(__name__.split(".")[-1])
 
 # use customized proxy pool
 TaskBuffer.DBProxyPool = JediDBProxyPool.DBProxyPool
 
 
 class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
-
     # constructor
     def __init__(self, conn, nDBConnection=1):
         CommandReceiveInterface.__init__(self, conn)
         TaskBuffer.TaskBuffer.__init__(self)
-        TaskBuffer.TaskBuffer.init(self, jedi_config.db.dbhost,
-                                   jedi_config.db.dbpasswd,
-                                   nDBConnection=nDBConnection)
+        TaskBuffer.TaskBuffer.init(self, jedi_config.db.dbhost, jedi_config.db.dbpasswd, nDBConnection=nDBConnection)
         # site mapper
         self.siteMapper = SiteMapper(self)
         # update time for site mapper
         self.dateTimeForSM = datetime.datetime.utcnow()
-        logger.debug('__init__')
+        logger.debug("__init__")
 
     # query an SQL
     def querySQL(self, sql, varMap, arraySize=1000):
@@ -41,7 +39,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     # get SiteMapper
     def getSiteMapper(self):
         timeNow = datetime.datetime.utcnow()
-        if datetime.datetime.utcnow()-self.dateTimeForSM > datetime.timedelta(minutes=10):
+        if datetime.datetime.utcnow() - self.dateTimeForSM > datetime.timedelta(minutes=10):
             self.siteMapper = SiteMapper(self)
             self.dateTimeForSM = timeNow
         return self.siteMapper
@@ -57,64 +55,116 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getDatasetsToFeedContents_JEDI(vo, prodSourceLabel, task_id)
 
     # feed files to the JEDI contents table
-    def insertFilesForDataset_JEDI(self,datasetSpec,fileMap,datasetState,stateUpdateTime,
-                                   nEventsPerFile,nEventsPerJob,maxAttempt,firstEventNumber,
-                                   nMaxFiles,nMaxEvents,useScout,fileList,useFilesWithNewAttemptNr,
-                                   nFilesPerJob,nEventsPerRange,nChunksForScout,includePatt,
-                                   excludePatt,xmlConfig,noWaitParent,parent_tid,pid,maxFailure,
-                                   useRealNumEvents,respectLB,tgtNumEventsPerJob,skipFilesUsedBy,
-                                   ramCount,taskSpec,skipShortInput, inputPreStaging, order_by,
-                                   maxFileRecords):
+    def insertFilesForDataset_JEDI(
+        self,
+        datasetSpec,
+        fileMap,
+        datasetState,
+        stateUpdateTime,
+        nEventsPerFile,
+        nEventsPerJob,
+        maxAttempt,
+        firstEventNumber,
+        nMaxFiles,
+        nMaxEvents,
+        useScout,
+        fileList,
+        useFilesWithNewAttemptNr,
+        nFilesPerJob,
+        nEventsPerRange,
+        nChunksForScout,
+        includePatt,
+        excludePatt,
+        xmlConfig,
+        noWaitParent,
+        parent_tid,
+        pid,
+        maxFailure,
+        useRealNumEvents,
+        respectLB,
+        tgtNumEventsPerJob,
+        skipFilesUsedBy,
+        ramCount,
+        taskSpec,
+        skipShortInput,
+        inputPreStaging,
+        order_by,
+        maxFileRecords,
+    ):
         with self.proxyPool.get() as proxy:
-            return proxy.insertFilesForDataset_JEDI(datasetSpec,fileMap,datasetState,stateUpdateTime,
-                                                    nEventsPerFile,nEventsPerJob,maxAttempt,
-                                                    firstEventNumber,nMaxFiles,nMaxEvents,
-                                                    useScout,fileList,useFilesWithNewAttemptNr,
-                                                    nFilesPerJob,nEventsPerRange,nChunksForScout,
-                                                    includePatt,excludePatt,xmlConfig,
-                                                    noWaitParent,parent_tid,pid,maxFailure,
-                                                    useRealNumEvents,respectLB,
-                                                    tgtNumEventsPerJob,skipFilesUsedBy,
-                                                    ramCount,taskSpec,skipShortInput, inputPreStaging,
-                                                    order_by, maxFileRecords)
+            return proxy.insertFilesForDataset_JEDI(
+                datasetSpec,
+                fileMap,
+                datasetState,
+                stateUpdateTime,
+                nEventsPerFile,
+                nEventsPerJob,
+                maxAttempt,
+                firstEventNumber,
+                nMaxFiles,
+                nMaxEvents,
+                useScout,
+                fileList,
+                useFilesWithNewAttemptNr,
+                nFilesPerJob,
+                nEventsPerRange,
+                nChunksForScout,
+                includePatt,
+                excludePatt,
+                xmlConfig,
+                noWaitParent,
+                parent_tid,
+                pid,
+                maxFailure,
+                useRealNumEvents,
+                respectLB,
+                tgtNumEventsPerJob,
+                skipFilesUsedBy,
+                ramCount,
+                taskSpec,
+                skipShortInput,
+                inputPreStaging,
+                order_by,
+                maxFileRecords,
+            )
 
     # get files from the JEDI contents table with jediTaskID and/or datasetID
-    def getFilesInDatasetWithID_JEDI(self,jediTaskID=None,datasetID=None,nFiles=None,status=None):
+    def getFilesInDatasetWithID_JEDI(self, jediTaskID=None, datasetID=None, nFiles=None, status=None):
         with self.proxyPool.get() as proxy:
-            return proxy.getFilesInDatasetWithID_JEDI(jediTaskID,datasetID,nFiles,status)
+            return proxy.getFilesInDatasetWithID_JEDI(jediTaskID, datasetID, nFiles, status)
 
     # insert dataset to the JEDI datasets table
-    def insertDataset_JEDI(self,datasetSpec):
+    def insertDataset_JEDI(self, datasetSpec):
         with self.proxyPool.get() as proxy:
             return proxy.insertDataset_JEDI(datasetSpec)
 
     # update JEDI dataset
-    def updateDataset_JEDI(self,datasetSpec,criteria,lockTask=False):
+    def updateDataset_JEDI(self, datasetSpec, criteria, lockTask=False):
         with self.proxyPool.get() as proxy:
-            return proxy.updateDataset_JEDI(datasetSpec,criteria,lockTask)
+            return proxy.updateDataset_JEDI(datasetSpec, criteria, lockTask)
 
     # update JEDI dataset attributes
-    def updateDatasetAttributes_JEDI(self,jediTaskID,datasetID,attributes):
+    def updateDatasetAttributes_JEDI(self, jediTaskID, datasetID, attributes):
         with self.proxyPool.get() as proxy:
-            return proxy.updateDatasetAttributes_JEDI(jediTaskID,datasetID,attributes)
+            return proxy.updateDatasetAttributes_JEDI(jediTaskID, datasetID, attributes)
 
     # get JEDI dataset attributes
-    def getDatasetAttributes_JEDI(self,jediTaskID,datasetID,attributes):
+    def getDatasetAttributes_JEDI(self, jediTaskID, datasetID, attributes):
         with self.proxyPool.get() as proxy:
-            return proxy.getDatasetAttributes_JEDI(jediTaskID,datasetID,attributes)
+            return proxy.getDatasetAttributes_JEDI(jediTaskID, datasetID, attributes)
 
     # get JEDI dataset attributes with map
-    def getDatasetAttributesWithMap_JEDI(self,jediTaskID,criteria,attributes):
+    def getDatasetAttributesWithMap_JEDI(self, jediTaskID, criteria, attributes):
         with self.proxyPool.get() as proxy:
-            return proxy.getDatasetAttributesWithMap_JEDI(jediTaskID,criteria,attributes)
+            return proxy.getDatasetAttributesWithMap_JEDI(jediTaskID, criteria, attributes)
 
     # get JEDI dataset with jediTaskID and datasetID
-    def getDatasetWithID_JEDI(self,jediTaskID,datasetID):
+    def getDatasetWithID_JEDI(self, jediTaskID, datasetID):
         with self.proxyPool.get() as proxy:
-            return proxy.getDatasetWithID_JEDI(jediTaskID,datasetID)
+            return proxy.getDatasetWithID_JEDI(jediTaskID, datasetID)
 
     # get JEDI datasets with jediTaskID
-    def getDatasetsWithJediTaskID_JEDI(self,jediTaskID,datasetTypes=None,getFiles=False):
+    def getDatasetsWithJediTaskID_JEDI(self, jediTaskID, datasetTypes=None, getFiles=False):
         with self.proxyPool.get() as proxy:
             retStat, datasetSpecList = proxy.getDatasetsWithJediTaskID_JEDI(jediTaskID, datasetTypes=datasetTypes)
             if retStat is True and getFiles is True:
@@ -129,44 +179,39 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return retStat, datasetSpecList
 
     # insert task to the JEDI tasks table
-    def insertTask_JEDI(self,taskSpec):
+    def insertTask_JEDI(self, taskSpec):
         with self.proxyPool.get() as proxy:
             return proxy.insertTask_JEDI(taskSpec)
 
     # update JEDI task
-    def updateTask_JEDI(self,taskSpec,criteria,oldStatus=None,updateDEFT=False,insertUnknown=None,
-                        setFrozenTime=True,setOldModTime=False):
+    def updateTask_JEDI(self, taskSpec, criteria, oldStatus=None, updateDEFT=False, insertUnknown=None, setFrozenTime=True, setOldModTime=False):
         with self.proxyPool.get() as proxy:
-            return proxy.updateTask_JEDI(taskSpec,criteria,oldStatus,updateDEFT,insertUnknown,
-                                       setFrozenTime,setOldModTime)
+            return proxy.updateTask_JEDI(taskSpec, criteria, oldStatus, updateDEFT, insertUnknown, setFrozenTime, setOldModTime)
 
     # update JEDI task lock
-    def updateTaskLock_JEDI(self,jediTaskID):
+    def updateTaskLock_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.updateTaskLock_JEDI(jediTaskID)
 
     # update JEDI task status by ContentsFeeder
-    def updateTaskStatusByContFeeder_JEDI(self,jediTaskID,taskSpec=None,getTaskStatus=False,pid=None,
-                                          setFrozenTime=True,useWorldCloud=False):
+    def updateTaskStatusByContFeeder_JEDI(self, jediTaskID, taskSpec=None, getTaskStatus=False, pid=None, setFrozenTime=True, useWorldCloud=False):
         with self.proxyPool.get() as proxy:
-            return proxy.updateTaskStatusByContFeeder_JEDI(jediTaskID,taskSpec,getTaskStatus,
-                                                         pid,setFrozenTime,useWorldCloud)
+            return proxy.updateTaskStatusByContFeeder_JEDI(jediTaskID, taskSpec, getTaskStatus, pid, setFrozenTime, useWorldCloud)
 
     # get JEDI task with jediTaskID
-    def getTaskWithID_JEDI(self, jediTaskID, fullFlag=False, lockTask=False, pid=None, lockInterval=None,
-                           clearError=False):
+    def getTaskWithID_JEDI(self, jediTaskID, fullFlag=False, lockTask=False, pid=None, lockInterval=None, clearError=False):
         with self.proxyPool.get() as proxy:
             return proxy.getTaskWithID_JEDI(jediTaskID, fullFlag, lockTask, pid, lockInterval, clearError)
 
     # get JEDI task and tasks with ID and lock it
-    def getTaskDatasetsWithID_JEDI(self,jediTaskID,pid,lockTask=True):
+    def getTaskDatasetsWithID_JEDI(self, jediTaskID, pid, lockTask=True):
         with self.proxyPool.get() as proxy:
-            return proxy.getTaskDatasetsWithID_JEDI(jediTaskID,pid,lockTask)
+            return proxy.getTaskDatasetsWithID_JEDI(jediTaskID, pid, lockTask)
 
     # get JEDI tasks with selection criteria
-    def getTaskIDsWithCriteria_JEDI(self,criteria,nTasks=50):
+    def getTaskIDsWithCriteria_JEDI(self, criteria, nTasks=50):
         with self.proxyPool.get() as proxy:
-            return proxy.getTaskIDsWithCriteria_JEDI(criteria,nTasks)
+            return proxy.getTaskIDsWithCriteria_JEDI(criteria, nTasks)
 
     # get JEDI tasks to be finished
     def getTasksToBeFinished_JEDI(self, vo, prodSourceLabel, pid, nTasks=50, target_tasks=None):
@@ -174,38 +219,60 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getTasksToBeFinished_JEDI(vo, prodSourceLabel, pid, nTasks, target_tasks)
 
     # get tasks to be processed
-    def getTasksToBeProcessed_JEDI(self,pid,vo,workQueue,prodSourceLabel,cloudName,
-                                   nTasks=50,nFiles=100,simTasks=None,minPriority=None,
-                                   maxNumJobs=None,typicalNumFilesMap=None,
-                                   fullSimulation=False,simDatasets=None,
-                                   mergeUnThrottled=None,readMinFiles=False,
-                                   numNewTaskWithJumbo=0, resource_name=None,
-                                   ignore_lock=False, target_tasks=None):
+    def getTasksToBeProcessed_JEDI(
+        self,
+        pid,
+        vo,
+        workQueue,
+        prodSourceLabel,
+        cloudName,
+        nTasks=50,
+        nFiles=100,
+        simTasks=None,
+        minPriority=None,
+        maxNumJobs=None,
+        typicalNumFilesMap=None,
+        fullSimulation=False,
+        simDatasets=None,
+        mergeUnThrottled=None,
+        readMinFiles=False,
+        numNewTaskWithJumbo=0,
+        resource_name=None,
+        ignore_lock=False,
+        target_tasks=None,
+    ):
         with self.proxyPool.get() as proxy:
-            return proxy.getTasksToBeProcessed_JEDI(pid,vo,workQueue,prodSourceLabel,cloudName,nTasks,nFiles,
-                                                  simTasks=simTasks,
-                                                  minPriority=minPriority,
-                                                  maxNumJobs=maxNumJobs,
-                                                  typicalNumFilesMap=typicalNumFilesMap,
-                                                  fullSimulation=fullSimulation,
-                                                  simDatasets=simDatasets,
-                                                  mergeUnThrottled=mergeUnThrottled,
-                                                  readMinFiles=readMinFiles,
-                                                  numNewTaskWithJumbo=numNewTaskWithJumbo,
-                                                  resource_name=resource_name,
-                                                  ignore_lock=ignore_lock,
-                                                  target_tasks=target_tasks)
+            return proxy.getTasksToBeProcessed_JEDI(
+                pid,
+                vo,
+                workQueue,
+                prodSourceLabel,
+                cloudName,
+                nTasks,
+                nFiles,
+                simTasks=simTasks,
+                minPriority=minPriority,
+                maxNumJobs=maxNumJobs,
+                typicalNumFilesMap=typicalNumFilesMap,
+                fullSimulation=fullSimulation,
+                simDatasets=simDatasets,
+                mergeUnThrottled=mergeUnThrottled,
+                readMinFiles=readMinFiles,
+                numNewTaskWithJumbo=numNewTaskWithJumbo,
+                resource_name=resource_name,
+                ignore_lock=ignore_lock,
+                target_tasks=target_tasks,
+            )
 
     # get tasks to be processed
     def checkWaitingTaskPrio_JEDI(self, vo, workQueue, prodSourceLabel, cloudName, resource_name=None):
         with self.proxyPool.get() as proxy:
-            return proxy.getTasksToBeProcessed_JEDI(None, vo, workQueue, prodSourceLabel,
-                                                  cloudName, isPeeking=True, resource_name=resource_name)
+            return proxy.getTasksToBeProcessed_JEDI(None, vo, workQueue, prodSourceLabel, cloudName, isPeeking=True, resource_name=resource_name)
 
     # get job statistics with work queue
-    def getJobStatisticsWithWorkQueue_JEDI(self,vo,prodSourceLabel,minPriority=None):
+    def getJobStatisticsWithWorkQueue_JEDI(self, vo, prodSourceLabel, minPriority=None):
         with self.proxyPool.get() as proxy:
-            return proxy.getJobStatisticsWithWorkQueue_JEDI(vo,prodSourceLabel,minPriority)
+            return proxy.getJobStatisticsWithWorkQueue_JEDI(vo, prodSourceLabel, minPriority)
 
     # get job statistics by global share
     def getJobStatisticsByGlobalShare(self, vo, exclude_rwq=False):
@@ -223,68 +290,95 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getJobStatisticsByResourceTypeSite(workqueue)
 
     # generate output files for task
-    def getOutputFiles_JEDI(self,jediTaskID,provenanceID,simul,instantiateTmpl=False,instantiatedSite=None,
-                            isUnMerging=False,isPrePro=False,xmlConfigJob=None,siteDsMap=None,middleName='',
-                            registerDatasets=False,parallelOutMap=None,fileIDPool=[], n_files_per_chunk=1):
+    def getOutputFiles_JEDI(
+        self,
+        jediTaskID,
+        provenanceID,
+        simul,
+        instantiateTmpl=False,
+        instantiatedSite=None,
+        isUnMerging=False,
+        isPrePro=False,
+        xmlConfigJob=None,
+        siteDsMap=None,
+        middleName="",
+        registerDatasets=False,
+        parallelOutMap=None,
+        fileIDPool=[],
+        n_files_per_chunk=1,
+    ):
         with self.proxyPool.get() as proxy:
-            return proxy.getOutputFiles_JEDI(jediTaskID,provenanceID,simul,instantiateTmpl,instantiatedSite,
-                                           isUnMerging,isPrePro,xmlConfigJob,siteDsMap,middleName,
-                                           registerDatasets,parallelOutMap,fileIDPool, n_files_per_chunk)
+            return proxy.getOutputFiles_JEDI(
+                jediTaskID,
+                provenanceID,
+                simul,
+                instantiateTmpl,
+                instantiatedSite,
+                isUnMerging,
+                isPrePro,
+                xmlConfigJob,
+                siteDsMap,
+                middleName,
+                registerDatasets,
+                parallelOutMap,
+                fileIDPool,
+                n_files_per_chunk,
+            )
 
     # insert output file templates
-    def insertOutputTemplate_JEDI(self,templates):
+    def insertOutputTemplate_JEDI(self, templates):
         with self.proxyPool.get() as proxy:
             return proxy.insertOutputTemplate_JEDI(templates)
 
     # insert JobParamsTemplate
-    def insertJobParamsTemplate_JEDI(self,jediTaskID,templ):
+    def insertJobParamsTemplate_JEDI(self, jediTaskID, templ):
         with self.proxyPool.get() as proxy:
-            return proxy.insertJobParamsTemplate_JEDI(jediTaskID,templ)
+            return proxy.insertJobParamsTemplate_JEDI(jediTaskID, templ)
 
     # insert TaskParams
-    def insertTaskParams_JEDI(self,vo,prodSourceLabel,userName,taskName,taskParams,parent_tid=None):
+    def insertTaskParams_JEDI(self, vo, prodSourceLabel, userName, taskName, taskParams, parent_tid=None):
         with self.proxyPool.get() as proxy:
-            return proxy.insertTaskParams_JEDI(vo,prodSourceLabel,userName,taskName,taskParams,parent_tid)
+            return proxy.insertTaskParams_JEDI(vo, prodSourceLabel, userName, taskName, taskParams, parent_tid)
 
     # reset unused files
-    def resetUnusedFiles_JEDI(self,jediTaskID,inputChunk):
+    def resetUnusedFiles_JEDI(self, jediTaskID, inputChunk):
         with self.proxyPool.get() as proxy:
-            return proxy.resetUnusedFiles_JEDI(jediTaskID,inputChunk)
+            return proxy.resetUnusedFiles_JEDI(jediTaskID, inputChunk)
 
     # insert TaskParams
-    def insertUpdateTaskParams_JEDI(self,jediTaskID,vo,prodSourceLabel,updateTaskParams,insertTaskParamsList):
+    def insertUpdateTaskParams_JEDI(self, jediTaskID, vo, prodSourceLabel, updateTaskParams, insertTaskParamsList):
         with self.proxyPool.get() as proxy:
-            return proxy.insertUpdateTaskParams_JEDI(jediTaskID,vo,prodSourceLabel,updateTaskParams,insertTaskParamsList)
+            return proxy.insertUpdateTaskParams_JEDI(jediTaskID, vo, prodSourceLabel, updateTaskParams, insertTaskParamsList)
 
     # set missing files
-    def setMissingFiles_JEDI(self,jediTaskID,datasetID,fileIDs):
+    def setMissingFiles_JEDI(self, jediTaskID, datasetID, fileIDs):
         with self.proxyPool.get() as proxy:
-            return proxy.setMissingFiles_JEDI(jediTaskID,datasetID,fileIDs)
+            return proxy.setMissingFiles_JEDI(jediTaskID, datasetID, fileIDs)
 
     # rescue picked files
-    def rescuePickedFiles_JEDI(self,vo,prodSourceLabel,waitTime):
+    def rescuePickedFiles_JEDI(self, vo, prodSourceLabel, waitTime):
         with self.proxyPool.get() as proxy:
-            return proxy.rescuePickedFiles_JEDI(vo,prodSourceLabel,waitTime)
+            return proxy.rescuePickedFiles_JEDI(vo, prodSourceLabel, waitTime)
 
     # rescue unlocked tasks with picked files
-    def rescueUnLockedTasksWithPicked_JEDI(self,vo,prodSourceLabel,waitTime,pid):
+    def rescueUnLockedTasksWithPicked_JEDI(self, vo, prodSourceLabel, waitTime, pid):
         with self.proxyPool.get() as proxy:
-            return proxy.rescueUnLockedTasksWithPicked_JEDI(vo,prodSourceLabel,waitTime,pid)
+            return proxy.rescueUnLockedTasksWithPicked_JEDI(vo, prodSourceLabel, waitTime, pid)
 
     # unlock tasks
-    def unlockTasks_JEDI(self,vo,prodSourceLabel,waitTime,hostName=None,pgid=None):
+    def unlockTasks_JEDI(self, vo, prodSourceLabel, waitTime, hostName=None, pgid=None):
         with self.proxyPool.get() as proxy:
-            return proxy.unlockTasks_JEDI(vo,prodSourceLabel,waitTime,hostName,pgid)
+            return proxy.unlockTasks_JEDI(vo, prodSourceLabel, waitTime, hostName, pgid)
 
     # get the size of input files which will be copied to the site
-    def getMovingInputSize_JEDI(self,siteName):
+    def getMovingInputSize_JEDI(self, siteName):
         with self.proxyPool.get() as proxy:
             return proxy.getMovingInputSize_JEDI(siteName)
 
     # get typical number of input files for each workQueue+processingType
-    def getTypicalNumInput_JEDI(self,vo,prodSourceLabel,workQueue):
+    def getTypicalNumInput_JEDI(self, vo, prodSourceLabel, workQueue):
         with self.proxyPool.get() as proxy:
-            return proxy.getTypicalNumInput_JEDI(vo,prodSourceLabel,workQueue)
+            return proxy.getTypicalNumInput_JEDI(vo, prodSourceLabel, workQueue)
 
     # get highest prio jobs with workQueueID
     def getHighestPrioJobStat_JEDI(self, prodSourceLabel, cloudName, workQueue, resource_name=None):
@@ -292,38 +386,56 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getHighestPrioJobStat_JEDI(prodSourceLabel, cloudName, workQueue, resource_name)
 
     # get the list of tasks to refine
-    def getTasksToRefine_JEDI(self,vo=None,prodSourceLabel=None):
+    def getTasksToRefine_JEDI(self, vo=None, prodSourceLabel=None):
         with self.proxyPool.get() as proxy:
-            return proxy.getTasksToRefine_JEDI(vo,prodSourceLabel)
+            return proxy.getTasksToRefine_JEDI(vo, prodSourceLabel)
 
     # get task parameters with jediTaskID
-    def getTaskParamsWithID_JEDI(self,jediTaskID):
+    def getTaskParamsWithID_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.getTaskParamsWithID_JEDI(jediTaskID)
 
     # register task/dataset/templ/param in a single transaction
-    def registerTaskInOneShot_JEDI(self,jediTaskID,taskSpec,inMasterDatasetSpec,
-                                   inSecDatasetSpecList,outDatasetSpecList,
-                                   outputTemplateMap,jobParamsTemplate,taskParams,
-                                   unmergeMasterDatasetSpec,unmergeDatasetSpecMap,
-                                   uniqueTaskName,oldTaskStatus):
+    def registerTaskInOneShot_JEDI(
+        self,
+        jediTaskID,
+        taskSpec,
+        inMasterDatasetSpec,
+        inSecDatasetSpecList,
+        outDatasetSpecList,
+        outputTemplateMap,
+        jobParamsTemplate,
+        taskParams,
+        unmergeMasterDatasetSpec,
+        unmergeDatasetSpecMap,
+        uniqueTaskName,
+        oldTaskStatus,
+    ):
         with self.proxyPool.get() as proxy:
-            return proxy.registerTaskInOneShot_JEDI(jediTaskID,taskSpec,inMasterDatasetSpec,
-                                                  inSecDatasetSpecList,outDatasetSpecList,
-                                                  outputTemplateMap,jobParamsTemplate,taskParams,
-                                                  unmergeMasterDatasetSpec,unmergeDatasetSpecMap,
-                                                  uniqueTaskName,oldTaskStatus)
+            return proxy.registerTaskInOneShot_JEDI(
+                jediTaskID,
+                taskSpec,
+                inMasterDatasetSpec,
+                inSecDatasetSpecList,
+                outDatasetSpecList,
+                outputTemplateMap,
+                jobParamsTemplate,
+                taskParams,
+                unmergeMasterDatasetSpec,
+                unmergeDatasetSpecMap,
+                uniqueTaskName,
+                oldTaskStatus,
+            )
 
     # set tasks to be assigned
-    def setScoutJobDataToTasks_JEDI(self,vo,prodSourceLabel):
+    def setScoutJobDataToTasks_JEDI(self, vo, prodSourceLabel):
         with self.proxyPool.get() as proxy:
             return proxy.setScoutJobDataToTasks_JEDI(vo, prodSourceLabel, self.siteMapper)
 
     # prepare tasks to be finished
-    def prepareTasksToBeFinished_JEDI(self,vo,prodSourceLabel,nTasks=50,simTasks=None,pid='lock',noBroken=False):
+    def prepareTasksToBeFinished_JEDI(self, vo, prodSourceLabel, nTasks=50, simTasks=None, pid="lock", noBroken=False):
         with self.proxyPool.get() as proxy:
-            return proxy.prepareTasksToBeFinished_JEDI(vo,prodSourceLabel,nTasks,simTasks,pid,noBroken,
-                                                       self.siteMapper)
+            return proxy.prepareTasksToBeFinished_JEDI(vo, prodSourceLabel, nTasks, simTasks, pid, noBroken, self.siteMapper)
 
     # get tasks to be assigned
     def getTasksToAssign_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):
@@ -336,215 +448,226 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getTasksToCheckAssignment_JEDI(vo, prodSourceLabel, workQueue, resource_name)
 
     # calculate RW with a priority
-    def calculateRWwithPrio_JEDI(self,vo,prodSourceLabel,workQueue,priority):
+    def calculateRWwithPrio_JEDI(self, vo, prodSourceLabel, workQueue, priority):
         with self.proxyPool.get() as proxy:
-            return proxy.calculateRWwithPrio_JEDI(vo,prodSourceLabel,workQueue,priority)
+            return proxy.calculateRWwithPrio_JEDI(vo, prodSourceLabel, workQueue, priority)
 
     # calculate RW for tasks
-    def calculateTaskRW_JEDI(self,jediTaskID):
+    def calculateTaskRW_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.calculateTaskRW_JEDI(jediTaskID)
 
     # calculate WORLD RW with a priority
-    def calculateWorldRWwithPrio_JEDI(self,vo,prodSourceLabel,workQueue,priority):
+    def calculateWorldRWwithPrio_JEDI(self, vo, prodSourceLabel, workQueue, priority):
         with self.proxyPool.get() as proxy:
-            return proxy.calculateWorldRWwithPrio_JEDI(vo,prodSourceLabel,workQueue,priority)
+            return proxy.calculateWorldRWwithPrio_JEDI(vo, prodSourceLabel, workQueue, priority)
 
     # calculate WORLD RW for tasks
-    def calculateTaskWorldRW_JEDI(self,jediTaskID):
+    def calculateTaskWorldRW_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.calculateTaskWorldRW_JEDI(jediTaskID)
 
     # set cloud to tasks
-    def setCloudToTasks_JEDI(self,taskCloudMap):
+    def setCloudToTasks_JEDI(self, taskCloudMap):
         with self.proxyPool.get() as proxy:
             return proxy.setCloudToTasks_JEDI(taskCloudMap)
 
     # get the list of tasks to exec command
-    def getTasksToExecCommand_JEDI(self,vo,prodSourceLabel):
+    def getTasksToExecCommand_JEDI(self, vo, prodSourceLabel):
         with self.proxyPool.get() as proxy:
-            return proxy.getTasksToExecCommand_JEDI(vo,prodSourceLabel)
+            return proxy.getTasksToExecCommand_JEDI(vo, prodSourceLabel)
 
     # get the list of PandaIDs for a task
-    def getPandaIDsWithTask_JEDI(self,jediTaskID,onlyActive):
+    def getPandaIDsWithTask_JEDI(self, jediTaskID, onlyActive):
         with self.proxyPool.get() as proxy:
-            return proxy.getPandaIDsWithTask_JEDI(jediTaskID,onlyActive)
+            return proxy.getPandaIDsWithTask_JEDI(jediTaskID, onlyActive)
 
     # get the list of queued PandaIDs for a task
-    def getQueuedPandaIDsWithTask_JEDI(self,jediTaskID):
+    def getQueuedPandaIDsWithTask_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.getQueuedPandaIDsWithTask_JEDI(jediTaskID)
 
     # get jediTaskID/datasetID/FileID with dataset and file names
-    def getIDsWithFileDataset_JEDI(self,datasetName,fileName,fileType):
+    def getIDsWithFileDataset_JEDI(self, datasetName, fileName, fileType):
         with self.proxyPool.get() as proxy:
-            return proxy.getIDsWithFileDataset_JEDI(datasetName,fileName,fileType)
+            return proxy.getIDsWithFileDataset_JEDI(datasetName, fileName, fileType)
 
     # get PandaID for a file
-    def getPandaIDWithFileID_JEDI(self,jediTaskID,datasetID,fileID):
+    def getPandaIDWithFileID_JEDI(self, jediTaskID, datasetID, fileID):
         with self.proxyPool.get() as proxy:
-            return proxy.getPandaIDWithFileID_JEDI(jediTaskID,datasetID,fileID)
+            return proxy.getPandaIDWithFileID_JEDI(jediTaskID, datasetID, fileID)
 
     # get JEDI files for a job
-    def getFilesWithPandaID_JEDI(self,pandaID):
+    def getFilesWithPandaID_JEDI(self, pandaID):
         with self.proxyPool.get() as proxy:
             return proxy.getFilesWithPandaID_JEDI(pandaID)
 
     # update task parameters
-    def updateTaskParams_JEDI(self,jediTaskID,taskParams):
+    def updateTaskParams_JEDI(self, jediTaskID, taskParams):
         with self.proxyPool.get() as proxy:
-            return proxy.updateTaskParams_JEDI(jediTaskID,taskParams)
+            return proxy.updateTaskParams_JEDI(jediTaskID, taskParams)
 
     # reactivate pending tasks
-    def reactivatePendingTasks_JEDI(self,vo,prodSourceLabel,timeLimit,timeoutLimit=None,minPriority=None):
+    def reactivatePendingTasks_JEDI(self, vo, prodSourceLabel, timeLimit, timeoutLimit=None, minPriority=None):
         with self.proxyPool.get() as proxy:
-            return proxy.reactivatePendingTasks_JEDI(vo,prodSourceLabel,timeLimit,timeoutLimit,minPriority)
+            return proxy.reactivatePendingTasks_JEDI(vo, prodSourceLabel, timeLimit, timeoutLimit, minPriority)
 
     # restart contents update
-    def restartTasksForContentsUpdate_JEDI(self,vo,prodSourceLabel,timeLimit=30):
+    def restartTasksForContentsUpdate_JEDI(self, vo, prodSourceLabel, timeLimit=30):
         with self.proxyPool.get() as proxy:
-            return proxy.restartTasksForContentsUpdate_JEDI(vo,prodSourceLabel,timeLimit=timeLimit)
+            return proxy.restartTasksForContentsUpdate_JEDI(vo, prodSourceLabel, timeLimit=timeLimit)
 
     # kick exhausted tasks
-    def kickExhaustedTasks_JEDI(self,vo,prodSourceLabel,timeLimit):
+    def kickExhaustedTasks_JEDI(self, vo, prodSourceLabel, timeLimit):
         with self.proxyPool.get() as proxy:
-            return proxy.kickExhaustedTasks_JEDI(vo,prodSourceLabel,timeLimit)
+            return proxy.kickExhaustedTasks_JEDI(vo, prodSourceLabel, timeLimit)
 
     # get file spec of lib.tgz
-    def getBuildFileSpec_JEDI(self,jediTaskID,siteName,associatedSites):
+    def getBuildFileSpec_JEDI(self, jediTaskID, siteName, associatedSites):
         with self.proxyPool.get() as proxy:
-            return proxy.getBuildFileSpec_JEDI(jediTaskID,siteName,associatedSites)
+            return proxy.getBuildFileSpec_JEDI(jediTaskID, siteName, associatedSites)
 
     # get file spec of old lib.tgz
-    def getOldBuildFileSpec_JEDI(self,jediTaskID,datasetID,fileID):
+    def getOldBuildFileSpec_JEDI(self, jediTaskID, datasetID, fileID):
         with self.proxyPool.get() as proxy:
-            return proxy.getOldBuildFileSpec_JEDI(jediTaskID,datasetID,fileID)
+            return proxy.getOldBuildFileSpec_JEDI(jediTaskID, datasetID, fileID)
 
     # insert lib dataset and files
-    def insertBuildFileSpec_JEDI(self,jobSpec,reusedDatasetID,simul):
+    def insertBuildFileSpec_JEDI(self, jobSpec, reusedDatasetID, simul):
         with self.proxyPool.get() as proxy:
-            return proxy.insertBuildFileSpec_JEDI(jobSpec,reusedDatasetID,simul)
+            return proxy.insertBuildFileSpec_JEDI(jobSpec, reusedDatasetID, simul)
 
     # get sites used by a task
-    def getSitesUsedByTask_JEDI(self,jediTaskID):
+    def getSitesUsedByTask_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.getSitesUsedByTask_JEDI(jediTaskID)
 
     # get random seed
-    def getRandomSeed_JEDI(self,jediTaskID,simul):
+    def getRandomSeed_JEDI(self, jediTaskID, simul):
         with self.proxyPool.get() as proxy:
-            return proxy.getRandomSeed_JEDI(jediTaskID,simul)
+            return proxy.getRandomSeed_JEDI(jediTaskID, simul)
 
     # get preprocess metadata
-    def getPreprocessMetadata_JEDI(self,jediTaskID):
+    def getPreprocessMetadata_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.getPreprocessMetadata_JEDI(jediTaskID)
 
     # get log dataset for preprocessing
-    def getPreproLog_JEDI(self,jediTaskID,simul):
+    def getPreproLog_JEDI(self, jediTaskID, simul):
         with self.proxyPool.get() as proxy:
-            return proxy.getPreproLog_JEDI(jediTaskID,simul)
+            return proxy.getPreproLog_JEDI(jediTaskID, simul)
 
     # get jobsetID
-    def getUserJobsetID_JEDI(self,userName):
+    def getUserJobsetID_JEDI(self, userName):
         with self.proxyPool.get() as proxy:
             tmpJobID, tmpDummy, tmpStat = proxy.getUserParameter(userName, 1, None)
             # return
             return tmpStat, tmpJobID
 
     # retry or incrementally execute a task
-    def retryTask_JEDI(self,jediTaskID,commStr,maxAttempt=5,retryChildTasks=True,discardEvents=False,
-                       release_unstaged=False):
+    def retryTask_JEDI(self, jediTaskID, commStr, maxAttempt=5, retryChildTasks=True, discardEvents=False, release_unstaged=False):
         with self.proxyPool.get() as proxy:
-            return proxy.retryTask_JEDI(jediTaskID,commStr,maxAttempt,retryChildTasks=retryChildTasks,
-                                      discardEvents=discardEvents, release_unstaged=release_unstaged)
+            return proxy.retryTask_JEDI(
+                jediTaskID, commStr, maxAttempt, retryChildTasks=retryChildTasks, discardEvents=discardEvents, release_unstaged=release_unstaged
+            )
 
     # append input datasets for incremental execution
-    def appendDatasets_JEDI(self,jediTaskID,inMasterDatasetSpecList,inSecDatasetSpecList):
+    def appendDatasets_JEDI(self, jediTaskID, inMasterDatasetSpecList, inSecDatasetSpecList):
         with self.proxyPool.get() as proxy:
-            return proxy.appendDatasets_JEDI(jediTaskID,inMasterDatasetSpecList,inSecDatasetSpecList)
+            return proxy.appendDatasets_JEDI(jediTaskID, inMasterDatasetSpecList, inSecDatasetSpecList)
 
     # record retry history
-    def recordRetryHistory_JEDI(self,jediTaskID,oldNewPandaIDs,relationType):
+    def recordRetryHistory_JEDI(self, jediTaskID, oldNewPandaIDs, relationType):
         with self.proxyPool.get() as proxy:
-            return proxy.recordRetryHistory_JEDI(jediTaskID,oldNewPandaIDs,relationType)
+            return proxy.recordRetryHistory_JEDI(jediTaskID, oldNewPandaIDs, relationType)
 
     # get JEDI tasks with a selection criteria
-    def getTasksWithCriteria_JEDI(self,vo,prodSourceLabel,taskStatusList,taskCriteria={},datasetCriteria={},
-                                  taskParamList=[],datasetParamList=[],taskLockColumn=None,taskLockInterval=60):
+    def getTasksWithCriteria_JEDI(
+        self,
+        vo,
+        prodSourceLabel,
+        taskStatusList,
+        taskCriteria={},
+        datasetCriteria={},
+        taskParamList=[],
+        datasetParamList=[],
+        taskLockColumn=None,
+        taskLockInterval=60,
+    ):
         with self.proxyPool.get() as proxy:
-            return proxy.getTasksWithCriteria_JEDI(vo,prodSourceLabel,taskStatusList,taskCriteria,datasetCriteria,
-                                                 taskParamList,datasetParamList,taskLockColumn,taskLockInterval)
+            return proxy.getTasksWithCriteria_JEDI(
+                vo, prodSourceLabel, taskStatusList, taskCriteria, datasetCriteria, taskParamList, datasetParamList, taskLockColumn, taskLockInterval
+            )
 
     # check parent task status
-    def checkParentTask_JEDI(self,jediTaskID):
+    def checkParentTask_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.checkParentTask_JEDI(jediTaskID)
 
     # get task status
-    def getTaskStatus_JEDI(self,jediTaskID):
+    def getTaskStatus_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.getTaskStatus_JEDI(jediTaskID)
 
     # get lib.tgz for waiting jobs
-    def getLibForWaitingRunJob_JEDI(self,vo,prodSourceLabel,checkInterval):
+    def getLibForWaitingRunJob_JEDI(self, vo, prodSourceLabel, checkInterval):
         with self.proxyPool.get() as proxy:
-            return proxy.getLibForWaitingRunJob_JEDI(vo,prodSourceLabel,checkInterval)
+            return proxy.getLibForWaitingRunJob_JEDI(vo, prodSourceLabel, checkInterval)
 
     # get tasks to get reassigned
-    def getTasksToReassign_JEDI(self,vo=None,prodSourceLabel=None):
+    def getTasksToReassign_JEDI(self, vo=None, prodSourceLabel=None):
         with self.proxyPool.get() as proxy:
-            return proxy.getTasksToReassign_JEDI(vo,prodSourceLabel)
+            return proxy.getTasksToReassign_JEDI(vo, prodSourceLabel)
 
     # kill child tasks
-    def killChildTasks_JEDI(self,jediTaskID,taskStatus):
+    def killChildTasks_JEDI(self, jediTaskID, taskStatus):
         with self.proxyPool.get() as proxy:
-            return proxy.killChildTasks_JEDI(jediTaskID,taskStatus)
+            return proxy.killChildTasks_JEDI(jediTaskID, taskStatus)
 
     # kick child tasks
-    def kickChildTasks_JEDI(self,jediTaskID):
+    def kickChildTasks_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.kickChildTasks_JEDI(jediTaskID)
 
     # lock task
-    def lockTask_JEDI(self,jediTaskID,pid):
+    def lockTask_JEDI(self, jediTaskID, pid):
         with self.proxyPool.get() as proxy:
-            return proxy.lockTask_JEDI(jediTaskID,pid)
+            return proxy.lockTask_JEDI(jediTaskID, pid)
 
     # get successful files
-    def getSuccessfulFiles_JEDI(self,jediTaskID,datasetID):
+    def getSuccessfulFiles_JEDI(self, jediTaskID, datasetID):
         with self.proxyPool.get() as proxy:
-            return proxy.getSuccessfulFiles_JEDI(jediTaskID,datasetID)
+            return proxy.getSuccessfulFiles_JEDI(jediTaskID, datasetID)
 
     # unlock a single task
-    def unlockSingleTask_JEDI(self,jediTaskID,pid):
+    def unlockSingleTask_JEDI(self, jediTaskID, pid):
         with self.proxyPool.get() as proxy:
-            return proxy.unlockSingleTask_JEDI(jediTaskID,pid)
+            return proxy.unlockSingleTask_JEDI(jediTaskID, pid)
 
     # throttle JEDI tasks
-    def throttleTasks_JEDI(self,vo,prodSourceLabel,waitTime):
+    def throttleTasks_JEDI(self, vo, prodSourceLabel, waitTime):
         with self.proxyPool.get() as proxy:
-            return proxy.throttleTasks_JEDI(vo,prodSourceLabel,waitTime)
+            return proxy.throttleTasks_JEDI(vo, prodSourceLabel, waitTime)
 
     # throttle a JEDI task
-    def throttleTask_JEDI(self,jediTaskID,waitTime,errorDialog):
+    def throttleTask_JEDI(self, jediTaskID, waitTime, errorDialog):
         with self.proxyPool.get() as proxy:
-            return proxy.throttleTask_JEDI(jediTaskID,waitTime,errorDialog)
+            return proxy.throttleTask_JEDI(jediTaskID, waitTime, errorDialog)
 
     # release throttled tasks
-    def releaseThrottledTasks_JEDI(self,vo,prodSourceLabel):
+    def releaseThrottledTasks_JEDI(self, vo, prodSourceLabel):
         with self.proxyPool.get() as proxy:
-            return proxy.releaseThrottledTasks_JEDI(vo,prodSourceLabel)
+            return proxy.releaseThrottledTasks_JEDI(vo, prodSourceLabel)
 
     # release throttled task
-    def releaseThrottledTask_JEDI(self,jediTaskID):
+    def releaseThrottledTask_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.releaseThrottledTask_JEDI(jediTaskID)
 
     # get throttled users
-    def getThrottledUsersTasks_JEDI(self,vo,prodSourceLabel):
+    def getThrottledUsersTasks_JEDI(self, vo, prodSourceLabel):
         with self.proxyPool.get() as proxy:
-            return proxy.getThrottledUsersTasks_JEDI(vo,prodSourceLabel)
+            return proxy.getThrottledUsersTasks_JEDI(vo, prodSourceLabel)
 
     # lock process
     def lockProcess_JEDI(self, vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, forceOption=False, timeLimit=5):
@@ -567,14 +690,14 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.checkProcessLock_JEDI(vo, prodSourceLabel, cloud, workqueue_id, resource_name, component, pid, checkBase)
 
     # get JEDI tasks to be assessed
-    def getAchievedTasks_JEDI(self,vo,prodSourceLabel,timeLimit=60,nTasks=50):
+    def getAchievedTasks_JEDI(self, vo, prodSourceLabel, timeLimit=60, nTasks=50):
         with self.proxyPool.get() as proxy:
-            return proxy.getAchievedTasks_JEDI(vo,prodSourceLabel,timeLimit,nTasks)
+            return proxy.getAchievedTasks_JEDI(vo, prodSourceLabel, timeLimit, nTasks)
 
     # get inactive sites
-    def getInactiveSites_JEDI(self,flag,timeLimit):
+    def getInactiveSites_JEDI(self, flag, timeLimit):
         with self.proxyPool.get() as proxy:
-            return proxy.getInactiveSites_JEDI(flag,timeLimit)
+            return proxy.getInactiveSites_JEDI(flag, timeLimit)
 
     # get total walltime
     def getTotalWallTime_JEDI(self, vo, prodSourceLabel, workQueue, resource_name):
@@ -582,7 +705,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getTotalWallTime_JEDI(vo, prodSourceLabel, workQueue, resource_name)
 
     # check duplication with internal merge
-    def checkDuplication_JEDI(self,jediTaskID):
+    def checkDuplication_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.checkDuplication_JEDI(jediTaskID)
 
@@ -602,59 +725,60 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.getPandaSiteToOutputStorageSiteMapping()
 
     # get failure counts for a task
-    def getFailureCountsForTask_JEDI(self,jediTaskID,timeWindow):
+    def getFailureCountsForTask_JEDI(self, jediTaskID, timeWindow):
         with self.proxyPool.get() as proxy:
-            return proxy.getFailureCountsForTask_JEDI(jediTaskID,timeWindow)
+            return proxy.getFailureCountsForTask_JEDI(jediTaskID, timeWindow)
 
         # count the number of queued jobs per user or working group
+
     def countJobsPerTarget_JEDI(self, target, is_user):
         with self.proxyPool.get() as proxy:
             return proxy.countJobsPerTarget_JEDI(target, is_user)
 
     # get old merge job PandaIDs
-    def getOldMergeJobPandaIDs_JEDI(self,jediTaskID,pandaID):
+    def getOldMergeJobPandaIDs_JEDI(self, jediTaskID, pandaID):
         with self.proxyPool.get() as proxy:
-            return proxy.getOldMergeJobPandaIDs_JEDI(jediTaskID,pandaID)
+            return proxy.getOldMergeJobPandaIDs_JEDI(jediTaskID, pandaID)
 
     # get active jumbo jobs for a task
-    def getActiveJumboJobs_JEDI(self,jediTaskID):
+    def getActiveJumboJobs_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.getActiveJumboJobs_JEDI(jediTaskID)
 
     # get jobParms of the first job
-    def getJobParamsOfFirstJob_JEDI(self,jediTaskID):
+    def getJobParamsOfFirstJob_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.getJobParamsOfFirstJob_JEDI(jediTaskID)
 
     # bulk fetch fileIDs
-    def bulkFetchFileIDs_JEDI(self,jediTaskID,nIDs):
+    def bulkFetchFileIDs_JEDI(self, jediTaskID, nIDs):
         with self.proxyPool.get() as proxy:
-            return proxy.bulkFetchFileIDs_JEDI(jediTaskID,nIDs)
+            return proxy.bulkFetchFileIDs_JEDI(jediTaskID, nIDs)
 
     # set del flag to events
-    def setDelFlagToEvents_JEDI(self,jediTaskID):
+    def setDelFlagToEvents_JEDI(self, jediTaskID):
         with self.proxyPool.get() as proxy:
             return proxy.setDelFlagToEvents_JEDI(jediTaskID)
 
     # set del flag to events
-    def removeFilesIndexInconsistent_JEDI(self,jediTaskID,datasetIDs):
+    def removeFilesIndexInconsistent_JEDI(self, jediTaskID, datasetIDs):
         with self.proxyPool.get() as proxy:
-            return proxy.removeFilesIndexInconsistent_JEDI(jediTaskID,datasetIDs)
+            return proxy.removeFilesIndexInconsistent_JEDI(jediTaskID, datasetIDs)
 
     # throttle jobs in pauses tasks
-    def throttleJobsInPausedTasks_JEDI(self,vo,prodSourceLabel):
+    def throttleJobsInPausedTasks_JEDI(self, vo, prodSourceLabel):
         with self.proxyPool.get() as proxy:
-            return proxy.throttleJobsInPausedTasks_JEDI(vo,prodSourceLabel)
+            return proxy.throttleJobsInPausedTasks_JEDI(vo, prodSourceLabel)
 
     # set useJumbo flag
-    def setUseJumboFlag_JEDI(self,jediTaskID,statusStr):
+    def setUseJumboFlag_JEDI(self, jediTaskID, statusStr):
         with self.proxyPool.get() as proxy:
-            return proxy.setUseJumboFlag_JEDI(jediTaskID,statusStr)
+            return proxy.setUseJumboFlag_JEDI(jediTaskID, statusStr)
 
     # get number of tasks with running jumbo jobs
-    def getNumTasksWithRunningJumbo_JEDI(self,vo,prodSourceLabel,cloudName,workqueue):
+    def getNumTasksWithRunningJumbo_JEDI(self, vo, prodSourceLabel, cloudName, workqueue):
         with self.proxyPool.get() as proxy:
-            return proxy.getNumTasksWithRunningJumbo_JEDI(vo,prodSourceLabel,cloudName,workqueue)
+            return proxy.getNumTasksWithRunningJumbo_JEDI(vo, prodSourceLabel, cloudName, workqueue)
 
     # get number of unprocessed events
     def getNumUnprocessedEvents_JEDI(self, vo, prodSourceLabel, criteria, neg_criteria):
@@ -706,18 +830,18 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
         with self.proxyPool.get() as proxy:
             return proxy.updateInputDatasetsStagedAboutIdds_JEDI(jeditaskid, scope, dsnames_dict)
 
-   # get number of staging files
+    # get number of staging files
     def getNumStagingFiles_JEDI(self, jeditaskid):
         with self.proxyPool.get() as proxy:
             return proxy.getNumStagingFiles_JEDI(jeditaskid)
 
     # get usage breakdown by users and sites
-    def getUsageBreakdown_JEDI(self, prod_source_label='user'):
+    def getUsageBreakdown_JEDI(self, prod_source_label="user"):
         with self.proxyPool.get() as proxy:
             return proxy.getUsageBreakdown_JEDI(prod_source_label)
 
     # get jobs stat of each user
-    def getUsersJobsStats_JEDI(self, prod_source_label='user'):
+    def getUsersJobsStats_JEDI(self, prod_source_label="user"):
         with self.proxyPool.get() as proxy:
             return proxy.getUsersJobsStats_JEDI(prod_source_label)
 
@@ -752,7 +876,7 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
             return proxy.extendSandboxLifetime_JEDI(jedi_taskid, file_name)
 
     # turn a task into pending status for some reason
-    def makeTaskPending_JEDI(self, jedi_taskid, reason='unknown'):
+    def makeTaskPending_JEDI(self, jedi_taskid, reason="unknown"):
         with self.proxyPool.get() as proxy:
             return proxy.makeTaskPending_JEDI(jedi_taskid, reason)
 
@@ -805,13 +929,13 @@ class JediTaskBuffer(TaskBuffer.TaskBuffer, CommandReceiveInterface):
     def get_origin_datasets(self, jedi_task_id, dataset_name, lfns):
         with self.proxyPool.get() as proxy:
             return proxy.get_origin_datasets(jedi_task_id, dataset_name, lfns)
-    
+
     # push message to message processors which triggers functions of agents
     def push_task_trigger_message(self, msg_type, jedi_task_id, data_dict=None, priority=None):
         with self.proxyPool.get() as proxy:
             return proxy.push_task_trigger_message(msg_type, jedi_task_id, data_dict, priority)
 
     # aggregate carbon footprint of a task
-    def get_task_carbon_footprint(self, jedi_task_id, level='global'):
+    def get_task_carbon_footprint(self, jedi_task_id, level="global"):
         with self.proxyPool.get() as proxy:
             return proxy.get_task_carbon_footprint(jedi_task_id, level)

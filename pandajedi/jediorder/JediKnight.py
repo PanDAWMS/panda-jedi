@@ -14,7 +14,7 @@ class JediKnight(Interaction.CommandReceiveInterface):
         self.ddmIF = ddmIF
         self.logger = logger
         # intra-node message broker proxies
-        self.mb_proxy_dict = kwargs.get('mb_proxy_dict')
+        self.mb_proxy_dict = kwargs.get("mb_proxy_dict")
         # start zombie cleaner
         ZombieCleaner().start()
 
@@ -22,6 +22,7 @@ class JediKnight(Interaction.CommandReceiveInterface):
     def start(self):
         # start communication channel
         import threading
+
         thr = threading.Thread(target=self.startImpl)
         thr.start()
 
@@ -31,14 +32,14 @@ class JediKnight(Interaction.CommandReceiveInterface):
             Interaction.CommandReceiveInterface.start(self)
         except Exception:
             errtype, errvalue = sys.exc_info()[:2]
-            self.logger.error('crashed in JediKnight.startImpl() with %s %s' % (errtype.__name__, errvalue))
+            self.logger.error("crashed in JediKnight.startImpl() with %s %s" % (errtype.__name__, errvalue))
 
     # parse init params
     def parseInit(self, par):
         if isinstance(par, list):
             return par
         try:
-            return par.split('|')
+            return par.split("|")
         except Exception:
             return [par]
 

@@ -9,8 +9,8 @@ from six import iteritems
 
 from .WorkQueue import WorkQueue, RESOURCE, ACTIVE_FUNCTIONS
 
-class WorkQueueMapper:
 
+class WorkQueueMapper:
     # constructor
     def __init__(self):
         # Initialize maps
@@ -82,7 +82,7 @@ class WorkQueueMapper:
             work_queue_gs.pack_gs(gs)
 
             if work_queue_gs.VO is None:
-                vo = 'atlas'
+                vo = "atlas"
             else:
                 vo = work_queue_gs.VO
 
@@ -104,13 +104,13 @@ class WorkQueueMapper:
         Creates a human-friendly string showing the work queue mappings
         :return: string representation of the work queue mappings
         """
-        dump_str = 'WorkQueue mapping\n'
+        dump_str = "WorkQueue mapping\n"
         for VO in self.work_queue_map:
-            dump_str += '  VO=%s\n' % VO
+            dump_str += "  VO=%s\n" % VO
             for type in self.work_queue_map[VO]:
-                dump_str += '    type=%s\n' % type
+                dump_str += "    type=%s\n" % type
                 for workQueue in self.work_queue_map[VO][type]:
-                    dump_str += '    %s\n' % workQueue.dump()
+                    dump_str += "    %s\n" % workQueue.dump()
         # return
         return dump_str
 
@@ -122,15 +122,14 @@ class WorkQueueMapper:
         :param param_map: parameter selection map
         :return: work queue object and explanation in case no queue was found
         """
-        ret_str = ''
+        ret_str = ""
         if vo not in self.work_queue_map:
-            ret_str = 'queues for vo=%s are undefined' % vo
+            ret_str = "queues for vo=%s are undefined" % vo
         elif type not in self.work_queue_map[vo]:
             # check type
-            ret_str = 'queues for type=%s are undefined in vo=%s' % (type, vo)
+            ret_str = "queues for type=%s are undefined in vo=%s" % (type, vo)
         else:
             for wq in self.work_queue_map[vo][type]:
-
                 # don't return global share IDs for work queues
                 if wq.is_global_share:
                     continue
@@ -141,13 +140,13 @@ class WorkQueueMapper:
                     if result:
                         return ret_queue, ret_str
                 except Exception:
-                    ret_str += '{0},'.format(wq.queue_name)
+                    ret_str += "{0},".format(wq.queue_name)
 
             ret_str = ret_str[:-1]
-            if ret_str != '':
-                new_ret_str = 'eval with VO={0} '.format(vo)
+            if ret_str != "":
+                new_ret_str = "eval with VO={0} ".format(vo)
                 for tmp_param_key, tmp_param_val in iteritems(param_map):
-                    new_ret_str += '{0}={1} failed for {0}'.format(tmp_param_key, tmp_param_val, ret_str)
+                    new_ret_str += "{0}={1} failed for {0}".format(tmp_param_key, tmp_param_val, ret_str)
                 ret_str = new_ret_str
 
         # no queue matched to selection parameters
@@ -170,7 +169,7 @@ class WorkQueueMapper:
     # get queue with ID
     def getQueueWithIDGshare(self, queue_id, gshare_name):
         # 1. Check for a Resource queue
-        if queue_id in self.work_queue_global_dic_by_id and self.work_queue_global_dic_by_id[queue_id].queue_function == 'Resource':
+        if queue_id in self.work_queue_global_dic_by_id and self.work_queue_global_dic_by_id[queue_id].queue_function == "Resource":
             return self.work_queue_global_dic_by_id[queue_id]
 
         # 2. If it wasn't a resource queue, return the global share work queue
@@ -189,7 +188,7 @@ class WorkQueueMapper:
 
         if vo in self.work_queue_map:
             # if queue type was specified
-            if queue_type not in ['', None, 'any']:
+            if queue_type not in ["", None, "any"]:
                 for map_queue_type in self.work_queue_map[vo]:
                     if re.match(map_queue_type, queue_type):
                         for tmp_wq in self.work_queue_map[vo][map_queue_type]:

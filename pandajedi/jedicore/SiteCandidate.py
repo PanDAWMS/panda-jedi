@@ -10,7 +10,7 @@ class SiteCandidate(object):
         self.localDiskFiles = set()
         # the list of files copied from SE tape
         self.localTapeFiles = set()
-        # the list of files cached in non-SE, e.g. on CVMFS 
+        # the list of files cached in non-SE, e.g. on CVMFS
         self.cacheFiles = set()
         # the list of files read from SE using remote I/O
         self.remoteFiles = set()
@@ -50,24 +50,24 @@ class SiteCandidate(object):
     # get locality of a file
     def getFileLocality(self, fileSpec):
         if fileSpec.fileID in self.localDiskFiles:
-            return 'localdisk'
+            return "localdisk"
         if fileSpec.fileID in self.localTapeFiles:
-            return 'localtape'
+            return "localtape"
         if fileSpec.fileID in self.cacheFiles:
-            return 'cache'
+            return "cache"
         if fileSpec.fileID in self.remoteFiles:
-            return 'remote'
+            return "remote"
         return None
 
     # add available files
-    def addAvailableFiles(self,fileList):
+    def addAvailableFiles(self, fileList):
         if self.allFiles is None:
             self.allFiles = set()
         for tmpFileSpec in fileList:
             self.allFiles.add(tmpFileSpec.fileID)
 
     # check if file is available
-    def isAvailableFile(self,tmpFileSpec):
+    def isAvailableFile(self, tmpFileSpec):
         # N/A
         if self.allFiles is None:
             return True
