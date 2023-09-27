@@ -81,7 +81,7 @@ class SimpleTaskSetupper(TaskSetupperBase):
                                 tmpLog.info("dest={0}".format(datasetSpec.destination))
                                 if datasetSpec.destination:
                                     if siteMapper.checkSite(datasetSpec.destination):
-                                        location = siteMapper.getSite("BNL_OSG_SPHENIX").ddm_output["default"]
+                                        location = siteMapper.getSite(datasetSpec.destination).ddm_output["default"]
                                     else:
                                         location = datasetSpec.destination
                             if locForRule is None:
