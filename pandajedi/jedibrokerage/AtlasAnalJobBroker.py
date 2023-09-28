@@ -1962,14 +1962,15 @@ class AtlasAnalJobBroker(JobBrokerBase):
             siteCandidateSpec.override_attribute("maxwdir", newMaxwdir.get(tmpSiteName))
             # set weight
             siteCandidateSpec.weight = weight
-            tmpStr = (  f"""weight={weight:.7f} """
-                        f"""gshare={taskSpec.gshare} class={bw_map["class"]} trr={bw_map["trr"]:.3f} """
-                        f"""userR={bw_map["user_r"]} userQ={bw_map["user_q_len"]} userQRem={bw_map["rem_q_len"]:.3f} """
-                        f"""nRunning={bw_map["nr"]} nDefined={bw_map["nDefined"]} nActivated={bw_map["nActivated"]} """
-                        f"""nStarting={bw_map["nStarting"]} nAssigned={bw_map["nAssigned"]} """
-                        f"""nFailed={bw_map["nFailed"]} nClosed={bw_map["nClosed"]} nFinished={bw_map["nFinished"]} """
-                        f"""dataW={tmpDataWeight} totalInGB={totalSize} localInGB={localSize} nFiles={totalNumFiles} """
-                    )
+            tmpStr = (
+                f"""weight={weight:.7f} """
+                f"""gshare={taskSpec.gshare} class={bw_map["class"]} trr={bw_map["trr"]:.3f} """
+                f"""userR={bw_map["user_r"]} userQ={bw_map["user_q_len"]} userQRem={bw_map["rem_q_len"]:.3f} """
+                f"""nRunning={bw_map["nr"]} nDefined={bw_map["nDefined"]} nActivated={bw_map["nActivated"]} """
+                f"""nStarting={bw_map["nStarting"]} nAssigned={bw_map["nAssigned"]} """
+                f"""nFailed={bw_map["nFailed"]} nClosed={bw_map["nClosed"]} nFinished={bw_map["nFinished"]} """
+                f"""dataW={tmpDataWeight} totalInGB={totalSize} localInGB={localSize} nFiles={totalNumFiles} """
+            )
             weightStr[tmpPseudoSiteName] = tmpStr
             # append
             if tmpSiteName in sitesUsedByTask:
