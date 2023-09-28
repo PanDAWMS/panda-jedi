@@ -1778,6 +1778,7 @@ class AtlasAnalJobBroker(JobBrokerBase):
                     }
                     max_nQ_pq_user = max(nQ_pq_user_limit_map.values())
                     # fill in metrics for the site
+                    bw_map["user_r"] = nR_pq_user
                     bw_map["user_q_len"] = nQ_pq_user
                     bw_map["max_q_len"] = max_nQ_pq_user
                     bw_map["rem_q_len"] = max(bw_map["max_q_len"] - bw_map["user_q_len"], 0)
@@ -1961,14 +1962,14 @@ class AtlasAnalJobBroker(JobBrokerBase):
             siteCandidateSpec.override_attribute("maxwdir", newMaxwdir.get(tmpSiteName))
             # set weight
             siteCandidateSpec.weight = weight
-            tmpStr = "weight={0:.7f} ".format(weight)
-            tmpStr += "class={0} trr={1:.3f} ".format(bw_map["class"], bw_map["trr"])
-            tmpStr += "userQ={0} userQRem={1:.3f} ".format(bw_map["user_q_len"], bw_map["rem_q_len"])
-            tmpStr += "nRunning={0} nDefined={1} nActivated={2} nStarting={3} nAssigned={4} ".format(
-                bw_map["nr"], bw_map["nDefined"], bw_map["nActivated"], bw_map["nStarting"], bw_map["nAssigned"]
-            )
-            tmpStr += "nFailed={0} nClosed={1} nFinished={2} dataW={3} ".format(bw_map["nFailed"], bw_map["nClosed"], bw_map["nFinished"], tmpDataWeight)
-            tmpStr += "totalInGB={0} localInGB={1} nFiles={2} ".format(totalSize, localSize, totalNumFiles)
+            tmpStr = (  f"""weight={weight:.7f} """
+                        f"""gshare={taskSpec.gshare} class={bw_map["class"]} trr={bw_map["trr"]:.3f} """
+                        f"""userR={bw_map["user_r"]} userQ={bw_map["user_q_len"]} userQRem={bw_map["rem_q_len"]:.3f} """
+                        f"""nRunning={bw_map["nr"]} nDefined={bw_map["nDefined"]} nActivated={bw_map["nActivated"]} """
+                        f"""nStarting={bw_map["nStarting"]} nAssigned={bw_map["nAssigned"]} """
+                        f"""nFailed={bw_map["nFailed"]} nClosed={bw_map["nClosed"]} nFinished={bw_map["nFinished"]} """
+                        f"""dataW={tmpDataWeight} totalInGB={totalSize} localInGB={localSize} nFiles={totalNumFiles} """
+                    )
             weightStr[tmpPseudoSiteName] = tmpStr
             # append
             if tmpSiteName in sitesUsedByTask:
