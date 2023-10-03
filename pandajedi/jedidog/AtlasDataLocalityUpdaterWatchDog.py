@@ -44,7 +44,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
                 cloud=None,
                 workqueue_id=None,
                 resource_name=None,
-                component="AtlasDataLocalityUpdaterWatchDog.doUpdateDataLocality",
+                component="AtlasDataLocaUpdDog.doUpdateDataLoca",
                 pid=self.pid,
                 timeLimit=240,
             )
@@ -85,7 +85,7 @@ class AtlasDataLocalityUpdaterWatchDog(WatchDogBase):
                 cloud=None,
                 workqueue_id=None,
                 resource_name=None,
-                component="AtlasDataLocalityUpdaterWatchDog.doCleanDataLocality",
+                component="AtlasDataLocaUpdDog.doCleanDataLoca",
                 pid=self.pid,
                 timeLimit=1440,
             )
