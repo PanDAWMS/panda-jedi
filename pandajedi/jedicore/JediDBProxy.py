@@ -1227,7 +1227,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 self.cur.execute(sqlFU + comment, varMap)
                                 nActivatedPending += 1
                                 nReady += 1
-                        tmpLog.debug("nReady={0} nActivatedPending={1} after activation".format(nReady, nActivatedPending))
+                        tmpLog.debug(f"nReady={nReady} nPending={nPending} nActivatedPending={nActivatedPending} after activation")
                         # lost or recovered files
                         tmpLog.debug("lost or recovered files")
                         uniqueFileKeySet = set(uniqueFileKeyList)
@@ -1358,7 +1358,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug("the number of requested file records : {0}".format(numReqFileRecords))
                         if isMutableDataset and numReqFileRecords is not None and varMap[":nFilesTobeUsed"] >= numReqFileRecords:
                             varMap[":state"] = "open"
-                        elif inputPreStaging and nStaging == 0 and datasetSpec.isMaster():
+                        elif inputPreStaging and nStaging == 0 and datasetSpec.isMaster() \
+                                and nPending == nActivatedPending:
                             varMap[":state"] = "closed"
                         else:
                             varMap[":state"] = datasetState
