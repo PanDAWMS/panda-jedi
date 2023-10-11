@@ -841,6 +841,7 @@ class JediTaskSpec(object):
             "pause": {"doing": "paused", "done": "dummy"},
             "resume": {"doing": "dummy", "done": "dummy"},
             "avalanche": {"doing": "dummy", "done": "dummy"},
+            "release": {"doing": "dummy", "done": "dummy"},
         }
 
     commandStatusMap = classmethod(commandStatusMap)
