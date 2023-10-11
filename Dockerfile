@@ -7,7 +7,7 @@ ARG PYTHON_VERSION
 RUN yum update -y
 RUN yum install -y epel-release
 RUN yum install -y gcc make httpd-devel less git wget logrotate \
-    bzip2-devel libffi-devel zlib-devel openssl-devel
+    bzip2-devel libffi-devel zlib-devel openssl-devel readline-devel
 
 # install python
 RUN mkdir /tmp/python && cd /tmp/python && \
@@ -28,6 +28,7 @@ RUN yum install --nogpgcheck -y postgresql16
 RUN python$(echo ${PYTHON_VERSION} | sed -E 's/\.[0-9]+$//') -m venv /opt/panda
 RUN /opt/panda/bin/pip install -U pip
 RUN /opt/panda/bin/pip install -U setuptools
+RUN /opt/panda/bin/pip install -U readline
 RUN adduser atlpan
 RUN groupadd zp
 RUN usermod -a -G zp atlpan
