@@ -1368,7 +1368,7 @@ class JediTaskSpec(object):
                 if arch:
                     return {"arch": arch, "vendor": "*", "instr": "*"}
                 return None
-            m = re.search(r"#([\^@&]*)", self.architecture)
+            m = re.search(r"#([^\^@&]*)", self.architecture)
             spec_str = m.group(1)
             if not spec_str:
                 return None
@@ -1386,7 +1386,7 @@ class JediTaskSpec(object):
         try:
             if self.architecture is None or "&" not in self.architecture:
                 return None
-            m = re.search(r"&([\^@#]*)", self.architecture)
+            m = re.search(r"&([^\^@#]*)", self.architecture)
             spec_str = m.group(1)
             if not spec_str:
                 return None
