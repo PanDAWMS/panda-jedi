@@ -1,9 +1,8 @@
+import enum
 import math
 import re
-import enum
 
 from six import iteritems
-
 
 """
 task specification for JEDI
@@ -1362,9 +1361,14 @@ class JediTaskSpec(object):
     # get host CPU spec
     def get_host_cpu_spec(self):
         try:
-            if self.architecture is None or "#" not in self.architecture:
+            if self.architecture is None or re.search(r"^[\^@&]", self.architecture):
                 return None
-            m = re.search("#([^@&]*)", self.architecture)
+            if "#" not in self.architecture:
+                arch = self.architecture.split("-")[0]
+                if arch:
+                    return {"arch": arch, "vendor": "*", "instr": "*"}
+                return None
+            m = re.search(r"#([^\^@&]*)", self.architecture)
             spec_str = m.group(1)
             if not spec_str:
                 return None
@@ -1382,7 +1386,7 @@ class JediTaskSpec(object):
         try:
             if self.architecture is None or "&" not in self.architecture:
                 return None
-            m = re.search("&([^@#]*)", self.architecture)
+            m = re.search(r"&([^\^@#]*)", self.architecture)
             spec_str = m.group(1)
             if not spec_str:
                 return None

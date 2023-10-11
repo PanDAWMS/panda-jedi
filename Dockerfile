@@ -1,34 +1,34 @@
-ARG PYTHON_VERSION=3.11.4
+ARG PYTHON_VERSION=3.11.6
 
-FROM docker.io/centos:7
+FROM docker.io/almalinux:9
 
 ARG PYTHON_VERSION
 
 RUN yum update -y
 RUN yum install -y epel-release
 RUN yum install -y gcc make httpd-devel less git wget logrotate \
-    openssl11 openssl11-devel bzip2-devel libffi-devel zlib-devel
+    bzip2-devel libffi-devel zlib-devel openssl-devel readline-devel
 
 # install python
 RUN mkdir /tmp/python && cd /tmp/python && \
     wget https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz && \
     tar -xzf Python-*.tgz && rm -f Python-*.tgz && \
     cd Python-* && \
-    sed -i 's/PKG_CONFIG openssl /PKG_CONFIG openssl11 /g' configure && \
     ./configure --enable-shared && \
     make altinstall && \
     echo /usr/local/lib > /etc/ld.so.conf.d/local.conf && ldconfig && \
     cd / && rm -rf /tmp/pyton
 
 # install postgres
-RUN yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-RUN yum install -y postgresql14
+RUN yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+RUN yum install --nogpgcheck -y postgresql16
 
 
 # setup venv with pythonX.Y
 RUN python$(echo ${PYTHON_VERSION} | sed -E 's/\.[0-9]+$//') -m venv /opt/panda
 RUN /opt/panda/bin/pip install -U pip
 RUN /opt/panda/bin/pip install -U setuptools
+RUN /opt/panda/bin/pip install -U gnureadline
 RUN adduser atlpan
 RUN groupadd zp
 RUN usermod -a -G zp atlpan
