@@ -1,18 +1,18 @@
-import re
-import os
-import sys
-import copy
-import math
-import numpy
-import random
-import logging
-import datetime
-import traceback
-import socket
-import uuid
-import json
 import atexit
+import copy
+import datetime
+import json
+import logging
+import math
+import os
+import random
+import re
+import socket
+import sys
+import traceback
+import uuid
 
+import numpy
 from six import iteritems
 
 try:
@@ -20,27 +20,23 @@ try:
 except Exception:
     long = int
 
-from pandajedi.jediconfig import jedi_config
-
-from pandaserver import taskbuffer
 import taskbuffer.OraDBProxy
-from pandaserver.taskbuffer import JobUtils
-from pandaserver.taskbuffer import EventServiceUtils
-from .WorkQueueMapper import WorkQueueMapper
-
-from .JediTaskSpec import JediTaskSpec, push_status_changes
-from .JediFileSpec import JediFileSpec
-from .JediDatasetSpec import JediDatasetSpec
-from .JediCacheSpec import JediCacheSpec
-from .InputChunk import InputChunk
-from .MsgWrapper import MsgWrapper
-
-from . import ParseJobXML
-from . import JediCoreUtils
-
 
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
+from pandaserver import taskbuffer
+from pandaserver.taskbuffer import EventServiceUtils, JobUtils
+
+from pandajedi.jediconfig import jedi_config
+
+from . import JediCoreUtils, ParseJobXML
+from .InputChunk import InputChunk
+from .JediCacheSpec import JediCacheSpec
+from .JediDatasetSpec import JediDatasetSpec
+from .JediFileSpec import JediFileSpec
+from .JediTaskSpec import JediTaskSpec, push_status_changes
+from .MsgWrapper import MsgWrapper
+from .WorkQueueMapper import WorkQueueMapper
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
 taskbuffer.OraDBProxy._logger = logger
@@ -216,7 +212,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[":ts_ready"] = "ready"
             varMap[":ts_defined"] = "defined"
             varMap[":dsStatus_pending"] = "pending"
-            varMap[":dsState_mutable"]  = "mutable"
+            varMap[":dsState_mutable"] = "mutable"
             if task_id is None:
                 try:
                     checkInterval = jedi_config.confeeder.checkInterval
@@ -225,8 +221,8 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             else:
                 checkInterval = 0
             varMap[":checkTimeLimit"] = datetime.datetime.utcnow() - datetime.timedelta(minutes=checkInterval)
-            varMap[":lockTimeLimit"]  = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
-            sql  = "SELECT {0} ".format(JediDatasetSpec.columnNames("tabD"))
+            varMap[":lockTimeLimit"] = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+            sql = "SELECT {0} ".format(JediDatasetSpec.columnNames("tabD"))
             if task_id is None:
                 sql += "FROM {0}.JEDI_Tasks tabT,{0}.JEDI_Datasets tabD,{0}.JEDI_AUX_Status_MinTaskID tabA ".format(jedi_config.db.schemaJEDI)
                 sql += "WHERE tabT.status=tabA.status AND tabT.jediTaskID>=tabA.min_jediTaskID "
@@ -1358,8 +1354,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         tmpLog.debug("the number of requested file records : {0}".format(numReqFileRecords))
                         if isMutableDataset and numReqFileRecords is not None and varMap[":nFilesTobeUsed"] >= numReqFileRecords:
                             varMap[":state"] = "open"
-                        elif inputPreStaging and nStaging == 0 and datasetSpec.isMaster() \
-                                and nPending == nActivatedPending:
+                        elif inputPreStaging and nStaging == 0 and datasetSpec.isMaster() and nPending == nActivatedPending:
                             varMap[":state"] = "closed"
                         else:
                             varMap[":state"] = datasetState
@@ -3382,7 +3377,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             # make list
             groupByAttrList = list(userTaskMap.keys())
             random.shuffle(groupByAttrList)
-            tmpLog.debug(f'{len(groupByAttrList)} groupBy values for {len(taskDatasetMap)} tasks')
+            tmpLog.debug(f"{len(groupByAttrList)} groupBy values for {len(taskDatasetMap)} tasks")
             if expressAttr in userTaskMap:
                 useSuperHigh = True
             else:
@@ -3554,11 +3549,9 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 ") GROUP BY datasetID"
             ).format(jedi_config.db.schemaPANDA, jedi_config.db.schemaJEDI)
             # sql to set frozenTime
-            sqlFZT = ("UPDATE {0}.JEDI_Tasks "
-                      "SET frozenTime=:frozenTime WHERE jediTaskID=:jediTaskID ").format(jedi_config.db.schemaJEDI)
+            sqlFZT = "UPDATE {0}.JEDI_Tasks SET frozenTime=:frozenTime WHERE jediTaskID=:jediTaskID ".format(jedi_config.db.schemaJEDI)
             # sql to check files
-            selCKF = f"SELECT nFilesToBeUsed-nFilesUsed FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets "\
-                     "WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
+            selCKF = f"SELECT nFilesToBeUsed-nFilesUsed FROM {jedi_config.db.schemaJEDI}.JEDI_Datasets WHERE jediTaskID=:jediTaskID AND datasetID=:datasetID "
             # loop over all tasks
             iTasks = 0
             lockedTasks = []
@@ -3638,19 +3631,19 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         for tmp_item in taskDatasetMap[jediTaskID]:
                             datasetID, tmpNumFiles = tmp_item[:2]
                             varMap = {}
-                            varMap[':jediTaskID'] = jediTaskID
-                            varMap[':datasetID'] = datasetID
+                            varMap[":jediTaskID"] = jediTaskID
+                            varMap[":datasetID"] = datasetID
                             self.cur.execute(selCKF + comment, varMap)
-                            newNumFiles, = self.cur.fetchone()
-                            tmpLog.debug(f'jediTaskID={jediTaskID} datasetID={datasetID} nFilesToBeUsed-nFilesUsed old:{tmpNumFiles} new:{newNumFiles}')
+                            (newNumFiles,) = self.cur.fetchone()
+                            tmpLog.debug(f"jediTaskID={jediTaskID} datasetID={datasetID} nFilesToBeUsed-nFilesUsed old:{tmpNumFiles} new:{newNumFiles}")
                             if tmpNumFiles > newNumFiles:
-                                tmpLog.debug(f'skip jediTaskID={jediTaskID} since nFilesToBeUsed-nFilesUsed decreased')
+                                tmpLog.debug(f"skip jediTaskID={jediTaskID} since nFilesToBeUsed-nFilesUsed decreased")
                                 lockedByAnother.append(jediTaskID)
                                 toSkip = True
                                 break
                         if toSkip:
                             if not self._commit():
-                                raise RuntimeError('Commit error')
+                                raise RuntimeError("Commit error")
                             continue
                     # skip fake co-jumbo for scouting
                     if not containMerging and len(dsWithfakeCoJumbo) > 0 and origTaskSpec.useScout() and not origTaskSpec.isPostScout():
@@ -8002,7 +7995,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 sqlLock = "SELECT comm_cmd FROM {0}.PRODSYS_COMM WHERE comm_task=:comm_task ".format(jedi_config.db.schemaDEFT)
                 sqlLock += "FOR UPDATE "
                 toSkip = False
-                changeStatusOnly = False
+                sync_action_only = False
                 resetFrozenTime = False
                 try:
                     tmpLog.debug(sqlLock + comment + str(varMap))
@@ -8017,6 +8010,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         # failed with something else
                         raise errType(errValue)
                 isOK = True
+                update_task = True
                 if not toSkip:
                     if isOK:
                         # check task status
@@ -8031,7 +8025,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                             isOK = False
                         else:
                             taskStatus, taskOldStatus, wallTimeUnit = resTC
-                            tmpLog.debug(f"jediTaskID={jediTaskID} in status:{taskStatus} oldStatus:{taskOldStatus}")
+                            tmpLog.debug(f"jediTaskID={jediTaskID} in status:{taskStatus} old:{taskOldStatus} com:{commandStr}")
                             if commandStr == "retry":
                                 if taskStatus not in JediTaskSpec.statusToRetry():
                                     # task is in a status which rejects retry
@@ -8061,6 +8055,13 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         "jediTaskID={0} rejected command={1}. status={2} is not for avalanche".format(jediTaskID, commandStr, taskStatus)
                                     )
                                     isOK = False
+                            elif commandStr == "release":
+                                if taskStatus not in ["scouting", "pending", "running", "ready", "assigning", "defined"]:
+                                    # task is in a status which rejects avalanche
+                                    tmpLog.error("jediTaskID={0} rejected command={1}. status={2} is not applicable".format(jediTaskID, commandStr, taskStatus))
+                                    isOK = False
+                                update_task = False
+                                sync_action_only = True
                             elif taskStatus in JediTaskSpec.statusToRejectExtChange():
                                 # task is in a status which rejects external changes
                                 tmpLog.error("jediTaskID={0} rejected command={1} (due to status={2})".format(jediTaskID, commandStr, taskStatus))
@@ -8074,20 +8075,24 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                         newTaskStatus = "running"
                                     else:
                                         newTaskStatus = taskOldStatus
-                                    changeStatusOnly = True
+                                    sync_action_only = True
                                     resetFrozenTime = True
                                 elif commandStr in ["avalanche"]:
                                     newTaskStatus = "scouting"
-                                    changeStatusOnly = True
+                                    sync_action_only = True
                                 elif commandStr == "resume" and taskStatus == "staging":
                                     newTaskStatus = "staged"
-                                    changeStatusOnly = True
+                                    sync_action_only = True
                                 elif commandStr in commandStatusMap:
                                     newTaskStatus = commandStatusMap[commandStr]["doing"]
                                 else:
                                     tmpLog.error("jediTaskID={0} new status is undefined for command={1}".format(jediTaskID, commandStr))
                                     isOK = False
                     if isOK:
+                        # actions in transaction
+                        if commandStr == "release":
+                            self.updateInputDatasetsStagedAboutIdds_JEDI(jediTaskID, None, use_commit=False)
+                    if isOK and update_task:
                         # update task status
                         varMap = {}
                         varMap[":jediTaskID"] = jediTaskID
@@ -8103,7 +8108,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                                 tmpLog.error("jediTaskID={0} has oldStatus=None and status={1} for ".format(jediTaskID, taskStatus, commandStr))
                                 isOK = False
                             sqlTU += "SET status=oldStatus,"
-                        if taskStatus in ["paused"] or changeStatusOnly:
+                        if taskStatus in ["paused"] or sync_action_only:
                             sqlTU += "oldStatus=NULL,"
                         elif taskStatus in ["throttled"] and commandStr in ["pause", "reassign"]:
                             # unchange oldStatus when throttled->paused/toreassign
@@ -8157,7 +8162,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                         self.cur.execute(sqlUC + comment, varMap)
                         # append
                         if isOK:
-                            if commandStr not in ["pause", "resume"] and not changeStatusOnly:
+                            if commandStr not in ["pause", "resume"] and not sync_action_only:
                                 retTaskIDs[jediTaskID] = {"command": commandStr, "comment": comComment, "oldStatus": taskStatus}
                                 # use old status if pending or throttled
                                 if taskStatus in ["pending", "throttled"]:
@@ -13571,13 +13576,16 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             tmpLog.debug("updated {0} files for datasetID={1}".format(n, secondaryID))
 
     # update input datasets stage-in done according to message from idds
-    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames_dict, use_commit=True):
+    def updateInputDatasetsStagedAboutIdds_JEDI(self, jeditaskid, scope, dsnames_dict=None, use_commit=True):
         comment = " /* JediDBProxy.updateInputDatasetsStagedAboutIdds_JEDI */"
         methodName = self.getMethodName(comment)
         methodName += " < jediTaskID={0} >".format(jeditaskid)
         tmpLog = MsgWrapper(logger, methodName)
         tmpLog.debug("start")
         try:
+            # update all files when scope is None
+            if scope is None:
+                dsnames_dict = [None]
             retVal = 0
             # varMap
             varMap = dict()
@@ -13586,7 +13594,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
             varMap[":type2"] = "pseudo_input"
             varMap[":old_status"] = "staging"
             varMap[":new_status"] = "pending"
-            # sql
+            # sql with dataset name
             sqlUD = (
                 "UPDATE {0}.JEDI_Dataset_Contents "
                 "SET status=:new_status "
@@ -13596,13 +13604,27 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
                 "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2) AND datasetName=:datasetName) "
                 "AND status=:old_status "
             ).format(jedi_config.db.schemaJEDI)
+            # sql without dataset name
+            sql_wo_dataset_name = (
+                "UPDATE {0}.JEDI_Dataset_Contents "
+                "SET status=:new_status "
+                "WHERE jediTaskID=:jediTaskID "
+                "AND datasetID IN ("
+                "SELECT datasetID FROM {0}.JEDI_Datasets "
+                "WHERE jediTaskID=:jediTaskID AND type IN (:type1,:type2)) "
+                "AND status=:old_status "
+            ).format(jedi_config.db.schemaJEDI)
             # begin transaction
             if use_commit:
                 self.conn.begin()
             for dsname in dsnames_dict:
-                varMap[":datasetName"] = "{0}:{1}".format(scope, dsname)
-                tmpLog.debug("running sql: {0} {1}".format(sqlUD, varMap))
-                self.cur.execute(sqlUD + comment, varMap)
+                if scope:
+                    varMap[":datasetName"] = "{0}:{1}".format(scope, dsname)
+                    sql = sqlUD
+                else:
+                    sql = sql_wo_dataset_name
+                tmpLog.debug(f"running sql: {sql} {str(varMap)}")
+                self.cur.execute(sql + comment, varMap)
                 retVal += self.cur.rowcount
             self.fix_associated_files_in_staging(jeditaskid)
             # update task to trigger CF immediately
