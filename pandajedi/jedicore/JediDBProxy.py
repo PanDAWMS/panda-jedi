@@ -20,12 +20,9 @@ try:
 except Exception:
     long = int
 
-import taskbuffer.OraDBProxy
-
 # logger
 from pandacommon.pandalogger.PandaLogger import PandaLogger
-from pandaserver import taskbuffer
-from pandaserver.taskbuffer import EventServiceUtils, JobUtils
+from pandaserver.taskbuffer import EventServiceUtils, JobUtils, OraDBProxy
 
 from pandajedi.jediconfig import jedi_config
 
@@ -39,7 +36,7 @@ from .MsgWrapper import MsgWrapper
 from .WorkQueueMapper import WorkQueueMapper
 
 logger = PandaLogger().getLogger(__name__.split(".")[-1])
-taskbuffer.OraDBProxy._logger = logger
+OraDBProxy._logger = logger
 
 
 # get database backend
@@ -83,10 +80,10 @@ def get_mb_proxy_dict():
         return mb_proxy_dict
 
 
-class DBProxy(taskbuffer.OraDBProxy.DBProxy):
+class DBProxy(OraDBProxy.DBProxy):
     # constructor
     def __init__(self, useOtherError=False):
-        taskbuffer.OraDBProxy.DBProxy.__init__(self, useOtherError)
+        OraDBProxy.DBProxy.__init__(self, useOtherError)
         # attributes for JEDI
         #
         # list of work queues
@@ -110,9 +107,7 @@ class DBProxy(taskbuffer.OraDBProxy.DBProxy):
         dbtimeout=None,
         reconnect=False,
     ):
-        return taskbuffer.OraDBProxy.DBProxy.connect(
-            self, dbhost=dbhost, dbpasswd=dbpasswd, dbuser=dbuser, dbname=dbname, dbtimeout=dbtimeout, reconnect=reconnect
-        )
+        return OraDBProxy.DBProxy.connect(self, dbhost=dbhost, dbpasswd=dbpasswd, dbuser=dbuser, dbname=dbname, dbtimeout=dbtimeout, reconnect=reconnect)
 
     # extract method name from comment
     def getMethodName(self, comment):
