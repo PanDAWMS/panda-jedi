@@ -1362,9 +1362,11 @@ class JediTaskSpec(object):
     # get host CPU spec
     def get_host_cpu_spec(self):
         try:
-            if self.architecture is None or re.search(r"^[\^@&]", self.architecture):
+            if not self.architecture:
                 return None
             if "#" not in self.architecture:
+                if re.search(r"^[\^@&]", self.architecture):
+                    return None
                 arch = self.architecture.split("-")[0]
                 if arch:
                     return {"arch": arch, "vendor": "*", "instr": "*"}
